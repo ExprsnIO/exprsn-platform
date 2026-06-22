@@ -11,29 +11,55 @@ const { Group, User, UserGroup } = require('../models');
 
 const router = express.Router();
 
+/** Derive a URL-safe slug from a display name (slug is required + unique per org). */
+function slugify(name) {
+  return String(name).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 // All group routes require authentication
 router.use(validateCAToken({ requiredPermissions: ['read'] }));
 
 /**
+ * GET /api/groups
+ * List groups. Optional ?organizationId scopes to one organization. Declared
+ * before `/:id` so the bare collection path is matched here.
+ */
+router.get('/', asyncHandler(async (req, res) => {
+  const { organizationId } = req.query;
+  const where = organizationId ? { organizationId } : {};
+
+  const groups = await Group.findAll({
+    where,
+    order: [['name', 'ASC']],
+    include: [{ model: User, as: 'members', attributes: ['id', 'email', 'displayName'], through: { attributes: [] } }]
+  });
+
+  res.json({ groups });
+}));
+
+/**
  * POST /api/groups
- * Create new group
+ * Create new group. Pass organizationId to scope the group to an organization.
  */
 router.post('/', validateCAToken({ requiredPermissions: ['write'] }), asyncHandler(async (req, res) => {
-  const { name, description, permissions, parentId } = req.body;
+  const { name, description, permissions, parentId, organizationId } = req.body;
 
   validateRequired({ name }, ['name']);
 
-  // Check if group exists
-  const existingGroup = await Group.findOne({ where: { name } });
+  // Group names are unique within their scope (organization, or global).
+  const existingGroup = await Group.findOne({ where: { name, organizationId: organizationId || null } });
   if (existingGroup) {
     throw new AppError('Group already exists', 409, 'GROUP_EXISTS');
   }
 
   const group = await Group.create({
     name,
+    slug: slugify(name),
     description,
     permissions: permissions || {},
-    parentId
+    parentId,
+    organizationId: organizationId || null,
+    type: organizationId ? 'organization' : 'custom'
   });
 
   res.status(201).json({

@@ -190,11 +190,13 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | DELETE | /auth/api/sessions/:id | `id` | — | — | Session | cannot revoke current |
 | DELETE | /auth/api/sessions | — | — | — | Session | revokes all except current |
 | POST | /auth/api/sessions/refresh | — | — | — | Session | extends by session lifetime |
+| GET | /auth/api/users | — | `limit`, `offset`, `search` | `limit`≤200 | CA `read` | list; `limit=50`, `offset=0`; search matches email/displayName |
 | GET | /auth/api/users/:id | `id` | — | — | CA `read`; own or admin | — |
 | PUT | /auth/api/users/:id | `id` | `displayName`, `firstName`, `lastName`, `bio`, `avatarUrl` | — | CA `update`; own only | — |
 | DELETE | /auth/api/users/:id | `id` | — | — | CA `delete`; own only | status→inactive |
 | GET | /auth/api/users/:id/groups | `id` | — | — | CA `read`; own or admin | — |
-| POST | /auth/api/groups | `name` | `description`, `permissions`, `parentId` | — | CA `write` | 201; `permissions={}` |
+| GET | /auth/api/groups | — | `organizationId` | — | CA `read` | list; `organizationId` scopes to one org |
+| POST | /auth/api/groups | `name` | `description`, `permissions`, `parentId`, `organizationId` | — | CA `write` | 201; slug derived from name; `organizationId`→org-scoped |
 | GET | /auth/api/groups/:id | `id` | — | — | CA `read` | — |
 | PUT | /auth/api/groups/:id | `id` | `name`, `description`, `permissions` | — | CA `update` | — |
 | DELETE | /auth/api/groups/:id | `id` | — | — | CA `delete` | — |

@@ -8,13 +8,55 @@
 import { http } from '@/lib/http';
 import type { User } from '@/api/auth';
 
+/** Two-factor methods that can be permitted by an org policy. `totp` and
+ *  `backup_codes` are implemented end-to-end; the rest are config-only
+ *  scaffolding for methods not yet built in the auth service. */
+export type MfaMethod = 'totp' | 'backup_codes' | 'sms' | 'email' | 'webauthn';
+
+export interface OrgMfaPolicy {
+  allowedMethods?: MfaMethod[];
+  enrollmentGracePeriodDays?: number;
+  rememberDeviceDays?: number;
+}
+
+export interface OrgPasswordPolicy {
+  minLength?: number;
+  requireUppercase?: boolean;
+  requireLowercase?: boolean;
+  requireNumbers?: boolean;
+  requireSymbols?: boolean;
+}
+
+export interface OrgSettings {
+  allowUserRegistration?: boolean;
+  requireEmailVerification?: boolean;
+  requireMfa?: boolean;
+  mfa?: OrgMfaPolicy;
+  sessionTimeout?: number; // milliseconds
+  passwordPolicy?: OrgPasswordPolicy;
+  [k: string]: unknown;
+}
+
+export type OrgType = 'enterprise' | 'team' | 'personal';
+export type OrgPlan = 'free' | 'starter' | 'professional' | 'enterprise';
+
 export interface Organization {
   id: string;
   name: string;
   slug?: string;
+  description?: string | null;
+  type?: OrgType;
   ownerId?: string;
+  email?: string | null;
+  website?: string | null;
+  logoUrl?: string | null;
+  plan?: OrgPlan;
+  billingEmail?: string | null;
   status?: string;
+  settings?: OrgSettings;
+  metadata?: Record<string, unknown>;
   createdAt?: string;
+  updatedAt?: string;
   [k: string]: unknown;
 }
 export interface OrgMember {
@@ -22,6 +64,29 @@ export interface OrgMember {
   userId: string;
   role?: string;
   status?: string;
+  user?: { id: string; email?: string; displayName?: string | null };
+  [k: string]: unknown;
+}
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  status?: string;
+  emailVerified?: boolean;
+  mfaEnabled?: boolean;
+  lastLoginAt?: string | null;
+  createdAt?: string;
+  [k: string]: unknown;
+}
+export interface Group {
+  id: string;
+  name: string;
+  description?: string | null;
+  organizationId?: string | null;
+  type?: string;
+  members?: Array<{ id: string; email?: string; displayName?: string | null }>;
   [k: string]: unknown;
 }
 export interface Application {
@@ -75,15 +140,32 @@ export const authAdminApi = {
   getConfigSection: (section: string) => http.get<unknown>(`/auth/api/config/${section}`),
   saveConfigSection: (section: string, data: unknown) => http.post<unknown>(`/auth/api/config/${section}`, data),
 
-  // Users / groups by id.
+  // Users.
+  listUsers: (params?: { limit?: number; offset?: number; search?: string }) =>
+    http.get<{ users: AuthUser[]; pagination?: Record<string, number> }>(`/auth/api/users${q(params)}`),
   getUser: (id: string) => http.get<{ user?: User } & Record<string, unknown>>(`/auth/api/users/${id}`),
   getUserGroups: (id: string) => http.get<Record<string, unknown>>(`/auth/api/users/${id}/groups`),
 
+  // Groups.
+  listGroups: (params?: { organizationId?: string }) =>
+    http.get<{ groups: Group[] }>(`/auth/api/groups${q(params)}`),
+  createGroup: (body: { name: string; description?: string; organizationId?: string }) =>
+    http.post<{ group: Group }>('/auth/api/groups', body),
+  deleteGroup: (id: string) => http.del<Record<string, unknown>>(`/auth/api/groups/${id}`),
+
   // Organizations.
   listOrganizations: () => http.get<{ organizations?: Organization[]; data?: Organization[] }>('/auth/api/organizations'),
-  getOrganization: (id: string) => http.get<Record<string, unknown>>(`/auth/api/organizations/${id}`),
+  getOrganization: (id: string) => http.get<{ organization: Organization }>(`/auth/api/organizations/${id}`),
   createOrganization: (body: Record<string, unknown>) => http.post<Record<string, unknown>>('/auth/api/organizations', body),
+  updateOrganization: (id: string, body: Record<string, unknown>) =>
+    http.patch<{ organization?: Organization }>(`/auth/api/organizations/${id}`, body),
   listOrgMembers: (id: string) => http.get<{ members?: OrgMember[]; data?: OrgMember[] }>(`/auth/api/organizations/${id}/members`),
+  addOrgMember: (id: string, userId: string, role?: string) =>
+    http.post<Record<string, unknown>>(`/auth/api/organizations/${id}/members`, { userId, role }),
+  updateOrgMember: (id: string, userId: string, role: string) =>
+    http.patch<Record<string, unknown>>(`/auth/api/organizations/${id}/members/${userId}`, { role }),
+  removeOrgMember: (id: string, userId: string) =>
+    http.del<Record<string, unknown>>(`/auth/api/organizations/${id}/members/${userId}`),
 
   // Applications.
   listApplications: (organizationId?: string) =>
@@ -99,6 +181,10 @@ export const authAdminApi = {
     http.post<Record<string, unknown>>(`/auth/api/roles/${roleId}/assign-user`, { userId, organizationId }),
   revokeRoleUser: (roleId: string, userId: string, organizationId?: string) =>
     http.post<Record<string, unknown>>(`/auth/api/roles/${roleId}/revoke-user`, { userId, organizationId }),
+  assignRoleGroup: (roleId: string, groupId: string, organizationId?: string) =>
+    http.post<Record<string, unknown>>(`/auth/api/roles/${roleId}/assign-group`, { groupId, organizationId }),
+  revokeRoleGroup: (roleId: string, groupId: string, organizationId?: string) =>
+    http.post<Record<string, unknown>>(`/auth/api/roles/${roleId}/revoke-group`, { groupId, organizationId }),
 
   // Sessions (self).
   listSessions: () => http.get<{ sessions?: Session[]; data?: Session[] }>('/auth/api/sessions'),

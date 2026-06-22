@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Chip, Stack, Tab, Tabs } from '@mui/material';
 import { sparkAdminApi, SPARK_CONFIG_SECTIONS } from '@/api/admin/spark';
 import { asQueueMap } from '@/api/admin/jobs';
-import { Card, ConfigSectionEditor, QueryState, SectionHeader, useToast } from '../ui';
+import { Card, ConfigSectionEditor, DataView, QueryState, SectionHeader, useToast } from '../ui';
 
 function QueuesTab({ onToast }: { onToast: (m: string) => void }) {
   const qc = useQueryClient();
@@ -15,7 +15,7 @@ function QueuesTab({ onToast }: { onToast: (m: string) => void }) {
       {(raw) => {
         const map = asQueueMap(raw);
         const names = Object.keys(map);
-        if (!names.length) return <pre style={{ fontSize: 12, overflow: 'auto' }}>{JSON.stringify(raw, null, 2)}</pre>;
+        if (!names.length) return <DataView value={raw} />;
         return (
           <Stack spacing={1.5}>
             {names.map((name) => (

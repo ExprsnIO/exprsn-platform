@@ -485,7 +485,7 @@ router.get('/api/users', requireAuth, requireAdmin, async (req, res) => {
       limit,
       offset,
       order: [['createdAt', 'DESC']],
-      attributes: ['id', 'username', 'email', 'status', 'locked', 'createdAt', 'lastLoginAt']
+      attributes: ['id', 'username', 'email', 'status', 'lockedUntil', 'createdAt', 'lastLoginAt']
     });
 
     const total = await User.count({ where });

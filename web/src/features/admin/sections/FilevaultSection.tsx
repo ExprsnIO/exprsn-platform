@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Tab, Tabs, TextField } from '@mui/material';
 import { filevaultAdminApi, type Quota } from '@/api/admin/filevault';
 import { formatBytes } from '@/features/files/util';
-import { Card, DataTable, JsonDialog, QueryState, SectionHeader, StatCard, useToast } from '../ui';
+import { Card, DataTable, DataView, JsonDialog, QueryState, SectionHeader, StatCard, useToast } from '../ui';
 
 function arr<T>(d: Record<string, unknown>, ...keys: string[]): T[] {
   for (const k of keys) if (Array.isArray(d[k])) return d[k] as T[];
@@ -27,8 +27,8 @@ function StorageTab() {
           </Stack>
         )}
       </QueryState>
-      <Card title="Deduplication"><QueryState query={dedup}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState></Card>
-      <Card title="Storage backend health"><QueryState query={health}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState></Card>
+      <Card title="Deduplication"><QueryState query={dedup}>{(d) => <DataView value={d} />}</QueryState></Card>
+      <Card title="Storage backend health"><QueryState query={health}>{(d) => <DataView value={d} />}</QueryState></Card>
     </Stack>
   );
 }

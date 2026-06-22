@@ -25,7 +25,7 @@ import {
   PREFETCH_CONFIG_SECTIONS,
   type Job,
 } from '@/api/admin/jobs';
-import { Card, ConfigSectionEditor, DataTable, JsonDialog, QueryState, SectionHeader, StatCard, useToast } from '../ui';
+import { Card, ConfigSectionEditor, DataTable, DataView, JsonDialog, QueryState, SectionHeader, StatCard, useToast } from '../ui';
 
 const JOB_STATES = ['waiting', 'active', 'completed', 'failed', 'delayed'];
 
@@ -187,7 +187,7 @@ function PrefetchTab({ onToast }: { onToast: (m: string) => void }) {
       </Card>
 
       <Card title="Metrics" actions={<Button size="small" onClick={() => setView({ title: 'Prefetch metrics', value: metrics.data })} disabled={!metrics.data}>View raw</Button>}>
-        <QueryState query={metrics}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState>
+        <QueryState query={metrics}>{(d) => <DataView value={d} />}</QueryState>
       </Card>
 
       <ConfigSectionEditor sections={PREFETCH_CONFIG_SECTIONS} load={(s) => prefetchAdminApi.getConfigSection(s)} save={(s, data) => prefetchAdminApi.saveConfigSection(s, data)} />

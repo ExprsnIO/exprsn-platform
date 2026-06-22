@@ -15,7 +15,7 @@ import {
   type Workflow,
 } from '@/api/admin/moderator';
 import { formatDate } from '@/features/files/util';
-import { Card, ConfigSectionEditor, DataTable, JsonDialog, QueryState, SectionHeader, StatusChip, useToast } from '../ui';
+import { Card, ConfigSectionEditor, DataTable, DataView, JsonDialog, QueryState, SectionHeader, StatusChip, useToast } from '../ui';
 
 function arr<T>(d: Record<string, unknown>, ...keys: string[]): T[] {
   for (const k of keys) if (Array.isArray(d[k])) return d[k] as T[];
@@ -137,7 +137,7 @@ function AppealsTab({ onToast }: { onToast: (m: string) => void }) {
   return (
     <Stack spacing={2}>
       <Card title="Appeal stats">
-        <QueryState query={stats}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState>
+        <QueryState query={stats}>{(d) => <DataView value={d} />}</QueryState>
       </Card>
       <QueryState query={query} empty="No appeals.">
         {(d) => (
@@ -202,8 +202,8 @@ function MetricsTab() {
       <TextField select size="small" label="Period" value={period} onChange={(e) => setPeriod(e.target.value)} sx={{ maxWidth: 200 }}>
         {['today', 'week', 'month', 'all'].map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
       </TextField>
-      <Card title="Metrics"><QueryState query={metrics}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState></Card>
-      <Card title="AI providers"><QueryState query={providers}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState></Card>
+      <Card title="Metrics"><QueryState query={metrics}>{(d) => <DataView value={d} />}</QueryState></Card>
+      <Card title="AI providers"><QueryState query={providers}>{(d) => <DataView value={d} />}</QueryState></Card>
       <Card title="Recent actions">
         <QueryState query={actions} empty="No recent actions.">
           {(d) => (

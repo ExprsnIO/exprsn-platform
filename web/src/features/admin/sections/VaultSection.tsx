@@ -29,7 +29,7 @@ import {
   type Secret,
 } from '@/api/admin/vault';
 import { formatDate } from '@/features/files/util';
-import { Card, ConfigSectionEditor, DataTable, JsonDialog, PermBadges, QueryState, SectionHeader, StatCard, StatusChip, useToast } from '../ui';
+import { Card, ConfigSectionEditor, DataTable, DataView, JsonDialog, PermBadges, QueryState, SectionHeader, StatCard, StatusChip, useToast } from '../ui';
 
 function arr<T>(d: Record<string, unknown>, ...keys: string[]): T[] {
   for (const k of keys) if (Array.isArray(d[k])) return d[k] as T[];
@@ -230,7 +230,7 @@ function AuditTab() {
   return (
     <Stack spacing={2}>
       <Card title="Audit stats">
-        <QueryState query={stats}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState>
+        <QueryState query={stats}>{(d) => <DataView value={d} />}</QueryState>
       </Card>
       <Card title="Audit log">
         <QueryState query={logs} empty="No audit entries.">

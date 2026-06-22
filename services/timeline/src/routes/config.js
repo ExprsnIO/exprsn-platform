@@ -96,7 +96,7 @@ async function getTimelineSettings() {
   const totalLists = await List.count();
   const todayPosts = await Post.count({
     where: {
-      created_at: {
+      createdAt: {
         [Op.gte]: new Date(new Date().setHours(0, 0, 0, 0))
       }
     }

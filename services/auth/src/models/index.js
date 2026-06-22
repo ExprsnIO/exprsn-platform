@@ -106,6 +106,11 @@ User.belongsToMany(Organization, {
   as: 'organizations'
 });
 
+// Direct join-row associations so the membership row can eager-load its user /
+// organization (organizationService.getMembers includes { as: 'user' }).
+OrganizationMember.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+OrganizationMember.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+
 // OAuth2Token relationships
 User.hasMany(OAuth2Token, {
   foreignKey: 'userId',

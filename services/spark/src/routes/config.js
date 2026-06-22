@@ -96,7 +96,7 @@ async function getMessagingSettings() {
   const totalConversations = await Conversation.count();
   const todayMessages = await Message.count({
     where: {
-      created_at: {
+      createdAt: {
         [Op.gte]: new Date(new Date().setHours(0, 0, 0, 0))
       }
     }

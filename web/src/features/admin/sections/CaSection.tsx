@@ -24,6 +24,7 @@ import {
   Card,
   ConfigSectionEditor,
   DataTable,
+  DataView,
   JsonDialog,
   PermBadges,
   QueryState,
@@ -360,10 +361,10 @@ function PkiTab({ onToast }: { onToast: (m: string) => void }) {
   return (
     <Stack spacing={2}>
       <Card title="OCSP responder" actions={<Button size="small" onClick={() => setView({ title: 'OCSP status', value: ocsp.data })} disabled={!ocsp.data}>View raw</Button>}>
-        <QueryState query={ocsp}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState>
+        <QueryState query={ocsp}>{(d) => <DataView value={d} />}</QueryState>
       </Card>
       <Card title="Certificate Revocation List" actions={<Button size="small" variant="contained" onClick={() => gen.mutate()} disabled={gen.isPending}>Generate CRL</Button>}>
-        <QueryState query={crl}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState>
+        <QueryState query={crl}>{(d) => <DataView value={d} />}</QueryState>
       </Card>
       <JsonDialog open={!!view} title={view?.title ?? ''} value={view?.value} onClose={() => setView(null)} />
     </Stack>
@@ -377,7 +378,7 @@ function ConfigTab() {
   return (
     <Stack spacing={2}>
       <Card title="Masked configuration">
-        <QueryState query={cfg}>{(d) => <pre style={{ margin: 0, fontSize: 12, overflow: 'auto' }}>{JSON.stringify(d, null, 2)}</pre>}</QueryState>
+        <QueryState query={cfg}>{(d) => <DataView value={d} />}</QueryState>
       </Card>
       <ConfigSectionEditor
         sections={['__updates__']}

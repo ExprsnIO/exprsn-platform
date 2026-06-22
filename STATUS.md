@@ -418,6 +418,23 @@ ownership) against it while leaving pure viewer subscribe paths open. Keep viewe
 latency unaffected — only the publish/host events need the gate. Tracked as a
 sprint ticket. Surfaced during socket verification (#3).
 
+### 12. Org 2FA policy enforcement — NOT WIRED (UI-only as of 2026-06-22)
+The admin "Auth & Identity" → Organizations tab now has a **2FA policy** editor
+(`web/src/features/admin/sections/AuthSection.tsx` → `MfaPolicyDialog`) that
+persists, per org, `settings.requireMfa`, `settings.mfa.allowedMethods`,
+`settings.mfa.enrollmentGracePeriodDays`, and `settings.mfa.rememberDeviceDays`
+via `PATCH /auth/api/organizations/:id`. **These settings are saved but not yet
+enforced at login** — `services/auth/src/routes/auth.js` checks only the
+per-user `user.mfaEnabled`, never the org policy. Follow-ups to make the policy
+real: (a) on login, if the user's org has `requireMfa`, force 2FA enrollment
+(respecting the grace period) before issuing a token; (b) restrict the user MFA
+setup/validate paths to the org's `allowedMethods`; (c) implement the
+non-`totp`/`backup_codes` methods (`sms`/`email`/`webauthn`) — currently config
+scaffolding only, surfaced as "not yet available" in the UI; (d) honour
+`rememberDeviceDays` (trusted-device skip). The UI shows a warning banner saying
+the policy is not yet enforced. Model default updated in
+`services/auth/src/models/Organization.js`.
+
 ## Production readiness (release engineering) — NOT in the numbered follow-ups
 
 The numbered items above are functional/module-level. These are the

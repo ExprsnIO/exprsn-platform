@@ -6,16 +6,18 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
-const { requireAdmin } = require('../middleware/auth');
+const { requireRead, requireWrite } = require('../middleware/auth');
 
-// Configuration endpoints expose and mutate Vault settings — admin only.
-router.use(requireAdmin('/config'));
+// Configuration endpoints expose and mutate Vault settings. CA tokens have no
+// "admin" permission (the model is read/write/append/delete/update), so gate by
+// operation: reads require `read`, writes require `write`. Both are scoped to
+// the /config resource prefix.
 
 /**
  * GET /api/config/:sectionId
  * Fetch configuration for a specific section
  */
-router.get('/:sectionId', async (req, res) => {
+router.get('/:sectionId', ...requireRead('/config'), async (req, res) => {
   const { sectionId } = req.params;
 
   try {
@@ -60,7 +62,7 @@ router.get('/:sectionId', async (req, res) => {
  * POST /api/config/:sectionId
  * Update configuration for a specific section
  */
-router.post('/:sectionId', async (req, res) => {
+router.post('/:sectionId', ...requireWrite('/config'), async (req, res) => {
   const { sectionId } = req.params;
   const configData = req.body;
 

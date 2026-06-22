@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A unified Node.js platform that consolidates ten formerly-standalone Exprsn microservices (CA, auth, spark/messaging, nexus/groups, filevault, vault/secrets, timeline, prefetch, moderator, live/streaming) into **one process behind one HTTPS port** (default 8443). The originals live untouched at `/Volumes/Storage/exprsn-<name>/`; this repo contains adapted copies under `services/`. Plain JavaScript (CommonJS), Express 4, Sequelize 6, Socket.IO 4. Not a git repository.
+A unified Node.js platform that consolidates ten formerly-standalone Exprsn microservices (CA, auth, spark/messaging, nexus/groups, filevault, vault/secrets, timeline, prefetch, moderator, live/streaming) into **one process behind one HTTPS port** (default 8443). The originals live untouched at `/Volumes/Storage/exprsn-<name>/`; this repo contains adapted copies under `services/`. Plain JavaScript (CommonJS), Express 4, Sequelize 6, Socket.IO 4. Under git (`main`, initial commit) with CI at `.github/workflows/ci.yml` — no remote wired yet (push + branch protection are pending; see STATUS.md R1).
 
 ## Commands
 
@@ -16,8 +16,15 @@ npm run db:bootstrap   # src/db/migrate.js — create db `exprsn` + one Postgres
 npm run db:migrate     # scripts/migrate-sync.js — sync each module's models into its schema
 npm start              # https://localhost:8443 — verify with: curl -k https://localhost:8443/health
 npm run dev            # same, with nodemon
-npm run lint           # eslint over src/ and services/
+npm run lint           # eslint (root .eslintrc.json) over src/ + services/ — errors fail, warnings don't
+npm run test:all       # scripts/test-all.js — aggregate per-module Jest suites
 ```
+
+CI (`.github/workflows/ci.yml`) gates PRs on **lint** + **web-build** (required); the
+**test** job (`test:all` with Postgres/Redis service containers) is non-blocking while
+the module suites stabilize. `npm run lint` only works because of the root
+`.eslintrc.json` (the repo had no ESLint config before — `eslint:recommended` with
+noisy rules downgraded to warnings).
 
 `npm run db:migrate:raw` (`scripts/migrate-modules.js`) is the alternative path that replays each module's own historical migration files instead of syncing models — see Data isolation below for when that distinction matters.
 
@@ -48,7 +55,7 @@ After `web:build`, recreate the nginx container to publish: `docker compose --pr
 
 ### Tests
 
-There is **no root test script**. Backend tests are per module (Jest + supertest), run from the module directory:
+`npm run test:all` (`scripts/test-all.js`) aggregates the per-module Jest suites (auth, nexus, timeline, moderator, spark) and exits non-zero if any fails. It runs each with `--coverage=false` because nexus's `package.json` sets a 70% coverage **threshold** that would otherwise fail CI on coverage rather than on a real test failure. For a single module/file/test, run Jest from the module directory:
 
 ```bash
 cd services/auth && npx jest                      # whole module suite
@@ -57,6 +64,17 @@ cd services/auth && npx jest -t "name of test"    # single test by name
 ```
 
 Some modules have extra Jest configs (`jest --config jest.integration.config.js`, spark's `jest.websocket.config.js`) — check the module's `package.json` scripts.
+
+**Auth suite (non-obvious):** it talks to a **real Postgres** and force-syncs the schema, so point it at a SEPARATE database — never the real `exprsn` DB:
+
+```bash
+# one-time: create the test DB (owned by the same user as exprsn)
+docker exec -e PGPASSWORD=<pw> exprsn-postgres psql -U exprsn -d exprsn -c "CREATE DATABASE exprsn_auth_test;"
+cd services/auth && AUTH_DB_NAME=exprsn_auth_test AUTH_DB_USER=exprsn AUTH_DB_PASSWORD=<pw> \
+  AUTH_DB_HOST=localhost AUTH_DB_PORT=5432 npx jest
+```
+
+`tests/setup.js` mocks the in-process CA (`services/ca/services/token` + `platformSigning`) with a stateful fake and disables the `@exprsn/shared` rate limiters; `jest.config.js` sets `maxWorkers:1` because all suites share that one test DB. Only `tests/session.test.js` is currently green — the other auth suites have a pre-existing-failure backlog (STATUS.md #9 note).
 
 Bull queue workers are **not** part of the gateway process; run separately via the root aliases `npm run worker:timeline` (`node services/timeline/src/worker.js`) and `npm run worker:prefetch` (`PREFETCH_ROLE=worker node services/prefetch/src/worker.js`).
 
@@ -110,11 +128,11 @@ Code still issues HTTP calls via `*_SERVICE_URL` env vars, which now all point b
 
 ### MVP / release readiness
 
-The code is structurally complete and largely runtime-verified; the gap to a real release is mostly **release engineering**, tracked in `STATUS.md` → **Production readiness (R1–R6)**: no git/CI yet, dev-only self-signed TLS, Winston-only observability (no metrics/tracing/error-tracking), `.env` secrets without rotation, and no load/backup verification. Don't assume "runs locally" means "shippable".
+The code is structurally complete and largely runtime-verified; the gap to a real release is mostly **release engineering**, tracked in `STATUS.md` → **Production readiness (R1–R6)**: git + CI now exist locally (R1, lint + web-build gates) but the repo has no remote/branch-protection yet; still dev-only self-signed TLS, Winston-only observability (no metrics/tracing/error-tracking), `.env` secrets without rotation, and no load/backup verification. Don't assume "runs locally" means "shippable".
 
 Current MVP scope decisions (2026-06-22), which determine what's blocking:
 
 - **Single gateway instance** for MVP — so spark's redis-adapter ownership (STATUS #3) is deferred, not blocking.
 - **`/live` streaming publish is in scope** — so its WebRTC signaling needs per-event auth (STATUS #11) before MVP.
-- **Sessions get the full fix** (STATUS #9) — persist `Session` rows on login and revoke the CA token on delete, not the hide-the-tab cut.
+- **Sessions full fix — DONE** (STATUS #9): `Session` rows persist on every login path with the CA token id, and `DELETE /sessions` + logout revoke the CA token in-process (bearer 401s after). `services/auth/tests/session.test.js` is green.
 - **Sprint ordering is release-engineering-first** — see `SPRINT.md`.

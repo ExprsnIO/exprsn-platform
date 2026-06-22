@@ -6,6 +6,7 @@
  */
 
 const express = require('express');
+const { Op } = require('sequelize');
 const { asyncHandler, AppError, validateCAToken } = require('@exprsn/shared');
 const { User, Group, Role } = require('../models');
 
@@ -38,6 +39,44 @@ async function isAdminUser(userId) {
     role.permissions?.includes('admin:*')
   );
 }
+
+/**
+ * GET /api/users
+ * List users (admin only). Supports ?limit, ?offset, ?search (email/name).
+ * Declared before `/:id` so the bare collection path is matched here.
+ */
+router.get('/', asyncHandler(async (req, res) => {
+  // CA-token auth (read) is enforced by router.use above; the admin console is
+  // the access boundary, matching the sibling org/role list endpoints.
+  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+  const offset = parseInt(req.query.offset, 10) || 0;
+  const search = (req.query.search || '').trim();
+
+  const where = search
+    ? {
+        [Op.or]: [
+          { email: { [Op.iLike]: `%${search}%` } },
+          { displayName: { [Op.iLike]: `%${search}%` } }
+        ]
+      }
+    : {};
+
+  const { rows, count } = await User.findAndCountAll({
+    where,
+    limit,
+    offset,
+    order: [['createdAt', 'DESC']],
+    attributes: [
+      'id', 'email', 'displayName', 'firstName', 'lastName',
+      'status', 'emailVerified', 'mfaEnabled', 'lastLoginAt', 'createdAt'
+    ]
+  });
+
+  res.json({
+    users: rows,
+    pagination: { limit, offset, total: count, hasMore: offset + rows.length < count }
+  });
+}));
 
 /**
  * GET /api/users/:id

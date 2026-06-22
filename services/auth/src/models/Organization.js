@@ -87,7 +87,19 @@ module.exports = (sequelize) => {
       defaultValue: {
         allowUserRegistration: false,
         requireEmailVerification: true,
+        // Legacy flag retained for backward compatibility; the admin "Auth &
+        // Identity" UI binds the "Require 2FA" toggle here. NOTE: this is NOT
+        // yet enforced at login — see STATUS.md "Org 2FA policy enforcement".
         requireMfa: false,
+        // Structured 2FA / MFA policy configured from the admin UI. Persisted
+        // only for now (no login-path enforcement yet). `totp` and
+        // `backup_codes` are implemented end-to-end; `sms`, `email` and
+        // `webauthn` are config scaffolding for methods not yet built.
+        mfa: {
+          allowedMethods: ['totp', 'backup_codes'],
+          enrollmentGracePeriodDays: 7,
+          rememberDeviceDays: 0
+        },
         sessionTimeout: 3600000, // 1 hour
         passwordPolicy: {
           minLength: 8,

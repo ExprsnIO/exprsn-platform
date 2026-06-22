@@ -12,6 +12,11 @@ const rbacService = require('../services/rbacService');
 const organizationService = require('../services/organizationService');
 const { requireAuth } = require('../middleware/requireAuth');
 
+/** Derive a URL-safe slug from a display name (slug is required + unique per org). */
+function slugify(name) {
+  return String(name).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 /**
  * GET /api/roles
  * Get roles (system or organization-scoped)
@@ -86,6 +91,7 @@ router.post('/', requireAuth, async (req, res, next) => {
 
     const role = await Role.create({
       ...req.body,
+      slug: req.body.slug || slugify(req.body.name),
       type: organizationId ? 'organization' : 'custom',
       isSystem: false
     });

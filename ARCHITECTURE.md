@@ -122,8 +122,9 @@ These are tracked in detail in `STATUS.md` → **Production readiness (R1–R6)*
 short, the platform is structurally complete and runtime-verified but not yet
 release-engineered:
 
-- **SCM/CI:** not a git repo yet; no pipeline. Lint + per-module Jest + `web:build`
-  should run in CI.
+- **SCM/CI:** under git (`main`, initial commit) with `.github/workflows/ci.yml`
+  (lint + web-build required gates; `test:all` non-blocking while suites stabilize).
+  Remaining: push to a remote and set branch protection requiring the checks.
 - **Observability:** Winston logging only — no metrics/tracing/error-tracking, and
   nothing watches `/health`. Add error tracking + health alerting before MVP.
 - **Secrets:** `.env`-based; production needs managed secrets and rotation for

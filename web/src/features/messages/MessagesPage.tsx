@@ -1,0 +1,62 @@
+import { useState } from 'react';
+import { Alert, Box, Chip, Paper, Stack, Typography } from '@mui/material';
+import { useAppStore } from '@/app/store';
+import { NS } from '@/lib/realtime';
+import { useNamespaceStatus, type ConnState } from '@/lib/useRealtime';
+import { EncryptionGate } from './EncryptionGate';
+import { ConversationList } from './ConversationList';
+import { ConversationView } from './ConversationView';
+
+const CHIP_COLOR: Record<ConnState, 'success' | 'warning' | 'default' | 'error'> = {
+  connected: 'success',
+  connecting: 'warning',
+  disconnected: 'default',
+  error: 'error',
+};
+
+/**
+ * Phase 4b — Spark messaging. Connects the `/spark` realtime namespace, gates
+ * the UI behind E2EE unlock, and lays out the conversation list beside the
+ * active conversation. Existing-conversations-only (no compose-new yet).
+ */
+export function MessagesPage() {
+  const userId = useAppStore((s) => s.user?.id);
+  const conn = useNamespaceStatus(NS.spark);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  if (!userId) return <Alert severity="error">Not signed in.</Alert>;
+
+  return (
+    <Stack spacing={2} sx={{ height: 'calc(100vh - 140px)' }}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Typography variant="h5">Messages</Typography>
+        <Chip size="small" color={CHIP_COLOR[conn]} label={conn === 'connected' ? 'live' : conn} />
+      </Stack>
+
+      <EncryptionGate>
+        <Paper variant="outlined" sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <Box
+            sx={{
+              width: 300,
+              borderRight: 1,
+              borderColor: 'divider',
+              overflowY: 'auto',
+              flexShrink: 0,
+            }}
+          >
+            <ConversationList selectedId={selectedId} onSelect={setSelectedId} />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            {selectedId ? (
+              <ConversationView conversationId={selectedId} currentUserId={userId} />
+            ) : (
+              <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography color="text.secondary">Select a conversation</Typography>
+              </Box>
+            )}
+          </Box>
+        </Paper>
+      </EncryptionGate>
+    </Stack>
+  );
+}

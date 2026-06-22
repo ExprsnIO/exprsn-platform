@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Admin · Certificate Authority &amp; Tokens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+/* ─────────────────────────────────────────────────────────────────────────
+   Exprsn Unified Design System tokens (subset) — source: exprsn-unified.css v1.0.0
+   ───────────────────────────────────────────────────────────────────────── */
+:root{
+  --exprsn-primary:#0066ff;--exprsn-primary-hover:#0052cc;--exprsn-primary-light:#4d94ff;--exprsn-primary-dark:#0047b3;--exprsn-primary-glow:rgba(0,102,255,.3);
+  --exprsn-secondary:#7c3aed;--exprsn-secondary-hover:#6d28d9;--exprsn-secondary-light:#a78bfa;
+  --exprsn-accent-pink:#ec4899;--exprsn-accent-orange:#f97316;--exprsn-accent-green:#10b981;--exprsn-accent-cyan:#06b6d4;--exprsn-accent-purple:#8b5cf6;
+  --exprsn-success:#10b981;--exprsn-success-hover:#059669;--exprsn-success-bg:#d1fae5;--exprsn-success-text:#065f46;
+  --exprsn-danger:#ef4444;--exprsn-danger-hover:#dc2626;--exprsn-danger-bg:#fee2e2;--exprsn-danger-text:#991b1b;
+  --exprsn-warning:#f59e0b;--exprsn-warning-hover:#d97706;--exprsn-warning-bg:#fef3c7;--exprsn-warning-text:#92400e;
+  --exprsn-info:#3b82f6;--exprsn-info-hover:#2563eb;--exprsn-info-bg:#dbeafe;--exprsn-info-text:#1e40af;
+  --exprsn-white:#fff;--exprsn-black:#0a0a0a;
+  --exprsn-gray-50:#fafafa;--exprsn-gray-100:#f5f5f5;--exprsn-gray-200:#e5e5e5;--exprsn-gray-300:#d4d4d4;--exprsn-gray-400:#a3a3a3;--exprsn-gray-500:#737373;--exprsn-gray-600:#525252;--exprsn-gray-700:#404040;--exprsn-gray-800:#262626;--exprsn-gray-900:#171717;
+  --exprsn-bg-primary:#fff;--exprsn-bg-secondary:#fafafa;--exprsn-bg-tertiary:#f5f5f5;--exprsn-bg-hover:#f1f3f4;--exprsn-bg-active:#e8eaed;--exprsn-surface-raised:#fff;
+  --exprsn-text-primary:#171717;--exprsn-text-secondary:#525252;--exprsn-text-muted:#737373;--exprsn-text-inverse:#fff;--exprsn-text-link:#0066ff;
+  --exprsn-border-color:#e5e5e5;--exprsn-border-color-strong:#a3a3a3;--exprsn-border-dark:#ccd0d5;
+  --exprsn-gradient-primary:linear-gradient(135deg,#0066ff 0%,#7c3aed 100%);
+  --exprsn-gradient-cool:linear-gradient(135deg,#06b6d4 0%,#0066ff 100%);
+  --exprsn-gradient-success:linear-gradient(135deg,#10b981 0%,#06b6d4 100%);
+  --exprsn-shadow-sm:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --exprsn-shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+  --exprsn-shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
+  --exprsn-shadow-xl:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);
+  --exprsn-radius-sm:.375rem;--exprsn-radius-md:.5rem;--exprsn-radius-lg:.75rem;--exprsn-radius-xl:1rem;--exprsn-radius-2xl:1.5rem;--exprsn-radius-full:9999px;
+  --exprsn-spacing-xs:.25rem;--exprsn-spacing-sm:.5rem;--exprsn-spacing-md:1rem;--exprsn-spacing-lg:1.5rem;--exprsn-spacing-xl:2rem;--exprsn-spacing-2xl:3rem;
+  --exprsn-font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --exprsn-font-family-mono:'JetBrains Mono','Fira Code','Monaco','Menlo','Courier New',monospace;
+  --exprsn-font-size-xs:.75rem;--exprsn-font-size-sm:.875rem;--exprsn-font-size-base:1rem;--exprsn-font-size-lg:1.125rem;--exprsn-font-size-xl:1.25rem;--exprsn-font-size-2xl:1.5rem;--exprsn-font-size-3xl:1.875rem;
+  --exprsn-transition-fast:150ms cubic-bezier(.4,0,.2,1);--exprsn-transition-base:250ms cubic-bezier(.4,0,.2,1);
+  --exprsn-sidebar-width:264px;--exprsn-navbar-height:64px;
+}
+[data-theme="dark"]{
+  --exprsn-primary:#3b82f6;--exprsn-primary-hover:#60a5fa;--exprsn-primary-glow:rgba(59,130,246,.35);
+  --exprsn-bg-primary:#0a0a0a;--exprsn-bg-secondary:#171717;--exprsn-bg-tertiary:#262626;--exprsn-bg-hover:#1c1f23;--exprsn-bg-active:#2f3336;--exprsn-surface-raised:#1f1f1f;
+  --exprsn-text-primary:#fafafa;--exprsn-text-secondary:#d4d4d4;--exprsn-text-muted:#a3a3a3;
+  --exprsn-border-color:#404040;--exprsn-border-color-strong:#525252;--exprsn-border-dark:#2f3336;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+body{font-family:var(--exprsn-font-family);font-size:var(--exprsn-font-size-base);line-height:1.5;color:var(--exprsn-text-primary);background:var(--exprsn-bg-secondary);min-height:100vh;transition:background var(--exprsn-transition-base),color var(--exprsn-transition-base)}
+h1,h2,h3,h4,h5{font-weight:600;line-height:1.2;color:var(--exprsn-text-primary)}
+a{color:var(--exprsn-text-link);text-decoration:none}
+code{font-family:var(--exprsn-font-family-mono);font-size:.85em;color:var(--exprsn-primary);background:var(--exprsn-bg-tertiary);padding:.12rem .35rem;border-radius:var(--exprsn-radius-sm)}
+
+/* navbar */
+.navbar{display:flex;align-items:center;justify-content:space-between;height:var(--exprsn-navbar-height);padding:0 var(--exprsn-spacing-lg);background:var(--exprsn-gradient-primary);color:#fff;box-shadow:var(--exprsn-shadow-md);position:sticky;top:0;z-index:1010}
+.navbar-brand{display:flex;align-items:center;gap:.65rem;font-size:1.2rem;font-weight:700;letter-spacing:-.02em;color:#fff}
+.navbar-brand .logo{width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.2);display:grid;place-items:center;font-weight:800}
+.navbar-brand .sub{font-size:.7rem;font-weight:600;opacity:.85;background:rgba(255,255,255,.18);padding:.2rem .55rem;border-radius:var(--exprsn-radius-full);letter-spacing:.04em;text-transform:uppercase}
+.navbar .right{display:flex;align-items:center;gap:1rem}
+.navbar .env{font-size:.72rem;font-weight:600;opacity:.9}
+.theme-toggle{display:inline-flex;align-items:center;gap:.45rem;cursor:pointer;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25);padding:.45rem .8rem;border-radius:var(--exprsn-radius-full);font-weight:600;font-size:.8rem}
+.theme-toggle:hover{background:rgba(255,255,255,.28)}
+.navbar .avatar{width:34px;height:34px;border-radius:var(--exprsn-radius-full);background:rgba(255,255,255,.25);display:grid;place-items:center;font-weight:700;font-size:.8rem}
+
+/* shell */
+.shell{display:grid;grid-template-columns:var(--exprsn-sidebar-width) 1fr;min-height:calc(100vh - var(--exprsn-navbar-height))}
+.sidebar{background:var(--exprsn-bg-primary);border-right:1px solid var(--exprsn-border-color);padding:var(--exprsn-spacing-md) var(--exprsn-spacing-sm);position:sticky;top:var(--exprsn-navbar-height);height:calc(100vh - var(--exprsn-navbar-height));overflow-y:auto}
+.sidebar-heading{font-size:var(--exprsn-font-size-xs);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--exprsn-text-muted);padding:1rem .85rem .4rem}
+.nav-link{display:flex;align-items:center;gap:.75rem;padding:.65rem .85rem;margin:2px 0;font-weight:500;font-size:.9rem;color:var(--exprsn-text-secondary);border-radius:var(--exprsn-radius-md);cursor:pointer;transition:var(--exprsn-transition-base)}
+.nav-link:hover{color:var(--exprsn-primary);background:var(--exprsn-bg-tertiary)}
+.nav-link.active{color:var(--exprsn-primary);background:var(--exprsn-primary-glow);font-weight:600}
+.nav-link .ico{width:20px;text-align:center;font-size:1rem}
+.nav-link .count{margin-left:auto;font-size:.7rem;font-weight:700;background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-muted);padding:.1rem .45rem;border-radius:var(--exprsn-radius-full)}
+.nav-link.active .count{background:var(--exprsn-primary);color:#fff}
+
+/* main */
+.main{padding:var(--exprsn-spacing-xl) var(--exprsn-spacing-2xl) 5rem;min-width:0;max-width:1400px}
+.breadcrumb{font-size:.78rem;color:var(--exprsn-text-muted);margin-bottom:.4rem}
+.breadcrumb code{font-size:.78rem}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.page-head h1{font-size:var(--exprsn-font-size-3xl);letter-spacing:-.02em}
+.page-head .lead{color:var(--exprsn-text-secondary);font-size:.95rem;margin-top:.35rem;max-width:62ch}
+.head-actions{display:flex;gap:.6rem;flex-wrap:wrap}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.6rem 1.15rem;font-family:inherit;font-size:.95rem;font-weight:500;line-height:1.4;border:2px solid transparent;border-radius:var(--exprsn-radius-lg);cursor:pointer;transition:var(--exprsn-transition-base);white-space:nowrap}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--exprsn-primary-glow)}
+.btn-primary{background:var(--exprsn-primary);color:#fff;border-color:var(--exprsn-primary)}
+.btn-primary:hover{background:var(--exprsn-primary-hover);border-color:var(--exprsn-primary-hover);transform:translateY(-1px);box-shadow:var(--exprsn-shadow-md)}
+.btn-secondary{background:var(--exprsn-secondary);color:#fff;border-color:var(--exprsn-secondary)}
+.btn-secondary:hover{background:var(--exprsn-secondary-hover)}
+.btn-success{background:var(--exprsn-success);color:#fff;border-color:var(--exprsn-success)}
+.btn-danger{background:var(--exprsn-danger);color:#fff;border-color:var(--exprsn-danger)}
+.btn-outline{background:transparent;color:var(--exprsn-primary);border-color:var(--exprsn-primary)}
+.btn-outline:hover{background:var(--exprsn-primary);color:#fff}
+.btn-ghost{background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-secondary);border-color:transparent}
+.btn-ghost:hover{background:var(--exprsn-bg-active);color:var(--exprsn-text-primary)}
+.btn-sm{padding:.4rem .8rem;font-size:.82rem}
+.btn-icon{padding:.4rem;width:34px;height:34px;border-radius:var(--exprsn-radius-md)}
+
+/* cards */
+.card{background:var(--exprsn-surface-raised);border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-xl);box-shadow:var(--exprsn-shadow-sm);overflow:hidden}
+.card-header{padding:1.1rem 1.5rem;background:var(--exprsn-bg-secondary);border-bottom:1px solid var(--exprsn-border-color);font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.card-header .sub{font-size:.78rem;font-weight:500;color:var(--exprsn-text-muted)}
+.card-body{padding:1.5rem}
+.card-footer{padding:1.1rem 1.5rem;background:var(--exprsn-bg-secondary);border-top:1px solid var(--exprsn-border-color);display:flex;justify-content:flex-end;gap:.6rem;flex-wrap:wrap}
+.border-left-primary{border-left:4px solid var(--exprsn-primary)}
+.border-left-success{border-left:4px solid var(--exprsn-success)}
+.border-left-warning{border-left:4px solid var(--exprsn-warning)}
+.border-left-danger{border-left:4px solid var(--exprsn-danger)}
+.border-left-secondary{border-left:4px solid var(--exprsn-secondary)}
+
+/* stat cards */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;margin-bottom:1.5rem}
+.stat{background:var(--exprsn-surface-raised);border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);box-shadow:var(--exprsn-shadow-sm);padding:1.1rem 1.25rem}
+.stat .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--exprsn-text-muted);font-weight:600}
+.stat .num{font-size:1.9rem;font-weight:700;letter-spacing:-.02em;margin-top:.25rem}
+.stat .delta{font-size:.75rem;font-weight:600;margin-top:.2rem}
+.stat .delta.up{color:var(--exprsn-success)}.stat .delta.down{color:var(--exprsn-danger)}.stat .delta.flat{color:var(--exprsn-text-muted)}
+
+/* layout grid */
+.split{display:grid;grid-template-columns:1.55fr 1fr;gap:1.5rem;align-items:start}
+@media (max-width:1100px){.split{grid-template-columns:1fr}}
+
+/* forms */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.form-row.thirds{grid-template-columns:1fr 1fr 1fr}
+.form-group{margin-bottom:1.1rem}
+.form-label{display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem;font-weight:500;font-size:.85rem}
+.form-label .req{color:var(--exprsn-danger);font-weight:700}
+.form-label .opt{font-size:.7rem;color:var(--exprsn-text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.form-label code{font-size:.72rem}
+.form-control,.form-select{width:100%;height:42px;padding:0 .9rem;font-family:inherit;font-size:.92rem;color:var(--exprsn-text-primary);background:var(--exprsn-bg-primary);border:2px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);transition:var(--exprsn-transition-base)}
+.form-control:focus,.form-select:focus{outline:none;border-color:var(--exprsn-primary);box-shadow:0 0 0 3px var(--exprsn-primary-glow)}
+.form-control::placeholder{color:var(--exprsn-text-muted)}
+.form-control.mono{font-family:var(--exprsn-font-family-mono);font-size:.82rem}
+.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23737373' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .9rem center;padding-right:2.4rem}
+.form-hint{font-size:.74rem;color:var(--exprsn-text-muted);margin-top:.35rem}
+.section-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--exprsn-text-muted);margin:1.75rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--exprsn-border-color);display:flex;align-items:center;gap:.5rem}
+.section-title:first-of-type{margin-top:0}
+.section-title .step{width:20px;height:20px;border-radius:50%;background:var(--exprsn-primary);color:#fff;font-size:.7rem;display:grid;place-items:center;font-weight:700}
+
+/* segmented control */
+.segment{display:inline-flex;background:var(--exprsn-bg-tertiary);border-radius:var(--exprsn-radius-lg);padding:4px;gap:4px}
+.segment button{border:none;background:transparent;color:var(--exprsn-text-secondary);font-family:inherit;font-weight:600;font-size:.85rem;padding:.5rem 1rem;border-radius:var(--exprsn-radius-md);cursor:pointer;display:inline-flex;align-items:center;gap:.45rem;transition:var(--exprsn-transition-fast)}
+.segment button.active{background:var(--exprsn-surface-raised);color:var(--exprsn-primary);box-shadow:var(--exprsn-shadow-sm)}
+
+/* lookup */
+.lookup{position:relative}
+.lookup-box{display:flex;gap:.5rem}
+.lookup-box .form-control{flex:1}
+.lookup-results{margin-top:.6rem;border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);overflow:hidden;background:var(--exprsn-bg-primary)}
+.lookup-row{display:flex;align-items:center;gap:.85rem;padding:.7rem .9rem;cursor:pointer;border-bottom:1px solid var(--exprsn-border-color);transition:var(--exprsn-transition-fast)}
+.lookup-row:last-child{border-bottom:none}
+.lookup-row:hover{background:var(--exprsn-bg-hover)}
+.lookup-row .ava{width:38px;height:38px;border-radius:var(--exprsn-radius-full);background:var(--exprsn-gradient-primary);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.85rem;flex:none}
+.lookup-row .ava.org{background:var(--exprsn-gradient-cool);border-radius:var(--exprsn-radius-md)}
+.lookup-row .who{min-width:0}
+.lookup-row .who .nm{font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:.4rem}
+.lookup-row .who .meta{font-size:.76rem;color:var(--exprsn-text-muted);font-family:var(--exprsn-font-family-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lookup-row .pick{margin-left:auto;font-size:.74rem;color:var(--exprsn-primary);font-weight:600}
+
+/* selected subject panel */
+.subject-chip{display:flex;align-items:center;gap:.85rem;padding:.85rem 1rem;background:var(--exprsn-info-bg);border:1px solid color-mix(in srgb,var(--exprsn-info) 30%,transparent);border-radius:var(--exprsn-radius-lg);margin-bottom:1.25rem}
+.subject-chip .ava{width:42px;height:42px;border-radius:var(--exprsn-radius-full);background:var(--exprsn-gradient-primary);color:#fff;display:grid;place-items:center;font-weight:700;flex:none}
+.subject-chip.org-mode .ava{border-radius:var(--exprsn-radius-md);background:var(--exprsn-gradient-cool)}
+.subject-chip .info{min-width:0}
+.subject-chip .info .nm{font-weight:600;color:var(--exprsn-info-text)}
+.subject-chip .info .meta{font-size:.76rem;color:var(--exprsn-info-text);opacity:.85;font-family:var(--exprsn-font-family-mono)}
+.subject-chip .x{margin-left:auto;cursor:pointer;color:var(--exprsn-info-text);background:transparent;border:none;font-size:1.1rem;font-weight:700;opacity:.7}
+.subject-chip .x:hover{opacity:1}
+
+/* SAN / repeatable rows */
+.repeat-row{display:flex;gap:.5rem;margin-bottom:.5rem}
+.repeat-row .form-control{flex:1}
+.repeat-row .rm{flex:none;width:42px;height:42px;border-radius:var(--exprsn-radius-lg);border:2px solid var(--exprsn-border-color);background:var(--exprsn-bg-primary);color:var(--exprsn-text-muted);cursor:pointer;font-size:1.1rem}
+.repeat-row .rm:hover{border-color:var(--exprsn-danger);color:var(--exprsn-danger)}
+
+/* checks / toggles */
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.check{display:flex;align-items:flex-start;gap:.6rem;padding:.7rem .85rem;border:2px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);cursor:pointer;transition:var(--exprsn-transition-fast)}
+.check:hover{border-color:var(--exprsn-primary-light)}
+.check.on{border-color:var(--exprsn-primary);background:var(--exprsn-primary-glow)}
+.check input{width:18px;height:18px;accent-color:var(--exprsn-primary);margin-top:2px;flex:none}
+.check .t{font-weight:600;font-size:.86rem}
+.check .d{font-size:.74rem;color:var(--exprsn-text-muted);margin-top:.15rem}
+.check code{font-size:.7rem}
+
+/* permission toggles (token) */
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem}
+.perm{display:flex;align-items:center;gap:.65rem;padding:.7rem .85rem;border:2px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);cursor:pointer}
+.perm.on{border-color:var(--exprsn-success);background:var(--exprsn-success-bg)}
+.perm.on .pi{background:var(--exprsn-success);color:#fff}
+.perm .pi{width:30px;height:30px;border-radius:var(--exprsn-radius-md);background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-muted);display:grid;place-items:center;font-weight:700;font-size:.8rem;flex:none}
+.perm .pl{font-weight:600;font-size:.86rem}
+.perm.on .pl{color:var(--exprsn-success-text)}
+.perm .pc{font-size:.7rem;color:var(--exprsn-text-muted);font-family:var(--exprsn-font-family-mono)}
+
+/* chips multiselect */
+.chips{display:flex;flex-wrap:wrap;gap:.5rem}
+.chip{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .75rem;font-size:.8rem;font-weight:600;border-radius:var(--exprsn-radius-full);border:1.5px solid var(--exprsn-border-color);background:var(--exprsn-bg-primary);color:var(--exprsn-text-secondary);cursor:pointer;font-family:var(--exprsn-font-family-mono);transition:var(--exprsn-transition-fast)}
+.chip:hover{border-color:var(--exprsn-primary)}
+.chip.on{background:var(--exprsn-primary);border-color:var(--exprsn-primary);color:#fff}
+.chip.scope-svc.on{background:var(--exprsn-secondary);border-color:var(--exprsn-secondary)}
+.chip .tick{font-weight:700}
+
+/* role pick */
+.role-list{display:flex;flex-direction:column;gap:.55rem}
+.role{display:flex;align-items:center;gap:.85rem;padding:.75rem .9rem;border:2px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);cursor:pointer}
+.role.on{border-color:var(--exprsn-primary);background:var(--exprsn-primary-glow)}
+.role input{width:18px;height:18px;accent-color:var(--exprsn-primary);flex:none}
+.role .meta{min-width:0;flex:1}
+.role .meta .nm{font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:.5rem}
+.role .meta .pm{font-size:.74rem;color:var(--exprsn-text-muted);font-family:var(--exprsn-font-family-mono);margin-top:.2rem}
+.role .prio{font-size:.7rem;font-weight:700;color:var(--exprsn-text-muted);background:var(--exprsn-bg-tertiary);padding:.15rem .5rem;border-radius:var(--exprsn-radius-full);flex:none}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .65rem;font-size:.7rem;font-weight:600;line-height:1;border-radius:var(--exprsn-radius-full);text-transform:uppercase;letter-spacing:.4px}
+.badge.bg-success-light{background:var(--exprsn-success-bg);color:var(--exprsn-success-text)}
+.badge.bg-danger-light{background:var(--exprsn-danger-bg);color:var(--exprsn-danger-text)}
+.badge.bg-warning-light{background:var(--exprsn-warning-bg);color:var(--exprsn-warning-text)}
+.badge.bg-info-light{background:var(--exprsn-info-bg);color:var(--exprsn-info-text)}
+.badge.bg-secondary-light{background:#ede9fe;color:#5b21b6}
+.badge.bg-neutral{background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-muted)}
+[data-theme="dark"] .badge.bg-secondary-light{background:#3b2f63;color:#c4b5fd}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+
+/* preview panel */
+.preview{position:sticky;top:calc(var(--exprsn-navbar-height) + 1.25rem)}
+.preview .pv-cn{font-size:1.05rem;font-weight:700}
+.kv{display:flex;justify-content:space-between;gap:1rem;padding:.5rem 0;border-bottom:1px solid var(--exprsn-border-color);font-size:.83rem}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--exprsn-text-muted)}
+.kv .v{font-weight:600;text-align:right;font-family:var(--exprsn-font-family-mono);word-break:break-word}
+.codeblock{background:var(--exprsn-bg-tertiary);border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);padding:.9rem 1rem;font-family:var(--exprsn-font-family-mono);font-size:.76rem;line-height:1.7;color:var(--exprsn-text-secondary);white-space:pre-wrap;word-break:break-word;overflow-x:auto}
+.codeblock .hl{color:var(--exprsn-primary);font-weight:600}
+.codeblock .gr{color:var(--exprsn-success-hover)}
+.codeblock .mut{color:var(--exprsn-text-muted)}
+
+/* tables */
+.table-wrap{overflow-x:auto}
+table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:.85rem}
+table.tbl th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--exprsn-text-muted);font-weight:700;padding:.7rem 1rem;background:var(--exprsn-bg-secondary);border-bottom:2px solid var(--exprsn-border-color);white-space:nowrap}
+table.tbl td{padding:.75rem 1rem;border-bottom:1px solid var(--exprsn-border-color);vertical-align:middle}
+table.tbl tr:last-child td{border-bottom:none}
+table.tbl tbody tr:hover{background:var(--exprsn-bg-hover)}
+table.tbl .mono{font-family:var(--exprsn-font-family-mono);font-size:.8rem}
+table.tbl .sub{font-size:.74rem;color:var(--exprsn-text-muted)}
+.perm-pills{display:inline-flex;gap:3px}
+.perm-pills span{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;font-size:.62rem;font-weight:700;font-family:var(--exprsn-font-family-mono);background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-muted)}
+.perm-pills span.on{background:var(--exprsn-success);color:#fff}
+.row-actions{display:flex;gap:.3rem;justify-content:flex-end}
+.link-act{font-size:.78rem;font-weight:600;color:var(--exprsn-text-secondary);cursor:pointer;padding:.25rem .5rem;border-radius:var(--exprsn-radius-sm)}
+.link-act:hover{background:var(--exprsn-bg-tertiary);color:var(--exprsn-primary)}
+.link-act.danger:hover{color:var(--exprsn-danger)}
+
+.alert{padding:.85rem 1.15rem;border-radius:var(--exprsn-radius-lg);border-left:4px solid;font-size:.85rem;display:flex;gap:.6rem;align-items:flex-start}
+.alert-info{background:var(--exprsn-info-bg);color:var(--exprsn-info-text);border-left-color:var(--exprsn-info)}
+.alert-warning{background:var(--exprsn-warning-bg);color:var(--exprsn-warning-text);border-left-color:var(--exprsn-warning)}
+.alert .ico{font-weight:800}
+
+.page{display:none}
+.page.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.hide{display:none!important}
+.toolbar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.toolbar .search{flex:1;min-width:200px;max-width:340px}
+.toolbar .search .form-control{height:38px}
+.mt-0{margin-top:0}.mb-0{margin-bottom:0}
+
+@media (max-width:900px){.shell{grid-template-columns:1fr}.sidebar{display:none}.main{padding:1.25rem 1.25rem 4rem}.form-row,.form-row.thirds{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="navbar">
+  <div class="navbar-brand">
+    <span class="logo">E</span>
+    <span>Exprsn Admin</span>
+    <span class="sub">Platform Console</span>
+  </div>
+  <div class="right">
+    <span class="env">prod · us-east · gateway :8443</span>
+    <button class="theme-toggle" id="themeToggle"><span id="themeIcon">🌙</span><span id="themeLabel">Dark</span></button>
+    <div class="avatar" title="rick@exprsn.io">RH</div>
+  </div>
+</header>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-heading">Overview</div>
+    <div class="nav-link"><span class="ico">▦</span> Dashboard</div>
+    <div class="sidebar-heading">PKI</div>
+    <div class="nav-link active" data-page="ca"><span class="ico">🔏</span> Certificate Authority <span class="count">1,284</span></div>
+    <div class="nav-link" data-page="tokens"><span class="ico">🎫</span> Tokens <span class="count">3,902</span></div>
+    <div class="nav-link"><span class="ico">⛓</span> CA Hierarchy</div>
+    <div class="nav-link"><span class="ico">↺</span> Revocation (CRL / OCSP)</div>
+    <div class="nav-link"><span class="ico">🔌</span> ACME Accounts</div>
+    <div class="sidebar-heading">Identity</div>
+    <div class="nav-link"><span class="ico">👤</span> Users &amp; DIDs</div>
+    <div class="nav-link"><span class="ico">🏢</span> Organizations</div>
+    <div class="nav-link"><span class="ico">🛡</span> Roles &amp; Permissions</div>
+    <div class="sidebar-heading">System</div>
+    <div class="nav-link"><span class="ico">📜</span> Audit Chain</div>
+    <div class="nav-link"><span class="ico">⚙</span> Settings</div>
+  </nav>
+
+  <!-- ════════════════════════ CA PAGE ════════════════════════ -->
+  <main class="main page active" id="page-ca">
+    <div class="breadcrumb">Admin / PKI / <code>/admin/ca</code></div>
+    <div class="page-head">
+      <div>
+        <h1>Certificate Authority</h1>
+        <p class="lead">Issue and manage X.509 certificates for organizations and users. Issuance is signed inside the HSM/FIPS boundary — keys never leave the cryptographic engine.</p>
+      </div>
+      <div class="head-actions">
+        <button class="btn btn-ghost btn-sm">⛓ View chain</button>
+        <button class="btn btn-outline btn-sm">↓ Export CRL</button>
+        <button class="btn btn-primary">+ Issue certificate</button>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat border-left-success"><div class="label">Active certificates</div><div class="num">1,284</div><div class="delta up">▲ 42 this week</div></div>
+      <div class="stat border-left-secondary"><div class="label">Intermediate CAs</div><div class="num">6</div><div class="delta flat">2 issuing · 4 policy</div></div>
+      <div class="stat border-left-warning"><div class="label">Expiring ≤ 30 days</div><div class="num">37</div><div class="delta down">renewal required</div></div>
+      <div class="stat border-left-danger"><div class="label">Revoked</div><div class="num">58</div><div class="delta flat">on next CRL</div></div>
+    </div>
+
+    <div class="split">
+      <!-- Issuance form -->
+      <div class="card">
+        <div class="card-header">
+          <span>Issue a new certificate</span>
+          <span class="sub mono">POST /ca/admin/api/certificates/issue</span>
+        </div>
+        <div class="card-body">
+
+          <!-- 1. subject type -->
+          <div class="section-title"><span class="step">1</span> Subject</div>
+          <div class="form-group">
+            <label class="form-label">Issue certificate for</label>
+            <div class="segment" id="subjectType">
+              <button class="active" data-mode="org">🏢 Organization</button>
+              <button data-mode="user">👤 User</button>
+            </div>
+            <div class="form-hint">Organization certs carry an <code>O</code>/<code>OU</code> identity; user certs bind to a person's DID and email.</div>
+          </div>
+
+          <!-- DID / user lookup -->
+          <div class="form-group lookup">
+            <label class="form-label" id="lookupLabel">DID / User lookup</label>
+            <div class="lookup-box">
+              <input class="form-control" id="lookupInput" placeholder="Search by name, email, did: or org slug…" autocomplete="off">
+              <button class="btn btn-outline" id="lookupBtn">Search</button>
+            </div>
+            <div class="form-hint">Resolves against <code>GET /ca/admin/api/users</code> &amp; the DID registry. Selecting a result auto-fills the subject DN below.</div>
+            <div class="lookup-results hide" id="lookupResults"></div>
+          </div>
+
+          <!-- selected subject -->
+          <div class="subject-chip hide" id="subjectChip">
+            <div class="ava" id="chipAva">—</div>
+            <div class="info">
+              <div class="nm" id="chipName">—</div>
+              <div class="meta" id="chipMeta">—</div>
+            </div>
+            <button class="x" id="chipClear" title="Clear">✕</button>
+          </div>
+
+          <!-- 2. profile + issuing CA -->
+          <div class="section-title"><span class="step">2</span> Profile &amp; issuing CA</div>
+          <div class="form-row">
+            <div class="form-group mb-0">
+              <label class="form-label">Certificate profile <span class="form-label-help"><code>type</code></span></label>
+              <select class="form-select" id="certType">
+                <option value="entity">entity — general TLS / identity</option>
+                <option value="client">client — mTLS client auth</option>
+                <option value="server">server — TLS server</option>
+                <option value="san">san — multi-domain (SAN)</option>
+                <option value="code_signing">code_signing — code signing</option>
+                <option value="intermediate">intermediate — issuing CA</option>
+                <option value="root">root — root CA (offline)</option>
+              </select>
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label">Issuing CA</label>
+              <select class="form-select" id="issuingCa">
+                <option>Exprsn Issuing CA — us-east (G2)</option>
+                <option>Exprsn Issuing CA — eu-west (G2)</option>
+                <option>Exprsn Client-Auth Intermediate</option>
+                <option>Exprsn Code-Signing Intermediate</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 3. subject DN -->
+          <div class="section-title"><span class="step">3</span> Subject distinguished name</div>
+          <div class="form-group">
+            <label class="form-label">Common Name (CN) <span class="req">*</span> <span class="opt">required</span></label>
+            <input class="form-control" id="f_cn" placeholder="e.g. svc.payments.exprsn.io or Jane Doe">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Organization (O)</label>
+              <input class="form-control" id="f_o" placeholder="Exprsn, Inc.">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Organizational Unit (OU)</label>
+              <input class="form-control" id="f_ou" placeholder="Platform Engineering">
+            </div>
+          </div>
+          <div class="form-row thirds">
+            <div class="form-group">
+              <label class="form-label">Country (C)</label>
+              <input class="form-control" id="f_c" maxlength="2" placeholder="US">
+            </div>
+            <div class="form-group">
+              <label class="form-label">State / Province (ST)</label>
+              <input class="form-control" id="f_st" placeholder="California">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Locality (L)</label>
+              <input class="form-control" id="f_l" placeholder="San Francisco">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email address</label>
+            <input class="form-control" id="f_email" placeholder="pki@exprsn.io">
+          </div>
+
+          <!-- SANs -->
+          <div class="form-group">
+            <label class="form-label">Subject Alternative Names (SAN) <span class="opt">up to 100</span></label>
+            <div id="sanList">
+              <div class="repeat-row">
+                <input class="form-control mono" placeholder="DNS: api.exprsn.io  ·  URI: did:exprsn:…  ·  email:">
+                <button class="rm" title="Remove">−</button>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="addSan" style="margin-top:.25rem">+ Add SAN</button>
+          </div>
+
+          <!-- 4. key + validity -->
+          <div class="section-title"><span class="step">4</span> Key &amp; validity</div>
+          <div class="form-row thirds">
+            <div class="form-group">
+              <label class="form-label">Signature algorithm</label>
+              <select class="form-select" id="f_alg">
+                <option>RSA-SHA256</option>
+                <option>RSA-SHA384</option>
+                <option>ECDSA-SHA256</option>
+                <option>ECDSA-SHA384</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Key size</label>
+              <select class="form-select" id="f_keysize">
+                <option value="2048">RSA 2048</option>
+                <option value="4096" selected>RSA 4096</option>
+                <option value="8192">RSA 8192</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Validity (days)</label>
+              <input class="form-control" id="f_validity" type="number" value="397" min="1" max="825">
+            </div>
+          </div>
+          <div class="form-hint" style="margin-top:-.4rem;margin-bottom:1rem">Leaf certs are capped at <code>825</code> days; intermediates &amp; roots use a years-based validity. Key material is generated and signed inside the HSM.</div>
+
+          <!-- key usage -->
+          <div class="form-group mb-0">
+            <label class="form-label">Extended key usage</label>
+            <div class="check-grid">
+              <label class="check on"><input type="checkbox" checked> <span><span class="t">TLS Server Auth</span><span class="d"><code>serverAuth</code> · 1.3.6.1.5.5.7.3.1</span></span></label>
+              <label class="check"><input type="checkbox"> <span><span class="t">TLS Client Auth</span><span class="d"><code>clientAuth</code> · 1.3.6.1.5.5.7.3.2</span></span></label>
+              <label class="check"><input type="checkbox"> <span><span class="t">Code Signing</span><span class="d"><code>codeSigning</code> · …3.3</span></span></label>
+              <label class="check"><input type="checkbox"> <span><span class="t">Email Protection</span><span class="d"><code>emailProtection</code> · …3.4</span></span></label>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button class="btn btn-ghost">Save as draft</button>
+          <button class="btn btn-outline">Preview CSR</button>
+          <button class="btn btn-primary">🔏 Issue &amp; sign in HSM</button>
+        </div>
+      </div>
+
+      <!-- Live preview -->
+      <div class="preview">
+        <div class="card" style="margin-bottom:1.25rem">
+          <div class="card-header mt-0"><span>Live preview</span><span class="badge bg-info-light"><span class="dot" style="background:var(--exprsn-info)"></span> Draft</span></div>
+          <div class="card-body">
+            <div class="pv-cn" id="pvCn">— common name —</div>
+            <div class="form-hint" id="pvProfile" style="margin-bottom:1rem">entity · Exprsn Issuing CA — us-east (G2)</div>
+            <div class="kv"><span class="k">Subject DN</span></div>
+            <div class="codeblock" id="pvDn">CN=…</div>
+            <div style="height:1rem"></div>
+            <div class="kv"><span class="k">Key</span><span class="v" id="pvKey">RSA 4096 · RSA-SHA256</span></div>
+            <div class="kv"><span class="k">Validity</span><span class="v" id="pvValidity">397 days</span></div>
+            <div class="kv"><span class="k">Serial</span><span class="v mut" style="color:var(--exprsn-text-muted)">assigned on issue</span></div>
+            <div class="kv"><span class="k">SHA-256 fingerprint</span><span class="v" style="color:var(--exprsn-text-muted)">— pending —</span></div>
+          </div>
+        </div>
+        <div class="alert alert-info"><span class="ico">ℹ</span><span>Issuance appends an entry to the <strong>append-only audit chain</strong> (<code>P0-7</code>) and is scoped to the selected organization via row-level security.</span></div>
+      </div>
+    </div>
+
+    <!-- recent certs -->
+    <div class="card" style="margin-top:1.75rem">
+      <div class="card-header"><span>Recent certificates</span><span class="sub mono">GET /ca/admin/api/certificates</span></div>
+      <div class="card-body" style="padding:0">
+        <div class="toolbar" style="padding:1rem 1.5rem 0;margin-bottom:0">
+          <div class="search"><input class="form-control" placeholder="🔍 Filter by CN, serial, org…"></div>
+          <button class="btn btn-ghost btn-sm">Status: All ▾</button>
+          <button class="btn btn-ghost btn-sm">Type: All ▾</button>
+        </div>
+        <div class="table-wrap">
+          <table class="tbl">
+            <thead><tr><th>Common Name</th><th>Type</th><th>Subject</th><th>Status</th><th>Expires</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="mono">svc.payments.exprsn.io</span><div class="sub">Serial 4A:9F:…:C2</div></td>
+                <td><span class="badge bg-neutral">server</span></td>
+                <td>Exprsn, Inc.<div class="sub">OU=Platform Eng</div></td>
+                <td><span class="badge bg-success-light"><span class="dot" style="background:var(--exprsn-success)"></span> active</span></td>
+                <td>2027-07-20<div class="sub">397 days</div></td>
+                <td class="row-actions"><span class="link-act">View</span><span class="link-act danger">Revoke</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono">Jane Doe</span><div class="sub">did:exprsn:8f2a…d91</div></td>
+                <td><span class="badge bg-neutral">client</span></td>
+                <td>Jane Doe<div class="sub">jane@exprsn.io</div></td>
+                <td><span class="badge bg-success-light"><span class="dot" style="background:var(--exprsn-success)"></span> active</span></td>
+                <td>2026-09-02<div class="sub">76 days</div></td>
+                <td class="row-actions"><span class="link-act">View</span><span class="link-act danger">Revoke</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono">build.ci.exprsn.io</span><div class="sub">Serial 1C:33:…:7E</div></td>
+                <td><span class="badge bg-neutral">code_signing</span></td>
+                <td>Exprsn, Inc.<div class="sub">OU=Release</div></td>
+                <td><span class="badge bg-warning-light"><span class="dot" style="background:var(--exprsn-warning)"></span> expiring</span></td>
+                <td>2026-07-04<div class="sub">16 days</div></td>
+                <td class="row-actions"><span class="link-act">Renew</span><span class="link-act danger">Revoke</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono">old-gw.exprsn.io</span><div class="sub">Serial 9B:01:…:A4</div></td>
+                <td><span class="badge bg-neutral">entity</span></td>
+                <td>Exprsn, Inc.<div class="sub">OU=Edge</div></td>
+                <td><span class="badge bg-danger-light"><span class="dot" style="background:var(--exprsn-danger)"></span> revoked</span></td>
+                <td>—<div class="sub">keyCompromise</div></td>
+                <td class="row-actions"><span class="link-act">View</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ════════════════════════ TOKEN PAGE ════════════════════════ -->
+  <main class="main page" id="page-tokens">
+    <div class="breadcrumb">Admin / PKI / <code>/admin/tokens</code></div>
+    <div class="page-head">
+      <div>
+        <h1>Token Administration</h1>
+        <p class="lead">Tokens bind a certificate to a resource and carry the permission flags, scopes and role grants that determine what is visible and permitted across the platform.</p>
+      </div>
+      <div class="head-actions">
+        <button class="btn btn-ghost btn-sm">⤓ Validate token</button>
+        <button class="btn btn-primary">+ Issue token</button>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat border-left-success"><div class="label">Active tokens</div><div class="num">3,902</div><div class="delta up">▲ 311 / 24h</div></div>
+      <div class="stat border-left-warning"><div class="label">Expiring ≤ 24h</div><div class="num">128</div><div class="delta flat">time-based</div></div>
+      <div class="stat border-left-secondary"><div class="label">Exhausted</div><div class="num">214</div><div class="delta flat">use-based · 0 left</div></div>
+      <div class="stat border-left-danger"><div class="label">Revoked</div><div class="num">71</div><div class="delta flat">last 30d</div></div>
+    </div>
+
+    <div class="split">
+      <!-- token issue form -->
+      <div class="card">
+        <div class="card-header"><span>Issue a token</span><span class="sub mono">POST /ca/api/tokens</span></div>
+        <div class="card-body">
+
+          <!-- bind cert -->
+          <div class="section-title"><span class="step">1</span> Bind to certificate</div>
+          <div class="form-group lookup">
+            <label class="form-label">Certificate <span class="req">*</span> <span class="opt"><code>certificateId</code></span></label>
+            <div class="lookup-box">
+              <input class="form-control" id="certLookup" placeholder="Search CN, serial, DID or owner…" autocomplete="off">
+              <button class="btn btn-outline" id="certLookupBtn">Search</button>
+            </div>
+            <div class="lookup-results hide" id="certResults"></div>
+          </div>
+          <div class="subject-chip hide" id="certChip">
+            <div class="ava" id="certChipAva">—</div>
+            <div class="info"><div class="nm" id="certChipName">—</div><div class="meta" id="certChipMeta">—</div></div>
+            <button class="x" id="certChipClear" title="Clear">✕</button>
+          </div>
+
+          <!-- resource -->
+          <div class="section-title"><span class="step">2</span> Resource binding</div>
+          <div class="form-row">
+            <div class="form-group mb-0">
+              <label class="form-label">Resource type <span class="opt"><code>resource.type</code></span></label>
+              <select class="form-select" id="resType">
+                <option value="did">did — Decentralized Identifier</option>
+                <option value="cid">cid — Content Identifier (IPFS)</option>
+                <option value="url">url — HTTP/URL resource</option>
+              </select>
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label">Resource value <span class="opt"><code>resource.value</code></span></label>
+              <input class="form-control mono" id="resVal" placeholder="did:exprsn:8f2a…d91">
+            </div>
+          </div>
+
+          <!-- permissions -->
+          <div class="section-title"><span class="step">3</span> Permission flags</div>
+          <p class="form-hint" style="margin-top:-.5rem;margin-bottom:.85rem">These five flags are stamped onto the token and enforced at every gateway request — they directly control what the holder can do with the bound resource.</p>
+          <div class="perm-grid" id="permGrid">
+            <label class="perm on" data-perm="read"><span class="pi">R</span><span><span class="pl">Read</span><br><span class="pc">permissionRead</span></span></label>
+            <label class="perm" data-perm="write"><span class="pi">W</span><span><span class="pl">Write</span><br><span class="pc">permissionWrite</span></span></label>
+            <label class="perm" data-perm="append"><span class="pi">A</span><span><span class="pl">Append</span><br><span class="pc">permissionAppend</span></span></label>
+            <label class="perm" data-perm="update"><span class="pi">U</span><span><span class="pl">Update</span><br><span class="pc">permissionUpdate</span></span></label>
+            <label class="perm" data-perm="delete"><span class="pi">D</span><span><span class="pl">Delete</span><br><span class="pc">permissionDelete</span></span></label>
+          </div>
+
+          <!-- scopes -->
+          <div class="section-title"><span class="step">4</span> Scopes</div>
+          <p class="form-hint" style="margin-top:-.5rem;margin-bottom:.85rem">Service &amp; resource scopes gate which modules and objects this token can reach. Visibility in each module follows from the scopes granted here.</p>
+          <label class="form-label">Resource scopes</label>
+          <div class="chips" id="resScopes" style="margin-bottom:1rem">
+            <span class="chip on" data-scope="org:read">org:read</span>
+            <span class="chip" data-scope="org:write">org:write</span>
+            <span class="chip" data-scope="user:read">user:read</span>
+            <span class="chip" data-scope="user:manage">user:manage</span>
+            <span class="chip" data-scope="group:read">group:read</span>
+            <span class="chip" data-scope="app:read">app:read</span>
+          </div>
+          <label class="form-label">Service access scopes</label>
+          <div class="chips" id="svcScopes">
+            <span class="chip scope-svc on" data-scope="service:auth:access">service:auth:access</span>
+            <span class="chip scope-svc" data-scope="service:spark:access">service:spark:access</span>
+            <span class="chip scope-svc" data-scope="service:timeline:access">service:timeline:access</span>
+            <span class="chip scope-svc" data-scope="service:filevault:access">service:filevault:access</span>
+            <span class="chip scope-svc" data-scope="service:gallery:access">service:gallery:access</span>
+            <span class="chip scope-svc" data-scope="service:live:access">service:live:access</span>
+            <span class="chip scope-svc" data-scope="service:moderator:access">service:moderator:access</span>
+            <span class="chip scope-svc" data-scope="service:prefetch:access">service:prefetch:access</span>
+          </div>
+
+          <!-- roles -->
+          <div class="section-title"><span class="step">5</span> Role assignment</div>
+          <p class="form-hint" style="margin-top:-.5rem;margin-bottom:.85rem">Assigning a role grants its permission set to the token. Higher-priority roles win on conflict.</p>
+          <div class="role-list" id="roleList">
+            <label class="role"><input type="checkbox" data-role="super-admin"><div class="meta"><div class="nm">super-admin <span class="badge bg-danger-light">system</span></div><div class="pm">permissions: *</div></div><span class="prio">prio 1000</span></label>
+            <label class="role"><input type="checkbox" data-role="org-owner"><div class="meta"><div class="nm">org-owner <span class="badge bg-secondary-light">system</span></div><div class="pm">org:*</div></div><span class="prio">prio 900</span></label>
+            <label class="role on"><input type="checkbox" checked data-role="org-admin"><div class="meta"><div class="nm">org-admin <span class="badge bg-secondary-light">system</span></div><div class="pm">org:read · org:write · org:users:* · org:groups:*</div></div><span class="prio">prio 800</span></label>
+            <label class="role"><input type="checkbox" data-role="org-member"><div class="meta"><div class="nm">org-member <span class="badge bg-neutral">system</span></div><div class="pm">org:read · app:read</div></div><span class="prio">prio 100</span></label>
+          </div>
+
+          <!-- visibility + expiry -->
+          <div class="section-title"><span class="step">6</span> Visibility &amp; lifetime</div>
+          <div class="form-row">
+            <div class="form-group mb-0">
+              <label class="form-label">Visibility</label>
+              <select class="form-select" id="visibility">
+                <option value="organization">Organization — members of owning org</option>
+                <option value="private">Private — subject only</option>
+                <option value="public">Public — anyone with the resource</option>
+              </select>
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label">Expiry type <span class="opt"><code>expiryType</code></span></label>
+              <select class="form-select" id="expiryType">
+                <option value="time">time — expires at timestamp</option>
+                <option value="use">use — limited number of uses</option>
+                <option value="persistent">persistent — never expires</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:1rem">
+            <div class="form-group mb-0" id="grpExpiresAt">
+              <label class="form-label">Expires at <span class="opt"><code>expiresAt</code></span></label>
+              <input class="form-control" type="datetime-local" id="expiresAt">
+            </div>
+            <div class="form-group mb-0 hide" id="grpMaxUses">
+              <label class="form-label">Max uses <span class="opt"><code>maxUses</code></span></label>
+              <input class="form-control" type="number" id="maxUses" value="100" min="1" max="1000000">
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label">Not before <span class="opt"><code>notBefore</code></span></label>
+              <input class="form-control" type="datetime-local" id="notBefore">
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button class="btn btn-ghost">Reset</button>
+          <button class="btn btn-primary">🎫 Issue token</button>
+        </div>
+      </div>
+
+      <!-- token preview -->
+      <div class="preview">
+        <div class="card" style="margin-bottom:1.25rem">
+          <div class="card-header mt-0"><span>Effective grant</span><span class="badge bg-success-light"><span class="dot" style="background:var(--exprsn-success)"></span> Will be active</span></div>
+          <div class="card-body">
+            <div class="kv"><span class="k">Resource</span><span class="v" id="tvRes">did:exprsn:…</span></div>
+            <div class="kv"><span class="k">Permissions</span><span class="v" id="tvPerms">read</span></div>
+            <div class="kv"><span class="k">Expiry</span><span class="v" id="tvExpiry">time</span></div>
+            <div class="kv"><span class="k">Visibility</span><span class="v" id="tvVis">organization</span></div>
+            <div style="height:1rem"></div>
+            <div class="kv"><span class="k">Token payload</span></div>
+            <div class="codeblock" id="tvJson"></div>
+          </div>
+        </div>
+        <div class="alert alert-warning"><span class="ico">!</span><span>Granting <code>super-admin</code> or broad <code>service:*</code> scopes widens visibility platform-wide. Prefer the narrowest scope set that satisfies the use case.</span></div>
+      </div>
+    </div>
+
+    <!-- token list -->
+    <div class="card" style="margin-top:1.75rem">
+      <div class="card-header"><span>Issued tokens</span><span class="sub mono">GET /ca/admin/api/tokens</span></div>
+      <div class="card-body" style="padding:0">
+        <div class="toolbar" style="padding:1rem 1.5rem 0;margin-bottom:0">
+          <div class="search"><input class="form-control" placeholder="🔍 Filter by token id, resource, owner…"></div>
+          <button class="btn btn-ghost btn-sm">Status: All ▾</button>
+          <button class="btn btn-ghost btn-sm">Expiry: All ▾</button>
+        </div>
+        <div class="table-wrap">
+          <table class="tbl">
+            <thead><tr><th>Token</th><th>Resource</th><th>Permissions</th><th>Scopes / role</th><th>Status</th><th>Expiry</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="mono">tok_9f3a…b21</span><div class="sub">svc.payments.exprsn.io</div></td>
+                <td><span class="badge bg-info-light">did</span><div class="sub mono">did:exprsn:8f2a…d91</div></td>
+                <td><span class="perm-pills"><span class="on">R</span><span class="on">W</span><span>A</span><span class="on">U</span><span>D</span></span></td>
+                <td><span class="badge bg-secondary-light">org-admin</span><div class="sub mono">service:spark:access</div></td>
+                <td><span class="badge bg-success-light"><span class="dot" style="background:var(--exprsn-success)"></span> active</span></td>
+                <td>time<div class="sub">in 12 days</div></td>
+                <td class="row-actions"><span class="link-act">View</span><span class="link-act danger">Revoke</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono">tok_1c8e…04f</span><div class="sub">Jane Doe</div></td>
+                <td><span class="badge bg-neutral">cid</span><div class="sub mono">bafy…q3a</div></td>
+                <td><span class="perm-pills"><span class="on">R</span><span>W</span><span>A</span><span>U</span><span>D</span></span></td>
+                <td><span class="badge bg-neutral">org-member</span><div class="sub mono">service:filevault:access</div></td>
+                <td><span class="badge bg-warning-light"><span class="dot" style="background:var(--exprsn-warning)"></span> use 3/100</span></td>
+                <td>use<div class="sub">97 left</div></td>
+                <td class="row-actions"><span class="link-act">View</span><span class="link-act danger">Revoke</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono">tok_77b2…9aa</span><div class="sub">build.ci.exprsn.io</div></td>
+                <td><span class="badge bg-neutral">url</span><div class="sub mono">https://ci.exprsn.io/artifacts</div></td>
+                <td><span class="perm-pills"><span class="on">R</span><span class="on">W</span><span class="on">A</span><span class="on">U</span><span class="on">D</span></span></td>
+                <td><span class="badge bg-secondary-light">org-owner</span><div class="sub mono">service:prefetch:access</div></td>
+                <td><span class="badge bg-neutral"><span class="dot" style="background:var(--exprsn-text-muted)"></span> persistent</span></td>
+                <td>persistent<div class="sub">no expiry</div></td>
+                <td class="row-actions"><span class="link-act">View</span><span class="link-act danger">Revoke</span></td>
+              </tr>
+              <tr>
+                <td><span class="mono">tok_4e10…c5d</span><div class="sub">old-gw.exprsn.io</div></td>
+                <td><span class="badge bg-info-light">did</span><div class="sub mono">did:exprsn:11c0…2f</div></td>
+                <td><span class="perm-pills"><span class="on">R</span><span>W</span><span>A</span><span>U</span><span>D</span></span></td>
+                <td><span class="badge bg-neutral">org-member</span><div class="sub mono">—</div></td>
+                <td><span class="badge bg-danger-light"><span class="dot" style="background:var(--exprsn-danger)"></span> revoked</span></td>
+                <td>time<div class="sub">expired</div></td>
+                <td class="row-actions"><span class="link-act">View</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  /* theme */
+  var tb=document.getElementById('themeToggle'),ti=document.getElementById('themeIcon'),tl=document.getElementById('themeLabel');
+  function applyTheme(t){root.setAttribute('data-theme',t);var d=t==='dark';ti.textContent=d?'☀️':'🌙';tl.textContent=d?'Light':'Dark';}
+  tb.addEventListener('click',function(){applyTheme(root.getAttribute('data-theme')==='dark'?'light':'dark');});
+  if(window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)applyTheme('dark');
+
+  /* page nav */
+  document.querySelectorAll('.nav-link[data-page]').forEach(function(l){
+    l.addEventListener('click',function(){
+      document.querySelectorAll('.nav-link').forEach(function(n){n.classList.remove('active');});
+      l.classList.add('active');
+      var p=l.getAttribute('data-page');
+      document.querySelectorAll('.page').forEach(function(pg){pg.classList.remove('active');});
+      document.getElementById('page-'+p).classList.add('active');
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+  });
+
+  /* ── CA: subject type toggle ── */
+  var subjLabel=document.getElementById('lookupLabel');
+  document.querySelectorAll('#subjectType button').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('#subjectType button').forEach(function(x){x.classList.remove('active');});
+      b.classList.add('active');
+      var org=b.getAttribute('data-mode')==='org';
+      subjLabel.textContent=org?'Organization lookup':'DID / User lookup';
+      document.getElementById('lookupInput').placeholder=org?'Search org name or slug…':'Search by name, email, did:…';
+      // adjust EKU defaults
+      renderPreview();
+    });
+  });
+
+  /* ── CA: mock lookup ── */
+  var users=[
+    {init:'JD',org:false,nm:'Jane Doe',meta:'jane@exprsn.io · did:exprsn:8f2a…d91',cn:'Jane Doe',o:'Exprsn, Inc.',ou:'',email:'jane@exprsn.io',c:'US',st:'California',l:'San Francisco'},
+    {init:'MK',org:false,nm:'Marcus Kim',meta:'marcus@exprsn.io · did:exprsn:3b71…a02',cn:'Marcus Kim',o:'Exprsn, Inc.',ou:'',email:'marcus@exprsn.io',c:'US',st:'New York',l:'New York'},
+    {init:'EX',org:true,nm:'Exprsn, Inc.',meta:'slug: exprsn · enterprise · 412 members',cn:'Exprsn, Inc.',o:'Exprsn, Inc.',ou:'Platform Engineering',email:'pki@exprsn.io',c:'US',st:'California',l:'San Francisco'},
+    {init:'AC',org:true,nm:'Acme Robotics',meta:'slug: acme-robotics · team · 28 members',cn:'Acme Robotics CA',o:'Acme Robotics',ou:'Security',email:'sec@acme.io',c:'US',st:'Texas',l:'Austin'}
+  ];
+  var lr=document.getElementById('lookupResults'),li=document.getElementById('lookupInput');
+  function showLookup(){
+    var q=li.value.toLowerCase();
+    var orgMode=document.querySelector('#subjectType button.active').getAttribute('data-mode')==='org';
+    var list=users.filter(function(u){return u.org===orgMode && (q===''|| (u.nm+u.meta).toLowerCase().indexOf(q)>=0);});
+    if(!list.length){lr.classList.add('hide');return;}
+    lr.innerHTML=list.map(function(u,i){return '<div class="lookup-row" data-i="'+users.indexOf(u)+'"><div class="ava '+(u.org?'org':'')+'">'+u.init+'</div><div class="who"><div class="nm">'+u.nm+'</div><div class="meta">'+u.meta+'</div></div><span class="pick">Select →</span></div>';}).join('');
+    lr.classList.remove('hide');
+    lr.querySelectorAll('.lookup-row').forEach(function(r){r.addEventListener('click',function(){pickSubject(users[+r.getAttribute('data-i')]);});});
+  }
+  document.getElementById('lookupBtn').addEventListener('click',showLookup);
+  li.addEventListener('keyup',function(e){if(e.key==='Enter')showLookup();});
+
+  var chip=document.getElementById('subjectChip');
+  function pickSubject(u){
+    document.getElementById('f_cn').value=u.cn;
+    document.getElementById('f_o').value=u.o;
+    document.getElementById('f_ou').value=u.ou;
+    document.getElementById('f_c').value=u.c;
+    document.getElementById('f_st').value=u.st;
+    document.getElementById('f_l').value=u.l;
+    document.getElementById('f_email').value=u.email;
+    document.getElementById('chipAva').textContent=u.init;
+    document.getElementById('chipName').textContent=u.nm;
+    document.getElementById('chipMeta').textContent=u.meta;
+    chip.classList.toggle('org-mode',u.org);
+    chip.classList.remove('hide');
+    lr.classList.add('hide');li.value='';
+    renderPreview();
+  }
+  document.getElementById('chipClear').addEventListener('click',function(){chip.classList.add('hide');});
+
+  /* SAN add/remove */
+  document.getElementById('addSan').addEventListener('click',function(){
+    var row=document.createElement('div');row.className='repeat-row';
+    row.innerHTML='<input class="form-control mono" placeholder="DNS: … · URI: did:… · email:"><button class="rm" title="Remove">−</button>';
+    document.getElementById('sanList').appendChild(row);
+    row.querySelector('.rm').addEventListener('click',function(){row.remove();});
+  });
+  document.querySelectorAll('#sanList .rm').forEach(function(b){b.addEventListener('click',function(){b.closest('.repeat-row').remove();});});
+
+  /* EKU check toggle */
+  document.querySelectorAll('.check').forEach(function(c){c.addEventListener('change',function(){c.classList.toggle('on',c.querySelector('input').checked);});});
+
+  /* CA live preview */
+  function renderPreview(){
+    var cn=document.getElementById('f_cn').value||'— common name —';
+    var o=document.getElementById('f_o').value,ou=document.getElementById('f_ou').value,c=document.getElementById('f_c').value,st=document.getElementById('f_st').value,l=document.getElementById('f_l').value,em=document.getElementById('f_email').value;
+    document.getElementById('pvCn').textContent=cn;
+    document.getElementById('pvProfile').textContent=document.getElementById('certType').value+' · '+document.getElementById('issuingCa').value;
+    var parts=[];parts.push('<span class="hl">CN</span>='+(document.getElementById('f_cn').value||'…'));
+    if(o)parts.push('<span class="hl">O</span>='+o);if(ou)parts.push('<span class="hl">OU</span>='+ou);
+    if(l)parts.push('<span class="hl">L</span>='+l);if(st)parts.push('<span class="hl">ST</span>='+st);if(c)parts.push('<span class="hl">C</span>='+c.toUpperCase());
+    if(em)parts.push('<span class="hl">emailAddress</span>='+em);
+    document.getElementById('pvDn').innerHTML=parts.join('<span class="mut">, </span>');
+    document.getElementById('pvKey').textContent=document.getElementById('f_keysize').options[document.getElementById('f_keysize').selectedIndex].text+' · '+document.getElementById('f_alg').value;
+    document.getElementById('pvValidity').textContent=document.getElementById('f_validity').value+' days';
+  }
+  ['f_cn','f_o','f_ou','f_c','f_st','f_l','f_email','certType','issuingCa','f_keysize','f_alg','f_validity'].forEach(function(id){
+    var el=document.getElementById(id);el.addEventListener('input',renderPreview);el.addEventListener('change',renderPreview);
+  });
+  renderPreview();
+
+  /* ── TOKEN page ── */
+  var certs=[
+    {init:'SP',nm:'svc.payments.exprsn.io',meta:'server · Serial 4A:9F:…:C2 · Exprsn, Inc.'},
+    {init:'JD',nm:'Jane Doe',meta:'client · did:exprsn:8f2a…d91'},
+    {init:'CI',nm:'build.ci.exprsn.io',meta:'code_signing · OU=Release'}
+  ];
+  var cr=document.getElementById('certResults'),cl=document.getElementById('certLookup');
+  function showCertLookup(){
+    var q=cl.value.toLowerCase();
+    var list=certs.filter(function(c){return q===''||(c.nm+c.meta).toLowerCase().indexOf(q)>=0;});
+    if(!list.length){cr.classList.add('hide');return;}
+    cr.innerHTML=list.map(function(c,i){return '<div class="lookup-row" data-i="'+i+'"><div class="ava">'+c.init+'</div><div class="who"><div class="nm">'+c.nm+'</div><div class="meta">'+c.meta+'</div></div><span class="pick">Bind →</span></div>';}).join('');
+    cr.classList.remove('hide');
+    cr.querySelectorAll('.lookup-row').forEach(function(r){r.addEventListener('click',function(){var c=list[+r.getAttribute('data-i')];document.getElementById('certChipAva').textContent=c.init;document.getElementById('certChipName').textContent=c.nm;document.getElementById('certChipMeta').textContent=c.meta;document.getElementById('certChip').classList.remove('hide');cr.classList.add('hide');cl.value='';});});
+  }
+  document.getElementById('certLookupBtn').addEventListener('click',showCertLookup);
+  cl.addEventListener('keyup',function(e){if(e.key==='Enter')showCertLookup();});
+  document.getElementById('certChipClear').addEventListener('click',function(){document.getElementById('certChip').classList.add('hide');});
+
+  /* perms */
+  document.querySelectorAll('#permGrid .perm').forEach(function(p){
+    p.addEventListener('click',function(){var i=p.querySelector('input');i.checked=!i.checked;p.classList.toggle('on',i.checked);renderToken();});
+  });
+  /* scope chips */
+  document.querySelectorAll('.chip').forEach(function(ch){ch.addEventListener('click',function(){ch.classList.toggle('on');renderToken();});});
+  /* roles */
+  document.querySelectorAll('#roleList .role').forEach(function(r){r.addEventListener('change',function(){r.classList.toggle('on',r.querySelector('input').checked);renderToken();});});
+
+  /* expiry type */
+  var et=document.getElementById('expiryType');
+  function syncExpiry(){
+    var v=et.value;
+    document.getElementById('grpExpiresAt').classList.toggle('hide',v!=='time');
+    document.getElementById('grpMaxUses').classList.toggle('hide',v!=='use');
+    renderToken();
+  }
+  et.addEventListener('change',syncExpiry);
+
+  function renderToken(){
+    var perms=[];document.querySelectorAll('#permGrid .perm').forEach(function(p){if(p.querySelector('input').checked)perms.push(p.getAttribute('data-perm'));});
+    var scopes=[];document.querySelectorAll('.chip.on').forEach(function(c){scopes.push(c.getAttribute('data-scope'));});
+    var roles=[];document.querySelectorAll('#roleList input:checked').forEach(function(i){roles.push(i.getAttribute('data-role'));});
+    var resType=document.getElementById('resType').value,resVal=document.getElementById('resVal').value||'…';
+    var vis=document.getElementById('visibility').value,exp=et.value;
+    document.getElementById('tvRes').textContent=resType+':'+resVal;
+    document.getElementById('tvPerms').textContent=perms.join(' · ')||'none';
+    document.getElementById('tvExpiry').textContent=exp;
+    document.getElementById('tvVis').textContent=vis;
+    var permObj={read:perms.indexOf('read')>=0,write:perms.indexOf('write')>=0,append:perms.indexOf('append')>=0,update:perms.indexOf('update')>=0,delete:perms.indexOf('delete')>=0};
+    var json=''
+      +'{\n'
+      +'  <span class="hl">"certificateId"</span>: <span class="gr">"&lt;bound-cert-uuid&gt;"</span>,\n'
+      +'  <span class="hl">"resource"</span>: { <span class="hl">"type"</span>: <span class="gr">"'+resType+'"</span>, <span class="hl">"value"</span>: <span class="gr">"'+resVal+'"</span> },\n'
+      +'  <span class="hl">"permissions"</span>: '+JSON.stringify(permObj).replace(/"/g,'').replace(/:/g,': ').replace(/,/g,', ')+',\n'
+      +'  <span class="hl">"scopes"</span>: ['+(scopes.length?'<span class="gr">"'+scopes.join('"</span>, <span class="gr">"')+'"</span>':'')+'],\n'
+      +'  <span class="hl">"roles"</span>: ['+(roles.length?'<span class="gr">"'+roles.join('"</span>, <span class="gr">"')+'"</span>':'')+'],\n'
+      +'  <span class="hl">"visibility"</span>: <span class="gr">"'+vis+'"</span>,\n'
+      +'  <span class="hl">"expiryType"</span>: <span class="gr">"'+exp+'"</span>\n'
+      +'}';
+    document.getElementById('tvJson').innerHTML=json;
+  }
+  ['resType','resVal','visibility'].forEach(function(id){var el=document.getElementById(id);el.addEventListener('input',renderToken);el.addEventListener('change',renderToken);});
+  syncExpiry();renderToken();
+})();
+</script>
+</body>
+</html>

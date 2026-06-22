@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Platform Model — Exprsn Platform Documentation</title>
+<link rel="stylesheet" href="assets/docs.css">
+<style>
+  pre.mermaid {
+    background: #fff;
+    text-align: center;
+    overflow-x: auto;
+  }
+  .src-toggle { font-size: 0.85rem; }
+  details.src { margin: 0.5rem 0 1.5rem; }
+  details.src summary { cursor: pointer; color: var(--text-muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html" class="active">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+  </nav>
+</header>
+<main>
+<h1>Platform Model</h1>
+<p>Architecture diagrams of the Exprsn Platform, rendered with <a href="https://mermaid.js.org/">Mermaid</a>. Each diagram's Mermaid source is the text of the diagram block itself, so it can be copied directly into any Mermaid-aware tool (GitHub, Markdown, Confluence).</p>
+<div class="note">Diagrams render in the browser via the Mermaid library loaded from a CDN — an internet connection is required when viewing this page. The source is shown as plain text if the CDN is unreachable.</div>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ul>
+    <li><a href="#architecture">Platform architecture</a></li>
+    <li><a href="#request">Request &amp; authentication flow</a></li>
+    <li><a href="#postflow">Post-creation flow (Timeline)</a></li>
+    <li><a href="#cacheflow">Cached feed read (Prefetch)</a></li>
+    <li><a href="#deps">Module dependency map</a></li>
+  </ul>
+</div>
+
+<h2 id="architecture">Platform architecture</h2>
+<p>One Node.js process serves all ten modules behind a single HTTPS port. The gateway mounts each module at its prefix from <code>src/modules/registry.js</code> and owns the single Socket.IO server; Bull workers run as separate processes. Documented modules are highlighted.</p>
+<pre class="mermaid">
+flowchart TB
+    subgraph clients [Clients]
+        web[Web / mobile clients]
+        svc[Service callers]
+    end
+
+    web -->|HTTPS :8443 + Socket.IO /socket.io| gw
+    svc -->|HMAC service tokens| gw
+
+    subgraph platform [Unified platform process]
+        gw["Gateway (src/gateway.js)<br/>helmet · cors · compression · /health<br/>central error handler · Socket.IO server"]
+        gw --> ca["/ca — CA ★<br/>ns /ca"]
+        gw --> auth["/auth — Auth ★"]
+        gw --> timeline["/timeline — Timeline ★<br/>ns /timeline"]
+        gw --> prefetch["/prefetch — Prefetch ★"]
+        gw --> spark["/spark — Spark<br/>ns /spark"]
+        gw --> others["/nexus · /filevault · /vault<br/>/moderator · /live"]
+    end
+
+    subgraph workers [Separate worker processes]
+        tlworker[timeline/src/worker.js<br/>fanout · trending · indexing · notifications]
+        pfworker[prefetch/src/worker.js<br/>activity-based scheduler]
+    end
+
+    subgraph data [Data layer]
+        pg[("PostgreSQL: exprsn<br/>one schema per module")]
+        redis[("Redis<br/>cache · sessions · Bull queues")]
+        es[("ElasticSearch<br/>exprsn_posts (optional)")]
+    end
+
+    extbsky[Bluesky PDS]
+    exts3[S3 / disk cert storage]
+
+    ca --- pg
+    auth --- pg
+    timeline --- pg
+    prefetch --- pg
+    ca --- redis
+    auth --- redis
+    timeline --- redis
+    prefetch --- redis
+    timeline --- es
+    tlworker --- redis
+    pfworker --- redis
+    tlworker --- pg
+    timeline <--> extbsky
+    ca --- exts3
+
+    style ca fill:#dbe9ff,stroke:#0b5fff
+    style auth fill:#dbe9ff,stroke:#0b5fff
+    style timeline fill:#dbe9ff,stroke:#0b5fff
+    style prefetch fill:#dbe9ff,stroke:#0b5fff
+</pre>
+
+<h2 id="request">Request &amp; authentication flow</h2>
+<p>How an API call is authenticated. User traffic carries a CA token; module-to-module traffic uses HMAC service tokens and flows back through the gateway via <code>*_SERVICE_URL</code> (all pointing at <code>https://localhost:8443/&lt;module&gt;</code>).</p>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant G as Gateway (port 8443)
+    participant M as Module (e.g. Timeline)
+    participant CA as CA module
+
+    C->>G: HTTPS request<br/>Authorization: Bearer &lt;CA token&gt;
+    G->>M: route by prefix (/timeline/api/…)
+    M->>CA: validate token<br/>(POST /ca/api/tokens/validate or IPC token:validate)
+    CA->>CA: check status, RSA-PSS signature,<br/>permissions, resource — Redis cache 300s
+    CA-->>M: { valid, userId, permissions }
+    alt token valid + permission present
+        M->>M: handle request (Sequelize → module schema)
+        M-->>C: 200 JSON
+    else invalid / insufficient
+        M-->>C: 401 / 403 JSON
+    end
+</pre>
+
+<h2 id="postflow">Post-creation flow (Timeline)</h2>
+<p>Write path with fan-out on write: synchronous persistence, asynchronous distribution.</p>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant T as Timeline module
+    participant DB as Postgres (timeline schema)
+    participant Q as Bull queues (Redis)
+    participant W as Timeline worker
+    participant H as Herald
+    participant S as Socket.IO /timeline
+
+    C->>T: POST /timeline/api/posts
+    T->>T: sanitize, extract hashtags/mentions/URLs
+    T->>DB: INSERT posts row
+    T->>Q: enqueue post-fanout, hashtag-extraction, post-index
+    T->>S: emit new:post to timeline:global
+    T-->>C: 201 created
+    W->>Q: consume post-fanout
+    W->>DB: fan-out rows (batches of 100 followers)
+    W->>Q: write timeline:{userId} sorted sets (TTL 5 min)
+    W->>H: notification jobs (like/comment/repost/mention/follow)
+</pre>
+
+<h2 id="cacheflow">Cached feed read (Prefetch)</h2>
+<p>Read acceleration: hot tier first, warm fallback, queued refresh on miss.</p>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant P as Prefetch module
+    participant R0 as Redis hot (DB 0, 5 min)
+    participant R1 as Redis warm (DB 1, 15 min)
+    participant Q as Bull queue prefetch
+    participant T as Timeline module
+
+    C->>P: GET /prefetch/api/cache/:userId
+    P->>R0: GET timeline:{userId}
+    alt hot hit
+        R0-->>P: cached timeline
+        P-->>C: 200 (tier: hot)
+    else hot miss
+        P->>R1: GET timeline:{userId}
+        alt warm hit
+            R1-->>P: cached timeline
+            P-->>C: 200 (tier: warm)
+        else full miss
+            P-->>C: 404 not cached
+            C->>P: POST /prefetch/api/prefetch/schedule/:userId
+            P->>Q: enqueue timeline job (priority, 3 retries)
+            Q->>T: GET /api/timeline/user/:userId?limit=100
+            T-->>Q: posts
+            Q->>R0: SET timeline:{userId} (tier by priority)
+        end
+    end
+</pre>
+
+<h2 id="deps">Module dependency map</h2>
+<p>Who calls whom among the documented modules and their collaborators. Solid arrows are runtime calls; the CA is the trust anchor for everything.</p>
+<pre class="mermaid">
+flowchart LR
+    CA["Exprsn-CA ★<br/>tokens · certs · OCSP · CRL"]
+    AUTH["Exprsn-Auth ★<br/>identity · OAuth2/OIDC · SAML · LDAP"]
+    TL["Exprsn-Timeline ★<br/>posts · feeds · fan-out"]
+    PF["Exprsn-Prefetch ★<br/>hot/warm feed cache"]
+    HER[Herald<br/>notifications]
+    SPK[Spark<br/>messaging]
+    FV[FileVault<br/>file storage]
+    BSKY[Bluesky PDS<br/>federation]
+    ES[(ElasticSearch)]
+
+    AUTH -->|generate / validate CA tokens| CA
+    TL -->|validate tokens| CA
+    PF -->|service tokens, validate| CA
+    PF -->|fetch user timelines| TL
+    TL -->|notifications| HER
+    TL -->|broadcast events| SPK
+    TL -->|attachments| FV
+    TL <-->|sync posts / HMAC webhooks| BSKY
+    TL -->|index posts| ES
+
+    style CA fill:#dbe9ff,stroke:#0b5fff
+    style AUTH fill:#dbe9ff,stroke:#0b5fff
+    style TL fill:#dbe9ff,stroke:#0b5fff
+    style PF fill:#dbe9ff,stroke:#0b5fff
+</pre>
+
+<h2>Reusing these diagrams</h2>
+<p>Each block above is plain Mermaid source inside a <code>&lt;pre class="mermaid"&gt;</code> element. To reuse one, view this file's source (or open it in a text editor), copy the block's contents, and paste it into any Mermaid renderer — a fenced <code>```mermaid</code> block on GitHub, the <a href="https://mermaid.live/">Mermaid Live Editor</a>, or documentation tooling.</p>
+
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+<script>
+  function initMermaid() {
+    if (window.mermaid) {
+      window.mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });
+      window.mermaid.run && window.mermaid.run();
+    }
+  }
+  (function loadMermaid(sources) {
+    if (!sources.length) return; // offline: raw Mermaid source stays visible
+    var s = document.createElement('script');
+    s.src = sources[0];
+    s.onload = initMermaid;
+    s.onerror = function () { loadMermaid(sources.slice(1)); };
+    document.body.appendChild(s);
+  })([
+    'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js',
+    'https://unpkg.com/mermaid@11/dist/mermaid.min.js'
+  ]);
+</script>
+</body>
+</html>

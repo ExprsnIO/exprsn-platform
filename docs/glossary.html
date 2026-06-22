@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossary — Exprsn Platform Documentation</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html" class="active">Glossary</a>
+  </nav>
+</header>
+<main>
+<h1>Glossary</h1>
+<p>Terms used throughout the Exprsn Platform documentation, grouped by area.</p>
+
+<h2>Platform architecture</h2>
+<dl>
+  <dt class="term">Gateway</dt>
+  <dd class="def">The single edge Express app (<code>src/gateway.js</code>) that fronts every module: helmet/CORS/compression, aggregate <code>/health</code>, per-module mounts, a central error handler (returns a correlation ID, never leaks internals), and the one shared Socket.IO server.</dd>
+
+  <dt class="term">Module</dt>
+  <dd class="def">A formerly standalone microservice now loaded in-process. Each module's entry exports <code>{ name, app, registerSockets(io)?, init(ctx)? }</code> — an Express app with no <code>listen()</code>, no views, no static assets. Modules are JSON APIs only.</dd>
+
+  <dt class="term">Module registry</dt>
+  <dd class="def"><code>src/modules/registry.js</code> — the canonical list of modules: name, mount prefix, Postgres schema, entry file, and Socket.IO namespace(s). Schema bootstrap, migrations, and gateway mounts all derive from it.</dd>
+
+  <dt class="term">Mount prefix</dt>
+  <dd class="def">The gateway path where a module is reachable. A module's internal <code>/api/foo</code> route is reached at <code>&lt;prefix&gt;/api/foo</code>, e.g. <code>/timeline/api/posts</code>.</dd>
+
+  <dt class="term">Schema-per-module</dt>
+  <dd class="def">Data isolation pattern: one Postgres database (<code>exprsn</code>) with a dedicated schema per module (<code>ca</code>, <code>auth</code>, <code>timeline</code>, <code>prefetch</code>, …), set via Sequelize's <code>define.schema</code>.</dd>
+
+  <dt class="term">IPC (inter-process communication)</dt>
+  <dd class="def">The platform's in-process event channel between modules. Example: the CA answers <code>cert:validate</code> and <code>token:validate</code> events; Timeline relays <code>post:created/updated/deleted</code> IPC events to its Socket.IO namespace.</dd>
+
+  <dt class="term">HMAC service token</dt>
+  <dd class="def">Service-to-service credential: <code>X-Service-ID</code> + <code>X-Service-Token</code> headers, where the token is HMAC-SHA256 over the service ID using <code>SERVICE_TOKEN_SECRET</code>. The unified process presents <code>SERVICE_ID=platform</code>.</dd>
+
+  <dt class="term">@exprsn/shared</dt>
+  <dd class="def">The shared utility package (auth/token middleware, role validation, error handling, rate limiting, audit logging). Two live copies exist — <code>shared/</code> (the npm package) and <code>services/shared/</code> (a relative-require copy) — and must be kept in sync.</dd>
+
+  <dt class="term">DEV_BYPASS</dt>
+  <dd class="def">A fail-closed development-only auth bypass requiring <code>DEV_BYPASS</code>, a secret header, a loopback source address, and <code>NODE_ENV=development</code> simultaneously. Its conditions must never be weakened.</dd>
+
+  <dt class="term">Socket.IO namespace</dt>
+  <dd class="def">A logical channel on the single shared Socket.IO server (path <code>/socket.io</code>). Modules attach their own namespaces, e.g. <code>/ca</code> and <code>/timeline</code>.</dd>
+
+  <dt class="term">Bull queue</dt>
+  <dd class="def">Redis-backed job queue library used for background work (fan-out, trending, indexing, notifications, prefetching). Queue workers run as separate processes from the gateway.</dd>
+
+  <dt class="term">Sequelize</dt>
+  <dd class="def">The ORM (v6) used by all modules for Postgres access, including model definitions, schema scoping, and migrations.</dd>
+</dl>
+
+<h2>PKI &amp; the CA service</h2>
+<dl>
+  <dt class="term">CA (Certificate Authority)</dt>
+  <dd class="def">An entity that issues and signs digital certificates. <a href="exprsn-ca.html">Exprsn-CA</a> operates the platform's private CA hierarchy.</dd>
+
+  <dt class="term">X.509 certificate</dt>
+  <dd class="def">The standard format (RFC 5280) for public-key certificates, binding a subject identity to a public key, signed by an issuer.</dd>
+
+  <dt class="term">Root / intermediate / entity certificate</dt>
+  <dd class="def">The trust hierarchy: a self-signed root CA (20-year validity here) signs intermediates (10 years), which sign end-entity certificates (1 year) for users, servers, clients, and code signing.</dd>
+
+  <dt class="term">CSR (Certificate Signing Request)</dt>
+  <dd class="def">A signed request containing a public key and subject details, submitted to a CA for certificate issuance (<code>POST /ca/api/certificates/csr</code>).</dd>
+
+  <dt class="term">SAN (Subject Alternative Name)</dt>
+  <dd class="def">An X.509 extension listing additional identities (DNS names, emails, URIs) a certificate covers.</dd>
+
+  <dt class="term">CRL (Certificate Revocation List)</dt>
+  <dd class="def">A signed, periodically regenerated list of revoked certificate serials (RFC 5280 §5), distributed at <code>/ca/crl/current.crl</code> with a monotonically increasing CRL number.</dd>
+
+  <dt class="term">OCSP (Online Certificate Status Protocol)</dt>
+  <dd class="def">A real-time certificate status protocol (RFC 6960). The CA's responder answers DER-encoded requests at <code>/ca/ocsp</code> with signed good/revoked/unknown responses.</dd>
+
+  <dt class="term">ACME</dt>
+  <dd class="def">Automatic Certificate Management Environment (RFC 8555) — the protocol used by clients like certbot. Exprsn-CA has ACME data models and migrations in place; protocol handlers are pending.</dd>
+
+  <dt class="term">CA token (Exprsn CA Token Specification v1.0)</dt>
+  <dd class="def">The platform's signed bearer token: permission flags (read/write/append/delete/update), a resource binding (url/did/cid), an expiry model (time-, use-based, or persistent), a SHA-256 checksum, and an RSA-SHA256-PSS signature. Used as <code>Authorization: Bearer …</code> across modules.</dd>
+
+  <dt class="term">Audit hash chain</dt>
+  <dd class="def">Tamper-evidence scheme in the CA's audit log: each entry's <code>entryHash</code> covers the previous entry's hash (<code>prevHash</code>), so any retroactive edit breaks the chain. The chain is append-only.</dd>
+
+  <dt class="term">PEM / DER</dt>
+  <dd class="def">Certificate encodings: DER is binary ASN.1; PEM is Base64-encoded DER wrapped in <code>-----BEGIN/END-----</code> markers.</dd>
+
+  <dt class="term">Fingerprint</dt>
+  <dd class="def">SHA-256 digest of a certificate, used as a unique identifier.</dd>
+
+  <dt class="term">RSA-SHA256-PSS</dt>
+  <dd class="def">RSA signing with SHA-256 and the PSS padding scheme (PKCS#1 v2.1) — used for CA token signatures.</dd>
+
+  <dt class="term">RBAC (Role-Based Access Control)</dt>
+  <dd class="def">Authorization model in which permissions attach to roles, and roles to users or groups. Both CA and Auth implement RBAC.</dd>
+</dl>
+
+<h2>Identity &amp; the Auth service</h2>
+<dl>
+  <dt class="term">OAuth2</dt>
+  <dd class="def">Delegated-authorization framework. <a href="exprsn-auth.html">Exprsn-Auth</a> is a full provider: authorization-code grant, refresh tokens, revocation, and introspection (RFC 7662).</dd>
+
+  <dt class="term">PKCE</dt>
+  <dd class="def">Proof Key for Code Exchange — an OAuth2 extension protecting the code flow for public clients via a code verifier/challenge pair. Enforced for public clients.</dd>
+
+  <dt class="term">OIDC (OpenID Connect)</dt>
+  <dd class="def">An identity layer on OAuth2: ID tokens, the UserInfo endpoint, and discovery at <code>/.well-known/openid-configuration</code>.</dd>
+
+  <dt class="term">JWKS (JSON Web Key Set)</dt>
+  <dd class="def">The published set of public keys (<code>/.well-known/jwks.json</code>) clients use to verify token signatures.</dd>
+
+  <dt class="term">MFA / TOTP</dt>
+  <dd class="def">Multi-factor authentication using Time-based One-Time Passwords (authenticator apps), enrolled via QR code, with hashed single-use backup codes.</dd>
+
+  <dt class="term">SAML 2.0</dt>
+  <dd class="def">XML-based enterprise SSO. Auth acts as a Service Provider (SP): metadata, IdP-initiated login, Assertion Consumer Service callback, single logout.</dd>
+
+  <dt class="term">IdP / SP</dt>
+  <dd class="def">Identity Provider (asserts who a user is) and Service Provider (consumes that assertion) in SSO flows.</dd>
+
+  <dt class="term">LDAP / Active Directory sync</dt>
+  <dd class="def">Directory integration: admin-configured connections that import and synchronize users and groups, one-shot or on a schedule.</dd>
+
+  <dt class="term">Session store</dt>
+  <dd class="def">Where session state lives — Redis (<code>connect-redis</code>, prefix <code>exprsn:auth:sess:</code>) in normal operation; in-memory only for development.</dd>
+
+  <dt class="term">bcrypt</dt>
+  <dd class="def">Adaptive password-hashing algorithm; Auth uses 12 rounds, CA defaults to 10.</dd>
+
+  <dt class="term">Account lockout</dt>
+  <dd class="def">Brute-force protection: repeated failed logins increment a counter and temporarily lock the account (<code>failedLoginAttempts</code> / <code>lockedUntil</code>).</dd>
+</dl>
+
+<h2>Feeds, caching &amp; background processing</h2>
+<dl>
+  <dt class="term">Timeline / feed</dt>
+  <dd class="def">An ordered stream of posts. The home feed is ranked (recency, engagement, relationship strength, media); user timelines are reverse-chronological.</dd>
+
+  <dt class="term">Fan-out (on write)</dt>
+  <dd class="def">Distributing a new post to each follower's timeline at write time — to Redis sorted sets for hot reads and to the database for durability — via the <code>fanout</code> Bull queue in batches of 100 followers.</dd>
+
+  <dt class="term">Hot / warm cache tiers</dt>
+  <dd class="def">Prefetch's Redis tiers: hot (DB 0, 5-minute TTL) for recently active users; warm (DB 1, 15-minute TTL) for everyone else. Reads check hot first, then warm.</dd>
+
+  <dt class="term">Cache invalidation</dt>
+  <dd class="def">Removing stale cached timelines — explicitly (<code>DELETE /prefetch/api/cache/:userId/timeline</code>) or via fan-out <code>cache-invalidation</code> jobs.</dd>
+
+  <dt class="term">Activity-based prefetching</dt>
+  <dd class="def">Prefetch strategy that periodically (every 60 s by default) enqueues timeline prefetches for recently active users, so their next feed read is a cache hit.</dd>
+
+  <dt class="term">Cursor pagination</dt>
+  <dd class="def">Paging with an opaque (Base64) cursor pointing at the last seen item, more stable than offsets for fast-moving feeds. Timeline supports both.</dd>
+
+  <dt class="term">Soft delete</dt>
+  <dd class="def">Marking a row deleted (a <code>deleted</code> flag) instead of removing it, preserving referential integrity and history.</dd>
+
+  <dt class="term">Trending score</dt>
+  <dd class="def">A computed ranking (<code>trendScore</code>) over topics/hashtags based on 24-hour post and engagement counts, recalculated every 15 minutes.</dd>
+
+  <dt class="term">ElasticSearch</dt>
+  <dd class="def">Optional full-text search backend for posts (index <code>exprsn_posts</code>), kept current by the <code>indexing</code> queue; SQL search is the fallback.</dd>
+
+  <dt class="term">Bluesky / AT Protocol</dt>
+  <dd class="def">A decentralized social network protocol. Timeline syncs posts outward and ingests events via an HMAC-verified webhook; posts carry <code>blueskyUri</code>/<code>blueskyDid</code>/<code>blueskyRkey</code>.</dd>
+
+  <dt class="term">DID</dt>
+  <dd class="def">Decentralized Identifier — a portable, cryptographically verifiable identity string (used by Bluesky accounts and as a CA-token resource type).</dd>
+
+  <dt class="term">Herald / Spark / FileVault / Nexus</dt>
+  <dd class="def">Sibling platform modules: Herald delivers user notifications; Spark is real-time messaging; FileVault stores files/attachments; Nexus manages groups.</dd>
+
+  <dt class="term">Readiness / liveness probes</dt>
+  <dd class="def">Kubernetes-style health endpoints: liveness (process alive) vs. readiness (dependencies available — e.g. Prefetch returns 503 if Redis is down).</dd>
+
+  <dt class="term">SSRF (Server-Side Request Forgery)</dt>
+  <dd class="def">An attack tricking a server into fetching attacker-chosen URLs. Prefetch mitigates it by only calling fixed, configured service URLs with timeouts.</dd>
+
+  <dt class="term">Webhook</dt>
+  <dd class="def">An inbound HTTP callback from an external system (e.g. Bluesky PDS events), authenticated here with an HMAC-SHA256 signature.</dd>
+</dl>
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a></footer>
+</body>
+</html>

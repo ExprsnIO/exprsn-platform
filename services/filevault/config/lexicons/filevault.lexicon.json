@@ -1,0 +1,592 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.filevault",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "FileVault service lexicon for Bridge integration",
+      "key": "io.exprsn.filevault"
+    }
+  },
+  "routes": [
+    {
+      "id": "files.upload",
+      "type": "procedure",
+      "description": "Upload a new file",
+      "path": "/files",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      },
+      "input": {
+        "encoding": "multipart/form-data",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "binary",
+              "required": true
+            },
+            "directoryId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "backend": {
+              "type": "string",
+              "enum": ["s3", "disk", "ipfs"]
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "file": { "$ref": "#/defs/file" }
+          }
+        }
+      }
+    },
+    {
+      "id": "files.chunked.init",
+      "type": "procedure",
+      "description": "Initialize chunked upload",
+      "path": "/files/chunked/init",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 5
+      }
+    },
+    {
+      "id": "files.chunked.upload",
+      "type": "procedure",
+      "description": "Upload file chunk",
+      "path": "/files/chunked/upload",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "files.chunked.complete",
+      "type": "procedure",
+      "description": "Complete chunked upload",
+      "path": "/files/chunked/complete",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "files.get",
+      "type": "query",
+      "description": "Get file metadata",
+      "path": "/files/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "files.download",
+      "type": "query",
+      "description": "Download file",
+      "path": "/files/:id/download",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 50
+      }
+    },
+    {
+      "id": "files.thumbnail",
+      "type": "query",
+      "description": "Get file thumbnail",
+      "path": "/files/:id/thumbnail/:size",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "files.update",
+      "type": "procedure",
+      "description": "Update file metadata",
+      "path": "/files/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "files.delete",
+      "type": "procedure",
+      "description": "Delete file",
+      "path": "/files/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "files.versions.list",
+      "type": "query",
+      "description": "List file versions",
+      "path": "/files/:id/versions",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 50
+      }
+    },
+    {
+      "id": "files.versions.create",
+      "type": "procedure",
+      "description": "Create new file version",
+      "path": "/files/:id/versions",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "files.versions.restore",
+      "type": "procedure",
+      "description": "Restore file version",
+      "path": "/files/:id/restore/:versionId",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "directories.create",
+      "type": "procedure",
+      "description": "Create directory",
+      "path": "/directories",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "directories.get",
+      "type": "query",
+      "description": "Get directory",
+      "path": "/directories/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "directories.contents",
+      "type": "query",
+      "description": "List directory contents",
+      "path": "/directories/:id/contents",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "directories.update",
+      "type": "procedure",
+      "description": "Update directory",
+      "path": "/directories/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "directories.delete",
+      "type": "procedure",
+      "description": "Delete directory",
+      "path": "/directories/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "share.create",
+      "type": "procedure",
+      "description": "Create share link",
+      "path": "/share",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "share.get",
+      "type": "query",
+      "description": "Access shared file",
+      "path": "/share/:token",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 50
+      }
+    },
+    {
+      "id": "share.update",
+      "type": "procedure",
+      "description": "Update share link",
+      "path": "/share/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "share.revoke",
+      "type": "procedure",
+      "description": "Revoke share link",
+      "path": "/share/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "search.files",
+      "type": "query",
+      "description": "Search files",
+      "path": "/search",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "storage.stats",
+      "type": "query",
+      "description": "Get storage statistics",
+      "path": "/storage/stats",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 50
+      }
+    },
+    {
+      "id": "storage.quota",
+      "type": "query",
+      "description": "Get user storage quota",
+      "path": "/storage/quota",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "admin.stats",
+      "type": "query",
+      "description": "Get system statistics",
+      "path": "/admin/stats",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "admin.deduplication",
+      "type": "query",
+      "description": "Get deduplication statistics",
+      "path": "/admin/deduplication",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "admin.duplicates",
+      "type": "query",
+      "description": "Find duplicate files",
+      "path": "/admin/duplicates",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "admin.cleanup",
+      "type": "procedure",
+      "description": "Cleanup orphaned files",
+      "path": "/admin/cleanup",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 300000,
+        "max": 2
+      }
+    },
+    {
+      "id": "admin.quotas.list",
+      "type": "query",
+      "description": "List all user quotas",
+      "path": "/admin/quotas",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "admin.quotas.update",
+      "type": "procedure",
+      "description": "Update user quota",
+      "path": "/admin/quotas/:userId",
+      "method": "PUT",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.migrate",
+      "type": "procedure",
+      "description": "Migrate files between backends",
+      "path": "/admin/migrate",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 300000,
+        "max": 5
+      }
+    },
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.db",
+      "type": "query",
+      "description": "Database health check",
+      "path": "/health/db",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.storage",
+      "type": "query",
+      "description": "Storage health check",
+      "path": "/health/storage",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.ready",
+      "type": "query",
+      "description": "Readiness probe",
+      "path": "/health/ready",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.live",
+      "type": "query",
+      "description": "Liveness probe",
+      "path": "/health/live",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    }
+  ],
+  "types": {
+    "file": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "checksum": {
+          "type": "string"
+        },
+        "storageBackend": {
+          "type": "string",
+          "enum": ["s3", "disk", "ipfs"]
+        },
+        "downloadCount": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "directory": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "isPublic": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "shareLink": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "token": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "permission": {
+          "type": "string",
+          "enum": ["view", "download", "edit"]
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "maxDownloads": {
+          "type": "integer"
+        },
+        "downloadCount": {
+          "type": "integer"
+        }
+      }
+    },
+    "quota": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "usedBytes": {
+          "type": "integer"
+        },
+        "quotaBytes": {
+          "type": "integer"
+        },
+        "availableBytes": {
+          "type": "integer"
+        },
+        "usedPercentage": {
+          "type": "number"
+        },
+        "usedFormatted": {
+          "type": "string"
+        },
+        "quotaFormatted": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

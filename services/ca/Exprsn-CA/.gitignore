@@ -1,0 +1,37 @@
+# --- Dependencies ---
+node_modules/
+
+# --- Build output ---
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# --- Test / coverage ---
+coverage/
+.nyc_output/
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Env & secrets: NEVER commit (P0-10 key custody / HIPAA-PCI) ---
+.env
+.env.*
+!.env.example
+secrets/
+
+# --- Private key material must never enter VCS on a CA project ---
+# (public certs/chains in *.pem are allowed; private material is not)
+*.key
+*.p12
+*.pfx
+*.jks
+*-key.pem
+*.privkey.pem
+
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/
+*.swp

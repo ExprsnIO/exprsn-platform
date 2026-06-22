@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn-Prefetch — Timeline Caching &amp; Prefetch Service</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html" class="active">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+  </nav>
+</header>
+<main>
+<h1>Exprsn-Prefetch — Timeline Caching &amp; Prefetch Service</h1>
+
+<div class="meta-card">
+  <dl>
+    <dt>Gateway mount</dt><dd><code>/prefetch</code></dd>
+    <dt>Postgres schema</dt><dd><code>prefetch</code></dd>
+    <dt>Socket.IO namespace</dt><dd>None</dd>
+    <dt>Entry point</dt><dd><code>services/prefetch/src/index.js</code></dd>
+    <dt>Background worker</dt><dd><code>node services/prefetch/src/worker.js</code> (periodic activity-based scheduler; Bull jobs also process in the main module)</dd>
+  </dl>
+</div>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#endpoints">API endpoints</a></li>
+    <li><a href="#cache">Cache architecture &amp; data shapes</a></li>
+    <li><a href="#queue">Bull queue &amp; worker</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#integration">Integrations &amp; key files</a></li>
+  </ul>
+</div>
+
+<h2 id="overview">Overview</h2>
+<p>Exprsn-Prefetch is a read-acceleration layer for timelines. It proactively fetches user timelines from the <a href="exprsn-timeline.html">Timeline service</a> and caches them in tiered Redis stores (a 5-minute <em>hot</em> tier and a 15-minute <em>warm</em> tier), so feed reads can be served from cache instead of recomputing. Prefetching is driven by a Bull queue with priorities and retries, plus an activity-based strategy that periodically schedules prefetches for recently active users. The service records cache hit/miss and duration metrics in Redis and exposes extensive health endpoints, including Kubernetes-style readiness and liveness probes.</p>
+<p>It never fetches user-supplied URLs — its only outbound calls go to the fixed, configured Timeline, CA, and Auth service URLs.</p>
+
+<h2 id="endpoints">API endpoints</h2>
+<p>Paths are as reached through the gateway (prefix <code>/prefetch</code>). Auth is via CA tokens with permission checks; <code>requireSelfOrAdmin</code> means users may act only on their own timeline unless they hold admin.</p>
+
+<h3>Prefetch operations — <code>/prefetch/api/prefetch</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/prefetch/api/prefetch/schedule/:userId</code></td><td>Queue a prefetch job (<code>{ priority: high|medium|low, delay? }</code>)</td><td>write + self-or-admin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/prefetch/api/prefetch/immediate/:userId</code></td><td>Bypass the queue and prefetch now</td><td>write + self-or-admin</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/prefetch/api/prefetch/queue/stats</code></td><td>Queue statistics (waiting, active, completed, failed, delayed)</td><td>read</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/prefetch/api/prefetch/queue/failed?limit=10</code></td><td>List failed jobs</td><td>read</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/prefetch/api/prefetch/queue/retry/:jobId</code></td><td>Retry a failed job</td><td>write</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/prefetch/api/prefetch/metrics</code> · <code>/metrics/:date</code></td><td>Aggregate / per-day (YYYY-MM-DD) cache and prefetch metrics</td><td>read</td></tr>
+  </tbody>
+</table>
+
+<h3>Cache operations — <code>/prefetch/api/cache</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/prefetch/api/cache/:userId</code></td><td>Cached timeline (hot tier first, warm fallback; 404 if absent)</td><td>read + self-or-admin</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/prefetch/api/cache/status/:userId</code></td><td>Cache status: <code>{ cached, tier, ttl, expiresIn }</code></td><td>read + self-or-admin</td></tr>
+    <tr><td><span class="method delete">DELETE</span></td><td><code>/prefetch/api/cache/:userId/timeline</code></td><td>Invalidate the timeline in all tiers</td><td>delete + self-or-admin</td></tr>
+  </tbody>
+</table>
+
+<h3>Config — <code>/prefetch/api/config</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span> / <span class="method post">POST</span></td><td><code>/prefetch/api/config/:sectionId</code></td><td>Read / update sections: <code>prefetch</code>, <code>prefetch-cache</code>, <code>prefetch-performance</code></td><td><strong>Currently unguarded</strong> (see note)</td></tr>
+  </tbody>
+</table>
+<div class="note">The config routes carry no auth middleware in the current code — a known hardening gap worth tracking alongside the STATUS.md punch list.</div>
+
+<h3>Health — <code>/prefetch/health</code></h3>
+<table>
+  <thead><tr><th>Path</th><th>Checks</th></tr></thead>
+  <tbody>
+    <tr><td><code>/prefetch/health</code></td><td>Comprehensive: hot/warm cache, Timeline service, CA service, memory, queue stats (200 healthy / 503 degraded)</td></tr>
+    <tr><td><code>/prefetch/health/redis</code></td><td>Redis connectivity and memory only</td></tr>
+    <tr><td><code>/prefetch/health/timeline</code> · <code>/health/ca</code></td><td>Remote service connectivity</td></tr>
+    <tr><td><code>/prefetch/health/cache</code></td><td>Detailed cache stats: keys per tier, DB numbers, TTL config</td></tr>
+    <tr><td><code>/prefetch/health/ready</code></td><td>Readiness probe — 503 if Redis is unavailable</td></tr>
+    <tr><td><code>/prefetch/health/live</code></td><td>Liveness probe — 200 while the process is alive</td></tr>
+  </tbody>
+</table>
+
+<h2 id="cache">Cache architecture &amp; data shapes</h2>
+<h3>Redis tiers</h3>
+<table>
+  <thead><tr><th>Tier</th><th>Redis DB</th><th>TTL</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>Hot</td><td>DB 0 (<code>REDIS_DB_HOT</code>)</td><td>5 min (<code>HOT_CACHE_TTL</code>)</td><td>Recently active / high-priority users</td></tr>
+    <tr><td>Warm</td><td>DB 1 (<code>REDIS_DB_WARM</code>)</td><td>15 min (<code>WARM_CACHE_TTL</code>)</td><td>Standard / lower-priority users</td></tr>
+    <tr><td>Metrics</td><td>DB 2</td><td>Unbounded (hash fields)</td><td>Hit/miss/error counters and duration samples</td></tr>
+  </tbody>
+</table>
+<p>Cached entries are JSON under key <code>timeline:{userId}</code>:</p>
+<pre><code>{
+  "posts": [ ... ],        // posts from the Timeline service
+  "fetchedAt": 1703184000, // ms timestamp
+  "postsCount": 42,
+  "tier": "hot" | "warm"   // added at retrieval time
+}</code></pre>
+<h3>Metrics keys (Redis DB 2)</h3>
+<pre><code>metrics:cache:hits:hot      { total, YYYY-MM-DD, ... }
+metrics:cache:hits:warm     { total, YYYY-MM-DD, ... }
+metrics:cache:misses        { total, YYYY-MM-DD, ... }
+metrics:prefetch:errors     { total, YYYY-MM-DD, ... }
+metrics:prefetch:durations  (list of JSON samples, capped at 1000)</code></pre>
+<h3>PostgreSQL</h3>
+<p>The <code>prefetch.prefetch_jobs</code> table (UUID id, <code>user_id</code>, <code>priority</code>, <code>status</code>, <code>result</code> JSONB, timestamps) is created by <code>scripts/migrate-postgres.js</code>, but at runtime jobs live in the Redis-backed Bull queue; the table is provisioned for persistence/analytics and is not on the hot path.</p>
+
+<h2 id="queue">Bull queue &amp; worker</h2>
+<p>Single queue named <code>prefetch</code> (<code>src/queues/prefetchQueue.js</code>), job type <code>timeline</code>:</p>
+<table>
+  <thead><tr><th>Aspect</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Concurrency</td><td>100 (<code>PREFETCH_JOB_CONCURRENCY</code>)</td></tr>
+    <tr><td>Priorities</td><td>1 = high, 2 = medium, 3 = low; job ID <code>prefetch:{userId}:{timestamp}</code></td></tr>
+    <tr><td>Retries</td><td>3 attempts, exponential backoff (2 s → 4 s → 8 s)</td></tr>
+    <tr><td>Retention</td><td>Last 100 completed / 50 failed jobs kept</td></tr>
+    <tr><td>Job flow</td><td>Fetch <code>GET {TIMELINE_SERVICE_URL}/api/timeline/user/{userId}?limit={MAX_TIMELINE_SIZE}</code> → cache by tier → record metrics</td></tr>
+  </tbody>
+</table>
+<p>Public queue API: <code>queuePrefetch</code>, <code>queueBatchPrefetch</code>, <code>getQueueStats</code>, <code>getFailedJobs</code>, <code>retryFailedJob</code>, <code>cleanQueue</code>, <code>pauseQueue</code>, <code>resumeQueue</code>, <code>closePrefetchQueue</code>.</p>
+<p><strong>Scheduling</strong>: the module's <code>init()</code> starts a scheduler that runs the activity-based strategy every <code>ACTIVITY_CHECK_INTERVAL</code> (60 s default), enqueuing prefetches for recently active users. The standalone worker (<code>src/worker.js</code>) is a minimal alternative that runs the same strategy directly on an interval. Strategy flags: <code>ENABLE_ACTIVITY_BASED</code> (true), <code>ENABLE_EVENT_TRIGGERED</code> and <code>ENABLE_PREDICTIVE</code> (defined but unused in the current code).</p>
+
+<h2 id="security">Security</h2>
+<p>All API routes validate CA tokens via <code>@exprsn/shared</code>'s <code>validateCAToken</code> with per-endpoint permission checks (read/write/delete) and <code>requireSelfOrAdmin</code> ownership enforcement. Outbound calls carry CA-issued service bearer tokens managed by a <code>ServiceTokenCache</code> (1 h expiry; on a 401/403 the cache is cleared and the request retried once). SSRF exposure is minimal: target URLs come only from hardcoded config keys (<code>timeline</code>, <code>auth</code>, <code>ca</code>) — unknown service names throw — and every outbound request has a timeout (10 s for timeline fetches, 3–5 s for health checks). Rate limits: 300 req/min global, 100 req/min on prefetch routes, 300 req/min on cache reads. Degradation is graceful: Redis failure makes readiness fail (503); Timeline/CA outages log, record metrics, and surface as warnings.</p>
+
+<h2 id="config">Configuration</h2>
+<p><code>services/prefetch/src/config/index.js</code> (template in <code>.env.example</code>):</p>
+<table>
+  <thead><tr><th>Group</th><th>Variables (defaults)</th></tr></thead>
+  <tbody>
+    <tr><td>Service</td><td><code>NODE_ENV</code>, <code>PREFETCH_SERVICE_PORT</code> (3005), <code>PREFETCH_SERVICE_HOST</code>, <code>PREFETCH_WORKER_COUNT</code> (20), <code>PREFETCH_JOB_CONCURRENCY</code> (100), <code>PREFETCH_BATCH_SIZE</code> (50)</td></tr>
+    <tr><td>Redis</td><td><code>REDIS_HOST</code>/<code>REDIS_PORT</code>, <code>REDIS_DB_HOT</code> (0), <code>REDIS_DB_WARM</code> (1), <code>REDIS_CLUSTER_MODE</code> (false, unused)</td></tr>
+    <tr><td>Postgres</td><td><code>PREFETCH_PG_HOST</code>/<code>PORT</code>/<code>DATABASE</code>/<code>USER</code>/<code>PASSWORD</code>, <code>DB_POOL_*</code> tuning</td></tr>
+    <tr><td>Cache TTLs</td><td><code>HOT_CACHE_TTL</code> (300000 ms), <code>WARM_CACHE_TTL</code> (900000 ms), <code>COLD_CACHE_TTL</code> (3600000 ms, reserved)</td></tr>
+    <tr><td>Strategies</td><td><code>ENABLE_ACTIVITY_BASED</code> (true), <code>ENABLE_EVENT_TRIGGERED</code> (true, unused), <code>ENABLE_PREDICTIVE</code> (false, unused), <code>ACTIVITY_CHECK_INTERVAL</code> (60000 ms)</td></tr>
+    <tr><td>Fetching</td><td><code>MAX_TIMELINE_SIZE</code> (100 posts), <code>PREFETCH_TIMEOUT</code> (10000 ms)</td></tr>
+    <tr><td>Services / PKI</td><td><code>CA_URL</code>, <code>TIMELINE_SERVICE_URL</code>, <code>AUTH_SERVICE_URL</code>, <code>SERVICE_CERTIFICATE_TOKEN</code>, <code>PREFETCH_CA_DOMAIN</code>, <code>PREFETCH_CERT_SERIAL</code>, key/cert paths (<code>PREFETCH_PRIVATE_KEY_PATH</code>, <code>PREFETCH_CERTIFICATE_PATH</code>, <code>CA_ROOT_CERT_PATH</code>)</td></tr>
+    <tr><td>Logging</td><td><code>LOG_LEVEL</code> (info), <code>LOG_DIR</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="integration">Integrations &amp; key files</h2>
+<table>
+  <thead><tr><th>Module / system</th><th>Integration</th></tr></thead>
+  <tbody>
+    <tr><td><a href="exprsn-timeline.html">Timeline</a></td><td>Sole timeline data source: <code>GET /api/timeline/user/{userId}</code></td></tr>
+    <tr><td><a href="exprsn-ca.html">CA</a></td><td>Service-token generation/validation (<code>src/utils/caClient.js</code>), health checks</td></tr>
+    <tr><td><code>@exprsn/shared</code></td><td>Token validation, logging, AppError, validators, rate limiters, ServiceTokenCache</td></tr>
+    <tr><td>Redis</td><td>Hot/warm/metrics tiers + Bull queue backend</td></tr>
+    <tr><td>PostgreSQL</td><td><code>prefetch</code> schema (provisioned, not used at runtime)</td></tr>
+  </tbody>
+</table>
+<table>
+  <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>src/index.js</code></td><td>Module entry — exports <code>{ name, app, init, activityStrategy }</code>; starts the prefetch scheduler</td></tr>
+    <tr><td><code>src/worker.js</code></td><td>Standalone periodic worker (alternative to the in-module scheduler)</td></tr>
+    <tr><td><code>src/routes/prefetch.js</code> / <code>health.js</code> / <code>config.js</code></td><td>Prefetch + cache endpoints / health probes / config sections</td></tr>
+    <tr><td><code>src/services/prefetchService.js</code> / <code>metricsService.js</code></td><td>Core fetch-cache-invalidate logic / metrics collection</td></tr>
+    <tr><td><code>src/queues/prefetchQueue.js</code></td><td>Bull queue and job management</td></tr>
+    <tr><td><code>src/strategies/activityBased.js</code></td><td>Activity-based prefetch strategy</td></tr>
+    <tr><td><code>src/cache/redis.js</code></td><td>Tiered Redis cache manager</td></tr>
+    <tr><td><code>src/middleware/auth.js</code> / <code>validation.js</code></td><td>CA token + permission enforcement / input validation (UUID, priority, pagination)</td></tr>
+  </tbody>
+</table>
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+</body>
+</html>

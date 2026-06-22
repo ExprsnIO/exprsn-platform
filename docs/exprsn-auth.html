@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn-Auth — Authentication &amp; Authorization Service</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html" class="active">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+  </nav>
+</header>
+<main>
+<h1>Exprsn-Auth — Authentication &amp; Authorization Service</h1>
+
+<div class="meta-card">
+  <dl>
+    <dt>Gateway mount</dt><dd><code>/auth</code></dd>
+    <dt>Postgres schema</dt><dd><code>auth</code></dd>
+    <dt>Socket.IO namespace</dt><dd>None</dd>
+    <dt>Entry point</dt><dd><code>services/auth/src/index.js</code></dd>
+    <dt>Background worker</dt><dd>None</dd>
+  </dl>
+</div>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#endpoints">API endpoints</a></li>
+    <li><a href="#flows">Authentication flows</a></li>
+    <li><a href="#models">Data models</a></li>
+    <li><a href="#security">Security features</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#integration">Integration &amp; key files</a></li>
+  </ul>
+</div>
+
+<h2 id="overview">Overview</h2>
+<p>Exprsn-Auth is the platform's centralized identity provider. It handles local registration and login, social OAuth (Google, GitHub via Passport), multi-factor authentication (TOTP plus backup codes), session management, and password lifecycle. It is also a full <strong>OAuth2/OIDC provider</strong> — authorization-code flow with PKCE, token issuance/introspection/revocation, OIDC discovery and JWKS — plus <strong>SAML 2.0 SSO</strong> integration and <strong>LDAP / Active Directory</strong> configuration and directory sync. A multi-tenant RBAC model (organizations, groups, roles, permissions) governs authorization across the ecosystem.</p>
+<p>As a platform module it exports <code>{ name, app, init }</code> — JSON API only, no views, no <code>listen()</code>. Sessions are stored in Redis (<code>connect-redis</code>, key prefix <code>exprsn:auth:sess:</code>) when Redis is enabled, with an in-memory fallback for development only. CORS honors an explicit comma-separated allowlist in <code>CORS_ORIGIN</code>; unset means cross-origin requests are disabled — wildcards are never combined with credentials.</p>
+
+<h2 id="endpoints">API endpoints</h2>
+<p>Paths are as reached through the gateway (prefix <code>/auth</code>).</p>
+
+<h3>Core authentication — <code>/auth/api/auth</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/register</code></td><td>Register a new user</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/login</code></td><td>Log in with email/username + password</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/mfa/verify</code></td><td>Complete login by verifying the MFA code</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/exchange</code></td><td>Exchange credentials/grant for tokens</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/logout</code></td><td>End the current session</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/forgot-password</code></td><td>Start password reset (emails a token)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/reset-password</code></td><td>Reset password with a valid token</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/change-password</code></td><td>Change password (authenticated)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/verify-email</code></td><td>Verify email with token</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/auth/resend-verification</code></td><td>Resend the verification email</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/auth/me</code></td><td>Current authenticated user</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/auth/google</code> · <code>/google/callback</code></td><td>Google OAuth login + callback</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/auth/github</code> · <code>/github/callback</code></td><td>GitHub OAuth login + callback</td></tr>
+  </tbody>
+</table>
+
+<h3>MFA — <code>/auth/api/mfa</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/mfa/setup</code></td><td>Begin TOTP enrollment (secret + QR code)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/mfa/verify</code></td><td>Confirm enrollment with a TOTP code</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/mfa/validate</code></td><td>Validate a TOTP or backup code</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/mfa/disable</code></td><td>Disable MFA</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/mfa/regenerate-backup-codes</code></td><td>Issue fresh backup codes</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/mfa/status</code></td><td>MFA enrollment status</td></tr>
+  </tbody>
+</table>
+
+<h3>OAuth2 provider — <code>/auth/api/oauth2</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span> / <span class="method post">POST</span></td><td><code>/auth/api/oauth2/authorize</code></td><td>Authorization endpoint (code flow, PKCE supported); POST submits user consent</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/oauth2/token</code></td><td>Token endpoint (code exchange, refresh)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/oauth2/revoke</code></td><td>Revoke an access/refresh token</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/oauth2/userinfo</code></td><td>OIDC UserInfo</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/oauth2/introspect</code></td><td>Token introspection (RFC 7662)</td></tr>
+  </tbody>
+</table>
+
+<h3>OIDC discovery (mounted at module root)</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/.well-known/openid-configuration</code></td><td>OIDC discovery document</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/.well-known/jwks.json</code></td><td>JSON Web Key Set (token verification keys)</td></tr>
+  </tbody>
+</table>
+
+<h3>SAML SSO — <code>/auth/api/saml</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/saml/metadata</code></td><td>SP metadata XML</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/saml/login</code></td><td>Initiate SSO with the IdP</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/saml/callback</code></td><td>Assertion Consumer Service (IdP response)</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method post">POST</span></td><td><code>/auth/api/saml/logout</code> · <code>/logout/callback</code></td><td>Single logout + callback</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/saml/providers</code> · <code>/status</code></td><td>Configured IdPs; SAML status</td></tr>
+  </tbody>
+</table>
+
+<h3>LDAP / Active Directory — <code>/auth/api/ldap</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span> / <span class="method get">GET</span></td><td><code>/auth/api/ldap/configs</code></td><td>Create / list directory configurations</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method put">PUT</span> / <span class="method delete">DELETE</span></td><td><code>/auth/api/ldap/configs/:id</code></td><td>Read / update / delete a configuration</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/ldap/configs/:id/test</code></td><td>Test bind/connectivity</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/ldap/configs/:id/sync/users</code> · <code>/sync/groups</code> · <code>/sync/all</code></td><td>One-shot directory sync</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/ldap/configs/:id/sync/start</code> · <code>/sync/stop</code></td><td>Start/stop scheduled sync</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/ldap/configs/:id/stats</code></td><td>Sync statistics</td></tr>
+  </tbody>
+</table>
+
+<h3>Users, groups, organizations</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span> / <span class="method put">PUT</span> / <span class="method delete">DELETE</span></td><td><code>/auth/api/users/:id</code></td><td>Read / update / delete a user</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/users/:id/groups</code></td><td>A user's group memberships</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/groups</code></td><td>Create a group</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method put">PUT</span> / <span class="method delete">DELETE</span></td><td><code>/auth/api/groups/:id</code></td><td>Read / update / delete a group</td></tr>
+    <tr><td><span class="method post">POST</span> / <span class="method delete">DELETE</span></td><td><code>/auth/api/groups/:id/members</code> · <code>/members/:userId</code></td><td>Add / remove group members</td></tr>
+    <tr><td><span class="method post">POST</span> / <span class="method get">GET</span></td><td><code>/auth/api/organizations</code></td><td>Create / list organizations</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method patch">PATCH</span> / <span class="method delete">DELETE</span></td><td><code>/auth/api/organizations/:id</code></td><td>Read / update / delete an organization</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method post">POST</span> / <span class="method delete">DELETE</span> / <span class="method patch">PATCH</span></td><td><code>/auth/api/organizations/:id/members[...]</code></td><td>List, add, remove, update members</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/organizations/:id/transfer-ownership</code></td><td>Transfer org ownership</td></tr>
+  </tbody>
+</table>
+
+<h3>Roles &amp; permissions — <code>/auth/api/roles</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span> / <span class="method post">POST</span></td><td><code>/auth/api/roles</code></td><td>List / create roles</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method patch">PATCH</span> / <span class="method delete">DELETE</span></td><td><code>/auth/api/roles/:id</code></td><td>Read / update / delete a role</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/roles/:id/assign-user</code> · <code>/revoke-user</code> · <code>/assign-group</code> · <code>/revoke-group</code></td><td>Grant/revoke a role for users or groups</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/roles/permissions</code></td><td>List all permissions</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/roles/users/:userId/permissions</code></td><td>Effective permissions of a user</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/roles/check-permission</code> · <code>/check-service-access</code></td><td>Permission / service-access checks</td></tr>
+  </tbody>
+</table>
+
+<h3>Sessions, tokens, applications, health</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/sessions</code> · <code>/current</code></td><td>List sessions / current session</td></tr>
+    <tr><td><span class="method delete">DELETE</span></td><td><code>/auth/api/sessions/:id</code> · <code>/auth/api/sessions</code></td><td>Revoke one / all sessions</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/sessions/refresh</code></td><td>Refresh the session</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/tokens/generate</code> · <code>/validate</code> · <code>/revoke</code></td><td>CA-token operations (proxied to the CA service)</td></tr>
+    <tr><td><span class="method post">POST</span> / <span class="method get">GET</span></td><td><code>/auth/api/applications</code></td><td>Register / list OAuth2 client applications</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method patch">PATCH</span> / <span class="method delete">DELETE</span></td><td><code>/auth/api/applications/:id</code></td><td>Read / update / delete an application</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/auth/api/applications/:id/regenerate-secret</code></td><td>Rotate the client secret</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/api/applications/:id/check-access</code></td><td>Check a user's access to an application</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/auth/health</code> · <code>/health/db</code> · <code>/health/ca</code></td><td>Service, database, and CA connectivity health</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method post">POST</span></td><td><code>/auth/api/config/:sectionId</code></td><td>Read / update configuration sections</td></tr>
+  </tbody>
+</table>
+
+<h2 id="flows">Authentication flows</h2>
+<table>
+  <thead><tr><th>Flow</th><th>How it works</th></tr></thead>
+  <tbody>
+    <tr><td>Local login</td><td><code>POST /api/auth/login</code> → bcrypt verify → if MFA enabled, a pending state requires <code>POST /api/auth/mfa/verify</code> → session created (Redis-backed)</td></tr>
+    <tr><td>Registration</td><td><code>POST /api/auth/register</code> → email verification token sent → <code>POST /api/auth/verify-email</code></td></tr>
+    <tr><td>Password reset</td><td><code>forgot-password</code> emails a time-limited token → <code>reset-password</code> consumes it</td></tr>
+    <tr><td>MFA</td><td>TOTP (speakeasy-style secret + QR) with hashed backup codes; regenerable</td></tr>
+    <tr><td>Social OAuth</td><td>Passport strategies for Google and GitHub with callback endpoints</td></tr>
+    <tr><td>OAuth2 / OIDC</td><td>Authorization-code grant with PKCE, refresh tokens, introspection, revocation, discovery + JWKS</td></tr>
+    <tr><td>SAML 2.0</td><td>SP-initiated SSO with metadata, ACS callback, single logout, signature validation</td></tr>
+    <tr><td>LDAP / AD</td><td>Admin-managed directory configs, connection tests, user/group sync (one-shot or scheduled)</td></tr>
+    <tr><td>CA tokens</td><td>Token generation/validation delegated to the <a href="exprsn-ca.html">CA service</a></td></tr>
+  </tbody>
+</table>
+
+<h2 id="models">Data models</h2>
+<p>Sequelize models in <code>services/auth/src/models/</code>, persisted in the <code>auth</code> schema:</p>
+<table>
+  <thead><tr><th>Model</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>User</code></td><td>Accounts: credentials (bcrypt), email verification, MFA secret + backup codes, lockout counters, profile fields</td></tr>
+    <tr><td><code>Organization</code> / <code>OrganizationMember</code></td><td>Multi-tenant orgs with member roles and ownership</td></tr>
+    <tr><td><code>Group</code> / <code>UserGroup</code> / <code>GroupRole</code></td><td>Groups, memberships, group-level role assignment</td></tr>
+    <tr><td><code>Role</code> / <code>UserRole</code> / <code>Permission</code></td><td>RBAC roles, user-role assignment, granular permissions</td></tr>
+    <tr><td><code>OAuth2Client</code> / <code>OAuth2AuthorizationCode</code> / <code>OAuth2Token</code></td><td>Registered clients (secrets, redirect URIs), short-lived auth codes (PKCE challenge), access/refresh tokens</td></tr>
+    <tr><td><code>Application</code></td><td>Application registry with access control and secret rotation</td></tr>
+    <tr><td><code>Session</code></td><td>Session records (device/IP metadata, revocation)</td></tr>
+    <tr><td><code>LdapConfig</code></td><td>Directory connection settings (URL, bind DN, base DNs, TLS), sync schedule and stats</td></tr>
+  </tbody>
+</table>
+
+<h2 id="security">Security features</h2>
+<p>Rate limiting on sensitive endpoints; account lockout after repeated failed logins; bcrypt password hashing (12 rounds); mandatory email verification; hashed MFA backup codes; session cookies with <code>httpOnly</code>, <code>secure</code>, and <code>sameSite</code>; PKCE enforcement for public OAuth2 clients; SAML response signature validation; LDAP over TLS; audit logging of auth events; helmet security headers with a restricted CSP; strict CORS allowlisting (no wildcard with credentials).</p>
+<div class="note">A fail-closed development auth bypass exists platform-wide (<code>DEV_BYPASS</code> + secret header + loopback only + <code>NODE_ENV=development</code>). Its conditions must never be weakened.</div>
+
+<h2 id="config">Configuration</h2>
+<p>Loaded by <code>services/auth/src/config/index.js</code>. Principal env vars by category:</p>
+<table>
+  <thead><tr><th>Group</th><th>Variables</th></tr></thead>
+  <tbody>
+    <tr><td>Database</td><td><code>DB_HOST</code>, <code>DB_PORT</code>, <code>DB_NAME</code>, <code>DB_USER</code>, <code>DB_PASSWORD</code> (schema injected by the platform as <code>auth</code>)</td></tr>
+    <tr><td>Redis / sessions</td><td><code>REDIS_HOST</code>, <code>REDIS_PORT</code>, <code>REDIS_PASSWORD</code>; <code>SESSION_SECRET</code> (required in production — config throws if unset or placeholder), cookie maxAge/secure/sameSite</td></tr>
+    <tr><td>JWT / OIDC</td><td>JWT signing secret/keys, issuer URL, token lifetimes, JWKS key material</td></tr>
+    <tr><td>Social OAuth</td><td>Google/GitHub client IDs, secrets, callback URLs</td></tr>
+    <tr><td>SAML</td><td>IdP entry point, certificates, SP entity ID, callback URLs</td></tr>
+    <tr><td>Email</td><td>SMTP settings for verification and reset mail</td></tr>
+    <tr><td>Security</td><td><code>CORS_ORIGIN</code> (comma-separated allowlist; unset = same-origin only), rate-limit tuning, bcrypt rounds, MFA settings</td></tr>
+    <tr><td>Services</td><td><code>CA_SERVICE_URL</code> and <code>SERVICE_TOKEN_SECRET</code>-derived HMAC service tokens for inter-module calls</td></tr>
+  </tbody>
+</table>
+
+<h2 id="integration">Integration &amp; key files</h2>
+<p>Auth depends on <code>@exprsn/shared</code> for its logger, error handlers (<code>errorHandler</code>, <code>notFoundHandler</code>), and Redis client init, and on the <a href="exprsn-ca.html">CA service</a> for CA-token generation and validation (<code>services/auth/src/services/caService.js</code>; health surfaced at <code>/auth/health/ca</code>). Downstream, every other module's users authenticate against identities and tokens this service manages.</p>
+<table>
+  <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>services/auth/src/index.js</code></td><td>Module entry — middleware stack, session store, route mounts, exports</td></tr>
+    <tr><td><code>services/auth/src/routes/</code></td><td>15 route files: auth, mfa, oauth2, oidc, saml, ldap, users, groups, organizations, applications, roles, sessions, tokens, config, health</td></tr>
+    <tr><td><code>services/auth/src/models/</code></td><td>16 Sequelize models (see above)</td></tr>
+    <tr><td><code>services/auth/src/services/caService.js</code></td><td>CA service client (token ops, health)</td></tr>
+    <tr><td><code>services/auth/src/config/index.js</code></td><td>Environment-based configuration</td></tr>
+  </tbody>
+</table>
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+</body>
+</html>

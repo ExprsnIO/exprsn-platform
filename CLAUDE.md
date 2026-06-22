@@ -1,0 +1,120 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+A unified Node.js platform that consolidates ten formerly-standalone Exprsn microservices (CA, auth, spark/messaging, nexus/groups, filevault, vault/secrets, timeline, prefetch, moderator, live/streaming) into **one process behind one HTTPS port** (default 8443). The originals live untouched at `/Volumes/Storage/exprsn-<name>/`; this repo contains adapted copies under `services/`. Plain JavaScript (CommonJS), Express 4, Sequelize 6, Socket.IO 4. Not a git repository.
+
+## Commands
+
+```bash
+npm install            # also resolves @exprsn/shared via file:./shared
+npm run gen:certs      # dev self-signed cert (required for the HTTPS edge)
+cp .env.example .env   # fill DB/Redis/secrets
+npm run db:bootstrap   # src/db/migrate.js — create db `exprsn` + one Postgres schema per module
+npm run db:migrate     # scripts/migrate-sync.js — sync each module's models into its schema
+npm start              # https://localhost:8443 — verify with: curl -k https://localhost:8443/health
+npm run dev            # same, with nodemon
+npm run lint           # eslint over src/ and services/
+```
+
+`npm run db:migrate:raw` (`scripts/migrate-modules.js`) is the alternative path that replays each module's own historical migration files instead of syncing models — see Data isolation below for when that distinction matters.
+
+### Local infra (Docker)
+
+Postgres, Redis, and the other backing services run as Docker containers (`docker-compose.yml`, configs under `docker/`). The nginx edge container serves the built SPA on `:443`.
+
+```bash
+npm run infra:start    # pull + up everything (incl. --profile extras/optional)
+npm run infra:up       # just the core services, detached
+npm run infra:ps       # status
+npm run infra:logs     # follow logs
+npm run infra:down     # stop everything
+```
+
+### Frontend SPA (`web/`)
+
+`web/` is a **separate** Vite + React + TypeScript single-origin SPA — a static build artifact, **not** served by any Express module (backend modules are JSON-only). See `web/README.md`.
+
+```bash
+npm run web:install    # install web deps
+npm run web:dev        # Vite dev server on :5173, proxies API/socket to https://localhost:8443
+npm run web:build      # -> web/dist (nginx mounts this read-only on :443)
+npm run web:test       # vitest
+```
+
+After `web:build`, recreate the nginx container to publish: `docker compose --profile extras --profile optional up -d --force-recreate nginx`.
+
+### Tests
+
+There is **no root test script**. Backend tests are per module (Jest + supertest), run from the module directory:
+
+```bash
+cd services/auth && npx jest                      # whole module suite
+cd services/auth && npx jest tests/mfa.test.js    # single file
+cd services/auth && npx jest -t "name of test"    # single test by name
+```
+
+Some modules have extra Jest configs (`jest --config jest.integration.config.js`, spark's `jest.websocket.config.js`) — check the module's `package.json` scripts.
+
+Bull queue workers are **not** part of the gateway process; run separately via the root aliases `npm run worker:timeline` (`node services/timeline/src/worker.js`) and `npm run worker:prefetch` (`PREFETCH_ROLE=worker node services/prefetch/src/worker.js`).
+
+Runtime prerequisites: Postgres and Redis must be up **before** `npm start` — some modules (spark, vault) connect to Redis / build Bull queues / create ES indices at `require` time.
+
+## Architecture
+
+Read `ARCHITECTURE.md` (design) and `STATUS.md` (known follow-ups / punch list) before structural changes. `API_SURFACE.md` documents every module's HTTP/socket endpoints — consult it before adding or wiring routes (including from the SPA). `SPRINT.md` is the current sprint plan (sequenced, MVP-focused tickets) — check it before picking up work so you're aligned on ordering and acceptance criteria.
+
+### Source of truth
+
+- `src/modules/registry.js` — the canonical module list: name, mount prefix, Postgres schema, entry file, Socket.IO namespace(s). Everything else (schema bootstrap, migration orchestration, gateway mounts) derives from it.
+- `src/gateway.js` — single edge Express app: helmet/cors/compression, aggregate `/health`, mounts every module at its prefix, central error handler (returns a correlation id, never leaks internals), and the **single** Socket.IO server (`path: /socket.io`) onto which modules attach namespaces.
+- `src/index.js` — bootstrap: load modules → run their `init()` → create the one HTTPS server → `attachSockets`. Optional `:8080` HTTP→HTTPS redirect.
+- `src/config/index.js` — all env parsing; loads `.env` from repo root.
+
+### Module contract
+
+Each module's entry (`services/<name>/...index.js`) exports:
+
+```js
+module.exports = {
+  name,
+  app,                     // Express app/router — NO listen(), NO views, NO static, NO setup routes
+  registerSockets(io) {},  // optional — attach this module's namespace(s) to the shared io
+  async init(ctx) {},      // optional — db/redis/queue setup; MUST NOT listen. ctx = { config, logger, schema }
+};
+```
+
+Module routes are reached at `<prefix>/<internal-route>`, e.g. `/spark/api/conversations`. Modules are **JSON APIs only** — all server-rendered views, static SPAs, and setup wizards were deliberately removed during consolidation; do not reintroduce them. (The frontend lives entirely in `web/` as a separate build artifact served by nginx, never by a module.)
+
+### Data isolation
+
+One Postgres database (`exprsn`) with **one schema per module** (set via Sequelize `define.schema`). One shared Redis. Two migration paths: `db:migrate` (`scripts/migrate-sync.js`) syncs models into each schema (the default), while `db:migrate:raw` (`scripts/migrate-modules.js`) replays each module's existing migration files in-place with `DB_SCHEMA`/`DB_NAME` injected via env (moderator uses sequelize-cli; others use their own `scripts/migrate*.js`). Known gap (STATUS.md #1): raw migrations with unqualified table names can land in `public` instead of the module schema — schema-qualify or set a `searchPath` when touching migrations.
+
+### Shared code — two copies
+
+- `shared/` — the `@exprsn/shared` package (root dependency `file:./shared`): auth/token middleware, role validation, error handling, rate limiting, audit logging, etc.
+- `services/shared/` — a **copy** of the same package, reached by modules using relative requires (`require('../shared/...')`). Both import styles are live in the codebase; if you change shared code, keep both copies in sync (or migrate the relative requires to `@exprsn/shared`).
+
+### Inter-module calls
+
+Code still issues HTTP calls via `*_SERVICE_URL` env vars, which now all point back at `https://localhost:8443/<module>` (in-process via the gateway). Long-term direction is direct in-process calls. Service-to-service auth uses per-service HMAC tokens derived from `SERVICE_TOKEN_SECRET` (see `.env.example`); the unified process presents `SERVICE_ID=platform`.
+
+### Things to watch
+
+- `TODO(platform)` markers flag socket/init wiring adapted from the original per-service bootstraps that still needs runtime verification (per-namespace auth middleware, spark's redis-adapter ownership, moderator's two namespaces).
+- The platform was originally built without live Postgres/Redis; parts are now runtime-verified against live infra (see STATUS.md "Recently resolved") but coverage is incomplete. Treat STATUS.md as the authoritative punch list — check what's been verified before assuming, and update it as items are resolved.
+- A fail-closed dev auth bypass exists (`DEV_BYPASS` + secret header + loopback only + NODE_ENV=development); never weaken its conditions.
+- CORS: `CORS_ORIGIN` unset or `*` means same-origin only — wildcards are never honored with credentials.
+
+### MVP / release readiness
+
+The code is structurally complete and largely runtime-verified; the gap to a real release is mostly **release engineering**, tracked in `STATUS.md` → **Production readiness (R1–R6)**: no git/CI yet, dev-only self-signed TLS, Winston-only observability (no metrics/tracing/error-tracking), `.env` secrets without rotation, and no load/backup verification. Don't assume "runs locally" means "shippable".
+
+Current MVP scope decisions (2026-06-22), which determine what's blocking:
+
+- **Single gateway instance** for MVP — so spark's redis-adapter ownership (STATUS #3) is deferred, not blocking.
+- **`/live` streaming publish is in scope** — so its WebRTC signaling needs per-event auth (STATUS #11) before MVP.
+- **Sessions get the full fix** (STATUS #9) — persist `Session` rows on login and revoke the CA token on delete, not the hide-the-tab cut.
+- **Sprint ordering is release-engineering-first** — see `SPRINT.md`.

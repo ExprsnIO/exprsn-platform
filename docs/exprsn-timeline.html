@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn-Timeline — Feed &amp; Timeline Service</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html" class="active">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+  </nav>
+</header>
+<main>
+<h1>Exprsn-Timeline — Feed &amp; Timeline Service</h1>
+
+<div class="meta-card">
+  <dl>
+    <dt>Gateway mount</dt><dd><code>/timeline</code></dd>
+    <dt>Postgres schema</dt><dd><code>timeline</code></dd>
+    <dt>Socket.IO namespace</dt><dd><code>/timeline</code></dd>
+    <dt>Entry point</dt><dd><code>services/timeline/src/index.js</code></dd>
+    <dt>Background worker</dt><dd><code>node services/timeline/src/worker.js</code> (Bull queues — runs separately from the gateway)</dd>
+  </dl>
+</div>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#endpoints">API endpoints</a></li>
+    <li><a href="#models">Data models</a></li>
+    <li><a href="#feed">Feed &amp; fan-out architecture</a></li>
+    <li><a href="#queues">Bull queues &amp; worker</a></li>
+    <li><a href="#sockets">Socket.IO events</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#integration">Integrations &amp; key files</a></li>
+  </ul>
+</div>
+
+<h2 id="overview">Overview</h2>
+<p>Exprsn-Timeline powers the platform's social feed: post creation and lifecycle, personalized/global/explore/trending timelines, interactions (likes, comments, reposts, bookmarks, follows), curated lists, search (ElasticSearch with SQL fallback), file attachments via FileVault, and federation with Bluesky (AT Protocol) through webhooks. Heavy work — fan-out to followers, trending calculation, search indexing, notifications — is deferred to Bull queues processed by a separate worker process.</p>
+<p>All HTTP routes authenticate with a CA token (<code>Authorization: Bearer &lt;token&gt;</code>) validated against the <a href="exprsn-ca.html">CA service</a>; permission flags (read/write/update/delete) on the token gate each endpoint.</p>
+
+<h2 id="endpoints">API endpoints</h2>
+<p>Paths are as reached through the gateway (prefix <code>/timeline</code>).</p>
+
+<h3>Posts — <code>/timeline/api/posts</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Permission</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/timeline/api/posts</code></td><td>Create a post</td><td>write</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/posts/:id</code></td><td>Get a single post</td><td>read</td></tr>
+    <tr><td><span class="method put">PUT</span></td><td><code>/timeline/api/posts/:id</code></td><td>Update a post (owner only)</td><td>update</td></tr>
+    <tr><td><span class="method delete">DELETE</span></td><td><code>/timeline/api/posts/:id</code></td><td>Delete a post (soft delete, owner only)</td><td>delete</td></tr>
+    <tr><td><span class="method post">POST</span> / <span class="method delete">DELETE</span></td><td><code>/timeline/api/posts/:id/like</code></td><td>Like / unlike</td><td>write</td></tr>
+    <tr><td><span class="method post">POST</span> / <span class="method get">GET</span></td><td><code>/timeline/api/posts/:id/comments</code></td><td>Comment / list comments (paginated)</td><td>write / read</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/posts/:id/thread</code></td><td>Thread (replies and parents)</td><td>read</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/posts/:id/quotes</code></td><td>Quote posts</td><td>read</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/posts/:id/analytics</code></td><td>Engagement analytics (owner only)</td><td>read</td></tr>
+    <tr><td><span class="method post">POST</span> / <span class="method delete">DELETE</span></td><td><code>/timeline/api/posts/:id/repost</code></td><td>Repost / undo repost</td><td>write</td></tr>
+    <tr><td><span class="method post">POST</span> / <span class="method delete">DELETE</span></td><td><code>/timeline/api/posts/:id/bookmark</code></td><td>Bookmark / remove bookmark</td><td>write</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/posts/:id/likes</code> · <code>/reposts</code></td><td>Users who liked / reposted (paginated)</td><td>read</td></tr>
+  </tbody>
+</table>
+
+<h3>Timelines — <code>/timeline/api/timeline</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/timeline</code></td><td>Personalized home feed (ranked; cursor or offset pagination)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/timeline/global</code></td><td>Global public timeline</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/timeline/explore</code></td><td>Discovery feed (popular posts, last 7 days)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/timeline/trending</code></td><td>Trending posts</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/timeline/user/:userId</code></td><td>A user's reverse-chronological timeline</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/timeline/bookmarks</code> · <code>/likes</code></td><td>The caller's bookmarked / liked posts</td></tr>
+  </tbody>
+</table>
+
+<h3>Lists — <code>/timeline/api/lists</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span> / <span class="method get">GET</span></td><td><code>/timeline/api/lists</code></td><td>Create / list the caller's lists</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method put">PUT</span> / <span class="method delete">DELETE</span></td><td><code>/timeline/api/lists/:id</code></td><td>Details with members / update / soft-delete (owner only)</td></tr>
+    <tr><td><span class="method post">POST</span> / <span class="method delete">DELETE</span></td><td><code>/timeline/api/lists/:id/members</code> · <code>/members/:userId</code></td><td>Add / remove members</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/lists/:id/timeline</code></td><td>Timeline of the list's members</td></tr>
+  </tbody>
+</table>
+
+<h3>Search — <code>/timeline/api/search</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/search/posts?q=…</code></td><td>Full-text post search (ElasticSearch, or SQL fallback)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/search/hashtags</code></td><td>Search posts by hashtag</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/search/trending/topics</code> · <code>/trending/hashtags</code></td><td>Trending topics / hashtags (24 h window)</td></tr>
+  </tbody>
+</table>
+
+<h3>Attachments — <code>/timeline/api/attachments</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/timeline/api/attachments/posts/:postId</code> · <code>/comments/:commentId</code></td><td>Multipart upload (max 10 files, 100 MB each) — stored in FileVault</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/attachments/posts/:postId</code> · <code>/comments/:commentId</code></td><td>List attachments for a post / comment</td></tr>
+    <tr><td><span class="method get">GET</span> / <span class="method put">PUT</span> / <span class="method delete">DELETE</span></td><td><code>/timeline/api/attachments/:id</code></td><td>Details / update metadata (description, altText, isPrimary) / soft-delete</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/attachments/:id/download</code></td><td>Download (redirects to FileVault)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/timeline/api/attachments/:id/share</code></td><td>Create a shareable link</td></tr>
+  </tbody>
+</table>
+
+<h3>Webhooks — <code>/timeline/api/webhooks</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/timeline/api/webhooks/bluesky</code></td><td>Bluesky PDS events (<code>record.created/updated/deleted</code>, <code>like.created</code>, <code>repost.created</code>)</td><td>HMAC-SHA256 signature (<code>BLUESKY_WEBHOOK_SECRET</code>)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/timeline/api/webhooks/moderator</code></td><td>Moderation decisions</td><td>None</td></tr>
+  </tbody>
+</table>
+
+<h3>Job administration — <code>/timeline/api/jobs</code> (admin only)</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/jobs/stats</code> · <code>/stats/:queueName</code></td><td>Queue statistics (all / per queue)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/timeline/api/jobs/:queueName/jobs</code> · <code>/job/:jobId</code></td><td>List jobs by status / job details</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/timeline/api/jobs/:queueName/pause</code> · <code>/resume</code> · <code>/clean</code></td><td>Pause / resume / clean a queue</td></tr>
+    <tr><td><span class="method post">POST</span> / <span class="method delete">DELETE</span></td><td><code>/timeline/api/jobs/:queueName/job/:jobId/retry</code> · <code>/job/:jobId</code></td><td>Retry a failed job / remove a job</td></tr>
+  </tbody>
+</table>
+<p>A standard <code>GET /timeline/health</code> endpoint is also exposed.</p>
+
+<h2 id="models">Data models</h2>
+<p>Sequelize models in <code>services/timeline/src/models/</code>, persisted in the <code>timeline</code> schema:</p>
+<table>
+  <thead><tr><th>Model</th><th>Key fields</th></tr></thead>
+  <tbody>
+    <tr><td><code>Post</code></td><td><code>userId</code>, <code>content</code>, <code>contentType</code> (text | image | video | link), <code>media</code> JSON, <code>visibility</code> (public | followers | private), counters (<code>likeCount</code>, <code>commentCount</code>, <code>repostCount</code>), <code>metadata</code> JSON (hashtags/mentions/URLs, preview, replyTo, quoteOf, moderationStatus), Bluesky fields (<code>blueskyUri</code>, <code>blueskyDid</code>, <code>blueskyRkey</code>, <code>syncedToBluesky</code>), soft-delete flag</td></tr>
+    <tr><td><code>Like</code> / <code>Repost</code> / <code>Bookmark</code></td><td><code>postId</code> + <code>userId</code> (unique pair for likes); reposts carry an optional <code>comment</code></td></tr>
+    <tr><td><code>Comment</code></td><td><code>postId</code>, <code>userId</code>, <code>content</code>, soft-delete flag</td></tr>
+    <tr><td><code>Follow</code></td><td><code>followerId</code> → <code>followingId</code>, <code>active</code> flag, unique pair</td></tr>
+    <tr><td><code>List</code> / <code>ListMember</code></td><td>Owner, name, description, visibility, <code>memberCount</code>; membership rows</td></tr>
+    <tr><td><code>Trending</code></td><td><code>topic</code>, <code>topicType</code> (hashtag | keyword | user), <code>postsCount</code>, <code>engagementCount</code>, <code>trendScore</code>, <code>peakAt</code></td></tr>
+    <tr><td><code>Attachment</code></td><td>Shared model from <code>@exprsn/shared</code>: <code>entityType</code> (post | comment) + <code>entityId</code>, FileVault <code>fileId</code>/<code>fileUrl</code>, name/MIME/size, <code>altText</code>, <code>isPrimary</code>, soft-delete</td></tr>
+  </tbody>
+</table>
+
+<h2 id="feed">Feed &amp; fan-out architecture</h2>
+<p><strong>Feed ranking</strong> (<code>feedService.js</code>): the home feed combines posts from followed users plus the caller's own, scored by recency (time decay), engagement (likes/reposts/comments), relationship strength, and media presence. The explore feed surfaces popular posts from the last 7 days; user timelines are plain reverse-chronological. Pagination supports Base64 cursors and offsets.</p>
+<p><strong>Fan-out on write</strong> (<code>fanoutService.js</code>): when a post is created, a <code>post-fanout</code> job distributes it to every active follower — written both to Redis (sorted set <code>timeline:{userId}</code>, scores = timestamps, TTL 5 min, capped at 100 posts) for hot reads and to the database for durable timeline reconstruction, in batches of 100 followers. Deletion enqueues <code>post-removal</code>; cache invalidation is also job-driven.</p>
+<p><strong>Post-creation flow</strong>: create record → extract entities (hashtags, mentions, URLs) → enqueue <code>fanout.post-fanout</code>, <code>trending.hashtag-extraction</code>, <code>indexing.post-index</code> → notify Bluesky asynchronously → broadcast <code>new:post</code> on the <code>/timeline</code> Socket.IO namespace.</p>
+
+<h2 id="queues">Bull queues &amp; worker</h2>
+<p>Defined in <code>src/config/queue.js</code>; processed by <code>src/worker.js</code> (run separately: <code>node services/timeline/src/worker.js</code>). The worker also schedules recurring jobs: <code>trending-update</code> every 15 minutes and <code>trending-cleanup</code> daily at 3 AM.</p>
+<table>
+  <thead><tr><th>Queue</th><th>Concurrency</th><th>Retry</th><th>Jobs</th></tr></thead>
+  <tbody>
+    <tr><td><code>fanout</code> (high priority)</td><td>10</td><td>3 attempts, exponential (2 s)</td><td><code>post-fanout</code> (distribute to followers), <code>post-removal</code>, <code>cache-invalidation</code></td></tr>
+    <tr><td><code>trending</code> (medium)</td><td>5</td><td>2 attempts, fixed (5 s)</td><td><code>hashtag-extraction</code>, <code>trending-update</code> (cron */15 min), <code>trending-cleanup</code> (daily 3 AM)</td></tr>
+    <tr><td><code>indexing</code> (low)</td><td>3</td><td>3 attempts, exponential (3 s)</td><td><code>post-index</code> (index/update/delete in ElasticSearch), <code>bulk-reindex</code></td></tr>
+    <tr><td><code>notifications</code> (high)</td><td>20</td><td>5 attempts, exponential (1 s)</td><td><code>notification</code>, <code>batch-notification</code> → Herald; types: like, repost, comment, reply, mention, follow</td></tr>
+  </tbody>
+</table>
+
+<h2 id="sockets">Socket.IO events — namespace <code>/timeline</code></h2>
+<p>Sockets must present a valid CA token in the handshake (validated against the CA service); the user ID is attached as <code>socket.userId</code>.</p>
+<table>
+  <thead><tr><th>Direction</th><th>Event</th><th>Payload</th></tr></thead>
+  <tbody>
+    <tr><td>Client → server</td><td><code>subscribe:timeline</code> / <code>unsubscribe:timeline</code></td><td>Join/leave the global timeline room (acked with <code>subscribed:timeline</code> / <code>unsubscribed:timeline</code>)</td></tr>
+    <tr><td>Server → client</td><td><code>new:post</code></td><td>New post object</td></tr>
+    <tr><td>Server → client</td><td><code>post:liked</code></td><td><code>{ postId, userId }</code></td></tr>
+    <tr><td>Server → client</td><td><code>post:commented</code></td><td><code>{ postId, comment }</code></td></tr>
+    <tr><td>Server → client</td><td><code>post:created</code> / <code>post:updated</code> / <code>post:deleted</code></td><td>Relayed from IPC broadcasts by other services</td></tr>
+  </tbody>
+</table>
+
+<h2 id="config">Configuration</h2>
+<p><code>services/timeline/src/config/index.js</code> (template in <code>.env.example</code>). Key variables:</p>
+<table>
+  <thead><tr><th>Group</th><th>Variables (defaults)</th></tr></thead>
+  <tbody>
+    <tr><td>Database</td><td><code>TIMELINE_DB_HOST</code>/<code>PORT</code>/<code>NAME</code>/<code>USER</code>/<code>PASSWORD</code>, <code>DB_LOGGING</code></td></tr>
+    <tr><td>Redis / jobs</td><td><code>REDIS_ENABLED</code> (true), <code>REDIS_HOST</code>/<code>PORT</code>, <code>ENABLE_JOBS</code> (true), worker concurrency: <code>FANOUT_WORKER_CONCURRENCY</code> (10), <code>TRENDING_WORKER_CONCURRENCY</code> (5), <code>INDEXING_WORKER_CONCURRENCY</code> (3), <code>NOTIFICATION_WORKER_CONCURRENCY</code> (20)</td></tr>
+    <tr><td>Services</td><td><code>CA_URL</code>, <code>HERALD_SERVICE_URL</code>/<code>HERALD_ENABLED</code>, <code>SPARK_SERVICE_URL</code>/<code>SPARK_ENABLED</code>, <code>PREFETCH_SERVICE_URL</code>/<code>PREFETCH_ENABLED</code>, <code>FILEVAULT_BASE_URL</code>, <code>SERVICE_TOKEN</code></td></tr>
+    <tr><td>Search</td><td><code>ELASTICSEARCH_ENABLED</code> (false), <code>ELASTICSEARCH_NODE</code>, <code>ELASTICSEARCH_POSTS_INDEX</code> (exprsn_posts), credentials</td></tr>
+    <tr><td>Federation / admin</td><td><code>BLUESKY_WEBHOOK_SECRET</code> (required for the webhook), <code>TIMELINE_ADMIN_USER_IDS</code> (comma-separated)</td></tr>
+    <tr><td>Behavior constants</td><td>maxPostLength 5000, defaultPageSize 20, maxPageSize 100, feedCacheTTL 300 s</td></tr>
+  </tbody>
+</table>
+
+<h2 id="integration">Integrations &amp; key files</h2>
+<table>
+  <thead><tr><th>Module / system</th><th>Integration</th></tr></thead>
+  <tbody>
+    <tr><td><a href="exprsn-ca.html">CA</a></td><td>All HTTP and socket auth via CA token validation (<code>src/middleware/auth.js</code>)</td></tr>
+    <tr><td>Herald</td><td>Notification delivery for likes/comments/reposts/mentions/follows (<code>heraldService.js</code>)</td></tr>
+    <tr><td>Spark</td><td>Real-time event broadcasts to messaging (<code>sparkService.js</code>)</td></tr>
+    <tr><td><a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a></td><td>Pre-computed timeline caching; Prefetch pulls user timelines from this service (<code>prefetchService.js</code>)</td></tr>
+    <tr><td>FileVault</td><td>Attachment storage via the shared attachment service</td></tr>
+    <tr><td>Bluesky (AT Protocol)</td><td>Outbound post sync + inbound HMAC-verified webhooks (<code>blueskyWebhook.js</code>)</td></tr>
+    <tr><td>ElasticSearch</td><td>Optional full-text search; jobs keep the <code>exprsn_posts</code> index current (<code>elasticsearchService.js</code>)</td></tr>
+    <tr><td>IPC</td><td>Receives <code>post:created/updated/deleted</code> events from other modules and relays them to the <code>/timeline</code> namespace</td></tr>
+  </tbody>
+</table>
+<table>
+  <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>src/index.js</code> / <code>src/worker.js</code></td><td>Module entry / Bull worker entry</td></tr>
+    <tr><td><code>src/routes/</code></td><td>posts, timeline, interactions, lists, search, attachments, webhooks, jobs</td></tr>
+    <tr><td><code>src/services/</code></td><td>feedService, fanoutService, postService, heraldService, sparkService, prefetchService, elasticsearchService, blueskyWebhook</td></tr>
+    <tr><td><code>src/jobs/processors/</code></td><td>fanout, trending, indexing, notification processors</td></tr>
+    <tr><td><code>src/utils/</code></td><td>contentProcessor (sanitization, entity extraction), cursor pagination, logger</td></tr>
+  </tbody>
+</table>
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+</body>
+</html>

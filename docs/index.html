@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn Platform — Service Documentation</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html" class="active">Index</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+  </nav>
+</header>
+<main>
+<h1>Exprsn Platform — Service Documentation</h1>
+<p>The Exprsn Platform consolidates ten formerly standalone microservices into a single Node.js process behind one HTTPS port (default <code>8443</code>). Each former service is now a <em>module</em>: an Express app mounted at a path prefix on a unified gateway (<code>src/gateway.js</code>), with its tables isolated in its own Postgres schema and its real-time events attached as namespaces on one shared Socket.IO server. The canonical module list lives in <code>src/modules/registry.js</code>.</p>
+<p>This documentation set covers four of the platform's modules. Each page describes the module's purpose, full endpoint inventory (with gateway-prefixed paths), data models, configuration, real-time events, background jobs, and integration points.</p>
+
+<h2>Documented services</h2>
+<div class="cards">
+  <div class="card">
+    <h3><a href="exprsn-ca.html">Exprsn-CA</a></h3>
+    <p class="tag">/ca · schema: ca · socket: /ca</p>
+    <p>The certificate authority and token authority. X.509 issuance (root → intermediate → entity), OCSP responder, CRL distribution, the CA Token Specification v1.0 used by every other module for auth, hash-chained audit logging, and RBAC.</p>
+  </div>
+  <div class="card">
+    <h3><a href="exprsn-auth.html">Exprsn-Auth</a></h3>
+    <p class="tag">/auth · schema: auth</p>
+    <p>Centralized identity: registration, login, MFA (TOTP + backup codes), sessions, password lifecycle, social OAuth, a full OAuth2/OIDC provider (PKCE, discovery, JWKS), SAML 2.0 SSO, LDAP/AD sync, and multi-tenant RBAC.</p>
+  </div>
+  <div class="card">
+    <h3><a href="exprsn-timeline.html">Exprsn-Timeline</a></h3>
+    <p class="tag">/timeline · schema: timeline · socket: /timeline · worker</p>
+    <p>The social feed: posts, likes/comments/reposts/bookmarks/follows, ranked home feeds, lists, trending, search (ElasticSearch), attachments via FileVault, Bluesky federation, and Bull-queue fan-out processed by a separate worker.</p>
+  </div>
+  <div class="card">
+    <h3><a href="exprsn-prefetch.html">Exprsn-Prefetch</a></h3>
+    <p class="tag">/prefetch · schema: prefetch · worker</p>
+    <p>Read acceleration for timelines: tiered hot/warm Redis caching, priority-queued prefetch jobs, activity-based scheduling, cache metrics, and Kubernetes-style health probes.</p>
+  </div>
+  <div class="card">
+    <h3><a href="database-model.html">Database Model</a></h3>
+    <p class="tag">database: exprsn · schemas: ca, auth, timeline, prefetch</p>
+    <p>The data layer across the documented services: schema-per-module isolation, every table with key columns and relationships, Redis runtime stores, and the logical UUID references that cross schema boundaries.</p>
+  </div>
+  <div class="card">
+    <h3><a href="platform-model.html">Platform Model</a></h3>
+    <p class="tag">Mermaid diagrams · architecture · flows</p>
+    <p>Mermaid-rendered architecture diagrams: the gateway and module topology, request authentication, the post-creation and fan-out flow, cached feed reads, and the module dependency map. Diagram source is copy-paste ready for GitHub or the Mermaid Live Editor.</p>
+  </div>
+</div>
+
+<h2>How the modules fit together</h2>
+<table>
+  <thead><tr><th>Interaction</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>CA → everyone</td><td>All modules authenticate requests with CA tokens; validation happens against <code>/ca/api/tokens/validate</code> or via in-process IPC (<code>token:validate</code>, <code>cert:validate</code>).</td></tr>
+    <tr><td>Auth ↔ CA</td><td>Auth delegates CA-token generation/validation to the CA and monitors it at <code>/auth/health/ca</code>.</td></tr>
+    <tr><td>Timeline → Prefetch</td><td>Prefetch pulls user timelines from Timeline (<code>GET /api/timeline/user/:userId</code>) and serves them from hot/warm Redis tiers.</td></tr>
+    <tr><td>Timeline → Herald / Spark / FileVault / Bluesky</td><td>Notifications, real-time broadcasts, attachment storage, and AT-Protocol federation respectively.</td></tr>
+    <tr><td>Service-to-service auth</td><td>HMAC tokens derived from <code>SERVICE_TOKEN_SECRET</code> (headers <code>X-Service-ID</code> + <code>X-Service-Token</code>); the unified process presents <code>SERVICE_ID=platform</code>. Inter-module HTTP still flows through <code>*_SERVICE_URL</code> vars, which point back at <code>https://localhost:8443/&lt;module&gt;</code>.</td></tr>
+  </tbody>
+</table>
+
+<h2>Platform quick reference</h2>
+<table>
+  <thead><tr><th>Topic</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr><td>Architecture &amp; design</td><td><code>ARCHITECTURE.md</code> (repo root)</td></tr>
+    <tr><td>Known follow-ups / punch list</td><td><code>STATUS.md</code> (repo root)</td></tr>
+    <tr><td>Module registry (source of truth)</td><td><code>src/modules/registry.js</code></td></tr>
+    <tr><td>Gateway (mounts, health, Socket.IO, error handling)</td><td><code>src/gateway.js</code></td></tr>
+    <tr><td>Bootstrap &amp; HTTPS server</td><td><code>src/index.js</code></td></tr>
+    <tr><td>Env parsing</td><td><code>src/config/index.js</code> (loads <code>.env</code> from the repo root)</td></tr>
+    <tr><td>Workers (run separately)</td><td><code>node services/timeline/src/worker.js</code> · <code>node services/prefetch/src/worker.js</code></td></tr>
+    <tr><td>Aggregate health</td><td><code>curl -k https://localhost:8443/health</code></td></tr>
+  </tbody>
+</table>
+
+<h2>Reference</h2>
+<p>The <a href="database-model.html">database model</a> documents the <code>exprsn</code> database schema by schema, and the <a href="platform-model.html">platform model</a> visualizes the architecture and key flows as Mermaid diagrams. See the <a href="glossary.html">glossary</a> for definitions of platform terms — CA tokens, OCSP/CRL, fan-out, cache tiers, HMAC service tokens, the module contract, and more.</p>
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="glossary.html">Glossary</a></footer>
+</body>
+</html>

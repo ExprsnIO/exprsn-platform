@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn-CA — Certificate Authority Service</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="exprsn-ca.html" class="active">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+  </nav>
+</header>
+<main>
+<h1>Exprsn-CA — Certificate Authority Service</h1>
+
+<div class="meta-card">
+  <dl>
+    <dt>Gateway mount</dt><dd><code>/ca</code></dd>
+    <dt>Postgres schema</dt><dd><code>ca</code></dd>
+    <dt>Socket.IO namespace</dt><dd><code>/ca</code></dd>
+    <dt>Entry point</dt><dd><code>services/ca/index.js</code></dd>
+    <dt>Background worker</dt><dd>None (CRL regeneration runs on an in-process interval)</dd>
+  </dl>
+</div>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#endpoints">API endpoints</a></li>
+    <li><a href="#models">Data models</a></li>
+    <li><a href="#pki">PKI capabilities</a></li>
+    <li><a href="#sockets">Socket.IO events</a></li>
+    <li><a href="#auth">Authentication &amp; middleware</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#integration">Integration &amp; key files</a></li>
+  </ul>
+</div>
+
+<h2 id="overview">Overview</h2>
+<p>Exprsn-CA is the platform's X.509 public-key infrastructure and token authority. It issues and manages the full certificate hierarchy (root, intermediate, entity, SAN, code-signing, client, and server certificates), operates an OCSP responder (RFC 6960) and CRL distribution point (RFC 5280 §5), and implements the <em>Exprsn CA Token Specification v1.0</em> — signed, permission-scoped tokens that every other platform module uses to authenticate API requests.</p>
+<p>It also maintains its own user/group/role model with RBAC, a cryptographically chained audit log (each entry's hash includes the previous entry's hash, making tampering evident), and real-time certificate/token status events over Socket.IO. ACME v2 (RFC 8555) data models and migrations are present, but the protocol handlers are not yet implemented.</p>
+<p>As a platform module it exports <code>{ name, app, registerSockets(io), init(ctx) }</code> — no <code>listen()</code>, no views. <code>init()</code> connects IPC, Redis, Postgres, and the storage layer, auto-generates a root CA certificate if none exists, and starts the CRL service.</p>
+
+<h2 id="endpoints">API endpoints</h2>
+<p>Paths below are as reached through the gateway (prefix <code>/ca</code>). Unless noted, endpoints require an authenticated session.</p>
+
+<h3>Tokens — <code>/ca/api/tokens</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/tokens/generate</code></td><td>Generate a new CA token (spec v1.0)</td><td>Session</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/tokens/validate</code></td><td>Validate a token by ID or token object</td><td>Session or HMAC service token</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/tokens/revoke</code></td><td>Revoke a token</td><td>Session</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/tokens/:id/refresh</code></td><td>Refresh a token's expiration</td><td>Session</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/api/tokens/:id/introspect</code></td><td>Get token metadata</td><td>Session</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/api/tokens</code></td><td>List the authenticated user's tokens</td><td>Session</td></tr>
+  </tbody>
+</table>
+
+<h3>Certificates — <code>/ca/api/certificates</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/certificates/generate-root</code></td><td>Generate a root CA certificate</td><td>Admin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/certificates/generate-intermediate</code></td><td>Generate an intermediate CA certificate</td><td>Admin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/certificates/generate-code-signing</code></td><td>Generate a code-signing certificate</td><td>Admin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/certificates/generate</code></td><td>Generate an entity certificate</td><td>Session</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/certificates/csr</code></td><td>Process a Certificate Signing Request</td><td>Admin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/certificates/:id/renew</code></td><td>Renew a certificate</td><td>Admin</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/api/certificates/:id</code></td><td>Get certificate metadata</td><td>Session</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/api/certificates/:id/chain</code></td><td>Get certificate chain (entity → root)</td><td>Session</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/api/certificates/:id/download</code></td><td>Download certificate (PEM/DER)</td><td>Session</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/api/auth/verify-password</code></td><td>Verify user password (MFA helper)</td><td>Session + strict rate limit</td></tr>
+  </tbody>
+</table>
+
+<h3>OCSP — <code>/ca/ocsp</code> (public, RFC 6960)</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/ocsp</code></td><td>DER OCSPRequest → signed DER OCSPResponse</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/ocsp/{base64-request}</code></td><td>URL-safe base64 DER request (RFC 6960 Appendix A.1)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/ocsp/batch</code></td><td>JSON batch certificate status check (internal)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/ocsp/status</code></td><td>OCSP service status and cache stats</td></tr>
+  </tbody>
+</table>
+
+<h3>CRL — <code>/ca/crl</code> (public, RFC 5280)</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Content type</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/crl/current.crl</code></td><td>Current CRL, DER — the standard distribution point</td><td><code>application/pkix-crl</code></td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/crl</code></td><td>Current CRL, PEM</td><td><code>application/x-pem-file</code></td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/crl/der</code></td><td>Current CRL, DER (legacy alias)</td><td><code>application/pkix-crl</code></td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/crl/info</code></td><td>CRL metadata (thisUpdate, nextUpdate, revokedCount)</td><td><code>application/json</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Admin dashboard — <code>/ca/admin/api</code> (admin roles only)</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/stats</code></td><td>Dashboard statistics (certs, tokens, users, tickets, uptime)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/activity</code></td><td>Recent audit log entries (paginated)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/certificates/recent</code></td><td>Recent 20 issued certificates</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/tokens/recent</code></td><td>Recent 20 generated tokens</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/timeseries/:type</code></td><td>Time-series data (certificates, tokens, users)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/health</code></td><td>DB latency, Redis, memory, CPU</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/users</code></td><td>Paginated, searchable user list</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/groups</code></td><td>All groups with member counts</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/roles</code></td><td>All available roles</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/certificates</code></td><td>All certificates (filter by status/type)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/tokens</code></td><td>All tokens (filter by status/expiryType)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/admin/api/certificates/issue</code></td><td>Issue a new certificate</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/admin/api/certificates/:id/revoke</code></td><td>Revoke a certificate</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/certificates/:id/download</code></td><td>Download certificate (PEM)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/admin/api/tokens/generate</code></td><td>Generate a token (admin)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/admin/api/tokens/validate</code></td><td>Validate a token (admin)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/admin/api/tokens/:id/revoke</code></td><td>Revoke a token (admin)</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/ocsp/status</code></td><td>OCSP responder status</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/crl/status</code></td><td>CRL generation status</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/admin/api/crl/generate</code></td><td>Trigger CRL regeneration</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/ca/admin/api/config</code></td><td>Fetch configuration (secrets redacted)</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/admin/api/config/update</code></td><td>Update configuration (whitelisted keys only)</td></tr>
+  </tbody>
+</table>
+
+<h3>Other routes</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span> / <span class="method post">POST</span></td><td><code>/ca/api/config/:sectionId</code></td><td>Read/update config sections: <code>cert-root</code>, <code>cert-intermediate</code>, <code>cert-tokens</code>, <code>cert-ocsp</code></td><td>Admin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/ca/tickets/generate</code></td><td>Generate a one-time-use ticket (account recovery / out-of-band flows)</td><td>Session</td></tr>
+  </tbody>
+</table>
+<div class="note">Legacy view routes (<code>/ca/ca</code>, <code>/ca/certificates</code>, <code>/ca/tokens</code>, <code>/ca/users</code>, <code>/ca/groups</code>, <code>/ca/roles</code>) return empty routers — all HTML views were removed during platform consolidation. An <code>/acme</code> mount is registered for ACME v2 but the handlers are not yet implemented.</div>
+
+<h2 id="models">Data models</h2>
+<p>Sequelize models in <code>services/ca/models/</code>, all with UUID primary keys, persisted in the <code>ca</code> schema.</p>
+<table>
+  <thead><tr><th>Model</th><th>Purpose / key fields</th></tr></thead>
+  <tbody>
+    <tr><td><code>Certificate</code></td><td>X.509 storage. <code>serialNumber</code> (unique), <code>type</code> (root | intermediate | entity | san | code_signing | client | server), <code>commonName</code>, <code>subjectAlternativeNames</code>, subject DN fields, <code>keySize</code>, <code>algorithm</code>, <code>publicKey</code>, <code>privateKeyEncrypted</code>, <code>certificatePem</code>/<code>certificateDer</code>, <code>fingerprint</code> (SHA-256, unique), <code>notBefore</code>/<code>notAfter</code>, <code>status</code> (active | revoked | expired | suspended), <code>revocationReason</code> (RFC 5280 codes), <code>issuerId</code> (self-reference)</td></tr>
+    <tr><td><code>Token</code></td><td>CA Token spec v1.0. Permission flags (<code>read</code>/<code>write</code>/<code>append</code>/<code>delete</code>/<code>update</code>), <code>resourceType</code> (url | did | cid) + <code>resourceValue</code>, <code>expiryType</code> (time | use | persistent), use counters, <code>checksum</code> (SHA-256), <code>signature</code> (RSA-SHA256-PSS), <code>status</code> (active | revoked | expired | exhausted), <code>certificateId</code> (signing cert)</td></tr>
+    <tr><td><code>User</code></td><td>CA accounts: bcrypt <code>passwordHash</code>, email verification, password reset tokens, login tracking, <code>failedLoginAttempts</code>/<code>lockedUntil</code> lockout, TOTP MFA (<code>twoFactorEnabled</code>/<code>twoFactorSecret</code>)</td></tr>
+    <tr><td><code>AuditLog</code></td><td>Tamper-evident audit trail: <code>action</code>, <code>resourceType</code>/<code>resourceId</code>, <code>status</code>, <code>severity</code>, <code>details</code> JSONB, IP/user-agent, and the hash chain — <code>prevHash</code> + <code>entryHash</code> (SHA-256)</td></tr>
+    <tr><td><code>RevocationList</code></td><td>One row per revoked certificate: <code>serialNumber</code>, <code>revokedAt</code>, <code>reason</code>, <code>invalidityDate</code>, <code>issuerId</code>, <code>crlNumber</code></td></tr>
+    <tr><td><code>CrlCounter</code></td><td>Atomic, monotonically increasing CRL number per issuer (<code>nextNumber()</code>)</td></tr>
+    <tr><td><code>AcmeAccount</code>, <code>AcmeOrder</code>, <code>AcmeAuthorization</code>, <code>AcmeChallenge</code>, <code>AcmeNonce</code></td><td>RFC 8555 ACME v2 models (JWK accounts, order lifecycle, http-01/dns-01/tls-alpn-01 challenges, replay nonces). Schema in place; protocol handlers pending.</td></tr>
+    <tr><td><code>Role</code>, <code>Group</code>, <code>RoleSet</code>, <code>UserGroup</code></td><td>RBAC: permission-flagged roles, hierarchical groups, role collections, user↔group membership</td></tr>
+    <tr><td><code>Profile</code>, <code>RateLimit</code>, <code>PasswordReset</code>, <code>Ticket</code></td><td>Extended profiles, rate-limit tracking, reset-token lifecycle, one-time tickets</td></tr>
+  </tbody>
+</table>
+
+<h2 id="pki">PKI capabilities</h2>
+<h3>Certificate hierarchy</h3>
+<table>
+  <thead><tr><th>Type</th><th>Key size (default)</th><th>Validity (default)</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Root CA</td><td>4096-bit RSA</td><td>7,300 days (20 yr)</td><td>Self-signed; auto-generated at init if missing</td></tr>
+    <tr><td>Intermediate CA</td><td>4096-bit RSA</td><td>3,650 days (10 yr)</td><td>Signed by root</td></tr>
+    <tr><td>Entity / client / server / SAN / code-signing</td><td>2048-bit RSA</td><td>365 days</td><td>Signed by an issuer cert; CSR processing and renewal supported</td></tr>
+  </tbody>
+</table>
+<p>Issued certificates carry standard X.509 v3 extensions: <code>cRLDistributionPoints</code> (pointing at <code>/crl/current.crl</code>), <code>authorityInfoAccess</code> (OCSP + caIssuers), <code>basicConstraints</code>, <code>keyUsage</code>, <code>extendedKeyUsage</code>, <code>subjectKeyIdentifier</code>, and <code>authorityKeyIdentifier</code>. X.509 construction uses <code>node-forge</code>; hashing and HMAC use the native <code>crypto</code> module. Tokens are signed with RSA-SHA256-PSS.</p>
+
+<h3>Revocation</h3>
+<p><strong>CRL</strong>: regenerated every <code>CRL_UPDATE_INTERVAL</code> seconds (default 3600), <code>nextUpdate</code> = thisUpdate + <code>CRL_NEXT_UPDATE_DAYS</code> (default 7), with an atomic monotonic <code>cRLNumber</code> from <code>CrlCounter</code>. <strong>OCSP</strong>: signed DER BasicOCSPResponse with in-memory response caching (default 300 s TTL; revoked-status responses capped at 60 s), issuer-cert hash caching, and batch checking.</p>
+
+<h3>Storage backends</h3>
+<p>Pluggable certificate/private-key storage (<code>services/ca/storage/</code>): <strong>disk</strong> (PEM files), <strong>S3</strong>, or <strong>PostgreSQL</strong> (BYTEA), selected via <code>STORAGE_TYPE</code>. Private keys are wrapped with AES-256-GCM (<code>storage/keyEncryption.js</code>).</p>
+
+<h2 id="sockets">Socket.IO events — namespace <code>/ca</code></h2>
+<table>
+  <thead><tr><th>Direction</th><th>Event</th><th>Payload / behavior</th></tr></thead>
+  <tbody>
+    <tr><td>Client → server</td><td><code>certificate:subscribe</code></td><td><code>{ certificateId }</code> — join room <code>certificate:{id}</code></td></tr>
+    <tr><td>Client → server</td><td><code>token:subscribe</code></td><td><code>{ tokenId }</code> — join room <code>token:{id}</code></td></tr>
+    <tr><td>Server → client</td><td><code>certificate:updated</code></td><td>Certificate object, broadcast to its room on status change</td></tr>
+    <tr><td>Server → client</td><td><code>token:revoked</code> / <code>token:expired</code></td><td>Token ID (+ reason), broadcast to the token's room</td></tr>
+    <tr><td>Server → client</td><td><code>audit:logged</code></td><td>Audit entry, broadcast to <code>user:{userId}</code></td></tr>
+  </tbody>
+</table>
+<p>Connections auto-join their <code>user:{userId}</code> room. Session middleware applies; unauthenticated sockets are allowed but flagged <code>socket.authenticated = false</code> and checked by handlers.</p>
+
+<h2 id="auth">Authentication &amp; middleware</h2>
+<table>
+  <thead><tr><th>Middleware</th><th>Behavior</th></tr></thead>
+  <tbody>
+    <tr><td><code>requireSession</code></td><td>401 JSON error without a session user</td></tr>
+    <tr><td><code>requireAdminSession</code></td><td>Requires roles <code>admin</code>, <code>super-admin</code>, or <code>ca-admin</code> (401/403)</td></tr>
+    <tr><td><code>requireSessionOrService</code></td><td>Accepts a session <em>or</em> HMAC service auth via <code>X-Service-ID</code> + <code>X-Service-Token</code> (HMAC-SHA256 over the service ID with <code>SERVICE_TOKEN_SECRET</code>; verified by <code>shared/utils/serviceToken.js</code>)</td></tr>
+    <tr><td><code>requirePermissions(...)</code></td><td>Resolves the user's roles/groups and checks every listed permission</td></tr>
+    <tr><td><code>optionalAuth</code>, <code>attachUserToLocals</code></td><td>Non-blocking user attachment</td></tr>
+  </tbody>
+</table>
+<p>CA token validation (<code>tokenService.validateToken</code>) checks status, verifies the RSA-PSS signature, matches permissions and resource, decrements use counts for use-based tokens, and caches valid results in Redis (300 s TTL). Rate limits: standard 100 req/15 min; strict 10 req/15 min (e.g. password verification).</p>
+
+<h2 id="config">Configuration</h2>
+<p>Aggregated in <code>services/ca/config/index.js</code>. Key environment variables:</p>
+<table>
+  <thead><tr><th>Group</th><th>Variables (defaults)</th></tr></thead>
+  <tbody>
+    <tr><td>CA identity</td><td><code>CA_NAME</code> ("Exprsn Root CA"), <code>CA_DOMAIN</code>, <code>CA_COUNTRY</code>/<code>CA_STATE</code>/<code>CA_LOCALITY</code>/<code>CA_ORGANIZATION</code>/<code>CA_ORGANIZATIONAL_UNIT</code>/<code>CA_EMAIL</code>, <code>CA_BASE_URL</code> (https://localhost:8443/ca)</td></tr>
+    <tr><td>Validity &amp; keys</td><td><code>CA_ROOT_VALIDITY_DAYS</code> (7300), <code>CA_INTERMEDIATE_VALIDITY_DAYS</code> (3650), <code>CA_ENTITY_VALIDITY_DAYS</code> (365), <code>CA_ROOT_KEY_SIZE</code> (4096), <code>CA_INTERMEDIATE_KEY_SIZE</code> (4096), <code>CA_ENTITY_KEY_SIZE</code> (2048)</td></tr>
+    <tr><td>Database</td><td><code>DB_HOST</code>, <code>DB_PORT</code>, <code>DB_NAME</code>, <code>DB_USER</code>, <code>DB_PASSWORD</code>, <code>DB_SSL</code>, pool/retry tuning</td></tr>
+    <tr><td>OCSP</td><td><code>OCSP_ENABLED</code> (true), <code>OCSP_URL</code>, <code>OCSP_BATCH_ENABLED</code>, <code>OCSP_CACHE_ENABLED</code>, <code>OCSP_CACHE_TTL</code> (300 s), <code>OCSP_VALIDITY_SECONDS</code> (3600)</td></tr>
+    <tr><td>CRL</td><td><code>CRL_ENABLED</code> (true), <code>CRL_URL</code>, <code>CRL_UPDATE_INTERVAL</code> (3600 s), <code>CRL_NEXT_UPDATE_DAYS</code> (7)</td></tr>
+    <tr><td>Tokens</td><td><code>TOKEN_VERSION</code> ("1.0"), <code>TOKEN_DEFAULT_EXPIRY_SECONDS</code> (3600), <code>TOKEN_MAX_EXPIRY_SECONDS</code> (86400), <code>TOKEN_MAX_USES_DEFAULT</code> (100), <code>TOKEN_SIGNATURE_ALGORITHM</code> (RSA-SHA256-PSS), <code>TOKEN_ENABLE_CACHING</code>, <code>TOKEN_CACHE_TIME_SECONDS</code> (300)</td></tr>
+    <tr><td>Storage</td><td><code>STORAGE_TYPE</code> (disk | s3 | postgresql), <code>STORAGE_DISK_PATH</code>, <code>STORAGE_S3_*</code> (bucket, region, keys, prefix)</td></tr>
+    <tr><td>Redis / session / JWT</td><td><code>REDIS_HOST</code>/<code>REDIS_PORT</code>/<code>REDIS_PASSWORD</code>/<code>REDIS_DB</code>, <code>SESSION_SECRET</code>/<code>SESSION_MAX_AGE</code>/<code>SESSION_SAME_SITE</code>, <code>JWT_SECRET</code>/<code>JWT_EXPIRY</code>/<code>JWT_ALGORITHM</code></td></tr>
+    <tr><td>Security</td><td><code>BCRYPT_ROUNDS</code> (10), <code>RATE_LIMIT_WINDOW_MS</code> (900000), <code>RATE_LIMIT_MAX_REQUESTS</code> (100), <code>RATE_LIMIT_STRICT_REQUESTS</code> (10)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="integration">Integration &amp; key files</h2>
+<p><strong>IPC</strong>: the CA registers handlers for cross-module validation — <code>cert:validate</code> (responds with validity, status, dates) and <code>token:validate</code> (validity, status, expiry, permissions). Other modules (Timeline, Prefetch, Auth) call the CA's <code>/api/tokens/validate</code> endpoint or these IPC events to authenticate requests.</p>
+<p><strong>Init order</strong>: IPC worker → config validation → Redis → Postgres → storage layer → root CA auto-generation → CRL service.</p>
+<table>
+  <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>services/ca/index.js</code></td><td>Module entry — exports app, registerSockets, init</td></tr>
+    <tr><td><code>services/ca/routes/api.js</code> / <code>admin.js</code> / <code>ocsp.js</code> / <code>crl.js</code></td><td>Core API, admin dashboard, OCSP responder, CRL distribution</td></tr>
+    <tr><td><code>services/ca/services/certificate.js</code> / <code>token.js</code> / <code>ocsp.js</code> / <code>crl.js</code> / <code>socket.js</code></td><td>Issuance/lifecycle, token spec v1.0, OCSP, CRL generation, Socket.IO handlers</td></tr>
+    <tr><td><code>services/ca/crypto/index.js</code></td><td>X.509 generation and signing (node-forge), token signatures</td></tr>
+    <tr><td><code>services/ca/middleware/auth.js</code></td><td>Session/admin/service-token middleware</td></tr>
+    <tr><td><code>services/ca/storage/</code></td><td>Disk/S3/Postgres backends + AES-256-GCM key encryption</td></tr>
+    <tr><td><code>services/ca/validators/index.js</code></td><td>Joi input validation schemas</td></tr>
+  </tbody>
+</table>
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+</body>
+</html>

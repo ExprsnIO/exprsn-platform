@@ -1,0 +1,318 @@
+# ============================================================================
+# Exprsn Platform — backing infrastructure
+# ----------------------------------------------------------------------------
+# One file, three tiers selected by Compose profiles:
+#
+#   (no profile)  core    — what `npm start` actually needs to boot:
+#                           postgres+postgis, redis, opensearch, rabbitmq, nginx
+#   extras        extras  — directory / network / mail services the platform
+#                           integrates with: openldap, bind (DNS), kerberos
+#                           (KDC + kadmin), dovecot (IMAP/POP3), strongswan (IPsec)
+#   optional      optional— developer/observability extras:
+#                           opensearch-dashboards, wireshark
+#
+# Usage (via npm scripts — see package.json):
+#   npm run infra:pull      # pull every image (all tiers)
+#   npm run infra:up        # start CORE only, detached
+#   npm run infra:up:all    # start core + extras + optional
+#   npm run infra:down      # stop & remove everything
+#   npm run infra:ps        # status
+#   npm run infra:logs      # follow logs
+#
+# Credentials/ports are read from the repo .env (Compose auto-loads it), so the
+# same values feed both this stack and the Node process. Sensible dev defaults
+# are inlined with ${VAR:-default}.
+#
+# NOTE on `ufw`: a host firewall is NOT a container — it manages the kernel
+# netfilter tables of the *host*, which a container cannot own. There is no
+# image to pull. See docker/README.md → "Host firewall (ufw)" for the
+# equivalent host-side setup. Compose deliberately does not fake it.
+# ============================================================================
+
+name: exprsn-infra
+
+x-restart: &restart
+  restart: unless-stopped
+
+networks:
+  exprsn:
+    name: exprsn-net
+
+volumes:
+  pg_data:
+  redis_data:
+  opensearch_data:
+  rabbitmq_data:
+  openldap_data:
+  openldap_config:
+  bind_cache:
+  kerberos_data:
+  dovecot_mail:
+
+services:
+  # ---------------------------------------------------------------- CORE -----
+
+  # Postgres + PostGIS. Single database `exprsn`; modules get one schema each
+  # (see src/modules/registry.js). PostGIS is enabled on first boot for the
+  # spatial queries in nexus/auth.
+  postgres:
+    <<: *restart
+    image: postgis/postgis:16-3.4
+    container_name: exprsn-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-exprsn}
+      POSTGRES_USER: ${DB_USER:-exprsn}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-exprsn} -d ${DB_NAME:-exprsn}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [exprsn]
+
+  # Shared Redis — sessions, rate limiting, Bull queues, socket.io adapter.
+  redis:
+    <<: *restart
+    image: redis:7-alpine
+    container_name: exprsn-redis
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ];
+             then exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD";
+             else exec redis-server --appendonly yes; fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [exprsn]
+
+  # OpenSearch — the search backend. The platform talks to it through the
+  # @elastic/elasticsearch client (ELASTICSEARCH_NODE), which speaks the
+  # OpenSearch 2.x wire protocol in compatibility mode. Security plugin is
+  # disabled for local dev so http://localhost:9200 needs no auth.
+  opensearch:
+    <<: *restart
+    image: opensearchproject/opensearch:2.18.0
+    container_name: exprsn-opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks: [exprsn]
+
+  # RabbitMQ (+ management UI on :15672). Broker for cross-module async work /
+  # event fan-out. Default guest/guest is loopback-only inside the container
+  # network; override with RABBITMQ_USER/RABBITMQ_PASSWORD for anything shared.
+  rabbitmq:
+    <<: *restart
+    image: rabbitmq:3.13-management-alpine
+    container_name: exprsn-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-exprsn}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-change_me}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks: [exprsn]
+
+  # nginx — single-origin edge: serves the built SPA (web/dist) on 80/443 and
+  # proxies the API module prefixes + Socket.IO to the Node gateway on the host.
+  # See docker/nginx/nginx.conf. Build the SPA first: `npm --prefix web run build`.
+  nginx:
+    <<: *restart
+    image: nginx:1.27-alpine
+    container_name: exprsn-nginx
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - ./web/dist:/usr/share/nginx/html:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [exprsn]
+
+  # -------------------------------------------------------------- EXTRAS -----
+
+  # OpenLDAP — directory backend. The `ca` module uses ldapjs; point
+  # LDAP_URL=ldap://localhost:389 (admin DN cn=admin,${LDAP_BASE_DN}).
+  openldap:
+    <<: *restart
+    image: osixia/openldap:1.5.0
+    container_name: exprsn-openldap
+    profiles: [extras]
+    environment:
+      LDAP_ORGANISATION: ${LDAP_ORG:-Exprsn}
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-exprsn.local}
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-change_me}
+    command: ["--copy-service"]
+    ports:
+      - "${LDAP_PORT:-389}:389"
+      - "${LDAPS_PORT:-636}:636"
+    volumes:
+      - openldap_data:/var/lib/ldap
+      - openldap_config:/etc/ldap/slapd.d
+    networks: [exprsn]
+
+  # BIND9 — authoritative/recursive DNS for the exprsn.local zone and service
+  # discovery. Drop zone files into docker/bind/.
+  bind:
+    <<: *restart
+    image: internetsystemsconsortium/bind9:9.20
+    container_name: exprsn-bind
+    profiles: [extras]
+    ports:
+      - "${DNS_PORT:-53}:53/tcp"
+      - "${DNS_PORT:-53}:53/udp"
+    volumes:
+      - ./docker/bind/etc:/etc/bind:ro
+      - bind_cache:/var/cache/bind
+    networks: [exprsn]
+
+  # Kerberos KDC + kadmin (admin server). Realm/admin from env. This is a
+  # community image (no official upstream KDC image exists).
+  kerberos:
+    <<: *restart
+    image: gcavalcante8808/krb5-server
+    container_name: exprsn-kerberos
+    profiles: [extras]
+    environment:
+      KRB5_REALM: ${KRB5_REALM:-EXPRSN.LOCAL}
+      KRB5_KDC: ${KRB5_KDC:-kerberos}
+      KRB5_PASS: ${KRB5_ADMIN_PASSWORD:-change_me}
+    ports:
+      - "${KRB_KDC_PORT:-88}:88/udp"
+      - "${KRB_KADMIN_PORT:-749}:749/tcp"      # kadmin (admin server)
+      - "464:464/udp"                          # kpasswd
+    volumes:
+      - kerberos_data:/var/lib/krb5kdc
+    networks: [exprsn]
+
+  # Dovecot — IMAP/POP3 (and LMTP) for mailbox delivery/retrieval. Uses the
+  # 2.4 image's built-in config (arm64-native); a dev user password is injected
+  # via env. To customise, mount a 2.4-syntax conf at /etc/dovecot/dovecot.conf.
+  dovecot:
+    <<: *restart
+    image: dovecot/dovecot:2.4.1
+    container_name: exprsn-dovecot
+    profiles: [extras]
+    environment:
+      - USER_PASSWORD=${MAIL_USER_PASSWORD:-change_me}
+      - DOVEADM_PASSWORD=${MAIL_ADMIN_PASSWORD:-change_me}
+    ports:
+      - "${IMAP_PORT:-143}:143"
+      - "${IMAPS_PORT:-993}:993"
+      - "${POP3_PORT:-110}:110"
+      - "${POP3S_PORT:-995}:995"
+    volumes:
+      - dovecot_mail:/srv/mail
+    networks: [exprsn]
+
+  # strongSwan — IPsec/IKEv2 VPN gateway. Needs NET_ADMIN + the AH/ESP modules;
+  # host networking is simplest so it can manage the host's IPsec SAs.
+  strongswan:
+    <<: *restart
+    image: strongx509/strongswan:6.0.6
+    container_name: exprsn-strongswan
+    profiles: [extras]
+    # No arm64 build published — run the amd64 image under emulation so it
+    # still boots on Apple Silicon. (Real IPsec can't traverse the Mac host
+    # through the Linux VM; this is a dev mock.)
+    platform: linux/amd64
+    command: ["./charon"]
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    # ip_forward is inherited from the host under host networking (a container
+    # can't set sysctls in the host net namespace); enable it on the host if you
+    # actually route traffic: `sudo sysctl -w net.ipv4.ip_forward=1`.
+    volumes:
+      - ./docker/strongswan:/etc/swanctl:ro
+    network_mode: host
+
+  # ------------------------------------------------------------ OPTIONAL -----
+
+  # OpenSearch Dashboards — Kibana-equivalent UI for the search cluster.
+  opensearch-dashboards:
+    <<: *restart
+    image: opensearchproject/opensearch-dashboards:2.18.0
+    container_name: exprsn-opensearch-dashboards
+    profiles: [optional]
+    environment:
+      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      - opensearch
+    networks: [exprsn]
+
+  # SRS — self-hosted live streaming server (the 'selfhosted' ingest provider
+  # for the live module; STREAMING_PROVIDER=selfhosted). RTMP ingest on 1935,
+  # HTTP API on 1985, HLS/FLV HTTP on 8080 (mapped to host SRS_HTTP_PORT, default
+  # 8085, since the platform's HTTP→HTTPS redirect owns host :8080). Publishers
+  # (OBS) push rtmp://localhost:1935/live/<streamKey>; the browser plays
+  # http://localhost:${SRS_HTTP_PORT}/live/<streamKey>.m3u8.
+  srs:
+    <<: *restart
+    image: ossrs/srs:5
+    container_name: exprsn-srs
+    command: ["./objs/srs", "-c", "/usr/local/srs/conf/srs.conf"]
+    volumes:
+      - ./docker/srs/srs.conf:/usr/local/srs/conf/srs.conf:ro
+    ports:
+      - "${SRS_RTMP_PORT:-1935}:1935"
+      - "${SRS_API_PORT:-1985}:1985"
+      - "${SRS_HTTP_PORT:-8085}:8080"
+    networks: [exprsn]
+
+  # Wireshark (web UI on :3000) — packet capture/inspection for debugging the
+  # platform's traffic. NET_ADMIN + host network so it can see real interfaces.
+  wireshark:
+    <<: *restart
+    image: lscr.io/linuxserver/wireshark:latest
+    container_name: exprsn-wireshark
+    profiles: [optional]
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-UTC}
+    ports:
+      - "3000:3000"
+    network_mode: host

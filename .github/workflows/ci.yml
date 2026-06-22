@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  # ── Required gate: lint the backend ────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  # ── Required gate: the SPA must type-check + build ──────────────────────────
+  web-build:
+    name: Web build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm run web:install
+      - run: npm run web:build
+
+  # ── Stabilizing (non-required): per-module Jest suites ─────────────────────
+  # Needs Postgres + Redis. auth's session suite is green; other module suites
+  # are being stabilized (see STATUS.md). Mark as a required check in branch
+  # protection only once the aggregate is reliably green.
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: exprsn
+          POSTGRES_PASSWORD: exprsn
+          POSTGRES_DB: exprsn
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U exprsn"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      # Platform-wide DB/Redis (mirrors .env.example keys)
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_NAME: exprsn
+      DB_USER: exprsn
+      DB_PASSWORD: exprsn
+      REDIS_ENABLED: 'false'
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      # auth module test DB (suite force-syncs the schema, so a dedicated DB)
+      AUTH_DB_HOST: localhost
+      AUTH_DB_PORT: '5432'
+      AUTH_DB_NAME: exprsn_auth_test
+      AUTH_DB_USER: exprsn
+      AUTH_DB_PASSWORD: exprsn
+      # Secrets (test-only, non-sensitive; never the real values)
+      SESSION_SECRET: ci-session-secret-not-a-real-secret
+      JWT_SECRET: ci-jwt-secret-not-a-real-secret
+      SERVICE_TOKEN_SECRET: ci-service-token-secret-at-least-32-characters
+      STRIPE_SECRET_KEY: sk_test_dummy
+      CA_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Create per-module test databases
+        run: |
+          PGPASSWORD=exprsn psql -h localhost -U exprsn -d exprsn \
+            -c "CREATE DATABASE exprsn_auth_test;" || echo "exprsn_auth_test may already exist"
+      - run: npm run test:all

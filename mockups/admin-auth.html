@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Auth Admin — /admin/auth</title>
+<style>
+/* ════════════════════════════════════════════════════════════════════
+   Exprsn Unified Design System tokens (subset, from exprsn-unified.css)
+   ════════════════════════════════════════════════════════════════════ */
+:root{
+  --exprsn-primary:#0066ff;--exprsn-primary-hover:#0052cc;--exprsn-primary-light:#4d94ff;--exprsn-primary-dark:#0047b3;--exprsn-primary-glow:rgba(0,102,255,.3);
+  --exprsn-secondary:#7c3aed;--exprsn-secondary-hover:#6d28d9;--exprsn-secondary-light:#a78bfa;--exprsn-secondary-dark:#5b21b6;
+  --exprsn-accent-pink:#ec4899;--exprsn-accent-orange:#f97316;--exprsn-accent-green:#10b981;--exprsn-accent-cyan:#06b6d4;--exprsn-accent-yellow:#eab308;--exprsn-accent-purple:#8b5cf6;--exprsn-accent-amber:#f59e0b;
+  --exprsn-success:#10b981;--exprsn-success-hover:#059669;--exprsn-success-bg:#d1fae5;--exprsn-success-text:#065f46;
+  --exprsn-danger:#ef4444;--exprsn-danger-hover:#dc2626;--exprsn-danger-bg:#fee2e2;--exprsn-danger-text:#991b1b;
+  --exprsn-warning:#f59e0b;--exprsn-warning-hover:#d97706;--exprsn-warning-bg:#fef3c7;--exprsn-warning-text:#92400e;
+  --exprsn-info:#3b82f6;--exprsn-info-hover:#2563eb;--exprsn-info-bg:#dbeafe;--exprsn-info-text:#1e40af;
+  --exprsn-white:#fff;--exprsn-black:#0a0a0a;
+  --exprsn-gray-50:#fafafa;--exprsn-gray-100:#f5f5f5;--exprsn-gray-200:#e5e5e5;--exprsn-gray-300:#d4d4d4;--exprsn-gray-400:#a3a3a3;--exprsn-gray-500:#737373;--exprsn-gray-600:#525252;--exprsn-gray-700:#404040;--exprsn-gray-800:#262626;--exprsn-gray-900:#171717;
+  --exprsn-bg-primary:#fff;--exprsn-bg-secondary:#fafafa;--exprsn-bg-tertiary:#f5f5f5;--exprsn-bg-hover:#f1f3f4;--exprsn-bg-active:#e8eaed;--exprsn-surface-raised:#fff;--exprsn-surface-overlay:rgba(10,10,10,.8);
+  --exprsn-text-primary:#171717;--exprsn-text-secondary:#525252;--exprsn-text-muted:#737373;--exprsn-text-inverse:#fff;--exprsn-text-link:#0066ff;
+  --exprsn-border-color:#e5e5e5;--exprsn-border-color-strong:#a3a3a3;--exprsn-border-dark:#ccd0d5;
+  --exprsn-gradient-primary:linear-gradient(135deg,#0066ff 0%,#7c3aed 100%);
+  --exprsn-gradient-warm:linear-gradient(135deg,#f97316 0%,#ec4899 100%);
+  --exprsn-gradient-cool:linear-gradient(135deg,#06b6d4 0%,#0066ff 100%);
+  --exprsn-gradient-success:linear-gradient(135deg,#10b981 0%,#06b6d4 100%);
+  --exprsn-shadow-sm:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --exprsn-shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+  --exprsn-shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
+  --exprsn-shadow-xl:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);
+  --exprsn-shadow-2xl:0 25px 50px -12px rgba(0,0,0,.25);
+  --exprsn-radius-sm:.375rem;--exprsn-radius-md:.5rem;--exprsn-radius-lg:.75rem;--exprsn-radius-xl:1rem;--exprsn-radius-2xl:1.5rem;--exprsn-radius-full:9999px;
+  --exprsn-spacing-xs:.25rem;--exprsn-spacing-sm:.5rem;--exprsn-spacing-md:1rem;--exprsn-spacing-lg:1.5rem;--exprsn-spacing-xl:2rem;--exprsn-spacing-2xl:3rem;--exprsn-spacing-3xl:4rem;
+  --exprsn-font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --exprsn-font-family-mono:'JetBrains Mono','Fira Code','Monaco','Menlo','Courier New',monospace;
+  --exprsn-transition-fast:150ms cubic-bezier(.4,0,.2,1);--exprsn-transition-base:250ms cubic-bezier(.4,0,.2,1);--exprsn-transition-slow:350ms cubic-bezier(.4,0,.2,1);
+  --exprsn-z-dropdown:1000;--exprsn-z-sticky:1010;--exprsn-z-fixed:1020;--exprsn-z-modal-backdrop:1030;--exprsn-z-modal:1040;--exprsn-z-popover:1050;--exprsn-z-tooltip:1060;
+  --exprsn-navbar-height:64px;--exprsn-sidebar-width:248px;
+}
+[data-theme="dark"]{
+  --exprsn-primary:#3b82f6;--exprsn-primary-hover:#60a5fa;
+  --exprsn-bg-primary:#0a0a0a;--exprsn-bg-secondary:#171717;--exprsn-bg-tertiary:#262626;--exprsn-bg-hover:#1c1f23;--exprsn-bg-active:#2f3336;--exprsn-surface-raised:#1f1f1f;
+  --exprsn-text-primary:#fafafa;--exprsn-text-secondary:#d4d4d4;--exprsn-text-muted:#a3a3a3;
+  --exprsn-border-color:#404040;--exprsn-border-color-strong:#525252;--exprsn-border-dark:#2f3336;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-font-smoothing:antialiased}
+body{font-family:var(--exprsn-font-family);font-size:1rem;line-height:1.5;color:var(--exprsn-text-primary);background:var(--exprsn-bg-secondary);min-height:100vh}
+h1,h2,h3,h4,h5,h6{font-weight:600;line-height:1.2;color:var(--exprsn-text-primary)}
+a{color:var(--exprsn-text-link);text-decoration:none}
+button,input,select,textarea{font-family:inherit}
+code{font-family:var(--exprsn-font-family-mono);font-size:.85em;color:var(--exprsn-primary);background:var(--exprsn-bg-tertiary);padding:.1rem .35rem;border-radius:var(--exprsn-radius-sm)}
+
+/* ── navbar ── */
+.navbar{position:sticky;top:0;z-index:var(--exprsn-z-sticky);display:flex;align-items:center;justify-content:space-between;height:var(--exprsn-navbar-height);padding:0 var(--exprsn-spacing-lg);background:var(--exprsn-gradient-primary);color:#fff;box-shadow:var(--exprsn-shadow-md)}
+.navbar-brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.2rem;letter-spacing:-.02em;color:#fff}
+.navbar-brand .logo{width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.2);display:grid;place-items:center;font-weight:800}
+.navbar-brand .sub{font-weight:500;opacity:.8;font-size:.85rem;border-left:1px solid rgba(255,255,255,.35);padding-left:.6rem;margin-left:.1rem}
+.navbar .nav-right{display:flex;align-items:center;gap:1rem}
+.navbar .crumb{font-size:.78rem;opacity:.85;font-family:var(--exprsn-font-family-mono)}
+.theme-toggle{display:inline-flex;align-items:center;gap:.45rem;cursor:pointer;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25);padding:.45rem .85rem;border-radius:var(--exprsn-radius-full);font-weight:600;font-size:.8rem}
+.theme-toggle:hover{background:rgba(255,255,255,.28)}
+.admin-chip{display:flex;align-items:center;gap:.5rem;font-size:.82rem;font-weight:500}
+.admin-chip .av{width:32px;height:32px;border-radius:var(--exprsn-radius-full);background:rgba(255,255,255,.25);display:grid;place-items:center;font-weight:700;font-size:.8rem}
+
+/* ── layout ── */
+.shell{display:grid;grid-template-columns:var(--exprsn-sidebar-width) 1fr;min-height:calc(100vh - var(--exprsn-navbar-height))}
+.sidebar{position:sticky;top:var(--exprsn-navbar-height);align-self:start;height:calc(100vh - var(--exprsn-navbar-height));overflow-y:auto;background:var(--exprsn-bg-primary);border-right:1px solid var(--exprsn-border-color);padding:var(--exprsn-spacing-md) var(--exprsn-spacing-sm)}
+.sidebar-heading{font-size:.7rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--exprsn-text-muted);padding:var(--exprsn-spacing-md) var(--exprsn-spacing-md) var(--exprsn-spacing-sm)}
+.snav{display:flex;align-items:center;gap:.7rem;padding:.6rem .8rem;margin:.1rem .25rem;font-weight:500;font-size:.9rem;color:var(--exprsn-text-secondary);border-radius:var(--exprsn-radius-md);cursor:pointer;transition:var(--exprsn-transition-fast)}
+.snav:hover{color:var(--exprsn-primary);background:var(--exprsn-bg-tertiary)}
+.snav.active{color:var(--exprsn-primary);background:var(--exprsn-primary-glow);font-weight:600}
+.snav .ic{width:18px;text-align:center}
+.snav .count{margin-left:auto;font-size:.7rem;font-weight:700;color:var(--exprsn-text-muted);background:var(--exprsn-bg-tertiary);padding:.1rem .45rem;border-radius:var(--exprsn-radius-full)}
+.snav.active .count{color:var(--exprsn-primary);background:var(--exprsn-bg-primary)}
+.main{padding:var(--exprsn-spacing-xl);min-width:0}
+
+/* ── page header ── */
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:var(--exprsn-spacing-lg);flex-wrap:wrap}
+.page-head h1{font-size:1.875rem;letter-spacing:-.02em}
+.page-head .lead{color:var(--exprsn-text-secondary);font-size:.92rem;margin-top:.3rem;max-width:64ch}
+.page-head .actions{display:flex;gap:.6rem;flex-wrap:wrap}
+
+/* ── stat cards ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--exprsn-spacing-md);margin-bottom:var(--exprsn-spacing-lg)}
+.stat{background:var(--exprsn-surface-raised);border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-xl);box-shadow:var(--exprsn-shadow-sm);padding:1rem 1.15rem}
+.stat .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--exprsn-text-muted);font-weight:700}
+.stat .val{font-size:1.7rem;font-weight:700;margin-top:.25rem}
+.stat .delta{font-size:.74rem;font-weight:600;margin-top:.2rem}
+.stat.border-left-primary{border-left:4px solid var(--exprsn-primary)}
+.stat.border-left-success{border-left:4px solid var(--exprsn-success)}
+.stat.border-left-warning{border-left:4px solid var(--exprsn-warning)}
+.stat.border-left-info{border-left:4px solid var(--exprsn-info)}
+
+/* ── buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.55rem 1.1rem;font-size:.9rem;font-weight:500;line-height:1.4;border:2px solid transparent;border-radius:var(--exprsn-radius-lg);cursor:pointer;transition:var(--exprsn-transition-base);white-space:nowrap}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--exprsn-primary-glow)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--exprsn-primary);color:#fff;border-color:var(--exprsn-primary)}
+.btn-primary:hover:not(:disabled){background:var(--exprsn-primary-hover);border-color:var(--exprsn-primary-hover);transform:translateY(-1px);box-shadow:var(--exprsn-shadow-md)}
+.btn-secondary{background:var(--exprsn-secondary);color:#fff;border-color:var(--exprsn-secondary)}
+.btn-secondary:hover:not(:disabled){background:var(--exprsn-secondary-hover);border-color:var(--exprsn-secondary-hover)}
+.btn-success{background:var(--exprsn-success);color:#fff;border-color:var(--exprsn-success)}
+.btn-success:hover:not(:disabled){background:var(--exprsn-success-hover);border-color:var(--exprsn-success-hover)}
+.btn-danger{background:var(--exprsn-danger);color:#fff;border-color:var(--exprsn-danger)}
+.btn-danger:hover:not(:disabled){background:var(--exprsn-danger-hover);border-color:var(--exprsn-danger-hover)}
+.btn-warning{background:var(--exprsn-warning);color:var(--exprsn-black);border-color:var(--exprsn-warning)}
+.btn-warning:hover:not(:disabled){background:var(--exprsn-warning-hover);border-color:var(--exprsn-warning-hover)}
+.btn-outline-primary{background:transparent;color:var(--exprsn-primary);border-color:var(--exprsn-primary)}
+.btn-outline-primary:hover:not(:disabled){background:var(--exprsn-primary);color:#fff}
+.btn-ghost{background:transparent;color:var(--exprsn-text-secondary);border-color:var(--exprsn-border-color)}
+.btn-ghost:hover:not(:disabled){background:var(--exprsn-bg-hover);color:var(--exprsn-text-primary)}
+.btn-sm{padding:.35rem .75rem;font-size:.8rem}
+.btn-icon{width:34px;height:34px;padding:0;border-radius:var(--exprsn-radius-md);background:transparent;border-color:transparent;color:var(--exprsn-text-secondary)}
+.btn-icon:hover{background:var(--exprsn-bg-hover);color:var(--exprsn-text-primary)}
+
+/* ── tabs ── */
+.tabs{display:flex;gap:.25rem;border-bottom:2px solid var(--exprsn-border-color);margin-bottom:var(--exprsn-spacing-lg)}
+.tab{padding:.7rem 1.1rem;font-weight:600;font-size:.92rem;color:var(--exprsn-text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:var(--exprsn-transition-fast);display:flex;align-items:center;gap:.5rem}
+.tab:hover{color:var(--exprsn-text-primary)}
+.tab.active{color:var(--exprsn-primary);border-bottom-color:var(--exprsn-primary)}
+.tabpane{display:none}
+.tabpane.active{display:block;animation:fadeIn .35s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── toolbar (filter/sort) ── */
+.toolbar{background:var(--exprsn-surface-raised);border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-xl);box-shadow:var(--exprsn-shadow-sm);padding:.85rem 1rem;margin-bottom:var(--exprsn-spacing-md)}
+.toolbar-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.search{position:relative;flex:1;min-width:240px}
+.search input{width:100%;height:40px;padding:0 .9rem 0 2.3rem;font-size:.9rem;color:var(--exprsn-text-primary);background:var(--exprsn-bg-primary);border:2px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);transition:var(--exprsn-transition-base)}
+.search input:focus{outline:none;border-color:var(--exprsn-primary);box-shadow:0 0 0 3px var(--exprsn-primary-glow)}
+.search .si{position:absolute;left:.8rem;top:50%;transform:translateY(-50%);color:var(--exprsn-text-muted);font-size:.95rem}
+.minisel{height:40px;padding:0 2.1rem 0 .8rem;font-size:.85rem;font-weight:500;color:var(--exprsn-text-primary);background:var(--exprsn-bg-primary);border:2px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23737373' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .65rem center}
+.minisel:focus{outline:none;border-color:var(--exprsn-primary);box-shadow:0 0 0 3px var(--exprsn-primary-glow)}
+.toolbar-adv{display:none;margin-top:.85rem;padding-top:.85rem;border-top:1px dashed var(--exprsn-border-color);gap:.85rem;flex-wrap:wrap}
+.toolbar-adv.show{display:flex}
+.advfield{display:flex;flex-direction:column;gap:.3rem;min-width:160px}
+.advfield label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--exprsn-text-muted)}
+.chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.7rem}
+.fchip{display:inline-flex;align-items:center;gap:.4rem;font-size:.76rem;font-weight:600;padding:.3rem .65rem;border-radius:var(--exprsn-radius-full);background:var(--exprsn-info-bg);color:var(--exprsn-info-text)}
+.fchip .x{cursor:pointer;font-weight:800;opacity:.7}
+.fchip .x:hover{opacity:1}
+
+/* ── tables ── */
+.tablecard{background:var(--exprsn-surface-raised);border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-xl);box-shadow:var(--exprsn-shadow-sm);overflow:hidden}
+.table{width:100%;border-collapse:separate;border-spacing:0}
+.table thead th{padding:.85rem 1rem;font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--exprsn-text-muted);background:var(--exprsn-bg-secondary);border-bottom:2px solid var(--exprsn-border-color);text-align:left;white-space:nowrap}
+.table thead th.sortable{cursor:pointer;user-select:none}
+.table thead th.sortable:hover{color:var(--exprsn-text-primary)}
+.table thead th .arrow{opacity:.35;font-size:.7rem;margin-left:.2rem}
+.table thead th.sorted .arrow{opacity:1;color:var(--exprsn-primary)}
+.table tbody td{padding:.8rem 1rem;font-size:.88rem;color:var(--exprsn-text-primary);border-bottom:1px solid var(--exprsn-border-color);vertical-align:middle}
+.table tbody tr:last-child td{border-bottom:none}
+.table tbody tr:hover{background:var(--exprsn-bg-hover)}
+.table .checkcol{width:42px;text-align:center}
+.cellmain{display:flex;align-items:center;gap:.7rem}
+.av-sq{width:34px;height:34px;border-radius:var(--exprsn-radius-md);display:grid;place-items:center;font-weight:700;font-size:.8rem;color:#fff;flex:none}
+.av-rd{width:34px;height:34px;border-radius:var(--exprsn-radius-full);display:grid;place-items:center;font-weight:700;font-size:.78rem;color:#fff;flex:none}
+.cellmain .nm{font-weight:600;font-size:.9rem}
+.cellmain .sub{font-size:.76rem;color:var(--exprsn-text-muted);font-family:var(--exprsn-font-family-mono)}
+.tree-indent{display:inline-block;width:1.4rem}
+.tree-tw{color:var(--exprsn-text-muted);margin-right:.35rem;font-family:var(--exprsn-font-family-mono)}
+.rowmeta{font-size:.78rem;color:var(--exprsn-text-secondary)}
+.rowmeta .mono{font-family:var(--exprsn-font-family-mono)}
+
+/* ── badges ── */
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.28rem .6rem;font-size:.68rem;font-weight:700;line-height:1;border-radius:var(--exprsn-radius-full);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.badge.bg-primary{background:var(--exprsn-primary);color:#fff}
+.badge.bg-secondary{background:var(--exprsn-secondary);color:#fff}
+.badge.bg-success{background:var(--exprsn-success);color:#fff}
+.badge.bg-danger{background:var(--exprsn-danger);color:#fff}
+.badge.bg-warning{background:var(--exprsn-warning);color:var(--exprsn-black)}
+.badge.bg-info{background:var(--exprsn-info);color:#fff}
+.badge.suc{background:var(--exprsn-success-bg);color:var(--exprsn-success-text)}
+.badge.dan{background:var(--exprsn-danger-bg);color:var(--exprsn-danger-text)}
+.badge.warn{background:var(--exprsn-warning-bg);color:var(--exprsn-warning-text)}
+.badge.pri{background:var(--exprsn-info-bg);color:var(--exprsn-info-text)}
+.badge.neu{background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-secondary)}
+.badge.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
+.pillgroup{display:flex;gap:.3rem;flex-wrap:wrap}
+.tagpill{font-size:.7rem;font-weight:600;padding:.2rem .5rem;border-radius:var(--exprsn-radius-sm);background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-secondary);border:1px solid var(--exprsn-border-color)}
+
+/* ── row actions ── */
+.rowact{display:flex;gap:.2rem;justify-content:flex-end}
+.kebab{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 4px);z-index:var(--exprsn-z-dropdown);min-width:184px;background:var(--exprsn-surface-raised);border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);box-shadow:var(--exprsn-shadow-xl);padding:.35rem;display:none}
+.menu.show{display:block;animation:fadeIn .15s ease}
+.menu .mi{display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;font-size:.84rem;border-radius:var(--exprsn-radius-md);cursor:pointer;color:var(--exprsn-text-primary)}
+.menu .mi:hover{background:var(--exprsn-bg-hover)}
+.menu .mi.danger{color:var(--exprsn-danger)}
+.menu .mi.warn{color:var(--exprsn-warning-hover)}
+.menu .sep{height:1px;background:var(--exprsn-border-color);margin:.3rem .2rem}
+
+/* ── table footer / pagination ── */
+.tablefoot{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 1rem;border-top:1px solid var(--exprsn-border-color);background:var(--exprsn-bg-secondary);flex-wrap:wrap}
+.tablefoot .info{font-size:.82rem;color:var(--exprsn-text-muted)}
+.pagination{display:flex;gap:.25rem}
+.page-link{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:36px;padding:0 .5rem;font-size:.84rem;font-weight:500;color:var(--exprsn-text-secondary);background:var(--exprsn-bg-primary);border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-md);cursor:pointer}
+.page-link:hover{color:var(--exprsn-primary);border-color:var(--exprsn-primary)}
+.page-link.active{color:#fff;background:var(--exprsn-primary);border-color:var(--exprsn-primary)}
+.page-link.disabled{opacity:.45;pointer-events:none}
+
+/* ── bulk bar ── */
+.bulkbar{display:none;align-items:center;gap:.8rem;padding:.7rem 1rem;background:var(--exprsn-info-bg);color:var(--exprsn-info-text);border:1px solid var(--exprsn-info);border-radius:var(--exprsn-radius-lg);margin-bottom:var(--exprsn-spacing-md);font-size:.85rem;font-weight:600}
+.bulkbar.show{display:flex}
+.bulkbar .spacer{flex:1}
+
+/* ── modal ── */
+.modal{position:fixed;inset:0;z-index:var(--exprsn-z-modal);display:none;align-items:flex-start;justify-content:center;padding:3rem 1rem}
+.modal.show{display:flex}
+.modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)}
+.modal-content{position:relative;width:100%;max-width:760px;max-height:88vh;background:var(--exprsn-bg-primary);border-radius:var(--exprsn-radius-xl);box-shadow:var(--exprsn-shadow-2xl);display:flex;flex-direction:column;z-index:1;animation:modalIn .3s ease}
+.modal-content.wide{max-width:920px}
+@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.25rem 1.5rem;border-bottom:1px solid var(--exprsn-border-color)}
+.modal-header .htitle{display:flex;align-items:center;gap:.85rem}
+.modal-title{font-size:1.25rem;font-weight:600}
+.modal-sub{font-size:.8rem;color:var(--exprsn-text-muted);margin-top:.15rem;font-family:var(--exprsn-font-family-mono)}
+.modal-close{cursor:pointer;font-size:1.4rem;line-height:1;color:var(--exprsn-text-muted);background:none;border:none;padding:.2rem .4rem;border-radius:var(--exprsn-radius-md)}
+.modal-close:hover{background:var(--exprsn-bg-hover);color:var(--exprsn-text-primary)}
+.modal-body{flex:1;overflow-y:auto;padding:1.5rem}
+.modal-footer{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:1rem 1.5rem;border-top:1px solid var(--exprsn-border-color);background:var(--exprsn-bg-secondary);flex-wrap:wrap}
+.modal-footer .right{display:flex;gap:.6rem;margin-left:auto}
+
+/* modal tabs */
+.mtabs{display:flex;gap:.2rem;padding:0 1.5rem;border-bottom:1px solid var(--exprsn-border-color);background:var(--exprsn-bg-secondary);overflow-x:auto}
+.mtab{padding:.7rem .9rem;font-size:.84rem;font-weight:600;color:var(--exprsn-text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.mtab:hover{color:var(--exprsn-text-primary)}
+.mtab.active{color:var(--exprsn-primary);border-bottom-color:var(--exprsn-primary)}
+.mpane{display:none}
+.mpane.active{display:block}
+
+/* ── forms ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem 1.15rem}
+.form-grid.one{grid-template-columns:1fr}
+.fg{margin-bottom:.2rem}
+.fg.col-span{grid-column:1 / -1}
+.form-label{display:block;margin-bottom:.4rem;font-weight:600;font-size:.82rem;color:var(--exprsn-text-secondary)}
+.form-label .req{color:var(--exprsn-danger)}
+.hint{font-size:.74rem;color:var(--exprsn-text-muted);margin-top:.35rem}
+.form-control,.form-select{width:100%;height:44px;padding:0 .9rem;font-size:.92rem;color:var(--exprsn-text-primary);background:var(--exprsn-bg-primary);border:2px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);transition:var(--exprsn-transition-base)}
+.form-control:focus,.form-select:focus{outline:none;border-color:var(--exprsn-primary);box-shadow:0 0 0 3px var(--exprsn-primary-glow)}
+.form-control::placeholder{color:var(--exprsn-text-muted)}
+textarea.form-control{height:auto;min-height:92px;padding:.7rem .9rem;resize:vertical;line-height:1.5}
+.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23737373' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .9rem center;padding-right:2.4rem}
+.mono-area{font-family:var(--exprsn-font-family-mono);font-size:.82rem;line-height:1.55}
+.form-check{display:flex;align-items:center;gap:.55rem;font-size:.88rem}
+.form-check-input{width:18px;height:18px;accent-color:var(--exprsn-primary);cursor:pointer}
+.section-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--exprsn-text-muted);margin:1.4rem 0 .85rem;padding-bottom:.4rem;border-bottom:1px solid var(--exprsn-border-color);display:flex;align-items:center;gap:.5rem}
+.section-title:first-child{margin-top:0}
+
+/* segmented toggle */
+.seg{display:inline-flex;background:var(--exprsn-bg-tertiary);border-radius:var(--exprsn-radius-lg);padding:.2rem;gap:.2rem}
+.seg .opt{padding:.4rem .8rem;font-size:.82rem;font-weight:600;color:var(--exprsn-text-secondary);border-radius:var(--exprsn-radius-md);cursor:pointer}
+.seg .opt.active{background:var(--exprsn-bg-primary);color:var(--exprsn-primary);box-shadow:var(--exprsn-shadow-sm)}
+
+/* switch */
+.switch{position:relative;display:inline-block;width:42px;height:24px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:var(--exprsn-gray-300);border-radius:var(--exprsn-radius-full);transition:var(--exprsn-transition-base);cursor:pointer}
+.slider::before{content:"";position:absolute;height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:var(--exprsn-transition-base)}
+.switch input:checked+.slider{background:var(--exprsn-primary)}
+.switch input:checked+.slider::before{transform:translateX(18px)}
+.toggle-row{display:flex;align-items:center;gap:.85rem;padding:.7rem .9rem;border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);margin-bottom:.6rem;background:var(--exprsn-bg-primary)}
+.toggle-row .tx{flex:1}
+.toggle-row .tx .t{font-weight:600;font-size:.88rem}
+.toggle-row .tx .d{font-size:.76rem;color:var(--exprsn-text-muted);margin-top:.1rem}
+
+/* selectable assignment list */
+.assign-list{display:flex;flex-direction:column;gap:.5rem}
+.assign-item{display:flex;align-items:center;gap:.75rem;padding:.65rem .8rem;border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);cursor:pointer;background:var(--exprsn-bg-primary);transition:var(--exprsn-transition-fast)}
+.assign-item:hover{border-color:var(--exprsn-primary-light);background:var(--exprsn-bg-hover)}
+.assign-item.sel{border-color:var(--exprsn-primary);background:var(--exprsn-primary-glow)}
+.assign-item .ic{width:34px;height:34px;border-radius:var(--exprsn-radius-md);display:grid;place-items:center;color:#fff;font-weight:700;font-size:.85rem;flex:none}
+.assign-item .meta{flex:1;min-width:0}
+.assign-item .meta .t{font-weight:600;font-size:.88rem}
+.assign-item .meta .d{font-size:.76rem;color:var(--exprsn-text-muted)}
+.assign-item .chk{width:20px;height:20px;border:2px solid var(--exprsn-border-color-strong);border-radius:var(--exprsn-radius-sm);display:grid;place-items:center;color:#fff;font-size:.7rem;flex:none}
+.assign-item.sel .chk{background:var(--exprsn-primary);border-color:var(--exprsn-primary)}
+
+/* DID editor */
+.did-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.85rem}
+.did-id{font-family:var(--exprsn-font-family-mono);font-size:.84rem;font-weight:600;color:var(--exprsn-primary);word-break:break-all}
+.did-editor{border:2px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);overflow:hidden}
+.did-editor .bar{display:flex;align-items:center;justify-content:space-between;padding:.5rem .8rem;background:var(--exprsn-bg-secondary);border-bottom:1px solid var(--exprsn-border-color);font-size:.76rem;font-weight:600;color:var(--exprsn-text-muted)}
+.did-editor textarea{width:100%;border:none;min-height:230px;padding:.85rem 1rem;background:var(--exprsn-bg-primary);color:var(--exprsn-text-primary)}
+.did-editor textarea:focus{outline:none}
+.vmrow{display:flex;align-items:center;gap:.7rem;padding:.6rem .75rem;border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);margin-bottom:.5rem;background:var(--exprsn-bg-primary)}
+.vmrow .k{font-family:var(--exprsn-font-family-mono);font-size:.78rem;color:var(--exprsn-text-secondary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* credentials list (certs/tokens) */
+.cred{display:flex;align-items:center;gap:.8rem;padding:.7rem .85rem;border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);margin-bottom:.55rem;background:var(--exprsn-bg-primary)}
+.cred .ci{width:36px;height:36px;border-radius:var(--exprsn-radius-md);display:grid;place-items:center;font-size:1rem;flex:none}
+.cred .info{flex:1;min-width:0}
+.cred .info .t{font-weight:600;font-size:.87rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.cred .info .d{font-size:.76rem;color:var(--exprsn-text-muted);font-family:var(--exprsn-font-family-mono);margin-top:.15rem}
+
+/* detail summary header inside modal */
+.entity-summary{display:flex;align-items:center;gap:1rem;padding:1rem 1.15rem;border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-xl);background:var(--exprsn-bg-secondary);margin-bottom:1.25rem}
+.entity-summary .big-av{width:56px;height:56px;border-radius:var(--exprsn-radius-lg);display:grid;place-items:center;color:#fff;font-weight:800;font-size:1.3rem;flex:none}
+.entity-summary.user .big-av{border-radius:var(--exprsn-radius-full)}
+.entity-summary .es-meta{flex:1;min-width:0}
+.entity-summary .es-meta .n{font-size:1.15rem;font-weight:700}
+.entity-summary .es-meta .s{font-size:.8rem;color:var(--exprsn-text-muted);font-family:var(--exprsn-font-family-mono);margin-top:.15rem}
+.entity-summary .es-stats{display:flex;gap:1.4rem;text-align:center}
+.entity-summary .es-stats .v{font-size:1.1rem;font-weight:700}
+.entity-summary .es-stats .l{font-size:.68rem;text-transform:uppercase;letter-spacing:.4px;color:var(--exprsn-text-muted);font-weight:700}
+
+.helpbar{display:flex;gap:.7rem;align-items:flex-start;padding:.8rem 1rem;border-radius:var(--exprsn-radius-lg);background:var(--exprsn-info-bg);color:var(--exprsn-info-text);border-left:4px solid var(--exprsn-info);font-size:.82rem;margin-bottom:1.1rem}
+
+.danger-zone{border:1px solid var(--exprsn-danger);border-radius:var(--exprsn-radius-lg);padding:1rem;margin-top:1.25rem;background:var(--exprsn-danger-bg)}
+.danger-zone .dz-t{font-weight:700;color:var(--exprsn-danger-text);font-size:.85rem;margin-bottom:.65rem;text-transform:uppercase;letter-spacing:.4px}
+.danger-zone .dz-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.danger-zone .dz-row .dx{font-size:.8rem;color:var(--exprsn-danger-text)}
+
+@media (max-width:1080px){.stat-row{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}}
+@media (max-width:860px){.shell{grid-template-columns:1fr}.sidebar{display:none}.main{padding:var(--exprsn-spacing-md)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:var(--exprsn-bg-secondary)}
+::-webkit-scrollbar-thumb{background:var(--exprsn-border-color-strong);border-radius:9999px}
+</style>
+</head>
+<body>
+
+<header class="navbar">
+  <a class="navbar-brand" href="#">
+    <span class="logo">E</span> Exprsn
+    <span class="sub">Auth Admin</span>
+  </a>
+  <div class="nav-right">
+    <span class="crumb">/admin/auth</span>
+    <button class="theme-toggle" id="themeToggle"><span id="themeIcon">🌙</span> <span id="themeLabel">Dark</span></button>
+    <div class="admin-chip"><span class="av">RH</span> Rick H. · Owner</div>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-heading">Identity &amp; Access</div>
+    <div class="snav active" data-tab="orgs"><span class="ic">🏢</span> Organizations <span class="count">42</span></div>
+    <div class="snav" data-tab="users"><span class="ic">👥</span> Users <span class="count">1,284</span></div>
+    <div class="snav"><span class="ic">🛡️</span> Roles &amp; Policies</div>
+    <div class="snav"><span class="ic">📜</span> Certificates</div>
+    <div class="snav"><span class="ic">🎟️</span> Tokens &amp; Keys</div>
+    <div class="sidebar-heading">Directory</div>
+    <div class="snav"><span class="ic">🌐</span> Nexus Groups</div>
+    <div class="snav"><span class="ic">🔌</span> Service Bindings</div>
+    <div class="snav"><span class="ic">🪪</span> DID Registry</div>
+    <div class="sidebar-heading">Operations</div>
+    <div class="snav"><span class="ic">📝</span> Audit Log</div>
+    <div class="snav"><span class="ic">⚙️</span> Settings</div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ════════ ORGANIZATIONS ════════ -->
+    <section class="tabpane active" id="pane-orgs">
+      <div class="page-head">
+        <div>
+          <h1>Organizations</h1>
+          <p class="lead">Manage tenant organizations, their nested hierarchy, and the certificates &amp; tokens issued to each. Organizational users report up to their parent organization.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm">⬇ Export</button>
+          <button class="btn btn-primary" onclick="openOrgModal('create')">＋ New Organization</button>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat border-left-primary"><div class="lbl">Organizations</div><div class="val">42</div><div class="delta text-secondary" style="color:var(--exprsn-text-muted)">8 top-level · 34 nested</div></div>
+        <div class="stat border-left-info"><div class="lbl">Org Members</div><div class="val">1,284</div><div class="delta" style="color:var(--exprsn-success)">▲ 36 this week</div></div>
+        <div class="stat border-left-success"><div class="lbl">Active Certificates</div><div class="val">96</div><div class="delta" style="color:var(--exprsn-text-muted)">4 expiring &lt; 30d</div></div>
+        <div class="stat border-left-warning"><div class="lbl">Issued Tokens</div><div class="val">311</div><div class="delta" style="color:var(--exprsn-warning-hover)">2 pending review</div></div>
+      </div>
+
+      <!-- toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-row">
+          <div class="search"><span class="si">🔍</span><input type="text" placeholder="Search organizations by name, slug, or DID…"></div>
+          <select class="minisel"><option>Type: All</option><option>Enterprise</option><option>Government</option><option>Education</option><option>Non-profit</option><option>Department</option><option>Team</option></select>
+          <select class="minisel"><option>Status: All</option><option>Active</option><option>Suspended</option><option>Pending</option></select>
+          <select class="minisel"><option>Hierarchy: Tree</option><option>Flat list</option><option>Top-level only</option></select>
+          <button class="btn btn-ghost btn-sm" onclick="toggleAdv('orgAdv',this)">⚙ Advanced</button>
+        </div>
+        <div class="toolbar-adv" id="orgAdv">
+          <div class="advfield"><label>Parent organization</label><select class="minisel" style="width:100%"><option>Any parent</option><option>Acme Holdings</option><option>Globex Corporation</option><option>City of Riverton</option><option>(No parent · root)</option></select></div>
+          <div class="advfield"><label>Has certificates</label><select class="minisel" style="width:100%"><option>Any</option><option>With active certs</option><option>Expiring soon</option><option>None issued</option></select></div>
+          <div class="advfield"><label>Has tokens</label><select class="minisel" style="width:100%"><option>Any</option><option>With active tokens</option><option>None issued</option></select></div>
+          <div class="advfield"><label>Created</label><select class="minisel" style="width:100%"><option>Any time</option><option>Last 7 days</option><option>Last 30 days</option><option>This year</option></select></div>
+          <div class="advfield"><label>Member count</label><select class="minisel" style="width:100%"><option>Any size</option><option>1–10</option><option>11–50</option><option>51–250</option><option>250+</option></select></div>
+        </div>
+        <div class="chips">
+          <span class="fchip">Type: Enterprise <span class="x">✕</span></span>
+          <span class="fchip">Status: Active <span class="x">✕</span></span>
+          <span class="fchip">With active certs <span class="x">✕</span></span>
+          <a href="#" style="font-size:.76rem;font-weight:600;align-self:center">Clear all</a>
+        </div>
+      </div>
+
+      <!-- bulk bar -->
+      <div class="bulkbar" id="orgBulk"><span>✓ 2 organizations selected</span><div class="spacer"></div><button class="btn btn-ghost btn-sm">Issue certificate</button><button class="btn btn-ghost btn-sm">Export</button><button class="btn btn-warning btn-sm">Suspend</button></div>
+
+      <!-- table -->
+      <div class="tablecard">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="checkcol"><input type="checkbox" class="form-check-input" onclick="toggleBulk('orgBulk',this)"></th>
+              <th class="sortable sorted">Organization <span class="arrow">▲</span></th>
+              <th class="sortable">Type <span class="arrow">▾</span></th>
+              <th class="sortable">Members <span class="arrow">▾</span></th>
+              <th>Certs / Tokens</th>
+              <th class="sortable">Status <span class="arrow">▾</span></th>
+              <th class="sortable">Created <span class="arrow">▾</span></th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr onclick="openOrgModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="av-sq" style="background:var(--exprsn-gradient-primary)">AH</span><div><div class="nm">Acme Holdings</div><div class="sub">did:exprsn:org:acme · root</div></div></div></td>
+              <td><span class="badge pri">Enterprise</span></td>
+              <td><span class="rowmeta">412</span></td>
+              <td><div class="pillgroup"><span class="tagpill">📜 6 certs</span><span class="tagpill">🎟️ 18 tokens</span></div></td>
+              <td><span class="badge suc dot">Active</span></td>
+              <td><span class="rowmeta">Mar 4, 2024</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" title="View" onclick="openOrgModal('view')">👁</button><button class="btn btn-icon" title="Edit" onclick="openOrgModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleMenu(this)">⋯</button></div></td>
+            </tr>
+            <tr onclick="openOrgModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="tree-indent"></span><span class="tree-tw">└─</span><span class="av-sq" style="background:var(--exprsn-info)">EN</span><div><div class="nm">Acme Engineering</div><div class="sub">did:exprsn:org:acme-eng</div></div></div></td>
+              <td><span class="badge neu">Department</span></td>
+              <td><span class="rowmeta">148</span></td>
+              <td><div class="pillgroup"><span class="tagpill">📜 2 certs</span><span class="tagpill">🎟️ 7 tokens</span></div></td>
+              <td><span class="badge suc dot">Active</span></td>
+              <td><span class="rowmeta">Mar 6, 2024</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openOrgModal('view')">👁</button><button class="btn btn-icon" onclick="openOrgModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleMenu(this)">⋯</button></div></td>
+            </tr>
+            <tr onclick="openOrgModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="tree-indent"></span><span class="tree-indent"></span><span class="tree-tw">└─</span><span class="av-sq" style="background:var(--exprsn-secondary)">PL</span><div><div class="nm">Platform Team</div><div class="sub">did:exprsn:org:acme-eng-platform</div></div></div></td>
+              <td><span class="badge neu">Team</span></td>
+              <td><span class="rowmeta">22</span></td>
+              <td><div class="pillgroup"><span class="tagpill">📜 1 cert</span><span class="tagpill">🎟️ 3 tokens</span></div></td>
+              <td><span class="badge suc dot">Active</span></td>
+              <td><span class="rowmeta">Apr 2, 2024</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openOrgModal('view')">👁</button><button class="btn btn-icon" onclick="openOrgModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleMenu(this)">⋯</button></div></td>
+            </tr>
+            <tr onclick="openOrgModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="av-sq" style="background:var(--exprsn-gradient-cool)">GX</span><div><div class="nm">Globex Corporation</div><div class="sub">did:exprsn:org:globex · root</div></div></div></td>
+              <td><span class="badge pri">Enterprise</span></td>
+              <td><span class="rowmeta">389</span></td>
+              <td><div class="pillgroup"><span class="tagpill">📜 5 certs</span><span class="tagpill">🎟️ 14 tokens</span></div></td>
+              <td><span class="badge suc dot">Active</span></td>
+              <td><span class="rowmeta">Jan 18, 2024</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openOrgModal('view')">👁</button><button class="btn btn-icon" onclick="openOrgModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleMenu(this)">⋯</button></div></td>
+            </tr>
+            <tr onclick="openOrgModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="av-sq" style="background:var(--exprsn-accent-amber)">CR</span><div><div class="nm">City of Riverton</div><div class="sub">did:exprsn:org:riverton-gov · root</div></div></div></td>
+              <td><span class="badge bg-secondary">Government</span></td>
+              <td><span class="rowmeta">204</span></td>
+              <td><div class="pillgroup"><span class="tagpill">📜 9 certs</span><span class="tagpill">🎟️ 21 tokens</span></div></td>
+              <td><span class="badge warn dot">Review</span></td>
+              <td><span class="rowmeta">Feb 27, 2024</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openOrgModal('view')">👁</button><button class="btn btn-icon" onclick="openOrgModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleMenu(this)">⋯</button></div></td>
+            </tr>
+            <tr onclick="openOrgModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="av-sq" style="background:var(--exprsn-accent-green)">NW</span><div><div class="nm">Northwind Schools</div><div class="sub">did:exprsn:org:northwind-edu · root</div></div></div></td>
+              <td><span class="badge bg-info">Education</span></td>
+              <td><span class="rowmeta">67</span></td>
+              <td><div class="pillgroup"><span class="tagpill">📜 0 certs</span><span class="tagpill">🎟️ 2 tokens</span></div></td>
+              <td><span class="badge dan dot">Suspended</span></td>
+              <td><span class="rowmeta">May 11, 2024</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openOrgModal('view')">👁</button><button class="btn btn-icon" onclick="openOrgModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleMenu(this)">⋯</button></div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="tablefoot">
+          <span class="info">Showing 1–6 of 42 organizations</span>
+          <div class="pagination">
+            <span class="page-link disabled">‹</span>
+            <span class="page-link active">1</span>
+            <span class="page-link">2</span>
+            <span class="page-link">3</span>
+            <span class="page-link">…</span>
+            <span class="page-link">7</span>
+            <span class="page-link">›</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ USER ADMINISTRATION ════════ -->
+    <section class="tabpane" id="pane-users">
+      <div class="page-head">
+        <div>
+          <h1>User Administration</h1>
+          <p class="lead">Create and manage platform users — identity details, DID documents, roles, organization membership, Nexus groups and Directory service bindings. Suspend, restore, or offboard accounts.</p>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm">⬇ Export</button>
+          <button class="btn btn-ghost btn-sm">✉ Invite</button>
+          <button class="btn btn-primary" onclick="openUserModal('create')">＋ New User</button>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat border-left-primary"><div class="lbl">Total Users</div><div class="val">1,284</div><div class="delta" style="color:var(--exprsn-success)">▲ 36 this week</div></div>
+        <div class="stat border-left-success"><div class="lbl">Active</div><div class="val">1,201</div><div class="delta" style="color:var(--exprsn-text-muted)">93.5% of all</div></div>
+        <div class="stat border-left-warning"><div class="lbl">Suspended</div><div class="val">47</div><div class="delta" style="color:var(--exprsn-warning-hover)">6 pending review</div></div>
+        <div class="stat border-left-info"><div class="lbl">With DID</div><div class="val">1,142</div><div class="delta" style="color:var(--exprsn-text-muted)">142 not provisioned</div></div>
+      </div>
+
+      <!-- toolbar -->
+      <div class="toolbar">
+        <div class="toolbar-row">
+          <div class="search"><span class="si">🔍</span><input type="text" placeholder="Search users by name, email, username, or DID…"></div>
+          <select class="minisel"><option>Status: All</option><option>Active</option><option>Suspended</option><option>Invited</option><option>Locked</option></select>
+          <select class="minisel"><option>Role: All</option><option>Owner</option><option>Admin</option><option>Member</option><option>Service Account</option><option>Guest</option></select>
+          <select class="minisel"><option>Organization: All</option><option>Acme Holdings</option><option>Globex Corporation</option><option>City of Riverton</option><option>Unassigned</option></select>
+          <select class="minisel"><option>Sort: Name A–Z</option><option>Name Z–A</option><option>Newest first</option><option>Last active</option><option>Most groups</option></select>
+          <button class="btn btn-ghost btn-sm" onclick="toggleAdv('userAdv',this)">⚙ Advanced</button>
+        </div>
+        <div class="toolbar-adv" id="userAdv">
+          <div class="advfield"><label>Nexus group</label><select class="minisel" style="width:100%"><option>Any group</option><option>Engineering</option><option>Leadership</option><option>Support</option><option>Finance</option></select></div>
+          <div class="advfield"><label>Service binding</label><select class="minisel" style="width:100%"><option>Any service</option><option>Spark (messaging)</option><option>FileVault</option><option>Timeline</option><option>Vault (secrets)</option><option>Live (streaming)</option></select></div>
+          <div class="advfield"><label>MFA</label><select class="minisel" style="width:100%"><option>Any</option><option>Enabled</option><option>Disabled</option><option>Hardware key</option></select></div>
+          <div class="advfield"><label>DID status</label><select class="minisel" style="width:100%"><option>Any</option><option>Provisioned</option><option>Not provisioned</option><option>Key rotation due</option></select></div>
+          <div class="advfield"><label>Last active</label><select class="minisel" style="width:100%"><option>Any time</option><option>Last 24h</option><option>Last 7 days</option><option>Inactive 30d+</option><option>Inactive 90d+</option></select></div>
+          <div class="advfield"><label>Created</label><select class="minisel" style="width:100%"><option>Any time</option><option>Last 7 days</option><option>Last 30 days</option><option>This year</option></select></div>
+        </div>
+        <div class="chips">
+          <span class="fchip">Status: Active <span class="x">✕</span></span>
+          <span class="fchip">Org: Acme Holdings <span class="x">✕</span></span>
+          <span class="fchip">Group: Engineering <span class="x">✕</span></span>
+          <span class="fchip">MFA: Enabled <span class="x">✕</span></span>
+          <a href="#" style="font-size:.76rem;font-weight:600;align-self:center">Clear all</a>
+        </div>
+      </div>
+
+      <!-- bulk bar -->
+      <div class="bulkbar" id="userBulk"><span>✓ 3 users selected</span><div class="spacer"></div><button class="btn btn-ghost btn-sm">Assign role</button><button class="btn btn-ghost btn-sm">Add to group</button><button class="btn btn-ghost btn-sm">Reset MFA</button><button class="btn btn-warning btn-sm">Suspend</button></div>
+
+      <!-- table -->
+      <div class="tablecard">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="checkcol"><input type="checkbox" class="form-check-input" onclick="toggleBulk('userBulk',this)"></th>
+              <th class="sortable sorted">User <span class="arrow">▲</span></th>
+              <th class="sortable">Role <span class="arrow">▾</span></th>
+              <th class="sortable">Organization <span class="arrow">▾</span></th>
+              <th>Groups / Services</th>
+              <th class="sortable">Status <span class="arrow">▾</span></th>
+              <th class="sortable">Last active <span class="arrow">▾</span></th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr onclick="openUserModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="av-rd" style="background:var(--exprsn-gradient-primary)">JD</span><div><div class="nm">Jane Doe</div><div class="sub">jane@acme.example</div></div></div></td>
+              <td><span class="badge bg-primary">Admin</span></td>
+              <td><span class="rowmeta">Acme Holdings</span></td>
+              <td><div class="pillgroup"><span class="tagpill">🌐 3 groups</span><span class="tagpill">🔌 5 services</span></div></td>
+              <td><span class="badge suc dot">Active</span></td>
+              <td><span class="rowmeta">2m ago</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openUserModal('view')">👁</button><button class="btn btn-icon" onclick="openUserModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleUserMenu(this,false)">⋯</button></div></td>
+            </tr>
+            <tr onclick="openUserModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="av-rd" style="background:var(--exprsn-secondary)">MK</span><div><div class="nm">Marcus King</div><div class="sub">marcus@acme.example</div></div></div></td>
+              <td><span class="badge neu">Member</span></td>
+              <td><span class="rowmeta">Acme Engineering</span></td>
+              <td><div class="pillgroup"><span class="tagpill">🌐 2 groups</span><span class="tagpill">🔌 4 services</span></div></td>
+              <td><span class="badge suc dot">Active</span></td>
+              <td><span class="rowmeta">1h ago</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openUserModal('view')">👁</button><button class="btn btn-icon" onclick="openUserModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleUserMenu(this,false)">⋯</button></div></td>
+            </tr>
+            <tr onclick="openUserModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="av-rd" style="background:var(--exprsn-accent-green)">SL</span><div><div class="nm">Sara Lin</div><div class="sub">sara@acme.example</div></div></div></td>
+              <td><span class="badge neu">Member</span></td>
+              <td><span class="rowmeta">Acme Finance</span></td>
+              <td><div class="pillgroup"><span class="tagpill">🌐 1 group</span><span class="tagpill">🔌 3 services</span></div></td>
+              <td><span class="badge warn dot">Invited</span></td>
+              <td><span class="rowmeta">—</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openUserModal('view')">👁</button><button class="btn btn-icon" onclick="openUserModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleUserMenu(this,false)">⋯</button></div></td>
+            </tr>
+            <tr onclick="openUserModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="av-rd" style="background:var(--exprsn-accent-cyan)">SV</span><div><div class="nm">svc-platform</div><div class="sub">did:exprsn:svc:platform</div></div></div></td>
+              <td><span class="badge bg-info">Service Acct</span></td>
+              <td><span class="rowmeta">Platform Team</span></td>
+              <td><div class="pillgroup"><span class="tagpill">🔌 8 services</span></div></td>
+              <td><span class="badge suc dot">Active</span></td>
+              <td><span class="rowmeta">12s ago</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openUserModal('view')">👁</button><button class="btn btn-icon" onclick="openUserModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleUserMenu(this,false)">⋯</button></div></td>
+            </tr>
+            <tr onclick="openUserModal('view')" style="cursor:pointer">
+              <td class="checkcol" onclick="event.stopPropagation()"><input type="checkbox" class="form-check-input"></td>
+              <td><div class="cellmain"><span class="av-rd" style="background:var(--exprsn-gray-500)">TR</span><div><div class="nm">Tom Reyes</div><div class="sub">tom@globex.example</div></div></div></td>
+              <td><span class="badge neu">Guest</span></td>
+              <td><span class="rowmeta">Globex Corporation</span></td>
+              <td><div class="pillgroup"><span class="tagpill">🌐 1 group</span><span class="tagpill">🔌 1 service</span></div></td>
+              <td><span class="badge dan dot">Suspended</span></td>
+              <td><span class="rowmeta">14d ago</span></td>
+              <td onclick="event.stopPropagation()"><div class="rowact"><button class="btn btn-icon" onclick="openUserModal('view')">👁</button><button class="btn btn-icon" onclick="openUserModal('edit')">✏️</button><button class="btn btn-icon" onclick="toggleUserMenu(this,true)">⋯</button></div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="tablefoot">
+          <span class="info">Showing 1–6 of 1,284 users</span>
+          <div class="pagination">
+            <span class="page-link disabled">‹</span>
+            <span class="page-link active">1</span>
+            <span class="page-link">2</span>
+            <span class="page-link">3</span>
+            <span class="page-link">…</span>
+            <span class="page-link">214</span>
+            <span class="page-link">›</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ════════ MODALS injected below ════════ -->
+<div id="modalHost"></div>
+
+<script>
+/* theme toggle */
+(function(){var r=document.documentElement,b=document.getElementById('themeToggle'),i=document.getElementById('themeIcon'),l=document.getElementById('themeLabel');
+b.addEventListener('click',function(){var d=r.getAttribute('data-theme')==='dark';r.setAttribute('data-theme',d?'light':'dark');i.textContent=d?'🌙':'☀️';l.textContent=d?'Dark':'Light';});})();
+
+/* sidebar + tab switching */
+document.querySelectorAll('.snav[data-tab]').forEach(function(el){
+  el.addEventListener('click',function(){
+    document.querySelectorAll('.snav').forEach(s=>s.classList.remove('active'));
+    el.classList.add('active');
+    var t=el.getAttribute('data-tab');
+    document.querySelectorAll('.tabpane').forEach(p=>p.classList.remove('active'));
+    document.getElementById('pane-'+t).classList.add('active');
+  });
+});
+
+function toggleAdv(id,btn){var e=document.getElementById(id);e.classList.toggle('show');if(btn)btn.classList.toggle('btn-outline-primary');}
+function toggleBulk(id,box){var e=document.getElementById(id);if(box.checked)e.classList.add('show');else e.classList.remove('show');}
+function toggleMenu(btn){event.stopPropagation();var existing=btn.parentElement.querySelector('.menu');document.querySelectorAll('.menu.show').forEach(m=>{if(m!==existing)m.classList.remove('show');});
+  if(!existing){var m=document.createElement('div');m.className='menu show';m.innerHTML='<div class="mi">👁 View details</div><div class="mi">✏️ Edit</div><div class="mi">📜 Issue certificate</div><div class="mi">🎟️ Issue token</div><div class="sep"></div><div class="mi warn">⏸ Suspend</div><div class="mi danger">🗑 Delete</div>';btn.parentElement.style.position='relative';btn.parentElement.appendChild(m);}
+  else existing.classList.toggle('show');}
+document.addEventListener('click',function(){document.querySelectorAll('.menu.show').forEach(m=>m.classList.remove('show'));});
+
+/* modal host helpers */
+function closeModal(){document.getElementById('modalHost').innerHTML='';}
+
+/* ════════ ORGANIZATION MODAL ════════ */
+function openOrgModal(mode){
+  var view = (mode==='view');
+  var creating = (mode==='create');
+  var title = creating ? 'New Organization' : 'Acme Holdings';
+  var sub = creating ? 'did:exprsn:org:&lt;auto-generated&gt;' : 'did:exprsn:org:acme';
+  var summary = creating ? '' : `
+    <div class="entity-summary">
+      <span class="big-av" style="background:var(--exprsn-gradient-primary)">AH</span>
+      <div class="es-meta">
+        <div class="n">Acme Holdings</div>
+        <div class="s">did:exprsn:org:acme · root organization</div>
+        <div style="margin-top:.5rem;display:flex;gap:.4rem;flex-wrap:wrap"><span class="badge pri">Enterprise</span><span class="badge suc dot">Active</span><span class="badge neu">3 sub-orgs</span></div>
+      </div>
+      <div class="es-stats">
+        <div><div class="v">412</div><div class="l">Members</div></div>
+        <div><div class="v">6</div><div class="l">Certs</div></div>
+        <div><div class="v">18</div><div class="l">Tokens</div></div>
+      </div>
+    </div>`;
+  var html = `
+  <div class="modal show" id="orgModal">
+    <div class="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal-content wide">
+      <div class="modal-header">
+        <div class="htitle">
+          <span class="av-sq" style="width:42px;height:42px;font-size:1rem;background:var(--exprsn-gradient-primary)">${creating?'＋':'AH'}</span>
+          <div><div class="modal-title">${title}</div><div class="modal-sub">${sub}</div></div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="mtabs">
+        <div class="mtab active" onclick="mtab(this,'op-profile')">Profile</div>
+        <div class="mtab" onclick="mtab(this,'op-hierarchy')">Hierarchy</div>
+        <div class="mtab" onclick="mtab(this,'op-certs')">Certificates &amp; Tokens</div>
+        <div class="mtab" onclick="mtab(this,'op-members')">Members</div>
+        <div class="mtab" onclick="mtab(this,'op-did')">DID Document</div>
+      </div>
+      <div class="modal-body">
+        ${summary}
+
+        <!-- PROFILE -->
+        <div class="mpane active" id="op-profile">
+          <div class="section-title">Organization details</div>
+          <div class="form-grid">
+            <div class="fg">
+              <label class="form-label">Organization name <span class="req">*</span></label>
+              <input class="form-control" value="${creating?'':'Acme Holdings'}" placeholder="e.g. Acme Holdings">
+            </div>
+            <div class="fg">
+              <label class="form-label">Slug / short name</label>
+              <input class="form-control" value="${creating?'':'acme'}" placeholder="acme">
+              <div class="hint">Used in the DID and service URLs. Lowercase, no spaces.</div>
+            </div>
+            <div class="fg">
+              <label class="form-label">Type of organization <span class="req">*</span></label>
+              <select class="form-select">
+                <option>Enterprise</option><option>Government</option><option>Education</option>
+                <option>Non-profit</option><option>Healthcare</option><option>Financial</option>
+                <option>Department</option><option>Team</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="form-label">Parent organization</label>
+              <select class="form-select">
+                <option>(No parent · root organization)</option>
+                <option>Acme Holdings</option><option>Globex Corporation</option><option>City of Riverton</option>
+              </select>
+              <div class="hint">Members and policies are inherited up this chain.</div>
+            </div>
+            <div class="fg col-span">
+              <label class="form-label">Organizational information</label>
+              <textarea class="form-control" placeholder="Mission, mailing address, primary domain, billing contact, jurisdiction…">${creating?'':'Global holding company. HQ: 500 Market St, Riverton. Primary domain: acme.example. Jurisdiction: US-DE. Billing contact: finance@acme.example.'}</textarea>
+            </div>
+            <div class="fg">
+              <label class="form-label">Primary domain</label>
+              <input class="form-control" value="${creating?'':'acme.example'}" placeholder="acme.example">
+            </div>
+            <div class="fg">
+              <label class="form-label">Jurisdiction / residency</label>
+              <select class="form-select"><option>US — Delaware</option><option>US — California</option><option>EU — Ireland</option><option>UK</option><option>APAC — Singapore</option></select>
+            </div>
+          </div>
+
+          <div class="section-title">Status &amp; controls</div>
+          <div class="toggle-row"><div class="tx"><div class="t">Organization active</div><div class="d">Inactive orgs cannot authenticate members or issue credentials.</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="toggle-row"><div class="tx"><div class="t">Allow nested sub-organizations</div><div class="d">Permit child orgs that report up to this organization.</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="toggle-row"><div class="tx"><div class="t">Eligible for certificate &amp; token issuance</div><div class="d">Organizations can be issued certificates and tokens like users.</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+        </div>
+
+        <!-- HIERARCHY -->
+        <div class="mpane" id="op-hierarchy">
+          <div class="helpbar"><span>🏢</span><span>Organizations can be nested. Sub-organizations inherit policies from their parent, and their members report up to this organization.</span></div>
+          <div class="section-title">Reporting structure</div>
+          <div style="font-family:var(--exprsn-font-family-mono);font-size:.84rem;line-height:2;background:var(--exprsn-bg-secondary);border:1px solid var(--exprsn-border-color);border-radius:var(--exprsn-radius-lg);padding:1rem 1.1rem">
+            <div><strong>Acme Holdings</strong> <span class="badge pri">root</span></div>
+            <div>&nbsp;├─ Acme Engineering <span class="tagpill">148 members</span></div>
+            <div>&nbsp;│&nbsp;&nbsp;&nbsp;└─ Platform Team <span class="tagpill">22 members</span></div>
+            <div>&nbsp;├─ Acme Finance <span class="tagpill">36 members</span></div>
+            <div>&nbsp;└─ Acme Field Operations <span class="tagpill">96 members</span></div>
+          </div>
+          <div style="display:flex;gap:.6rem;margin-top:1rem"><button class="btn btn-outline-primary btn-sm">＋ Add sub-organization</button><button class="btn btn-ghost btn-sm">↗ Move under another parent</button></div>
+        </div>
+
+        <!-- CERTS & TOKENS -->
+        <div class="mpane" id="op-certs">
+          <div class="helpbar"><span>📜</span><span>Organizations can be issued certificates and tokens just like users — for service authentication, signing, and federation.</span></div>
+          <div class="section-title">Certificates <button class="btn btn-outline-primary btn-sm" style="margin-left:auto">＋ Issue certificate</button></div>
+          <div class="cred"><span class="ci" style="background:var(--exprsn-success-bg)">📜</span><div class="info"><div class="t">Org TLS / mTLS Certificate <span class="badge suc">Valid</span></div><div class="d">CN=acme.example · SHA-256: 9f:2a:…:c1 · expires 2026-11-04</div></div><button class="btn btn-ghost btn-sm">Revoke</button></div>
+          <div class="cred"><span class="ci" style="background:var(--exprsn-info-bg)">📜</span><div class="info"><div class="t">Code Signing Certificate <span class="badge suc">Valid</span></div><div class="d">CN=Acme Holdings Signing · expires 2027-01-18</div></div><button class="btn btn-ghost btn-sm">Revoke</button></div>
+          <div class="cred"><span class="ci" style="background:var(--exprsn-warning-bg)">📜</span><div class="info"><div class="t">Federation Certificate <span class="badge warn">Expires 22d</span></div><div class="d">CN=Acme Federation · expires 2026-07-10</div></div><button class="btn btn-ghost btn-sm">Renew</button></div>
+
+          <div class="section-title">Tokens &amp; API keys <button class="btn btn-outline-primary btn-sm" style="margin-left:auto">＋ Issue token</button></div>
+          <div class="cred"><span class="ci" style="background:var(--exprsn-info-bg)">🎟️</span><div class="info"><div class="t">Service Account Token <span class="badge suc">Active</span></div><div class="d">svc-acme-platform · scopes: read:dir, write:certs · last used 2h ago</div></div><button class="btn btn-ghost btn-sm">Rotate</button></div>
+          <div class="cred"><span class="ci" style="background:var(--exprsn-info-bg)">🎟️</span><div class="info"><div class="t">OIDC Client Secret <span class="badge suc">Active</span></div><div class="d">client_id: acme-sso · grant: authorization_code</div></div><button class="btn btn-ghost btn-sm">Rotate</button></div>
+        </div>
+
+        <!-- MEMBERS -->
+        <div class="mpane" id="op-members">
+          <div class="helpbar"><span>👥</span><span>Organizational users report up to this organization. 412 direct members; 1,284 including sub-organizations.</span></div>
+          <div class="section-title">Direct members <button class="btn btn-outline-primary btn-sm" style="margin-left:auto">＋ Add member</button></div>
+          <div class="assign-list">
+            <div class="assign-item"><span class="ic av-rd" style="background:var(--exprsn-gradient-primary)">JD</span><div class="meta"><div class="t">Jane Doe</div><div class="d">jane@acme.example · Org Admin</div></div><span class="badge bg-primary">Admin</span></div>
+            <div class="assign-item"><span class="ic av-rd" style="background:var(--exprsn-secondary)">MK</span><div class="meta"><div class="t">Marcus King</div><div class="d">marcus@acme.example · Member</div></div><span class="badge neu">Member</span></div>
+            <div class="assign-item"><span class="ic av-rd" style="background:var(--exprsn-accent-green)">SL</span><div class="meta"><div class="t">Sara Lin</div><div class="d">sara@acme.example · Billing</div></div><span class="badge neu">Billing</span></div>
+          </div>
+        </div>
+
+        <!-- DID -->
+        <div class="mpane" id="op-did">
+          <div class="did-head"><div><div class="section-title" style="border:none;margin:0;padding:0">Decentralized Identifier</div><div class="did-id" style="margin-top:.4rem">did:exprsn:org:acme</div></div><div class="seg"><span class="opt active" onclick="seg(this)">Document</span><span class="opt" onclick="seg(this)">Verification Methods</span></div></div>
+          <div class="did-editor">
+            <div class="bar"><span>did.json — organizational DID document</span><span>JSON-LD</span></div>
+            <textarea class="mono-area" spellcheck="false">{
+  "@context": ["https://www.w3.org/ns/did/v1"],
+  "id": "did:exprsn:org:acme",
+  "controller": "did:exprsn:org:acme",
+  "verificationMethod": [{
+    "id": "did:exprsn:org:acme#key-1",
+    "type": "Ed25519VerificationKey2020",
+    "controller": "did:exprsn:org:acme",
+    "publicKeyMultibase": "z6Mkf5rGMoatrSj1f4CyvuHBeXJELe9RPdzo2PKGNCKVtZxP"
+  }],
+  "assertionMethod": ["did:exprsn:org:acme#key-1"],
+  "service": [{
+    "id": "did:exprsn:org:acme#auth",
+    "type": "ExprsnAuth",
+    "serviceEndpoint": "https://acme.example/.well-known/exprsn"
+  }]
+}</textarea>
+          </div>
+          <div style="display:flex;gap:.6rem;margin-top:.85rem"><button class="btn btn-ghost btn-sm">＋ Add verification method</button><button class="btn btn-ghost btn-sm">🔄 Rotate key</button><button class="btn btn-ghost btn-sm">⬇ Export did.json</button></div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        ${creating?'<span class="text-muted" style="font-size:.8rem;color:var(--exprsn-text-muted)">A DID and key pair are generated on save.</span>':'<button class="btn btn-ghost btn-sm" onclick="closeModal()">View audit history</button>'}
+        <div class="right">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="closeModal()">${creating?'Create organization':'Save changes'}</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('modalHost').innerHTML = html;
+}
+function mtab(el,pane){el.parentElement.querySelectorAll('.mtab').forEach(t=>t.classList.remove('active'));el.classList.add('active');var root=el.closest('.modal-content');root.querySelectorAll('.mpane').forEach(p=>p.classList.remove('active'));root.querySelector('#'+pane).classList.add('active');}
+function seg(el){el.parentElement.querySelectorAll('.opt').forEach(o=>o.classList.remove('active'));el.classList.add('active');}
+
+/* user row kebab menu (suspended flag swaps suspend/restore) */
+function toggleUserMenu(btn,suspended){event.stopPropagation();var existing=btn.parentElement.querySelector('.menu');document.querySelectorAll('.menu.show').forEach(m=>{if(m!==existing)m.classList.remove('show');});
+  if(!existing){var m=document.createElement('div');m.className='menu show';
+    var statusItem = suspended ? '<div class="mi" style="color:var(--exprsn-success)">▶ Unsuspend / Restore</div>' : '<div class="mi warn">⏸ Suspend</div>';
+    m.innerHTML='<div class="mi">👁 View profile</div><div class="mi">✏️ Edit</div><div class="mi">🛡️ Assign role</div><div class="mi">🌐 Add to Nexus group</div><div class="mi">🔑 Reset password</div><div class="mi">📱 Reset MFA</div><div class="sep"></div>'+statusItem+'<div class="mi">🔒 Lock account</div><div class="mi danger">🗑 Deactivate</div>';
+    btn.parentElement.style.position='relative';btn.parentElement.appendChild(m);}
+  else existing.classList.toggle('show');}
+
+/* ════════ USER MODAL ════════ */
+function openUserModal(mode){
+  var creating = (mode==='create');
+  var title = creating ? 'New User' : 'Jane Doe';
+  var sub = creating ? 'did:exprsn:user:&lt;auto-generated&gt;' : 'did:exprsn:user:jane-acme';
+  var summary = creating ? '' : `
+    <div class="entity-summary user">
+      <span class="big-av" style="background:var(--exprsn-gradient-primary)">JD</span>
+      <div class="es-meta">
+        <div class="n">Jane Doe</div>
+        <div class="s">jane@acme.example · did:exprsn:user:jane-acme</div>
+        <div style="margin-top:.5rem;display:flex;gap:.4rem;flex-wrap:wrap"><span class="badge bg-primary">Admin</span><span class="badge suc dot">Active</span><span class="badge pri">MFA on</span><span class="badge neu">Acme Holdings</span></div>
+      </div>
+      <div class="es-stats">
+        <div><div class="v">3</div><div class="l">Groups</div></div>
+        <div><div class="v">5</div><div class="l">Services</div></div>
+        <div><div class="v">2</div><div class="l">Certs</div></div>
+      </div>
+    </div>`;
+  var html = `
+  <div class="modal show" id="userModal">
+    <div class="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal-content wide">
+      <div class="modal-header">
+        <div class="htitle">
+          <span class="av-rd" style="width:42px;height:42px;font-size:1rem;background:var(--exprsn-gradient-primary)">${creating?'＋':'JD'}</span>
+          <div><div class="modal-title">${title}</div><div class="modal-sub">${sub}</div></div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="mtabs">
+        <div class="mtab active" onclick="mtab(this,'up-details')">Details</div>
+        <div class="mtab" onclick="mtab(this,'up-did')">DID Editor</div>
+        <div class="mtab" onclick="mtab(this,'up-roles')">Roles &amp; Orgs</div>
+        <div class="mtab" onclick="mtab(this,'up-dir')">Directory</div>
+        <div class="mtab" onclick="mtab(this,'up-security')">Security</div>
+        <div class="mtab" onclick="mtab(this,'up-admin')">Administration</div>
+      </div>
+      <div class="modal-body">
+        ${summary}
+
+        <!-- DETAILS -->
+        <div class="mpane active" id="up-details">
+          <div class="section-title">Identity</div>
+          <div class="form-grid">
+            <div class="fg"><label class="form-label">Display name <span class="req">*</span></label><input class="form-control" value="${creating?'':'Jane Doe'}" placeholder="Jane Doe"></div>
+            <div class="fg"><label class="form-label">Username <span class="req">*</span></label><input class="form-control" value="${creating?'':'jane'}" placeholder="jane"></div>
+            <div class="fg"><label class="form-label">Email <span class="req">*</span></label><input class="form-control" value="${creating?'':'jane@acme.example'}" placeholder="user@org.example"></div>
+            <div class="fg"><label class="form-label">Phone</label><input class="form-control" value="${creating?'':'+1 555 0142'}" placeholder="+1 …"></div>
+            <div class="fg"><label class="form-label">Given name</label><input class="form-control" value="${creating?'':'Jane'}"></div>
+            <div class="fg"><label class="form-label">Family name</label><input class="form-control" value="${creating?'':'Doe'}"></div>
+            <div class="fg"><label class="form-label">Job title</label><input class="form-control" value="${creating?'':'VP, Engineering'}"></div>
+            <div class="fg"><label class="form-label">Preferred locale</label><select class="form-select"><option>en-US</option><option>en-GB</option><option>fr-FR</option><option>de-DE</option><option>ja-JP</option></select></div>
+          </div>
+          <div class="section-title">Platform profile</div>
+          <div class="form-grid">
+            <div class="fg"><label class="form-label">Primary organization <span class="req">*</span></label><select class="form-select"><option>Acme Holdings</option><option>Acme Engineering</option><option>Globex Corporation</option><option>(Unassigned)</option></select><div class="hint">This user reports up to the selected organization.</div></div>
+            <div class="fg"><label class="form-label">Account type</label><select class="form-select"><option>Human user</option><option>Service account</option><option>Bot</option><option>Guest</option></select></div>
+            <div class="fg"><label class="form-label">Manager</label><input class="form-control" value="${creating?'':'Rick Holland'}" placeholder="Search users…"></div>
+            <div class="fg"><label class="form-label">Employee / external ID</label><input class="form-control" value="${creating?'':'ACME-00421'}"></div>
+            <div class="fg col-span"><label class="form-label">Notes</label><textarea class="form-control" placeholder="Internal notes about this account…">${creating?'':'Promoted to org admin 2025-09. Owns the Platform Team sub-org.'}</textarea></div>
+          </div>
+        </div>
+
+        <!-- DID EDITOR -->
+        <div class="mpane" id="up-did">
+          <div class="helpbar"><span>🪪</span><span>Each user has a Decentralized Identifier (DID). Edit the DID document directly, manage verification methods, and rotate keys. The CA signs and anchors changes.</span></div>
+          <div class="did-head">
+            <div><div class="did-id">${creating?'did:exprsn:user:(generated on save)':'did:exprsn:user:jane-acme'}</div><div class="hint" style="margin-top:.3rem">Method: did:exprsn · Anchored 2025-11-02 · Controller: self</div></div>
+            <div class="seg"><span class="opt active" onclick="seg(this);didView(this,'didDoc')">Document</span><span class="opt" onclick="seg(this);didView(this,'didVm')">Verification Methods</span></div>
+          </div>
+          <div id="didDoc">
+            <div class="did-editor">
+              <div class="bar"><span>did.json</span><span>JSON-LD · editable</span></div>
+              <textarea class="mono-area" spellcheck="false">{
+  "@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/suites/ed25519-2020/v1"],
+  "id": "did:exprsn:user:jane-acme",
+  "controller": "did:exprsn:user:jane-acme",
+  "alsoKnownAs": ["mailto:jane@acme.example"],
+  "verificationMethod": [
+    {
+      "id": "did:exprsn:user:jane-acme#key-auth",
+      "type": "Ed25519VerificationKey2020",
+      "controller": "did:exprsn:user:jane-acme",
+      "publicKeyMultibase": "z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH"
+    },
+    {
+      "id": "did:exprsn:user:jane-acme#key-sign",
+      "type": "JsonWebKey2020",
+      "controller": "did:exprsn:user:jane-acme",
+      "publicKeyJwk": { "kty": "OKP", "crv": "Ed25519", "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo" }
+    }
+  ],
+  "authentication": ["did:exprsn:user:jane-acme#key-auth"],
+  "assertionMethod": ["did:exprsn:user:jane-acme#key-sign"],
+  "service": [
+    { "id": "did:exprsn:user:jane-acme#spark", "type": "ExprsnSpark", "serviceEndpoint": "https://acme.example/spark" }
+  ]
+}</textarea>
+            </div>
+            <div style="display:flex;gap:.6rem;margin-top:.85rem;flex-wrap:wrap"><button class="btn btn-ghost btn-sm">✓ Validate</button><button class="btn btn-ghost btn-sm">🎨 Format JSON</button><button class="btn btn-ghost btn-sm">⬇ Export did.json</button><button class="btn btn-outline-primary btn-sm">⚓ Re-anchor with CA</button></div>
+          </div>
+          <div id="didVm" style="display:none">
+            <div class="vmrow"><span style="font-size:1.1rem">🔑</span><span class="k">#key-auth · Ed25519VerificationKey2020 · z6Mkp…dvktH</span><span class="badge suc">Auth</span><button class="btn btn-ghost btn-sm">Rotate</button></div>
+            <div class="vmrow"><span style="font-size:1.1rem">🔑</span><span class="k">#key-sign · JsonWebKey2020 (Ed25519) · 11qYA…URo</span><span class="badge pri">Assertion</span><button class="btn btn-ghost btn-sm">Rotate</button></div>
+            <div class="vmrow"><span style="font-size:1.1rem">🔐</span><span class="k">#key-kex · X25519KeyAgreementKey2020 · z6LSe…9aRb</span><span class="badge neu">Key Agreement</span><button class="btn btn-ghost btn-sm">Rotate</button></div>
+            <button class="btn btn-outline-primary btn-sm" style="margin-top:.4rem">＋ Add verification method</button>
+          </div>
+        </div>
+
+        <!-- ROLES & ORGS -->
+        <div class="mpane" id="up-roles">
+          <div class="section-title">Assigned roles <button class="btn btn-outline-primary btn-sm" style="margin-left:auto">＋ Assign role</button></div>
+          <div class="helpbar"><span>🛡️</span><span>Roles grant permission sets. A user may hold multiple roles, scoped to specific organizations.</span></div>
+          <div class="assign-list">
+            <div class="assign-item sel" onclick="assignToggle(this)"><span class="ic" style="background:var(--exprsn-primary)">🛡️</span><div class="meta"><div class="t">Organization Admin</div><div class="d">Full control over Acme Holdings &amp; sub-orgs · manage users, certs, tokens</div></div><span class="chk">✓</span></div>
+            <div class="assign-item sel" onclick="assignToggle(this)"><span class="ic" style="background:var(--exprsn-secondary)">📜</span><div class="meta"><div class="t">Certificate Manager</div><div class="d">Issue and revoke certificates · scoped to Acme Holdings</div></div><span class="chk">✓</span></div>
+            <div class="assign-item" onclick="assignToggle(this)"><span class="ic" style="background:var(--exprsn-accent-cyan)">👁️</span><div class="meta"><div class="t">Audit Viewer</div><div class="d">Read-only access to audit logs</div></div><span class="chk"></span></div>
+            <div class="assign-item" onclick="assignToggle(this)"><span class="ic" style="background:var(--exprsn-gray-500)">👤</span><div class="meta"><div class="t">Member</div><div class="d">Baseline authenticated access</div></div><span class="chk"></span></div>
+          </div>
+
+          <div class="section-title">Organization membership <button class="btn btn-outline-primary btn-sm" style="margin-left:auto">＋ Add to organization</button></div>
+          <div class="helpbar"><span>🏢</span><span>Organizational users report up to their organization. Set one primary; additional memberships are secondary.</span></div>
+          <div class="assign-list">
+            <div class="assign-item sel"><span class="ic av-sq" style="background:var(--exprsn-gradient-primary)">AH</span><div class="meta"><div class="t">Acme Holdings <span class="badge bg-primary">Primary</span></div><div class="d">Reports up to · root organization</div></div><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation()">Make secondary</button></div>
+            <div class="assign-item sel"><span class="ic av-sq" style="background:var(--exprsn-secondary)">PL</span><div class="meta"><div class="t">Platform Team <span class="badge neu">Secondary</span></div><div class="d">Acme › Engineering › Platform Team</div></div><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation()">Set primary</button></div>
+          </div>
+        </div>
+
+        <!-- DIRECTORY -->
+        <div class="mpane" id="up-dir">
+          <div class="helpbar"><span>🌐</span><span>Directory settings control which Nexus groups this user belongs to and which platform services they are provisioned into.</span></div>
+          <div class="section-title">Nexus groups <button class="btn btn-outline-primary btn-sm" style="margin-left:auto">＋ Add to group</button></div>
+          <div class="assign-list">
+            <div class="assign-item sel" onclick="assignToggle(this)"><span class="ic" style="background:var(--exprsn-gradient-cool)">🌐</span><div class="meta"><div class="t">Engineering</div><div class="d">142 members · channels, shared vaults, on-call</div></div><span class="chk">✓</span></div>
+            <div class="assign-item sel" onclick="assignToggle(this)"><span class="ic" style="background:var(--exprsn-accent-purple)">🌐</span><div class="meta"><div class="t">Leadership</div><div class="d">18 members · private group</div></div><span class="chk">✓</span></div>
+            <div class="assign-item sel" onclick="assignToggle(this)"><span class="ic" style="background:var(--exprsn-accent-amber)">🌐</span><div class="meta"><div class="t">Platform On-call</div><div class="d">9 members · paging enabled</div></div><span class="chk">✓</span></div>
+            <div class="assign-item" onclick="assignToggle(this)"><span class="ic" style="background:var(--exprsn-gray-400)">🌐</span><div class="meta"><div class="t">Support</div><div class="d">34 members</div></div><span class="chk"></span></div>
+          </div>
+
+          <div class="section-title">Service bindings</div>
+          <div class="helpbar"><span>🔌</span><span>Provision or revoke this user across Exprsn platform services. Toggling off de-provisions their access immediately.</span></div>
+          <div class="toggle-row"><span style="font-size:1.2rem">💬</span><div class="tx"><div class="t">Spark · Messaging</div><div class="d">Conversations, channels, presence</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="toggle-row"><span style="font-size:1.2rem">🗄️</span><div class="tx"><div class="t">FileVault · Storage</div><div class="d">Personal &amp; shared file storage</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="toggle-row"><span style="font-size:1.2rem">📰</span><div class="tx"><div class="t">Timeline · Social feed</div><div class="d">Posts, follows, notifications</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="toggle-row"><span style="font-size:1.2rem">🔐</span><div class="tx"><div class="t">Vault · Secrets</div><div class="d">Secret storage &amp; sharing</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="toggle-row"><span style="font-size:1.2rem">📡</span><div class="tx"><div class="t">Live · Streaming</div><div class="d">Broadcast &amp; watch live streams</div></div><label class="switch"><input type="checkbox"><span class="slider"></span></label></div>
+          <div class="toggle-row"><span style="font-size:1.2rem">🛡️</span><div class="tx"><div class="t">Moderator</div><div class="d">Content moderation queue access</div></div><label class="switch"><input type="checkbox"><span class="slider"></span></label></div>
+        </div>
+
+        <!-- SECURITY -->
+        <div class="mpane" id="up-security">
+          <div class="section-title">Authentication</div>
+          <div class="toggle-row"><span style="font-size:1.2rem">📱</span><div class="tx"><div class="t">Multi-factor authentication</div><div class="d">TOTP + hardware key (YubiKey 5C) registered</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="toggle-row"><span style="font-size:1.2rem">🔑</span><div class="tx"><div class="t">Passkey / WebAuthn</div><div class="d">2 passkeys registered</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="toggle-row"><span style="font-size:1.2rem">⏱️</span><div class="tx"><div class="t">Session timeout</div><div class="d">Force re-auth after inactivity</div></div><select class="form-select" style="width:160px;height:38px"><option>8 hours</option><option>1 hour</option><option>30 minutes</option><option>Never</option></select></div>
+          <div class="section-title">Issued credentials</div>
+          <div class="cred"><span class="ci" style="background:var(--exprsn-success-bg)">📜</span><div class="info"><div class="t">Client Certificate <span class="badge suc">Valid</span></div><div class="d">CN=jane@acme.example · expires 2026-09-30</div></div><button class="btn btn-ghost btn-sm">Revoke</button></div>
+          <div class="cred"><span class="ci" style="background:var(--exprsn-info-bg)">🎟️</span><div class="info"><div class="t">Personal Access Token <span class="badge suc">Active</span></div><div class="d">pat_acme_•••• · scopes: read:dir · last used 3h ago</div></div><button class="btn btn-ghost btn-sm">Rotate</button></div>
+          <div style="display:flex;gap:.6rem;margin-top:.4rem"><button class="btn btn-ghost btn-sm">🔑 Force password reset</button><button class="btn btn-ghost btn-sm">📱 Reset MFA</button><button class="btn btn-ghost btn-sm">🚪 Revoke all sessions</button></div>
+        </div>
+
+        <!-- ADMINISTRATION -->
+        <div class="mpane" id="up-admin">
+          <div class="section-title">Account status</div>
+          <div class="seg" style="margin-bottom:1rem"><span class="opt active" onclick="seg(this)">Active</span><span class="opt" onclick="seg(this)">Suspended</span><span class="opt" onclick="seg(this)">Locked</span><span class="opt" onclick="seg(this)">Invited</span></div>
+          <div class="toggle-row"><div class="tx"><div class="t">Account enabled</div><div class="d">Disabled accounts cannot sign in or use any service.</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="toggle-row"><div class="tx"><div class="t">Email verified</div><div class="d">jane@acme.example verified 2025-08-14</div></div><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+
+          <div class="section-title">Lifecycle actions</div>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <button class="btn btn-warning btn-sm">⏸ Suspend account</button>
+            <button class="btn btn-success btn-sm">▶ Unsuspend / Restore</button>
+            <button class="btn btn-ghost btn-sm">🔒 Lock</button>
+            <button class="btn btn-ghost btn-sm">🔓 Unlock</button>
+            <button class="btn btn-ghost btn-sm">✉ Resend invite</button>
+            <button class="btn btn-ghost btn-sm">📦 Export user data</button>
+            <button class="btn btn-ghost btn-sm">🔁 Transfer ownership</button>
+          </div>
+
+          <div class="section-title">Recent administrative events</div>
+          <div style="font-size:.82rem;color:var(--exprsn-text-secondary);line-height:2">
+            <div>🛡️ Role <strong>Certificate Manager</strong> assigned — <span class="rowmeta mono">by rick · 2025-09-12</span></div>
+            <div>📱 MFA reset — <span class="rowmeta mono">by admin · 2025-09-10</span></div>
+            <div>🌐 Added to group <strong>Leadership</strong> — <span class="rowmeta mono">by rick · 2025-09-01</span></div>
+          </div>
+
+          <div class="danger-zone">
+            <div class="dz-t">⚠ Danger zone</div>
+            <div class="dz-row"><div class="dx"><strong>Deactivate &amp; offboard</strong> — revokes all credentials, de-provisions every service, and archives the account.</div><button class="btn btn-danger btn-sm">Deactivate user</button></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        ${creating?'<span style="font-size:.8rem;color:var(--exprsn-text-muted)">A DID and credentials are provisioned on save.</span>':'<button class="btn btn-ghost btn-sm" onclick="closeModal()">View full audit history</button>'}
+        <div class="right">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          ${creating?'':'<button class="btn btn-warning" onclick="closeModal()">Suspend</button>'}
+          <button class="btn btn-primary" onclick="closeModal()">${creating?'Create user':'Save changes'}</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('modalHost').innerHTML = html;
+}
+function didView(el,which){var root=el.closest('.mpane');root.querySelector('#didDoc').style.display = which==='didDoc'?'block':'none';root.querySelector('#didVm').style.display = which==='didVm'?'block':'none';}
+function assignToggle(el){el.classList.toggle('sel');var c=el.querySelector('.chk');c.textContent=el.classList.contains('sel')?'✓':'';}
+</script>
+</body>
+</html>

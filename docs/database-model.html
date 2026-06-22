@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Database Model — Exprsn Platform Documentation</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html" class="active">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+  </nav>
+</header>
+<main>
+<h1>Database Model</h1>
+
+<div class="meta-card">
+  <dl>
+    <dt>Database</dt><dd>One PostgreSQL database: <code>exprsn</code></dd>
+    <dt>Isolation</dt><dd>One schema per module (Sequelize <code>define.schema</code>): <code>ca</code>, <code>auth</code>, <code>timeline</code>, <code>prefetch</code> (plus <code>spark</code>, <code>nexus</code>, <code>filevault</code>, <code>vault</code>, <code>moderator</code>, <code>live</code>)</dd>
+    <dt>Keys</dt><dd>UUID primary keys throughout; Sequelize-managed <code>createdAt</code>/<code>updatedAt</code> timestamps</dd>
+    <dt>Migrations</dt><dd>Per-module, orchestrated by <code>scripts/migrate-modules.js</code> with <code>DB_SCHEMA</code>/<code>DB_NAME</code> injected via env</dd>
+  </dl>
+</div>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ul>
+    <li><a href="#principles">Modeling principles</a></li>
+    <li><a href="#overview">Schema overview diagram</a></li>
+    <li><a href="#ca">Schema: ca</a></li>
+    <li><a href="#auth">Schema: auth</a></li>
+    <li><a href="#timeline">Schema: timeline</a></li>
+    <li><a href="#prefetch">Schema: prefetch</a></li>
+    <li><a href="#cross">Cross-schema references</a></li>
+  </ul>
+</div>
+
+<h2 id="principles">Modeling principles</h2>
+<p>Each module owns its schema and never declares foreign keys into another module's schema. Cross-module references (a Timeline post's <code>userId</code>, a Prefetch job's <code>user_id</code>) are <strong>logical UUID references</strong> resolved through service APIs or IPC, not database constraints. Within a schema, conventional Sequelize associations and FK constraints apply. Several modules use soft deletes (a <code>deleted</code> flag) instead of row removal, and the CA's audit log is append-only with a hash chain.</p>
+<div class="note"><strong>Known gap (STATUS.md #1):</strong> raw migrations with unqualified table names can land in <code>public</code> instead of the module schema. Schema-qualify table names or set a <code>searchPath</code> when touching migrations.</div>
+
+<h2 id="overview">Schema overview diagram</h2>
+<svg viewBox="0 0 960 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Exprsn database schema overview" style="width:100%;height:auto;border:1px solid #d0d7de;border-radius:6px;background:#fff;">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#59636e"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill:#f6f8fa; stroke:#d0d7de; rx:8; }
+    .title { font:700 14px -apple-system,Segoe UI,Helvetica,Arial,sans-serif; fill:#0a3d91; }
+    .tbl { font:12px ui-monospace,Menlo,monospace; fill:#1f2328; }
+    .lbl { font:11px -apple-system,Segoe UI,Helvetica,Arial,sans-serif; fill:#59636e; }
+    .edge { stroke:#59636e; stroke-width:1.4; fill:none; marker-end:url(#arrow); }
+    .db { font:700 13px -apple-system,Segoe UI,Helvetica,Arial,sans-serif; fill:#59636e; }
+  </style>
+  <text x="480" y="24" text-anchor="middle" class="db">PostgreSQL database: exprsn — one schema per module (logical UUID references between schemas)</text>
+
+  <rect x="30" y="50" width="210" height="290" class="box"/>
+  <text x="135" y="74" text-anchor="middle" class="title">schema: ca</text>
+  <text x="48" y="98" class="tbl">users · groups · roles</text>
+  <text x="48" y="118" class="tbl">certificates ⟲ issuerId</text>
+  <text x="48" y="138" class="tbl">tokens → certificates</text>
+  <text x="48" y="158" class="tbl">revocation_lists</text>
+  <text x="48" y="178" class="tbl">crl_counters</text>
+  <text x="48" y="198" class="tbl">audit_logs (hash chain)</text>
+  <text x="48" y="218" class="tbl">acme_* (5 tables)</text>
+  <text x="48" y="238" class="tbl">tickets · profiles</text>
+  <text x="48" y="258" class="tbl">password_resets</text>
+  <text x="48" y="278" class="tbl">rate_limits · role_sets</text>
+
+  <rect x="270" y="50" width="220" height="290" class="box"/>
+  <text x="380" y="74" text-anchor="middle" class="title">schema: auth</text>
+  <text x="288" y="98" class="tbl">users · sessions</text>
+  <text x="288" y="118" class="tbl">organizations</text>
+  <text x="288" y="138" class="tbl">organization_members</text>
+  <text x="288" y="158" class="tbl">groups ⟲ parentId</text>
+  <text x="288" y="178" class="tbl">roles · permissions</text>
+  <text x="288" y="198" class="tbl">user_groups · user_roles</text>
+  <text x="288" y="218" class="tbl">group_roles</text>
+  <text x="288" y="238" class="tbl">oauth2_clients / tokens /</text>
+  <text x="288" y="258" class="tbl">authorization_codes</text>
+  <text x="288" y="278" class="tbl">applications · ldap_configs</text>
+
+  <rect x="520" y="50" width="210" height="290" class="box"/>
+  <text x="625" y="74" text-anchor="middle" class="title">schema: timeline</text>
+  <text x="538" y="98" class="tbl">posts (soft delete)</text>
+  <text x="538" y="118" class="tbl">likes → posts</text>
+  <text x="538" y="138" class="tbl">comments → posts</text>
+  <text x="538" y="158" class="tbl">reposts → posts</text>
+  <text x="538" y="178" class="tbl">bookmarks → posts</text>
+  <text x="538" y="198" class="tbl">follows (user ↔ user)</text>
+  <text x="538" y="218" class="tbl">lists → list_members</text>
+  <text x="538" y="238" class="tbl">trending</text>
+  <text x="538" y="258" class="tbl">attachments</text>
+  <text x="538" y="278" class="lbl">(entityType: post|comment)</text>
+
+  <rect x="760" y="50" width="170" height="290" class="box"/>
+  <text x="845" y="74" text-anchor="middle" class="title">schema: prefetch</text>
+  <text x="778" y="98" class="tbl">prefetch_jobs</text>
+  <text x="778" y="122" class="lbl">runtime state in Redis:</text>
+  <text x="778" y="142" class="tbl">timeline:{userId}</text>
+  <text x="778" y="162" class="lbl">hot tier (DB 0, 5 min)</text>
+  <text x="778" y="182" class="lbl">warm tier (DB 1, 15 min)</text>
+  <text x="778" y="202" class="tbl">metrics:* (DB 2)</text>
+
+  <path class="edge" d="M 380 340 C 380 365, 135 365, 135 342"/>
+  <text x="258" y="372" text-anchor="middle" class="lbl">auth users obtain CA tokens (logical userId refs)</text>
+  <path class="edge" d="M 625 340 C 625 358, 480 358, 408 342"/>
+  <text x="540" y="352" text-anchor="middle" class="lbl">posts.userId → auth users</text>
+  <path class="edge" d="M 845 340 C 845 372, 700 372, 660 342"/>
+  <text x="770" y="368" text-anchor="middle" class="lbl">prefetch caches timeline feeds</text>
+</svg>
+
+<h2 id="ca">Schema: <code>ca</code></h2>
+<p>Tables backing the <a href="exprsn-ca.html">CA service</a>. Intra-schema FKs are real; <code>issuerId</code> is a self-reference on <code>certificates</code>.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>certificates</code></td><td><code>id</code>, <code>serialNumber</code> (unique), <code>type</code> (root|intermediate|entity|san|code_signing|client|server), subject DN fields, <code>subjectAlternativeNames[]</code>, <code>keySize</code>, <code>publicKey</code>, <code>privateKeyEncrypted</code>, <code>certificatePem</code>/<code>certificateDer</code>, <code>fingerprint</code> (unique SHA-256), <code>notBefore</code>/<code>notAfter</code>, <code>status</code>, <code>revocationReason</code></td><td><code>issuerId</code> → certificates (self, the chain); <code>userId</code> → users (null = system)</td></tr>
+    <tr><td><code>tokens</code></td><td><code>id</code>, <code>version</code>, permission flags (read/write/append/delete/update), <code>resourceType</code> (url|did|cid) + <code>resourceValue</code>, <code>expiryType</code> (time|use|persistent), <code>issuedAt</code>/<code>notBefore</code>/<code>expiresAt</code> (ms), <code>usesRemaining</code>/<code>maxUses</code>/<code>useCount</code>, <code>checksum</code>, <code>signature</code>, <code>status</code></td><td><code>userId</code> → users; <code>certificateId</code> → certificates (signing cert)</td></tr>
+    <tr><td><code>users</code></td><td><code>id</code>, <code>email</code> (unique), <code>username</code> (unique), <code>passwordHash</code> (bcrypt), <code>status</code>, email-verification + password-reset tokens, <code>failedLoginAttempts</code>/<code>lockedUntil</code>, <code>twoFactorEnabled</code>/<code>twoFactorSecret</code></td><td>1:1 <code>profiles</code>; M:N <code>groups</code> via <code>user_groups</code></td></tr>
+    <tr><td><code>audit_logs</code></td><td><code>id</code>, <code>action</code>, <code>resourceType</code>/<code>resourceId</code>, <code>status</code>, <code>severity</code>, <code>details</code> JSONB, <code>ipAddress</code>/<code>userAgent</code>, <code>prevHash</code>, <code>entryHash</code></td><td>Append-only; each <code>entryHash</code> covers the prior row's hash (tamper evidence)</td></tr>
+    <tr><td><code>revocation_lists</code></td><td><code>id</code>, <code>serialNumber</code>, <code>revokedAt</code>, <code>reason</code> (RFC 5280), <code>invalidityDate</code>, <code>crlNumber</code>, <code>metadata</code></td><td><code>certificateId</code> → certificates; <code>issuerId</code> → certificates</td></tr>
+    <tr><td><code>crl_counters</code></td><td><code>id</code>, <code>issuerId</code>, <code>currentNumber</code> (BigInt)</td><td>Atomic monotonic CRL numbering per issuer</td></tr>
+    <tr><td><code>acme_accounts</code> / <code>acme_orders</code> / <code>acme_authorizations</code> / <code>acme_challenges</code> / <code>acme_nonces</code></td><td>JWK + key thumbprint, order lifecycle, identifiers, challenge type (http-01|dns-01|tls-alpn-01), one-time nonces</td><td>RFC 8555 schema; protocol handlers pending</td></tr>
+    <tr><td><code>groups</code> / <code>roles</code> / <code>role_sets</code> / <code>user_groups</code></td><td>Hierarchical groups, permission-flagged roles, role collections, user↔group join table</td><td>RBAC backbone</td></tr>
+    <tr><td><code>profiles</code> / <code>password_resets</code> / <code>rate_limits</code> / <code>tickets</code></td><td>Extended profile, reset-token lifecycle, per-user/IP limit tracking, one-time tickets</td><td>Support tables</td></tr>
+  </tbody>
+</table>
+
+<h2 id="auth">Schema: <code>auth</code></h2>
+<p>Tables backing the <a href="exprsn-auth.html">Auth service</a>. Note this schema has its <em>own</em> <code>users</code>, <code>groups</code>, and <code>roles</code> tables, distinct from the CA's.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>users</code></td><td><code>id</code>, <code>email</code>, <code>passwordHash</code>, <code>emailVerified</code> + token, <code>googleId</code>/<code>githubId</code> (social), <code>displayName</code>/<code>firstName</code>/<code>lastName</code>/<code>avatarUrl</code>/<code>bio</code>, <code>mfaEnabled</code>/<code>mfaSecret</code>/<code>mfaBackupCodes</code>, <code>loginAttempts</code>/<code>lockedUntil</code>, <code>lastLoginAt</code>, <code>passwordChangedAt</code>, reset tokens, <code>status</code>, <code>metadata</code></td><td>M:N groups (<code>user_groups</code>), roles (<code>user_roles</code>), organizations (<code>organization_members</code>); 1:N sessions, oauth2_tokens, oauth2_authorization_codes</td></tr>
+    <tr><td><code>organizations</code></td><td><code>id</code>, <code>name</code>, <code>slug</code> (unique), <code>ownerId</code>, <code>plan</code>, <code>billingEmail</code>, <code>settings</code> JSON (incl. password policy), <code>status</code></td><td><code>ownerId</code> → users; 1:N groups, applications, ldap_configs; M:N users via <code>organization_members</code></td></tr>
+    <tr><td><code>organization_members</code></td><td><code>id</code>, <code>organizationId</code>, <code>userId</code>, <code>role</code>, <code>joinedAt</code>, <code>invitedBy</code>, <code>status</code></td><td>Join table with member role/state</td></tr>
+    <tr><td><code>groups</code></td><td><code>id</code>, <code>name</code>, <code>slug</code>, <code>organizationId</code>, <code>permissions</code>, <code>parentId</code></td><td><code>parentId</code> → groups (hierarchy); M:N users (<code>user_groups</code>) and roles (<code>group_roles</code>)</td></tr>
+    <tr><td><code>roles</code></td><td><code>id</code>, <code>name</code>, <code>slug</code>, <code>organizationId</code>, <code>isSystem</code>, <code>priority</code>, <code>permissions</code>, <code>serviceAccess</code> (allowed/denied services)</td><td>M:N users (<code>user_roles</code>) and groups (<code>group_roles</code>); system roles seeded</td></tr>
+    <tr><td><code>permissions</code></td><td><code>id</code>, <code>resource</code>, <code>action</code>, <code>scope</code>, <code>permissionString</code>, <code>service</code>, <code>isSystem</code></td><td>Granular permission catalog</td></tr>
+    <tr><td><code>oauth2_clients</code></td><td><code>id</code>, <code>clientId</code> (unique), <code>clientSecret</code>, <code>redirectUris[]</code>, <code>grants[]</code>, <code>scopes[]</code>, <code>ownerId</code>, <code>status</code></td><td>1:N oauth2_tokens, oauth2_authorization_codes</td></tr>
+    <tr><td><code>oauth2_authorization_codes</code></td><td><code>id</code>, <code>code</code>, <code>expiresAt</code>, <code>redirectUri</code>, <code>scope</code>, <code>codeChallenge</code>/<code>codeChallengeMethod</code> (PKCE), <code>used</code>/<code>usedAt</code></td><td><code>clientId</code> → oauth2_clients; <code>userId</code> → users; single-use</td></tr>
+    <tr><td><code>oauth2_tokens</code></td><td><code>id</code>, <code>accessToken</code> + expiry, <code>refreshToken</code> + expiry, <code>scope</code>, <code>revoked</code>/<code>revokedAt</code></td><td><code>clientId</code> → oauth2_clients; <code>userId</code> → users</td></tr>
+    <tr><td><code>applications</code></td><td><code>id</code>, <code>clientId</code>/<code>clientSecret</code>, <code>clientType</code>, redirect/post-logout URIs, web origins, grant/response types, scopes, token lifetimes (access/refresh/ID), <code>requirePkce</code>, <code>requireConsent</code>, <code>isTrusted</code>/<code>isFirstParty</code>, <code>allowedPermissions</code>, <code>serviceAccess</code>, <code>accessControl</code>, branding URLs, <code>rateLimit</code></td><td><code>organizationId</code> → organizations; <code>ownerId</code> → users; richer OIDC app registry alongside <code>oauth2_clients</code></td></tr>
+    <tr><td><code>sessions</code></td><td><code>id</code>, <code>sessionId</code> (unique), <code>ipAddress</code>, <code>userAgent</code>, <code>expiresAt</code>, <code>lastActivityAt</code>, <code>data</code>, <code>active</code></td><td><code>userId</code> → users; live session state also mirrored in Redis</td></tr>
+    <tr><td><code>ldap_configs</code></td><td><code>id</code>, <code>organizationId</code>, <code>host</code>/<code>port</code>/<code>useSSL</code>/<code>useTLS</code>, <code>bindDN</code>/<code>bindPassword</code>, base DNs, search filters/object classes, <code>attributeMapping</code>/<code>groupMapping</code>, sync settings (<code>syncEnabled</code>, <code>syncInterval</code>, <code>lastSyncAt</code>/<code>lastSyncStatus</code>/<code>lastSyncError</code>), <code>autoCreateUsers</code>, <code>defaultUserRole</code></td><td><code>organizationId</code> → organizations</td></tr>
+    <tr><td><code>user_groups</code> / <code>user_roles</code> / <code>group_roles</code></td><td>Join tables</td><td>users↔groups, users↔roles, groups↔roles</td></tr>
+  </tbody>
+</table>
+
+<h2 id="timeline">Schema: <code>timeline</code></h2>
+<p>Tables backing the <a href="exprsn-timeline.html">Timeline service</a>. All <code>userId</code>-type columns are logical references to auth users.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>posts</code></td><td><code>id</code>, <code>userId</code>, <code>content</code>, <code>contentType</code> (text|image|video|link), <code>media</code> JSON, <code>visibility</code> (public|followers|private), counters (<code>likeCount</code>/<code>commentCount</code>/<code>repostCount</code>), <code>metadata</code> JSON (entities, preview, replyTo, quoteOf, moderationStatus), <code>blueskyUri</code>/<code>blueskyDid</code>/<code>blueskyRkey</code>/<code>syncedToBluesky</code>, <code>deleted</code></td><td>1:N likes, comments, reposts, bookmarks; attachments via polymorphic link. Indexes: userId, createdAt, visibility, deleted, blueskyUri</td></tr>
+    <tr><td><code>likes</code></td><td><code>id</code>, <code>postId</code>, <code>userId</code></td><td>→ posts; unique (postId, userId)</td></tr>
+    <tr><td><code>comments</code></td><td><code>id</code>, <code>postId</code>, <code>userId</code>, <code>content</code>, <code>deleted</code></td><td>→ posts; attachments via polymorphic link</td></tr>
+    <tr><td><code>reposts</code></td><td><code>id</code>, <code>postId</code>, <code>userId</code>, <code>comment</code> (optional)</td><td>→ posts</td></tr>
+    <tr><td><code>bookmarks</code></td><td><code>id</code>, <code>postId</code>, <code>userId</code></td><td>→ posts</td></tr>
+    <tr><td><code>follows</code></td><td><code>id</code>, <code>followerId</code>, <code>followingId</code>, <code>active</code></td><td>User↔user (logical refs); unique (followerId, followingId); drives fan-out</td></tr>
+    <tr><td><code>lists</code></td><td><code>id</code>, <code>userId</code> (owner), <code>name</code>, <code>description</code>, <code>visibility</code>, <code>memberCount</code>, <code>deleted</code></td><td>1:N <code>list_members</code></td></tr>
+    <tr><td><code>list_members</code></td><td><code>id</code>, <code>listId</code>, <code>userId</code></td><td>→ lists</td></tr>
+    <tr><td><code>trending</code></td><td><code>id</code>, <code>topic</code>, <code>topicType</code> (hashtag|keyword|user), <code>postsCount</code>, <code>engagementCount</code>, <code>trendScore</code>, <code>peakAt</code></td><td>Recomputed every 15 min; indexed on topic, trendScore, topicType, peakAt</td></tr>
+    <tr><td><code>attachments</code></td><td><code>id</code>, <code>entityType</code> (post|comment), <code>entityId</code>, FileVault <code>fileId</code>/<code>fileUrl</code>, <code>fileName</code>/<code>mimeType</code>/<code>size</code>, <code>uploadedBy</code>, <code>description</code>/<code>altText</code>/<code>isPrimary</code>, <code>deleted</code></td><td>Polymorphic link to posts or comments (shared model from <code>@exprsn/shared</code>); file bytes live in FileVault, not Postgres</td></tr>
+  </tbody>
+</table>
+
+<h2 id="prefetch">Schema: <code>prefetch</code></h2>
+<p>The <a href="exprsn-prefetch.html">Prefetch service</a> is deliberately light on Postgres — its working state lives in Redis.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>prefetch_jobs</code></td><td><code>id</code>, <code>user_id</code>, <code>priority</code> (high|medium|low), <code>status</code> (pending|completed|failed), <code>result</code> JSONB, <code>created_at</code>/<code>completed_at</code>; indexed on user_id, status, priority</td><td>Provisioned for persistence/analytics; live jobs run in the Redis-backed Bull queue, not this table</td></tr>
+  </tbody>
+</table>
+<h3>Redis (runtime state, not Postgres)</h3>
+<table>
+  <thead><tr><th>Store</th><th>Keys</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Hot cache (DB 0)</td><td><code>timeline:{userId}</code></td><td>JSON timeline snapshot, 5-minute TTL</td></tr>
+    <tr><td>Warm cache (DB 1)</td><td><code>timeline:{userId}</code></td><td>15-minute TTL</td></tr>
+    <tr><td>Metrics (DB 2)</td><td><code>metrics:cache:hits:hot|warm</code>, <code>metrics:cache:misses</code>, <code>metrics:prefetch:errors</code>, <code>metrics:prefetch:durations</code></td><td>Hashes keyed by total + date; durations list capped at 1000</td></tr>
+    <tr><td>Timeline fan-out cache</td><td><code>timeline:{userId}</code> (sorted set)</td><td>Written by Timeline's fan-out, scores = timestamps, capped at 100 posts, 5-minute TTL</td></tr>
+  </tbody>
+</table>
+
+<h2 id="cross">Cross-schema references</h2>
+<table>
+  <thead><tr><th>From</th><th>To</th><th>Mechanism</th></tr></thead>
+  <tbody>
+    <tr><td><code>timeline.posts.userId</code> (and all timeline user columns)</td><td>auth users</td><td>Logical UUID; identity resolved via CA-token validation, no FK</td></tr>
+    <tr><td><code>prefetch.prefetch_jobs.user_id</code></td><td>auth users</td><td>Logical UUID</td></tr>
+    <tr><td>CA tokens ↔ platform users</td><td><code>ca.tokens.userId</code></td><td>Tokens are issued against CA-side user records; other modules trust the validated token's <code>userId</code> claim</td></tr>
+    <tr><td>Timeline attachments</td><td>FileVault files</td><td><code>fileId</code>/<code>fileUrl</code> reference FileVault's store; bytes never enter the timeline schema</td></tr>
+    <tr><td>Auth sessions</td><td>Redis</td><td>Session state mirrored under <code>exprsn:auth:sess:*</code></td></tr>
+  </tbody>
+</table>
+<div class="note">Duplicate concepts are intentional during consolidation: <code>ca.users</code>/<code>ca.groups</code>/<code>ca.roles</code> and <code>auth.users</code>/<code>auth.groups</code>/<code>auth.roles</code> are separate tables in separate schemas. Long-term unification is a platform-level decision tracked outside this document.</div>
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+</body>
+</html>

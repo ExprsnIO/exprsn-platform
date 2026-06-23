@@ -50,6 +50,12 @@ const updateGroupSchema = Joi.object({
   metadata: Joi.object()
 });
 
+// Owner is intentionally excluded — promotion to owner is an ownership transfer,
+// not a role change (see membershipService.updateMemberRole).
+const updateMemberRoleSchema = Joi.object({
+  role: Joi.string().valid('admin', 'moderator', 'member').required()
+});
+
 /**
  * POST /api/groups
  * Create a new group
@@ -291,6 +297,45 @@ router.delete('/:id/members/:userId',
       res.json({
         success: true,
         message: 'Member removed successfully',
+        membership
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /api/groups/:id/members/:userId/role
+ * Change a member's role (owner/admin only). The owner role is managed via
+ * ownership transfer, not this endpoint.
+ */
+router.put('/:id/members/:userId/role',
+  requireToken({ requiredPermissions: { update: true } }),
+  validateGroup,
+  requireGroupMember,
+  requireGroupAdmin,
+  async (req, res, next) => {
+    try {
+      const { error, value } = updateMemberRoleSchema.validate(req.body);
+      if (error) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: error.details[0].message,
+          details: error.details
+        });
+      }
+
+      const membership = await membershipService.updateMemberRole(
+        req.user.id,
+        req.params.id,
+        req.params.userId,
+        value.role
+      );
+
+      res.json({
+        success: true,
+        message: 'Member role updated successfully',
         membership
       });
     } catch (error) {

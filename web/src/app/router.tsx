@@ -10,6 +10,7 @@ import { GroupsPage } from '@/features/groups/GroupsPage';
 import { SecretsPage } from '@/features/secrets/SecretsPage';
 import { CaAdminPage } from '@/features/certs/CaAdminPage';
 import { StreamsPage } from '@/features/streams/StreamsPage';
+import { RoomsPage } from '@/features/rooms/RoomsPage';
 import { PlaceholderPage } from '@/features/PlaceholderPage';
 import { AdminLayout } from '@/features/admin/AdminLayout';
 import { DashboardPage } from '@/features/admin/DashboardPage';
@@ -20,6 +21,7 @@ import { NexusSection } from '@/features/admin/sections/NexusSection';
 import { LiveSection } from '@/features/admin/sections/LiveSection';
 import { VaultSection } from '@/features/admin/sections/VaultSection';
 import { ModeratorSection } from '@/features/admin/sections/ModeratorSection';
+import { AtprotoSection } from '@/features/admin/sections/AtprotoSection';
 import { SparkSection } from '@/features/admin/sections/SparkSection';
 import { FilevaultSection } from '@/features/admin/sections/FilevaultSection';
 import { LoginPage } from '@/auth/LoginPage';
@@ -45,6 +47,7 @@ export const router = createBrowserRouter([
       { path: 'files', element: <FilesPage /> },
       { path: 'groups', element: <GroupsPage /> },
       { path: 'streams', element: <StreamsPage /> },
+      { path: 'rooms', element: <RoomsPage /> },
       { path: 'moderation', element: <NotificationsPage /> },
       { path: 'secrets', element: <SecretsPage /> },
       { path: 'certs', element: <CaAdminPage /> },
@@ -69,6 +72,7 @@ export const router = createBrowserRouter([
       { path: 'live', element: <LiveSection /> },
       { path: 'vault', element: <VaultSection /> },
       { path: 'moderator', element: <ModeratorSection /> },
+      { path: 'atproto', element: <AtprotoSection /> },
       { path: 'spark', element: <SparkSection /> },
       { path: 'filevault', element: <FilevaultSection /> },
     ],

@@ -3,10 +3,51 @@
  * Handles real-time communication for streams and rooms
  */
 
+const axios = require('axios');
+const { deriveServiceToken } = require('@exprsn/shared/utils/serviceToken');
+const config = require('../config');
 const logger = require('../utils/logger');
 const streamService = require('../services/stream');
 const roomService = require('../services/room');
 const { Participant } = require('../models');
+
+// The CA's /api/tokens/validate is guarded by requireSessionOrService, so a
+// server-to-server call must present an identity-bound service token. Mirror the
+// timeline/moderator socket validators (CA_URL is the env the shared validators read).
+const CA_URL = process.env.CA_URL || process.env.CA_BASE_URL || config.ca.baseUrl;
+function serviceHeaders() {
+  const serviceId = process.env.SERVICE_ID || process.env.SERVICE_NAME;
+  if (!serviceId) return {};
+  try {
+    return { 'X-Service-ID': serviceId, 'X-Service-Token': deriveServiceToken(serviceId) };
+  } catch (err) {
+    logger.warn('Service identity not available for live socket auth', { error: err.message });
+    return {};
+  }
+}
+
+/**
+ * Validate a CA bearer presented on the socket handshake.
+ * Returns { userId, email } when valid, otherwise null.
+ */
+async function validateBearer(socket) {
+  const token =
+    socket.handshake.auth?.token ||
+    socket.handshake.headers.authorization?.replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  try {
+    const { data } = await axios.post(
+      `${CA_URL}/api/tokens/validate`,
+      { token, requiredPermissions: { read: true } },
+      { timeout: 5000, headers: { 'Content-Type': 'application/json', ...serviceHeaders() } }
+    );
+    if (!data.valid || !data.userId) return null;
+    return { userId: data.userId, email: data.tokenData && data.tokenData.email };
+  } catch (err) {
+    logger.warn('Live socket bearer validation failed', { error: err.message });
+    return null;
+  }
+}
 
 class SocketHandler {
   constructor(io) {
@@ -17,7 +58,48 @@ class SocketHandler {
     this.streamViewers = new Map(); // streamId -> Set of socketIds
     this.roomParticipants = new Map(); // roomId -> Map of socketId -> participantData
 
+    this.setupAuth();
     this.setupHandlers();
+  }
+
+  /**
+   * Optional-auth handshake middleware.
+   *
+   * `/live` is open to anonymous stream VIEWERS by design (HLS playback is over
+   * HTTP and viewer tracking via `join-stream` carries no privilege), so we never
+   * reject a connection here. We DO validate any presented CA bearer and stamp the
+   * socket identity, which the publish/host event guards below require. Keeping the
+   * viewer path auth-free preserves connect latency for the common case.
+   */
+  setupAuth() {
+    this.io.use(async (socket, next) => {
+      try {
+        const identity = await validateBearer(socket);
+        socket.authenticated = !!identity;
+        socket.userId = identity ? identity.userId : null;
+        socket.userEmail = identity ? identity.email : null;
+      } catch (err) {
+        // Never block a viewer on an auth hiccup — just treat as anonymous.
+        socket.authenticated = false;
+        socket.userId = null;
+      }
+      next();
+    });
+  }
+
+  /**
+   * Guard for broadcaster/host actions: requires a validated CA identity.
+   * Emits an `unauthorized` error to the caller and returns false when missing.
+   */
+  requireAuthed(socket, event) {
+    if (socket.authenticated && socket.userId) return true;
+    logger.warn('Rejected unauthenticated live action', { socketId: socket.id, event });
+    socket.emit('error', {
+      event,
+      code: 'UNAUTHENTICATED',
+      message: 'Authentication required for this action'
+    });
+    return false;
   }
 
   /**
@@ -25,11 +107,17 @@ class SocketHandler {
    */
   setupHandlers() {
     this.io.on('connection', (socket) => {
-      logger.info('Client connected', { socketId: socket.id });
+      logger.info('Client connected', {
+        socketId: socket.id,
+        authenticated: socket.authenticated,
+        userId: socket.userId
+      });
 
-      // Initialize connection tracking
+      // Initialize connection tracking (userId comes from the validated bearer,
+      // never from client-supplied data).
       this.connections.set(socket.id, {
-        userId: null,
+        userId: socket.userId || null,
+        authenticated: !!socket.authenticated,
         streamId: null,
         roomId: null,
         connectedAt: Date.now()
@@ -124,26 +212,38 @@ class SocketHandler {
     // Join a video chat room
     socket.on('join-room', async ({ roomId }) => {
       try {
-        logger.info('Joining room', { socketId: socket.id, roomId });
+        // Joining a room is a participant (publish/host) action — gated on a
+        // validated identity. Anonymous viewers must not enter the WebRTC mesh.
+        if (!this.requireAuthed(socket, 'join-room')) {
+          return;
+        }
 
-        // Join socket room
-        socket.join(roomId);
+        logger.info('Joining room', { socketId: socket.id, roomId, userId: socket.userId });
 
         // Track participant
         if (!this.roomParticipants.has(roomId)) {
           this.roomParticipants.set(roomId, new Map());
         }
 
-        // Get participant from database (should have been created via API call)
+        // Get participant from database (created via the authed POST /join API).
+        // Bind by the validated user id so a socket cannot claim another user's
+        // pre-registered participant slot; adopt this live socket id.
         const participant = await Participant.findOne({
           where: {
-            socket_id: socket.id,
+            user_id: socket.userId,
             room_id: roomId,
             status: 'connected'
           }
         });
 
         if (participant) {
+          // Bind the authoritative socket id and join the room only after the
+          // participant record is confirmed for this identity.
+          if (participant.socket_id !== socket.id) {
+            await participant.update({ socket_id: socket.id });
+          }
+          socket.join(roomId);
+
           this.roomParticipants.get(roomId).set(socket.id, {
             userId: participant.user_id,
             participantId: participant.id,
@@ -228,11 +328,16 @@ class SocketHandler {
     // Update participant state (audio/video on/off)
     socket.on('update-participant-state', ({ roomId, state }) => {
       try {
+        if (!this.requireAuthed(socket, 'update-participant-state')) {
+          return;
+        }
+
         const participants = this.roomParticipants.get(roomId);
         if (!participants) {
           return;
         }
 
+        // Only the socket that owns this participant slot may change its state.
         const participant = participants.get(socket.id);
         if (!participant) {
           return;
@@ -273,8 +378,15 @@ class SocketHandler {
    * Handle WebRTC signaling events
    */
   handleWebRTCSignaling(socket) {
+    // All WebRTC signaling carries publish/peer media negotiation, so every
+    // event requires a validated identity. Pure stream viewers use HLS over HTTP
+    // and never emit these — gating them does not affect viewer latency.
+
     // Generic signal (for compatibility)
     socket.on('signal', ({ to, signal }) => {
+      if (!this.requireAuthed(socket, 'signal')) {
+        return;
+      }
       logger.debug('Forwarding signal', {
         from: socket.id,
         to
@@ -289,6 +401,9 @@ class SocketHandler {
 
     // WebRTC offer
     socket.on('offer', ({ to, offer }) => {
+      if (!this.requireAuthed(socket, 'offer')) {
+        return;
+      }
       logger.debug('Forwarding offer', {
         from: socket.id,
         to
@@ -302,6 +417,9 @@ class SocketHandler {
 
     // WebRTC answer
     socket.on('answer', ({ to, answer }) => {
+      if (!this.requireAuthed(socket, 'answer')) {
+        return;
+      }
       logger.debug('Forwarding answer', {
         from: socket.id,
         to
@@ -315,6 +433,9 @@ class SocketHandler {
 
     // ICE candidate
     socket.on('ice-candidate', ({ to, candidate }) => {
+      if (!this.requireAuthed(socket, 'ice-candidate')) {
+        return;
+      }
       logger.debug('Forwarding ICE candidate', {
         from: socket.id,
         to

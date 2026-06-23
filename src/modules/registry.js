@@ -35,6 +35,7 @@ const MODULES = [
   { name: 'prefetch',  prefix: '/prefetch',  schema: 'prefetch',  entry: '../../services/prefetch/src/index.js',   socketNs: null },
   { name: 'moderator', prefix: '/moderator', schema: 'moderator', entry: '../../services/moderator/src/index.js',  socketNs: ['/moderation', '/notifications'] },
   { name: 'live',      prefix: '/live',      schema: 'live',      entry: '../../services/live/src/index.js',        socketNs: ['/live'] },
+  { name: 'atproto',   prefix: '/atproto',   schema: 'atproto',   entry: '../../services/atproto/src/index.js',     socketNs: null },
 ];
 
 module.exports = { MODULES };

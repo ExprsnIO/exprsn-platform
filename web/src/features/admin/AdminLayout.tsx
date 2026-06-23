@@ -14,6 +14,7 @@ import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import LiveTvOutlinedIcon from '@mui/icons-material/LiveTvOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
@@ -38,6 +39,7 @@ const SECTIONS: AdminItem[] = [
   { label: 'Live Streaming', to: '/admin/live', icon: LiveTvOutlinedIcon },
   { label: 'Vault', to: '/admin/vault', icon: LockOutlinedIcon },
   { label: 'Moderation', to: '/admin/moderator', icon: ShieldOutlinedIcon },
+  { label: 'AT-Protocol', to: '/admin/atproto', icon: HubOutlinedIcon },
   { label: 'Messaging (Spark)', to: '/admin/spark', icon: ChatBubbleOutlineOutlinedIcon },
   { label: 'Files (FileVault)', to: '/admin/filevault', icon: FolderOutlinedIcon },
 ];

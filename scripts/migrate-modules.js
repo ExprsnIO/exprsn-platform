@@ -29,6 +29,7 @@ const MIGRATORS = {
   prefetch: ['node', 'scripts/migrate-postgres.js'],
   moderator: ['npx', 'sequelize-cli', 'db:migrate'],
   live: ['node', 'scripts/migrate.js'],
+  atproto: ['node', 'scripts/migrate.js'],
 };
 
 async function main() {

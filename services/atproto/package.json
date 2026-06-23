@@ -1,0 +1,21 @@
+{
+  "name": "@exprsn/atproto",
+  "version": "1.0.0",
+  "description": "AT-Protocol / Bluesky bridge — firehose ingest + moderation labeler",
+  "main": "src/index.js",
+  "scripts": {
+    "worker": "node src/worker.js",
+    "provision": "node scripts/provision-identity.js",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+  },
+  "keywords": [
+    "atproto",
+    "bluesky",
+    "firehose",
+    "labeler",
+    "moderation",
+    "exprsn"
+  ],
+  "author": "Rick Holland <engineering@exprsn.com>",
+  "license": "MIT"
+}

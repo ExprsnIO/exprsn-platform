@@ -22,6 +22,31 @@ export interface ListFilesParams {
   offset?: number;
 }
 
+export interface SharePermissions {
+  read: boolean;
+  write?: boolean;
+  delete?: boolean;
+}
+
+export interface ShareLink {
+  id: string;
+  fileId: string;
+  tokenId?: string;
+  permissions?: SharePermissions;
+  expiresAt?: string | null;
+  maxUses?: number | null;
+  useCount?: number;
+  createdAt?: string;
+  [k: string]: unknown;
+}
+
+export interface CreateShareInput {
+  permissions?: SharePermissions;
+  /** Seconds until expiry; omit for a non-expiring link. */
+  expiresIn?: number;
+  maxUses?: number;
+}
+
 function qs(params?: ListFilesParams): string {
   if (!params) return '';
   const sp = new URLSearchParams();
@@ -58,6 +83,26 @@ export const filevaultApi = {
   },
 
   deleteFile: (id: string) => http.del<{ success: boolean }>(`/filevault/api/files/${id}`),
+
+  // --- Sharing (share-link id is the capability; backed by a real CA token) ---
+
+  createShare: (fileId: string, input: CreateShareInput) =>
+    http.post<{ success: boolean; shareUrl: string; shareLink: ShareLink; token: { id: string } }>(
+      `/filevault/api/share/files/${fileId}/share`,
+      input,
+    ),
+
+  listShares: (fileId: string) =>
+    http.get<{ success: boolean; shareLinks: ShareLink[]; count: number }>(
+      `/filevault/api/share/files/${fileId}/shares`,
+    ),
+
+  revokeShare: (shareLinkId: string) =>
+    http.del<{ success: boolean }>(`/filevault/api/share/${shareLinkId}`),
+
+  /** Build a same-origin public download URL for a share link. */
+  shareDownloadUrl: (shareLinkId: string): string =>
+    `${window.location.origin}/filevault/api/share/${shareLinkId}/download`,
 
   /**
    * Download a file's bytes and trigger a browser save. The download route is

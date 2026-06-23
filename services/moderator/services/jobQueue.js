@@ -87,6 +87,30 @@ class JobQueueService {
   }
 
   /**
+   * Add a label-negation job for the atproto bridge. Enqueued onto the shared
+   * 'moderation' queue under the 'negate-atproto' name; the atproto worker
+   * (single writer) processes it and retracts our labels for the URI. The
+   * moderator does not need the atproto code — only the job name.
+   * @param {string} uri - the at:// URI whose labels should be retracted
+   * @param {string} reason
+   * @returns {Promise<Object|null>} Job
+   */
+  async addNegationJob(uri, reason = 'appeal_approved') {
+    try {
+      const job = await this.queues.moderation.add(
+        'negate-atproto',
+        { uri, reason },
+        { attempts: 3, backoff: { type: 'exponential', delay: 2000 } }
+      );
+      logger.info('Atproto negation job added', { jobId: job.id, uri, reason });
+      return job;
+    } catch (error) {
+      logger.error('Failed to add negation job', { error: error.message, uri });
+      return null;
+    }
+  }
+
+  /**
    * Add report processing job
    * @param {string} reportId - Report ID
    * @param {Object} options - Job options

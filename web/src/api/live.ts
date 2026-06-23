@@ -56,3 +56,59 @@ export const liveApi = {
     http.post<{ success: boolean; stream: Stream }>(`/live/api/streams/${id}/stop`, {}),
   deleteStream: (id: string) => http.del<{ success: boolean }>(`/live/api/streams/${id}`),
 };
+
+// --- Video chat rooms (WebRTC mesh) -----------------------------------------
+
+export interface Room {
+  id: string;
+  host_id: string;
+  name: string;
+  description?: string;
+  room_code: string;
+  is_private?: boolean;
+  max_participants?: number;
+  current_participant_count?: number;
+  status?: string;
+  [k: string]: unknown;
+}
+
+export interface RoomParticipant {
+  id: string;
+  user_id: string;
+  display_name?: string;
+  role?: string;
+  socket_id?: string;
+  [k: string]: unknown;
+}
+
+export interface CreateRoomInput {
+  name: string;
+  description?: string;
+  maxParticipants?: number;
+  isPrivate?: boolean;
+  password?: string;
+}
+
+export interface JoinRoomInput {
+  password?: string;
+  displayName?: string;
+}
+
+export const roomApi = {
+  createRoom: (input: CreateRoomInput) =>
+    http.post<{ success: boolean; room: Room }>('/live/api/rooms', input),
+  getRoomByCode: (code: string) =>
+    http.get<{ success: boolean; room: Room }>(`/live/api/rooms/code/${encodeURIComponent(code)}`),
+  // The server binds the participant to this socket id (also accepted as the
+  // x-socket-id header); the room socket later claims it on `join-room`.
+  joinRoom: (id: string, socketId: string, input: JoinRoomInput) =>
+    http.post<{ success: boolean; participant: RoomParticipant; room: Room }>(
+      `/live/api/rooms/${id}/join?socketId=${encodeURIComponent(socketId)}`,
+      input,
+    ),
+  leaveRoom: (id: string, socketId: string) =>
+    http.post<{ success: boolean }>(
+      `/live/api/rooms/${id}/leave?socketId=${encodeURIComponent(socketId)}`,
+      {},
+    ),
+};

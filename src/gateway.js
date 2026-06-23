@@ -86,6 +86,17 @@ function buildGateway(loadedModules, logger) {
     logger.info(`Mounted module '${m.name}' at ${m.prefix}`);
   }
 
+  // Some modules must also serve a few ORIGIN-ROOT paths that protocols mandate
+  // outside any prefix (e.g. atproto's /.well-known/* and /xrpc/*). A module may
+  // export `rootApp`, an Express router mounted at '/'. This is the sanctioned
+  // exception to the "modules are prefix-scoped JSON APIs" rule.
+  for (const m of loadedModules) {
+    if (m.module.rootApp) {
+      app.use('/', m.module.rootApp);
+      logger.info(`Mounted root routes for '${m.name}' at /`);
+    }
+  }
+
   // Unknown route.
   app.use((req, res) => {
     res.status(404).json({ error: 'not_found', path: req.path });

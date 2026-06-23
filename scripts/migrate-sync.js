@@ -32,11 +32,12 @@ const MODELS = {
   timeline: 'src/models/index.js',
   moderator: 'models/sequelize-index.js', // src/models/index.js is a stub
   live: 'src/models/index.js',
+  atproto: 'models/index.js',
 };
 
 // Build a search_path string with `own` first, then the other module schemas,
 // then public — quoted for SET search_path.
-const ALL_SCHEMAS = ['auth', 'ca', 'nexus', 'spark', 'timeline', 'filevault', 'vault', 'moderator', 'live', 'prefetch'];
+const ALL_SCHEMAS = ['auth', 'ca', 'nexus', 'spark', 'timeline', 'filevault', 'vault', 'moderator', 'live', 'prefetch', 'atproto'];
 function searchPath(own) {
   const ordered = [own, ...ALL_SCHEMAS.filter((s) => s !== own), 'public'];
   return ordered.map((s) => `"${s}"`).join(', ');

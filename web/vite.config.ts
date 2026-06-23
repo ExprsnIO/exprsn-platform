@@ -21,6 +21,9 @@ const BACKEND_PATHS = [
   '/prefetch',
   '/moderator',
   '/live',
+  '/atproto',
+  '/xrpc',
+  '/.well-known',
   '/health',
 ];
 

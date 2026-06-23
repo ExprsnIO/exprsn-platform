@@ -800,7 +800,69 @@ Payloads are plain objects (no Joi). `to`/`from` are peer socket ids.
 | error | server→client | `event`, `message` | — | — | — | on join failure |
 
 
+## Atproto module (prefix /atproto) — AT-Protocol / Bluesky bridge
 
+Ingests the Bluesky firehose into the moderator pipeline, operates as a labeler
+(signing labels from moderation verdicts), and serves its own label firehose.
+Supports Exprsn's self-certifying **did:exprsn** method plus did:web/did:plc.
+The firehose **ingest** runs as a separate worker (`npm run worker:atproto`),
+not in the gateway. Provision identity with `npm run atproto:provision`.
+
+### REST endpoints (module prefix /atproto)
+
+| Method | Path | Body/params | Auth | Notes |
+|---|---|---|---|---|
+| GET | /atproto/health | — | none | `{ ok, enabled, transport }` |
+| GET | /atproto/identity | — | none | active labeler DID + key + published state |
+| GET | /atproto/service-record | — | none | the `app.bsky.labeler.service` declaration |
+| GET | /atproto/stats | — | none | label counts, last seq, inbound count, moderation queue counts |
+| GET | /atproto/inbound-labels | `uri?`, `src?`, `verified?`, `limit?` | none | INGEST: labels consumed from external labelers |
+| GET | /atproto/external-labelers | — | none | subscriptions + live health (status, lastEventAt, connectAttempts, heartbeatAt, lastError) |
+| POST | /atproto/external-labelers | `labeler` (DID or wss URL) | **adminGuard** | subscribe; worker reconciles + connects (~15s) |
+| DELETE | /atproto/external-labelers | `endpoint` (body or `?endpoint=`), `?purge` | **adminGuard** | unsubscribe (deactivate, or purge) |
+| GET | /atproto/feed-record | — | none | the app.bsky.feed.generator record + uri to publish |
+| GET | /atproto/users/:userId/dids | — | none | per-user DIDs; mints did:exprsn lazily |
+| PUT | /atproto/users/:userId/dids | `didWeb?`, `didPlc?` | **owner** (CA bearer, `req.userId`==`:userId`) **or admin** | link did:web/did:plc (must resolve; starts unverified) |
+| POST | /atproto/users/:userId/dids/challenge | — | owner or admin | issue a proof-of-control challenge token |
+| POST | /atproto/users/:userId/dids/verify | `method`∈web/plc | owner or admin | verify control (well-known file for web, profile desc for plc) |
+| DELETE | /atproto/users/:userId/dids/:method | `method`∈web/plc | owner or admin | unlink a DID |
+| POST | /atproto/labels/verify | `src`, `sig`, label fields | none | INGEST: resolve issuer DID + verify signature (pure read) |
+| POST | /atproto/labels | `uri`, `val`, `neg?`, `cid?` | **adminGuard**: platform-admin CA bearer **or** `X-Service-Token` | OUTGEST: manually sign+emit a label (operator action) |
+| POST | /atproto/labels/negate | `uri`, `reason?` | **adminGuard** | retract all our labels for a URI (queued to the worker) |
+
+### Origin-root endpoints (served via the gateway `rootApp` mount, NOT under /atproto)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | /.well-known/did.json | labeler DID document (`#atproto_label` key + `#atproto_labeler` service) |
+| GET | /.well-known/atproto-did | the labeler DID (text/plain) |
+| GET | /xrpc/com.atproto.label.queryLabels | `uriPatterns` (req, repeatable), `sources`, `limit`, `cursor` → `{ cursor, labels[] }` |
+| GET | /xrpc/com.exprsn.identity.resolveDid | `did` → DID document (did:exprsn/did:key offline-derived, did:web/did:plc fetched) |
+| GET | /xrpc/app.bsky.feed.describeFeedGenerator | → `{ did, feeds:[{uri}] }` |
+| GET | /xrpc/app.bsky.feed.getFeedSkeleton | `feed`, `limit`, `cursor` → curated feed (ingested posts minus active !hide) |
+| WS | /xrpc/com.atproto.label.subscribeLabels | `?cursor=N` → framed `#labels` messages (backfill + live); shares the HTTPS `upgrade` event with Socket.IO |
+
+### Things to note
+- Labels carry a monotonic `seq` (BIGSERIAL) used as the subscribeLabels cursor;
+  correctness assumes a **single writer** (the single-instance worker).
+- Firehose authors are DIDs; the moderator's `userId` is a UUID, so the bridge
+  stores the real DID in `atproto.uri_case_map.author_did` and synthesizes
+  `userId = UUIDv5(did)`.
+- **Negation**: a labeled post deleted from the firehose, or a moderation appeal
+  approved (`moderator` → `jobQueue.addNegationJob`), enqueues `negate-atproto`;
+  the worker emits matching `neg:true` labels (idempotent).
+- **Consuming external labelers**: set `ATPROTO_SUBSCRIBE_LABELERS` (labeler DIDs
+  or wss URLs). The worker subscribes, verifies signatures, and stores
+  `inbound_labels`. Resolving `did:plc:ar7c4by46qjdydhdevvrndac` reaches
+  Bluesky's own moderation labeler (`mod.bsky.app`).
+- **did:plc** publishing (`ATPROTO_DID_METHOD=plc` + `ATPROTO_PDS_*`) publishes
+  `app.bsky.labeler.service` and runs a PLC op (2-step: needs an emailed
+  `ATPROTO_PLC_TOKEN`). did:exprsn/did:web need no PDS.
+- The mutating endpoints (`/labels`, `/labels/negate`) use `adminGuard`
+  (`services/atproto/src/middleware/adminGuard.js`): a platform-admin CA bearer
+  (`isPlatformAdmin(req.tokenData.email)`, PLATFORM_ADMIN_EMAILS) **or** the
+  service token. The admin console's AT-Protocol view drives these (Apply label,
+  Negate, Hide) using the operator's bearer.
 
 
 

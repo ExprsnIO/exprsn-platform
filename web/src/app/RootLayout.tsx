@@ -6,6 +6,7 @@ import DynamicFeedOutlinedIcon from '@mui/icons-material/DynamicFeedOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import LiveTvOutlinedIcon from '@mui/icons-material/LiveTvOutlined';
+import VideoCameraFrontOutlinedIcon from '@mui/icons-material/VideoCameraFrontOutlined';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
@@ -39,6 +40,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { label: 'Files', to: '/files', icon: FolderOutlinedIcon },
       { label: 'Groups', to: '/groups', icon: GroupsOutlinedIcon },
       { label: 'Live', to: '/streams', icon: LiveTvOutlinedIcon },
+      { label: 'Rooms', to: '/rooms', icon: VideoCameraFrontOutlinedIcon },
     ],
   },
   {

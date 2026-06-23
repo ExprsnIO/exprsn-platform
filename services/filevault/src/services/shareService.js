@@ -6,20 +6,51 @@
  */
 
 const { ShareLink, File } = require('../models');
-const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
 const config = require('../config');
 
-// Mock CA token generation - replace with actual CA integration
-async function generateCAToken(params) {
-  // TODO: Integrate with actual CA token generation service
-  // This is a mock implementation
-  return {
-    id: uuidv4(),
-    signature: Buffer.from(JSON.stringify(params)).toString('base64'),
-    expiresAt: params.expiresAt,
-    usesAllowed: params.usesAllowed
-  };
+// In-process CA integration. The whole platform runs in one process, so share
+// links mint a real signed CA token directly via the CA token service (same
+// pattern as auth's tokenService) instead of the previous base64 mock. The
+// token id IS the capability stored on the ShareLink and embedded in the URL;
+// revoking the link revokes the CA token so the grant is gone everywhere.
+const caTokenService = require('../../../ca/services/token');
+const { getSigningCertificateId } = require('../../../ca/services/platformSigning');
+
+/**
+ * Mint a real CA token scoped to a shared file.
+ *
+ * Use-limiting is enforced by the ShareLink record (useCount/maxUses), so the CA
+ * token is issued as time-based (or persistent) — that keeps access-time CA
+ * status checks free of the use-decrement side effect while the CA remains the
+ * source of truth for revocation and permissions.
+ */
+async function generateCAToken({ fileId, userId, permissions, expiresAt }) {
+  const certificateId = await getSigningCertificateId();
+  const expirySeconds = expiresAt
+    ? Math.max(1, Math.ceil((expiresAt.getTime() - Date.now()) / 1000))
+    : null;
+
+  const token = await caTokenService.generateToken(
+    {
+      certificateId,
+      permissions,
+      resourceType: 'url',
+      // Prefix the share access path; the CA resource matcher accepts prefixes.
+      resourceValue: `/filevault/api/share`,
+      expiryType: expiresAt ? 'time' : 'persistent',
+      ...(expirySeconds ? { expirySeconds: expirySeconds } : {}),
+      data: {
+        fileId,
+        sharedBy: userId,
+        shareType: 'link'
+      }
+    },
+    userId,
+    { isAdmin: true } // platform-trusted issuance; bypasses cert-ownership check
+  );
+
+  return token;
 }
 
 /**
@@ -46,25 +77,8 @@ async function createShareLink(fileId, userId, options = {}) {
       ? new Date(Date.now() + options.expiresIn * 1000)
       : null;
 
-    // Generate CA token for access control
-    const token = await generateCAToken({
-      issuer: {
-        domain: config.ca.domain,
-        certificateSerial: config.ca.certificateSerial
-      },
-      permissions,
-      resource: {
-        url: `https://${config.app.domain}/files/${fileId}`
-      },
-      expiryType: options.maxUses ? 'use' : 'time',
-      expiresAt: expiresAt ? expiresAt.getTime() : undefined,
-      usesAllowed: options.maxUses,
-      data: {
-        fileId,
-        sharedBy: userId,
-        shareType: 'link'
-      }
-    });
+    // Mint a real signed CA token for access control
+    const token = await generateCAToken({ fileId, userId, permissions, expiresAt });
 
     // Create share link record
     const shareLink = await ShareLink.create({
@@ -77,10 +91,12 @@ async function createShareLink(fileId, userId, options = {}) {
       maxUses: options.maxUses
     });
 
-    // Generate shareable URL
-    const shareUrl = `https://${config.app.domain}/share/${shareLink.id}?token=${token.signature}`;
+    // Shareable URL — the unguessable share-link id is the capability; the CA
+    // token id rides along as a query param for callers that validate it.
+    const shareUrl =
+      `https://${config.app.domain}/filevault/api/share/${shareLink.id}/download?token=${token.id}`;
 
-    logger.info(`Share link created: ${shareLink.id} for file: ${fileId}`);
+    logger.info(`Share link created: ${shareLink.id} for file: ${fileId} (token ${token.id})`);
 
     return {
       shareLink,
@@ -88,7 +104,7 @@ async function createShareLink(fileId, userId, options = {}) {
       token: {
         id: token.id,
         expiresAt: token.expiresAt,
-        usesAllowed: token.usesAllowed
+        maxUses: options.maxUses
       }
     };
   } catch (error) {
@@ -118,6 +134,26 @@ async function getShareLink(shareLinkId) {
   // Check use count
   if (shareLink.maxUses && shareLink.useCount >= shareLink.maxUses) {
     throw new Error('SHARE_LINK_EXHAUSTED');
+  }
+
+  // Defense in depth: honor CA-side revocation/expiry even if the local row
+  // somehow lags. A CA outage must not break valid links, so only an explicit
+  // revoked/expired verdict denies access.
+  if (shareLink.tokenId) {
+    try {
+      const validation = await caTokenService.validateToken(shareLink.tokenId, {
+        requiredPermissions: { read: true }
+      });
+      if (!validation.valid &&
+          (validation.error === 'TOKEN_REVOKED' || validation.error === 'TOKEN_EXPIRED')) {
+        throw new Error('SHARE_LINK_REVOKED');
+      }
+    } catch (err) {
+      if (err.message === 'SHARE_LINK_REVOKED') throw err;
+      logger.warn(`CA token check failed for share ${shareLink.id}, allowing on local state`, {
+        error: err.message
+      });
+    }
   }
 
   return shareLink;
@@ -153,6 +189,18 @@ async function revokeShareLink(shareLinkId, userId) {
     isRevoked: true,
     revokedAt: new Date()
   });
+
+  // Revoke the underlying CA token so the grant is gone platform-wide, not just
+  // hidden by the local flag. Best-effort: the link is already marked revoked.
+  if (shareLink.tokenId) {
+    try {
+      await caTokenService.revokeToken(shareLink.tokenId, 'Share link revoked', null, { isAdmin: true });
+    } catch (err) {
+      logger.warn(`Failed to revoke CA token ${shareLink.tokenId} for share ${shareLinkId}`, {
+        error: err.message
+      });
+    }
+  }
 
   logger.info(`Share link revoked: ${shareLinkId}`);
   return true;

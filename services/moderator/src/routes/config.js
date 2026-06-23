@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { ContentFlag, ModerationCase } = require('../models');
+const { ModerationItem } = require('../../models');
 const { logger } = require('@exprsn/shared');
 
 // Configuration stub - these values should be moved to environment variables
@@ -98,7 +98,7 @@ async function getAIConfig() {
 }
 
 async function getModerationQueue() {
-  const pendingCases = await ModerationCase.findAll({ where: { status: 'pending' }, order: [['created_at', 'DESC']], limit: 50 });
+  const pendingCases = await ModerationItem.findAll({ where: { status: 'pending' }, order: [['created_at', 'DESC']], limit: 50 });
 
   return {
     title: 'Review Queue',

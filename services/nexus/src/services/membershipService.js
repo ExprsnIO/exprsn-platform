@@ -311,6 +311,56 @@ async function removeMember(adminUserId, groupId, targetUserId, reason = null) {
 }
 
 /**
+ * Change a member's role (admin action).
+ *
+ * Only owners/admins may act. Ownership is non-transferable through this path:
+ * the existing owner cannot be demoted and no one can be promoted to owner here
+ * (ownership transfer is a separate, deliberate operation).
+ */
+async function updateMemberRole(adminUserId, groupId, targetUserId, role) {
+  const allowedRoles = ['admin', 'moderator', 'member'];
+  if (!allowedRoles.includes(role)) {
+    throw new Error('INVALID_ROLE');
+  }
+
+  try {
+    const adminMembership = await GroupMembership.findOne({
+      where: { userId: adminUserId, groupId, status: 'active' }
+    });
+
+    if (!adminMembership || !['owner', 'admin'].includes(adminMembership.role)) {
+      throw new Error('INSUFFICIENT_PERMISSIONS');
+    }
+
+    const targetMembership = await GroupMembership.findOne({
+      where: { userId: targetUserId, groupId, status: 'active' }
+    });
+
+    if (!targetMembership) {
+      throw new Error('USER_NOT_MEMBER');
+    }
+
+    // The owner role is managed only via ownership transfer, never reassigned here.
+    if (targetMembership.role === 'owner') {
+      throw new Error('CANNOT_CHANGE_OWNER');
+    }
+
+    await targetMembership.update({ role });
+
+    // Invalidate cached membership/role for the target.
+    await redis.del(`group:${groupId}:members`);
+    await redis.del(`group:${groupId}:member:${targetUserId}`);
+
+    logger.info('Member role updated', { adminUserId, targetUserId, groupId, role });
+
+    return targetMembership;
+  } catch (error) {
+    logger.error('Error updating member role:', error);
+    throw error;
+  }
+}
+
+/**
  * Create an invite
  */
 async function createInvite(inviterId, groupId, options = {}) {
@@ -579,6 +629,7 @@ module.exports = {
   joinGroup,
   leaveGroup,
   removeMember,
+  updateMemberRole,
   createInvite,
   approveJoinRequest,
   rejectJoinRequest,

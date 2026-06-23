@@ -471,7 +471,7 @@ router.put('/conversations/:id/settings',
       // Update settings
       const updates = {};
       if (muted !== undefined) updates.muted = muted;
-      if (muteUntil !== undefined) updates.muteUntil = muteUntil;
+      if (muteUntil !== undefined) updates.mutedUntil = muteUntil;
       if (notificationsEnabled !== undefined) {
         updates.metadata = {
           ...participant.metadata,
@@ -491,7 +491,7 @@ router.put('/conversations/:id/settings',
         success: true,
         settings: {
           muted: participant.muted,
-          muteUntil: participant.muteUntil,
+          muteUntil: participant.mutedUntil,
           notificationsEnabled: participant.metadata.notificationsEnabled
         }
       });
@@ -531,7 +531,7 @@ router.get('/conversations/:id/settings',
       res.json({
         settings: {
           muted: participant.muted,
-          muteUntil: participant.muteUntil,
+          muteUntil: participant.mutedUntil,
           notificationsEnabled: participant.metadata.notificationsEnabled !== false,
           lastReadAt: participant.lastReadAt,
           lastReadMessageId: participant.lastReadMessageId
@@ -573,7 +573,7 @@ router.post('/conversations/:id/mute',
 
       await participant.update({
         muted: true,
-        muteUntil: until || null
+        mutedUntil: until || null
       });
 
       logger.info('Conversation muted', {
@@ -622,7 +622,7 @@ router.post('/conversations/:id/unmute',
 
       await participant.update({
         muted: false,
-        muteUntil: null
+        mutedUntil: null
       });
 
       logger.info('Conversation unmuted', {

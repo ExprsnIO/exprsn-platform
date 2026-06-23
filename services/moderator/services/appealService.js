@@ -215,6 +215,19 @@ class AppealService {
             status: 'appealed',
             reviewNotes: `Appeal approved: ${notes}`
           });
+
+          // Bluesky-sourced content: retract the AT-Protocol labels we issued.
+          // contentId is the at:// URI. Routed through the atproto worker.
+          if (appeal.moderationItem.sourceService === 'bluesky') {
+            try {
+              await require('./jobQueue').addNegationJob(
+                appeal.moderationItem.contentId,
+                'appeal_approved'
+              );
+            } catch (hookErr) {
+              logger.warn('Failed to enqueue atproto label negation', { error: hookErr.message });
+            }
+          }
         }
 
         // If appeal is for user action, revoke the action

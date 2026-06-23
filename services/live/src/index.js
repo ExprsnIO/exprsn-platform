@@ -128,12 +128,16 @@ app.use((err, req, res, next) => {
 
 /**
  * Attach realtime socket handlers to the shared Socket.IO server.
- * TODO(platform): verify socket/live streaming wiring
+ *
+ * The /live namespace uses optional-auth: anonymous stream viewers may connect
+ * (HLS playback + viewer tracking carry no privilege), but publish/host actions
+ * (join-room, participant-state, and all WebRTC signaling) are gated on a
+ * validated CA bearer inside SocketHandler (SP-7 / STATUS #11).
  */
 function registerSockets(io) {
   const nsp = io.of('/live');
   socketHandler = new SocketHandler(nsp);
-  logger.info('Socket.IO signaling enabled on /live namespace');
+  logger.info('Socket.IO signaling enabled on /live namespace (publish actions require CA bearer)');
   return socketHandler;
 }
 

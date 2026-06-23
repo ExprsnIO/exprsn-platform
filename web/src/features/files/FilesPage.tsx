@@ -22,10 +22,12 @@ import {
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import { useAppStore } from '@/app/store';
 import { toMessage } from '@/lib/errors';
 import { filevaultApi, type FileItem } from '@/api/filevault';
+import { ShareDialog } from './ShareDialog';
 import { formatBytes, formatDate } from './util';
 
 const FILES_KEY = ['filevault', 'files'] as const;
@@ -41,6 +43,7 @@ export function FilesPage() {
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [shareTarget, setShareTarget] = useState<FileItem | null>(null);
 
   const query = useQuery({
     queryKey: FILES_KEY,
@@ -151,6 +154,11 @@ export function FilesPage() {
                                 <DownloadIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
+                            <Tooltip title="Share">
+                              <IconButton size="small" onClick={() => setShareTarget(f)}>
+                                <ShareOutlinedIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                             <Tooltip title="Delete">
                               <IconButton
                                 size="small"
@@ -174,6 +182,15 @@ export function FilesPage() {
             </Table>
           </TableContainer>
         )
+      )}
+
+      {shareTarget && (
+        <ShareDialog
+          file={shareTarget}
+          open={!!shareTarget}
+          onClose={() => setShareTarget(null)}
+          onToast={setToast}
+        />
       )}
 
       <Snackbar

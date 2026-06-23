@@ -82,6 +82,17 @@ async function main() {
 
   attachSockets(server);
 
+  // Let modules attach raw WebSocket servers (e.g. atproto's subscribeLabels)
+  // onto the same HTTPS server. They route the 'upgrade' event by pathname, so
+  // they coexist with Socket.IO (which ignores non-/socket.io upgrades while
+  // another upgrade listener is present).
+  for (const m of loaded) {
+    if (typeof m.module.attachWsServer === 'function') {
+      m.module.attachWsServer(server);
+      logger.info(`Attached WS server for '${m.name}'`);
+    }
+  }
+
   server.listen(config.http.httpsPort, config.http.host, () => {
     const scheme = config.tlsAvailable() ? 'https' : 'http';
     logger.info(`Exprsn platform listening on ${scheme}://${config.http.host}:${config.http.httpsPort}`);

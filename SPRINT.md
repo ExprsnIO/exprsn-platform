@@ -79,12 +79,17 @@ rotation); `DEV_BYPASS` prod-inert proven and regression-locked
 committed. *Deploy-time remainder:* the managed-store injection itself (depends on
 deploy target) + setting the prod env per the checklist.
 
-### SP-4 · Real TLS at the edge — R2 · M · blocked by SP-3
+### SP-4 · Real TLS at the edge — R2 · M — ◑ verification slice DONE (2026-06-24); certs deploy-time
 Terminate real certificates at the nginx edge (`:443`) in staging. Confirm
 inter-service axios verifies in production mode (`shared/utils/httpAgent.js`
 `rejectUnauthorized` only off outside prod).
 **Acceptance:** staging served over a trusted cert; with `NODE_ENV=production`,
 loopback service calls verify TLS (no `rejectUnauthorized:false` path reachable).
+**Done (2nd half of acceptance):** audited all `rejectUnauthorized`; fixed 3
+runtime DB configs that hardcoded it off (moderator/ca/atproto) → now
+`DB_SSL_REJECT_UNAUTHORIZED`-gated; locked the agent prod-verify with
+`shared/tests/httpAgent.test.js`. *Remaining:* real cert provisioning at the edge
+(needs a domain/staging host) — genuinely deploy-time.
 
 ### SP-5 · Observability baseline — R3 · M — ✅ DONE (code, 2026-06-24); alerting deploy-time
 Wire error tracking (e.g. Sentry) into the gateway central error handler (it

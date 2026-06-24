@@ -23,9 +23,11 @@ const sequelize = new Sequelize(
       schema: 'ca'
     },
     dialectOptions: config.database.ssl ? {
+      // Verify the DB server cert by default; explicit opt-out only (matches the
+      // platform convention in src/db/sequelize.js).
       ssl: {
         require: true,
-        rejectUnauthorized: false
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
       }
     } : {}
   }

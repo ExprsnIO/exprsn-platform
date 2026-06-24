@@ -569,12 +569,26 @@ config (`.eslintrc.json` — lint had never actually run) and an aggregator
 **Remaining (manual, needs the org remote):** push to the remote and set branch
 protection on `main` requiring the `lint` + `web-build` checks.
 
-### R2. Real TLS at the edge — BLOCKING for public exposure
-Only dev self-signed certs (`npm run gen:certs`); inter-service axios clients run
-with `rejectUnauthorized` off outside production (`shared/utils/httpAgent.js`).
-Production needs real certs terminated at the nginx edge (or the gateway), and the
-loopback-trust shortcut must stay strictly dev-only. Verify `NODE_ENV=production`
-flips the agent to verifying.
+### R2. Real TLS at the edge — VERIFICATION SLICE DONE (SP-4, 2026-06-24); cert provisioning deploy-time
+Only dev self-signed certs (`npm run gen:certs`); real certs at the nginx edge are
+still deploy-time (need a domain). Done this pass — the locally-verifiable
+"no `rejectUnauthorized:false` reachable in prod" half:
+- **Audited every `rejectUnauthorized` in src/services/shared.** The shared agents
+  (`httpAgent.js`, `tls-config.js`, `httpsServer.js`) and the platform/shared DB
+  (`src/db/*`, `resilientConnection.js`) and LDAP already gate on
+  `NODE_ENV==='production'` / `DB_SSL_REJECT_UNAUTHORIZED`/`verifyCertificate`.
+- **Fixed 3 runtime DB configs that hardcoded `rejectUnauthorized:false`** (skipped
+  verification even in prod when `DB_SSL=true` → DB MITM risk): `services/
+  {moderator/config/database.js, ca/models/index.js, atproto/config/database.js}`
+  now use `DB_SSL_REJECT_UNAUTHORIZED !== 'false'` (verify by default, documented
+  opt-out).
+- **Locked** the agent's prod-verify behavior with `shared/tests/httpAgent.test.js`.
+- *Known dead code:* `services/ca/services/setup.js` still has 3 `rejectUnauthorized:
+  false` (the removed setup wizard — not required at runtime); clean up with the
+  cosmetic pass (#10).
+
+**Remaining (deploy-time):** provision/renew real certs (Let's Encrypt or managed)
+terminated at nginx `:443`, add HSTS; the `80→443` redirect already exists.
 
 ### R3. Observability — METRICS + ERROR-HOOK DONE (SP-5, 2026-06-24); alerting/log-ship deploy-time
 Baseline wired into the gateway:

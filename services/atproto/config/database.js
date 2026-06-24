@@ -33,7 +33,11 @@ module.exports = {
     logging: false,
     pool: { max: 20, min: 5, acquire: 60000, idle: 10000 },
     dialectOptions: {
-      ssl: process.env.DB_SSL === 'true' ? { require: true, rejectUnauthorized: false } : false,
+      // Verify the DB server cert by default; explicit opt-out only (matches the
+      // platform convention in src/db/sequelize.js).
+      ssl: process.env.DB_SSL === 'true'
+        ? { require: true, rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
+        : false,
     },
   },
 };

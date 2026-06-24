@@ -49,9 +49,12 @@ module.exports = {
       idle: 10000
     },
     dialectOptions: {
+      // Verify the DB server cert by default; explicit opt-out only (matches the
+      // platform convention in src/db/sequelize.js). Hardcoding `false` here
+      // skipped verification even under NODE_ENV=production (DB MITM risk).
       ssl: process.env.DB_SSL === 'true' ? {
         require: true,
-        rejectUnauthorized: false
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false'
       } : false
     }
   }

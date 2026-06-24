@@ -13,6 +13,18 @@ follow-up. Sizing is rough: S ≈ ≤1d, M ≈ 2–3d, L ≈ 4d+.
 
 ---
 
+## Progress (2026-06-24)
+
+- **SP-7 — DONE (`/live` publish/signaling auth).** The `/live` namespace is now
+  optional-auth: anonymous viewers connect (HLS + `join-stream` stay open), but the
+  handshake validates any CA bearer (`setupAuth`) and a `requireAuthed` guard fronts
+  all WebRTC signaling (`signal`/`offer`/`answer`/`ice-candidate`), `join-room`, and
+  `update-participant-state`. `join-room` binds the participant by the validated
+  `userId` (not client data). New suite `services/live/tests/socketAuth.test.js`
+  (17 tests) covers accept/reject on each publish event + the open viewer path, and
+  `live` is wired into `npm run test:all` (fully mocked — no DB/Redis). See
+  `STATUS.md` #11.
+
 ## Progress (2026-06-22)
 
 - **SP-6 — DONE (sessions feature).** `Session` rows now persist on every login
@@ -91,7 +103,7 @@ sensitive — review token lifecycle.
 sessions; revoking one invalidates that token at the CA (subsequent calls 401);
 unit + integration tests cover both login styles and revocation.
 
-### SP-7 · `/live` publish/signaling auth — #11 · M
+### SP-7 · `/live` publish/signaling auth — #11 · M — ✅ DONE (2026-06-24)
 Gate WebRTC publish/host signaling (`signal`/`offer`/`answer`/`ice-candidate`,
 `join-room`/`update-participant-state`) on a validated CA bearer; authorize
 host/broadcaster actions against that identity. Leave public viewer subscribe
@@ -125,7 +137,13 @@ Automated backups for the single `exprsn` Postgres DB; rehearse one full restore
 **Acceptance:** scheduled backup verified; a restore into a scratch DB succeeds and
 is documented (RPO/RTO noted).
 
-### SP-11 · Security review — S · blocked by SP-6, SP-7
+### SP-11 · Security review — S · blocked by SP-6, SP-7 — ✅ DONE (2026-06-24)
+Reviewed the branch diff; triaged findings; **must-fix closed** (C1 RBAC privesc,
+H1 unauth config, H2 unauth atproto SSRF, M1 user-list, M2 atproto ops reads, M3
+cross-tenant groups) with regression tests. Backlog items filed (authed SSRF,
+atproto DoS, live `to` room-scope, seed default password, permission-inspect info
+disclosure). See `STATUS.md` → "Security review of the branch (SP-11)".
+
 Run the repo's `security-review` over the sprint's changes. Re-check auth/token
 flow, per-schema isolation, CORS (`CORS_ORIGIN` never wildcards with credentials),
 `DEV_BYPASS`, and rate-limit config (`shared/middleware/rateLimiter.js`).

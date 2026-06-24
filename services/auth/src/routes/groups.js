@@ -8,6 +8,7 @@
 const express = require('express');
 const { asyncHandler, AppError, validateCAToken, validateRequired } = require('@exprsn/shared');
 const { Group, User, UserGroup } = require('../models');
+const { requireAdminAfterCA } = require('../middleware/requireAdmin');
 
 const router = express.Router();
 
@@ -16,8 +17,12 @@ function slugify(name) {
   return String(name).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-// All group routes require authentication
+// All group routes require authentication AND administrator privileges. Group
+// management is an admin-console function; without the admin gate any user with a
+// read/write token could list every org's groups+members (cross-tenant
+// disclosure) or create/modify groups in arbitrary organizations.
 router.use(validateCAToken({ requiredPermissions: ['read'] }));
+router.use(requireAdminAfterCA);
 
 /**
  * GET /api/groups

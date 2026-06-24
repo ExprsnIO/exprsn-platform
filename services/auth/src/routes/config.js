@@ -8,6 +8,13 @@ const router = express.Router();
 const { User, Organization, Role } = require('../models');
 const config = require('../config');
 const { logger } = require('@exprsn/shared');
+const { requireAdminBearer } = require('../middleware/requireAdmin');
+
+// This router exposes user/org/role/auth-method configuration to the admin
+// console. It carries no auth of its own at the mount, so guard every section
+// here: a valid CA bearer whose identity is a platform/role admin. Without this,
+// `GET /api/config/auth-users` leaks every user's email/status to anonymous callers.
+router.use(requireAdminBearer);
 
 /**
  * GET /api/config/:sectionId

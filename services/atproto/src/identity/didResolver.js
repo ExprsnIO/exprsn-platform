@@ -17,6 +17,7 @@
  */
 
 const config = require('../../config');
+const { safeFetchJson } = require('../util/safeFetch');
 
 const EXPRSN_PREFIX = 'did:exprsn:';
 const KEY_PREFIX = 'did:key:';
@@ -85,7 +86,9 @@ async function resolveDid(did, { fetchImpl = fetch } = {}) {
   }
 
   if (parsed.method === 'web') {
-    // did:web:host[%3Aport][:path...] → https://host[:port]/[path/]did.json
+    // did:web:host[%3Aport][:path...] → https://host[:port]/[path/]did.json.
+    // The authority is caller-controlled, so the fetch goes through safeFetchJson
+    // (host allowlist + no redirects + size cap) to neutralize SSRF.
     const rest = parsed.id.split(':');
     const authority = decodeURIComponent(rest[0]);
     const pathParts = rest.slice(1);
@@ -93,9 +96,8 @@ async function resolveDid(did, { fetchImpl = fetch } = {}) {
       ? `https://${authority}/${pathParts.join('/')}/did.json`
       : `https://${authority}/.well-known/did.json`;
     try {
-      const res = await fetchImpl(url);
-      if (!res.ok) return null;
-      const doc = await res.json();
+      const doc = await safeFetchJson(url, { fetchImpl });
+      if (!doc) return null;
       const vm = (doc.verificationMethod || []).find((v) => v.id.endsWith('#atproto_label'));
       return { doc, publicKeyMultibase: vm ? vm.publicKeyMultibase : null };
     } catch (_) {
@@ -105,11 +107,14 @@ async function resolveDid(did, { fetchImpl = fetch } = {}) {
 
   if (parsed.method === 'plc') {
     // Resolve via the PLC directory, which serves the DID document directly.
+    // Validate the PLC id shape (24 base32 chars) so an attacker can't smuggle
+    // path traversal (`did:plc:..%2f..`) into the directory request; the colons
+    // must stay literal, so we can't URL-encode the whole DID.
+    if (!/^[a-z2-7]{24}$/.test(parsed.id)) return null;
     const base = config.labeler.plcDirectoryUrl || 'https://plc.directory';
     try {
-      const res = await fetchImpl(`${base}/${did}`);
-      if (!res.ok) return null;
-      const doc = await res.json();
+      const doc = await safeFetchJson(`${base}/${did}`, { fetchImpl });
+      if (!doc) return null;
       const vm = (doc.verificationMethod || []).find((v) => v.id.endsWith('#atproto_label'));
       return { doc, publicKeyMultibase: vm ? vm.publicKeyMultibase : null };
     } catch (_) {

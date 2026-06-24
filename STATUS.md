@@ -42,6 +42,109 @@ npm start              # https://localhost:8443  → GET /health
 
 ## Recently resolved
 
+### Security review of the branch (SP-11) — must-fix closed 2026-06-24
+Ran a security review over the `feat/admin-console-rbac-typed-config` branch diff
+(atproto bridge, admin/RBAC console, `/live` auth, filevault sharing, nexus
+groups) against the SP-11 checklist. Triaged findings into must-fix vs backlog;
+all must-fix are now closed (with regression tests where infra-free).
+
+**Fixed (must-fix):**
+- **C1 — RBAC privilege escalation (CRITICAL).** `POST /auth/api/roles/:id/
+  assign-user` (+ `revoke-user`/`assign-group`/`revoke-group`) had `requireAuth`
+  but **no authorization** — any authenticated user could grant themselves any
+  role incl. admin. Added `canManageRole()` (platform-admin email OR org
+  owner/admin for org roles OR `*` perm for global roles) to all four, and to
+  `PATCH`/`DELETE /:id` (which previously checked only org-scoped roles, leaving
+  global roles open). `PATCH` also now **whitelists** mutable fields (was
+  `role.update(req.body)` — mass-assignment of `isSystem`/`organizationId`/etc).
+- **H1 — `/auth/api/config/*` unauthenticated (HIGH).** The router had no guard at
+  its mount → anonymous `GET /auth/api/config/auth-users` leaked every user's
+  email/status. Now `router.use(requireAdminBearer)`.
+- **H2 — unauthenticated SSRF via `POST /atproto/labels/verify` (HIGH).**
+  `resolveDid` fetched caller-controlled `did:web`/`did:plc` hosts with no guard.
+  New `services/atproto/src/util/safeFetch.js`: https-only, rejects private/
+  loopback/link-local/ULA/reserved addresses (IP literal **and** DNS-resolved),
+  `redirect:'manual'`, timeout, streamed size cap. `didResolver` routes both
+  fetches through it; `did:plc` ids are format-validated (`[a-z2-7]{24}`) to block
+  path traversal.
+- **M1 — `GET /auth/api/users` (MEDIUM).** Required only a `read` token (every user
+  has one) → full directory + `mfaEnabled` enumeration. Added `requireAdminAfterCA`.
+- **M2 — atproto ops GET routes (MEDIUM).** `/identity`,`/stats`,`/inbound-labels`,
+  `/external-labelers` were unauthenticated (leaked moderation decisions + labeler
+  infra). Now behind `adminGuard`; `/health` + the public `/service-record`/
+  `/feed-record` protocol declarations stay open.
+- **M3 — cross-tenant groups (MEDIUM).** `auth/src/routes/groups.js` let any
+  read/write token list/create/modify groups in any org. Whole router now requires
+  admin (`requireAdminAfterCA`).
+
+New shared guard: `services/auth/src/middleware/requireAdmin.js`
+(`requireAdminBearer`/`requireAdminAfterCA`/`requireAdminUser`) — JSON 401/403,
+authorizes via platform-admin email **OR** DB admin role (the legacy
+`adminAuth.js` redirects/renders HTML and must not gate JSON APIs). Tests:
+`services/atproto/tests/{safeFetch,didResolverSsrf}.test.js` (46) +
+`services/auth/tests/requireAdmin.test.js` (9), all green; lint clean.
+
+**Verified clean:** CORS never pairs wildcard with credentials; `DEV_BYPASS`
+fail-closed; rate-limit/shared unchanged; filevault sharing owner-scoped (UUID
+capability + CA revoke); SP-7 `/live` auth correct; atproto signature verify &
+proof-of-control no bypass; no SQLi; `.env.example` placeholders only.
+
+**Backlog (triaged, not blocking):**
+- Authenticated SSRF via DID link / proof-of-control (`userDidService`/
+  `proofOfControl` fetch) — route through `safeFetch` too.
+- atproto DoS: unbounded `res.json()` in `pdsClient`/`appviewClient`, no `ws`
+  `maxPayload` in `labelConsumer`; `subscribeLabels.js:52` `BigInt(cursor)` crash
+  on bad input.
+- `/live` WebRTC relays to a client-supplied `to` socket with no shared-room check
+  (authed-only).
+- Seed scripts: shared committed default password + no `NODE_ENV==='production'`
+  guard (`scripts/seed/common.js`).
+- `roles.js` `GET users/:userId/permissions` + `POST check-permission` let any
+  authed user inspect another user's permissions (info disclosure).
+
+### atproto / Bluesky bridge — landed + integration-reviewed (2026-06-23) — UNIT-TESTED, not yet runtime-verified
+The AT-Protocol bridge (`services/atproto`, module `/atproto`, schema `atproto`)
+is committed and wired into the gateway. Scope: firehose ingest → existing
+moderation pipeline; signed labeler (`com.atproto.label` sign / queryLabels /
+subscribeLabels); `did:exprsn` self-certifying identity + per-user DIDs with
+proof-of-control; and the external-labeler ingest mesh. Reviewed the three
+systems (Bluesky ↔ moderation ↔ cert/auth) end-to-end against each other and
+confirmed the integration contracts line up:
+- **Queue join is correct.** atproto and moderator share one Bull `moderation`
+  queue (same Redis, `db` default 3, same prefix) with distinct job names
+  (`moderate-atproto` / `negate-atproto` / `ingest-label-atproto`) and dedicated
+  processors — no collision with the moderator's `moderate-content`.
+- **Verdict→label + appeal→negation wired.** `moderationService` result shape
+  (`action`, `scores.*`) matches `verdictMapper`; appeal approval on Bluesky
+  content enqueues `negate-atproto` (single-writer, ordered `seq`).
+- **Sign/verify symmetric; inbound labels are signature-verified before trust.**
+- **CA/auth integration:** user-DID mutations gated by `validateCAToken`
+  (owner-match) + service-token admin; `did:exprsn` resolves offline.
+- **Gateway wiring:** non-standard exports work — `rootApp` mounted at `/`
+  before the 404/error handlers (`.well-known/*`, `/xrpc/*`), `attachWsServer`
+  attaches the subscribeLabels WS alongside Socket.IO.
+- **Two fixes applied this pass:** `require_review`/`escalate` actions now emit a
+  soft `!warn` (were unlabeled); the ingest path skips cleanly with a one-time
+  warning when no AI provider is configured instead of retry-storming the queue.
+- **Tests:** full atproto Jest suite green (8 suites / 29 tests) — verdict
+  mapping, sign/verify, inbound-label consume, did:exprsn, proof-of-control.
+
+Still open (NOT yet done):
+- **Runtime verification against a live firehose + worker** (`npm run
+  worker:atproto`) — no end-to-end run yet. This also exercises the moderator
+  raw-SQL `search_path` coupling (#1): confirm a `moderate-atproto` job lands a
+  row in `moderator.moderation_items`.
+- **Pipeline needs ≥1 AI provider key** (CLAUDE/OPENAI/DEEPSEEK); with none,
+  ingest jobs now skip (loud warning) rather than moderate.
+- **`cborg` is an undeclared direct dep** (used by the firehose/inbound decoder;
+  present only transitively) and `services/atproto/package.json` declares no
+  deps — relies on hoisted root deps. Declare `cborg` explicitly.
+- **`ATPROTO_ENABLED` is not enforced** — the worker connects and the gateway
+  mounts routes regardless; the flag is informational (disable = don't run the
+  worker).
+- **did:plc public provisioning** is a two-phase manual flow; did:web/did:exprsn
+  are the automated paths.
+
 ### MVP-readiness pass — socket auth, worker drain, route ordering (2026-06-18) — RUNTIME-VERIFIED
 Booted the full stack (Docker PG/Redis/nginx + gateway + both workers) and worked
 the open punch-list items against it. Fixed three live bugs and verified the rest;
@@ -407,16 +510,29 @@ checked at the API level:
   tokens,users,groups,roles}.js` are now empty routers (real API under `/api`,
   `/admin`).
 
-### 11. Live (`/live`) publish/signaling auth — MVP-BLOCKING (2026-06-22 scope decision)
-The `/live` Socket.IO namespace has no handshake auth (fine for public stream
-viewers), but its WebRTC signaling events (`signal`/`offer`/`answer`/`ice-candidate`,
-`join-room`/`update-participant-state` in `services/live/src/sockets/index.js`)
-are not gated on a validated identity. **Streaming publish is now in MVP scope, so
-this is blocking.** Add per-event auth: validate a CA bearer on connect, mark the
-socket identity, and authorize host/broadcaster actions (publish/`offer`/room
-ownership) against it while leaving pure viewer subscribe paths open. Keep viewer
-latency unaffected — only the publish/host events need the gate. Tracked as a
-sprint ticket. Surfaced during socket verification (#3).
+### 11. Live (`/live`) publish/signaling auth — RESOLVED 2026-06-24 (SP-7)
+The `/live` Socket.IO namespace now uses **optional-auth**: anonymous stream
+viewers still connect (HLS playback + `join-stream`/`leave-stream` viewer tracking
+carry no privilege and stay open — viewer connect latency unaffected), but every
+publish/host action is gated on a validated CA bearer.
+- **Handshake (`setupAuth`, `services/live/src/sockets/index.js`):** validates any
+  presented bearer via the CA `/api/tokens/validate` (HMAC service headers, same
+  pattern as the timeline/moderator socket validators) and stamps
+  `socket.authenticated`/`socket.userId`/`socket.userEmail`. It **never rejects** a
+  connection — a missing/invalid/unverifiable token just yields an anonymous
+  (viewer-only) socket, so a CA hiccup can't lock viewers out.
+- **`requireAuthed` guard** fronts all WebRTC signaling (`signal`/`offer`/`answer`/
+  `ice-candidate`), `join-room`, and `update-participant-state`; unauthed callers
+  get an `error`/`UNAUTHENTICATED` and the action is dropped (no peer forward, no DB
+  lookup). `join-room` binds the participant by the **validated** `socket.userId`
+  (not client-supplied data), so a socket cannot claim another user's slot, and
+  `update-participant-state` only mutates the slot the socket owns.
+- **Tests:** `services/live/tests/socketAuth.test.js` (17 tests) drives accept/reject
+  on the handshake and on each publish event, plus the open viewer path. Wired into
+  `npm run test:all` (`live` added to the aggregator; the suite is fully mocked — no
+  DB/Redis needed).
+- Wiring: `registerSockets(io)` mounts `SocketHandler` on the `/live` namespace
+  (`services/live/src/index.js`). Surfaced during socket verification (#3).
 
 ### 12. Org 2FA policy enforcement — NOT WIRED (UI-only as of 2026-06-22)
 The admin "Auth & Identity" → Organizations tab now has a **2FA policy** editor

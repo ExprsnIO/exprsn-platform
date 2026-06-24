@@ -11,10 +11,31 @@ const { Role, Permission, UserRole, GroupRole } = require('../models');
 const rbacService = require('../services/rbacService');
 const organizationService = require('../services/organizationService');
 const { requireAuth } = require('../middleware/requireAuth');
+const { isPlatformAdmin } = require('@exprsn/shared/utils/platformAdmin');
 
 /** Derive a URL-safe slug from a display name (slug is required + unique per org). */
 function slugify(name) {
   return String(name).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Authorize a role mutation (assign/revoke/update/delete) for the current user.
+ *
+ * Previously the assign/revoke routes had NO authorization at all — any
+ * authenticated user could grant themselves any role (incl. admin). Authorize as:
+ *   - platform admins (email allowlist) → any role;
+ *   - org-scoped roles → that org's owner/admin;
+ *   - global/system roles → a holder of the `*` (system) permission.
+ */
+async function canManageRole(req, role) {
+  if (isPlatformAdmin(req.user && req.user.email)) {
+    return true;
+  }
+  if (role && role.organizationId) {
+    return organizationService.isOwnerOrAdmin(role.organizationId, req.user.id);
+  }
+  const perm = await rbacService.checkPermission(req.user.id, '*');
+  return Boolean(perm && perm.allowed);
 }
 
 /**
@@ -193,18 +214,26 @@ router.patch('/:id', requireAuth, async (req, res, next) => {
       });
     }
 
-    // Check permissions
-    if (role.organizationId) {
-      const isOwnerOrAdmin = await organizationService.isOwnerOrAdmin(role.organizationId, req.user.id);
-      if (!isOwnerOrAdmin) {
-        return res.status(403).json({
-          error: 'FORBIDDEN',
-          message: 'Only organization owners and admins can update roles'
-        });
-      }
+    // Authorize (global roles previously had NO check here).
+    if (!(await canManageRole(req, role))) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: 'You do not have permission to update this role'
+      });
     }
 
-    await role.update(req.body);
+    // Whitelist mutable fields — never allow mass-assignment of scope/identity
+    // fields (id, isSystem, organizationId, slug, type) that would escalate or
+    // re-scope the role.
+    const { name, description, permissions, priority, color } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (description !== undefined) updates.description = description;
+    if (permissions !== undefined) updates.permissions = permissions;
+    if (priority !== undefined) updates.priority = priority;
+    if (color !== undefined) updates.color = color;
+
+    await role.update(updates);
 
     res.json({
       success: true,
@@ -238,15 +267,12 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
       });
     }
 
-    // Check permissions
-    if (role.organizationId) {
-      const isOwnerOrAdmin = await organizationService.isOwnerOrAdmin(role.organizationId, req.user.id);
-      if (!isOwnerOrAdmin) {
-        return res.status(403).json({
-          error: 'FORBIDDEN',
-          message: 'Only organization owners and admins can delete roles'
-        });
-      }
+    // Authorize (global roles previously had NO check here).
+    if (!(await canManageRole(req, role))) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: 'You do not have permission to delete this role'
+      });
     }
 
     await role.destroy();
@@ -267,6 +293,14 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
 router.post('/:id/assign-user', requireAuth, async (req, res, next) => {
   try {
     const { userId, organizationId, applicationId, expiresAt } = req.body;
+
+    const role = await Role.findByPk(req.params.id);
+    if (!role) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Role not found' });
+    }
+    if (!(await canManageRole(req, role))) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'You do not have permission to assign this role' });
+    }
 
     const userRole = await rbacService.assignRoleToUser(userId, req.params.id, {
       organizationId,
@@ -292,6 +326,14 @@ router.post('/:id/revoke-user', requireAuth, async (req, res, next) => {
   try {
     const { userId, organizationId, applicationId } = req.body;
 
+    const role = await Role.findByPk(req.params.id);
+    if (!role) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Role not found' });
+    }
+    if (!(await canManageRole(req, role))) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'You do not have permission to revoke this role' });
+    }
+
     const userRole = await rbacService.revokeRoleFromUser(userId, req.params.id, {
       organizationId,
       applicationId
@@ -313,6 +355,14 @@ router.post('/:id/revoke-user', requireAuth, async (req, res, next) => {
 router.post('/:id/assign-group', requireAuth, async (req, res, next) => {
   try {
     const { groupId, organizationId, applicationId } = req.body;
+
+    const role = await Role.findByPk(req.params.id);
+    if (!role) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Role not found' });
+    }
+    if (!(await canManageRole(req, role))) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'You do not have permission to assign this role' });
+    }
 
     const groupRole = await rbacService.assignRoleToGroup(groupId, req.params.id, {
       organizationId,
@@ -336,6 +386,14 @@ router.post('/:id/assign-group', requireAuth, async (req, res, next) => {
 router.post('/:id/revoke-group', requireAuth, async (req, res, next) => {
   try {
     const { groupId, organizationId, applicationId } = req.body;
+
+    const role = await Role.findByPk(req.params.id);
+    if (!role) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Role not found' });
+    }
+    if (!(await canManageRole(req, role))) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'You do not have permission to revoke this role' });
+    }
 
     const groupRole = await rbacService.revokeRoleFromGroup(groupId, req.params.id, {
       organizationId,

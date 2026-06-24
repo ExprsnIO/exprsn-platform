@@ -4,8 +4,12 @@
  *
  * Operational + admin surface for the bridge: health, identity status, the
  * service-record declaration, label stats, and manual labeling. Mutating
- * endpoints are guarded by adminGuard — a platform-admin CA bearer (so console
- * operators can act) OR the admin service token (server-to-server).
+ * endpoints AND the sensitive operational reads (identity/stats/inbound-labels/
+ * external-labelers — they leak moderation decisions + labeler infra state) are
+ * guarded by adminGuard — a platform-admin CA bearer (so console operators can
+ * act) OR the admin service token (server-to-server). Left open: /health, and the
+ * /service-record + /feed-record protocol declarations (public by design — they
+ * are published to the atproto network).
  * ═══════════════════════════════════════════════════════════
  */
 
@@ -26,7 +30,7 @@ function createOpsRouter(models) {
     res.json({ ok: true, enabled: config.enabled, transport: config.firehose.transport });
   });
 
-  router.get('/identity', async (req, res) => {
+  router.get('/identity', adminGuard, async (req, res) => {
     const active = await identityService.loadActive(models);
     res.json({
       did: (active && active.did) || config.labeler.did || null,
@@ -50,7 +54,7 @@ function createOpsRouter(models) {
     res.json({ rkey: config.feed.rkey, uri: feedRecord.feedUri(did), record: feedRecord.buildGeneratorRecord(did) });
   });
 
-  router.get('/stats', async (req, res) => {
+  router.get('/stats', adminGuard, async (req, res) => {
     try {
       const [total, max, inbound, counts] = await Promise.all([
         models.Label.count(),
@@ -65,7 +69,7 @@ function createOpsRouter(models) {
   });
 
   // Inbound labels consumed from external labelers (INGEST). Filter by uri/src.
-  router.get('/inbound-labels', async (req, res) => {
+  router.get('/inbound-labels', adminGuard, async (req, res) => {
     try {
       const where = {};
       if (req.query.uri) where.uri = String(req.query.uri);
@@ -85,7 +89,7 @@ function createOpsRouter(models) {
   });
 
   // Status of the labelers we subscribe to.
-  router.get('/external-labelers', async (req, res) => {
+  router.get('/external-labelers', adminGuard, async (req, res) => {
     try {
       const rows = await models.ExternalLabeler.findAll({ order: [['endpoint', 'ASC']] });
       res.json({

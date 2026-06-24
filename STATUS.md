@@ -598,12 +598,25 @@ hosted) scraper at `/metrics`; alert on `/health` degradation + process crash
 (external uptime monitor / process supervisor); ship Winston logs to durable
 storage. These can't be exercised locally without a monitoring target.
 
-### R4. Secrets & production config — BLOCKING
-All config is `.env`-based (`src/config/index.js`). Production needs managed
-secrets and a rotation story for `SERVICE_TOKEN_SECRET` (HMAC service tokens),
-session secrets, and DB/Redis creds. Hard-verify the `DEV_BYPASS` path is
-impossible in prod (it is fail-closed: secret header + loopback + `NODE_ENV=
-development`, but confirm the deploy sets `NODE_ENV=production`).
+### R4. Secrets & production config — RUNBOOK + DEV_BYPASS PROOF DONE (SP-3, 2026-06-24); managed-store wiring deploy-time
+All config is `.env`-based (`src/config/index.js`); **no secrets are committed**
+(verified — only `*.env.example` tracked). Done this pass:
+- **Rotation runbook** `docs/runbooks/secrets-and-rotation.md`: full secret
+  inventory + blast radius, a production readiness checklist (`NODE_ENV=production`,
+  no `change_me`/empty placeholders, `DB_SSL=true`, `DEV_BYPASS` off, real
+  `CORS_ORIGIN`), and per-secret rotation procedures (notably `SERVICE_TOKEN_SECRET`
+  = re-key all service tokens + rolling restart of platform & workers;
+  `ATPROTO_USER_DID_SECRET` = effectively permanent).
+- **`DEV_BYPASS` proven fail-closed in prod.** The `bypassConfigured()` gate
+  (`shared/middleware/devBypass.js`) requires `NODE_ENV==='development'` first, so
+  prod is inert regardless of header/secret/loopback. Locked by
+  `shared/tests/devBypass.test.js` (11 tests; prod/staging/test/undefined all
+  inert even with a valid secret + loopback + header; `bypassCA`/`bypassAuth`
+  inject nothing in prod). Wired into `npm run test:all` (added `shared`).
+
+**Remaining (deploy-time):** inject secrets from a managed store (Docker/Compose
+secrets or a cloud manager) instead of a disk `.env`; set the prod env per the
+checklist; automated rotation is out of scope (manual procedure documented).
 
 ### R5. Load / throughput verification — BLOCKING (none done)
 Nothing has been exercised under concurrency — no load test against the realtime

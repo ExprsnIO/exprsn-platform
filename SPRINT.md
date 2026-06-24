@@ -66,13 +66,18 @@ CI on every PR running `npm run lint`, the per-module Jest suites, and
 **Acceptance:** PR shows a green required check; a deliberately broken test fails
 the build; `web:build` (tsc) gates merges.
 
-### SP-3 · Secrets & production config — R4 · M
+### SP-3 · Secrets & production config — R4 · M — ✅ DONE (runbook+proof, 2026-06-24); managed-store deploy-time
 Move production config off bare `.env` to a managed secret store. Document a
 rotation procedure for `SERVICE_TOKEN_SECRET`, session secrets, DB/Redis creds.
 Hard-verify `DEV_BYPASS` cannot engage in prod (`NODE_ENV=production` set; bypass
 is fail-closed on loopback + secret header + dev env).
 **Acceptance:** staging boots with zero secrets in the image/repo; a written
 runbook proves `DEV_BYPASS` is inert in prod; rotation steps documented.
+**Done:** `docs/runbooks/secrets-and-rotation.md` (inventory + checklist +
+rotation); `DEV_BYPASS` prod-inert proven and regression-locked
+(`shared/tests/devBypass.test.js`, 11 tests, in `test:all`); confirmed no secrets
+committed. *Deploy-time remainder:* the managed-store injection itself (depends on
+deploy target) + setting the prod env per the checklist.
 
 ### SP-4 · Real TLS at the edge — R2 · M · blocked by SP-3
 Terminate real certificates at the nginx edge (`:443`) in staging. Confirm

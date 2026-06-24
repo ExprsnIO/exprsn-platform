@@ -132,10 +132,15 @@ Watch PG/Redis headroom, socket fan-out, queue drain, memory (no OOM under burst
 **Acceptance:** documented run at target concurrency with no errors/OOM; bottle-
 necks filed as follow-ups; sign-off that single-instance holds expected MVP load.
 
-### SP-10 · Backup / restore rehearsal — R6 · S · blocked by SP-3
+### SP-10 · Backup / restore rehearsal — R6 · S — ✅ DONE locally (2026-06-24)
 Automated backups for the single `exprsn` Postgres DB; rehearse one full restore.
 **Acceptance:** scheduled backup verified; a restore into a scratch DB succeeds and
 is documented (RPO/RTO noted).
+**Done:** `npm run db:backup` / `npm run db:restore` (`scripts/backup/`); restore
+rehearsed (119 tables/12 schemas, clean, counts matched live); runbook + RPO/RTO in
+`scripts/backup/README.md`. *Deploy-time remainder:* wire the cron schedule,
+secret-store `DB_PASSWORD` (SP-3), off-host dump shipping. Not blocked by SP-3 for
+the tooling itself (only the prod scheduling/secrets ride on it).
 
 ### SP-11 · Security review — S · blocked by SP-6, SP-7 — ✅ DONE (2026-06-24)
 Reviewed the branch diff; triaged findings; **must-fix closed** (C1 RBAC privesc,

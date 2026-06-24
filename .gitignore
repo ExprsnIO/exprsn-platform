@@ -30,6 +30,9 @@ logs/
 # ─── Runtime data (filevault blobs, CA working dir, etc.) ────────────────────
 data/
 
+# ─── Database backups (pg_dump archives + restore logs) ──────────────────────
+backups/
+
 # ─── Test / coverage output ──────────────────────────────────────────────────
 coverage/
 **/coverage/

@@ -596,9 +596,18 @@ Nothing has been exercised under concurrency — no load test against the realti
 (Socket.IO) or queue (Bull) paths, and no sizing of the single PG/Redis. Run a
 representative load pass before MVP, even single-instance.
 
-### R6. Backup / restore — BLOCKING (untested)
-The single `exprsn` Postgres DB has no verified backup/restore procedure. Stand up
-automated backups and rehearse a restore once before release.
+### R6. Backup / restore — TOOLING DONE + REHEARSED locally (SP-10, 2026-06-24)
+Backup/restore tooling now exists and a restore has been rehearsed. `scripts/
+backup/pg-backup.sh` (`npm run db:backup`) takes a verified custom-format
+`pg_dump -Fc` of the single `exprsn` DB with retention (default 7);
+`scripts/backup/pg-restore.sh` (`npm run db:restore`) restores into a **scratch**
+DB (never the live one without `FORCE_OVERWRITE=yes`) and verifies by comparing
+the table inventory against live. **Rehearsed 2026-06-24:** 119 tables across 12
+schemas restored cleanly (zero `pg_restore` errors), counts matched live, scratch
+DB dropped. Runbook + RPO/RTO in `scripts/backup/README.md` (RPO≈24h nightly,
+RTO≈minutes). **Remaining for a real deploy:** schedule the nightly cron, source
+`DB_PASSWORD` from the secret store (SP-3), and ship dumps off-host. WAL/PITR is
+post-MVP.
 
 ## Source of truth
 - Module list / prefixes / schemas / namespaces: `src/modules/registry.js`

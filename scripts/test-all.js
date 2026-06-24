@@ -22,7 +22,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Modules that currently ship Jest suites (see each services/<m>/tests).
-const MODULES = ['auth', 'nexus', 'timeline', 'moderator', 'spark'];
+const MODULES = ['auth', 'nexus', 'timeline', 'moderator', 'spark', 'live'];
 
 const repoRoot = path.resolve(__dirname, '..');
 const results = [];

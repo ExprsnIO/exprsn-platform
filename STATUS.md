@@ -576,13 +576,27 @@ Production needs real certs terminated at the nginx edge (or the gateway), and t
 loopback-trust shortcut must stay strictly dev-only. Verify `NODE_ENV=production`
 flips the agent to verifying.
 
-### R3. Observability — BLOCKING (thin today)
-Logging is Winston only; there is **no metrics, tracing, or error tracking**
-(`prom-client`/OpenTelemetry/Sentry are absent). `/health` aggregates module
-health but nothing watches it. Minimum for MVP: ship logs somewhere durable, add
-error tracking (e.g. Sentry), and alert on `/health` + process crash. Metrics
-(`prom-client` on the gateway) is a strong should-have given the realtime/queue
-surfaces.
+### R3. Observability — METRICS + ERROR-HOOK DONE (SP-5, 2026-06-24); alerting/log-ship deploy-time
+Baseline wired into the gateway:
+- **Metrics (`prom-client`).** `GET /metrics` (Prometheus format) exposes process/
+  runtime defaults + `http_requests_total` / `http_request_duration_seconds`
+  (labelled by method, **module-prefix route** to bound cardinality, status) +
+  `socketio_connected_clients`. Code in `src/observability/metrics.js`, wired in
+  `src/gateway.js` (request middleware + endpoint + socket gauge). Optional
+  `METRICS_TOKEN` bearer-gates the endpoint; otherwise network-restrict it.
+  Verified via supertest: `/metrics` 401 without token, 200 with, real series
+  present; `/health` 200.
+- **Error tracking hook.** `src/observability/errorTracking.js` —
+  `captureException` is called from the gateway central error handler keyed by the
+  existing `correlationId`. **Opt-in:** activates only when `SENTRY_DSN` is set AND
+  `@sentry/node` is installed (`npm install @sentry/node`); otherwise a safe no-op
+  (verified). Init runs first in `src/index.js` so startup failures report too.
+- `.env.example` documents `METRICS_ENABLED`/`METRICS_TOKEN`/`SENTRY_DSN`.
+
+**Remaining (deploy-time, needs an environment):** point a Prometheus/Grafana (or
+hosted) scraper at `/metrics`; alert on `/health` degradation + process crash
+(external uptime monitor / process supervisor); ship Winston logs to durable
+storage. These can't be exercised locally without a monitoring target.
 
 ### R4. Secrets & production config — BLOCKING
 All config is `.env`-based (`src/config/index.js`). Production needs managed

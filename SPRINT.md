@@ -81,12 +81,19 @@ inter-service axios verifies in production mode (`shared/utils/httpAgent.js`
 **Acceptance:** staging served over a trusted cert; with `NODE_ENV=production`,
 loopback service calls verify TLS (no `rejectUnauthorized:false` path reachable).
 
-### SP-5 · Observability baseline — R3 · M · blocked by SP-3
+### SP-5 · Observability baseline — R3 · M — ✅ DONE (code, 2026-06-24); alerting deploy-time
 Wire error tracking (e.g. Sentry) into the gateway central error handler (it
 already mints correlation ids). Alert on `/health` degradation and process crash.
 Stretch: `prom-client` metrics on the gateway (request, socket, queue depth).
 **Acceptance:** a thrown error surfaces in the tracker with correlation id; a
 forced `/health` failure pages/notifies; logs ship to durable storage.
+**Done:** `prom-client` metrics on `GET /metrics` (HTTP + socket + defaults,
+token-optional) and a `captureException` hook in the central error handler keyed
+by correlationId (opt-in Sentry — no-op unless `SENTRY_DSN`+`@sentry/node`). Wired
+in `src/observability/*` + `src/{gateway,index,config}.js`; supertest-verified.
+*Deploy-time remainder:* scraper + `/health`/crash alerting + durable log shipping
+(need a monitoring target). The "thrown error → tracker" acceptance needs a real
+`SENTRY_DSN` to fully demonstrate; the hook + no-op path are verified.
 
 ---
 

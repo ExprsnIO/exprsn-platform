@@ -68,6 +68,17 @@ const config = {
   // No insecure default — undefined when unset. Prefer SERVICE_TOKEN_SECRET
   // derived per-service tokens (see shared/utils/serviceToken.js).
   serviceToken: process.env.SERVICE_TOKEN,
+
+  // Observability (SP-5 / R3). Prometheus metrics on /metrics (optionally token-
+  // gated); error tracking activates only when SENTRY_DSN is set.
+  metrics: {
+    enabled: bool(process.env.METRICS_ENABLED, true),
+    // When set, GET /metrics requires `Authorization: Bearer <token>`.
+    token: process.env.METRICS_TOKEN || null,
+  },
+  sentry: {
+    dsn: process.env.SENTRY_DSN || null,
+  },
 };
 
 // Resolve the public base URL each module is reachable at, now that they share

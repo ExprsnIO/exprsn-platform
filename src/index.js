@@ -9,6 +9,7 @@ const config = require('./config');
 const { MODULES } = require('./modules/registry');
 const { buildGateway } = require('./gateway');
 const { closeAll } = require('./db/sequelize');
+const { initErrorTracking } = require('./observability/errorTracking');
 
 // Minimal logger; modules bring their own winston loggers internally.
 const logger = {
@@ -60,6 +61,9 @@ function startHttpRedirect() {
 }
 
 async function main() {
+  // Init error tracking first so startup/init failures can be reported too.
+  initErrorTracking(config, logger);
+
   const loaded = await loadModules();
   await initModules(loaded);
 

@@ -10,6 +10,8 @@ const { Server: SocketServer } = require('socket.io');
 const config = require('./config');
 const { collectHealth } = require('./health');
 const { renderHealthPage } = require('./healthPage');
+const { httpMetricsMiddleware, instrumentSockets, metricsHandler } = require('./observability/metrics');
+const { captureException } = require('./observability/errorTracking');
 
 /**
  * Resolve the CORS origin setting from CORS_ORIGIN (comma-separated allowlist).
@@ -51,6 +53,12 @@ function buildGateway(loadedModules, logger) {
   app.use(cors({ origin: corsOrigin, credentials: true }));
   app.use(compression());
 
+  // Record request metrics for every route (incl. /health). Mounted before the
+  // routes so the timer wraps the whole handler chain.
+  if (config.metrics.enabled) {
+    app.use(httpMetricsMiddleware);
+  }
+
   // Aggregate health: platform/system metadata, mounted modules, live probes of
   // every backing dependency (Postgres, Redis, Elasticsearch, RabbitMQ) and the
   // host's Docker containers. Browsers (Accept: text/html) get a live dashboard
@@ -78,6 +86,18 @@ function buildGateway(loadedModules, logger) {
       res.status(503).json({ status: 'unhealthy', service: 'exprsn-platform', error: 'health_check_failed' });
     }
   });
+
+  // Prometheus metrics endpoint. Optionally token-gated (METRICS_TOKEN); in any
+  // case it should be network-restricted to the scrape target in production.
+  if (config.metrics.enabled) {
+    app.get('/metrics', (req, res, next) => {
+      const token = config.metrics.token;
+      if (token && req.get('authorization') !== `Bearer ${token}`) {
+        return res.status(401).json({ error: 'unauthorized' });
+      }
+      return metricsHandler(req, res).catch(next);
+    });
+  }
 
   // Mount each domain module under its prefix. Each module keeps its own
   // internal route tree (/api/...), so /spark/api/conversations etc.
@@ -109,6 +129,9 @@ function buildGateway(loadedModules, logger) {
     const status = err.status || err.statusCode || 500;
     const correlationId = crypto.randomUUID();
     logger.error(`Gateway error [${correlationId}] on ${req.method} ${req.path}: ${err.message}\n${err.stack || ''}`);
+    // Report to the error tracker (no-op unless Sentry is configured), keyed by
+    // the same correlation id we return to the client.
+    captureException(err, { correlationId, method: req.method, path: req.path, status });
     res.status(status).json({
       error: err.code || 'internal_error',
       message: 'An unexpected error occurred',
@@ -121,6 +144,9 @@ function buildGateway(loadedModules, logger) {
       cors: { origin: resolveCorsOrigin(config.http.corsOrigin), credentials: true },
       path: '/socket.io',
     });
+    if (config.metrics.enabled) {
+      instrumentSockets(io);
+    }
     for (const m of loadedModules) {
       if (typeof m.module.registerSockets === 'function') {
         m.module.registerSockets(io);

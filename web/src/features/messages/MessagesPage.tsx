@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Alert, Box, Chip, Paper, Stack, Typography } from '@mui/material';
 import { useAppStore } from '@/app/store';
 import { NS } from '@/lib/realtime';
@@ -22,7 +23,10 @@ const CHIP_COLOR: Record<ConnState, 'success' | 'warning' | 'default' | 'error'>
 export function MessagesPage() {
   const userId = useAppStore((s) => s.user?.id);
   const conn = useNamespaceStatus(NS.spark);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Allow deep-linking to a conversation (e.g. the "Message" button on a profile
+  // navigates to /messages?c=<id>). Falls back to no selection.
+  const [searchParams] = useSearchParams();
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('c'));
 
   if (!userId) return <Alert severity="error">Not signed in.</Alert>;
 

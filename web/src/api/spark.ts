@@ -125,6 +125,10 @@ export const sparkApi = {
   listConversations: () =>
     http.get<{ conversations: Conversation[] }>('/spark/api/conversations'),
 
+  /** Start (or define) a conversation. For a 1:1 DM, type='direct' with a single participant. */
+  createConversation: (input: { type: ConversationType; participantIds: string[]; name?: string }) =>
+    http.post<{ conversation: Conversation }>('/spark/api/conversations', input),
+
   getConversation: (id: string) =>
     http.get<{ conversation: Conversation }>(`/spark/api/conversations/${id}`),
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -16,11 +17,14 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import GroupsIcon from '@mui/icons-material/Groups';
+import HowToVoteIcon from '@mui/icons-material/HowToVote';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import { useAppStore } from '@/app/store';
 import { toMessage } from '@/lib/errors';
 import { nexusApi, type Group, type MemberRole } from '@/api/nexus';
 import { CreateGroupDialog } from './CreateGroupDialog';
+import { GovernanceDialog } from './GovernanceDialog';
 
 const ROLE_COLOR: Record<MemberRole, 'primary' | 'secondary' | 'info' | 'default'> = {
   owner: 'primary',
@@ -39,7 +43,11 @@ function GroupCard({
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack direction="row" spacing={1} alignItems="flex-start">
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box
+          component={RouterLink}
+          to={`/groups/${group.id}`}
+          sx={{ flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit', display: 'block' }}
+        >
           <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
               {group.name}
@@ -74,6 +82,9 @@ export function GroupsPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<'mine' | 'discover'>('mine');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [governanceGroup, setGovernanceGroup] = useState<Group | null>(null);
+  const [nearby, setNearby] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const memberships = useQuery({
@@ -83,8 +94,25 @@ export function GroupsPage() {
   const discover = useQuery({
     queryKey: ['nexus', 'groups'],
     queryFn: () => nexusApi.listGroups({ limit: 50 }),
-    enabled: tab === 'discover',
+    enabled: tab === 'discover' && !nearby,
   });
+  const nearbyQuery = useQuery({
+    queryKey: ['nexus', 'nearby', nearby?.lat, nearby?.lng],
+    queryFn: () => nexusApi.nearbyGroups(nearby!.lat, nearby!.lng),
+    enabled: tab === 'discover' && !!nearby,
+  });
+
+  const findNearby = () => {
+    if (!('geolocation' in navigator)) {
+      setGeoError('Geolocation is not available in this browser.');
+      return;
+    }
+    setGeoError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setNearby({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => setGeoError(err.message || 'Could not get your location.'),
+    );
+  };
 
   const myGroupIds = new Set((memberships.data?.data ?? []).map((m) => m.groupId));
 
@@ -140,6 +168,14 @@ export function GroupsPage() {
               <GroupCard key={m.id} group={m.group}>
                 <Stack spacing={1} alignItems="flex-end">
                   <Chip size="small" color={ROLE_COLOR[m.role]} label={m.role} />
+                  <Button
+                    size="small"
+                    color="inherit"
+                    startIcon={<HowToVoteIcon />}
+                    onClick={() => m.group && setGovernanceGroup(m.group)}
+                  >
+                    Governance
+                  </Button>
                   <Tooltip title={m.role === 'owner' ? 'Owners cannot leave their group' : ''}>
                     <span>
                       <Button
@@ -161,32 +197,63 @@ export function GroupsPage() {
 
       {tab === 'discover' && (
         <>
-          {discover.isLoading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress size={28} />
-            </Box>
-          )}
-          {discover.isError && <Alert severity="error">{toMessage(discover.error)}</Alert>}
-          {discover.isSuccess && (discover.data.groups?.length ?? 0) === 0 && (
-            <Typography color="text.secondary" sx={{ textAlign: 'center', p: 4 }}>
-              No public groups yet.
-            </Typography>
-          )}
-          {(discover.data?.groups ?? []).map((g) => {
-            const joined = myGroupIds.has(g.id);
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button
+              size="small"
+              variant={nearby ? 'contained' : 'outlined'}
+              startIcon={<MyLocationIcon />}
+              onClick={nearby ? () => setNearby(null) : findNearby}
+            >
+              {nearby ? 'Clear nearby' : 'Near me'}
+            </Button>
+            {geoError && (
+              <Typography variant="caption" color="error">
+                {geoError}
+              </Typography>
+            )}
+          </Stack>
+
+          {(() => {
+            const renderCard = (g: Group & { distanceKm?: number }) => {
+              const joined = myGroupIds.has(g.id);
+              return (
+                <GroupCard key={g.id} group={g}>
+                  <Stack spacing={1} alignItems="flex-end">
+                    {typeof g.distanceKm === 'number' && (
+                      <Chip size="small" variant="outlined" label={`${g.distanceKm} km`} />
+                    )}
+                    <Button
+                      size="small"
+                      variant={joined ? 'outlined' : 'contained'}
+                      disabled={joined || joinMutation.isPending}
+                      onClick={() => joinMutation.mutate(g.id)}
+                    >
+                      {joined ? 'Joined' : g.joinMode === 'open' ? 'Join' : 'Request'}
+                    </Button>
+                  </Stack>
+                </GroupCard>
+              );
+            };
+
+            const active = nearby ? nearbyQuery : discover;
+            const groups = nearby ? nearbyQuery.data?.groups : discover.data?.groups;
             return (
-              <GroupCard key={g.id} group={g}>
-                <Button
-                  size="small"
-                  variant={joined ? 'outlined' : 'contained'}
-                  disabled={joined || joinMutation.isPending}
-                  onClick={() => joinMutation.mutate(g.id)}
-                >
-                  {joined ? 'Joined' : g.joinMode === 'open' ? 'Join' : 'Request'}
-                </Button>
-              </GroupCard>
+              <>
+                {active.isLoading && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                    <CircularProgress size={28} />
+                  </Box>
+                )}
+                {active.isError && <Alert severity="error">{toMessage(active.error)}</Alert>}
+                {active.isSuccess && (groups?.length ?? 0) === 0 && (
+                  <Typography color="text.secondary" sx={{ textAlign: 'center', p: 4 }}>
+                    {nearby ? 'No groups found near you.' : 'No public groups yet.'}
+                  </Typography>
+                )}
+                {(groups ?? []).map(renderCard)}
+              </>
             );
-          })}
+          })()}
         </>
       )}
 
@@ -194,6 +261,14 @@ export function GroupsPage() {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onCreated={(msg) => setToast(msg)}
+      />
+
+      <GovernanceDialog
+        group={governanceGroup}
+        userId={userId}
+        open={!!governanceGroup}
+        onClose={() => setGovernanceGroup(null)}
+        onToast={(msg) => setToast(msg)}
       />
 
       <Snackbar

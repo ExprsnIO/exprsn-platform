@@ -49,4 +49,21 @@ export const timelineApi = {
     http.post<{ success: boolean; post: Post }>('/timeline/api/posts', { content, visibility }),
   like: (postId: string) => http.post<{ liked: boolean }>(`/timeline/api/posts/${postId}/like`),
   unlike: (postId: string) => http.del<{ liked: boolean }>(`/timeline/api/posts/${postId}/like`),
+
+  /** A specific user's posts (their public timeline). */
+  userPosts: (userId: string, params?: { page?: number; limit?: number }) => {
+    const sp = new URLSearchParams();
+    if (params?.page != null) sp.set('page', String(params.page));
+    if (params?.limit != null) sp.set('limit', String(params.limit));
+    const q = sp.toString();
+    return http.get<FeedResponse>(`/timeline/api/timeline/user/${userId}${q ? `?${q}` : ''}`);
+  },
+
+  // ── Follow graph ──────────────────────────────────────────────────────────
+  followStatus: (userId: string) =>
+    http.get<{ following: boolean }>(`/timeline/api/interactions/users/${userId}/follow`),
+  follow: (userId: string) =>
+    http.post<{ follow: unknown }>(`/timeline/api/interactions/users/${userId}/follow`),
+  unfollow: (userId: string) =>
+    http.del<{ success: boolean }>(`/timeline/api/interactions/users/${userId}/follow`),
 };

@@ -15,6 +15,7 @@
     "db:bootstrap": "node src/db/migrate.js",
     "db:migrate": "node scripts/migrate-sync.js",
     "db:migrate:raw": "node scripts/migrate-modules.js",
+    "db:check": "node scripts/check-drift.js",
     "db:backup": "bash scripts/backup/pg-backup.sh",
     "db:restore": "bash scripts/backup/pg-restore.sh",
     "lint": "eslint src services --ext .js",

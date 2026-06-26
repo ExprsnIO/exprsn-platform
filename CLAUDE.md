@@ -28,6 +28,8 @@ noisy rules downgraded to warnings).
 
 `npm run db:migrate:raw` (`scripts/migrate-modules.js`) is the alternative path that replays each module's own historical migration files instead of syncing models — see Data isolation below for when that distinction matters.
 
+`npm run db:check` (`scripts/check-drift.js`) is a **read-only** audit that loads every module's Sequelize models and compares them against the live DB — flagging missing tables (incl. tables leaked into `public`), missing columns, ENUM value drift, and missing indexes. Exits non-zero on drift (CI/pre-deploy gate). Run it after changing a model: a model column with no matching DB column (e.g. forgetting to `db:migrate` after adding one) makes **every** query on that table 500 until the schema catches up. Needs Postgres + Redis up.
+
 ### Local infra (Docker)
 
 Postgres, Redis, and the other backing services run as Docker containers (`docker-compose.yml`, configs under `docker/`). The nginx edge container serves the built SPA on `:443`.

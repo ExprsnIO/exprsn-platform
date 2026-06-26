@@ -106,7 +106,7 @@ async function getTimelineSettings() {
     title: 'Timeline Settings',
     description: 'Configure timeline feed settings',
     fields: [
-      { name: 'maxPostLength', label: 'Max Post Length', type: 'number', value: config.posts?.maxLength || 280 },
+      { name: 'maxPostLength', label: 'Max Post Length', type: 'number', value: config.posts?.maxLength || 4000 },
       { name: 'enableSearch', label: 'Enable Search', type: 'checkbox', value: config.features?.search !== false },
       { name: 'enableReactions', label: 'Enable Reactions', type: 'checkbox', value: config.features?.reactions !== false },
       { name: 'enableReposts', label: 'Enable Reposts', type: 'checkbox', value: config.features?.reposts !== false },

@@ -7,6 +7,11 @@
 
 const { AppError, validateRequired } = require('@exprsn/shared');
 
+// Default max post length. The Post.content column is Postgres TEXT (no length
+// limit), so the column imposes no smaller bound — 4000 is the effective cap.
+// Override with MAX_POST_LENGTH.
+const DEFAULT_MAX_POST_LENGTH = 4000;
+
 /**
  * Validate post creation data
  */
@@ -20,7 +25,7 @@ function validatePostCreation(req, res, next) {
     }
 
     // Validate content length
-    const maxLength = parseInt(process.env.MAX_POST_LENGTH) || 280;
+    const maxLength = parseInt(process.env.MAX_POST_LENGTH) || DEFAULT_MAX_POST_LENGTH;
     if (content.length > maxLength) {
       throw new AppError(
         `Content exceeds maximum length of ${maxLength} characters`,
@@ -66,7 +71,7 @@ function validatePostUpdate(req, res, next) {
         throw new AppError('Content cannot be empty', 400, 'EMPTY_CONTENT');
       }
 
-      const maxLength = parseInt(process.env.MAX_POST_LENGTH) || 280;
+      const maxLength = parseInt(process.env.MAX_POST_LENGTH) || DEFAULT_MAX_POST_LENGTH;
       if (content.length > maxLength) {
         throw new AppError(
           `Content exceeds maximum length of ${maxLength} characters`,

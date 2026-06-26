@@ -565,9 +565,9 @@ add permissions. `/api/config` and `/api/webhooks` have no token middleware. `/a
 
 | Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
-| POST | /timeline/api/posts/ | `content` | mediaIds, visibility, replyTo, quoteOf | content 1–280; mediaIds ≤4; visibility∈public/followers/private | write `/posts` | 201; visibility=public |
+| POST | /timeline/api/posts/ | `content` | mediaIds, visibility, replyTo, quoteOf | content 1–4000; mediaIds ≤4; visibility∈public/followers/private | write `/posts` | 201; visibility=public |
 | GET | /timeline/api/posts/:id | `id`(uuid) | — | uuid | read `/posts` | 403 if private non-owner |
-| PUT | /timeline/api/posts/:id | `id`(uuid), `content` | — | content 1–280 | update `/posts` | — |
+| PUT | /timeline/api/posts/:id | `id`(uuid), `content` | — | content 1–4000 | update `/posts` | — |
 | DELETE | /timeline/api/posts/:id | `id`(uuid) | — | uuid | delete `/posts` | — |
 | POST | /timeline/api/posts/:id/like | `id` | — | — | write (default `/timeline`) | — |
 | DELETE | /timeline/api/posts/:id/like | `id` | — | — | read `/posts` | — |

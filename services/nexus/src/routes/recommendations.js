@@ -15,7 +15,7 @@ const Joi = require('joi');
  * Get personalized group recommendations
  */
 router.get('/',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -47,7 +47,7 @@ router.get('/',
  * Manually generate fresh recommendations
  */
 router.post('/generate',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -79,7 +79,7 @@ router.post('/generate',
  * Track user interaction with a recommendation
  */
 router.post('/:id/track',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { id } = req.params;
@@ -115,7 +115,7 @@ router.post('/:id/track',
  * Get recommendation analytics for the user
  */
 router.get('/analytics',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;

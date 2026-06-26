@@ -16,7 +16,7 @@ const Joi = require('joi');
  * Get trending groups
  */
 router.get('/groups',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const {
@@ -51,7 +51,7 @@ router.get('/groups',
  * Manually trigger trending stats update (admin only)
  */
 router.post('/update',
-  requireToken,
+  requireToken(),
   requireAdmin(),
   async (req, res, next) => {
     try {

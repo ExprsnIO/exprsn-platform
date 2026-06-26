@@ -17,7 +17,7 @@ const carddavService = require('../services/carddavService');
  * Export single event as iCal
  */
 router.get('/events/:id/ical',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const { id } = req.params;
@@ -39,7 +39,7 @@ router.get('/events/:id/ical',
  * Export group calendar as iCal
  */
 router.get('/groups/:groupId/ical',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const { groupId } = req.params;
@@ -67,7 +67,7 @@ router.get('/groups/:groupId/ical',
  * Export user's calendar as iCal
  */
 router.get('/users/:userId/ical',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { userId } = req.params;
@@ -111,7 +111,7 @@ router.get('/users/:userId/ical',
  * Get user's calendar collection (PROPFIND)
  */
 router.get('/caldav/users/:userId/calendars',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { userId } = req.params;
@@ -141,7 +141,7 @@ router.get('/caldav/users/:userId/calendars',
  * Get group calendar (CalDAV format)
  */
 router.get('/caldav/groups/:groupId/calendar',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const { groupId } = req.params;
@@ -165,7 +165,7 @@ router.get('/caldav/groups/:groupId/calendar',
  * Get events for CalDAV sync (REPORT method)
  */
 router.get('/caldav/groups/:groupId/events',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const { groupId } = req.params;
@@ -203,7 +203,7 @@ router.get('/caldav/groups/:groupId/events',
  * Get user's addressbook collection (PROPFIND)
  */
 router.get('/carddav/users/:userId/addressbooks',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { userId } = req.params;
@@ -233,7 +233,7 @@ router.get('/carddav/users/:userId/addressbooks',
  * Get group members as vCards
  */
 router.get('/carddav/groups/:groupId/contacts',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const { groupId } = req.params;
@@ -266,7 +266,7 @@ router.get('/carddav/groups/:groupId/contacts',
  * Get addressbook properties for a group
  */
 router.get('/carddav/groups/:groupId/addressbook',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const { groupId } = req.params;

@@ -59,7 +59,7 @@ const addMemberSchema = Joi.object({
  * Create a new sub-group or channel
  */
 router.post('/',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = createSubGroupSchema.validate(req.body);
@@ -92,7 +92,7 @@ router.post('/',
  * List sub-groups for a parent group
  */
 router.get('/',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       if (!req.query.parentGroupId) {
@@ -131,7 +131,7 @@ router.get('/',
  * Get sub-group details
  */
 router.get('/:id',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const userId = req.token?.data?.userId || null;
@@ -152,7 +152,7 @@ router.get('/:id',
  * Update sub-group
  */
 router.put('/:id',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = updateSubGroupSchema.validate(req.body);
@@ -185,7 +185,7 @@ router.put('/:id',
  * Archive sub-group
  */
 router.delete('/:id',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -207,7 +207,7 @@ router.delete('/:id',
  * Add member to sub-group (for restricted sub-groups)
  */
 router.post('/:id/members',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = addMemberSchema.validate(req.body);
@@ -242,7 +242,7 @@ router.post('/:id/members',
  * Remove member from sub-group
  */
 router.delete('/:id/members/:userId',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const adminId = req.token.data.userId;
@@ -267,7 +267,7 @@ router.delete('/:id/members/:userId',
  * Check if current user has access to sub-group
  */
 router.get('/:id/access',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;

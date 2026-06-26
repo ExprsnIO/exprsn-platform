@@ -51,7 +51,7 @@ const moderationActionSchema = Joi.object({
  * Flag content for moderation review
  */
 router.post('/flags',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = flagContentSchema.validate(req.body);
@@ -84,7 +84,7 @@ router.post('/flags',
  * Get content flags for a group (moderators only)
  */
 router.get('/flags/:groupId',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -132,7 +132,7 @@ router.get('/flags/:groupId',
  * Get moderation queue for a group (moderators only)
  */
 router.get('/queue/:groupId',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -169,7 +169,7 @@ router.get('/queue/:groupId',
  * Get moderation case details
  */
 router.get('/cases/:id',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -201,7 +201,7 @@ router.get('/cases/:id',
  * Take moderation action on a case
  */
 router.post('/cases/:id/action',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -237,7 +237,7 @@ router.post('/cases/:id/action',
  * Assign moderators to a case
  */
 router.post('/cases/:id/assign',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;

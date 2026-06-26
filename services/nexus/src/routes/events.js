@@ -63,7 +63,7 @@ const rsvpSchema = Joi.object({
  * Create a new event
  */
 router.post('/',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = createEventSchema.validate(req.body);
@@ -95,7 +95,7 @@ router.post('/',
  * List upcoming events (optionally filtered)
  */
 router.get('/',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const filters = {
@@ -142,7 +142,7 @@ router.get('/',
  * Get event details
  */
 router.get('/:id',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const userId = req.token?.data?.userId || null;
@@ -163,7 +163,7 @@ router.get('/:id',
  * Update event details
  */
 router.put('/:id',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = updateEventSchema.validate(req.body);
@@ -195,7 +195,7 @@ router.put('/:id',
  * Cancel an event
  */
 router.post('/:id/cancel',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -219,7 +219,7 @@ router.post('/:id/cancel',
  * Delete an event
  */
 router.delete('/:id',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -240,7 +240,7 @@ router.delete('/:id',
  * RSVP to an event
  */
 router.post('/:id/rsvp',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = rsvpSchema.validate(req.body);
@@ -269,7 +269,7 @@ router.post('/:id/rsvp',
  * Cancel RSVP
  */
 router.delete('/:id/rsvp',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -290,7 +290,7 @@ router.delete('/:id/rsvp',
  * Get user's RSVP status
  */
 router.get('/:id/rsvp',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
@@ -311,7 +311,7 @@ router.get('/:id/rsvp',
  * List event attendees
  */
 router.get('/:id/attendees',
-  optionalToken,
+  optionalToken(),
   async (req, res, next) => {
     try {
       const filters = {
@@ -338,7 +338,7 @@ router.get('/:id/attendees',
  * Check in an attendee (admin only)
  */
 router.post('/:id/check-in/:userId',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const adminId = req.token.data.userId;
@@ -379,7 +379,7 @@ const reminderSchema = Joi.object({
  * Schedule reminders for an event
  */
 router.post('/:id/reminders',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = reminderSchema.validate(req.body);
@@ -412,7 +412,7 @@ router.post('/:id/reminders',
  * Cancel all reminders for an event
  */
 router.delete('/:id/reminders',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const cancelled = await eventReminderService.cancelEventReminders(req.params.id);
@@ -433,7 +433,7 @@ router.delete('/:id/reminders',
  * Update event reminders
  */
 router.put('/:id/reminders',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = reminderSchema.validate(req.body);
@@ -466,7 +466,7 @@ router.put('/:id/reminders',
  * Send immediate notification to attendees (admin only)
  */
 router.post('/:id/notify',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { updateType, message } = req.body;

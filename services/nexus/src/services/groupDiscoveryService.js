@@ -170,55 +170,134 @@ async function advancedSearch(filters = {}, pagination = {}) {
   }
 }
 
+// Mean Earth radius (km) and degrees→km at the equator for bounding boxes.
+const EARTH_RADIUS_KM = 6371;
+const KM_PER_DEGREE_LAT = 111.045;
+// Most callers won't scan more than this many candidates; the box keeps it small
+// in practice, but cap so a sparse/huge-radius query can't pull the whole table.
+const MAX_NEARBY_CANDIDATES = 500;
+
+function toRadians(degrees) {
+  return (degrees * Math.PI) / 180;
+}
+
 /**
- * Find groups near a location using geolocation
- * @param {number} latitude - Latitude
- * @param {number} longitude - Longitude
+ * Great-circle distance between two points in kilometers (Haversine).
+ */
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/**
+ * Build the lat/lng bounding-box WHERE clause for a radius around a point.
+ * Returns a Sequelize where fragment that an index on (latitude, longitude)
+ * can serve. Handles antimeridian (±180°) wrap and near-pole degeneracy.
+ */
+function boundingBoxWhere(latitude, longitude, radiusKm) {
+  const latDelta = radiusKm / KM_PER_DEGREE_LAT;
+  const cosLat = Math.cos(toRadians(latitude));
+  // Longitude degrees shrink toward the poles; guard against divide-by-~0.
+  const lngDelta = cosLat > 1e-6 ? radiusKm / (KM_PER_DEGREE_LAT * cosLat) : 180;
+
+  const where = {
+    latitude: { [Op.between]: [latitude - latDelta, latitude + latDelta] }
+  };
+
+  if (lngDelta >= 180) {
+    // Radius spans all longitudes (huge radius or near a pole) — latitude box
+    // alone bounds it; just require a coordinate to exist.
+    where.longitude = { [Op.ne]: null };
+    return where;
+  }
+
+  const minLng = longitude - lngDelta;
+  const maxLng = longitude + lngDelta;
+  if (minLng >= -180 && maxLng <= 180) {
+    where.longitude = { [Op.between]: [minLng, maxLng] };
+  } else {
+    // Box crosses the antimeridian — split into two normalized ranges.
+    const norm = (lng) => ((lng + 540) % 360) - 180;
+    where[Op.or] = [
+      { longitude: { [Op.gte]: norm(minLng) } },
+      { longitude: { [Op.lte]: norm(maxLng) } }
+    ];
+  }
+  return where;
+}
+
+/**
+ * Find public/unlisted groups within `radiusKm` of a point, ordered by
+ * distance. Uses an index-friendly bounding-box prefilter, then computes the
+ * exact Haversine distance, filters to the radius, and paginates. Each result
+ * carries a `distanceKm` field.
+ *
+ * @param {number} latitude - Latitude in decimal degrees (-90..90)
+ * @param {number} longitude - Longitude in decimal degrees (-180..180)
  * @param {number} radiusKm - Search radius in kilometers
- * @param {object} options - Additional options
- * @returns {Promise<Array>} Nearby groups
+ * @param {object} options - { limit, offset }
+ * @returns {Promise<Array>} Nearby groups, nearest first
  */
 async function findGroupsNearLocation(latitude, longitude, radiusKm = 50, options = {}) {
   try {
     const { limit = 20, offset = 0 } = options;
 
-    // For now, this is a placeholder implementation
-    // In production, you would:
-    // 1. Add lat/lng columns to groups table
-    // 2. Use PostGIS extension for spatial queries
-    // 3. Calculate distance using Haversine formula
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+        latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      throw new Error('INVALID_COORDINATES');
+    }
 
-    // Temporary text-based location search
-    const cacheKey = `groups:near:${latitude}:${longitude}:${radiusKm}`;
+    // Clamp radius to a sane range (0 < r <= half Earth circumference).
+    const radius = Math.min(Math.max(Number(radiusKm) || 0, 0.1), 20000);
+
+    const cacheKey =
+      `groups:near:${latitude.toFixed(4)}:${longitude.toFixed(4)}:${radius}:${limit}:${offset}`;
     const cached = await redis.get(cacheKey);
-
     if (cached) {
       return JSON.parse(cached);
     }
 
-    // For demonstration, return groups with location set
-    const groups = await Group.findAll({
-      where: {
-        isActive: true,
-        visibility: { [Op.in]: ['public', 'unlisted'] },
-        location: { [Op.not]: null }
-      },
+    const where = {
+      isActive: true,
+      visibility: { [Op.in]: ['public', 'unlisted'] },
+      ...boundingBoxWhere(latitude, longitude, radius)
+    };
+
+    // Prefilter via the box (cheap), rank precisely afterwards.
+    const candidates = await Group.findAll({
+      where,
       include: [{
         model: GroupTrendingStats,
         as: 'trendingStats',
         required: false
       }],
-      limit,
-      offset,
-      order: [['memberCount', 'DESC']]
+      limit: MAX_NEARBY_CANDIDATES
     });
 
+    const ranked = candidates
+      .map((group) => {
+        const plain = typeof group.toJSON === 'function' ? group.toJSON() : { ...group };
+        const gLat = parseFloat(plain.latitude);
+        const gLng = parseFloat(plain.longitude);
+        plain.distanceKm = Number.isFinite(gLat) && Number.isFinite(gLng)
+          ? Math.round(haversineKm(latitude, longitude, gLat, gLng) * 100) / 100
+          : Infinity;
+        return plain;
+      })
+      .filter((g) => g.distanceKm <= radius)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(offset, offset + limit);
+
     // Cache for 1 hour
-    await redis.setex(cacheKey, 3600, JSON.stringify(groups));
+    await redis.setex(cacheKey, 3600, JSON.stringify(ranked));
 
-    logger.info(`Found ${groups.length} groups near (${latitude}, ${longitude})`);
+    logger.info(`Found ${ranked.length} groups within ${radius}km of (${latitude}, ${longitude})`);
 
-    return groups;
+    return ranked;
   } catch (error) {
     logger.error('Error finding groups near location:', error);
     throw error;

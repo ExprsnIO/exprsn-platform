@@ -90,6 +90,16 @@ Group.init({
     type: DataTypes.STRING(255),
     allowNull: true
   },
+  latitude: {
+    // Decimal degrees, -90..90. DECIMAL(9,6) ≈ 0.11m precision.
+    type: DataTypes.DECIMAL(9, 6),
+    allowNull: true
+  },
+  longitude: {
+    // Decimal degrees, -180..180.
+    type: DataTypes.DECIMAL(9, 6),
+    allowNull: true
+  },
   website: {
     type: DataTypes.STRING(500),
     allowNull: true,
@@ -146,7 +156,10 @@ Group.init({
     { fields: ['category'] },
     { fields: ['is_active'] },
     { fields: ['created_at'] },
-    { fields: ['tags'], using: 'gin' }
+    { fields: ['tags'], using: 'gin' },
+    // Composite index supports the lat/lng bounding-box prefilter in
+    // groupDiscoveryService.findGroupsNearLocation.
+    { fields: ['latitude', 'longitude'] }
   ]
 });
 

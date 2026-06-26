@@ -135,6 +135,48 @@ describe('Groups Routes', () => {
 
       expect(response.body.error).toBe('VALIDATION_ERROR');
     });
+
+    it('should forward valid coordinates to the service', async () => {
+      groupService.createGroup = jest.fn().mockResolvedValue({ id: 'group-123', name: 'Geo Group' });
+
+      await request(app)
+        .post('/api/groups')
+        .send({
+          name: 'Geo Group',
+          latitude: 40.7128,
+          longitude: -74.006
+        })
+        .expect(201);
+
+      const data = groupService.createGroup.mock.calls[0][1];
+      expect(data.latitude).toBe(40.7128);
+      expect(data.longitude).toBe(-74.006);
+    });
+
+    it('should reject out-of-range coordinates', async () => {
+      const response = await request(app)
+        .post('/api/groups')
+        .send({
+          name: 'Bad Geo',
+          latitude: 200,
+          longitude: 0
+        })
+        .expect(400);
+
+      expect(response.body.error).toBe('VALIDATION_ERROR');
+    });
+
+    it('should reject a coordinate provided without its pair', async () => {
+      const response = await request(app)
+        .post('/api/groups')
+        .send({
+          name: 'Half Geo',
+          latitude: 40.7128
+        })
+        .expect(400);
+
+      expect(response.body.error).toBe('VALIDATION_ERROR');
+    });
   });
 
   describe('PUT /api/groups/:id', () => {

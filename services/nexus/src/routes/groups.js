@@ -29,9 +29,11 @@ const createGroupSchema = Joi.object({
   bannerUrl: Joi.string().uri().max(500).allow(null, ''),
   maxMembers: Joi.number().integer().min(1).allow(null),
   location: Joi.string().max(255).allow(null, ''),
+  latitude: Joi.number().min(-90).max(90).allow(null),
+  longitude: Joi.number().min(-180).max(180).allow(null),
   website: Joi.string().uri().max(500).allow(null, ''),
   metadata: Joi.object().default({})
-});
+}).and('latitude', 'longitude'); // coordinates are set as a pair, or not at all
 
 const updateGroupSchema = Joi.object({
   name: Joi.string().min(2).max(255),
@@ -46,9 +48,11 @@ const updateGroupSchema = Joi.object({
   bannerUrl: Joi.string().uri().max(500).allow(null, ''),
   maxMembers: Joi.number().integer().min(1).allow(null),
   location: Joi.string().max(255).allow(null, ''),
+  latitude: Joi.number().min(-90).max(90).allow(null),
+  longitude: Joi.number().min(-180).max(180).allow(null),
   website: Joi.string().uri().max(500).allow(null, ''),
   metadata: Joi.object()
-});
+}).and('latitude', 'longitude'); // coordinates are set as a pair, or not at all
 
 // Owner is intentionally excluded — promotion to owner is an ownership transfer,
 // not a role change (see membershipService.updateMemberRole).
@@ -493,6 +497,13 @@ router.get('/discover/nearby',
         return res.status(400).json({
           error: 'VALIDATION_ERROR',
           message: 'Valid latitude and longitude required'
+        });
+      }
+
+      if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: 'Latitude must be -90..90 and longitude -180..180'
         });
       }
 

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireToken } = require('../middleware/tokenAuth');
 const { requireGroupMember } = require('../middleware/groupAuth');
-const { sanitizeProposalData } = require('../utils/sanitization');
+const { sanitizeProposalData, sanitizePlainText, sanitizeRichText } = require('../utils/sanitization');
 const governanceService = require('../services/governanceService');
 const Joi = require('joi');
 
@@ -34,12 +34,23 @@ const voteSchema = Joi.object({
   reason: Joi.string().max(1000).allow(null, '')
 });
 
+// All fields optional for a partial edit; require at least one.
+const updateProposalSchema = Joi.object({
+  title: Joi.string().min(5).max(255),
+  description: Joi.string(),
+  proposalType: Joi.string().valid('rule-change', 'role-change', 'member-action', 'general', 'other'),
+  quorumRequired: Joi.number().integer().min(1).max(100),
+  votingEndsAt: Joi.number().integer(),
+  actionData: Joi.object(),
+  metadata: Joi.object()
+}).min(1);
+
 /**
  * POST /api/governance/proposals
  * Create a new proposal
  */
 router.post('/proposals',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = createProposalSchema.validate(req.body);
@@ -71,7 +82,7 @@ router.post('/proposals',
  * List proposals (filtered by groupId)
  */
 router.get('/proposals',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       if (!req.query.groupId) {
@@ -106,7 +117,7 @@ router.get('/proposals',
  * Get proposal details
  */
 router.get('/proposals/:id',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const proposal = await governanceService.getProposal(req.params.id);
@@ -126,7 +137,7 @@ router.get('/proposals/:id',
  * Cast a vote on a proposal
  */
 router.post('/proposals/:id/vote',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const { error, value } = voteSchema.validate(req.body);
@@ -156,7 +167,7 @@ router.post('/proposals/:id/vote',
  * Get proposal voting results
  */
 router.get('/proposals/:id/results',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const results = await governanceService.getResults(req.params.id);
@@ -176,7 +187,7 @@ router.get('/proposals/:id/results',
  * Get votes for a proposal
  */
 router.get('/proposals/:id/votes',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const filters = {
@@ -202,7 +213,7 @@ router.get('/proposals/:id/votes',
  * Manually close a proposal (admin only)
  */
 router.post('/proposals/:id/close',
-  requireToken,
+  requireToken(),
   async (req, res, next) => {
     try {
       const proposal = await governanceService.closeProposal(req.params.id);
@@ -211,6 +222,83 @@ router.post('/proposals/:id/close',
         success: true,
         proposal,
         message: 'Proposal closed successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /api/governance/proposals/:id
+ * Update an editable proposal (proposer only, before any votes)
+ */
+router.put('/proposals/:id',
+  requireToken(),
+  async (req, res, next) => {
+    try {
+      const { error, value } = updateProposalSchema.validate(req.body);
+      if (error) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: error.details[0].message
+        });
+      }
+
+      // Sanitize only the fields actually supplied so a partial update never
+      // wipes a field that was omitted.
+      const sanitizedData = { ...value };
+      if (value.title !== undefined) sanitizedData.title = sanitizePlainText(value.title);
+      if (value.description !== undefined) sanitizedData.description = sanitizeRichText(value.description);
+
+      const userId = req.token.data.userId;
+      const proposal = await governanceService.updateProposal(req.params.id, userId, sanitizedData);
+
+      res.json({
+        success: true,
+        proposal
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /api/governance/proposals/:id
+ * Cancel a proposal (proposer only, before it resolves)
+ */
+router.delete('/proposals/:id',
+  requireToken(),
+  async (req, res, next) => {
+    try {
+      const userId = req.token.data.userId;
+      await governanceService.deleteProposal(req.params.id, userId);
+
+      res.json({
+        success: true,
+        message: 'Proposal cancelled successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/governance/proposals/:id/execute
+ * Apply a passed proposal's action on demand (admin intent)
+ */
+router.post('/proposals/:id/execute',
+  requireToken(),
+  async (req, res, next) => {
+    try {
+      const result = await governanceService.executeProposal(req.params.id);
+
+      res.json({
+        success: true,
+        result,
+        message: 'Proposal executed successfully'
       });
     } catch (error) {
       next(error);

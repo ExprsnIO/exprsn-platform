@@ -263,7 +263,7 @@ class GovernanceService {
 
     // Execute proposal if passed
     if (results.passed) {
-      await this.executeProposal(proposal);
+      await this.applyProposalAction(proposal);
     }
 
     // Clear caches
@@ -584,9 +584,124 @@ class GovernanceService {
   }
 
   /**
-   * Execute a passed proposal
+   * Update an editable proposal.
+   *
+   * Only the proposer may edit, and only while the proposal is still a draft or
+   * active with no votes cast — once members have voted the text is locked so
+   * the question they voted on cannot change underneath them.
    */
-  async executeProposal(proposal) {
+  async updateProposal(proposalId, userId, updates) {
+    const proposal = await Proposal.findByPk(proposalId);
+    if (!proposal) {
+      throw new Error('PROPOSAL_NOT_FOUND');
+    }
+
+    if (proposal.proposerId !== userId) {
+      throw new Error('NOT_PROPOSAL_OWNER');
+    }
+
+    if (!['draft', 'active'].includes(proposal.status)) {
+      throw new Error('PROPOSAL_NOT_EDITABLE');
+    }
+
+    if (proposal.totalVotes > 0) {
+      throw new Error('PROPOSAL_HAS_VOTES');
+    }
+
+    // Whitelist the fields a proposer may change. Vote tallies, status, ids and
+    // timestamps are never editable through this path.
+    const editable = ['title', 'description', 'proposalType', 'quorumRequired', 'actionData', 'metadata', 'votingEndsAt'];
+    const patch = {};
+    for (const field of editable) {
+      if (updates[field] !== undefined) {
+        patch[field] = updates[field];
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      throw new Error('NO_UPDATABLE_FIELDS');
+    }
+
+    await proposal.update(patch);
+
+    // Invalidate caches touched by getProposal / listProposals
+    await redis.del(`proposal:${proposalId}`);
+    await redis.del(`group:${proposal.groupId}:proposals`);
+
+    return proposal;
+  }
+
+  /**
+   * Cancel a proposal. Soft-deletes by moving it to 'cancelled' so vote records
+   * and the audit trail survive. Only the proposer may cancel, and not after the
+   * proposal has already resolved.
+   */
+  async deleteProposal(proposalId, userId) {
+    const proposal = await Proposal.findByPk(proposalId);
+    if (!proposal) {
+      throw new Error('PROPOSAL_NOT_FOUND');
+    }
+
+    if (proposal.proposerId !== userId) {
+      throw new Error('NOT_PROPOSAL_OWNER');
+    }
+
+    if (!['draft', 'active'].includes(proposal.status)) {
+      throw new Error('PROPOSAL_NOT_CANCELLABLE');
+    }
+
+    await proposal.update({
+      status: 'cancelled',
+      closedAt: Date.now()
+    });
+
+    await redis.del(`proposal:${proposalId}`);
+    await redis.del(`group:${proposal.groupId}:proposals`);
+
+    return true;
+  }
+
+  /**
+   * Execute a passed proposal on demand (e.g. an admin applying an approved
+   * rule/role/member action). Idempotent: a proposal already executed is not
+   * re-applied. Returns an execution summary.
+   */
+  async executeProposal(proposalId) {
+    const proposal = await Proposal.findByPk(proposalId);
+    if (!proposal) {
+      throw new Error('PROPOSAL_NOT_FOUND');
+    }
+
+    if (proposal.status !== 'passed') {
+      throw new Error('PROPOSAL_NOT_PASSED');
+    }
+
+    if (proposal.executedAt) {
+      throw new Error('ALREADY_EXECUTED');
+    }
+
+    await this.applyProposalAction(proposal);
+
+    // applyProposalAction stamps executedAt only when it had an action to run;
+    // ensure it is stamped here so execution is recorded and not retried.
+    if (!proposal.executedAt) {
+      await proposal.update({ executedAt: Date.now() });
+    }
+
+    await redis.del(`proposal:${proposalId}`);
+
+    return {
+      proposalId: proposal.id,
+      status: 'executed',
+      executedAt: proposal.executedAt
+    };
+  }
+
+  /**
+   * Apply a passed proposal's automatic action (role/member/rule change).
+   * Internal — invoked by closeProposal and executeProposal.
+   */
+  async applyProposalAction(proposal) {
     if (!proposal.actionData || Object.keys(proposal.actionData).length === 0) {
       // No automatic action to execute
       return;

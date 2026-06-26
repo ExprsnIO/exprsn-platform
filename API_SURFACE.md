@@ -29,8 +29,13 @@ Columns: **Method | Path | Required Fields | Optional Fields | Min/Max | Auth | 
   shadow the matching `oauth2.js` `userinfo`/`introspect`/`revoke` handlers.
 - `moderator`: all REST routes are **unauthenticated** except `/api/notifications` (service HMAC);
   several handlers read `req.user` that nothing populates.
-- `nexus`: several routers pass `requireToken` / `optionalToken` as a **bare reference** (not invoked)
-  — a latent middleware bug; documented as "token" intent below.
+- `nexus`: `requireToken` / `optionalToken` are **factories** — `requireToken(opts)` returns the
+  middleware. Several routers (events, governance, moderation, recommendations, subgroups, trending,
+  calendar) used to pass them as a **bare reference**, so Express invoked the factory and discarded
+  the middleware, leaving those routes unauthenticated **and** hanging (next() never fired). Fixed —
+  all usages are now invoked, matching groups/memberships. Regression guard:
+  `tests/integration/routes/authWiring.test.js` exercises the real middleware (no mock) and asserts a
+  prompt 401 without a bearer.
 - `prefetch`: the `prefetch.js` router is **double-mounted** at `/api/prefetch` and `/api/cache`, so
   every endpoint is reachable under both prefixes.
 - `live` `/live` and `moderator` `/moderation` Socket.IO namespaces have **no handshake token auth**
@@ -190,8 +195,11 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | DELETE | /auth/api/sessions/:id | `id` | — | — | Session | cannot revoke current |
 | DELETE | /auth/api/sessions | — | — | — | Session | revokes all except current |
 | POST | /auth/api/sessions/refresh | — | — | — | Session | extends by session lifetime |
-| GET | /auth/api/users | — | `limit`, `offset`, `search` | `limit`≤200 | CA `read` | list; `limit=50`, `offset=0`; search matches email/displayName |
-| GET | /auth/api/users/:id | `id` | — | — | CA `read`; own or admin | — |
+| GET | /auth/api/users | — | `limit`, `offset`, `search` | `limit`≤200 | CA `read` **+ admin** | list; admin-only (exposes email/mfa); search matches email/displayName |
+| GET | /auth/api/users/directory | — | `limit`, `offset`, `search` | `limit`≤100 | CA `read` (any authed) | public people directory; **safe fields only** (id, displayName, avatarUrl, bio); active users; search=displayName only |
+| POST | /auth/api/users/profiles | `ids[]` | — | ids de-duped, capped 200 | CA `read` (any authed) | batch public profiles (id, displayName, avatarUrl, bio); active users only; resolves member/display names without N+1 |
+| GET | /auth/api/users/:id | `id` | — | — | CA `read`; own or admin | full record; own-or-admin |
+| GET | /auth/api/users/:id/profile | `id` | — | — | CA `read` (any authed) | public profile projection (id, displayName, avatarUrl, bio, createdAt); 404 if non-active |
 | PUT | /auth/api/users/:id | `id` | `displayName`, `firstName`, `lastName`, `bio`, `avatarUrl` | — | CA `update`; own only | — |
 | DELETE | /auth/api/users/:id | `id` | — | — | CA `delete`; own only | status→inactive |
 | GET | /auth/api/users/:id/groups | `id` | — | — | CA `read`; own or admin | — |
@@ -347,7 +355,7 @@ No Socket.IO. Global rate limiter on `/nexus/api/*`.
 | Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
 | GET | /nexus/health[/db,/cache,/all] | — | — | — | none | — |
-| POST | /nexus/api/groups | `name` | description, visibility, joinMode, governanceModel, governanceRules, category, tags[], avatarUrl, bannerUrl, maxMembers, location, website, metadata | name 2–255; description ≤5000; category ≤100; tag ≤50; url ≤500; maxMembers ≥1 | token (write) | visibility=public, joinMode=request, governanceModel=centralized, tags=[], metadata={} |
+| POST | /nexus/api/groups | `name` | description, visibility, joinMode, governanceModel, governanceRules, category, tags[], avatarUrl, bannerUrl, maxMembers, location, latitude, longitude, website, metadata | name 2–255; description ≤5000; category ≤100; tag ≤50; url ≤500; maxMembers ≥1; lat −90..90 & lng −180..180 (both-or-neither) | token (write) | visibility=public, joinMode=request, governanceModel=centralized, tags=[], metadata={} |
 | GET | /nexus/api/groups | — | visibility, category, tags, search, featured, verified, creatorId, page, limit, sortBy, sortOrder | limit ≤100 | none | page=1, limit=20, sortBy=createdAt, sortOrder=DESC |
 | POST | /nexus/api/groups/search | — | query, category, tags, location, minMembers, maxMembers, governanceModel, visibility, joinMode, isFeatured, isVerified, page, limit, sortBy, sortOrder | limit ≤100 | none | page=1, limit=20, sortBy=relevance |
 | GET | /nexus/api/groups/discover/nearby | `lat`, `lng` | radius, limit, offset | limit ≤100 | none | radius=50, limit=20, offset=0 |
@@ -355,7 +363,7 @@ No Socket.IO. Global rate limiter on `/nexus/api/*`.
 | GET | /nexus/api/groups/search/popular | — | limit | limit ≤50 | none | limit=10 |
 | GET | /nexus/api/groups/:id | `id` | — | — | validateGroup (optional user) | — |
 | GET | /nexus/api/groups/:id/related | `id` | depth | depth ≤3 | validateGroup | depth=2 |
-| PUT | /nexus/api/groups/:id | `id` | create fields (optional) | name 2–255 | token (update)+member+admin | — |
+| PUT | /nexus/api/groups/:id | `id` | create fields (optional), incl. latitude/longitude | name 2–255; lat/lng ranges & both-or-neither | token (update)+member+admin | — |
 | DELETE | /nexus/api/groups/:id | `id` | — | — | token (delete)+member | — |
 | GET | /nexus/api/groups/:id/members | `id` | role, status, page, limit | limit ≤100 | validateGroup+member | status=active, page=1, limit=50 |
 | POST | /nexus/api/groups/:id/join | `id` | message, inviteCode | — | token (write)+validateGroup | — |
@@ -365,6 +373,7 @@ No Socket.IO. Global rate limiter on `/nexus/api/*`.
 | POST | /nexus/api/groups/:id/join-requests/:requestId/approve | `id`, `requestId` | — | — | token (write)+member+admin | — |
 | POST | /nexus/api/groups/:id/join-requests/:requestId/reject | `id`, `requestId` | reason | — | token (write)+member+admin | — |
 | GET | /nexus/api/memberships | — | status, role, page, limit | page ≥1; limit 1–100 | token | status=active, page=1, limit=50 |
+| GET | /nexus/api/memberships/user/:userId | `userId` | page, limit | page ≥1; limit 1–100 | token (any authed) | another user's **public-visibility** group memberships only |
 | POST | /nexus/api/events | `groupId`, `title`, `eventType`, `startTime` | description, location, virtualUrl, endTime, timezone, maxAttendees, rsvpDeadline, requiresApproval, visibility, coverImageUrl, tags, metadata | title 2–255; startTime ≥now; endTime ≥startTime; maxAttendees ≥1; url ≤500 | token | timezone=UTC, requiresApproval=false, visibility=members-only |
 | GET | /nexus/api/events | (groupId if anon) | groupId, upcoming, past, status, eventType, limit, offset | — | optionalToken | limit=50, offset=0 |
 | GET | /nexus/api/events/:id | `id` | — | — | optionalToken | — |
@@ -382,9 +391,12 @@ No Socket.IO. Global rate limiter on `/nexus/api/*`.
 | POST | /nexus/api/governance/proposals | `groupId`, `title`, `description`, `proposalType` | votingMethod, quorumRequired, votingStartsAt, votingEndsAt, votingDuration, actionData, metadata | title 5–255; quorum 1–100; votingDuration 1h–30d | token | — |
 | GET | /nexus/api/governance/proposals | `groupId` | status, proposalType, activeOnly, limit, offset | — | token | limit=50, offset=0 |
 | GET | /nexus/api/governance/proposals/:id | `id` | — | — | token | — |
+| PUT | /nexus/api/governance/proposals/:id | `id` | title, description, proposalType, quorumRequired, votingEndsAt, actionData, metadata | ≥1 field; proposer-only, only while draft/active with no votes | token | — |
+| DELETE | /nexus/api/governance/proposals/:id | `id` | — | proposer-only, only while draft/active; soft-cancels (status=cancelled) | token | — |
 | POST | /nexus/api/governance/proposals/:id/vote | `id`, `vote` | weight, reason | vote∈yes/no/abstain; weight ≥0; reason ≤1000 | token | — |
 | GET | /nexus/api/governance/proposals/:id/results | `id` | — | — | token | — |
 | GET | /nexus/api/governance/proposals/:id/votes | `id` | vote, limit, offset | — | token | limit=100, offset=0 |
+| POST | /nexus/api/governance/proposals/:id/execute | `id` | — | proposal must be `passed` and not yet executed; applies role/member/rule action | token (admin intent) | — |
 | POST | /nexus/api/governance/proposals/:id/close | `id` | — | — | token (admin intent) | — |
 | GET | /nexus/api/trending/groups | — | category, limit, offset, minScore | limit ≤100 | optionalToken | limit=20, offset=0, minScore=0 |
 | POST | /nexus/api/trending/update | — | groupId, limit, batchSize | — | token + requireAdmin() | limit=1000, batchSize=50 |
@@ -573,6 +585,7 @@ add permissions. `/api/config` and `/api/webhooks` have no token middleware. `/a
 | GET | /timeline/api/timeline/user/:userId | `userId` | page, limit, offset | limit 1–100 | read `/timeline` | page1, limit20 |
 | POST/DELETE | /timeline/api/interactions/:id/like, /repost, /bookmark | `id` | — | — | `req.user.id` (401 if none) | 201 on POST |
 | POST/DELETE | /timeline/api/interactions/users/:id/follow | `id` | — | — | `req.user.id` | 201 on POST |
+| GET | /timeline/api/interactions/users/:id/follow | `id` | — | — | `req.user.id` | `{ following: boolean }` |
 | POST | /timeline/api/lists/ | `name` | description, visibility | name ≤100; visibility∈public/private | write `/lists` | 201; visibility=public |
 | GET | /timeline/api/lists/ | — | page, limit, offset | limit 1–100 | read `/lists` | page1, limit20 |
 | GET | /timeline/api/lists/:id | `id`(uuid) | — | uuid | read `/lists` | 403 if private non-owner |

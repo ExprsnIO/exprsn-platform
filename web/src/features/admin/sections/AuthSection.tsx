@@ -538,7 +538,7 @@ function OrgGroupsTab({ orgId, roles, onToast }: { orgId: string; roles: Role[];
       <QueryState query={groups} empty="No groups in this organization.">
         {(d) => (
           <DataTable
-            rows={d.groups}
+            rows={d.groups ?? []}
             rowKey={(g) => g.id}
             columns={[
               { key: 'name', header: 'Name' },
@@ -919,7 +919,7 @@ function UsersTab() {
       <QueryState query={users} empty="No users.">
         {(d) => (
           <DataTable
-            rows={d.users}
+            rows={d.users ?? []}
             rowKey={(u) => u.id}
             columns={[
               { key: 'email', header: 'Email' },
@@ -967,7 +967,7 @@ function GroupsTab({ onToast }: { onToast: (m: string) => void }) {
       <QueryState query={groups} empty="No groups.">
         {(d) => (
           <DataTable
-            rows={d.groups}
+            rows={d.groups ?? []}
             rowKey={(g) => g.id}
             columns={[
               { key: 'name', header: 'Name' },

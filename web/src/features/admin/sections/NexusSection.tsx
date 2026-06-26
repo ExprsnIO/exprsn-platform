@@ -27,7 +27,7 @@ function GroupsTab() {
       <QueryState query={query} empty="No groups.">
         {(d) => (
           <DataTable
-            rows={d.groups}
+            rows={d.groups ?? []}
             rowKey={(g) => g.id}
             columns={[
               { key: 'name', header: 'Name' },

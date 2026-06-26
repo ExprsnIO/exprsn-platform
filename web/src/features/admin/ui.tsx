@@ -389,6 +389,48 @@ function ArrayView({ rows }: { rows: unknown[] }) {
   );
 }
 
+/** A `{ headers: [...], rows: [...] }` shape — a declarative table descriptor. */
+function looksLikeTable(v: Record<string, unknown>): v is { headers: unknown[]; rows: unknown[] } {
+  return Array.isArray(v.headers) && Array.isArray(v.rows);
+}
+
+/** Render a `{ headers, rows }` descriptor as a real table. Rows may be arrays
+ *  (positional cells) or objects (keyed by header). */
+function TableView({ headers, rows }: { headers: unknown[]; rows: unknown[] }) {
+  const cols = headers.map((h) => String(h));
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            {cols.map((c, i) => <TableCell key={i} sx={{ fontWeight: 600 }}>{c}</TableCell>)}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={cols.length || 1} sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+                No rows
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((r, ri) => {
+              const cells = Array.isArray(r)
+                ? r
+                : cols.map((c) => (isPlainObject(r) ? r[c] : r));
+              return (
+                <TableRow key={ri}>
+                  {cols.map((c, ci) => <TableCell key={ci}><Scalar name={c} value={cells[ci]} /></TableCell>)}
+                </TableRow>
+              );
+            })
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
 function ObjectView({ obj, dense }: { obj: Record<string, unknown>; dense?: boolean }) {
   const entries = Object.entries(obj);
   if (entries.length === 0) return <Box sx={{ color: 'text.disabled', fontStyle: 'italic' }}>None</Box>;
@@ -410,7 +452,13 @@ function ObjectView({ obj, dense }: { obj: Record<string, unknown>; dense?: bool
         <Box key={k}>
           <Typography variant="subtitle2" sx={{ mb: 0.5 }}>{humanizeKey(k)}</Typography>
           <Box sx={{ pl: 1.5, borderLeft: '2px solid', borderColor: 'divider' }}>
-            {Array.isArray(val) ? <ArrayView rows={val} /> : <ObjectView obj={val as Record<string, unknown>} dense />}
+            {Array.isArray(val) ? (
+              <ArrayView rows={val} />
+            ) : looksLikeTable(val as Record<string, unknown>) ? (
+              <TableView headers={(val as { headers: unknown[] }).headers} rows={(val as { rows: unknown[] }).rows} />
+            ) : (
+              <ObjectView obj={val as Record<string, unknown>} dense />
+            )}
           </Box>
         </Box>
       ))}

@@ -78,11 +78,11 @@ function OverviewTab() {
       <QueryState query={stats}>
         {(d) => (
           <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-            <StatCard label="Labels issued" value={d.labels.total} hint={`last seq ${d.labels.lastSeq}`} />
-            <StatCard label="Inbound labels" value={d.inboundLabels} />
-            <StatCard label="Queue waiting" value={d.queue.waiting ?? 0} />
-            <StatCard label="Queue active" value={d.queue.active ?? 0} />
-            <StatCard label="Queue failed" value={d.queue.failed ?? 0} />
+            <StatCard label="Labels issued" value={d.labels?.total ?? 0} hint={`last seq ${d.labels?.lastSeq ?? 0}`} />
+            <StatCard label="Inbound labels" value={d.inboundLabels ?? 0} />
+            <StatCard label="Queue waiting" value={d.queue?.waiting ?? 0} />
+            <StatCard label="Queue active" value={d.queue?.active ?? 0} />
+            <StatCard label="Queue failed" value={d.queue?.failed ?? 0} />
           </Stack>
         )}
       </QueryState>
@@ -114,10 +114,10 @@ function OverviewTab() {
         {(d) => (
           <Card title="Feed generator">
             <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-              {d.uri}
+              {d.uri ?? '—'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {(d.record.displayName as string) ?? d.rkey}
+              {(d.record?.displayName as string) ?? d.rkey ?? '—'}
             </Typography>
           </Card>
         )}
@@ -199,7 +199,7 @@ function OutLabelsTab({ toaster }: { toaster: Toaster }) {
       <QueryState query={query} empty="No labels issued yet.">
         {(d) => (
           <DataTable<OutLabel>
-            rows={d.labels}
+            rows={d.labels ?? []}
             rowKey={(l, i) => `${l.uri}:${l.val}:${i}`}
             columns={[
               { key: 'val', header: 'Label', render: (l) => <Chip size="small" color={l.neg ? 'default' : 'primary'} label={l.neg ? `¬${l.val}` : l.val} /> },
@@ -244,7 +244,7 @@ function InboundTab({ toaster }: { toaster: Toaster }) {
     <QueryState query={query} empty="No inbound labels consumed yet.">
       {(d) => (
         <DataTable<InboundLabel>
-          rows={d.labels}
+          rows={d.labels ?? []}
           rowKey={(l, i) => `${l.src}:${l.uri}:${l.val}:${i}`}
           columns={[
             { key: 'val', header: 'Label', render: (l) => <Chip size="small" color={l.neg ? 'default' : 'secondary'} label={l.neg ? `¬${l.val}` : l.val} /> },

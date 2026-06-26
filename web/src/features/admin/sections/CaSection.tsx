@@ -158,7 +158,7 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
       <QueryState query={query}>
         {(d) => (
           <DataTable
-            rows={d.certificates}
+            rows={d.certificates ?? []}
             rowKey={(c) => c.id}
             columns={[
               { key: 'commonName', header: 'Common name', render: (c) => c.commonName ?? '—' },
@@ -261,7 +261,7 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
       <QueryState query={query}>
         {(d) => (
           <DataTable
-            rows={d.tokens}
+            rows={d.tokens ?? []}
             rowKey={(t) => t.id}
             columns={[
               { key: 'id', header: 'Token', mono: true, render: (t) => `${t.id.slice(0, 8)}…` },
@@ -313,7 +313,7 @@ function DirectoryTab() {
         <QueryState query={users} empty="No users (ca.users is unseeded in this deployment).">
           {(d) => (
             <DataTable
-              rows={d.users}
+              rows={d.users ?? []}
               rowKey={(u) => u.id}
               columns={[
                 { key: 'username', header: 'Username', render: (u) => u.username ?? '—' },
@@ -328,14 +328,14 @@ function DirectoryTab() {
       <Card title="Groups">
         <QueryState query={groups} empty="No groups.">
           {(d) => (
-            <DataTable rows={d.groups} rowKey={(g, i) => String(g.id ?? i)} columns={[{ key: 'name', header: 'Name', render: (g) => String(g.name ?? g.id ?? '—') }]} />
+            <DataTable rows={d.groups ?? []} rowKey={(g, i) => String(g.id ?? i)} columns={[{ key: 'name', header: 'Name', render: (g) => String(g.name ?? g.id ?? '—') }]} />
           )}
         </QueryState>
       </Card>
       <Card title="Roles">
         <QueryState query={roles} empty="No roles.">
           {(d) => (
-            <DataTable rows={d.roles} rowKey={(r, i) => String(r.id ?? i)} columns={[{ key: 'name', header: 'Name', render: (r) => String(r.name ?? r.id ?? '—') }]} />
+            <DataTable rows={d.roles ?? []} rowKey={(r, i) => String(r.id ?? i)} columns={[{ key: 'name', header: 'Name', render: (r) => String(r.name ?? r.id ?? '—') }]} />
           )}
         </QueryState>
       </Card>

@@ -57,4 +57,43 @@ router.get('/',
   }
 );
 
+/**
+ * GET /api/memberships/user/:userId
+ * Another user's PUBLIC group memberships (public-visibility groups only).
+ * Any authenticated user may view these — used to render profiles.
+ */
+router.get('/user/:userId',
+  requireToken(),
+  async (req, res, next) => {
+    try {
+      const schema = Joi.object({
+        page: Joi.number().integer().min(1).default(1),
+        limit: Joi.number().integer().min(1).max(100).default(50)
+      });
+
+      const { error, value } = schema.validate(req.query);
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          error: 'VALIDATION_ERROR',
+          message: error.details[0].message
+        });
+      }
+
+      const result = await membershipService.getPublicUserGroups(
+        req.params.userId,
+        { page: value.page, limit: value.limit }
+      );
+
+      res.json({
+        success: true,
+        data: result.groups,
+        pagination: result.pagination
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 module.exports = router;

@@ -81,6 +81,60 @@ router.get('/', requireAdminAfterCA, asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/users/directory
+ * Public people directory — available to any authenticated user. Returns ONLY
+ * non-sensitive fields (no email/mfa/status/lastLogin) and searches displayName
+ * only, so it can't be used to probe which email addresses are registered.
+ * Declared before `/:id` so the literal path is matched here.
+ */
+router.get('/directory', asyncHandler(async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
+  const offset = parseInt(req.query.offset, 10) || 0;
+  const search = (req.query.search || '').trim();
+
+  const where = { status: 'active' };
+  if (search) {
+    where.displayName = { [Op.iLike]: `%${search}%` };
+  }
+
+  const { rows, count } = await User.findAndCountAll({
+    where,
+    limit,
+    offset,
+    order: [['displayName', 'ASC']],
+    attributes: ['id', 'displayName', 'avatarUrl', 'bio']
+  });
+
+  res.json({
+    users: rows,
+    pagination: { limit, offset, total: count, hasMore: offset + rows.length < count }
+  });
+}));
+
+/**
+ * POST /api/users/profiles
+ * Batch public profiles for a set of user ids — available to any authenticated
+ * user. Returns ONLY non-sensitive fields (no email/mfa/status) for ACTIVE
+ * users, so a caller can resolve display names/avatars (e.g. a group member
+ * list) without an N+1 of /:id/profile. Ids are de-duped and capped.
+ */
+router.post('/profiles', asyncHandler(async (req, res) => {
+  const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : [];
+  const ids = [...new Set(rawIds.filter((v) => typeof v === 'string' && v))].slice(0, 200);
+
+  if (ids.length === 0) {
+    return res.json({ users: [] });
+  }
+
+  const users = await User.findAll({
+    where: { id: { [Op.in]: ids }, status: 'active' },
+    attributes: ['id', 'displayName', 'avatarUrl', 'bio']
+  });
+
+  res.json({ users });
+}));
+
+/**
  * GET /api/users/:id
  * Get user profile
  */
@@ -184,6 +238,32 @@ router.get('/:id/groups', asyncHandler(async (req, res) => {
   }
 
   res.json({ groups: user.groups });
+}));
+
+/**
+ * GET /api/users/:id/profile
+ * Public profile projection — available to any authenticated user. Returns ONLY
+ * non-sensitive fields; never email/mfa/status/lastLogin. 404 for non-active
+ * accounts so suspended/deactivated users aren't browsable.
+ */
+router.get('/:id/profile', asyncHandler(async (req, res) => {
+  const user = await User.findByPk(req.params.id, {
+    attributes: ['id', 'displayName', 'avatarUrl', 'bio', 'status', 'createdAt']
+  });
+
+  if (!user || user.status !== 'active') {
+    throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+  }
+
+  res.json({
+    user: {
+      id: user.id,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      createdAt: user.createdAt
+    }
+  });
 }));
 
 module.exports = router;

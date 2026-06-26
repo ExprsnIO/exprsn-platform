@@ -224,6 +224,21 @@ async function unfollowUser(followerId, followingId) {
 }
 
 /**
+ * Whether `followerId` currently follows `followingId`.
+ */
+async function isFollowing(followerId, followingId) {
+  if (!followerId || !followingId || followerId === followingId) {
+    return false;
+  }
+
+  const follow = await Follow.findOne({
+    where: { followerId, followingId }
+  });
+
+  return !!follow;
+}
+
+/**
  * Get user's bookmarks
  */
 async function getUserBookmarks(userId, { limit = 20, offset = 0 } = {}) {
@@ -252,5 +267,6 @@ module.exports = {
   removeBookmark,
   followUser,
   unfollowUser,
+  isFollowing,
   getUserBookmarks
 };

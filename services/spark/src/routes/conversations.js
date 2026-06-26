@@ -24,6 +24,36 @@ router.post('/', validateCAToken({ requiredPermissions: ['write'] }), asyncHandl
 
   validateRequired({ type, participantIds }, ['type', 'participantIds']);
 
+  // Direct conversations are 1:1 and unique per pair — reuse an existing one
+  // rather than creating duplicates (e.g. repeated "Message" clicks from a
+  // profile). Only applies when there's exactly one distinct other participant.
+  if (type === 'direct') {
+    const allIds = [...new Set([req.userId, ...participantIds])];
+    const other = allIds.find((id) => id !== req.userId);
+    if (allIds.length === 2 && other) {
+      const mine = await Participant.findAll({
+        where: { userId: req.userId },
+        attributes: ['conversationId']
+      });
+      const myConvoIds = mine.map((p) => p.conversationId);
+      if (myConvoIds.length) {
+        const shared = await Participant.findAll({
+          where: { userId: other, conversationId: { [Op.in]: myConvoIds } },
+          attributes: ['conversationId']
+        });
+        for (const s of shared) {
+          const existing = await Conversation.findByPk(s.conversationId);
+          if (existing && existing.type === 'direct') {
+            const count = await Participant.count({ where: { conversationId: existing.id } });
+            if (count === 2) {
+              return res.status(200).json({ message: 'Conversation exists', conversation: existing });
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Create conversation
   const conversation = await Conversation.create({
     type,

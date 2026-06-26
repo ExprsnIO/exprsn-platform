@@ -281,4 +281,30 @@ describe('MembershipService', () => {
       ).rejects.toThrow();
     });
   });
+
+  describe('getPublicUserGroups', () => {
+    it('returns only public groups for a user, projecting safe fields', async () => {
+      GroupMembership.findAndCountAll = jest.fn().mockResolvedValue({
+        count: 1,
+        rows: [
+          { id: 'm-1', group: { id: 'g-1', name: 'Public Group', visibility: 'public', memberCount: 5 } }
+        ]
+      });
+
+      const result = await membershipService.getPublicUserGroups('user-1', { page: 1, limit: 50 });
+
+      // Query is scoped to active membership + an inner-joined public group.
+      const arg = GroupMembership.findAndCountAll.mock.calls[0][0];
+      expect(arg.where).toEqual({ userId: 'user-1', status: 'active' });
+      const groupInclude = arg.include[0];
+      expect(groupInclude.required).toBe(true);
+      expect(groupInclude.where).toEqual({ visibility: 'public' });
+
+      // Returns the nested groups (not the membership rows) + pagination.
+      expect(result.groups).toEqual([
+        { id: 'g-1', name: 'Public Group', visibility: 'public', memberCount: 5 }
+      ]);
+      expect(result.pagination).toMatchObject({ total: 1, page: 1, limit: 50, pages: 1 });
+    });
+  });
 });

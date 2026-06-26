@@ -625,6 +625,45 @@ async function getUserMemberships(userId, filters = {}, pagination = {}) {
   }
 }
 
+/**
+ * Public-facing list of a user's group memberships: ONLY groups whose
+ * visibility is 'public', with non-sensitive group fields. Used to render
+ * another user's profile without leaking private/unlisted memberships.
+ */
+async function getPublicUserGroups(userId, pagination = {}) {
+  try {
+    const { page = 1, limit = 50 } = pagination;
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await GroupMembership.findAndCountAll({
+      where: { userId, status: 'active' },
+      include: [{
+        model: Group,
+        as: 'group',
+        required: true,
+        where: { visibility: 'public' },
+        attributes: ['id', 'name', 'slug', 'description', 'avatarUrl', 'memberCount']
+      }],
+      limit,
+      offset,
+      order: [['joinedAt', 'DESC']]
+    });
+
+    return {
+      groups: rows.map((r) => r.group),
+      pagination: {
+        total: count,
+        page,
+        limit,
+        pages: Math.ceil(count / limit)
+      }
+    };
+  } catch (error) {
+    logger.error('Error getting public user groups:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   joinGroup,
   leaveGroup,
@@ -634,5 +673,6 @@ module.exports = {
   approveJoinRequest,
   rejectJoinRequest,
   listMembers,
-  getUserMemberships
+  getUserMemberships,
+  getPublicUserGroups
 };

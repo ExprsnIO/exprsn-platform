@@ -149,6 +149,26 @@ router.post('/users/:id/follow', async (req, res) => {
 });
 
 /**
+ * GET /api/users/:id/follow - Whether the caller follows this user
+ */
+router.get('/users/:id/follow', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const following = await interactionService.isFollowing(userId, id);
+
+    res.json({ following });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
  * DELETE /api/users/:id/follow - Unfollow a user
  */
 router.delete('/users/:id/follow', async (req, res) => {

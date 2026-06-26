@@ -7,6 +7,12 @@
 const express = require('express');
 const router = express.Router();
 const interactionService = require('../services/interactionService');
+const { requireToken } = require('../middleware/auth');
+
+// All interaction routes need an authenticated user. requireToken validates the
+// CA bearer and sets req.userId (matching the posts router); without it req.user
+// is never populated and every handler 401s.
+router.use(requireToken({ requiredPermissions: { read: true } }));
 
 /**
  * POST /api/posts/:id/like - Like a post
@@ -14,7 +20,7 @@ const interactionService = require('../services/interactionService');
 router.post('/:id/like', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -34,7 +40,7 @@ router.post('/:id/like', async (req, res) => {
 router.delete('/:id/like', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -54,7 +60,7 @@ router.delete('/:id/like', async (req, res) => {
 router.post('/:id/repost', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -74,7 +80,7 @@ router.post('/:id/repost', async (req, res) => {
 router.delete('/:id/repost', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -94,7 +100,7 @@ router.delete('/:id/repost', async (req, res) => {
 router.post('/:id/bookmark', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -114,7 +120,7 @@ router.post('/:id/bookmark', async (req, res) => {
 router.delete('/:id/bookmark', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -134,7 +140,7 @@ router.delete('/:id/bookmark', async (req, res) => {
 router.post('/users/:id/follow', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -154,7 +160,7 @@ router.post('/users/:id/follow', async (req, res) => {
 router.get('/users/:id/follow', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -174,7 +180,7 @@ router.get('/users/:id/follow', async (req, res) => {
 router.delete('/users/:id/follow', async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });

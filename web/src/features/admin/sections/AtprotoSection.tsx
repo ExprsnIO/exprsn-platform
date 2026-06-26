@@ -361,7 +361,7 @@ function LabelersTab({ toaster }: { toaster: Toaster }) {
       <QueryState query={query} empty="Not subscribed to any external labelers.">
         {(d) => (
           <DataTable<ExternalLabeler>
-            rows={d.labelers}
+            rows={d.labelers ?? []}
             rowKey={(l) => l.endpoint}
             columns={[
               { key: 'health', header: 'Health', render: (l) => <HealthChip l={l} /> },

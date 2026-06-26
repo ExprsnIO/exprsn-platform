@@ -5,7 +5,7 @@
  * API surface. Conventions match the rest of web/: TanStack Query for server
  * state, MUI for chrome, toMessage() for the gateway error envelope.
  */
-import { Fragment, isValidElement, ReactNode, useCallback, useState } from 'react';
+import { Fragment, isValidElement, ReactNode, useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Box,
@@ -681,6 +681,14 @@ export function ConfigSectionEditor({
     }
   };
 
+  // Auto-load the active section on mount and whenever it changes, so the form
+  // renders immediately instead of waiting for a manual Reload click.
+  useEffect(() => {
+    if (section) doLoad(section);
+    // doLoad is recreated each render; we intentionally key only on `section`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
+
   const schema = hasFields(raw) ? raw : null;
 
   return (
@@ -694,12 +702,12 @@ export function ConfigSectionEditor({
               title={s}
               color={s === section ? 'primary' : 'default'}
               variant={s === section ? 'filled' : 'outlined'}
-              onClick={() => { setSection(s); doLoad(s); }}
+              onClick={() => setSection(s)}
             />
           ))}
         </Stack>
 
-        {!loaded && status.kind !== 'error' && <Alert severity="info">Select a section above to load its settings.</Alert>}
+        {!loaded && busy && <Alert severity="info">Loading settings…</Alert>}
 
         {schema && !advanced && (
           <Stack spacing={2}>

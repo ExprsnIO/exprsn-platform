@@ -14,12 +14,19 @@ export function PostCard({
   post,
   isOwn,
   onToggleLike,
+  onComment,
+  onToggleRepost,
 }: {
   post: Post;
   isOwn: boolean;
   onToggleLike: (post: Post) => void;
+  /** When provided, the comment affordance becomes a button. */
+  onComment?: (post: Post) => void;
+  /** When provided, the repost affordance becomes a toggle button. */
+  onToggleRepost?: (post: Post) => void;
 }) {
   const liked = !!post.liked;
+  const reposted = !!post.reposted;
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -62,15 +69,41 @@ export function PostCard({
               </Box>
             </Tooltip>
 
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-              <ChatBubbleOutlineIcon fontSize="small" />
-              <Typography variant="caption">{post.commentCount ?? 0}</Typography>
-            </Box>
+            {onComment ? (
+              <Tooltip title="Comment">
+                <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <IconButton size="small" onClick={() => onComment(post)}>
+                    <ChatBubbleOutlineIcon fontSize="small" />
+                  </IconButton>
+                  <Typography variant="caption">{post.commentCount ?? 0}</Typography>
+                </Box>
+              </Tooltip>
+            ) : (
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                <ChatBubbleOutlineIcon fontSize="small" />
+                <Typography variant="caption">{post.commentCount ?? 0}</Typography>
+              </Box>
+            )}
 
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-              <RepeatIcon fontSize="small" />
-              <Typography variant="caption">{post.repostCount ?? 0}</Typography>
-            </Box>
+            {onToggleRepost ? (
+              <Tooltip title={reposted ? 'Undo repost' : 'Repost'}>
+                <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <IconButton
+                    size="small"
+                    color={reposted ? 'success' : 'default'}
+                    onClick={() => onToggleRepost(post)}
+                  >
+                    <RepeatIcon fontSize="small" />
+                  </IconButton>
+                  <Typography variant="caption">{post.repostCount ?? 0}</Typography>
+                </Box>
+              </Tooltip>
+            ) : (
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                <RepeatIcon fontSize="small" />
+                <Typography variant="caption">{post.repostCount ?? 0}</Typography>
+              </Box>
+            )}
           </Stack>
         </Box>
       </Stack>

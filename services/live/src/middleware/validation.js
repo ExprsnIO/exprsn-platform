@@ -196,6 +196,14 @@ const schemas = {
     offset: Joi.number().integer().min(0).default(0)
   }),
 
+  // Group stream list filters (groupId comes from the route param)
+  listGroupStreams: Joi.object({
+    status: Joi.string().valid('pending', 'live', 'ended', 'error'),
+    visibility: Joi.string().valid('public', 'unlisted', 'private'),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+    offset: Joi.number().integer().min(0).default(0)
+  }),
+
   listRooms: Joi.object({
     status: Joi.string().valid('waiting', 'active', 'ended'),
     hostId: Joi.string().uuid(),

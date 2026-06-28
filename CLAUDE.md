@@ -78,6 +78,15 @@ cd services/auth && AUTH_DB_NAME=exprsn_auth_test AUTH_DB_USER=exprsn AUTH_DB_PA
 
 `tests/setup.js` mocks the in-process CA (`services/ca/services/token` + `platformSigning`) with a stateful fake and disables the `@exprsn/shared` rate limiters; `jest.config.js` sets `maxWorkers:1` because all suites share that one test DB. Only `tests/session.test.js` is currently green — the other auth suites have a pre-existing-failure backlog (STATUS.md #9 note).
 
+**Nexus suite:** `services/nexus/tests/setup.js` loads the repo-root `.env` for DB creds but **forces** `DB_NAME=exprsn_nexus_test` so tests use an isolated DB, never the real `exprsn`. It also mocks `ioredis` and `bull` so require-time queue construction (e.g. `eventReminderService`) doesn't reach Redis. Most nexus suites mock their models and need no DB; a few force-sync — create the test DB once:
+
+```bash
+docker exec -e PGPASSWORD=<pw> exprsn-postgres psql -U exprsn -d exprsn -c "CREATE DATABASE exprsn_nexus_test OWNER exprsn;"
+docker exec -e PGPASSWORD=<pw> exprsn-postgres psql -U exprsn -d exprsn_nexus_test -c "CREATE SCHEMA IF NOT EXISTS nexus AUTHORIZATION exprsn;"
+```
+
+Note: unit tests must mock the **individual** model files (`require('../models/Event')`) — nexus services import models per-file, not via the `../models` index, so mocking the index has no effect. `groupService`/`moderationService` and a few `events` route assertions still have a pre-existing stale-test backlog.
+
 Bull queue workers are **not** part of the gateway process; run separately via the root aliases `npm run worker:timeline` (`node services/timeline/src/worker.js`) and `npm run worker:prefetch` (`PREFETCH_ROLE=worker node services/prefetch/src/worker.js`).
 
 Runtime prerequisites: Postgres and Redis must be up **before** `npm start` — some modules (spark, vault) connect to Redis / build Bull queues / create ES indices at `require` time.

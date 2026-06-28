@@ -17,7 +17,20 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.UUID,
       allowNull: false,
       field: 'user_id',
-      comment: 'Owner of the file'
+      comment: 'Owning user (for user-owned files) / uploading user (for group-owned files)'
+    },
+    ownerType: {
+      type: DataTypes.ENUM('user', 'group'),
+      allowNull: false,
+      field: 'owner_type',
+      defaultValue: 'user',
+      comment: 'Whether this file belongs to a user or a group'
+    },
+    groupId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'group_id',
+      comment: 'Owning group id when owner_type = group (nexus group id)'
     },
     directoryId: {
       type: DataTypes.UUID,
@@ -107,7 +120,8 @@ module.exports = (sequelize, DataTypes) => {
       { fields: ['content_hash'] },
       { fields: ['path'] },
       { fields: ['created_at'] },
-      { fields: ['is_deleted'] }
+      { fields: ['is_deleted'] },
+      { fields: ['group_id', 'owner_type', 'is_deleted'] }
     ]
   });
 

@@ -10,12 +10,14 @@ const config = require('../config');
 const logger = require('../utils/logger');
 const heraldClient = require('./heraldClient');
 const caTokenService = require('./caTokenService');
+// Canonical Sequelize model layer (see moderationService.js for why the legacy
+// raw-pg `../models` is not used).
 const {
-  ModerationItem,
+  ModerationCase: ModerationItem,
   ModerationAction,
   UserAction,
-  ModerationQueue
-} = require('../models');
+  ReviewQueue: ModerationQueue
+} = require('../models/sequelize-index');
 
 class ModerationActionsService {
   constructor() {

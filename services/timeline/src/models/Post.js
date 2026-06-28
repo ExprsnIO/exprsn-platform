@@ -40,6 +40,16 @@ module.exports = (sequelize) => {
       defaultValue: 'public'
     },
 
+    // Owning group (nexus) for group-scoped posts. NULL = personal/global post.
+    // Mapped to snake_case column to match the migration; the rest of the model
+    // uses camelCase columns (no global `underscored`), so this needs `field`.
+    groupId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'group_id',
+      comment: 'Owning nexus group for group-scoped posts; NULL = personal/global'
+    },
+
     likeCount: {
       type: DataTypes.INTEGER,
       defaultValue: 0
@@ -97,6 +107,8 @@ module.exports = (sequelize) => {
       { fields: ['createdAt'] },
       { fields: ['visibility'] },
       { fields: ['deleted'] },
+      // Group feed lookup: newest-first within a group.
+      { name: 'posts_group_id_created_at', fields: ['group_id', 'createdAt'] },
       { fields: ['blueskyUri'] },
       { fields: ['blueskyDid'] },
       { fields: ['syncedToBluesky'] }

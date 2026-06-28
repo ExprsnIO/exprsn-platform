@@ -20,6 +20,11 @@ const {
   requireOwnerOrAdmin
 } = require('./middleware/roleValidator');
 
+// Middleware - Cross-module Group Membership Guard
+const {
+  requireGroupMembership
+} = require('./middleware/groupMembership');
+
 // Middleware - Error Handling
 const {
   AppError,
@@ -178,6 +183,9 @@ module.exports = {
   requireAdmin,
   requirePermission,
   requireOwnerOrAdmin,
+
+  // Middleware - Cross-module Group Membership Guard
+  requireGroupMembership,
 
   // Middleware - Error Handling
   AppError,

@@ -5,6 +5,7 @@
  * ═══════════════════════════════════════════════════════════
  */
 
+const { Op } = require('sequelize');
 const {
   encodeCursor,
   decodeCursor,
@@ -117,8 +118,8 @@ describe('Cursor Utilities', () => {
       const where = buildCursorWhere(cursor, 'after');
 
       expect(where).toBeDefined();
-      expect(where.$or).toBeDefined();
-      expect(where.$or).toHaveLength(2);
+      expect(where[Op.or]).toBeDefined();
+      expect(where[Op.or]).toHaveLength(2);
     });
 
     it('should build where clause for "before" direction', () => {
@@ -129,7 +130,7 @@ describe('Cursor Utilities', () => {
       const where = buildCursorWhere(cursor, 'before');
 
       expect(where).toBeDefined();
-      expect(where.$or).toBeDefined();
+      expect(where[Op.or]).toBeDefined();
     });
 
     it('should return null for invalid cursor', () => {
@@ -146,7 +147,7 @@ describe('Cursor Utilities', () => {
       const where = buildCursorWhere(cursor, 'after', 'updatedAt', 'uuid');
 
       expect(where).toBeDefined();
-      expect(where.$or[0]).toHaveProperty('updatedAt');
+      expect(where[Op.or][0]).toHaveProperty('updatedAt');
     });
   });
 

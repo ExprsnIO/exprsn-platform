@@ -8,7 +8,16 @@
 const aiProviderFactory = require('../src/ai-providers');
 const riskCalculator = require('../src/utils/risk-calculator');
 const logger = require('../src/utils/logger');
-const { ModerationItem, ReviewQueue, ModerationAction, ModerationRule } = require('../models');
+// Use the canonical Sequelize model layer (models/sequelize-index, the layer
+// db:migrate syncs). The legacy raw-pg `../models` (BaseModel) is a different
+// API — calling it with Sequelize-style options (e.g. findOne({ where })) emits
+// invalid SQL, so this service was non-functional against it.
+const {
+  ModerationCase: ModerationItem,
+  ReviewQueue,
+  ModerationAction,
+  ModerationRule
+} = require('../models/sequelize-index');
 
 class ModerationService {
   /**

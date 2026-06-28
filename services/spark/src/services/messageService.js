@@ -105,7 +105,7 @@ class MessageService {
       where,
       limit,
       order: [['createdAt', 'DESC']],
-      include: [{ model: Reaction }]
+      include: [{ model: Reaction, as: 'reactions' }]
     });
   }
 

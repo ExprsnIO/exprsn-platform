@@ -32,7 +32,7 @@ class StreamService {
    */
   async createStream(streamData, userId) {
     try {
-      const { title, description, visibility = 'public', isRecording = true } = streamData;
+      const { title, description, visibility = 'public', isRecording = true, groupId = null } = streamData;
 
       // Generate unique stream key
       const streamKey = crypto.randomBytes(32).toString('hex');
@@ -54,6 +54,7 @@ class StreamService {
       // provider's live-input id (the SRS adapter returns the stream key).
       const stream = await Stream.create({
         user_id: userId,
+        group_id: groupId,
         title,
         description,
         stream_key: input.streamKey || streamKey,
@@ -114,6 +115,7 @@ class StreamService {
         status = null,
         visibility = null,
         userId = null,
+        groupId = null,
         limit = 20,
         offset = 0
       } = filters;
@@ -122,6 +124,7 @@ class StreamService {
       if (status) where.status = status;
       if (visibility) where.visibility = visibility;
       if (userId) where.user_id = userId;
+      if (groupId) where.group_id = groupId;
 
       const { count, rows } = await Stream.findAndCountAll({
         where,

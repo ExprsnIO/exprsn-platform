@@ -6,7 +6,7 @@
  */
 
 const express = require('express');
-const { asyncHandler, AppError, validateRequired, validatePagination } = require('@exprsn/shared');
+const { asyncHandler, AppError, validateRequired, validatePagination, requireGroupMembership } = require('@exprsn/shared');
 const { requireToken, requireWrite, requireUpdate, requireDelete } = require('../middleware/auth');
 const { validatePostCreation, validatePostUpdate, validateUUID } = require('../middleware/validation');
 const postService = require('../services/postService');
@@ -18,26 +18,52 @@ const router = express.Router();
 // All post routes require authentication
 router.use(requireToken({ requiredPermissions: { read: true }, resourcePrefix: '/posts' }));
 
+// Group membership guard, applied only when the request targets a group post.
+// Any member may post; the guard reads groupId from req.body.groupId and sets
+// req.groupMembership = { isMember, role, visibility, joinMode }.
+const groupPostGuard = requireGroupMembership();
+function conditionalGroupMembership(req, res, next) {
+  if (req.body && req.body.groupId) {
+    return groupPostGuard(req, res, next);
+  }
+  return next();
+}
+
 /**
  * POST /api/posts
- * Create new post
+ * Create new post. Optional `groupId` scopes the post to a nexus group; when
+ * present the caller must be a member (any role) and posts in private/unlisted
+ * groups are forced to member-only (visibility: 'private').
  */
 router.post('/',
   requireWrite('/posts'),
+  conditionalGroupMembership,
   validatePostCreation,
   asyncHandler(async (req, res) => {
-    const { content, mediaIds, visibility, replyTo, quoteOf } = req.body;
+    const { content, mediaIds, visibility, replyTo, quoteOf, groupId } = req.body;
+
+    // For group posts, enforce visibility semantics from the group itself:
+    // private/unlisted groups => member-only post regardless of requested value.
+    let effectiveVisibility = visibility;
+    if (groupId) {
+      const groupVisibility = req.groupMembership && req.groupMembership.visibility;
+      if (groupVisibility === 'private' || groupVisibility === 'unlisted') {
+        effectiveVisibility = 'private';
+      }
+    }
 
     const post = await postService.createPost({
       userId: req.userId,
       content,
       mediaIds,
-      visibility,
+      visibility: effectiveVisibility,
       replyTo,
-      quoteOf
+      quoteOf,
+      groupId: groupId || null
     });
 
-    // Broadcast via Socket.IO
+    // Broadcast via Socket.IO. Group posts are scoped to the group room;
+    // non-group posts keep the existing global behavior.
     if (req.io) {
       broadcastNewPost(req.io, post.toJSON());
     }
@@ -139,9 +165,9 @@ router.post('/:id/like', requireWrite, asyncHandler(async (req, res) => {
     post.likeCount += 1;
     await post.save();
 
-    // Broadcast via Socket.IO
+    // Broadcast via Socket.IO (scoped to the group room for group posts)
     if (req.io) {
-      broadcastPostLike(req.io, id, req.userId);
+      broadcastPostLike(req.io, id, req.userId, post.groupId);
     }
   }
 
@@ -202,9 +228,9 @@ router.post('/:id/comments', requireWrite, asyncHandler(async (req, res) => {
   post.commentCount += 1;
   await post.save();
 
-  // Broadcast via Socket.IO
+  // Broadcast via Socket.IO (scoped to the group room for group posts)
   if (req.io) {
-    broadcastPostComment(req.io, id, comment.toJSON());
+    broadcastPostComment(req.io, id, comment.toJSON(), post.groupId);
   }
 
   res.status(201).json({

@@ -1,293 +1,208 @@
 /**
  * ═══════════════════════════════════════════════════════════
  * Rules Engine Integration Tests
+ *
+ * NOTE: this suite was rewritten to exercise the rule engine's ACTUAL
+ * public API. The previous version asserted a CRUD-style service
+ * (createRule/updateRule/deleteRule/getRules/...) that has never existed
+ * on `ruleEngineService` (confirmed against the original standalone
+ * moderator service too) — rule persistence is owned by the
+ * `ModerationRule` model and `routes/rules.js`, not the engine.
  * ═══════════════════════════════════════════════════════════
  */
 
 const ruleEngineService = require('../../services/ruleEngineService');
 const { ModerationRule } = require('../../models/sequelize-index');
 
+const ADMIN_ID = 'eeeeeeee-0000-4000-8000-000000000001';
+
+/**
+ * Persist a moderation rule via the model (the engine reads, it does not write).
+ */
+const createRule = (overrides = {}) =>
+  ModerationRule.create({
+    name: `Rule ${Math.random().toString(36).slice(2)}`,
+    description: 'Test rule',
+    action: 'flag',
+    conditions: {},
+    enabled: true,
+    priority: 50,
+    createdBy: ADMIN_ID,
+    ...overrides
+  });
+
 describe('Rule Engine Service Integration', () => {
-  describe('createRule', () => {
-    it('should create custom moderation rule', async () => {
-      const rule = await ruleEngineService.createRule({
-        name: 'Block Spam Keywords',
-        description: 'Automatically flag content with spam keywords',
-        ruleType: 'keyword',
-        conditions: {
-          keywords: ['spam', 'scam', 'free money'],
-          matchType: 'any'
-        },
-        actions: [
-          {
-            type: 'flag',
-            reason: 'Contains spam keywords'
-          }
-        ],
-        priority: 80,
-        enabled: true,
-        createdBy: 'admin-123'
-      });
-
-      expect(rule).toBeDefined();
-      expect(rule.name).toBe('Block Spam Keywords');
-      expect(rule.enabled).toBe(true);
-      expect(rule.priority).toBe(80);
-    });
-
-    it('should create pattern matching rule', async () => {
-      const rule = await ruleEngineService.createRule({
-        name: 'Email Pattern Detection',
-        description: 'Detect email addresses in posts',
-        ruleType: 'pattern',
-        conditions: {
-          pattern: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}',
-          flags: 'gi'
-        },
-        actions: [
-          {
-            type: 'queue_review',
-            reason: 'Contains email address'
-          }
-        ],
-        priority: 60,
-        enabled: true,
-        createdBy: 'admin-123'
-      });
-
-      expect(rule).toBeDefined();
-      expect(rule.ruleType).toBe('pattern');
-    });
-
-    it('should create user-based rule', async () => {
-      const rule = await ruleEngineService.createRule({
-        name: 'New User Auto-Review',
-        description: 'Auto-review content from users with <10 posts',
-        ruleType: 'user',
-        conditions: {
-          accountAge: { max: 7 },
-          postCount: { max: 10 }
-        },
-        actions: [
-          {
-            type: 'queue_review',
-            reason: 'New user content'
-          }
-        ],
-        priority: 50,
-        enabled: true,
-        createdBy: 'admin-123'
-      });
-
-      expect(rule).toBeDefined();
-      expect(rule.ruleType).toBe('user');
-    });
-  });
-
   describe('evaluateRules', () => {
-    beforeEach(async () => {
-      // Create test rules
-      await ruleEngineService.createRule({
-        name: 'Test Keyword Rule',
-        ruleType: 'keyword',
-        conditions: {
-          keywords: ['badword', 'offensive'],
-          matchType: 'any'
-        },
-        actions: [
-          {
-            type: 'flag',
-            reason: 'Contains offensive content'
-          }
-        ],
+    it('matches content against an enabled keyword rule', async () => {
+      await createRule({
+        name: 'Block spam keyword',
+        action: 'flag',
         priority: 70,
-        enabled: true,
-        createdBy: 'admin-123'
+        conditions: { keywords: ['spam'], keyword_match: 'any' }
       });
+
+      const result = await ruleEngineService.evaluateRules(
+        { contentType: 'post', contentText: 'this post is spam' },
+        { riskScore: 10 }
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.action).toBe('flag');
+      expect(result.rule).toBeDefined();
+      expect(result.rule.name).toBe('Block spam keyword');
     });
 
-    it('should evaluate content against rules', async () => {
-      const content = {
-        text: 'This post contains a badword in it'
-      };
+    it('returns no match for safe content', async () => {
+      await createRule({
+        name: 'Block spam keyword',
+        conditions: { keywords: ['spam'], keyword_match: 'any' }
+      });
 
-      const matches = await ruleEngineService.evaluateRules(content, 'post');
+      const result = await ruleEngineService.evaluateRules(
+        { contentType: 'post', contentText: 'a perfectly nice post' },
+        { riskScore: 10 }
+      );
 
-      expect(matches.length).toBeGreaterThan(0);
-      expect(matches[0].matched).toBe(true);
-      expect(matches[0].actions).toBeDefined();
+      expect(result.matched).toBe(false);
+      expect(result.rule).toBeNull();
+      expect(result.action).toBeNull();
     });
 
-    it('should return empty array for safe content', async () => {
-      const content = {
-        text: 'This is completely safe content'
-      };
+    it('ignores disabled rules', async () => {
+      await createRule({
+        name: 'Disabled keyword rule',
+        enabled: false,
+        conditions: { keywords: ['spam'], keyword_match: 'any' }
+      });
 
-      const matches = await ruleEngineService.evaluateRules(content, 'post');
+      const result = await ruleEngineService.evaluateRules(
+        { contentType: 'post', contentText: 'this post is spam' },
+        { riskScore: 10 }
+      );
 
-      expect(matches.length).toBe(0);
+      expect(result.matched).toBe(false);
     });
 
-    it('should order matches by priority', async () => {
-      await ruleEngineService.createRule({
-        name: 'High Priority Rule',
-        ruleType: 'keyword',
-        conditions: {
-          keywords: ['urgent'],
-          matchType: 'any'
-        },
-        actions: [
-          {
-            type: 'escalate',
-            reason: 'Urgent content'
-          }
-        ],
+    it('respects the threshold score', async () => {
+      await createRule({
+        name: 'High risk only',
+        action: 'reject',
+        thresholdScore: 80,
+        conditions: {}
+      });
+
+      const below = await ruleEngineService.evaluateRules(
+        { contentType: 'post', contentText: 'anything' },
+        { riskScore: 50 }
+      );
+      expect(below.matched).toBe(false);
+
+      const above = await ruleEngineService.evaluateRules(
+        { contentType: 'post', contentText: 'anything' },
+        { riskScore: 90 }
+      );
+      expect(above.matched).toBe(true);
+      expect(above.action).toBe('reject');
+    });
+
+    it('only applies to the configured content types', async () => {
+      await createRule({
+        name: 'Images only',
+        appliesTo: ['image'],
+        conditions: {}
+      });
+
+      const post = await ruleEngineService.evaluateRules(
+        { contentType: 'post', contentText: 'text' },
+        { riskScore: 10 }
+      );
+      expect(post.matched).toBe(false);
+
+      const image = await ruleEngineService.evaluateRules(
+        { contentType: 'image', contentText: 'text' },
+        { riskScore: 10 }
+      );
+      expect(image.matched).toBe(true);
+    });
+
+    it('returns the highest-priority matching rule first', async () => {
+      await createRule({
+        name: 'Low priority',
+        action: 'flag',
+        priority: 10,
+        conditions: { keywords: ['urgent'], keyword_match: 'any' }
+      });
+      await createRule({
+        name: 'High priority',
+        action: 'escalate',
         priority: 95,
-        enabled: true,
-        createdBy: 'admin-123'
+        conditions: { keywords: ['urgent'], keyword_match: 'any' }
       });
 
-      const content = {
-        text: 'This is urgent badword content'
-      };
+      const result = await ruleEngineService.evaluateRules(
+        { contentType: 'post', contentText: 'this is urgent' },
+        { riskScore: 10 }
+      );
 
-      const matches = await ruleEngineService.evaluateRules(content, 'post');
-
-      expect(matches.length).toBeGreaterThan(1);
-      expect(matches[0].priority).toBeGreaterThanOrEqual(matches[1].priority);
+      expect(result.matched).toBe(true);
+      expect(result.rule.name).toBe('High priority');
+      expect(result.action).toBe('escalate');
     });
   });
 
-  describe('updateRule', () => {
-    it('should update rule configuration', async () => {
-      const rule = await ruleEngineService.createRule({
-        name: 'Test Rule',
-        ruleType: 'keyword',
-        conditions: { keywords: ['test'] },
-        actions: [{ type: 'flag' }],
-        priority: 50,
-        enabled: true,
-        createdBy: 'admin-123'
-      });
+  describe('applyKeywordFilters', () => {
+    it('reports matched keywords', async () => {
+      const result = await ruleEngineService.applyKeywordFilters(
+        'free money scam offer',
+        ['scam', 'lottery']
+      );
 
-      const updated = await ruleEngineService.updateRule(rule.id, {
-        priority: 75,
-        enabled: false
-      });
+      expect(result.matched).toBe(true);
+      expect(result.keywords).toContain('scam');
+      expect(result.count).toBe(1);
+    });
 
-      expect(updated.priority).toBe(75);
-      expect(updated.enabled).toBe(false);
+    it('returns no match when nothing hits', async () => {
+      const result = await ruleEngineService.applyKeywordFilters('hello world', [
+        'scam'
+      ]);
+
+      expect(result.matched).toBe(false);
+      expect(result.keywords).toEqual([]);
     });
   });
 
-  describe('deleteRule', () => {
-    it('should delete rule', async () => {
-      const rule = await ruleEngineService.createRule({
-        name: 'Rule To Delete',
-        ruleType: 'keyword',
-        conditions: { keywords: ['delete'] },
-        actions: [{ type: 'flag' }],
-        priority: 50,
-        enabled: true,
-        createdBy: 'admin-123'
-      });
+  describe('applyRegexFilters', () => {
+    it('detects matching patterns', async () => {
+      const result = await ruleEngineService.applyRegexFilters(
+        'contact me at user@example.com',
+        [{ name: 'email', pattern: '[\\w.+-]+@[\\w.-]+\\.[a-z]{2,}', flags: 'i' }]
+      );
 
-      await ruleEngineService.deleteRule(rule.id);
+      expect(result.matched).toBe(true);
+      expect(result.count).toBe(1);
+      expect(result.patterns[0].name).toBe('email');
+    });
 
-      const deleted = await ModerationRule.findByPk(rule.id);
-      expect(deleted).toBeNull();
+    it('ignores invalid regex without throwing', async () => {
+      const result = await ruleEngineService.applyRegexFilters('text', [
+        { name: 'bad', pattern: '[' }
+      ]);
+
+      expect(result.matched).toBe(false);
     });
   });
 
-  describe('enableRule / disableRule', () => {
-    it('should enable disabled rule', async () => {
-      const rule = await ruleEngineService.createRule({
-        name: 'Disabled Rule',
-        ruleType: 'keyword',
-        conditions: { keywords: ['test'] },
-        actions: [{ type: 'flag' }],
-        priority: 50,
-        enabled: false,
-        createdBy: 'admin-123'
-      });
+  describe('applyCustomRules', () => {
+    it('aggregates custom rule results', async () => {
+      const result = await ruleEngineService.applyCustomRules(
+        { contentType: 'post', contentText: 'text' },
+        [{ name: 'custom-1', action: 'flag' }]
+      );
 
-      const enabled = await ruleEngineService.enableRule(rule.id);
-
-      expect(enabled.enabled).toBe(true);
-    });
-
-    it('should disable enabled rule', async () => {
-      const rule = await ruleEngineService.createRule({
-        name: 'Enabled Rule',
-        ruleType: 'keyword',
-        conditions: { keywords: ['test'] },
-        actions: [{ type: 'flag' }],
-        priority: 50,
-        enabled: true,
-        createdBy: 'admin-123'
-      });
-
-      const disabled = await ruleEngineService.disableRule(rule.id);
-
-      expect(disabled.enabled).toBe(false);
-    });
-  });
-
-  describe('getRules', () => {
-    beforeEach(async () => {
-      await ruleEngineService.createRule({
-        name: 'Rule 1',
-        ruleType: 'keyword',
-        conditions: { keywords: ['test1'] },
-        actions: [{ type: 'flag' }],
-        priority: 50,
-        enabled: true,
-        createdBy: 'admin-123'
-      });
-
-      await ruleEngineService.createRule({
-        name: 'Rule 2',
-        ruleType: 'pattern',
-        conditions: { pattern: 'test' },
-        actions: [{ type: 'flag' }],
-        priority: 60,
-        enabled: false,
-        createdBy: 'admin-123'
-      });
-    });
-
-    it('should retrieve all rules', async () => {
-      const rules = await ruleEngineService.getRules();
-
-      expect(rules.length).toBeGreaterThanOrEqual(2);
-    });
-
-    it('should filter by enabled status', async () => {
-      const enabledRules = await ruleEngineService.getRules({
-        enabled: true
-      });
-
-      enabledRules.forEach(rule => {
-        expect(rule.enabled).toBe(true);
-      });
-    });
-
-    it('should filter by rule type', async () => {
-      const keywordRules = await ruleEngineService.getRules({
-        ruleType: 'keyword'
-      });
-
-      keywordRules.forEach(rule => {
-        expect(rule.ruleType).toBe('keyword');
-      });
-    });
-
-    it('should order rules by priority', async () => {
-      const rules = await ruleEngineService.getRules();
-
-      for (let i = 1; i < rules.length; i++) {
-        expect(rules[i - 1].priority).toBeGreaterThanOrEqual(rules[i].priority);
-      }
+      expect(result).toHaveProperty('matched');
+      expect(result).toHaveProperty('rules');
+      expect(result).toHaveProperty('count');
     });
   });
 });

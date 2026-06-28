@@ -271,6 +271,114 @@ async function listFiles(userId, directoryId = null, options = {}) {
 }
 
 /**
+ * Upload a new file into a group.
+ *
+ * Mirrors uploadFile() but stamps owner_type='group' and group_id so the file
+ * belongs to the group rather than the uploader. user_id still records the
+ * uploading user for attribution/audit.
+ */
+async function uploadGroupFile({ groupId, userId, buffer, filename, path, directoryId, tags, metadata, mimetype }) {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const contentHash = calculateSHA256(buffer);
+
+    let storageKey, storageBackend;
+    const existingFile = config.app.enableDeduplication
+      ? await File.findOne({ where: { contentHash }, transaction })
+      : null;
+
+    if (existingFile) {
+      storageKey = existingFile.storageKey;
+      storageBackend = existingFile.storageBackend;
+      logger.info(`Group file deduplicated: ${contentHash}`);
+    } else {
+      storageBackend = storage.selectBackend({ fileSize: buffer.length });
+      storageKey = generateStorageKey(contentHash);
+      await storage.store({ buffer, originalname: filename }, storageBackend, { key: storageKey });
+      logger.info(`Group file uploaded to ${storageBackend}: ${storageKey}`);
+    }
+
+    const file = await File.create({
+      userId,
+      ownerType: 'group',
+      groupId,
+      directoryId,
+      name: filename,
+      path: path || `/${filename}`,
+      size: buffer.length,
+      mimetype,
+      contentHash,
+      storageBackend,
+      storageKey,
+      currentVersion: 1,
+      tags: tags || [],
+      metadata: metadata || {},
+      visibility: 'shared'
+    }, { transaction });
+
+    await FileVersion.create({
+      fileId: file.id,
+      version: 1,
+      userId,
+      size: buffer.length,
+      contentHash,
+      storageBackend,
+      storageKey,
+      metadata: metadata || {}
+    }, { transaction });
+
+    await transaction.commit();
+    logger.info(`Group file created: ${file.id} (group ${groupId})`);
+
+    return file;
+  } catch (error) {
+    await transaction.rollback();
+    logger.error('Failed to upload group file:', error);
+    throw error;
+  }
+}
+
+/**
+ * List files owned by a group.
+ *
+ * @param {string} groupId
+ * @param {string|null} directoryId - optional directory filter
+ * @param {Object} options - { limit, offset, tags, imagesOnly, mimetype }
+ */
+async function listGroupFiles(groupId, directoryId = null, options = {}) {
+  const where = {
+    groupId,
+    ownerType: 'group',
+    isDeleted: false
+  };
+
+  if (typeof directoryId !== 'undefined' && directoryId !== null) {
+    where.directoryId = directoryId;
+  }
+
+  if (options.imagesOnly) {
+    where.mimetype = { [sequelize.Op.iLike]: 'image/%' };
+  } else if (options.mimetype) {
+    where.mimetype = { [sequelize.Op.iLike]: `${options.mimetype}%` };
+  }
+
+  if (options.tags && options.tags.length > 0) {
+    where.tags = { [sequelize.Op.contains]: options.tags };
+  }
+
+  const files = await File.findAll({
+    where,
+    limit: options.limit || 50,
+    offset: options.offset || 0,
+    order: [['createdAt', 'DESC']],
+    include: [{ model: Directory, as: 'directory' }]
+  });
+
+  return files;
+}
+
+/**
  * Search files
  */
 async function searchFiles(userId, query, options = {}) {
@@ -314,12 +422,14 @@ async function getStorageUsage(userId) {
 
 module.exports = {
   uploadFile,
+  uploadGroupFile,
   getFile,
   downloadFile,
   downloadFileStream,
   updateFile,
   deleteFile,
   listFiles,
+  listGroupFiles,
   searchFiles,
   getStorageUsage
 };

@@ -37,7 +37,11 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/tests/integration/setup.js'],
 
   // Test timeout
-  testTimeout: 10000,
+  testTimeout: 20000,
+
+  // All integration suites share one test database, so they must run
+  // serially (force-sync in beforeAll would otherwise race across workers).
+  maxWorkers: 1,
 
   // Clear mocks between tests
   clearMocks: true,

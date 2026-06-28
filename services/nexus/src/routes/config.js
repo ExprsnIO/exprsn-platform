@@ -9,6 +9,14 @@ const { Group, Event, GroupCategory } = require('../models');
 const { Op } = require('sequelize');
 const config = require('../config');
 const logger = require('../utils/logger');
+const { requireToken } = require('../middleware/tokenAuth');
+const { requireAdmin } = require('@exprsn/shared');
+const adminAuditService = require('../services/adminAuditService');
+
+// Platform-config management is admin-only. requireToken validates the CA token
+// and (via attachRoleContext) surfaces req.userId/req.userRoles so the shared
+// requireAdmin() can enforce role === 'admin'.
+router.use(requireToken(), requireAdmin());
 
 /**
  * GET /api/config/:sectionId
@@ -69,6 +77,15 @@ router.post('/:sectionId', async (req, res) => {
       default:
         return res.status(404).json({ success: false, error: 'Configuration section not found' });
     }
+
+    await adminAuditService.record({
+      actor: req.userId,
+      action: 'config.update',
+      targetType: 'config',
+      targetId: sectionId,
+      metadata: { fields: Object.keys(configData || {}) },
+      isPlatformAdmin: true
+    });
 
     res.json({ success: true, result });
   } catch (error) {

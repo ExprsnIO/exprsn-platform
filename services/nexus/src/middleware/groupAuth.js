@@ -10,7 +10,30 @@ const redis = require('../config/redis');
  */
 
 /**
- * Check if user is a member of the group
+ * Whether the request carries a verified PLATFORM admin (CA-token role 'admin'),
+ * as opposed to a group-scoped admin. tokenAuth.attachRoleContext populates
+ * req.userRoles/req.userRole from the CA token's `data.roles`. This mirrors the
+ * shared requireAdmin() check (role === 'admin') without 403-ing non-admins, so
+ * it can be used as an additive bypass alongside the group-scoped guards.
+ * @param {Object} req - Express request
+ * @returns {boolean}
+ */
+function isPlatformAdminRequest(req) {
+  const roles = Array.isArray(req.userRoles)
+    ? req.userRoles
+    : (req.userRole ? [req.userRole] : []);
+  return roles.includes('admin');
+}
+
+/**
+ * Check if user is a member of the group.
+ *
+ * A verified platform admin (CA-token role 'admin') bypasses the membership
+ * requirement WITHOUT a membership row: req.isPlatformAdmin is set and a
+ * synthetic admin membership is attached so downstream requireGroupAdmin /
+ * requireGroupRole guards pass. Route handlers must additionally forward
+ * { isPlatformAdmin: req.isPlatformAdmin } to service methods that re-check
+ * membership. Group-scoped behavior for normal users is unchanged.
  */
 async function requireGroupMember(req, res, next) {
   try {
@@ -29,6 +52,19 @@ async function requireGroupMember(req, res, next) {
         error: 'INVALID_REQUEST',
         message: 'Group ID is required'
       });
+    }
+
+    // Platform-admin override: pass without a membership row.
+    if (isPlatformAdminRequest(req)) {
+      req.isPlatformAdmin = true;
+      req.membership = {
+        userId,
+        groupId,
+        role: 'admin',
+        status: 'active',
+        isPlatformAdmin: true
+      };
+      return next();
     }
 
     // Check cache first
@@ -112,6 +148,12 @@ function requireGroupRole(roles) {
  */
 async function requireGroupAdmin(req, res, next) {
   try {
+    // Platform-admin override (additive bypass for CA-token role 'admin').
+    if (req.isPlatformAdmin || isPlatformAdminRequest(req)) {
+      req.isPlatformAdmin = true;
+      return next();
+    }
+
     if (!req.membership) {
       return res.status(403).json({
         error: 'NOT_GROUP_MEMBER',
@@ -256,5 +298,6 @@ module.exports = {
   requireGroupRole,
   requireGroupAdmin,
   validateGroup,
-  requireGroupAccess
+  requireGroupAccess,
+  isPlatformAdminRequest
 };

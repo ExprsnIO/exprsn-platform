@@ -84,6 +84,30 @@ async function listDirectoryContents(userId, directoryId = null) {
 }
 
 /**
+ * List a group's directories and files at a given level.
+ *
+ * Mirrors listDirectoryContents() but scopes by group ownership
+ * (owner_type='group' + group_id) instead of user_id.
+ *
+ * @param {string} groupId
+ * @param {string|null} directoryId - parent directory (null = group root)
+ */
+async function listGroupDirectoryContents(groupId, directoryId = null) {
+  const [subdirectories, files] = await Promise.all([
+    Directory.findAll({
+      where: { groupId, ownerType: 'group', parentId: directoryId, isDeleted: false },
+      order: [['name', 'ASC']]
+    }),
+    File.findAll({
+      where: { groupId, ownerType: 'group', directoryId, isDeleted: false },
+      order: [['name', 'ASC']]
+    })
+  ]);
+
+  return { subdirectories, files };
+}
+
+/**
  * Rename directory
  */
 async function renameDirectory(directoryId, userId, newName) {
@@ -292,6 +316,7 @@ module.exports = {
   createDirectory,
   getDirectory,
   listDirectoryContents,
+  listGroupDirectoryContents,
   renameDirectory,
   moveDirectory,
   deleteDirectory

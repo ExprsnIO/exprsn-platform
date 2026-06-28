@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { deriveServiceToken } = require('@exprsn/shared/utils/serviceToken');
+const { deriveServiceToken, verifyServiceToken } = require('@exprsn/shared/utils/serviceToken');
 const config = require('../config');
 const logger = require('../utils/logger');
 const redis = require('../config/redis');
@@ -152,6 +152,11 @@ function requireToken(options = {}) {
         permissions: validation.token.permissions
       };
 
+      // Surface identity/roles in the shape the shared role guards expect
+      // (req.userId + req.userRoles/req.userRole), so requireAdmin() and the
+      // platform-admin override can read the CA-token role.
+      attachRoleContext(req, validation.token);
+
       next();
     } catch (error) {
       logger.error('Token authentication error:', error);
@@ -246,6 +251,8 @@ function optionalToken(options = {}) {
         permissions: validation.token.permissions
       };
 
+      attachRoleContext(req, validation.token);
+
       next();
     } catch (error) {
       // Log error but don't fail the request
@@ -255,10 +262,66 @@ function optionalToken(options = {}) {
   };
 }
 
+/**
+ * Attach CA-token identity/roles to the request in the shape the shared
+ * role-based guards (@exprsn/shared requireAdmin/requireRole) expect.
+ * The CA token carries the user's RBAC role names in `data.roles`.
+ * @param {Object} req - Express request
+ * @param {Object} token - Validated CA token
+ */
+function attachRoleContext(req, token) {
+  const data = (token && token.data) || {};
+  req.userId = data.userId;
+  req.userRoles = Array.isArray(data.roles) ? data.roles : [];
+  req.userRole = req.userRoles[0] || null;
+}
+
+/**
+ * Middleware: Require a valid per-service HMAC token (service-to-service).
+ *
+ * Verifies the identity-bound X-Service-ID / X-Service-Token headers
+ * (HMAC-SHA256(serviceId, SERVICE_TOKEN_SECRET)) — the inverse of the
+ * buildServiceHeaders() credentials nexus already presents when calling the CA.
+ * Used to guard internal endpoints that must NOT accept end-user CA tokens.
+ */
+function requireServiceToken(req, res, next) {
+  const serviceId = req.headers['x-service-id'];
+  const serviceToken = req.headers['x-service-token'];
+
+  if (!serviceId || !serviceToken) {
+    return res.status(401).json({
+      error: 'MISSING_SERVICE_CREDENTIALS',
+      message: 'Service authentication required',
+      hint: 'Include X-Service-ID and X-Service-Token headers'
+    });
+  }
+
+  try {
+    if (!verifyServiceToken(serviceId, serviceToken)) {
+      logger.warn('Service authentication failed', { serviceId, path: req.originalUrl });
+      return res.status(401).json({
+        error: 'INVALID_SERVICE_TOKEN',
+        message: 'Service authentication failed'
+      });
+    }
+
+    req.service = { id: serviceId, authenticated: true };
+    next();
+  } catch (error) {
+    logger.error('Service authentication error', { serviceId, error: error.message });
+    return res.status(500).json({
+      error: 'SERVICE_AUTH_ERROR',
+      message: 'Service authentication failed'
+    });
+  }
+}
+
 module.exports = {
   extractToken,
   validateCAToken,
   requireToken,
   requirePermissions,
-  optionalToken
+  optionalToken,
+  requireServiceToken,
+  attachRoleContext
 };

@@ -1,8 +1,15 @@
 const groupService = require('../../../src/services/groupService');
-const { Group, GroupMembership, GroupCategory } = require('../../../src/models');
+const { Group, GroupMembership } = require('../../../src/models');
+const { Op } = require('sequelize');
 
-// Mock models
+// Mock models (groupService imports them from the index)
 jest.mock('../../../src/models');
+
+// Mock roleService — createGroup calls createDefaultRoles, which otherwise
+// reaches a real Postgres connection via the per-file model imports.
+jest.mock('../../../src/services/roleService', () => ({
+  createDefaultRoles: jest.fn().mockResolvedValue([])
+}));
 
 // Mock Redis
 jest.mock('../../../src/config/redis', () => ({
@@ -24,7 +31,7 @@ describe('GroupService', () => {
         slug: 'tech-enthusiasts',
         description: 'A community for technology lovers',
         visibility: 'public',
-        ownerId: 'user-123',
+        creatorId: 'user-123',
         memberCount: 1
       };
 
@@ -36,6 +43,7 @@ describe('GroupService', () => {
         status: 'active'
       };
 
+      Group.findOne = jest.fn().mockResolvedValue(null);
       Group.create = jest.fn().mockResolvedValue(mockGroup);
       GroupMembership.create = jest.fn().mockResolvedValue(mockMembership);
 
@@ -49,18 +57,21 @@ describe('GroupService', () => {
         expect.objectContaining({
           name: 'Tech Enthusiasts',
           slug: expect.any(String),
-          ownerId: 'user-123',
+          creatorId: 'user-123',
           memberCount: 1
         })
       );
 
-      expect(GroupMembership.create).toHaveBeenCalledWith({
-        userId: 'user-123',
-        groupId: mockGroup.id,
-        role: 'owner',
-        status: 'active',
-        joinedAt: expect.any(Number)
-      });
+      expect(GroupMembership.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-123',
+          groupId: mockGroup.id,
+          role: 'owner',
+          status: 'active',
+          signature: expect.any(String),
+          joinedAt: expect.any(Number)
+        })
+      );
 
       expect(result.name).toBe('Tech Enthusiasts');
     });
@@ -71,6 +82,7 @@ describe('GroupService', () => {
         slug: 'tech-enthusiasts'
       };
 
+      Group.findOne = jest.fn().mockResolvedValue(null);
       Group.create = jest.fn().mockResolvedValue(mockGroup);
       GroupMembership.create = jest.fn().mockResolvedValue({});
 
@@ -89,6 +101,7 @@ describe('GroupService', () => {
         governanceModel: 'centralized'
       };
 
+      Group.findOne = jest.fn().mockResolvedValue(null);
       Group.create = jest.fn().mockResolvedValue(mockGroup);
       GroupMembership.create = jest.fn().mockResolvedValue({});
 
@@ -112,6 +125,7 @@ describe('GroupService', () => {
         }
       };
 
+      Group.findOne = jest.fn().mockResolvedValue(null);
       Group.create = jest.fn().mockResolvedValue(mockGroup);
       GroupMembership.create = jest.fn().mockResolvedValue({});
 
@@ -135,11 +149,12 @@ describe('GroupService', () => {
     it('should update group with valid data', async () => {
       const mockGroup = {
         id: 'group-123',
-        ownerId: 'user-123',
+        creatorId: 'user-123',
         update: jest.fn().mockResolvedValue(true)
       };
 
       Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
+      GroupMembership.findOne = jest.fn().mockResolvedValue({ role: 'owner' });
 
       const redis = require('../../../src/config/redis');
 
@@ -155,50 +170,55 @@ describe('GroupService', () => {
         })
       );
 
-      expect(redis.del).toHaveBeenCalledWith('group:group-123');
+      expect(redis.del).toHaveBeenCalledWith('group:group-123:full');
+      expect(redis.del).toHaveBeenCalledWith('group:group-123:info');
     });
 
     it('should throw error if user is not owner', async () => {
       const mockGroup = {
         id: 'group-123',
-        ownerId: 'user-123'
+        creatorId: 'user-123'
       };
 
       Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
+      // A non-member has no active membership.
+      GroupMembership.findOne = jest.fn().mockResolvedValue(null);
 
       await expect(
         groupService.updateGroup('group-123', 'user-456', {
           description: 'Updated'
         })
-      ).rejects.toThrow();
+      ).rejects.toThrow('INSUFFICIENT_PERMISSIONS');
     });
 
-    it('should not allow changing owner via update', async () => {
+    it('should not allow changing creator via update', async () => {
       const mockGroup = {
         id: 'group-123',
-        ownerId: 'user-123',
+        creatorId: 'user-123',
         update: jest.fn().mockResolvedValue(true)
       };
 
       Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
+      GroupMembership.findOne = jest.fn().mockResolvedValue({ role: 'owner' });
 
       await groupService.updateGroup('group-123', 'user-123', {
-        ownerId: 'user-456', // Attempt to change owner
+        creatorId: 'user-456', // Attempt to change creator
         description: 'Updated'
       });
 
       const updateCall = mockGroup.update.mock.calls[0][0];
-      expect(updateCall.ownerId).toBeUndefined();
+      expect(updateCall.creatorId).toBeUndefined();
     });
 
     it('should invalidate cache after update', async () => {
       const mockGroup = {
         id: 'group-123',
-        ownerId: 'user-123',
+        creatorId: 'user-123',
         update: jest.fn().mockResolvedValue(true)
       };
 
       Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
+      GroupMembership.findOne = jest.fn().mockResolvedValue({ role: 'owner' });
 
       const redis = require('../../../src/config/redis');
 
@@ -206,59 +226,106 @@ describe('GroupService', () => {
         description: 'Updated'
       });
 
-      expect(redis.del).toHaveBeenCalledWith('group:group-123');
+      expect(redis.del).toHaveBeenCalledWith('group:group-123:full');
+      expect(redis.del).toHaveBeenCalledWith('group:group-123:info');
+    });
+
+    it('should allow a platform admin to update without group membership', async () => {
+      const mockGroup = {
+        id: 'group-123',
+        creatorId: 'user-123',
+        update: jest.fn().mockResolvedValue(true)
+      };
+
+      Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
+      GroupMembership.findOne = jest.fn().mockResolvedValue(null);
+
+      await groupService.updateGroup(
+        'group-123',
+        'admin-1',
+        { description: 'Admin edit' },
+        { isPlatformAdmin: true }
+      );
+
+      // Membership lookup is bypassed entirely for platform admins.
+      expect(GroupMembership.findOne).not.toHaveBeenCalled();
+      expect(mockGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'Admin edit' })
+      );
     });
   });
 
   describe('deleteGroup', () => {
-    it('should delete group and all memberships', async () => {
+    it('should soft delete the group', async () => {
       const mockGroup = {
         id: 'group-123',
-        ownerId: 'user-123',
-        destroy: jest.fn().mockResolvedValue(true)
+        creatorId: 'user-123',
+        update: jest.fn().mockResolvedValue(true)
       };
 
       Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
-      GroupMembership.destroy = jest.fn().mockResolvedValue(5); // 5 memberships deleted
+      GroupMembership.findOne = jest.fn().mockResolvedValue({ role: 'owner' });
 
       await groupService.deleteGroup('group-123', 'user-123');
 
-      expect(GroupMembership.destroy).toHaveBeenCalledWith({
-        where: { groupId: 'group-123' }
-      });
-
-      expect(mockGroup.destroy).toHaveBeenCalled();
+      expect(mockGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isActive: false,
+          deletedAt: expect.any(Number)
+        })
+      );
     });
 
     it('should throw error if user is not owner', async () => {
       const mockGroup = {
         id: 'group-123',
-        ownerId: 'user-123'
+        creatorId: 'user-123'
       };
 
       Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
+      GroupMembership.findOne = jest.fn().mockResolvedValue(null);
 
       await expect(
         groupService.deleteGroup('group-123', 'user-456')
-      ).rejects.toThrow();
+      ).rejects.toThrow('ONLY_OWNER_CAN_DELETE');
     });
 
     it('should invalidate cache after deletion', async () => {
       const mockGroup = {
         id: 'group-123',
-        ownerId: 'user-123',
-        destroy: jest.fn().mockResolvedValue(true)
+        creatorId: 'user-123',
+        update: jest.fn().mockResolvedValue(true)
       };
 
       Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
-      GroupMembership.destroy = jest.fn().mockResolvedValue(1);
+      GroupMembership.findOne = jest.fn().mockResolvedValue({ role: 'owner' });
 
       const redis = require('../../../src/config/redis');
 
       await groupService.deleteGroup('group-123', 'user-123');
 
-      expect(redis.del).toHaveBeenCalledWith('group:group-123');
-      expect(redis.del).toHaveBeenCalledWith('group:group-123:members');
+      expect(redis.del).toHaveBeenCalledWith('group:group-123:full');
+      expect(redis.del).toHaveBeenCalledWith('group:group-123:info');
+    });
+
+    it('should allow a platform admin to delete without being owner', async () => {
+      const mockGroup = {
+        id: 'group-123',
+        creatorId: 'user-123',
+        update: jest.fn().mockResolvedValue(true)
+      };
+
+      Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
+      GroupMembership.findOne = jest.fn().mockResolvedValue(null);
+
+      await groupService.deleteGroup('group-123', 'admin-1', {
+        isPlatformAdmin: true
+      });
+
+      expect(GroupMembership.findOne).not.toHaveBeenCalled();
+      expect(mockGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: false })
+      );
     });
   });
 
@@ -336,14 +403,14 @@ describe('GroupService', () => {
       });
 
       await groupService.listGroups(
-        { categoryId: 'category-123' },
+        { category: 'technology' },
         { page: 1, limit: 50 }
       );
 
       expect(Group.findAndCountAll).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            categoryId: 'category-123'
+            category: 'technology'
           })
         })
       );
@@ -361,7 +428,15 @@ describe('GroupService', () => {
       );
 
       const whereClause = Group.findAndCountAll.mock.calls[0][0].where;
-      expect(whereClause.name).toBeDefined();
+      // search builds an Op.or over name/description iLike clauses.
+      expect(whereClause[Op.or]).toBeDefined();
+      expect(whereClause[Op.or]).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: expect.objectContaining({ [Op.iLike]: '%tech%' })
+          })
+        ])
+      );
     });
   });
 });

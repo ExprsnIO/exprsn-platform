@@ -42,6 +42,27 @@ module.exports = (sequelize) => {
       allowNull: false
     },
 
+    // ── Group binding (Phase 4) ────────────────────────────────
+    // When set, this conversation is owned by a nexus group. Membership and
+    // write authorization for group-bound conversations are resolved LIVE from
+    // nexus (see requireGroupMembership / resolveMembership), not from the local
+    // Participant rows alone. Null for direct/non-group conversations.
+    groupId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'group_id'
+    },
+
+    // Distinguishes the two auto-provisioned group channels:
+    //   'chat'         — every group member can read + write
+    //   'announcement' — every member reads, only admins/owners write
+    // Null for non-group conversations.
+    channelKind: {
+      type: DataTypes.ENUM('chat', 'announcement'),
+      allowNull: true,
+      field: 'channel_kind'
+    },
+
     // Last message timestamp for sorting
     lastMessageAt: {
       type: DataTypes.DATE,
@@ -76,7 +97,8 @@ module.exports = (sequelize) => {
       { fields: ['type'] },
       { fields: ['createdBy'] },
       { fields: ['lastMessageAt'] },
-      { fields: ['active'] }
+      { fields: ['active'] },
+      { fields: ['group_id', 'channel_kind'] }
     ]
   });
 

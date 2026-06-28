@@ -11,6 +11,10 @@ const axios = require('axios');
 const { Message, Conversation, Participant, MessageKey } = require('../models');
 const config = require('../config');
 const encryptionService = require('../services/encryptionService');
+const {
+  authorizeConversationAccess,
+  ensureParticipant
+} = require('../services/groupChannelService');
 
 /**
  * Identity-bound service headers for CA calls. The CA's /api/tokens/validate
@@ -117,21 +121,38 @@ module.exports = function(io) {
      */
     socket.on('join:conversation', async (conversationId) => {
       try {
-        // Check if user is participant
-        const participant = await Participant.findOne({
-          where: {
-            conversationId,
-            userId: socket.userId,
-            active: true
-          }
-        });
+        const conversation = await Conversation.findByPk(conversationId);
 
-        if (!participant) {
+        if (!conversation) {
           socket.emit('error', {
             event: 'join:conversation',
-            message: 'Not a participant in this conversation'
+            message: 'Conversation not found'
           });
           return;
+        }
+
+        if (conversation.groupId) {
+          // Group-bound: authorize LIVE against nexus membership so a stale
+          // local Participant row can't grant access after removal.
+          const access = await authorizeConversationAccess(conversation, socket.userId);
+          if (!access.ok) {
+            socket.emit('error', { event: 'join:conversation', message: access.message });
+            return;
+          }
+          // Keep the local Participant row in sync (sync-on-access).
+          await ensureParticipant(conversationId, socket.userId, access.role);
+        } else {
+          // Non-group: local Participant row governs.
+          const participant = await Participant.findOne({
+            where: { conversationId, userId: socket.userId, active: true }
+          });
+          if (!participant) {
+            socket.emit('error', {
+              event: 'join:conversation',
+              message: 'Not a participant in this conversation'
+            });
+            return;
+          }
         }
 
         // Join the room
@@ -185,21 +206,39 @@ module.exports = function(io) {
           return;
         }
 
-        // Verify participant
-        const participant = await Participant.findOne({
-          where: {
-            conversationId,
-            userId: socket.userId,
-            active: true
-          }
-        });
+        const conversation = await Conversation.findByPk(conversationId);
 
-        if (!participant) {
+        if (!conversation) {
           socket.emit('error', {
             event: 'send:message',
-            message: 'Not a participant in this conversation'
+            message: 'Conversation not found'
           });
           return;
+        }
+
+        if (conversation.groupId) {
+          // Group-bound: authorize LIVE against nexus membership and enforce the
+          // announcement write restriction (admins/owners only).
+          const access = await authorizeConversationAccess(
+            conversation, socket.userId, { write: true }
+          );
+          if (!access.ok) {
+            socket.emit('error', { event: 'send:message', message: access.message });
+            return;
+          }
+          await ensureParticipant(conversationId, socket.userId, access.role);
+        } else {
+          // Non-group: local Participant row governs.
+          const participant = await Participant.findOne({
+            where: { conversationId, userId: socket.userId, active: true }
+          });
+          if (!participant) {
+            socket.emit('error', {
+              event: 'send:message',
+              message: 'Not a participant in this conversation'
+            });
+            return;
+          }
         }
 
         // Create message. For E2EE sends the client supplies encryptedContent +

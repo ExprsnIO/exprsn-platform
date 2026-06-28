@@ -88,6 +88,8 @@ app.use('/api/moderation', moderationRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/subgroups', subGroupRoutes);
 app.use('/api/config', require('./routes/config'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/internal', require('./routes/internal'));
 
 /**
  * ═══════════════════════════════════════════════════════════

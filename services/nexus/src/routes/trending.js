@@ -3,7 +3,7 @@ const router = express.Router();
 const { optionalToken, requireToken } = require('../middleware/tokenAuth');
 const { requireAdmin } = require('@exprsn/shared');
 const trendingService = require('../services/trendingService');
-const Joi = require('joi');
+const adminAuditService = require('../services/adminAuditService');
 
 /**
  * ═══════════════════════════════════════════════════════════
@@ -56,6 +56,15 @@ router.post('/update',
   async (req, res, next) => {
     try {
       const { groupId } = req.body;
+
+      await adminAuditService.record({
+        actor: req.userId,
+        action: 'trending.update',
+        targetType: groupId ? 'group' : 'platform',
+        targetId: groupId || null,
+        groupId: groupId || null,
+        isPlatformAdmin: true
+      });
 
       if (groupId) {
         // Update specific group

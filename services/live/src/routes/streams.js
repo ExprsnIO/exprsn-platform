@@ -7,9 +7,58 @@ const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
 const streamService = require('../services/stream');
+const { resolveMembership, ROLE_RANK } = require('@exprsn/shared/middleware/groupMembership');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { validateBody, validateQuery, validateParams, schemas } = require('../middleware/validation');
 const logger = require('../utils/logger');
+
+/**
+ * Authorize a manage action (update/delete/start/stop) on a stream.
+ *
+ * Personal streams: only the host (user_id) may manage them.
+ * Group streams (group_id set): "go live for the group" is an owner/admin
+ * action, so any owner/admin of the owning group may manage them — delegated to
+ * the nexus group model via the shared membership resolver. The original host
+ * still passes because creation required group admin.
+ *
+ * @param {Object} req - Express request (req.user.id required)
+ * @param {Object} stream - formatted stream (has user_id, group_id)
+ * @returns {Promise<{ok: boolean, status?: number, error?: string, message?: string}>}
+ */
+async function authorizeStreamManage(req, stream) {
+  if (!stream.group_id) {
+    if (stream.user_id !== req.user.id) {
+      return { ok: false, status: 403, error: 'FORBIDDEN', message: 'You do not own this stream' };
+    }
+    return { ok: true };
+  }
+
+  const membership = await resolveMembership(stream.group_id, req.user.id);
+
+  if (membership._error === 'not_found') {
+    return { ok: false, status: 404, error: 'GROUP_NOT_FOUND', message: 'Group not found' };
+  }
+  if (membership._error === 'unavailable') {
+    return {
+      ok: false,
+      status: 503,
+      error: 'MEMBERSHIP_SERVICE_UNAVAILABLE',
+      message: 'Unable to verify group membership'
+    };
+  }
+
+  const have = ROLE_RANK[membership.role] || 0;
+  if (!membership.isMember || have < ROLE_RANK.admin) {
+    return {
+      ok: false,
+      status: 403,
+      error: 'ADMIN_REQUIRED',
+      message: 'This action requires group admin privileges'
+    };
+  }
+
+  return { ok: true };
+}
 
 /**
  * POST /api/streams - Create a new live stream
@@ -121,12 +170,10 @@ router.put('/:id',
         });
       }
 
-      // Check ownership
-      if (stream.user_id !== req.user.id) {
-        return res.status(403).json({
-          error: 'FORBIDDEN',
-          message: 'You do not own this stream'
-        });
+      // Personal-owner check, or group-admin check for group streams.
+      const auth = await authorizeStreamManage(req, stream);
+      if (!auth.ok) {
+        return res.status(auth.status).json({ error: auth.error, message: auth.message });
       }
 
       const updatedStream = await streamService.updateStream(req.params.id, req.body);
@@ -162,12 +209,10 @@ router.delete('/:id',
         });
       }
 
-      // Check ownership
-      if (stream.user_id !== req.user.id) {
-        return res.status(403).json({
-          error: 'FORBIDDEN',
-          message: 'You do not own this stream'
-        });
+      // Personal-owner check, or group-admin check for group streams.
+      const auth = await authorizeStreamManage(req, stream);
+      if (!auth.ok) {
+        return res.status(auth.status).json({ error: auth.error, message: auth.message });
       }
 
       await streamService.deleteStream(req.params.id);
@@ -208,12 +253,10 @@ router.post('/:id/start',
         });
       }
 
-      // Check ownership
-      if (stream.user_id !== req.user.id) {
-        return res.status(403).json({
-          error: 'FORBIDDEN',
-          message: 'You do not own this stream'
-        });
+      // Personal-owner check, or group-admin check for group streams.
+      const auth = await authorizeStreamManage(req, stream);
+      if (!auth.ok) {
+        return res.status(auth.status).json({ error: auth.error, message: auth.message });
       }
 
       const updatedStream = await streamService.startStream(req.params.id);
@@ -254,12 +297,10 @@ router.post('/:id/stop',
         });
       }
 
-      // Check ownership
-      if (stream.user_id !== req.user.id) {
-        return res.status(403).json({
-          error: 'FORBIDDEN',
-          message: 'You do not own this stream'
-        });
+      // Personal-owner check, or group-admin check for group streams.
+      const auth = await authorizeStreamManage(req, stream);
+      if (!auth.ok) {
+        return res.status(auth.status).json({ error: auth.error, message: auth.message });
       }
 
       const updatedStream = await streamService.endStream(req.params.id);

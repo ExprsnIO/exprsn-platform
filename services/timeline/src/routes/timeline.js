@@ -6,7 +6,7 @@
  */
 
 const express = require('express');
-const { asyncHandler, validatePagination } = require('@exprsn/shared');
+const { asyncHandler, validatePagination, requireGroupMembership } = require('@exprsn/shared');
 const { requireToken, optionalToken } = require('../middleware/auth');
 const { Post, Like, Follow } = require('../models');
 const feedService = require('../services/feedService');
@@ -130,6 +130,74 @@ router.get('/global', asyncHandler(async (req, res) => {
 
     res.json({
       success: true,
+      posts,
+      pagination: {
+        page: paginationParams.page,
+        limit: paginationParams.limit,
+        hasMore: posts.length === paginationParams.limit
+      }
+    });
+  }
+}));
+
+/**
+ * GET /api/timeline/group/:groupId
+ * Get a group's feed (newest-first), guarded by group membership.
+ * Returns only that group's non-deleted posts. Membership is the access
+ * boundary, so member-only (private) group posts are included for members.
+ * Supports cursor-based and offset-based pagination (mirrors /global).
+ */
+router.get('/group/:groupId', requireGroupMembership(), asyncHandler(async (req, res) => {
+  const { groupId } = req.params;
+  const paginationParams = parsePaginationParams(req.query);
+
+  const baseWhere = {
+    groupId,
+    deleted: false
+  };
+
+  let posts;
+  let response;
+
+  if (paginationParams.type === 'cursor') {
+    const cursorWhere = paginationParams.cursorData
+      ? buildCursorWhere(paginationParams.cursor, paginationParams.direction)
+      : null;
+
+    posts = await Post.findAll({
+      where: {
+        ...baseWhere,
+        ...(cursorWhere || {})
+      },
+      include: [
+        { model: Like, as: 'likes' }
+      ],
+      order: [['createdAt', 'DESC'], ['id', 'DESC']],
+      limit: paginationParams.limit
+    });
+
+    response = buildCursorResponse(posts, paginationParams.limit - 1);
+
+    res.json({
+      success: true,
+      groupId,
+      posts: response.items,
+      pagination: response.pagination
+    });
+  } else {
+    posts = await Post.findAll({
+      where: baseWhere,
+      include: [
+        { model: Like, as: 'likes' }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: paginationParams.limit,
+      offset: paginationParams.offset
+    });
+
+    res.json({
+      success: true,
+      groupId,
       posts,
       pagination: {
         page: paginationParams.page,

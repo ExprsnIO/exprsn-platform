@@ -138,6 +138,47 @@ module.exports = function(io) {
     });
 
     /**
+     * Subscribe to a group's feed. Membership authorization here is best-effort
+     * (deferred): the REST layer (requireGroupMembership) is the enforcement
+     * boundary — non-members simply receive no events because group posts are
+     * only created/served via guarded REST routes.
+     */
+    socket.on('subscribe:group', (payload) => {
+      const groupId = typeof payload === 'string' ? payload : payload && payload.groupId;
+      if (!groupId) {
+        return socket.emit('error', { message: 'groupId required' });
+      }
+
+      socket.join(`timeline:group:${groupId}`);
+
+      logger.info('User subscribed to group timeline', {
+        userId: socket.userId,
+        groupId
+      });
+
+      socket.emit('subscribed:group', { groupId });
+    });
+
+    /**
+     * Unsubscribe from a group's feed.
+     */
+    socket.on('unsubscribe:group', (payload) => {
+      const groupId = typeof payload === 'string' ? payload : payload && payload.groupId;
+      if (!groupId) {
+        return socket.emit('error', { message: 'groupId required' });
+      }
+
+      socket.leave(`timeline:group:${groupId}`);
+
+      logger.info('User unsubscribed from group timeline', {
+        userId: socket.userId,
+        groupId
+      });
+
+      socket.emit('unsubscribed:group', { groupId });
+    });
+
+    /**
      * Disconnect handler
      */
     socket.on('disconnect', () => {
@@ -155,27 +196,37 @@ module.exports = function(io) {
 };
 
 /**
- * Broadcast new post to timeline
+ * Resolve the target room for a broadcast. Group posts are scoped to their
+ * group room so private/unlisted group content never leaks to the global feed;
+ * non-group posts keep the existing global behavior.
+ */
+function targetRoom(groupId) {
+  return groupId ? `timeline:group:${groupId}` : 'timeline:global';
+}
+
+/**
+ * Broadcast new post to timeline (or its group room when post.groupId is set).
  */
 function broadcastNewPost(io, post) {
-  io.to('timeline:global').emit('new:post', post);
-  logger.info('Broadcasted new post', { postId: post.id });
+  const groupId = post && post.groupId;
+  io.to(targetRoom(groupId)).emit('new:post', post);
+  logger.info('Broadcasted new post', { postId: post.id, groupId: groupId || null });
 }
 
 /**
- * Broadcast post like to timeline
+ * Broadcast post like to timeline (or its group room).
  */
-function broadcastPostLike(io, postId, userId) {
-  io.to('timeline:global').emit('post:liked', { postId, userId });
-  logger.info('Broadcasted post like', { postId, userId });
+function broadcastPostLike(io, postId, userId, groupId = null) {
+  io.to(targetRoom(groupId)).emit('post:liked', { postId, userId, groupId: groupId || null });
+  logger.info('Broadcasted post like', { postId, userId, groupId: groupId || null });
 }
 
 /**
- * Broadcast post comment to timeline
+ * Broadcast post comment to timeline (or its group room).
  */
-function broadcastPostComment(io, postId, comment) {
-  io.to('timeline:global').emit('post:commented', { postId, comment });
-  logger.info('Broadcasted post comment', { postId });
+function broadcastPostComment(io, postId, comment, groupId = null) {
+  io.to(targetRoom(groupId)).emit('post:commented', { postId, comment, groupId: groupId || null });
+  logger.info('Broadcasted post comment', { postId, groupId: groupId || null });
 }
 
 module.exports.broadcastNewPost = broadcastNewPost;

@@ -19,17 +19,17 @@ describe('Appeal Service Integration', () => {
       await moderationCase.update({
         status: 'rejected',
         decision: 'rejected',
-        userId: 'user-456'
+        userId: 'aaaaaaaa-0000-4000-8000-000000000456'
       });
 
-      const appeal = await appealService.submitAppeal('user-456', {
+      const appeal = await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         moderationItemId: moderationCase.id,
         reason: 'I believe this was flagged incorrectly',
         additionalInfo: 'Additional context here'
       });
 
       expect(appeal).toBeDefined();
-      expect(appeal.userId).toBe('user-456');
+      expect(appeal.userId).toBe('aaaaaaaa-0000-4000-8000-000000000456');
       expect(appeal.moderationItemId).toBe(moderationCase.id);
       expect(appeal.status).toBe('pending');
     });
@@ -37,7 +37,7 @@ describe('Appeal Service Integration', () => {
     it('should submit appeal for user action', async () => {
       const userAction = await createTestUserAction();
 
-      const appeal = await appealService.submitAppeal('user-456', {
+      const appeal = await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         userActionId: userAction.id,
         reason: 'This action was unfair'
       });
@@ -51,7 +51,7 @@ describe('Appeal Service Integration', () => {
       const moderationCase = await createTestModerationCase();
 
       await expect(
-        appealService.submitAppeal('wrong-user', {
+        appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000009999', {
           moderationItemId: moderationCase.id,
           reason: 'Test appeal'
         })
@@ -60,15 +60,15 @@ describe('Appeal Service Integration', () => {
 
     it('should reject duplicate appeal', async () => {
       const moderationCase = await createTestModerationCase();
-      await moderationCase.update({ userId: 'user-456' });
+      await moderationCase.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000456' });
 
-      await appealService.submitAppeal('user-456', {
+      await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         moderationItemId: moderationCase.id,
         reason: 'First appeal'
       });
 
       await expect(
-        appealService.submitAppeal('user-456', {
+        appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
           moderationItemId: moderationCase.id,
           reason: 'Second appeal'
         })
@@ -77,7 +77,7 @@ describe('Appeal Service Integration', () => {
 
     it('should require either moderation item or user action', async () => {
       await expect(
-        appealService.submitAppeal('user-456', {
+        appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
           reason: 'Invalid appeal'
         })
       ).rejects.toThrow('must target either');
@@ -87,22 +87,22 @@ describe('Appeal Service Integration', () => {
   describe('reviewAppeal', () => {
     it('should approve appeal and reverse moderation decision', async () => {
       const moderationCase = await createTestModerationCase();
-      await moderationCase.update({ userId: 'user-456' });
+      await moderationCase.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000456' });
 
-      const appeal = await appealService.submitAppeal('user-456', {
+      const appeal = await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         moderationItemId: moderationCase.id,
         reason: 'Appeal reason'
       });
 
       const reviewed = await appealService.reviewAppeal(
         appeal.id,
-        'moderator-123',
+        'cccccccc-0000-4000-8000-000000000123',
         'approve',
         'Appeal is valid, reversing decision'
       );
 
       expect(reviewed.status).toBe('approved');
-      expect(reviewed.reviewedBy).toBe('moderator-123');
+      expect(reviewed.reviewedBy).toBe('cccccccc-0000-4000-8000-000000000123');
       expect(reviewed.reviewedAt).toBeDefined();
 
       // Check if moderation item was updated
@@ -112,35 +112,35 @@ describe('Appeal Service Integration', () => {
 
     it('should deny appeal', async () => {
       const moderationCase = await createTestModerationCase();
-      await moderationCase.update({ userId: 'user-456' });
+      await moderationCase.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000456' });
 
-      const appeal = await appealService.submitAppeal('user-456', {
+      const appeal = await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         moderationItemId: moderationCase.id,
         reason: 'Appeal reason'
       });
 
       const reviewed = await appealService.reviewAppeal(
         appeal.id,
-        'moderator-123',
+        'cccccccc-0000-4000-8000-000000000123',
         'deny',
         'Original decision stands'
       );
 
       expect(reviewed.status).toBe('denied');
-      expect(reviewed.reviewedBy).toBe('moderator-123');
+      expect(reviewed.reviewedBy).toBe('cccccccc-0000-4000-8000-000000000123');
     });
 
     it('should revoke user action on appeal approval', async () => {
       const userAction = await createTestUserAction();
 
-      const appeal = await appealService.submitAppeal('user-456', {
+      const appeal = await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         userActionId: userAction.id,
         reason: 'Unfair action'
       });
 
       await appealService.reviewAppeal(
         appeal.id,
-        'moderator-123',
+        'cccccccc-0000-4000-8000-000000000123',
         'approve',
         'Action revoked'
       );
@@ -152,16 +152,16 @@ describe('Appeal Service Integration', () => {
 
     it('should reject review of already reviewed appeal', async () => {
       const moderationCase = await createTestModerationCase();
-      await moderationCase.update({ userId: 'user-456' });
+      await moderationCase.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000456' });
 
-      const appeal = await appealService.submitAppeal('user-456', {
+      const appeal = await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         moderationItemId: moderationCase.id,
         reason: 'Appeal reason'
       });
 
       await appealService.reviewAppeal(
         appeal.id,
-        'moderator-123',
+        'cccccccc-0000-4000-8000-000000000123',
         'approve',
         'Approved'
       );
@@ -169,7 +169,7 @@ describe('Appeal Service Integration', () => {
       await expect(
         appealService.reviewAppeal(
           appeal.id,
-          'moderator-456',
+          'cccccccc-0000-4000-8000-000000000456',
           'deny',
           'Denied'
         )
@@ -181,45 +181,45 @@ describe('Appeal Service Integration', () => {
     it('should retrieve all appeals for user', async () => {
       const case1 = await createTestModerationCase();
       const case2 = await createTestModerationCase();
-      await case1.update({ userId: 'user-456' });
-      await case2.update({ userId: 'user-456' });
+      await case1.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000456' });
+      await case2.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000456' });
 
-      await appealService.submitAppeal('user-456', {
+      await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         moderationItemId: case1.id,
         reason: 'Appeal 1'
       });
 
-      await appealService.submitAppeal('user-456', {
+      await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         moderationItemId: case2.id,
         reason: 'Appeal 2'
       });
 
-      const appeals = await appealService.getAppealsForUser('user-456');
+      const appeals = await appealService.getAppealsForUser('aaaaaaaa-0000-4000-8000-000000000456');
 
       expect(appeals).toHaveLength(2);
     });
 
     it('should filter appeals by status', async () => {
       const moderationCase = await createTestModerationCase();
-      await moderationCase.update({ userId: 'user-456' });
+      await moderationCase.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000456' });
 
-      const appeal1 = await appealService.submitAppeal('user-456', {
+      const appeal1 = await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000456', {
         moderationItemId: moderationCase.id,
         reason: 'Appeal 1'
       });
 
       await appealService.reviewAppeal(
         appeal1.id,
-        'moderator-123',
+        'cccccccc-0000-4000-8000-000000000123',
         'approve',
         'Approved'
       );
 
-      const pendingAppeals = await appealService.getAppealsForUser('user-456', {
+      const pendingAppeals = await appealService.getAppealsForUser('aaaaaaaa-0000-4000-8000-000000000456', {
         status: 'pending'
       });
 
-      const approvedAppeals = await appealService.getAppealsForUser('user-456', {
+      const approvedAppeals = await appealService.getAppealsForUser('aaaaaaaa-0000-4000-8000-000000000456', {
         status: 'approved'
       });
 
@@ -232,15 +232,15 @@ describe('Appeal Service Integration', () => {
     it('should retrieve all pending appeals', async () => {
       const case1 = await createTestModerationCase();
       const case2 = await createTestModerationCase();
-      await case1.update({ userId: 'user-1' });
-      await case2.update({ userId: 'user-2' });
+      await case1.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000001' });
+      await case2.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000002' });
 
-      await appealService.submitAppeal('user-1', {
+      await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000001', {
         moderationItemId: case1.id,
         reason: 'Appeal 1'
       });
 
-      await appealService.submitAppeal('user-2', {
+      await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000002', {
         moderationItemId: case2.id,
         reason: 'Appeal 2'
       });
@@ -256,35 +256,35 @@ describe('Appeal Service Integration', () => {
       const case1 = await createTestModerationCase();
       const case2 = await createTestModerationCase();
       const case3 = await createTestModerationCase();
-      await case1.update({ userId: 'user-1' });
-      await case2.update({ userId: 'user-2' });
-      await case3.update({ userId: 'user-3' });
+      await case1.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000001' });
+      await case2.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000002' });
+      await case3.update({ userId: 'aaaaaaaa-0000-4000-8000-000000000003' });
 
-      const appeal1 = await appealService.submitAppeal('user-1', {
+      const appeal1 = await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000001', {
         moderationItemId: case1.id,
         reason: 'Appeal 1'
       });
 
-      const appeal2 = await appealService.submitAppeal('user-2', {
+      const appeal2 = await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000002', {
         moderationItemId: case2.id,
         reason: 'Appeal 2'
       });
 
-      await appealService.submitAppeal('user-3', {
+      await appealService.submitAppeal('aaaaaaaa-0000-4000-8000-000000000003', {
         moderationItemId: case3.id,
         reason: 'Appeal 3'
       });
 
       await appealService.reviewAppeal(
         appeal1.id,
-        'moderator-123',
+        'cccccccc-0000-4000-8000-000000000123',
         'approve',
         'Approved'
       );
 
       await appealService.reviewAppeal(
         appeal2.id,
-        'moderator-123',
+        'cccccccc-0000-4000-8000-000000000123',
         'deny',
         'Denied'
       );

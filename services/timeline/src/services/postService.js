@@ -15,7 +15,7 @@ const blueskyWebhook = require('./blueskyWebhook');
 /**
  * Create a new post
  */
-async function createPost({ userId, content, mediaIds = [], visibility = 'public', replyTo = null, quoteOf = null }) {
+async function createPost({ userId, content, mediaIds = [], visibility = 'public', replyTo = null, quoteOf = null, groupId = null }) {
   try {
     // Process content (sanitize and extract entities)
     const processed = processContent(content);
@@ -44,6 +44,7 @@ async function createPost({ userId, content, mediaIds = [], visibility = 'public
       contentType,
       media: mediaIds ? mediaIds.map(id => ({ id, type: 'image' })) : [],
       visibility,
+      groupId,
       metadata,
       likeCount: 0,
       repostCount: 0,

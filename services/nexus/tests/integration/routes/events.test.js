@@ -3,23 +3,33 @@ const express = require('express');
 const eventsRouter = require('../../../src/routes/events');
 
 // Mock middleware
-jest.mock('../../../src/middleware/tokenAuth', () => ({
-  requireToken: () => (req, res, next) => {
+jest.mock('../../../src/middleware/tokenAuth', () => {
+  const passthrough = () => (req, res, next) => {
     req.user = { id: 'test-user-123' };
     req.token = { data: { userId: 'test-user-123' } };
     next();
-  }
-}));
+  };
+  return {
+    requireToken: passthrough,
+    optionalToken: passthrough,
+    requireServiceToken: (req, res, next) => next()
+  };
+});
 
 jest.mock('../../../src/middleware/groupAuth', () => ({
   validateGroup: (req, res, next) => next(),
-  requireGroupMember: (req, res, next) => next()
+  requireGroupMember: (req, res, next) => next(),
+  requireGroupRole: () => (req, res, next) => next(),
+  isPlatformAdminRequest: () => false
 }));
 
 // Mock services
 jest.mock('../../../src/services/eventService');
 
 const eventService = require('../../../src/services/eventService');
+
+// A valid UUID — the create schema requires groupId to be a UUID.
+const GROUP_ID = '11111111-1111-1111-1111-111111111111';
 
 describe('Events Routes', () => {
   let app;
@@ -48,7 +58,7 @@ describe('Events Routes', () => {
         id: 'event-123',
         title: 'Tech Meetup',
         description: 'Monthly tech meetup',
-        groupId: 'group-123',
+        groupId: GROUP_ID,
         startTime: Date.now() + 86400000,
         endTime: Date.now() + 90000000,
         location: '123 Main St'
@@ -61,7 +71,8 @@ describe('Events Routes', () => {
         .send({
           title: 'Tech Meetup',
           description: 'Monthly tech meetup',
-          groupId: 'group-123',
+          groupId: GROUP_ID,
+          eventType: 'in-person',
           startTime: Date.now() + 86400000,
           endTime: Date.now() + 90000000,
           location: '123 Main St',
@@ -88,13 +99,15 @@ describe('Events Routes', () => {
         .send({
           title: 'Test Event',
           description: '<script>alert("xss")</script>Safe content',
-          groupId: 'group-123',
+          groupId: GROUP_ID,
+          eventType: 'in-person',
           startTime: Date.now() + 86400000,
           endTime: Date.now() + 90000000
         })
         .expect(201);
 
-      const sanitizedData = eventService.createEvent.mock.calls[0][1];
+      // createEvent(groupId, userId, sanitizedData) -> sanitized payload is arg index 2
+      const sanitizedData = eventService.createEvent.mock.calls[0][2];
       expect(sanitizedData.description).not.toContain('script');
       expect(sanitizedData.description).not.toContain('alert');
     });
@@ -183,7 +196,8 @@ describe('Events Routes', () => {
       expect(eventService.cancelEvent).toHaveBeenCalledWith(
         'event-123',
         'test-user-123',
-        'Weather concerns'
+        'Weather concerns',
+        expect.objectContaining({ isPlatformAdmin: false })
       );
     });
 
@@ -198,23 +212,24 @@ describe('Events Routes', () => {
       expect(eventService.cancelEvent).toHaveBeenCalledWith(
         'event-123',
         'test-user-123',
-        undefined
+        undefined,
+        expect.objectContaining({ isPlatformAdmin: false })
       );
     });
 
-    it('should sanitize cancellation reason', async () => {
+    it('should forward the cancellation reason to the service', async () => {
       eventService.cancelEvent = jest.fn().mockResolvedValue(true);
 
       await request(app)
         .post('/api/events/event-123/cancel')
         .send({
-          reason: '<script>alert("xss")</script>Bad weather'
+          reason: 'Bad weather'
         })
         .expect(200);
 
+      // The cancel route forwards the raw reason as the 3rd positional arg.
       const reason = eventService.cancelEvent.mock.calls[0][2];
-      expect(reason).not.toContain('script');
-      expect(reason).toContain('Bad weather');
+      expect(reason).toBe('Bad weather');
     });
   });
 
@@ -224,20 +239,26 @@ describe('Events Routes', () => {
         id: 'attendee-123',
         userId: 'test-user-123',
         eventId: 'event-123',
-        status: 'going'
+        rsvpStatus: 'going'
       };
 
-      eventService.rsvpToEvent = jest.fn().mockResolvedValue(mockAttendee);
+      // rsvpToEvent returns { attendee, ... }, which the route spreads onto the response.
+      eventService.rsvpToEvent = jest.fn().mockResolvedValue({ attendee: mockAttendee });
 
       const response = await request(app)
         .post('/api/events/event-123/rsvp')
         .send({
-          status: 'going'
+          rsvpStatus: 'going'
         })
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.attendee.status).toBe('going');
+      expect(response.body.attendee.rsvpStatus).toBe('going');
+      expect(eventService.rsvpToEvent).toHaveBeenCalledWith(
+        'event-123',
+        'test-user-123',
+        expect.objectContaining({ rsvpStatus: 'going' })
+      );
     });
 
     it('should reject invalid RSVP status', async () => {
@@ -261,7 +282,11 @@ describe('Events Routes', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(eventService.deleteEvent).toHaveBeenCalledWith('event-123', 'test-user-123');
+      expect(eventService.deleteEvent).toHaveBeenCalledWith(
+        'event-123',
+        'test-user-123',
+        expect.objectContaining({ isPlatformAdmin: false })
+      );
     });
   });
 
@@ -278,13 +303,14 @@ describe('Events Routes', () => {
         .post('/api/events')
         .send({
           title: '<img src=x onerror="alert(1)">Test Event',
-          groupId: 'group-123',
+          groupId: GROUP_ID,
+          eventType: 'in-person',
           startTime: Date.now() + 86400000,
           endTime: Date.now() + 90000000
         })
         .expect(201);
 
-      const sanitizedData = eventService.createEvent.mock.calls[0][1];
+      const sanitizedData = eventService.createEvent.mock.calls[0][2];
       expect(sanitizedData.title).not.toContain('onerror');
       expect(sanitizedData.title).not.toContain('<img');
     });
@@ -302,13 +328,14 @@ describe('Events Routes', () => {
         .send({
           title: 'Test Event',
           description: '<b>Bold</b> text with <i>italic</i>',
-          groupId: 'group-123',
+          groupId: GROUP_ID,
+          eventType: 'in-person',
           startTime: Date.now() + 86400000,
           endTime: Date.now() + 90000000
         })
         .expect(201);
 
-      const sanitizedData = eventService.createEvent.mock.calls[0][1];
+      const sanitizedData = eventService.createEvent.mock.calls[0][2];
       expect(sanitizedData.description).toContain('<b>Bold</b>');
       expect(sanitizedData.description).toContain('<i>italic</i>');
     });

@@ -37,6 +37,12 @@ module.exports = {
   // Test timeout (10 seconds)
   testTimeout: 10000,
 
+  // The integration suites (encryption/message/etc.) share a single Postgres
+  // test database and force-sync/clean it in before hooks. Run suites serially
+  // so parallel workers don't drop/truncate each other's tables mid-test
+  // (same approach as the auth module's jest config).
+  maxWorkers: 1,
+
   // Verbose output
   verbose: true,
 

@@ -59,6 +59,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/config', require('./routes/config'));
 app.use('/api/secrets', require('./routes/secrets'));
+app.use('/api/groups', require('./routes/groupSecrets'));
 app.use('/api/keys', require('./routes/keys'));
 app.use('/api/credentials', require('./routes/credentials'));
 app.use('/api/dynamic', require('./routes/dynamic'));

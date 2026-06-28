@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { requireToken, optionalToken } = require('../middleware/tokenAuth');
+const { isPlatformAdminRequest } = require('../middleware/groupAuth');
 const subGroupService = require('../services/subGroupService');
+const adminAuditService = require('../services/adminAuditService');
 const Joi = require('joi');
 
 /**
@@ -164,11 +166,23 @@ router.put('/:id',
       }
 
       const userId = req.token.data.userId;
+      const platformAdmin = isPlatformAdminRequest(req);
       const subGroup = await subGroupService.updateSubGroup(
         req.params.id,
         userId,
-        value
+        value,
+        { isPlatformAdmin: platformAdmin }
       );
+
+      await adminAuditService.record({
+        actor: userId,
+        action: 'subgroup.update',
+        targetType: 'subgroup',
+        targetId: req.params.id,
+        groupId: subGroup?.parentGroupId || null,
+        metadata: { changes: Object.keys(value) },
+        isPlatformAdmin: platformAdmin
+      });
 
       res.json({
         success: true,
@@ -189,7 +203,19 @@ router.delete('/:id',
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
-      const subGroup = await subGroupService.deleteSubGroup(req.params.id, userId);
+      const platformAdmin = isPlatformAdminRequest(req);
+      const subGroup = await subGroupService.deleteSubGroup(req.params.id, userId, {
+        isPlatformAdmin: platformAdmin
+      });
+
+      await adminAuditService.record({
+        actor: userId,
+        action: 'subgroup.delete',
+        targetType: 'subgroup',
+        targetId: req.params.id,
+        groupId: subGroup?.parentGroupId || null,
+        isPlatformAdmin: platformAdmin
+      });
 
       res.json({
         success: true,
@@ -219,12 +245,23 @@ router.post('/:id/members',
       }
 
       const adminId = req.token.data.userId;
+      const platformAdmin = isPlatformAdminRequest(req);
       const membership = await subGroupService.addSubGroupMember(
         req.params.id,
         value.userId,
         adminId,
-        value.role
+        value.role,
+        { isPlatformAdmin: platformAdmin }
       );
+
+      await adminAuditService.record({
+        actor: adminId,
+        action: 'subgroup.member.add',
+        targetType: 'subgroup',
+        targetId: req.params.id,
+        metadata: { userId: value.userId, role: value.role },
+        isPlatformAdmin: platformAdmin
+      });
 
       res.status(201).json({
         success: true,
@@ -246,11 +283,22 @@ router.delete('/:id/members/:userId',
   async (req, res, next) => {
     try {
       const adminId = req.token.data.userId;
+      const platformAdmin = isPlatformAdminRequest(req);
       await subGroupService.removeSubGroupMember(
         req.params.id,
         req.params.userId,
-        adminId
+        adminId,
+        { isPlatformAdmin: platformAdmin }
       );
+
+      await adminAuditService.record({
+        actor: adminId,
+        action: 'subgroup.member.remove',
+        targetType: 'subgroup',
+        targetId: req.params.id,
+        metadata: { userId: req.params.userId },
+        isPlatformAdmin: platformAdmin
+      });
 
       res.json({
         success: true,

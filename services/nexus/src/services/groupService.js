@@ -155,7 +155,8 @@ async function getGroup(groupId, userId = null) {
 /**
  * Update group
  */
-async function updateGroup(groupId, userId, data) {
+async function updateGroup(groupId, userId, data, options = {}) {
+  const { isPlatformAdmin = false } = options;
   try {
     const group = await Group.findByPk(groupId);
 
@@ -163,8 +164,9 @@ async function updateGroup(groupId, userId, data) {
       throw new Error('GROUP_NOT_FOUND');
     }
 
-    // Check if user is owner or admin
-    const membership = await GroupMembership.findOne({
+    // Check if user is owner or admin. A verified platform admin bypasses the
+    // group-scoped membership/role requirement entirely (acts as owner).
+    const membership = isPlatformAdmin ? null : await GroupMembership.findOne({
       where: {
         userId,
         groupId,
@@ -172,7 +174,7 @@ async function updateGroup(groupId, userId, data) {
       }
     });
 
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+    if (!isPlatformAdmin && (!membership || !['owner', 'admin'].includes(membership.role))) {
       throw new Error('INSUFFICIENT_PERMISSIONS');
     }
 
@@ -194,8 +196,8 @@ async function updateGroup(groupId, userId, data) {
       'metadata'
     ];
 
-    // Only owner can change governance model
-    if (data.governanceModel && membership.role !== 'owner') {
+    // Only owner can change governance model (platform admins are exempt).
+    if (data.governanceModel && !isPlatformAdmin && membership.role !== 'owner') {
       throw new Error('ONLY_OWNER_CAN_CHANGE_GOVERNANCE');
     }
 
@@ -234,7 +236,8 @@ async function updateGroup(groupId, userId, data) {
 /**
  * Delete (soft delete) group
  */
-async function deleteGroup(groupId, userId) {
+async function deleteGroup(groupId, userId, options = {}) {
+  const { isPlatformAdmin = false } = options;
   try {
     const group = await Group.findByPk(groupId);
 
@@ -242,8 +245,8 @@ async function deleteGroup(groupId, userId) {
       throw new Error('GROUP_NOT_FOUND');
     }
 
-    // Only owner can delete group
-    const membership = await GroupMembership.findOne({
+    // Only owner can delete group (platform admins bypass this).
+    const membership = isPlatformAdmin ? null : await GroupMembership.findOne({
       where: {
         userId,
         groupId,
@@ -252,7 +255,7 @@ async function deleteGroup(groupId, userId) {
       }
     });
 
-    if (!membership) {
+    if (!isPlatformAdmin && !membership) {
       throw new Error('ONLY_OWNER_CAN_DELETE');
     }
 

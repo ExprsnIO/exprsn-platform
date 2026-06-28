@@ -7,6 +7,7 @@ const { sanitizeGroupData } = require('../utils/sanitization');
 const groupService = require('../services/groupService');
 const membershipService = require('../services/membershipService');
 const groupDiscoveryService = require('../services/groupDiscoveryService');
+const adminAuditService = require('../services/adminAuditService');
 
 /**
  * ═══════════════════════════════════════════════════════════
@@ -170,7 +171,19 @@ router.put('/:id',
       // Sanitize user input to prevent XSS
       const sanitizedData = sanitizeGroupData(value);
 
-      const group = await groupService.updateGroup(req.params.id, req.user.id, sanitizedData);
+      const group = await groupService.updateGroup(req.params.id, req.user.id, sanitizedData, {
+        isPlatformAdmin: req.isPlatformAdmin
+      });
+
+      await adminAuditService.record({
+        actor: req.user.id,
+        action: 'group.update',
+        targetType: 'group',
+        targetId: req.params.id,
+        groupId: req.params.id,
+        metadata: { changes: Object.keys(sanitizedData) },
+        isPlatformAdmin: req.isPlatformAdmin
+      });
 
       res.json({
         success: true,
@@ -192,7 +205,18 @@ router.delete('/:id',
   requireGroupMember,
   async (req, res, next) => {
     try {
-      const group = await groupService.deleteGroup(req.params.id, req.user.id);
+      const group = await groupService.deleteGroup(req.params.id, req.user.id, {
+        isPlatformAdmin: req.isPlatformAdmin
+      });
+
+      await adminAuditService.record({
+        actor: req.user.id,
+        action: 'group.delete',
+        targetType: 'group',
+        targetId: req.params.id,
+        groupId: req.params.id,
+        isPlatformAdmin: req.isPlatformAdmin
+      });
 
       res.json({
         success: true,
@@ -295,8 +319,19 @@ router.delete('/:id/members/:userId',
         req.user.id,
         req.params.id,
         req.params.userId,
-        req.body.reason
+        req.body.reason,
+        { isPlatformAdmin: req.isPlatformAdmin }
       );
+
+      await adminAuditService.record({
+        actor: req.user.id,
+        action: 'group.member.remove',
+        targetType: 'member',
+        targetId: req.params.userId,
+        groupId: req.params.id,
+        metadata: { reason: req.body.reason || null },
+        isPlatformAdmin: req.isPlatformAdmin
+      });
 
       res.json({
         success: true,
@@ -334,8 +369,19 @@ router.put('/:id/members/:userId/role',
         req.user.id,
         req.params.id,
         req.params.userId,
-        value.role
+        value.role,
+        { isPlatformAdmin: req.isPlatformAdmin }
       );
+
+      await adminAuditService.record({
+        actor: req.user.id,
+        action: 'group.member.role_change',
+        targetType: 'member',
+        targetId: req.params.userId,
+        groupId: req.params.id,
+        metadata: { role: value.role },
+        isPlatformAdmin: req.isPlatformAdmin
+      });
 
       res.json({
         success: true,

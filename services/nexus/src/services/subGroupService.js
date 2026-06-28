@@ -209,15 +209,17 @@ async function listSubGroups(parentGroupId, userId = null, filters = {}) {
  * @param {object} data - Update data
  * @returns {Promise<object>} Updated sub-group
  */
-async function updateSubGroup(subGroupId, userId, data) {
+async function updateSubGroup(subGroupId, userId, data, options = {}) {
+  const { isPlatformAdmin = false } = options;
   try {
     const subGroup = await SubGroup.findByPk(subGroupId);
     if (!subGroup) {
       throw new Error('SUBGROUP_NOT_FOUND');
     }
 
-    // Check permission (admin or owner of parent group, or sub-group moderator)
-    const hasPermission = await checkSubGroupManagePermission(subGroup, userId);
+    // Check permission (admin or owner of parent group, or sub-group moderator).
+    // Platform admins bypass the group-scoped check.
+    const hasPermission = isPlatformAdmin || await checkSubGroupManagePermission(subGroup, userId);
     if (!hasPermission) {
       throw new Error('INSUFFICIENT_PERMISSIONS');
     }
@@ -275,15 +277,16 @@ async function updateSubGroup(subGroupId, userId, data) {
  * @param {string} userId - User ID
  * @returns {Promise<object>} Archived sub-group
  */
-async function deleteSubGroup(subGroupId, userId) {
+async function deleteSubGroup(subGroupId, userId, options = {}) {
+  const { isPlatformAdmin = false } = options;
   try {
     const subGroup = await SubGroup.findByPk(subGroupId);
     if (!subGroup) {
       throw new Error('SUBGROUP_NOT_FOUND');
     }
 
-    // Check permission (admin or owner of parent group only)
-    const membership = await GroupMembership.findOne({
+    // Check permission (admin or owner of parent group only; platform admins bypass).
+    const membership = isPlatformAdmin ? null : await GroupMembership.findOne({
       where: {
         userId,
         groupId: subGroup.parentGroupId,
@@ -291,7 +294,7 @@ async function deleteSubGroup(subGroupId, userId) {
       }
     });
 
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+    if (!isPlatformAdmin && (!membership || !['owner', 'admin'].includes(membership.role))) {
       throw new Error('INSUFFICIENT_PERMISSIONS');
     }
 
@@ -425,15 +428,16 @@ async function checkSubGroupManagePermission(subGroup, userId) {
  * @param {string} role - Role (moderator or member)
  * @returns {Promise<object>} SubGroup membership
  */
-async function addSubGroupMember(subGroupId, userId, adminId, role = 'member') {
+async function addSubGroupMember(subGroupId, userId, adminId, role = 'member', options = {}) {
+  const { isPlatformAdmin = false } = options;
   try {
     const subGroup = await SubGroup.findByPk(subGroupId);
     if (!subGroup) {
       throw new Error('SUBGROUP_NOT_FOUND');
     }
 
-    // Check admin permission
-    const hasPermission = await checkSubGroupManagePermission(subGroup, adminId);
+    // Check admin permission (platform admins bypass).
+    const hasPermission = isPlatformAdmin || await checkSubGroupManagePermission(subGroup, adminId);
     if (!hasPermission) {
       throw new Error('INSUFFICIENT_PERMISSIONS');
     }
@@ -498,15 +502,16 @@ async function addSubGroupMember(subGroupId, userId, adminId, role = 'member') {
  * @param {string} adminId - Admin performing the action
  * @returns {Promise<void>}
  */
-async function removeSubGroupMember(subGroupId, userId, adminId) {
+async function removeSubGroupMember(subGroupId, userId, adminId, options = {}) {
+  const { isPlatformAdmin = false } = options;
   try {
     const subGroup = await SubGroup.findByPk(subGroupId);
     if (!subGroup) {
       throw new Error('SUBGROUP_NOT_FOUND');
     }
 
-    // Check admin permission (or user removing themselves)
-    const hasPermission = userId === adminId || await checkSubGroupManagePermission(subGroup, adminId);
+    // Check admin permission (or user removing themselves; platform admins bypass).
+    const hasPermission = isPlatformAdmin || userId === adminId || await checkSubGroupManagePermission(subGroup, adminId);
     if (!hasPermission) {
       throw new Error('INSUFFICIENT_PERMISSIONS');
     }

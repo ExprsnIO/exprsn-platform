@@ -244,7 +244,11 @@ describe('Groups Routes', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(groupService.deleteGroup).toHaveBeenCalledWith('group-123', 'test-user-123');
+      expect(groupService.deleteGroup).toHaveBeenCalledWith(
+        'group-123',
+        'test-user-123',
+        expect.objectContaining({ isPlatformAdmin: undefined })
+      );
     });
   });
 

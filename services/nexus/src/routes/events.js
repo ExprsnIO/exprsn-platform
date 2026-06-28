@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { requireToken, optionalToken } = require('../middleware/tokenAuth');
-const { requireGroupMember, requireGroupRole } = require('../middleware/groupAuth');
+const { requireGroupMember, requireGroupRole, isPlatformAdminRequest } = require('../middleware/groupAuth');
 const { sanitizeEventData } = require('../utils/sanitization');
 const eventService = require('../services/eventService');
 const eventReminderService = require('../services/eventReminderService');
+const adminAuditService = require('../services/adminAuditService');
 const Joi = require('joi');
 
 /**
@@ -51,6 +52,10 @@ const updateEventSchema = Joi.object({
   tags: Joi.array().items(Joi.string()),
   metadata: Joi.object()
 }).min(1);
+
+const setLiveSchema = Joi.object({
+  liveStreamId: Joi.string().uuid().allow(null).default(null)
+});
 
 const rsvpSchema = Joi.object({
   rsvpStatus: Joi.string().valid('going', 'maybe', 'not-going').default('going'),
@@ -178,7 +183,9 @@ router.put('/:id',
       const sanitizedData = sanitizeEventData(value);
 
       const userId = req.token.data.userId;
-      const event = await eventService.updateEvent(req.params.id, userId, sanitizedData);
+      const event = await eventService.updateEvent(req.params.id, userId, sanitizedData, {
+        isPlatformAdmin: isPlatformAdminRequest(req)
+      });
 
       res.json({
         success: true,
@@ -201,12 +208,62 @@ router.post('/:id/cancel',
       const userId = req.token.data.userId;
       const { reason } = req.body;
 
-      const event = await eventService.cancelEvent(req.params.id, userId, reason);
+      const platformAdmin = isPlatformAdminRequest(req);
+      const event = await eventService.cancelEvent(req.params.id, userId, reason, {
+        isPlatformAdmin: platformAdmin
+      });
+
+      await adminAuditService.record({
+        actor: userId,
+        action: 'event.cancel',
+        targetType: 'event',
+        targetId: req.params.id,
+        groupId: event?.groupId || null,
+        metadata: { reason: reason || null },
+        isPlatformAdmin: platformAdmin
+      });
 
       res.json({
         success: true,
         event,
         message: 'Event cancelled successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/events/:id/live
+ * Link (or unlink) an exprsn-live Stream to this event — "go live".
+ * Body: { liveStreamId }  (null/omitted clears the link)
+ * Authorization: event creator or group owner/admin (platform-admin bypass),
+ * enforced in eventService.setEventLiveStream.
+ */
+router.post('/:id/live',
+  requireToken(),
+  async (req, res, next) => {
+    try {
+      const { error, value } = setLiveSchema.validate(req.body);
+      if (error) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: error.details[0].message
+        });
+      }
+
+      const userId = req.token.data.userId;
+      const event = await eventService.setEventLiveStream(
+        req.params.id,
+        userId,
+        value.liveStreamId,
+        { isPlatformAdmin: isPlatformAdminRequest(req) }
+      );
+
+      res.json({
+        success: true,
+        event
       });
     } catch (error) {
       next(error);
@@ -223,7 +280,18 @@ router.delete('/:id',
   async (req, res, next) => {
     try {
       const userId = req.token.data.userId;
-      await eventService.deleteEvent(req.params.id, userId);
+      const platformAdmin = isPlatformAdminRequest(req);
+      await eventService.deleteEvent(req.params.id, userId, {
+        isPlatformAdmin: platformAdmin
+      });
+
+      await adminAuditService.record({
+        actor: userId,
+        action: 'event.delete',
+        targetType: 'event',
+        targetId: req.params.id,
+        isPlatformAdmin: platformAdmin
+      });
 
       res.json({
         success: true,

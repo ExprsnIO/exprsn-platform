@@ -18,7 +18,12 @@ Stream.init(
     user_id: {
       type: DataTypes.UUID,
       allowNull: false,
-      comment: 'User who created the stream'
+      comment: 'User who created the stream (the host)'
+    },
+    group_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      comment: 'Owning nexus group, when this is a group-hosted stream (null = personal stream)'
     },
     title: {
       type: DataTypes.STRING(255),
@@ -115,7 +120,8 @@ Stream.init(
       { fields: ['status'] },
       { fields: ['visibility'] },
       { fields: ['started_at'] },
-      { fields: ['created_at'] }
+      { fields: ['created_at'] },
+      { fields: ['group_id', 'status'] }
     ]
   }
 );

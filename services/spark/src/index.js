@@ -25,6 +25,7 @@ const socketHandler = require('./socket');
 
 // Routes
 const conversationRoutes = require('./routes/conversations');
+const groupChannelRoutes = require('./routes/groupChannels');
 const messageRoutes = require('./routes/messages');
 const attachmentRoutes = require('./routes/attachments');
 const enhancedRoutes = require('./routes/enhanced');
@@ -92,6 +93,7 @@ app.use((req, res, next) => {
 
 app.use('/health', healthRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/groups', groupChannelRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/queues', queueRoutes);

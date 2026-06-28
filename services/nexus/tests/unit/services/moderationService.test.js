@@ -24,7 +24,11 @@ describe('ModerationService', () => {
         userId: 'user-1',
         groupId: 'group-1',
         status: 'active',
-        update: jest.fn().mockResolvedValue(true)
+        // Mirror Sequelize instance.update(): mutate the instance and return it
+        update: jest.fn(function (changes) {
+          Object.assign(this, changes);
+          return Promise.resolve(this);
+        })
       };
 
       GroupMembership.findOne = jest.fn().mockResolvedValue(mockMembership);
@@ -97,7 +101,11 @@ describe('ModerationService', () => {
         userId: 'user-1',
         groupId: 'group-1',
         status: 'active',
-        update: jest.fn().mockResolvedValue(true)
+        // Mirror Sequelize instance.update(): mutate the instance and return it
+        update: jest.fn(function (changes) {
+          Object.assign(this, changes);
+          return Promise.resolve(this);
+        })
       };
 
       GroupMembership.findOne = jest.fn().mockResolvedValue(mockMembership);

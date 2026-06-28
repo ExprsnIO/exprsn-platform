@@ -43,3 +43,6 @@ coverage/
 *.swp
 .idea/
 .vscode/
+
+# Claude Code local settings & agent worktrees
+.claude/

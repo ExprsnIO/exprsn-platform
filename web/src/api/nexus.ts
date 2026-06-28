@@ -113,6 +113,123 @@ export interface GroupEvent {
   [k: string]: unknown;
 }
 
+// ── Group / member mutations ────────────────────────────────────────────────
+/** Fields accepted by PUT /groups/:id (all optional — send what changed). */
+export interface UpdateGroupInput {
+  name?: string;
+  description?: string | null;
+  visibility?: GroupVisibility;
+  joinMode?: JoinMode;
+  category?: string | null;
+  tags?: string[];
+  location?: string | null;
+  website?: string | null;
+  /** Decimal degrees, -90..90. Sent together with longitude or not at all. */
+  latitude?: number | null;
+  /** Decimal degrees, -180..180. */
+  longitude?: number | null;
+}
+
+/** Member role mutable via the role endpoint (owner is transfer-only). */
+export type AssignableRole = 'admin' | 'moderator' | 'member';
+
+export interface InviteInput {
+  /** Target a specific user (omit for a shareable multi-use invite). */
+  userId?: string;
+  message?: string;
+  maxUses?: number;
+  /** Epoch ms. */
+  expiresAt?: number;
+}
+
+// ── Events ──────────────────────────────────────────────────────────────────
+export type EventType = 'in-person' | 'virtual' | 'hybrid';
+export type EventVisibility = 'public' | 'members-only' | 'invite-only';
+export type RsvpStatus = 'going' | 'maybe' | 'not-going';
+
+export interface CreateEventInput {
+  groupId: string;
+  title: string;
+  description?: string;
+  eventType: EventType;
+  location?: string | null;
+  virtualUrl?: string | null;
+  /** Epoch ms, must be in the future. */
+  startTime: number;
+  /** Epoch ms, >= startTime. */
+  endTime?: number | null;
+  timezone?: string;
+  maxAttendees?: number | null;
+  visibility?: EventVisibility;
+}
+export type UpdateEventInput = Partial<Omit<CreateEventInput, 'groupId'>>;
+
+export interface EventAttendee {
+  id: string;
+  eventId: string;
+  userId: string;
+  rsvpStatus: RsvpStatus;
+  guestCount?: number;
+  checkInStatus?: string;
+  notes?: string | null;
+  [k: string]: unknown;
+}
+
+export interface RsvpInput {
+  rsvpStatus?: RsvpStatus;
+  guestCount?: number;
+  notes?: string;
+}
+
+export interface ReminderPresets {
+  presets: Record<string, number>;
+  default: number[];
+}
+
+// ── Subgroups (channels) ────────────────────────────────────────────────────
+export type SubGroupType = 'channel' | 'subgroup';
+export type SubGroupVisibility = 'public' | 'members' | 'restricted';
+
+export interface SubGroup {
+  id: string;
+  parentGroupId: string;
+  name: string;
+  description?: string | null;
+  type: SubGroupType;
+  visibility: SubGroupVisibility;
+  sortOrder?: number;
+  isPinned?: boolean;
+  [k: string]: unknown;
+}
+
+export interface CreateSubGroupInput {
+  parentGroupId: string;
+  name: string;
+  description?: string;
+  type?: SubGroupType;
+  visibility?: SubGroupVisibility;
+}
+export interface UpdateSubGroupInput {
+  name?: string;
+  description?: string;
+  visibility?: SubGroupVisibility;
+  sortOrder?: number;
+  isPinned?: boolean;
+}
+
+export type SubGroupMemberRole = 'moderator' | 'member';
+
+// ── Recommendations ─────────────────────────────────────────────────────────
+export interface Recommendation {
+  id: string;
+  groupId: string;
+  userId?: string;
+  score?: number;
+  reason?: string;
+  group?: Group;
+  [k: string]: unknown;
+}
+
 export const nexusApi = {
   /** Public discovery list. */
   listGroups: (params?: { limit?: number; search?: string }) => {
@@ -199,4 +316,119 @@ export const nexusApi = {
       `/nexus/api/governance/proposals/${id}/execute`,
       {},
     ),
+
+  // ── Group / member management (Phase 1) ──────────────────────────────────
+  /** Update a group (admin/owner or platform admin). */
+  updateGroup: (id: string, input: UpdateGroupInput) =>
+    http.put<{ success: boolean; group: Group }>(`/nexus/api/groups/${id}`, input),
+  /** Soft-delete a group (owner or platform admin). */
+  deleteGroup: (id: string) =>
+    http.del<{ success: boolean; message: string }>(`/nexus/api/groups/${id}`),
+  /** Promote/demote a member (owner→transfer only, so not assignable here). */
+  changeMemberRole: (groupId: string, userId: string, role: AssignableRole) =>
+    http.put<{ success: boolean; membership: Membership }>(
+      `/nexus/api/groups/${groupId}/members/${userId}/role`,
+      { role },
+    ),
+  /** Remove a member (admin/owner). */
+  removeMember: (groupId: string, userId: string, reason?: string) =>
+    http.del<{ success: boolean; message: string }>(
+      `/nexus/api/groups/${groupId}/members/${userId}`,
+      reason ? { body: { reason } } : undefined,
+    ),
+  /** Create an invite (specific user or shareable). */
+  invite: (groupId: string, input: InviteInput = {}) =>
+    http.post<{ success: boolean; invite: { inviteCode?: string; [k: string]: unknown } }>(
+      `/nexus/api/groups/${groupId}/invite`,
+      input,
+    ),
+  // NOTE: there is no endpoint to LIST pending join requests (only approve/reject
+  // by requestId). approve/reject are wired below for when a list endpoint lands.
+  approveJoinRequest: (groupId: string, requestId: string) =>
+    http.post<{ success: boolean }>(
+      `/nexus/api/groups/${groupId}/join-requests/${requestId}/approve`,
+      {},
+    ),
+  rejectJoinRequest: (groupId: string, requestId: string, reason?: string) =>
+    http.post<{ success: boolean }>(
+      `/nexus/api/groups/${groupId}/join-requests/${requestId}/reject`,
+      reason ? { reason } : {},
+    ),
+
+  // ── Events lifecycle (Phase 1) ───────────────────────────────────────────
+  createEvent: (input: CreateEventInput) =>
+    http.post<{ success: boolean; event: GroupEvent }>('/nexus/api/events', input),
+  updateEvent: (id: string, input: UpdateEventInput) =>
+    http.put<{ success: boolean; event: GroupEvent }>(`/nexus/api/events/${id}`, input),
+  cancelEvent: (id: string, reason?: string) =>
+    http.post<{ success: boolean; event: GroupEvent }>(
+      `/nexus/api/events/${id}/cancel`,
+      reason ? { reason } : {},
+    ),
+  deleteEvent: (id: string) =>
+    http.del<{ success: boolean; message: string }>(`/nexus/api/events/${id}`),
+  /** Attach (or, with null, clear) a live stream on a scheduled group event. */
+  setEventLiveStream: (eventId: string, liveStreamId: string | null) =>
+    http.post<{ success: boolean; event: GroupEvent }>(
+      `/nexus/api/events/${eventId}/live`,
+      { liveStreamId },
+    ),
+  rsvpEvent: (id: string, input: RsvpInput = {}) =>
+    http.post<{ success: boolean }>(`/nexus/api/events/${id}/rsvp`, input),
+  cancelRsvp: (id: string) =>
+    http.del<{ success: boolean; message: string }>(`/nexus/api/events/${id}/rsvp`),
+  getMyRsvp: (id: string) =>
+    http.get<{ success: boolean; rsvp: EventAttendee | null }>(`/nexus/api/events/${id}/rsvp`),
+  listAttendees: (id: string, params?: { rsvpStatus?: RsvpStatus; limit?: number }) => {
+    const sp = new URLSearchParams();
+    if (params?.rsvpStatus) sp.set('rsvpStatus', params.rsvpStatus);
+    if (params?.limit != null) sp.set('limit', String(params.limit));
+    const q = sp.toString();
+    return http.get<{ success: boolean; attendees: EventAttendee[]; pagination?: Pagination }>(
+      `/nexus/api/events/${id}/attendees${q ? `?${q}` : ''}`,
+    );
+  },
+  reminderPresets: () =>
+    http.get<{ success: boolean } & ReminderPresets>('/nexus/api/events/reminders/presets'),
+  createReminder: (eventId: string, reminderTimes: number[]) =>
+    http.post<{ success: boolean; scheduled: number }>(
+      `/nexus/api/events/${eventId}/reminders`,
+      { reminderTimes },
+    ),
+  updateReminder: (eventId: string, reminderTimes: number[]) =>
+    http.put<{ success: boolean; scheduled: number }>(
+      `/nexus/api/events/${eventId}/reminders`,
+      { reminderTimes },
+    ),
+  deleteReminder: (eventId: string) =>
+    http.del<{ success: boolean; cancelled: number }>(`/nexus/api/events/${eventId}/reminders`),
+
+  // ── Subgroups / channels (Phase 1) ───────────────────────────────────────
+  listSubgroups: (parentGroupId: string, params?: { type?: SubGroupType }) => {
+    const sp = new URLSearchParams({ parentGroupId });
+    if (params?.type) sp.set('type', params.type);
+    return http.get<{ success: boolean; subGroups: SubGroup[]; count: number }>(
+      `/nexus/api/subgroups?${sp.toString()}`,
+    );
+  },
+  createSubgroup: (input: CreateSubGroupInput) =>
+    http.post<{ success: boolean; subGroup: SubGroup }>('/nexus/api/subgroups', input),
+  updateSubgroup: (id: string, input: UpdateSubGroupInput) =>
+    http.put<{ success: boolean; subGroup: SubGroup }>(`/nexus/api/subgroups/${id}`, input),
+  deleteSubgroup: (id: string) =>
+    http.del<{ success: boolean; message: string }>(`/nexus/api/subgroups/${id}`),
+  addSubgroupMember: (id: string, userId: string, role: SubGroupMemberRole = 'member') =>
+    http.post<{ success: boolean }>(`/nexus/api/subgroups/${id}/members`, { userId, role }),
+  removeSubgroupMember: (id: string, userId: string) =>
+    http.del<{ success: boolean }>(`/nexus/api/subgroups/${id}/members/${userId}`),
+
+  // ── Recommendations (Phase 1) ────────────────────────────────────────────
+  listRecommendations: (params?: { limit?: number }) => {
+    const sp = new URLSearchParams();
+    if (params?.limit != null) sp.set('limit', String(params.limit));
+    const q = sp.toString();
+    return http.get<{ success: boolean; recommendations: Recommendation[]; count: number }>(
+      `/nexus/api/recommendations${q ? `?${q}` : ''}`,
+    );
+  },
 };

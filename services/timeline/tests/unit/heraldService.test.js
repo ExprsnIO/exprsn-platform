@@ -5,15 +5,31 @@
  * ═══════════════════════════════════════════════════════════
  */
 
-const heraldService = require('../../src/services/heraldService');
-const axios = require('axios');
+// The heraldService captures its axios client ONCE at module-require time via
+// axios.create(...). Reassigning axios.create per-test has no effect on the
+// already-captured client, so we expose a single persistent mock client and
+// drive its .post/.get methods per-test instead.
+const mockHeraldClient = {
+  post: jest.fn(),
+  get: jest.fn(),
+  interceptors: {
+    request: { use: jest.fn() }
+  }
+};
 
-// Mock axios
-jest.mock('axios');
+jest.mock('axios', () => ({
+  create: jest.fn(() => mockHeraldClient)
+}));
+
+const heraldService = require('../../src/services/heraldService');
+const config = require('../../src/config');
 
 describe('Herald Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // setup.js sets HERALD_ENABLED=false, but config.herald.enabled is computed
+    // at require-time. Force it on for the tests that exercise the HTTP path.
+    config.herald.enabled = true;
   });
 
   describe('sendNotification', () => {
@@ -26,18 +42,16 @@ describe('Herald Service', () => {
         data: { postId: 'post-456' }
       };
 
-      axios.create = jest.fn(() => ({
-        post: jest.fn().mockResolvedValue({
-          data: {
-            success: true,
-            notification: {
-              id: 'notif-789',
-              channel: 'in-app',
-              status: 'sent'
-            }
+      mockHeraldClient.post.mockResolvedValue({
+        data: {
+          success: true,
+          notification: {
+            id: 'notif-789',
+            channel: 'in-app',
+            status: 'sent'
           }
-        })
-      }));
+        }
+      });
 
       const result = await heraldService.sendNotification(userId, notification);
 
@@ -53,9 +67,7 @@ describe('Herald Service', () => {
         body: 'Someone liked your post'
       };
 
-      axios.create = jest.fn(() => ({
-        post: jest.fn().mockRejectedValue(new Error('Service unavailable'))
-      }));
+      mockHeraldClient.post.mockRejectedValue(new Error('Service unavailable'));
 
       const result = await heraldService.sendNotification(userId, notification);
 
@@ -64,8 +76,7 @@ describe('Herald Service', () => {
     });
 
     it('should skip notification if Herald is disabled', async () => {
-      const originalEnv = process.env.HERALD_ENABLED;
-      process.env.HERALD_ENABLED = 'false';
+      config.herald.enabled = false;
 
       const result = await heraldService.sendNotification('user-123', {
         type: 'like',
@@ -75,18 +86,14 @@ describe('Herald Service', () => {
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe('Herald service disabled');
-
-      process.env.HERALD_ENABLED = originalEnv;
     });
   });
 
   describe('notifyInteraction', () => {
     it('should send like notification', async () => {
-      axios.create = jest.fn(() => ({
-        post: jest.fn().mockResolvedValue({
-          data: { success: true, notification: { id: 'notif-123' } }
-        })
-      }));
+      mockHeraldClient.post.mockResolvedValue({
+        data: { success: true, notification: { id: 'notif-123' } }
+      });
 
       const result = await heraldService.notifyInteraction(
         'like',
@@ -113,11 +120,9 @@ describe('Herald Service', () => {
     });
 
     it('should handle different notification types', async () => {
-      axios.create = jest.fn(() => ({
-        post: jest.fn().mockResolvedValue({
-          data: { success: true, notification: { id: 'notif-123' } }
-        })
-      }));
+      mockHeraldClient.post.mockResolvedValue({
+        data: { success: true, notification: { id: 'notif-123' } }
+      });
 
       const types = ['like', 'repost', 'comment', 'reply', 'mention', 'follow'];
 
@@ -136,14 +141,12 @@ describe('Herald Service', () => {
     it('should include comment text in notification', async () => {
       let capturedPayload;
 
-      axios.create = jest.fn(() => ({
-        post: jest.fn().mockImplementation((url, data) => {
-          capturedPayload = data;
-          return Promise.resolve({
-            data: { success: true, notification: { id: 'notif-123' } }
-          });
-        })
-      }));
+      mockHeraldClient.post.mockImplementation((url, data) => {
+        capturedPayload = data;
+        return Promise.resolve({
+          data: { success: true, notification: { id: 'notif-123' } }
+        });
+      });
 
       await heraldService.notifyInteraction(
         'comment',
@@ -159,14 +162,12 @@ describe('Herald Service', () => {
     it('should mark mentions as high priority', async () => {
       let capturedPayload;
 
-      axios.create = jest.fn(() => ({
-        post: jest.fn().mockImplementation((url, data) => {
-          capturedPayload = data;
-          return Promise.resolve({
-            data: { success: true, notification: { id: 'notif-123' } }
-          });
-        })
-      }));
+      mockHeraldClient.post.mockImplementation((url, data) => {
+        capturedPayload = data;
+        return Promise.resolve({
+          data: { success: true, notification: { id: 'notif-123' } }
+        });
+      });
 
       await heraldService.notifyInteraction(
         'mention',
@@ -181,11 +182,9 @@ describe('Herald Service', () => {
 
   describe('sendBatchNotifications', () => {
     it('should send multiple notifications', async () => {
-      axios.create = jest.fn(() => ({
-        post: jest.fn().mockResolvedValue({
-          data: { success: true, notification: { id: 'notif-123' } }
-        })
-      }));
+      mockHeraldClient.post.mockResolvedValue({
+        data: { success: true, notification: { id: 'notif-123' } }
+      });
 
       const notifications = [
         { userId: 'user-1', type: 'like', title: 'Like', body: 'Someone liked your post' },
@@ -203,17 +202,15 @@ describe('Herald Service', () => {
     it('should handle partial failures', async () => {
       let callCount = 0;
 
-      axios.create = jest.fn(() => ({
-        post: jest.fn().mockImplementation(() => {
-          callCount++;
-          if (callCount === 2) {
-            return Promise.reject(new Error('Failed'));
-          }
-          return Promise.resolve({
-            data: { success: true, notification: { id: `notif-${callCount}` } }
-          });
-        })
-      }));
+      mockHeraldClient.post.mockImplementation(() => {
+        callCount++;
+        if (callCount === 2) {
+          return Promise.reject(new Error('Failed'));
+        }
+        return Promise.resolve({
+          data: { success: true, notification: { id: `notif-${callCount}` } }
+        });
+      });
 
       const notifications = [
         { userId: 'user-1', type: 'like', title: 'Like', body: 'Test' },
@@ -230,12 +227,10 @@ describe('Herald Service', () => {
 
   describe('checkHealth', () => {
     it('should return healthy status when Herald is reachable', async () => {
-      axios.create = jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({
-          status: 200,
-          data: { status: 'healthy', service: 'exprsn-herald' }
-        })
-      }));
+      mockHeraldClient.get.mockResolvedValue({
+        status: 200,
+        data: { status: 'healthy', service: 'exprsn-herald' }
+      });
 
       const result = await heraldService.checkHealth();
 
@@ -245,9 +240,7 @@ describe('Herald Service', () => {
     });
 
     it('should return disconnected when Herald is unreachable', async () => {
-      axios.create = jest.fn(() => ({
-        get: jest.fn().mockRejectedValue(new Error('Connection refused'))
-      }));
+      mockHeraldClient.get.mockRejectedValue(new Error('Connection refused'));
 
       const result = await heraldService.checkHealth();
 

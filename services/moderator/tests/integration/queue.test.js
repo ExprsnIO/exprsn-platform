@@ -49,7 +49,7 @@ describe('Queue Service Integration', () => {
       await queueService.addToQueue(case1.id, { priority: 50 });
       await queueService.addToQueue(case2.id, { priority: 80 });
 
-      const nextItem = await queueService.getNextItem('reviewer-123');
+      const nextItem = await queueService.getNextItem('bbbbbbbb-0000-4000-8000-000000000123');
 
       expect(nextItem).toBeDefined();
       expect(nextItem.moderationItemId).toBe(case2.id);
@@ -57,7 +57,7 @@ describe('Queue Service Integration', () => {
     });
 
     it('should return null when queue is empty', async () => {
-      const nextItem = await queueService.getNextItem('reviewer-123');
+      const nextItem = await queueService.getNextItem('bbbbbbbb-0000-4000-8000-000000000123');
 
       expect(nextItem).toBeNull();
     });
@@ -69,7 +69,7 @@ describe('Queue Service Integration', () => {
       await queueService.addToQueue(case1.id, { escalated: false });
       await queueService.addToQueue(case2.id, { escalated: true });
 
-      const nextItem = await queueService.getNextItem('reviewer-123', {
+      const nextItem = await queueService.getNextItem('bbbbbbbb-0000-4000-8000-000000000123', {
         escalated: true
       });
 
@@ -85,22 +85,22 @@ describe('Queue Service Integration', () => {
 
       const updated = await queueService.assignReviewer(
         queueItem.id,
-        'reviewer-123'
+        'bbbbbbbb-0000-4000-8000-000000000123'
       );
 
-      expect(updated.assignedTo).toBe('reviewer-123');
+      expect(updated.assignedTo).toBe('bbbbbbbb-0000-4000-8000-000000000123');
       expect(updated.status).toBe('reviewing');
-      expect(updated.claimedAt).toBeDefined();
+      expect(updated.assignedAt).toBeDefined();
     });
 
     it('should reject assignment if already assigned', async () => {
       const moderationCase = await createTestModerationCase();
       const queueItem = await queueService.addToQueue(moderationCase.id);
 
-      await queueService.assignReviewer(queueItem.id, 'reviewer-123');
+      await queueService.assignReviewer(queueItem.id, 'bbbbbbbb-0000-4000-8000-000000000123');
 
       await expect(
-        queueService.assignReviewer(queueItem.id, 'reviewer-456')
+        queueService.assignReviewer(queueItem.id, 'bbbbbbbb-0000-4000-8000-000000000456')
       ).rejects.toThrow('already assigned');
     });
   });
@@ -109,7 +109,7 @@ describe('Queue Service Integration', () => {
     it('should update queue item status to completed', async () => {
       const moderationCase = await createTestModerationCase();
       const queueItem = await queueService.addToQueue(moderationCase.id);
-      await queueService.assignReviewer(queueItem.id, 'reviewer-123');
+      await queueService.assignReviewer(queueItem.id, 'bbbbbbbb-0000-4000-8000-000000000123');
 
       const updated = await queueService.updateQueueStatus(
         queueItem.id,
@@ -130,7 +130,7 @@ describe('Queue Service Integration', () => {
       await queueService.addToQueue(case1.id);
       await queueService.addToQueue(case2.id);
       const item3 = await queueService.addToQueue(case3.id);
-      await queueService.assignReviewer(item3.id, 'reviewer-123');
+      await queueService.assignReviewer(item3.id, 'bbbbbbbb-0000-4000-8000-000000000123');
 
       const pendingItems = await queueService.getQueue({ status: 'pending' });
 
@@ -144,15 +144,15 @@ describe('Queue Service Integration', () => {
       const item1 = await queueService.addToQueue(case1.id);
       const item2 = await queueService.addToQueue(case2.id);
 
-      await queueService.assignReviewer(item1.id, 'reviewer-123');
-      await queueService.assignReviewer(item2.id, 'reviewer-456');
+      await queueService.assignReviewer(item1.id, 'bbbbbbbb-0000-4000-8000-000000000123');
+      await queueService.assignReviewer(item2.id, 'bbbbbbbb-0000-4000-8000-000000000456');
 
       const items = await queueService.getQueue({
-        assignedTo: 'reviewer-123'
+        assignedTo: 'bbbbbbbb-0000-4000-8000-000000000123'
       });
 
       expect(items).toHaveLength(1);
-      expect(items[0].assignedTo).toBe('reviewer-123');
+      expect(items[0].assignedTo).toBe('bbbbbbbb-0000-4000-8000-000000000123');
     });
 
     it('should limit results', async () => {
@@ -177,7 +177,7 @@ describe('Queue Service Integration', () => {
       const item2 = await queueService.addToQueue(case2.id);
       await queueService.addToQueue(case3.id, { escalated: true });
 
-      await queueService.assignReviewer(item2.id, 'reviewer-123');
+      await queueService.assignReviewer(item2.id, 'bbbbbbbb-0000-4000-8000-000000000123');
 
       const stats = await queueService.getQueueStats();
 

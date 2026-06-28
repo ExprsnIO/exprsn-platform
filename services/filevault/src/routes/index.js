@@ -9,6 +9,8 @@ const router = express.Router();
 
 const filesRouter = require('./files');
 const directoriesRouter = require('./directories');
+const groupsRouter = require('./groups');
+const thumbnailsRouter = require('./thumbnails');
 const shareRouter = require('./share');
 const searchRouter = require('./search');
 const storageRouter = require('./storage');
@@ -18,6 +20,8 @@ const adminRouter = require('./admin');
 // Mount routes
 router.use('/files', filesRouter);
 router.use('/directories', directoriesRouter);
+router.use('/groups', groupsRouter);
+router.use('/thumbnails', thumbnailsRouter);
 router.use('/share', shareRouter);
 router.use('/search', searchRouter);
 router.use('/storage', storageRouter);

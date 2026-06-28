@@ -311,6 +311,8 @@ adding `/forward`, `/pin`, `/settings`, etc.
 | GET | /spark/api/conversations/:id/settings | `id` | — | — | requireAuth; participant | notificationsEnabled default true |
 | POST | /spark/api/conversations/:id/mute | `id` | `until` | — | requireAuth; participant | muteUntil=until\|null |
 | POST | /spark/api/conversations/:id/unmute | `id` | — | — | requireAuth; participant | — |
+| GET | /spark/api/groups/:groupId/channels | `groupId` | — | — | CA `read`; group member | list/auto-provision a group's chat + announcement channels |
+| POST | /spark/api/groups/:groupId/channels/:channelKind/messages | `groupId`, `channelKind`, `content` | — | — | CA `write`; group member (announcement→admin/owner) | post a plaintext message to a group channel |
 | GET | /spark/health, /health/db, /health/ca | — | — | — | none | 503 if down |
 | GET | /spark/api/config/:sectionId | `sectionId`∈messaging-settings/messaging-moderation | — | — | none | 404 unknown |
 | POST | /spark/api/config/:sectionId | `sectionId`; config | — | — | none | runtime only |
@@ -319,6 +321,8 @@ adding `/forward`, `/pin`, `/settings`, etc.
 
 Namespace `io.use` runs `validateSocketToken` against CA (`requiredPermissions {read:true}`); failure
 rejects the connection. `send:message`/`edit:message` need `write`; `delete:message` needs `delete`.
+For group-bound conversations, `join:conversation` and `send:message` additionally enforce live nexus
+group membership; sends to the announcement channel require admin/owner.
 
 | Event | Direction | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
@@ -349,6 +353,21 @@ rejects the connection. `send:message`/`edit:message` need `write`; `delete:mess
 `requireGroupMember`, `requireGroupAdmin`, `requireAdmin()` add checks. **Caveat:** several routers pass
 `requireToken`/`optionalToken` as a bare reference (not invoked) — documented as "token" intent.
 No Socket.IO. Global rate limiter on `/nexus/api/*`.
+
+**Platform-admin override:** `requireToken` now surfaces the CA-token RBAC roles
+(`req.userId`/`req.userRoles`, from token `data.roles`). A verified platform admin
+(role `admin`) bypasses `requireGroupMember`/`requireGroupAdmin` **without** a
+membership row (`req.isPlatformAdmin` is set), and the corresponding service-layer
+re-checks are bypassed too. Applies to: group edit/delete, member remove + role
+change, event update/cancel/delete, and subgroup update/delete/add-member/remove-member.
+(Governance `execute`/`close` and event `notify` carry no per-user group gate, so a
+platform admin — like any authenticated caller — already passes.)
+
+**Internal (service-to-service) endpoints** under `/nexus/api/internal/*` require a
+per-service HMAC credential (`X-Service-ID` + `X-Service-Token` =
+HMAC-SHA256(serviceId, `SERVICE_TOKEN_SECRET`)); they reject end-user CA tokens.
+Used by the shared `requireGroupMembership()` guard so other modules can authorize
+against group membership.
 
 ### REST endpoints
 
@@ -387,6 +406,7 @@ No Socket.IO. Global rate limiter on `/nexus/api/*`.
 | POST/PUT | /nexus/api/events/:id/reminders | `id`, `reminderTimes[]` | — | 1–6 preset items | token | DEFAULT_REMINDER_SCHEDULE |
 | DELETE | /nexus/api/events/:id/reminders | `id` | — | — | token | — |
 | POST | /nexus/api/events/:id/notify | `id`, `updateType`, `message` | — | — | token (admin intent) | — |
+| POST | /nexus/api/events/:id/live | `id` | liveStreamId | liveStreamId null to unlink | token + event creator/group owner-admin (platform-admin bypass) | link/unlink a live Stream to a group event |
 | GET | /nexus/api/events/reminders/presets | — | — | — | none | — |
 | POST | /nexus/api/governance/proposals | `groupId`, `title`, `description`, `proposalType` | votingMethod, quorumRequired, votingStartsAt, votingEndsAt, votingDuration, actionData, metadata | title 5–255; quorum 1–100; votingDuration 1h–30d | token | — |
 | GET | /nexus/api/governance/proposals | `groupId` | status, proposalType, activeOnly, limit, offset | — | token | limit=50, offset=0 |
@@ -410,6 +430,10 @@ No Socket.IO. Global rate limiter on `/nexus/api/*`.
 | GET | /nexus/api/moderation/cases/:id | `id` | — | — | token + moderator | — |
 | POST | /nexus/api/moderation/cases/:id/action | `id`, `actionType`, `reason` | duration | reason ≤500; duration ≥0 | token + moderator | — |
 | POST | /nexus/api/moderation/cases/:id/assign | `id`, `moderatorIds[]` | — | array non-empty | token + moderator | — |
+| POST | /nexus/api/moderation/flags/:flagId/resolve | `flagId`, `resolution` | reason | resolution∈dismiss/escalate | token + group moderator/admin or platform admin | resolve a flag |
+| GET | /nexus/api/admin/stats | — | period, days | period∈7d/30d/90d | token + requireAdmin() (platform admin) | platform totals + growth series |
+| GET | /nexus/api/admin/groups/:id/stats | `id` | period, days | period∈7d/30d/90d | token + requireAdmin() (platform admin) | per-group totals, member/event/flag growth, recent activity |
+| GET | /nexus/api/admin/audit | — | actor, action, targetType, groupId, limit, offset | — | token + requireAdmin() (platform admin) | admin audit log; newest-first |
 | GET | /nexus/api/calendar/events/:id/ical | `id` | — | — | optionalToken | text/calendar |
 | GET | /nexus/api/calendar/groups/:groupId/ical | `groupId` | upcoming, limit | limit ≤500 | optionalToken | upcoming=true, limit=100 |
 | GET | /nexus/api/calendar/users/:userId/ical | `userId` (=token user) | upcoming, limit | limit ≤500 | token (self) | upcoming=true, limit=100 |
@@ -422,7 +446,8 @@ No Socket.IO. Global rate limiter on `/nexus/api/*`.
 | POST | /nexus/api/subgroups/:id/members | `id`, `userId` | role | role∈moderator/member | token | role=member |
 | DELETE | /nexus/api/subgroups/:id/members/:userId | `id`, `userId` | — | — | token | — |
 | GET | /nexus/api/subgroups/:id/access | `id` | — | — | token | — |
-| GET/POST | /nexus/api/config/:sectionId | `sectionId`∈nexus-groups/events/calendar/trending | — | — | none | — |
+| GET/POST | /nexus/api/config/:sectionId | `sectionId`∈nexus-groups/events/calendar/trending | — | — | token + requireAdmin() | 404 if unknown section |
+| GET | /nexus/api/internal/groups/:id/membership/:userId | `id`, `userId` | — | — | **service HMAC** (X-Service-ID/X-Service-Token) | `{ isMember, role, visibility, joinMode }`; 404 if group missing |
 
 ## Filevault module (prefix /filevault)
 
@@ -450,6 +475,10 @@ No Socket.IO.
 | PUT | /filevault/api/directories/:directoryId/rename | `directoryId`(UUID), `name` | — | UUID v4 | authenticate + write | — |
 | PUT | /filevault/api/directories/:directoryId/move | `directoryId`(UUID) | newParentId | UUID v4 | authenticate + write | newParentId=null |
 | DELETE | /filevault/api/directories/:directoryId | `directoryId`(UUID) | recursive | UUID v4 | authenticate + delete | recursive=false |
+| GET | /filevault/api/groups/:groupId/files | `groupId` | directoryId, images, mimetype, tags, limit, offset | — | authenticate + group member | list a group's files |
+| POST | /filevault/api/groups/:groupId/files/upload | `groupId`; multipart `file` | path, directoryId, tags, metadata | file ≤ maxFileSize; 1 file | authenticate + write + group member | multipart upload into a group |
+| GET | /filevault/api/groups/:groupId/directories | `groupId` | directoryId | — | authenticate + group member | list a group's directories + files (directoryId = parent) |
+| GET | /filevault/api/thumbnails/:fileId | `fileId`(UUID) | size | UUID v4; size∈small/medium/large | authenticate + (group member for group files / owner\|shared\|public for user files) | streams thumbnail bytes (image/jpeg) |
 | POST | /filevault/api/share/files/:fileId/share | `fileId`(UUID) | permissions, expiresIn, maxUses | UUID v4 | authenticate (owner) | — |
 | GET | /filevault/api/share/files/:fileId/shares | `fileId`(UUID) | — | UUID v4 | authenticate (owner) | — |
 | GET | /filevault/api/share | — | limit, offset | — | authenticate | limit=50, offset=0 |
@@ -528,6 +557,10 @@ Per-route rate limits noted in Defaults.
 | GET | /vault/api/admin/tokens/:tokenId/anomalies | `tokenId` | — | — | read `/admin` | — |
 | POST | /vault/api/admin/maintenance/purge | — | — | — | write `/admin` | — |
 | POST | /vault/api/admin/maintenance/cache/clear | — | — | — | write `/admin` | — |
+| GET | /vault/api/groups/:groupId/secrets | `groupId` | — | — | read + group member | list secrets shared with a group — METADATA ONLY (never plaintext/encryptedValue) |
+| POST | /vault/api/groups/:groupId/secrets/:path(*)/share | `groupId`, `path`, `permission` | expiresAt | permission∈read/write/manage | write + group admin | grant the group access to an existing secret |
+| DELETE | /vault/api/groups/:groupId/secrets/:path(*)/share | `groupId`, `path` | — | — | write + group admin | revoke the group's access |
+| GET | /vault/api/groups/:groupId/secrets/:path(*)/reveal | `groupId`, `path` | — | — | read + group admin | explicit, audited reveal of one secret's plaintext (only group route returning plaintext); 403 NOT_SHARED if no live grant |
 | GET | /vault/api/config/:sectionId | `sectionId`∈vault/vault-secrets/vault-encryption/vault-access/vault-audit | — | — | admin `/config` | 404 unknown |
 | POST | /vault/api/config/:sectionId | `sectionId`; config | — | (vault not writable) | admin `/config` | 404 unknown |
 | GET | /vault/health | — | — | — | none | static |
@@ -565,7 +598,7 @@ add permissions. `/api/config` and `/api/webhooks` have no token middleware. `/a
 
 | Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
-| POST | /timeline/api/posts/ | `content` | mediaIds, visibility, replyTo, quoteOf | content 1–4000; mediaIds ≤4; visibility∈public/followers/private | write `/posts` | 201; visibility=public |
+| POST | /timeline/api/posts/ | `content` | mediaIds, visibility, replyTo, quoteOf, groupId | content 1–4000; mediaIds ≤4; visibility∈public/followers/private | write `/posts` (+ requireGroupMembership() if groupId) | 201; visibility=public; private/unlisted groups force member-only visibility |
 | GET | /timeline/api/posts/:id | `id`(uuid) | — | uuid | read `/posts` | 403 if private non-owner |
 | PUT | /timeline/api/posts/:id | `id`(uuid), `content` | — | content 1–4000 | update `/posts` | — |
 | DELETE | /timeline/api/posts/:id | `id`(uuid) | — | uuid | delete `/posts` | — |
@@ -583,6 +616,7 @@ add permissions. `/api/config` and `/api/webhooks` have no token middleware. `/a
 | GET | /timeline/api/timeline/global | — | cursor, limit, direction, page, offset | limit ≤100 | read `/timeline` | public only |
 | GET | /timeline/api/timeline/explore, /trending, /bookmarks, /likes | — | page, limit, offset | limit 1–100 | read `/timeline` | page1, limit20 |
 | GET | /timeline/api/timeline/user/:userId | `userId` | page, limit, offset | limit 1–100 | read `/timeline` | page1, limit20 |
+| GET | /timeline/api/timeline/group/:groupId | `groupId` | cursor, limit, direction, page, offset | limit ≤100 | read `/timeline` + requireGroupMembership() | cursor/offset paginated, newest-first feed of a group's posts |
 | POST/DELETE | /timeline/api/interactions/:id/like, /repost, /bookmark | `id` | — | — | `req.user.id` (401 if none) | 201 on POST |
 | POST/DELETE | /timeline/api/interactions/users/:id/follow | `id` | — | — | `req.user.id` | 201 on POST |
 | GET | /timeline/api/interactions/users/:id/follow | `id` | — | — | `req.user.id` | `{ following: boolean }` |
@@ -626,11 +660,13 @@ On connect socket joins `user:<userId>`.
 |---|---|---|---|---|---|---|
 | subscribe:timeline | client→server | — | — | — | authed | joins `timeline:global` |
 | unsubscribe:timeline | client→server | — | — | — | authed | leaves room |
+| subscribe:group / unsubscribe:group | client→server | `groupId` | — | — | authed | joins/leaves `timeline:group:{groupId}` |
 | subscribed:timeline / unsubscribed:timeline | server→client | — | — | — | — | acks |
 | new:post | server→client (`timeline:global`) | full post object | — | — | — | via broadcastNewPost |
 | post:liked | server→client (`timeline:global`) | `postId`, `userId` | — | — | — | — |
 | post:commented | server→client (`timeline:global`) | `postId`, `comment` | — | — | — | — |
 | post:created / updated / deleted | server→client (namespace) | post payload | — | — | — | from IPC handlers |
+| new:post / post:liked / post:commented | server→client (`timeline:group:{groupId}`) | as above | — | — | — | emitted to the group room for group posts |
 
 ---
 
@@ -749,6 +785,8 @@ joins `user:{userId}` (from validated token, never client query).
 
 `requireAuth` = CA token (Bearer or cookie `token`, validated with `requiredPermission:'read'`) → `req.user`.
 `optionalAuth` allows anonymous. Ownership checks compare `req.user.id` to resource owner. Joi (`stripUnknown`).
+For streams with a `group_id`, the `start`/`stop`/`PUT`/`DELETE` authorization is group owner/admin
+instead of personal owner.
 
 ### REST endpoints
 
@@ -785,6 +823,8 @@ joins `user:{userId}` (from validated token, never client query).
 | GET | /live/api/destinations/platforms/:platform/auth-url | `platform` | state | platform∈youtube/twitch/facebook | requireAuth | state auto-generated |
 | POST | /live/api/destinations/platforms/:platform/exchange-token | `platform`, `code`, `stream_id`(UUID), `name` | — | platform∈youtube/twitch/facebook; name 1–255 | requireAuth | is_enabled=true; 201 |
 | POST | /live/api/destinations/:id/test-connection | `id`(UUID) | — | — | requireAuth (owner) | — |
+| POST | /live/api/groups/:groupId/streams | `groupId`, `title` | description, visibility, isRecording | title 1–255 | requireAuth + group admin (requireGroupMembership('admin')) | create a group-owned live stream; 201 |
+| GET | /live/api/groups/:groupId/streams | `groupId` | status, visibility, limit, offset | limit 1–100 | requireAuth + group member | list a group's streams |
 | GET/POST | /live/api/config/:sectionId | `sectionId`∈live-rooms/live-recordings/live-settings | — | POST only live-settings | none | 404 unknown |
 
 ### Socket.IO events (namespace /live)

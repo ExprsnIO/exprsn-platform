@@ -251,10 +251,12 @@ async function leaveGroup(userId, groupId) {
 /**
  * Remove a member from group (admin action)
  */
-async function removeMember(adminUserId, groupId, targetUserId, reason = null) {
+async function removeMember(adminUserId, groupId, targetUserId, reason = null, options = {}) {
+  const { isPlatformAdmin = false } = options;
   try {
-    // Check admin permissions
-    const adminMembership = await GroupMembership.findOne({
+    // Check admin permissions. A verified platform admin bypasses the
+    // group-scoped admin requirement (CANNOT_REMOVE_OWNER still applies).
+    const adminMembership = isPlatformAdmin ? null : await GroupMembership.findOne({
       where: {
         userId: adminUserId,
         groupId,
@@ -262,7 +264,7 @@ async function removeMember(adminUserId, groupId, targetUserId, reason = null) {
       }
     });
 
-    if (!adminMembership || !['owner', 'admin'].includes(adminMembership.role)) {
+    if (!isPlatformAdmin && (!adminMembership || !['owner', 'admin'].includes(adminMembership.role))) {
       throw new Error('INSUFFICIENT_PERMISSIONS');
     }
 
@@ -317,18 +319,21 @@ async function removeMember(adminUserId, groupId, targetUserId, reason = null) {
  * the existing owner cannot be demoted and no one can be promoted to owner here
  * (ownership transfer is a separate, deliberate operation).
  */
-async function updateMemberRole(adminUserId, groupId, targetUserId, role) {
+async function updateMemberRole(adminUserId, groupId, targetUserId, role, options = {}) {
+  const { isPlatformAdmin = false } = options;
   const allowedRoles = ['admin', 'moderator', 'member'];
   if (!allowedRoles.includes(role)) {
     throw new Error('INVALID_ROLE');
   }
 
   try {
-    const adminMembership = await GroupMembership.findOne({
+    // Platform admins bypass the group-scoped admin requirement
+    // (CANNOT_CHANGE_OWNER still applies).
+    const adminMembership = isPlatformAdmin ? null : await GroupMembership.findOne({
       where: { userId: adminUserId, groupId, status: 'active' }
     });
 
-    if (!adminMembership || !['owner', 'admin'].includes(adminMembership.role)) {
+    if (!isPlatformAdmin && (!adminMembership || !['owner', 'admin'].includes(adminMembership.role))) {
       throw new Error('INSUFFICIENT_PERMISSIONS');
     }
 

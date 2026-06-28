@@ -5,30 +5,69 @@
  * ═══════════════════════════════════════════════════════════
  */
 
+// Dummy key so @exprsn/shared's stripeService can construct at require time
+// (it throws "Neither apiKey nor config.authenticator provided" otherwise).
+process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
+
 const request = require('supertest');
+
+// Mock models with explicit jest.fn() statics. Auto-mocking the index does not
+// reliably mock Sequelize Model static methods inherited from the base Model
+// class (e.g. Follow.findAll), so provide a manual factory.
+const mockMakeModel = () => ({
+  findAll: jest.fn(),
+  findOne: jest.fn(),
+  findByPk: jest.fn(),
+  findAndCountAll: jest.fn(),
+  count: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  destroy: jest.fn()
+});
+
+jest.mock('../../src/models', () => ({
+  Post: mockMakeModel(),
+  Like: mockMakeModel(),
+  Follow: mockMakeModel(),
+  Comment: mockMakeModel(),
+  Repost: mockMakeModel(),
+  Bookmark: mockMakeModel(),
+  List: mockMakeModel(),
+  ListMember: mockMakeModel(),
+  Trending: mockMakeModel(),
+  Attachment: mockMakeModel()
+}));
+
+// Mutable auth behavior, swapped per-test. The router calls requireToken() ONCE
+// at load to capture its middleware, so per-test jest.fn reassignment / Once
+// mocks don't take effect (and resetMocks:true would wipe them anyway). Instead
+// the captured middleware delegates to this mutable handler. Prefixed `mock` so
+// jest allows referencing it inside the hoisted factory.
+let mockAuthHandler;
+
+jest.mock('../../src/middleware/auth', () => {
+  const actual = jest.requireActual('../../src/middleware/auth');
+  const inject = () => (req, res, next) => mockAuthHandler(req, res, next);
+  return {
+    ...actual,
+    requireToken: inject,
+    optionalToken: inject
+  };
+});
+
 const { app } = require('../../src/index');
-const { Post, Follow } = require('../../src/models');
+const { Post, Follow, Like, Bookmark } = require('../../src/models');
 const { encodeCursor } = require('../../src/utils/cursor');
 const { createPost, createPosts } = require('../fixtures/factories');
-
-// Mock models
-jest.mock('../../src/models');
-
-// Mock auth middleware to inject test user
-jest.mock('../../src/middleware/auth', () => ({
-  requireToken: jest.fn(() => (req, res, next) => {
-    req.userId = 'test-user-123';
-    next();
-  }),
-  optionalToken: jest.fn(() => (req, res, next) => {
-    req.userId = 'test-user-123';
-    next();
-  })
-}));
 
 describe('Timeline API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default: authenticated test user injected.
+    mockAuthHandler = (req, res, next) => {
+      req.userId = 'test-user-123';
+      next();
+    };
   });
 
   describe('GET /api/timeline', () => {
@@ -89,11 +128,10 @@ describe('Timeline API', () => {
     });
 
     it('should require authentication', async () => {
-      // Override mock to simulate no auth
-      const { requireToken } = require('../../src/middleware/auth');
-      requireToken.mockImplementationOnce(() => (req, res, next) => {
+      // Simulate the auth middleware rejecting an unauthenticated request.
+      mockAuthHandler = (req, res) => {
         res.status(401).json({ error: 'Unauthorized' });
-      });
+      };
 
       const response = await request(app)
         .get('/api/timeline');
@@ -180,7 +218,8 @@ describe('Timeline API', () => {
   describe('GET /api/timeline/bookmarks', () => {
     it('should return bookmarked posts', async () => {
       const posts = createPosts(5);
-      Post.findAll.mockResolvedValue(posts);
+      // getUserBookmarks queries Bookmark.findAll and maps each row to its .post
+      Bookmark.findAll.mockResolvedValue(posts.map(post => ({ post })));
 
       const response = await request(app)
         .get('/api/timeline/bookmarks')
@@ -195,7 +234,8 @@ describe('Timeline API', () => {
   describe('GET /api/timeline/likes', () => {
     it('should return liked posts', async () => {
       const posts = createPosts(5);
-      Post.findAll.mockResolvedValue(posts);
+      // getUserLikes queries Like.findAll and maps each row to its .post
+      Like.findAll.mockResolvedValue(posts.map(post => ({ post })));
 
       const response = await request(app)
         .get('/api/timeline/likes')
@@ -260,11 +300,11 @@ describe('Timeline API', () => {
     });
 
     it('should handle missing user ID', async () => {
-      const { requireToken } = require('../../src/middleware/auth');
-      requireToken.mockImplementationOnce(() => (req, res, next) => {
+      // Auth passes but does not set req.userId.
+      mockAuthHandler = (req, res, next) => {
         // Don't set req.userId
         next();
-      });
+      };
 
       Follow.findAll.mockResolvedValue([]);
       Post.findAll.mockResolvedValue([]);

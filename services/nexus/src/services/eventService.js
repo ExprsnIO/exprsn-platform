@@ -129,30 +129,33 @@ class EventService {
   /**
    * Update event
    */
-  async updateEvent(eventId, userId, updates) {
+  async updateEvent(eventId, userId, updates, options = {}) {
+    const { isPlatformAdmin = false } = options;
     const event = await Event.findByPk(eventId);
     if (!event) {
       throw new Error('EVENT_NOT_FOUND');
     }
 
-    // Verify user is creator or group admin
-    const membership = await GroupMembership.findOne({
-      where: {
-        userId,
-        groupId: event.groupId,
-        status: 'active'
+    // Verify user is creator or group admin (platform admins bypass).
+    if (!isPlatformAdmin) {
+      const membership = await GroupMembership.findOne({
+        where: {
+          userId,
+          groupId: event.groupId,
+          status: 'active'
+        }
+      });
+
+      if (!membership) {
+        throw new Error('NOT_GROUP_MEMBER');
       }
-    });
 
-    if (!membership) {
-      throw new Error('NOT_GROUP_MEMBER');
-    }
+      const isCreator = event.creatorId === userId;
+      const isAdmin = ['owner', 'admin'].includes(membership.role);
 
-    const isCreator = event.creatorId === userId;
-    const isAdmin = ['owner', 'admin'].includes(membership.role);
-
-    if (!isCreator && !isAdmin) {
-      throw new Error('INSUFFICIENT_PERMISSIONS');
+      if (!isCreator && !isAdmin) {
+        throw new Error('INSUFFICIENT_PERMISSIONS');
+      }
     }
 
     // Update allowed fields
@@ -181,32 +184,88 @@ class EventService {
   }
 
   /**
-   * Cancel event
+   * Link (or unlink) an exprsn-live Stream to an event — "go live".
+   *
+   * Authorization mirrors updateEvent: event creator or group owner/admin, with
+   * a platform-admin bypass. Pass liveStreamId=null to clear the link.
+   *
+   * @param {string} eventId
+   * @param {string} userId - acting user
+   * @param {string|null} liveStreamId - live Stream id, or null to unlink
+   * @param {Object} options - { isPlatformAdmin }
+   * @returns {Promise<Object>} the updated event
    */
-  async cancelEvent(eventId, userId, reason = null) {
+  async setEventLiveStream(eventId, userId, liveStreamId, options = {}) {
+    const { isPlatformAdmin = false } = options;
     const event = await Event.findByPk(eventId);
     if (!event) {
       throw new Error('EVENT_NOT_FOUND');
     }
 
-    // Verify permissions
-    const membership = await GroupMembership.findOne({
-      where: {
-        userId,
-        groupId: event.groupId,
-        status: 'active'
-      }
-    });
+    // Verify user is creator or group admin (platform admins bypass).
+    if (!isPlatformAdmin) {
+      const membership = await GroupMembership.findOne({
+        where: {
+          userId,
+          groupId: event.groupId,
+          status: 'active'
+        }
+      });
 
-    if (!membership) {
-      throw new Error('NOT_GROUP_MEMBER');
+      if (!membership) {
+        throw new Error('NOT_GROUP_MEMBER');
+      }
+
+      const isCreator = event.creatorId === userId;
+      const isAdmin = ['owner', 'admin'].includes(membership.role);
+
+      if (!isCreator && !isAdmin) {
+        throw new Error('INSUFFICIENT_PERMISSIONS');
+      }
     }
 
-    const isCreator = event.creatorId === userId;
-    const isAdmin = ['owner', 'admin'].includes(membership.role);
+    await event.update({
+      liveStreamId: liveStreamId || null,
+      updatedAt: Date.now()
+    });
 
-    if (!isCreator && !isAdmin) {
-      throw new Error('INSUFFICIENT_PERMISSIONS');
+    // Clear caches
+    await redis.del(`event:${eventId}`);
+    await redis.del(`group:${event.groupId}:events`);
+
+    return event;
+  }
+
+  /**
+   * Cancel event
+   */
+  async cancelEvent(eventId, userId, reason = null, options = {}) {
+    const { isPlatformAdmin = false } = options;
+    const event = await Event.findByPk(eventId);
+    if (!event) {
+      throw new Error('EVENT_NOT_FOUND');
+    }
+
+    // Verify permissions (platform admins bypass the group-scoped check).
+    if (!isPlatformAdmin) {
+      const membership = await GroupMembership.findOne({
+        where: {
+          userId,
+          groupId: event.groupId,
+          status: 'active'
+        }
+      });
+
+      if (!membership) {
+        throw new Error('NOT_GROUP_MEMBER');
+      }
+
+      const isCreator = event.creatorId === userId;
+      const isAdmin = ['owner', 'admin'].includes(membership.role);
+
+      if (!isCreator && !isAdmin) {
+        throw new Error('INSUFFICIENT_PERMISSIONS');
+      }
     }
 
     await event.update({
@@ -238,30 +297,33 @@ class EventService {
   /**
    * Delete event (hard delete)
    */
-  async deleteEvent(eventId, userId) {
+  async deleteEvent(eventId, userId, options = {}) {
+    const { isPlatformAdmin = false } = options;
     const event = await Event.findByPk(eventId);
     if (!event) {
       throw new Error('EVENT_NOT_FOUND');
     }
 
-    // Only group admins or event creator can delete
-    const membership = await GroupMembership.findOne({
-      where: {
-        userId,
-        groupId: event.groupId,
-        status: 'active'
+    // Only group admins or event creator can delete (platform admins bypass).
+    if (!isPlatformAdmin) {
+      const membership = await GroupMembership.findOne({
+        where: {
+          userId,
+          groupId: event.groupId,
+          status: 'active'
+        }
+      });
+
+      if (!membership) {
+        throw new Error('NOT_GROUP_MEMBER');
       }
-    });
 
-    if (!membership) {
-      throw new Error('NOT_GROUP_MEMBER');
-    }
+      const isCreator = event.creatorId === userId;
+      const isAdmin = ['owner', 'admin'].includes(membership.role);
 
-    const isCreator = event.creatorId === userId;
-    const isAdmin = ['owner', 'admin'].includes(membership.role);
-
-    if (!isCreator && !isAdmin) {
-      throw new Error('INSUFFICIENT_PERMISSIONS');
+      if (!isCreator && !isAdmin) {
+        throw new Error('INSUFFICIENT_PERMISSIONS');
+      }
     }
 
     const groupId = event.groupId;

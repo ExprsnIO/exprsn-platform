@@ -41,6 +41,24 @@ async function generateToken(user, options = {}) {
     // Get user groups to determine permissions
     const userGroups = await user.getGroups();
 
+    // Get the user's RBAC roles. These are carried in the token data so that
+    // role-based guards (shared requireAdmin → role === 'admin') can authorize
+    // a *platform* admin in modules that only see the CA token (e.g. nexus's
+    // platform-admin override for group management). Defensive: some callers may
+    // pass a plain object without the Sequelize association mixin.
+    let roleNames = [];
+    try {
+      if (typeof user.getRoles === 'function') {
+        const userRoles = await user.getRoles();
+        roleNames = (userRoles || []).map(r => r.name).filter(Boolean);
+      }
+    } catch (roleError) {
+      logger.warn('Failed to resolve user roles for token data', {
+        userId: user.id,
+        error: roleError.message
+      });
+    }
+
     // Aggregate permissions from all groups
     let aggregatedPermissions = userGroups.reduce((acc, group) => {
       return {
@@ -84,7 +102,10 @@ async function generateToken(user, options = {}) {
           userId: user.id,
           email: user.email,
           displayName: user.displayName,
-          groups: userGroups.map(g => g.name)
+          groups: userGroups.map(g => g.name),
+          // RBAC role names (e.g. 'admin'); read by role-based guards that only
+          // have the CA token to work with.
+          roles: roleNames
         }
       },
       user.id,

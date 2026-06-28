@@ -25,7 +25,38 @@ async function connectTestDatabase() {
  */
 async function syncDatabase(options = {}) {
   try {
+    // The Spark models live under the `spark` schema, and EncryptionKey carries
+    // a cross-schema FK to `auth.users` (users live in the auth module). For
+    // isolated unit/integration runs against exprsn_spark_test, make sure both
+    // schemas plus a stub auth.users table exist so `sync` can create the FK.
+    await sequelize.createSchema('spark', {}).catch(() => {});
+    await sequelize.createSchema('auth', {}).catch(() => {});
+    await sequelize.query(
+      'CREATE TABLE IF NOT EXISTS "auth"."users" ("id" uuid PRIMARY KEY)'
+    );
+
     await sequelize.sync({ force: options.force || false, ...options });
+
+    // Drop the cross-schema FK constraints so test factories can insert rows
+    // with arbitrary (random) user ids without provisioning auth.users rows.
+    await sequelize.query(`
+      DO $$
+      DECLARE r RECORD;
+      BEGIN
+        FOR r IN
+          SELECT con.conname, nsp.nspname AS sch, rel.relname AS tbl
+          FROM pg_constraint con
+          JOIN pg_class rel ON rel.oid = con.conrelid
+          JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+          JOIN pg_class frel ON frel.oid = con.confrelid
+          JOIN pg_namespace fnsp ON fnsp.oid = frel.relnamespace
+          WHERE con.contype = 'f' AND nsp.nspname = 'spark' AND fnsp.nspname = 'auth'
+        LOOP
+          EXECUTE format('ALTER TABLE %I.%I DROP CONSTRAINT %I', r.sch, r.tbl, r.conname);
+        END LOOP;
+      END $$;
+    `);
+
     console.log('Test database synced');
     return true;
   } catch (error) {
@@ -92,7 +123,10 @@ async function createTestConversation(overrides = {}) {
   const defaults = {
     type: 'direct',
     maxParticipants: 2,
-    isPrivate: true
+    isPrivate: true,
+    // createdBy is required by the model (added during platform consolidation);
+    // the creator identity is irrelevant to these tests, so default a random id.
+    createdBy: crypto.randomUUID()
   };
 
   return await Conversation.create({
@@ -185,8 +219,12 @@ async function createTestEncryptionKey(userId, deviceId, overrides = {}) {
     .update(publicKey)
     .digest('hex');
 
-  // Simple encryption of private key for tests
-  const cipher = crypto.createCipher('aes-256-cbc', 'test-password');
+  // Simple encryption of private key for tests. (crypto.createCipher was
+  // removed in Node 22; use createCipheriv with a fixed key/iv — this is a
+  // throwaway test blob, not real key protection.)
+  const aesKey = crypto.createHash('sha256').update('test-password').digest();
+  const iv = Buffer.alloc(16, 0);
+  const cipher = crypto.createCipheriv('aes-256-cbc', aesKey, iv);
   let encryptedPrivateKey = cipher.update(privateKey, 'utf8', 'hex');
   encryptedPrivateKey += cipher.final('hex');
 

@@ -22,6 +22,36 @@ export interface ListFilesParams {
   offset?: number;
 }
 
+/** Params for listing files inside a group (GET /groups/:id/files). */
+export interface ListGroupFilesParams {
+  directoryId?: string;
+  /** Filter to image files only (gallery grid). */
+  images?: boolean;
+  /** Mimetype prefix filter, e.g. "video". Ignored when `images` is set. */
+  mimetype?: string;
+  /** Tags to filter by (sent as a csv). */
+  tags?: string[];
+  limit?: number;
+  offset?: number;
+}
+
+/** Options for uploading a file into a group (POST /groups/:id/files/upload). */
+export interface UploadToGroupOptions {
+  path?: string;
+  directoryId?: string | null;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface DirectoryItem {
+  id: string;
+  name: string;
+  parentId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  [k: string]: unknown;
+}
+
 export interface SharePermissions {
   read: boolean;
   write?: boolean;
@@ -57,6 +87,45 @@ function qs(params?: ListFilesParams): string {
   return s ? `?${s}` : '';
 }
 
+function groupQs(params?: ListGroupFilesParams): string {
+  if (!params) return '';
+  const sp = new URLSearchParams();
+  if (params.directoryId) sp.set('directoryId', params.directoryId);
+  if (params.images) sp.set('images', 'true');
+  else if (params.mimetype) sp.set('mimetype', params.mimetype);
+  if (params.tags && params.tags.length > 0) sp.set('tags', params.tags.join(','));
+  if (params.limit != null) sp.set('limit', String(params.limit));
+  if (params.offset != null) sp.set('offset', String(params.offset));
+  const s = sp.toString();
+  return s ? `?${s}` : '';
+}
+
+/**
+ * Fetch a bearer-authenticated binary endpoint and return an object URL for it.
+ * Used for thumbnails and full images, which have no public URL — the bytes are
+ * served only to an authenticated, group-member-guarded request, so we fetch
+ * with the Authorization header and wrap the blob. Callers must
+ * URL.revokeObjectURL the result when done to avoid leaking.
+ */
+async function fetchObjectUrl(path: string): Promise<string> {
+  const headers = new Headers();
+  const token = tokenStore.get();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const res = await fetch(`${config.apiBase}${path}`, { headers, credentials: 'include' });
+  if (!res.ok) {
+    let body: Record<string, unknown> = {};
+    try {
+      body = await res.json();
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(res.status, body);
+  }
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 /** Parse a filename out of a Content-Disposition header, falling back. */
 function filenameFromDisposition(header: string | null, fallback: string): string {
   if (!header) return fallback;
@@ -83,6 +152,49 @@ export const filevaultApi = {
   },
 
   deleteFile: (id: string) => http.del<{ success: boolean }>(`/filevault/api/files/${id}`),
+
+  // --- Group files (member-scoped; see /filevault/api/groups/:groupId/*) ---
+
+  listGroupFiles: (groupId: string, params?: ListGroupFilesParams) =>
+    http.get<{ success: boolean; files: FileItem[]; count: number }>(
+      `/filevault/api/groups/${groupId}/files${groupQs(params)}`,
+    ),
+
+  /** Multipart upload into a group (member + write). multer field name is `file`. */
+  uploadToGroup: (groupId: string, file: File, opts?: UploadToGroupOptions) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (opts?.path) form.append('path', opts.path);
+    if (opts?.directoryId) form.append('directoryId', opts.directoryId);
+    if (opts?.tags && opts.tags.length > 0) form.append('tags', JSON.stringify(opts.tags));
+    if (opts?.metadata) form.append('metadata', JSON.stringify(opts.metadata));
+    return http.post<{ success: boolean; file: FileItem }>(
+      `/filevault/api/groups/${groupId}/files/upload`,
+      undefined,
+      { rawBody: form },
+    );
+  },
+
+  listGroupDirectories: (groupId: string, params?: { directoryId?: string }) => {
+    const sp = new URLSearchParams();
+    if (params?.directoryId) sp.set('directoryId', params.directoryId);
+    const s = sp.toString();
+    return http.get<{ success: boolean; subdirectories: DirectoryItem[]; files: FileItem[] }>(
+      `/filevault/api/groups/${groupId}/directories${s ? `?${s}` : ''}`,
+    );
+  },
+
+  /**
+   * Bearer-authed thumbnail bytes for an (image) file, returned as an object
+   * URL. There is no public URL — the route is group-member-guarded. Caller
+   * must URL.revokeObjectURL the result when the element unmounts.
+   */
+  getThumbnail: (fileId: string, size: 'small' | 'medium' | 'large' = 'small') =>
+    fetchObjectUrl(`/filevault/api/thumbnails/${fileId}?size=${size}`),
+
+  /** Bearer-authed full file bytes as an object URL (e.g. lightbox image). */
+  getFileObjectUrl: (fileId: string) =>
+    fetchObjectUrl(`/filevault/api/files/${fileId}/download`),
 
   // --- Sharing (share-link id is the capability; backed by a real CA token) ---
 

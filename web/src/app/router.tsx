@@ -31,6 +31,7 @@ import { FilevaultSection } from '@/features/admin/sections/FilevaultSection';
 import { LoginPage } from '@/auth/LoginPage';
 import { SsoCallbackPage } from '@/auth/SsoCallbackPage';
 import { RequireAuth } from '@/auth/RequireAuth';
+import { RequireAdmin } from '@/auth/RequireAdmin';
 
 // Public auth routes + guarded app shell. Session status is resolved by
 // AuthGate (see main.tsx) before any guard runs.
@@ -76,7 +77,9 @@ export const router = createBrowserRouter([
     path: '/admin',
     element: (
       <RequireAuth>
-        <AdminLayout />
+        <RequireAdmin>
+          <AdminLayout />
+        </RequireAdmin>
       </RequireAuth>
     ),
     errorElement: <RouteErrorBoundary />,

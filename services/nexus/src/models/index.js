@@ -18,6 +18,7 @@ const GroupContentFlag = require('./GroupContentFlag');
 const GroupModerationCase = require('./GroupModerationCase');
 const SubGroup = require('./SubGroup');
 const SubGroupMembership = require('./SubGroupMembership');
+const AdminAudit = require('./AdminAudit');
 
 /**
  * ═══════════════════════════════════════════════════════════
@@ -121,5 +122,6 @@ module.exports = {
   GroupContentFlag,
   GroupModerationCase,
   SubGroup,
-  SubGroupMembership
+  SubGroupMembership,
+  AdminAudit
 };

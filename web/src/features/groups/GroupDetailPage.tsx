@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentType, type ReactElement } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -8,8 +8,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Divider,
-  Link,
   Paper,
   Snackbar,
   Stack,
@@ -20,182 +18,86 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
-import EventIcon from '@mui/icons-material/Event';
-import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import EventIcon from '@mui/icons-material/Event';
+import CollectionsOutlinedIcon from '@mui/icons-material/CollectionsOutlined';
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import TagIcon from '@mui/icons-material/Tag';
+import LiveTvOutlinedIcon from '@mui/icons-material/LiveTvOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { useAppStore } from '@/app/store';
-import { nexusApi, type GroupMember } from '@/api/nexus';
-import { usersApi, type PublicUser } from '@/api/users';
-import { isHttpError, toMessage } from '@/lib/errors';
-import { avatarColor, personInitials } from '@/features/people/util';
+import { nexusApi } from '@/api/nexus';
+import { toMessage } from '@/lib/errors';
+import { avatarColor } from '@/features/people/util';
 import { GovernanceDialog } from './GovernanceDialog';
+import { useGroupContext, type GroupContextValue } from './useGroupContext';
+import type { GroupTabProps } from './tabs/types';
+import AboutTab from './tabs/AboutTab';
+import PostsTab from './tabs/PostsTab';
+import MembersTab from './tabs/MembersTab';
+import EventsTab from './tabs/EventsTab';
+import GalleriesTab from './tabs/GalleriesTab';
+import FilesTab from './tabs/FilesTab';
+import MessagesTab from './tabs/MessagesTab';
+import SubgroupsTab from './tabs/SubgroupsTab';
+import LiveTab from './tabs/LiveTab';
+import SecretsTab from './tabs/SecretsTab';
 
-function formatWhen(value?: string | number): string {
-  if (value == null) return '';
-  const d = new Date(typeof value === 'number' ? value : Date.parse(value));
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+/**
+ * Tab registry — the single source of truth for the group's information
+ * architecture. `visible(ctx)` gates each tab (capability + visibility);
+ * `Component` receives `{ groupId, ctx }`. Feature agents fill the stub
+ * components without touching this page.
+ */
+interface TabDef {
+  value: string;
+  label: string;
+  icon: ReactElement;
+  Component: ComponentType<GroupTabProps>;
+  visible: (ctx: GroupContextValue) => boolean;
 }
 
-function MemberRow({ member, profile }: { member: GroupMember; profile?: PublicUser }) {
-  const name = profile?.displayName || 'Unnamed user';
-  return (
-    <Paper variant="outlined" sx={{ p: 1.5 }}>
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <Avatar
-          src={profile?.avatarUrl ?? undefined}
-          sx={{ bgcolor: avatarColor(member.userId), width: 36, height: 36 }}
-        >
-          {personInitials(profile?.displayName, member.userId)}
-        </Avatar>
-        <Link
-          component={RouterLink}
-          to={`/people/${member.userId}`}
-          underline="hover"
-          color="inherit"
-          sx={{ flex: 1, minWidth: 0, fontWeight: 500 }}
-          noWrap
-        >
-          {name}
-        </Link>
-        <Chip
-          size="small"
-          label={member.role}
-          color={member.role === 'owner' ? 'primary' : member.role === 'admin' ? 'secondary' : 'default'}
-        />
-      </Stack>
-    </Paper>
-  );
-}
+// A tab is visible to members, platform admins, or — for non-member-only
+// content — anyone when the group is public. Private groups hide member content
+// from non-members entirely.
+const memberOrPublic = (ctx: GroupContextValue) =>
+  ctx.isMember || ctx.isPlatformAdmin || ctx.group?.visibility === 'public';
+const memberOnly = (ctx: GroupContextValue) => ctx.isMember || ctx.isPlatformAdmin;
 
-function MembersTab({ groupId, isMember }: { groupId: string; isMember: boolean }) {
-  const members = useQuery({
-    queryKey: ['nexus', 'members', groupId],
-    queryFn: () => nexusApi.listMembers(groupId, { limit: 100 }),
-    enabled: isMember,
-  });
+const TABS: TabDef[] = [
+  { value: 'about', label: 'About', icon: <InfoOutlinedIcon />, Component: AboutTab, visible: () => true },
+  { value: 'posts', label: 'Posts', icon: <ForumOutlinedIcon />, Component: PostsTab, visible: memberOrPublic },
+  { value: 'members', label: 'Members', icon: <PeopleAltIcon />, Component: MembersTab, visible: memberOrPublic },
+  { value: 'events', label: 'Events', icon: <EventIcon />, Component: EventsTab, visible: memberOrPublic },
+  { value: 'galleries', label: 'Galleries', icon: <CollectionsOutlinedIcon />, Component: GalleriesTab, visible: memberOrPublic },
+  { value: 'files', label: 'Files', icon: <FolderOutlinedIcon />, Component: FilesTab, visible: memberOnly },
+  { value: 'messages', label: 'Messages', icon: <ChatBubbleOutlineIcon />, Component: MessagesTab, visible: memberOnly },
+  { value: 'channels', label: 'Channels', icon: <TagIcon />, Component: SubgroupsTab, visible: memberOrPublic },
+  { value: 'live', label: 'Live', icon: <LiveTvOutlinedIcon />, Component: LiveTab, visible: (ctx) => ctx.can('goLive') },
+  { value: 'secrets', label: 'Secrets', icon: <LockOutlinedIcon />, Component: SecretsTab, visible: (ctx) => ctx.can('manageSecrets') },
+];
 
-  // Resolve display names/avatars for the member ids in one batched call.
-  const memberIds = (members.data?.members ?? []).map((m) => m.userId);
-  const profilesQ = useQuery({
-    queryKey: ['people', 'profiles', memberIds],
-    queryFn: () => usersApi.profilesByIds(memberIds),
-    enabled: memberIds.length > 0,
-  });
-  const profileMap = new Map((profilesQ.data?.users ?? []).map((u) => [u.id, u]));
-
-  if (!isMember) {
-    return (
-      <Typography color="text.secondary" sx={{ textAlign: 'center', p: 4 }}>
-        Members are visible to group members only. Join the group to see them.
-      </Typography>
-    );
-  }
-  if (members.isLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress size={26} />
-      </Box>
-    );
-  }
-  if (members.isError) {
-    return isHttpError(members.error, 403) ? (
-      <Typography color="text.secondary" sx={{ textAlign: 'center', p: 4 }}>
-        Members are visible to group members only.
-      </Typography>
-    ) : (
-      <Alert severity="error">{toMessage(members.error)}</Alert>
-    );
-  }
-
-  const list = members.data?.members ?? [];
-  if (list.length === 0) {
-    return <Typography color="text.secondary" sx={{ textAlign: 'center', p: 4 }}>No members yet.</Typography>;
-  }
-  return (
-    <Stack spacing={1}>
-      {list.map((m) => (
-        <MemberRow key={m.id} member={m} profile={profileMap.get(m.userId)} />
-      ))}
-    </Stack>
-  );
-}
-
-function EventsTab({ groupId }: { groupId: string }) {
-  const events = useQuery({
-    queryKey: ['nexus', 'events', groupId],
-    queryFn: () => nexusApi.listGroupEvents(groupId, { upcoming: true, limit: 50 }),
-  });
-
-  if (events.isLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress size={26} />
-      </Box>
-    );
-  }
-  if (events.isError) {
-    return isHttpError(events.error, 403) ? (
-      <Typography color="text.secondary" sx={{ textAlign: 'center', p: 4 }}>
-        Events are visible to group members only.
-      </Typography>
-    ) : (
-      <Alert severity="error">{toMessage(events.error)}</Alert>
-    );
-  }
-
-  const list = events.data?.events ?? [];
-  if (list.length === 0) {
-    return <Typography color="text.secondary" sx={{ textAlign: 'center', p: 4 }}>No upcoming events.</Typography>;
-  }
-  return (
-    <Stack spacing={1.5}>
-      {list.map((e) => (
-        <Paper key={e.id} variant="outlined" sx={{ p: 2 }}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>
-              {e.title}
-            </Typography>
-            {e.eventType && <Chip size="small" variant="outlined" label={e.eventType} />}
-          </Stack>
-          {formatWhen(e.startTime) && (
-            <Typography variant="caption" color="text.secondary">
-              {formatWhen(e.startTime)}
-              {e.location ? ` · ${e.location}` : ''}
-            </Typography>
-          )}
-          {e.description && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {e.description}
-            </Typography>
-          )}
-        </Paper>
-      ))}
-    </Stack>
-  );
-}
-
-/** Group detail — header, about, members, and events for a single group. */
+/** Group detail — header + a scalable, capability-gated tab framework. */
 export function GroupDetailPage() {
   const { id = '' } = useParams();
   const userId = useAppStore((s) => s.user?.id);
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'about' | 'members' | 'events'>('about');
+  const [tab, setTab] = useState('about');
   const [governanceOpen, setGovernanceOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  const groupQ = useQuery({
-    queryKey: ['nexus', 'group', id],
-    queryFn: () => nexusApi.getGroup(id),
-    enabled: !!id,
-  });
+  const ctx = useGroupContext(id);
+  // memberships query is also used to drive the join/leave button state.
   const memberships = useQuery({
     queryKey: ['nexus', 'memberships'],
     queryFn: nexusApi.myMemberships,
+    enabled: !!userId,
   });
-
-  const myMembership = (memberships.data?.data ?? []).find((m) => m.groupId === id);
-  const isMember = !!myMembership;
+  const myMembership = ctx.membership;
+  const isMember = ctx.isMember;
 
   const join = useMutation({
     mutationFn: () => nexusApi.joinGroup(id),
@@ -214,16 +116,19 @@ export function GroupDetailPage() {
     onError: (err) => setToast(toMessage(err)),
   });
 
-  if (groupQ.isLoading) {
+  if (ctx.isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}>
         <CircularProgress />
       </Box>
     );
   }
-  if (groupQ.isError) return <Alert severity="error">{toMessage(groupQ.error)}</Alert>;
+  if (ctx.isError || !ctx.group) return <Alert severity="error">{toMessage(ctx.error)}</Alert>;
 
-  const group = groupQ.data!.group;
+  const group = ctx.group;
+  const visibleTabs = TABS.filter((t) => t.visible(ctx));
+  const active = visibleTabs.find((t) => t.value === tab) ?? visibleTabs[0];
+  const ActiveComponent = active.Component;
 
   return (
     <Stack spacing={2} sx={{ maxWidth: 760, mx: 'auto', pb: 6 }}>
@@ -256,6 +161,9 @@ export function GroupDetailPage() {
               {typeof group.governanceModel === 'string' && (
                 <Chip size="small" variant="outlined" label={group.governanceModel} />
               )}
+              {ctx.role !== 'non-member' && (
+                <Chip size="small" color="primary" variant="outlined" label={ctx.role} />
+              )}
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
               {group.memberCount ?? 0} member{(group.memberCount ?? 0) === 1 ? '' : 's'}
@@ -280,7 +188,7 @@ export function GroupDetailPage() {
               <Button
                 size="small"
                 variant="contained"
-                disabled={join.isPending}
+                disabled={join.isPending || memberships.isLoading}
                 onClick={() => join.mutate()}
               >
                 {group.joinMode === 'open' ? 'Join' : 'Request to join'}
@@ -298,41 +206,19 @@ export function GroupDetailPage() {
         </Stack>
       </Paper>
 
-      <Tabs value={tab} onChange={(_e, v) => setTab(v)}>
-        <Tab value="about" icon={<InfoOutlinedIcon />} iconPosition="start" label="About" />
-        <Tab value="members" icon={<PeopleAltIcon />} iconPosition="start" label="Members" />
-        <Tab value="events" icon={<EventIcon />} iconPosition="start" label="Events" />
+      <Tabs
+        value={active.value}
+        onChange={(_e, v) => setTab(v)}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
+      >
+        {visibleTabs.map((t) => (
+          <Tab key={t.value} value={t.value} icon={t.icon} iconPosition="start" label={t.label} />
+        ))}
       </Tabs>
 
-      {tab === 'about' && (
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Stack spacing={1.5}>
-            <Typography variant="body1">
-              {(group.description as string) || 'No description provided.'}
-            </Typography>
-            {Boolean(group.location || group.website) && <Divider />}
-            {group.location ? (
-              <Typography variant="body2" color="text.secondary">
-                📍 {group.location as string}
-              </Typography>
-            ) : null}
-            {group.website ? (
-              <Link href={group.website as string} target="_blank" rel="noopener" variant="body2">
-                {group.website as string}
-              </Link>
-            ) : null}
-            {Array.isArray(group.tags) && group.tags.length > 0 && (
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                {(group.tags as string[]).map((t) => (
-                  <Chip key={t} size="small" label={t} />
-                ))}
-              </Stack>
-            )}
-          </Stack>
-        </Paper>
-      )}
-      {tab === 'members' && <MembersTab groupId={group.id} isMember={isMember} />}
-      {tab === 'events' && <EventsTab groupId={group.id} />}
+      <ActiveComponent groupId={group.id} ctx={ctx} />
 
       <GovernanceDialog
         group={group}

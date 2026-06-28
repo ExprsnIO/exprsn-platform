@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { requireToken } = require('../middleware/tokenAuth');
+const { isPlatformAdminRequest } = require('../middleware/groupAuth');
 const moderationService = require('../services/moderationService');
+const adminAuditService = require('../services/adminAuditService');
 const { GroupContentFlag, GroupModerationCase } = require('../models');
 const Joi = require('joi');
 
@@ -32,6 +34,11 @@ const flagContentSchema = Joi.object({
   ).required(),
   description: Joi.string().max(1000).allow(''),
   evidence: Joi.object().default({})
+});
+
+const resolveFlagSchema = Joi.object({
+  resolution: Joi.string().valid('dismiss', 'escalate').required(),
+  reason: Joi.string().max(1000).allow('', null)
 });
 
 const moderationActionSchema = Joi.object({
@@ -120,6 +127,88 @@ router.get('/flags/:groupId',
         total,
         limit: parseInt(limit),
         offset: parseInt(offset)
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/moderation/flags/:flagId/resolve
+ * Resolve a content flag. Body: { resolution: 'dismiss'|'escalate', reason? }.
+ *  - dismiss:   marks the flag dismissed (no further action).
+ *  - escalate:  creates or links a moderation case via the existing escalation
+ *               flow (sets the flag status to 'escalated').
+ * Authorization: group moderator/admin, OR platform admin (CA-token role 'admin').
+ */
+router.post('/flags/:flagId/resolve',
+  requireToken(),
+  async (req, res, next) => {
+    try {
+      const { error, value } = resolveFlagSchema.validate(req.body);
+      if (error) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: error.details[0].message
+        });
+      }
+
+      const userId = req.token.data.userId;
+      const { flagId } = req.params;
+      const { resolution, reason } = value;
+
+      const flag = await GroupContentFlag.findByPk(flagId);
+      if (!flag) {
+        return res.status(404).json({
+          error: 'FLAG_NOT_FOUND',
+          message: 'Content flag not found'
+        });
+      }
+
+      const isPlatformAdmin = isPlatformAdminRequest(req);
+      if (!isPlatformAdmin) {
+        // Throws on insufficient permissions (mapped by the error handler).
+        await moderationService.verifyModeratorPermissions(userId, flag.groupId);
+      }
+
+      let moderationCase = null;
+      if (resolution === 'escalate') {
+        moderationCase = await moderationService.escalateToModerationCase(flag);
+      } else {
+        await flag.update({
+          status: 'dismissed',
+          action: 'none',
+          resolution: reason || 'Flag dismissed',
+          resolvedBy: userId,
+          resolvedAt: Date.now(),
+          updatedAt: Date.now()
+        });
+      }
+
+      await adminAuditService.record({
+        actor: userId,
+        action: `moderation.flag.${resolution}`,
+        targetType: 'flag',
+        targetId: flagId,
+        groupId: flag.groupId,
+        metadata: {
+          resolution,
+          reason: reason || null,
+          contentType: flag.contentType,
+          contentId: flag.contentId,
+          moderationCaseId: moderationCase ? moderationCase.id : null
+        },
+        isPlatformAdmin
+      });
+
+      res.json({
+        success: true,
+        flag,
+        case: moderationCase,
+        message: resolution === 'escalate'
+          ? 'Flag escalated to a moderation case'
+          : 'Flag dismissed'
       });
     } catch (error) {
       next(error);

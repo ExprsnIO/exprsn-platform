@@ -1,73 +1,133 @@
 /**
  * ═══════════════════════════════════════════════════════════
  * Moderation Integration Tests
+ *
+ * Exercises moderationService + moderationActions against the canonical
+ * Sequelize model layer. External I/O is mocked: the AI provider factory
+ * (no API keys are configured in test/dev), Herald notifications, and the
+ * outbound axios calls to source services.
+ *
+ * Assertions follow the service's real return contract
+ * (`_formatModerationResult`: moderationId/status/riskScore/...), not the
+ * speculative `moderationCase`/`decision`/`automated` shape the previous
+ * version asserted (which the service has never produced).
  * ═══════════════════════════════════════════════════════════
  */
 
+// Mock outbound I/O before requiring the services.
+jest.mock('../../src/ai-providers', () => ({
+  analyzeContent: jest.fn().mockResolvedValue({
+    riskScore: 5,
+    toxicityScore: 5,
+    nsfwScore: 0,
+    spamScore: 0,
+    violenceScore: 0,
+    hateSpeechScore: 0,
+    provider: 'local',
+    model: 'mock-1',
+    explanation: 'looks fine',
+    rawResponse: {}
+  })
+}));
+
+jest.mock('../../services/heraldClient', () => ({
+  notifyUser: jest.fn().mockResolvedValue({ success: true }),
+  notifyModerators: jest.fn().mockResolvedValue({ success: true }),
+  notifyService: jest.fn().mockResolvedValue({ success: true }),
+  notifyContentDecision: jest.fn().mockResolvedValue({ success: true }),
+  notifyUserAction: jest.fn().mockResolvedValue({ success: true }),
+  notifyHighPriorityContent: jest.fn().mockResolvedValue({ success: true }),
+  notifyEscalation: jest.fn().mockResolvedValue({ success: true })
+}));
+
+jest.mock('axios', () => ({
+  post: jest.fn().mockResolvedValue({ data: {} }),
+  get: jest.fn().mockResolvedValue({ data: {} })
+}));
+
+const aiProviderFactory = require('../../src/ai-providers');
 const moderationService = require('../../services/moderationService');
 const moderationActions = require('../../services/moderationActions');
-const { ModerationCase } = require('../../models/sequelize-index');
 const { createTestModerationCase } = require('./setup');
+
+const USER = 'aaaaaaaa-0000-4000-8000-000000000456';
+const MODERATOR = 'cccccccc-0000-4000-8000-000000000123';
 
 describe('Moderation Service Integration', () => {
   describe('moderateContent', () => {
-    it('should create moderation case with risk score', async () => {
-      const params = {
+    it('should create a moderation record with a numeric risk score', async () => {
+      const result = await moderationService.moderateContent({
         contentType: 'post',
-        contentId: 'test-123',
+        contentId: 'mc-test-123',
         sourceService: 'timeline.exprsn.io',
-        userId: 'user-456',
-        content: {
-          text: 'This is a test post'
-        }
-      };
+        userId: USER,
+        content: { text: 'This is a test post' }
+      });
 
-      const result = await moderationService.moderateContent(params);
-
-      expect(result).toHaveProperty('moderationCase');
-      expect(result).toHaveProperty('decision');
-      expect(result).toHaveProperty('riskScore');
-      expect(result.moderationCase.contentId).toBe('test-123');
+      expect(result).toHaveProperty('moderationId');
+      expect(result).toHaveProperty('status');
       expect(typeof result.riskScore).toBe('number');
     });
 
     it('should auto-approve low-risk content', async () => {
-      const params = {
+      const result = await moderationService.moderateContent({
         contentType: 'post',
-        contentId: 'safe-content',
+        contentId: 'mc-safe-1',
         sourceService: 'timeline.exprsn.io',
-        userId: 'user-456',
-        content: {
-          text: 'Hello world'
-        }
-      };
+        userId: USER,
+        content: { text: 'Hello world' }
+      });
 
-      const result = await moderationService.moderateContent(params);
-
-      expect(result.decision).toBe('approved');
-      expect(result.automated).toBe(true);
+      expect(result.status).toBe('approved');
+      expect(result.approved).toBe(true);
+      expect(result.requiresReview).toBe(false);
     });
 
-    it('should queue medium-risk content for manual review', async () => {
+    it('should queue high-risk content for manual review', async () => {
+      aiProviderFactory.analyzeContent.mockResolvedValueOnce({
+        riskScore: 95,
+        toxicityScore: 95,
+        nsfwScore: 0,
+        spamScore: 0,
+        violenceScore: 0,
+        hateSpeechScore: 0,
+        provider: 'local',
+        model: 'mock-1',
+        explanation: 'high toxicity',
+        rawResponse: {}
+      });
+
+      const result = await moderationService.moderateContent({
+        contentType: 'post',
+        contentId: 'mc-risky-1',
+        sourceService: 'timeline.exprsn.io',
+        userId: USER,
+        content: { text: 'questionable content' }
+      });
+
+      expect(result).toHaveProperty('moderationId');
+      expect(result.riskScore).toBe(95);
+      expect(result.requiresReview).toBe(true);
+    });
+
+    it('should return the existing record for already-moderated content', async () => {
       const params = {
         contentType: 'post',
-        contentId: 'medium-risk',
+        contentId: 'mc-dup-1',
         sourceService: 'timeline.exprsn.io',
-        userId: 'user-456',
-        content: {
-          text: 'Potentially questionable content here'
-        }
+        userId: USER,
+        content: { text: 'dedupe me' }
       };
 
-      const result = await moderationService.moderateContent(params);
+      const first = await moderationService.moderateContent(params);
+      const second = await moderationService.moderateContent(params);
 
-      // Depending on AI classification, this might be queued
-      expect(result.decision).toMatch(/approved|pending|rejected/);
+      expect(second.moderationId).toBe(first.moderationId);
     });
   });
 
   describe('Moderation Actions', () => {
-    it('should execute content removal action', async () => {
+    it('should execute a content removal action', async () => {
       const moderationCase = await createTestModerationCase();
 
       const result = await moderationActions.removeContent({
@@ -75,46 +135,46 @@ describe('Moderation Service Integration', () => {
         contentId: moderationCase.contentId,
         sourceService: moderationCase.sourceService,
         moderationItemId: moderationCase.id,
-        performedBy: 'moderator-123',
+        performedBy: MODERATOR,
         reason: 'Violates community guidelines',
         isAutomated: false
       });
 
       expect(result.success).toBe(true);
       expect(result.action).toBe('remove');
+      expect(result.actionId).toBeDefined();
     });
 
-    it('should warn user', async () => {
+    it('should warn a user', async () => {
       const result = await moderationActions.warnUser({
-        userId: 'user-456',
+        userId: USER,
         reason: 'First warning for policy violation',
-        performedBy: 'moderator-123'
+        performedBy: MODERATOR
       });
 
       expect(result.success).toBe(true);
       expect(result.actionType).toBe('warn');
-      expect(result.userId).toBe('user-456');
+      expect(result.userId).toBe(USER);
     });
 
-    it('should suspend user with expiration', async () => {
+    it('should suspend a user with an expiration', async () => {
       const result = await moderationActions.suspendUser({
-        userId: 'user-456',
+        userId: USER,
         reason: 'Multiple violations',
-        durationSeconds: 7 * 24 * 3600, // 7 days
-        performedBy: 'moderator-123'
+        durationSeconds: 7 * 24 * 3600,
+        performedBy: MODERATOR
       });
 
       expect(result.success).toBe(true);
       expect(result.actionType).toBe('suspend');
-      expect(result.expiresAt).toBeDefined();
       expect(result.expiresAt).toBeGreaterThan(Date.now());
     });
 
-    it('should ban user permanently', async () => {
+    it('should ban a user permanently', async () => {
       const result = await moderationActions.banUser({
-        userId: 'user-456',
+        userId: USER,
         reason: 'Severe violations',
-        performedBy: 'moderator-123'
+        performedBy: MODERATOR
       });
 
       expect(result.success).toBe(true);
@@ -125,70 +185,30 @@ describe('Moderation Service Integration', () => {
 
   describe('Batch Moderation', () => {
     it('should process multiple content items', async () => {
-      const items = [
-        {
-          contentType: 'post',
-          contentId: 'post-1',
-          sourceService: 'timeline.exprsn.io',
-          userId: 'user-1',
-          content: { text: 'Post 1' }
-        },
-        {
-          contentType: 'post',
-          contentId: 'post-2',
-          sourceService: 'timeline.exprsn.io',
-          userId: 'user-2',
-          content: { text: 'Post 2' }
-        },
-        {
-          contentType: 'post',
-          contentId: 'post-3',
-          sourceService: 'timeline.exprsn.io',
-          userId: 'user-3',
-          content: { text: 'Post 3' }
-        }
-      ];
+      const items = [1, 2, 3].map((n) => ({
+        contentType: 'post',
+        contentId: `batch-post-${n}`,
+        sourceService: 'timeline.exprsn.io',
+        userId: USER,
+        content: { text: `Post ${n}` }
+      }));
 
       const results = await Promise.all(
-        items.map(item => moderationService.moderateContent(item))
+        items.map((item) => moderationService.moderateContent(item))
       );
 
       expect(results).toHaveLength(3);
-      results.forEach(result => {
-        expect(result).toHaveProperty('decision');
-        expect(result).toHaveProperty('riskScore');
+      results.forEach((result) => {
+        expect(result).toHaveProperty('moderationId');
+        expect(typeof result.riskScore).toBe('number');
       });
-    });
-  });
-
-  describe('Automated Decisions', () => {
-    it('should automatically approve safe content', async () => {
-      const params = {
-        contentType: 'post',
-        contentId: 'safe-123',
-        sourceService: 'timeline.exprsn.io',
-        userId: 'user-456',
-        content: {
-          text: 'Just sharing a nice photo of my cat!'
-        }
-      };
-
-      const result = await moderationService.moderateContent(params);
-
-      expect(result.automated).toBe(true);
-      expect(result.decision).toBe('approved');
     });
   });
 
   describe('Manual Review Escalation', () => {
-    it('should create queue item for manual review', async () => {
+    it('should create a queue item for manual review', async () => {
       const moderationCase = await createTestModerationCase();
-
-      // Update to require manual review
-      await moderationCase.update({
-        riskScore: 65,
-        status: 'reviewing'
-      });
+      await moderationCase.update({ riskScore: 65, status: 'reviewing' });
 
       const queueService = require('../../services/queueService');
       const queueItem = await queueService.addToQueue(moderationCase.id);
@@ -200,11 +220,7 @@ describe('Moderation Service Integration', () => {
 
     it('should escalate high-risk content', async () => {
       const moderationCase = await createTestModerationCase();
-
-      // Update to high risk
-      await moderationCase.update({
-        riskScore: 95
-      });
+      await moderationCase.update({ riskScore: 95 });
 
       const queueService = require('../../services/queueService');
       const queueItem = await queueService.addToQueue(moderationCase.id);

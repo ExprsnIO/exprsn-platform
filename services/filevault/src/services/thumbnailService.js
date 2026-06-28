@@ -333,6 +333,35 @@ class ThumbnailService {
   }
 
   /**
+   * Fetch the raw bytes for a file's thumbnail at the given size.
+   *
+   * Uses storage.retrieve() (the StorageManager's buffer-returning method) so
+   * the bytes can be streamed by the HTTP route. Returns null when no thumbnail
+   * exists for that (fileId, size).
+   *
+   * @param {string} fileId
+   * @param {string} size - 'small' | 'medium' | 'large'
+   * @returns {Promise<{buffer: Buffer, contentType: string, thumbnail: Object}|null>}
+   */
+  async getThumbnailBuffer(fileId, size = 'medium') {
+    const thumbnail = await Thumbnail.findOne({
+      where: { file_id: fileId, size }
+    });
+
+    if (!thumbnail) {
+      return null;
+    }
+
+    const buffer = await storage.retrieve(thumbnail.storage_key, thumbnail.storage_backend);
+
+    return {
+      thumbnail,
+      buffer,
+      contentType: 'image/jpeg'
+    };
+  }
+
+  /**
    * Get thumbnail URL
    */
   async getThumbnailUrl(fileId, size = 'medium') {

@@ -51,6 +51,12 @@ Event.init({
     field: 'virtual_url',
     comment: 'URL for virtual events (Zoom, Meet, exprsn-live)'
   },
+  liveStreamId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'live_stream_id',
+    comment: 'Linked exprsn-live Stream id when this event has gone live (null = not live). Cross-schema soft reference; no FK.'
+  },
   startTime: {
     type: DataTypes.BIGINT,
     allowNull: false,
@@ -144,6 +150,7 @@ Event.init({
     { fields: ['end_time'] },
     { fields: ['status'] },
     { fields: ['visibility'] },
+    { fields: ['live_stream_id'] },
     { fields: ['tags'], using: 'gin' }
   ]
 });

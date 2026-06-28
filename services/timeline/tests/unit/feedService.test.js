@@ -5,8 +5,30 @@
  * ═══════════════════════════════════════════════════════════
  */
 
+// Mock models with explicit jest.fn() statics. Auto-mocking the index does not
+// reliably mock Sequelize Model static methods, so provide a manual factory.
+jest.mock('../../src/models', () => ({
+  Post: {
+    findAll: jest.fn(),
+    findByPk: jest.fn(),
+    findOne: jest.fn(),
+    count: jest.fn()
+  },
+  Follow: {
+    findAll: jest.fn(),
+    findOne: jest.fn()
+  },
+  Like: {
+    findAll: jest.fn()
+  },
+  Repost: {
+    findAll: jest.fn()
+  }
+}));
+
 const feedService = require('../../src/services/feedService');
 const { Post, Follow } = require('../../src/models');
+const { Op } = require('sequelize');
 const {
   createUser,
   createPost,
@@ -14,9 +36,6 @@ const {
   createPosts,
   createPopularPost
 } = require('../fixtures/factories');
-
-// Mock models
-jest.mock('../../src/models');
 
 describe('Feed Service', () => {
   beforeEach(() => {
@@ -70,7 +89,7 @@ describe('Feed Service', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             userId: expect.objectContaining({
-              $in: expect.arrayContaining([userId])
+              [Op.in]: expect.arrayContaining([userId])
             })
           })
         })

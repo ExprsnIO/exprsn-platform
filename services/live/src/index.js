@@ -20,6 +20,7 @@ const ffmpegService = require('./services/ffmpeg');
 // Routes
 const healthRoutes = require('./routes/health');
 const streamRoutes = require('./routes/streams');
+const groupStreamRoutes = require('./routes/groupStreams');
 const roomRoutes = require('./routes/rooms');
 const simulcastRoutes = require('./routes/simulcast');
 const destinationRoutes = require('./routes/destinations');
@@ -79,6 +80,7 @@ app.use((req, res, next) => {
 
 app.use('/health', healthRoutes);
 app.use('/api/streams', streamRoutes);
+app.use('/api/groups', groupStreamRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/config', require('./routes/config'));
 app.use('/api/simulcast', simulcastRoutes);

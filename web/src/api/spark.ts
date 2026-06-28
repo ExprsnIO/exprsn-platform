@@ -173,4 +173,47 @@ export const sparkApi = {
         `/spark/api/encryption/messages/${messageId}/keys`,
       )
       .then((r) => r.data.encryptedKey),
+
+  // ── nexus group channels (PLAINTEXT — no E2EE) ──────────────────────────────
+
+  /**
+   * List (auto-provisioning if missing) a group's two channels. Each channel is
+   * a normal Conversation augmented with `userRole` (the caller's nexus role).
+   * Realtime send/receive still flow over the `/spark` socket; these channels
+   * are NOT E2E-encrypted.
+   */
+  listGroupChannels: (groupId: string) =>
+    http.get<{ groupId: string; channels: GroupChannels }>(
+      `/spark/api/groups/${groupId}/channels`,
+    ),
+
+  /**
+   * Post a plaintext message to a group channel. The 'announcement' channel
+   * requires admin/owner (server returns 403 ANNOUNCEMENT_ADMIN_ONLY otherwise).
+   * The server also broadcasts the new message over the `/spark` socket.
+   */
+  sendGroupChannelMessage: (
+    groupId: string,
+    channelKind: GroupChannelKind,
+    body: { content: string; contentType?: ContentType; mentions?: unknown[] },
+  ) =>
+    http.post<{ message: Message }>(
+      `/spark/api/groups/${groupId}/channels/${channelKind}/messages`,
+      body,
+    ),
 };
+
+// ── group channel types ───────────────────────────────────────────────────────
+
+export type GroupChannelKind = 'chat' | 'announcement';
+
+/** Nexus role of the caller within the group (note: includes 'moderator'). */
+export type GroupChannelRole = 'owner' | 'admin' | 'moderator' | 'member';
+
+/** A group channel is a Conversation carrying the caller's nexus role. */
+export type GroupChannel = Omit<Conversation, 'userRole'> & { userRole: GroupChannelRole };
+
+export interface GroupChannels {
+  chat: GroupChannel;
+  announcement: GroupChannel;
+}

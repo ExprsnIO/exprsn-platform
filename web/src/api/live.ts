@@ -29,6 +29,27 @@ export interface CreateStreamInput {
   visibility?: 'public' | 'unlisted' | 'private';
 }
 
+export interface CreateGroupStreamInput {
+  title: string;
+  description?: string;
+  visibility?: 'public' | 'unlisted' | 'private';
+  isRecording?: boolean;
+}
+
+export interface StreamPagination {
+  total: number;
+  limit: number;
+  offset: number;
+  [k: string]: unknown;
+}
+
+export interface ListGroupStreamsParams {
+  status?: string;
+  visibility?: string;
+  limit?: number;
+  offset?: number;
+}
+
 /**
  * Rewrite a self-hosted SRS playback URL (http://host:8085/live/<key>.m3u8) to
  * the same-origin HTTPS path proxied by nginx (/srs/live/<key>.m3u8), avoiding
@@ -55,6 +76,26 @@ export const liveApi = {
   stopStream: (id: string) =>
     http.post<{ success: boolean; stream: Stream }>(`/live/api/streams/${id}/stop`, {}),
   deleteStream: (id: string) => http.del<{ success: boolean }>(`/live/api/streams/${id}`),
+
+  // ── Group-owned streams (Phase 5) ──────────────────────────────────────────
+  /** Create a stream owned by a group (group admin/owner only). */
+  createGroupStream: (groupId: string, input: CreateGroupStreamInput) =>
+    http.post<{ success: boolean; stream: Stream }>(
+      `/live/api/groups/${groupId}/streams`,
+      input,
+    ),
+  /** List a group's streams (members). */
+  listGroupStreams: (groupId: string, params?: ListGroupStreamsParams) => {
+    const sp = new URLSearchParams();
+    if (params?.status) sp.set('status', params.status);
+    if (params?.visibility) sp.set('visibility', params.visibility);
+    if (params?.limit != null) sp.set('limit', String(params.limit));
+    if (params?.offset != null) sp.set('offset', String(params.offset));
+    const q = sp.toString();
+    return http.get<{ success: boolean; streams: Stream[]; pagination: StreamPagination }>(
+      `/live/api/groups/${groupId}/streams${q ? `?${q}` : ''}`,
+    );
+  },
 };
 
 // --- Video chat rooms (WebRTC mesh) -----------------------------------------

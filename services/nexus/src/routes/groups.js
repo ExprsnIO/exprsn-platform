@@ -234,6 +234,7 @@ router.delete('/:id',
  * List group members
  */
 router.get('/:id/members',
+  requireToken({ requiredPermissions: { read: true } }),
   validateGroup,
   requireGroupMember,
   async (req, res, next) => {

@@ -10,12 +10,19 @@ export interface Like {
   createdAt?: string;
 }
 
+/** A media attachment persisted on a post; `id` is a FileVault fileId. */
+export interface PostMedia {
+  id: string;
+  type?: string;
+  [k: string]: unknown;
+}
+
 export interface Post {
   id: string;
   userId: string;
   content: string;
   contentType?: string;
-  media?: unknown[];
+  media?: PostMedia[];
   /** Group ownership — present on group-scoped posts. */
   groupId?: string | null;
   visibility?: string;
@@ -24,6 +31,8 @@ export interface Post {
   repostCount: number;
   /** Present on some feeds; otherwise tracked optimistically client-side. */
   liked?: boolean;
+  /** Present on the bookmarks feed; otherwise tracked optimistically client-side. */
+  bookmarked?: boolean;
   /** Tracked optimistically client-side (the feed carries no per-user repost flag). */
   reposted?: boolean;
   /** Included on the group feed so the client can derive `liked`. */
@@ -90,6 +99,45 @@ export interface FeedParams {
   offset?: number;
 }
 
+/** Options for creating a post (main timeline or group-scoped). */
+export interface CreatePostOptions {
+  visibility?: string;
+  mediaIds?: string[];
+  replyTo?: string;
+  quoteOf?: string;
+  groupId?: string;
+}
+
+/** Response from GET /timeline/api/timeline/bookmarks. */
+export interface BookmarksResponse {
+  success: boolean;
+  bookmarks: Post[];
+  count?: number;
+  pagination?: { page?: number; limit?: number; hasMore?: boolean };
+}
+
+export interface SearchParams {
+  page?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface SearchResponse {
+  success: boolean;
+  query: string;
+  posts: Post[];
+  total?: number;
+  count?: number;
+  searchMethod?: string;
+  pagination?: { page?: number; limit?: number; offset?: number; hasMore?: boolean };
+}
+
+export interface TrendingHashtag {
+  tag: string;
+  count?: number;
+  [k: string]: unknown;
+}
+
 function qs(params?: FeedParams): string {
   if (!params) return '';
   const sp = new URLSearchParams();
@@ -104,10 +152,55 @@ export const timelineApi = {
   homeFeed: (params?: FeedParams) => http.get<FeedResponse>(`/timeline/api/timeline${qs(params)}`),
   /** Global public timeline. */
   globalFeed: (params?: FeedParams) => http.get<FeedResponse>(`/timeline/api/timeline/global${qs(params)}`),
-  createPost: (content: string, visibility = 'public') =>
-    http.post<{ success: boolean; post: Post }>('/timeline/api/posts', { content, visibility }),
+  /**
+   * Create a post. Backward-compatible: callers may pass a visibility string
+   * (legacy) or an options object `{ visibility, mediaIds, replyTo, quoteOf,
+   * groupId }`. Media is persisted on the post via FileVault file ids.
+   */
+  createPost: (content: string, optsOrVisibility?: string | CreatePostOptions) => {
+    const opts: CreatePostOptions =
+      typeof optsOrVisibility === 'string'
+        ? { visibility: optsOrVisibility }
+        : optsOrVisibility ?? {};
+    return http.post<{ success: boolean; post: Post }>('/timeline/api/posts', {
+      content,
+      visibility: opts.visibility ?? 'public',
+      ...(opts.mediaIds?.length ? { mediaIds: opts.mediaIds } : {}),
+      ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      ...(opts.quoteOf ? { quoteOf: opts.quoteOf } : {}),
+      ...(opts.groupId ? { groupId: opts.groupId } : {}),
+    });
+  },
+  /** Edit a post's content (author-gated; 403 for non-authors). */
+  updatePost: (postId: string, content: string) =>
+    http.put<{ success: boolean; post: Post }>(`/timeline/api/posts/${postId}`, { content }),
+  /** Delete a post (author-gated). */
+  deletePost: (postId: string) =>
+    http.del<{ success: boolean }>(`/timeline/api/posts/${postId}`),
   like: (postId: string) => http.post<{ liked: boolean }>(`/timeline/api/posts/${postId}/like`),
   unlike: (postId: string) => http.del<{ liked: boolean }>(`/timeline/api/posts/${postId}/like`),
+
+  // ── Bookmarks ───────────────────────────────────────────────────────────
+  bookmark: (postId: string) =>
+    http.post<{ bookmarked: boolean }>(`/timeline/api/posts/${postId}/bookmark`),
+  unbookmark: (postId: string) =>
+    http.del<{ bookmarked: boolean }>(`/timeline/api/posts/${postId}/bookmark`),
+  bookmarksFeed: (params?: FeedParams) =>
+    http.get<BookmarksResponse>(`/timeline/api/timeline/bookmarks${qs(params)}`),
+
+  // ── Search ──────────────────────────────────────────────────────────────
+  searchPosts: (q: string, params?: SearchParams) => {
+    const sp = new URLSearchParams();
+    sp.set('q', q);
+    if (params?.page != null) sp.set('page', String(params.page));
+    if (params?.limit != null) sp.set('limit', String(params.limit));
+    if (params?.offset != null) sp.set('offset', String(params.offset));
+    return http.get<SearchResponse>(`/timeline/api/search/posts?${sp.toString()}`);
+  },
+  trendingHashtags: () =>
+    http.get<{ success?: boolean; hashtags?: TrendingHashtag[]; trending?: TrendingHashtag[] }>(
+      '/timeline/api/search/trending/hashtags',
+    ),
 
   /** A specific user's posts (their public timeline). */
   userPosts: (userId: string, params?: { page?: number; limit?: number }) => {

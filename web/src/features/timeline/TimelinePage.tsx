@@ -127,8 +127,31 @@ export function TimelinePage() {
     },
   });
 
+  const bookmarkMutation = useMutation({
+    mutationFn: (post: Post) =>
+      post.bookmarked ? timelineApi.unbookmark(post.id) : timelineApi.bookmark(post.id),
+    onMutate: async (post: Post) => {
+      const willBookmark = !post.bookmarked;
+      patchPosts(qc, kind, (posts) =>
+        posts.map((p) => (p.id === post.id ? { ...p, bookmarked: willBookmark } : p)),
+      );
+      return { post };
+    },
+    onError: (_err, post) => {
+      patchPosts(qc, kind, (posts) =>
+        posts.map((p) => (p.id === post.id ? { ...p, bookmarked: post.bookmarked } : p)),
+      );
+    },
+  });
+
   const onPosted = (post: Post) =>
     patchPosts(qc, kind, (posts) => (posts.some((p) => p.id === post.id) ? posts : [post, ...posts]));
+
+  const onUpdated = (post: Post) =>
+    patchPosts(qc, kind, (posts) => posts.map((p) => (p.id === post.id ? { ...p, ...post } : p)));
+
+  const onDeleted = (postId: string) =>
+    patchPosts(qc, kind, (posts) => posts.filter((p) => p.id !== postId));
 
   if (!userId) return <Alert severity="error">Not signed in.</Alert>;
 
@@ -175,6 +198,9 @@ export function TimelinePage() {
           post={post}
           isOwn={post.userId === userId}
           onToggleLike={(p) => likeMutation.mutate(p)}
+          onToggleBookmark={(p) => bookmarkMutation.mutate(p)}
+          onUpdated={onUpdated}
+          onDeleted={onDeleted}
         />
       ))}
     </Stack>

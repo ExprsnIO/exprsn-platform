@@ -37,7 +37,8 @@ router.post('/upload',
       directoryId: req.body.directoryId || null,
       tags: req.body.tags ? JSON.parse(req.body.tags) : [],
       metadata: req.body.metadata ? JSON.parse(req.body.metadata) : {},
-      mimetype: req.file.mimetype
+      mimetype: req.file.mimetype,
+      visibility: req.body.visibility
     });
 
     res.status(201).json({

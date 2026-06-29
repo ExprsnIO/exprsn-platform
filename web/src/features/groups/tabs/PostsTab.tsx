@@ -418,6 +418,8 @@ export default function PostsTab({ groupId, ctx }: GroupTabProps) {
             onToggleLike={(p) => likeMutation.mutate(p)}
             onToggleRepost={(p) => repostMutation.mutate(p)}
             onComment={(p) => setCommentsFor(p)}
+            onUpdated={(p) => patchFeed(qc, groupId, (ps) => ps.map((x) => (x.id === p.id ? { ...x, ...p } : x)))}
+            onDeleted={(postId) => patchFeed(qc, groupId, (ps) => ps.filter((x) => x.id !== postId))}
           />
         ))}
         {query.hasNextPage && (

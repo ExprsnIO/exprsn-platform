@@ -5,6 +5,8 @@ import { HealthPage } from '@/features/health/HealthPage';
 import { AccountPage } from '@/features/account/AccountPage';
 import { MessagesPage } from '@/features/messages/MessagesPage';
 import { TimelinePage } from '@/features/timeline/TimelinePage';
+import { BookmarksPage } from '@/features/timeline/BookmarksPage';
+import { SearchPage } from '@/features/timeline/SearchPage';
 import { NotificationsPage } from '@/features/moderation/NotificationsPage';
 import { FilesPage } from '@/features/files/FilesPage';
 import { GroupsPage } from '@/features/groups/GroupsPage';
@@ -56,6 +58,8 @@ export const router = createBrowserRouter([
           { index: true, element: <HealthPage /> },
           { path: 'messages', element: <MessagesPage /> },
           { path: 'feed', element: <TimelinePage /> },
+          { path: 'bookmarks', element: <BookmarksPage /> },
+          { path: 'search', element: <SearchPage /> },
           { path: 'files', element: <FilesPage /> },
           { path: 'groups', element: <GroupsPage /> },
           { path: 'groups/:id', element: <GroupDetailPage /> },

@@ -3,6 +3,8 @@ import { Box } from '@mui/material';
 import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
 import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import DynamicFeedOutlinedIcon from '@mui/icons-material/DynamicFeedOutlined';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
@@ -38,6 +40,8 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { label: 'Health', to: '/', icon: MonitorHeartOutlinedIcon },
       { label: 'Messages', to: '/messages', icon: ChatBubbleOutlineOutlinedIcon },
       { label: 'Timeline', to: '/feed', icon: DynamicFeedOutlinedIcon },
+      { label: 'Search', to: '/search', icon: SearchOutlinedIcon },
+      { label: 'Bookmarks', to: '/bookmarks', icon: BookmarkBorderOutlinedIcon },
       { label: 'Files', to: '/files', icon: FolderOutlinedIcon },
       { label: 'Groups', to: '/groups', icon: GroupsOutlinedIcon },
       { label: 'People', to: '/people', icon: PeopleAltOutlinedIcon },

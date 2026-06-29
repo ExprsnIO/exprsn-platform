@@ -140,10 +140,14 @@ export const filevaultApi = {
     ),
 
   /** Multipart upload. The backend multer field name is `file`. */
-  upload: (file: File, opts?: { directoryId?: string | null }) => {
+  upload: (
+    file: File,
+    opts?: { directoryId?: string | null; visibility?: 'private' | 'shared' | 'public' },
+  ) => {
     const form = new FormData();
     form.append('file', file);
     if (opts?.directoryId) form.append('directoryId', opts.directoryId);
+    if (opts?.visibility) form.append('visibility', opts.visibility);
     return http.post<{ success: boolean; file: FileItem }>(
       '/filevault/api/files/upload',
       undefined,

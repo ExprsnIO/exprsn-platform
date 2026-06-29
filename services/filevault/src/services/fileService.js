@@ -14,7 +14,7 @@ const config = require('../config');
 /**
  * Upload a new file
  */
-async function uploadFile({ userId, buffer, filename, path, directoryId, tags, metadata, mimetype }) {
+async function uploadFile({ userId, buffer, filename, path, directoryId, tags, metadata, mimetype, visibility }) {
   const transaction = await sequelize.transaction();
 
   try {
@@ -54,7 +54,9 @@ async function uploadFile({ userId, buffer, filename, path, directoryId, tags, m
       storageKey,
       currentVersion: 1,
       tags: tags || [],
-      metadata: metadata || {}
+      metadata: metadata || {},
+      // Only override the model default ('private') when a value is supplied.
+      ...(visibility ? { visibility } : {})
     }, { transaction });
 
     // Create first version

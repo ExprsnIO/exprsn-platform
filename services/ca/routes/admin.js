@@ -609,10 +609,14 @@ router.post('/api/certificates/:id/revoke', requireAuth, requireAdmin, async (re
     const { id } = req.params;
     const { reason } = req.body;
 
-    await certificateService.revokeCertificate(id, reason, actingUserId(req));
+    // revokeCertificate cascades token revocation and attaches the count.
+    const revoked = await certificateService.revokeCertificate(id, reason, actingUserId(req));
 
-    req.logger.info('Certificate revoked', { certificateId: id });
-    res.json({ success: true });
+    req.logger.info('Certificate revoked', {
+      certificateId: id,
+      revokedTokenCount: revoked.revokedTokenCount || 0
+    });
+    res.json({ success: true, revokedTokenCount: revoked.revokedTokenCount || 0 });
   } catch (error) {
     req.logger.error('Failed to revoke certificate:', error);
     res.status(500).json({ error: error.message || 'Failed to revoke certificate' });

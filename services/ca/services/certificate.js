@@ -231,14 +231,45 @@ class CertificateService {
   }
 
   /**
+   * Resolve the default issuing CA certificate for end-entity issuance.
+   * Prefers an active intermediate CA (the conventional issuer), falling back
+   * to the active root CA. Lets a normal user request a certificate without
+   * having to know/supply an issuerId.
+   * @returns {Promise<string>} Issuer certificate id
+   */
+  async getDefaultIssuerId() {
+    const intermediate = await Certificate.findOne({
+      where: { type: 'intermediate', status: 'active' },
+      order: [['createdAt', 'DESC']]
+    });
+    if (intermediate && intermediate.isValid()) {
+      return intermediate.id;
+    }
+
+    const root = await Certificate.findOne({
+      where: { type: 'root', status: 'active' },
+      order: [['createdAt', 'DESC']]
+    });
+    if (root && root.isValid()) {
+      return root.id;
+    }
+
+    throw new Error('No active issuing CA certificate available');
+  }
+
+  /**
    * Create entity certificate (client, server, code signing)
    */
   async createEntityCertificate(options, userId) {
     try {
       logger.info('Generating entity certificate...', { type: options.type, userId });
 
+      // Default the issuer to the platform's signing CA (intermediate, else
+      // root) when the caller did not specify one.
+      const issuerId = options.issuerId || await this.getDefaultIssuerId();
+
       // Get issuer certificate
-      const issuer = await Certificate.findByPk(options.issuerId);
+      const issuer = await Certificate.findByPk(issuerId);
       if (!issuer) {
         throw new Error('Issuer certificate not found');
       }
@@ -383,6 +414,52 @@ class CertificateService {
         issuerId: certificate.issuerId || certificate.id
       });
 
+      // ─── Revocation cascade (security-critical) ──────────────────────────
+      // Now that the cert is marked revoked, revoke every active token it
+      // signed. Best-effort: a cascade hiccup must NEVER leave the cert
+      // un-revoked, so failures are logged but not re-thrown. The count is
+      // attached to the returned instance (non-persisted) for the API layer.
+      let revokedTokenCount = 0;
+      try {
+        const tokenService = require('./token');
+        revokedTokenCount = await tokenService.revokeTokensByCertificateId(
+          certificate.id,
+          'certificate_revoked'
+        );
+
+        await AuditLog.log({
+          userId,
+          action: 'certificate.revoke.cascade',
+          resourceType: 'certificate',
+          resourceId: certificate.id,
+          status: 'success',
+          severity: 'warning',
+          message: `Revocation cascade: ${revokedTokenCount} token(s) revoked for ${certificate.commonName}`,
+          details: {
+            certificateId: certificate.id,
+            serialNumber: certificate.serialNumber,
+            revokedTokenCount
+          }
+        });
+      } catch (cascadeError) {
+        logger.error('Token revocation cascade failed (non-fatal):', cascadeError);
+        try {
+          await AuditLog.log({
+            userId,
+            action: 'certificate.revoke.cascade',
+            resourceType: 'certificate',
+            resourceId: certificate.id,
+            status: 'error',
+            severity: 'error',
+            message: `Revocation cascade failed for ${certificate.commonName}: ${cascadeError.message}`,
+            details: { certificateId: certificate.id, error: cascadeError.message }
+          });
+        } catch (auditError) {
+          logger.error('Audit logging failed (non-fatal):', auditError);
+        }
+      }
+      certificate.revokedTokenCount = revokedTokenCount;
+
       // Audit log
       await AuditLog.log({
         userId,
@@ -401,7 +478,8 @@ class CertificateService {
       logger.info('Certificate revoked', {
         id: certificate.id,
         serialNumber: certificate.serialNumber,
-        reason
+        reason,
+        revokedTokenCount
       });
 
       // Trigger CRL update

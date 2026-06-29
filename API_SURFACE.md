@@ -68,10 +68,14 @@ under `/api` and `/admin`.
 | POST | /ca/api/certificates/generate-root | `commonName` | org/OU/country/state/locality/email, `keySize`, `validityYears`, `algorithm` | `commonName` 1–255; `country` len2; `keySize`∈2048/4096/8192; `validityYears` 1–30 | requireAdminSession | `keySize=4096`, `validityYears=10`, `algorithm='RSA-SHA256'` |
 | POST | /ca/api/certificates/generate-intermediate | `commonName`, `issuerId`(uuid) | subject fields, `keySize`, `validityYears`, `algorithm` | `keySize`∈2048/4096; `validityYears` 1–20 | requireAdminSession | `keySize=4096`, `validityYears=5`, `RSA-SHA256` |
 | POST | /ca/api/certificates/generate-code-signing | `commonName` | subject fields, `subjectAlternativeNames`, `issuerId`, `keySize`, `validityDays`, `algorithm` | SAN≤100 (each ≤255); `keySize`∈2048/4096; `validityDays` 1–825 | requireAdminSession | `keySize=2048`, `validityDays=365`, `type='code_signing'` |
-| POST | /ca/api/certificates/generate | `commonName` | `type`, subject fields, SAN, `issuerId`, `keySize`, `validityDays`, `algorithm` | `type`∈entity/san/code_signing/client/server | requireSession | `type='entity'`, `keySize=2048`, `validityDays=365` |
+| POST | /ca/api/certificates/generate | `commonName` | `type`, subject fields, SAN, `issuerId`, `keySize`, `validityDays`, `algorithm`, `password` | `type`∈entity/san/code_signing/client/server | requireSession | `type='entity'`, `keySize=2048`, `validityDays=365`; `issuerId` defaults to platform signing CA (active intermediate, else root) |
+| GET | /ca/api/certificates | — | `type`, `status`, `limit`, `offset` | `limit`≤200 | requireSession | own certs only; `limit=50`, `offset=0`; resp `{success,certificates[],count}` (no private key) |
 | GET | /ca/api/certificates/:id | `id` | — | — | requireSession (+ownership) | — |
+| POST | /ca/api/certificates/:id/revoke | `id` | `reason` | `reason`∈X.509 revocation reasons | requireSession (owner-or-admin) | `reason='unspecified'`; cascades token revocation; resp `{success,certificate,revokedTokenCount}` |
+| GET | /ca/api/certificates/:id/export | `id` | `format`, `password` (query or `X-Export-Password` header) | `format`∈pem/der/chain/pkcs12 | requireSession (owner-or-admin) | `format='pem'`; pkcs12 needs `password`+stored encrypted key (else 400 PASSWORD_REQUIRED/NO_PRIVATE_KEY/INVALID_PASSWORD); resp is a file download (pkcs12→`application/x-pkcs12` `.p12`) |
+| GET | /ca/api/certificates/:id/status | `id` | — | — | requireSession (owner-or-admin) | live status: `{success,serialNumber,status,revoked,revocationReason,revokedAt,ocsp:{enabled,status},crl:{enabled,crlNumber,thisUpdate,nextUpdate,listed}}` |
 | POST | /ca/api/certificates/csr | `csr`(PEM) | `validityDays`, `type`, `issuerId` | `validityDays` 1–825 | requireAdminSession | `validityDays=365`, `type='entity'` |
-| POST | /ca/api/certificates/:id/renew | `certificateId`(uuid) | `validityDays`, `keySize` | `validityDays` 1–825; `keySize`∈2048/4096 | requireAdminSession | — (schema requires body `certificateId` despite `:id`) |
+| POST | /ca/api/certificates/:id/renew | `certificateId`(uuid) | `validityDays`, `keySize` | `validityDays` 1–825; `keySize`∈2048/4096 | requireSession (owner-or-admin) | — (schema requires body `certificateId` despite `:id`) |
 | GET | /ca/api/certificates/:id/chain | `id` | — | — | requireSession (+ownership) | — |
 | GET | /ca/api/certificates/:id/download | `id` | `format` | `format`∈pem/der | requireSession (+ownership) | `format='pem'` |
 | POST | /ca/api/auth/verify-password | `userId`, `password` | — | — | 10/15min + requireSession | — |
@@ -87,7 +91,7 @@ under `/api` and `/admin`.
 | GET | /ca/admin/api/groups | — | — | — | requireAdmin | — |
 | GET | /ca/admin/api/roles | — | — | — | requireAdmin | — |
 | POST | /ca/admin/api/certificates/issue | `type`, `commonName` | subject fields, `keySize`, `validityDays`, SAN | `commonName` 1–255; `keySize`∈2048/4096; `validityDays` 1–825 | requireAdmin + validate | `type='entity'`, `keySize=2048`, `validityDays=365` |
-| POST | /ca/admin/api/certificates/:id/revoke | `id` | `reason` | — | requireAdmin | — |
+| POST | /ca/admin/api/certificates/:id/revoke | `id` | `reason` | — | requireAdmin | cascades token revocation; resp `{success,revokedTokenCount}` |
 | GET | /ca/admin/api/certificates/:id/download | `id` | — | — | requireAdmin | — |
 | POST | /ca/admin/api/tokens/generate | `certificateId`, `resourceType`, `resourceValue` | `permissions`, `expiryType`, `expiryValue` | (schema/handler field mismatch — see note) | requireAdmin + validate | `permissions={read:true}`, `expiryType='time'`, `expiryValue=3600` |
 | POST | /ca/admin/api/tokens/validate | `tokenId` | `resourceValue`, `requiredPermission` | — | requireAdmin | — |

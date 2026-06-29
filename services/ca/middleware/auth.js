@@ -256,17 +256,54 @@ async function userHasAdminRole(userId) {
 /**
  * Require an authenticated session (JSON API) - 401 if no session user
  */
-function requireSession(req, res, next) {
-  if (!req.session || !req.session.user) {
-    return res.status(401).json({
-      success: false,
-      error: 'AUTHENTICATION_REQUIRED',
-      message: 'You must be logged in to access this resource'
-    });
+/**
+ * Resolve a user from an `Authorization: Bearer <caTokenId>` header. The unified
+ * SPA authenticates module APIs with a CA bearer token (the token id itself), not
+ * a server session — so CA's own user routes must accept that bearer. The token
+ * IS a CA token, so we validate it via the token service and load its user.
+ * @returns {Promise<{id:string,email?:string}|null>}
+ */
+async function resolveBearerUser(req) {
+  const authz = req.headers.authorization || '';
+  const m = /^Bearer\s+(.+)$/i.exec(authz);
+  if (!m) return null;
+  const tokenId = m[1].trim();
+  try {
+    const tokenService = require('../services/token');
+    const validation = await tokenService.validateToken(tokenId, {});
+    if (!validation || !validation.valid || !validation.userId) return null;
+    return { id: validation.userId };
+  } catch (err) {
+    logger.warn('CA bearer session resolution failed', { error: err.message });
+    return null;
+  }
+}
+
+/**
+ * Require an authenticated user (JSON API). Accepts either a server session
+ * (req.session.user) OR a valid CA bearer token (the unified SPA's auth). On
+ * bearer auth a minimal session user ({ id }) is shimmed in so downstream
+ * owner/admin checks (userHasAdminRole(id), cert.userId === id) work unchanged.
+ */
+async function requireSession(req, res, next) {
+  if (req.session && req.session.user) {
+    res.locals.user = req.session.user;
+    return next();
   }
 
-  res.locals.user = req.session.user;
-  next();
+  const bearerUser = await resolveBearerUser(req);
+  if (bearerUser) {
+    req.session = req.session || {};
+    req.session.user = bearerUser;
+    res.locals.user = bearerUser;
+    return next();
+  }
+
+  return res.status(401).json({
+    success: false,
+    error: 'AUTHENTICATION_REQUIRED',
+    message: 'You must be logged in to access this resource'
+  });
 }
 
 /**

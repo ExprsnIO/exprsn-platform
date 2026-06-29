@@ -5,10 +5,15 @@
  */
 
 const express = require('express');
+const forge = require('node-forge');
 const router = express.Router();
 const tokenService = require('../services/token');
 const certificateService = require('../services/certificate');
-const { Certificate } = require('../models');
+const ocspService = require('../services/ocsp');
+const crlService = require('../services/crl');
+const cryptoUtil = require('../crypto');
+const config = require('../config');
+const { Certificate, RevocationList } = require('../models');
 const { strictLimiter, standardLimiter } = require('../../shared');
 const { requireSession, requireSessionOrService, requireAdminSession, userHasAdminRole } = require('../middleware/auth');
 const {
@@ -52,6 +57,52 @@ function sendRouteError(req, res, error, logMessage, fallbackMessage) {
 }
 
 /**
+ * Valid X.509 revocation reasons (mirrors the Certificate.revocationReason ENUM).
+ */
+const REVOCATION_REASONS = [
+  'unspecified',
+  'keyCompromise',
+  'caCompromise',
+  'affiliationChanged',
+  'superseded',
+  'cessationOfOperation',
+  'certificateHold',
+  'removeFromCRL',
+  'privilegeWithdrawn',
+  'aaCompromise'
+];
+
+/**
+ * Owner-or-admin gate for a certificate: the caller owns it, or is an admin.
+ * Unlike canAccessCertificate, this does NOT grant access to CA chain material
+ * (root/intermediate) — only the owning user (or an admin) may revoke/export.
+ */
+function ownsOrAdmin(certificate, userId, isAdmin) {
+  return isAdmin || certificate.userId === userId;
+}
+
+/**
+ * Serialize a certificate for list/JSON payloads, excluding private key material.
+ */
+function publicCertificateView(certificate) {
+  return {
+    id: certificate.id,
+    serialNumber: certificate.serialNumber,
+    commonName: certificate.commonName,
+    type: certificate.type,
+    status: certificate.status,
+    issuerId: certificate.issuerId,
+    organization: certificate.organization,
+    notBefore: certificate.notBefore,
+    notAfter: certificate.notAfter,
+    fingerprint: certificate.fingerprint,
+    revokedAt: certificate.revokedAt,
+    revocationReason: certificate.revocationReason,
+    createdAt: certificate.createdAt
+  };
+}
+
+/**
  * Certificate access rule for non-admin users:
  * own certificates, or public CA chain material (root/intermediate).
  */
@@ -74,7 +125,15 @@ router.post('/tokens/generate',
   async (req, res) => {
   try {
     const isAdmin = await userHasAdminRole(req.session.user.id);
-    const token = await tokenService.generateToken(req.body, req.session.user.id, { isAdmin });
+    // The request schema nests resource as { type, value }; the token service
+    // expects flat resourceType/resourceValue (as other callers pass it).
+    const params = { ...req.body };
+    if (params.resource && typeof params.resource === 'object') {
+      params.resourceType = params.resource.type;
+      params.resourceValue = params.resource.value;
+      delete params.resource;
+    }
+    const token = await tokenService.generateToken(params, req.session.user.id, { isAdmin });
 
     res.status(201).json({
       success: true,
@@ -231,6 +290,38 @@ router.get('/tokens', requireSession, async (req, res) => {
     });
   } catch (error) {
     sendRouteError(req, res, error, 'Failed to list tokens:', 'Failed to list tokens');
+  }
+});
+
+/**
+ * GET /api/certificates - List the caller's own certificates.
+ * Admins still use the admin list (/ca/admin/api/certificates) for all certs.
+ * Private key material is never included.
+ */
+router.get('/certificates', requireSession, async (req, res) => {
+  try {
+    const where = { userId: req.session.user.id };
+    if (req.query.type) where.type = req.query.type;
+    if (req.query.status) where.status = req.query.status;
+
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const offset = parseInt(req.query.offset, 10) || 0;
+
+    const { rows, count } = await Certificate.findAndCountAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset,
+      attributes: { exclude: ['privateKeyEncrypted', 'certificateDer'] }
+    });
+
+    res.status(200).json({
+      success: true,
+      certificates: rows.map(publicCertificateView),
+      count
+    });
+  } catch (error) {
+    sendRouteError(req, res, error, 'Failed to list certificates:', 'Failed to list certificates');
   }
 });
 
@@ -460,11 +551,29 @@ router.post('/certificates/csr',
  * POST /api/certificates/:id/renew - Renew certificate
  */
 router.post('/certificates/:id/renew',
-  requireAdminSession,
+  requireSession,
   validate(renewCertificateSchema),
   async (req, res) => {
     try {
       const { validityDays, keySize } = req.body;
+
+      // Owner-or-admin gate (was admin-only). Renewal reissues the same subject
+      // from the same issuer, so allowing the owner to self-renew is safe.
+      const existing = await certificateService.getCertificate(req.params.id);
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'CERTIFICATE_NOT_FOUND', message: 'Certificate not found' }
+        });
+      }
+
+      const isAdmin = await userHasAdminRole(req.session.user.id);
+      if (!ownsOrAdmin(existing, req.session.user.id, isAdmin)) {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'You do not have access to this certificate' }
+        });
+      }
 
       const result = await certificateService.renewCertificate(
         req.params.id,
@@ -597,6 +706,259 @@ router.get('/certificates/:id/download', requireSession, async (req, res) => {
     }
   } catch (error) {
     sendRouteError(req, res, error, 'Failed to download certificate:', 'Failed to download certificate');
+  }
+});
+
+/**
+ * POST /api/certificates/:id/revoke - Revoke a certificate (owner-or-admin).
+ * Triggers the cert→token revocation cascade in the service layer.
+ */
+router.post('/certificates/:id/revoke', requireSession, async (req, res) => {
+  try {
+    const reason = (req.body && req.body.reason) || 'unspecified';
+    if (!REVOCATION_REASONS.includes(reason)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REASON', message: 'Invalid revocation reason' }
+      });
+    }
+
+    const certificate = await certificateService.getCertificate(req.params.id);
+    if (!certificate) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CERTIFICATE_NOT_FOUND', message: 'Certificate not found' }
+      });
+    }
+
+    const isAdmin = await userHasAdminRole(req.session.user.id);
+    if (!ownsOrAdmin(certificate, req.session.user.id, isAdmin)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You do not have access to this certificate' }
+      });
+    }
+
+    if (certificate.status === 'revoked') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'ALREADY_REVOKED', message: 'Certificate already revoked' }
+      });
+    }
+
+    const revoked = await certificateService.revokeCertificate(
+      req.params.id,
+      reason,
+      req.session.user.id
+    );
+
+    res.status(200).json({
+      success: true,
+      certificate: {
+        id: revoked.id,
+        serialNumber: revoked.serialNumber,
+        commonName: revoked.commonName,
+        status: revoked.status,
+        revokedAt: revoked.revokedAt,
+        revocationReason: revoked.revocationReason
+      },
+      revokedTokenCount: revoked.revokedTokenCount || 0
+    });
+  } catch (error) {
+    sendRouteError(req, res, error, 'Certificate revocation failed:', 'Failed to revoke certificate');
+  }
+});
+
+/**
+ * GET /api/certificates/:id/export - Advanced export (owner-or-admin).
+ * format ∈ pem | der | chain | pkcs12.
+ *   - pem    : leaf certificate PEM
+ *   - chain  : full chain PEM (leaf → root)
+ *   - der    : leaf certificate DER
+ *   - pkcs12 : password-protected .p12 bundling leaf + chain + private key
+ *              (requires `password` and a stored encrypted private key)
+ * A raw, unencrypted private key is NEVER exported.
+ */
+router.get('/certificates/:id/export', requireSession, async (req, res) => {
+  try {
+    const format = (req.query.format || 'pem').toLowerCase();
+    if (!['pem', 'der', 'chain', 'pkcs12'].includes(format)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_FORMAT', message: 'Format must be pem, der, chain, or pkcs12' }
+      });
+    }
+
+    const certificate = await certificateService.getCertificate(req.params.id);
+    if (!certificate) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CERTIFICATE_NOT_FOUND', message: 'Certificate not found' }
+      });
+    }
+
+    const isAdmin = await userHasAdminRole(req.session.user.id);
+    if (!ownsOrAdmin(certificate, req.session.user.id, isAdmin)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You do not have access to this certificate' }
+      });
+    }
+
+    const chain = await certificateService.getCertificateChain(req.params.id);
+    if (chain.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CERTIFICATE_NOT_FOUND', message: 'Certificate not found' }
+      });
+    }
+
+    const safeName = (certificate.commonName || 'certificate').replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    if (format === 'pem') {
+      res.setHeader('Content-Type', 'application/x-pem-file');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pem"`);
+      return res.send(chain[0].pem);
+    }
+
+    if (format === 'chain') {
+      res.setHeader('Content-Type', 'application/x-pem-file');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeName}-chain.pem"`);
+      return res.send(chain.map(c => c.pem).join('\n'));
+    }
+
+    if (format === 'der') {
+      const derBuffer = Buffer.from(
+        chain[0].pem
+          .replace(/-----BEGIN CERTIFICATE-----/, '')
+          .replace(/-----END CERTIFICATE-----/, '')
+          .replace(/\s/g, ''),
+        'base64'
+      );
+      res.setHeader('Content-Type', 'application/x-x509-ca-cert');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeName}.der"`);
+      return res.send(derBuffer);
+    }
+
+    // format === 'pkcs12'
+    const password = req.query.password || req.headers['x-export-password'];
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'PASSWORD_REQUIRED', message: 'A password is required for PKCS#12 export' }
+      });
+    }
+
+    if (!certificate.privateKeyEncrypted) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_PRIVATE_KEY',
+          message: 'This certificate has no stored private key available for PKCS#12 export'
+        }
+      });
+    }
+
+    let privateKey;
+    try {
+      // Use the module's own private-key decryption, then parse to a forge key.
+      const privateKeyPem = cryptoUtil.decryptPrivateKey(certificate.privateKeyEncrypted, password);
+      privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+    } catch (decryptError) {
+      req.logger.warn('PKCS#12 export: private key decryption failed', { error: decryptError.message });
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_PASSWORD', message: 'Could not decrypt the private key with the provided password' }
+      });
+    }
+
+    if (!privateKey) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_PASSWORD', message: 'Could not decrypt the private key with the provided password' }
+      });
+    }
+
+    const certChain = chain.map(c => forge.pki.certificateFromPem(c.pem));
+    const p12Asn1 = forge.pkcs12.toPkcs12Asn1(privateKey, certChain, password, {
+      algorithm: '3des',
+      friendlyName: certificate.commonName
+    });
+    const p12Der = forge.asn1.toDer(p12Asn1).getBytes();
+    const p12Buffer = Buffer.from(p12Der, 'binary');
+
+    res.setHeader('Content-Type', 'application/x-pkcs12');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.p12"`);
+    return res.send(p12Buffer);
+  } catch (error) {
+    sendRouteError(req, res, error, 'Certificate export failed:', 'Failed to export certificate');
+  }
+});
+
+/**
+ * GET /api/certificates/:id/status - Live revocation status (owner-or-admin).
+ * The endpoint the SPA polls for CRL/OCSP state.
+ */
+router.get('/certificates/:id/status', requireSession, async (req, res) => {
+  try {
+    const certificate = await certificateService.getCertificate(req.params.id);
+    if (!certificate) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CERTIFICATE_NOT_FOUND', message: 'Certificate not found' }
+      });
+    }
+
+    const isAdmin = await userHasAdminRole(req.session.user.id);
+    if (!ownsOrAdmin(certificate, req.session.user.id, isAdmin)) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You do not have access to this certificate' }
+      });
+    }
+
+    const ocsp = { enabled: !!config.ocsp.enabled, status: null };
+    if (config.ocsp.enabled) {
+      try {
+        const result = await ocspService.checkStatus(certificate.serialNumber);
+        ocsp.status = result.status;
+      } catch (ocspError) {
+        req.logger.warn('OCSP status check failed', { error: ocspError.message });
+      }
+    }
+
+    const crl = {
+      enabled: !!config.crl.enabled,
+      crlNumber: null,
+      thisUpdate: null,
+      nextUpdate: null,
+      listed: null
+    };
+    if (config.crl.enabled) {
+      const info = crlService.getCRLInfo();
+      if (info) {
+        crl.crlNumber = info.crlNumber;
+        crl.thisUpdate = info.thisUpdate;
+        crl.nextUpdate = info.nextUpdate;
+      }
+      const listing = await RevocationList.findOne({
+        where: { serialNumber: certificate.serialNumber }
+      });
+      crl.listed = !!listing;
+    }
+
+    res.status(200).json({
+      success: true,
+      serialNumber: certificate.serialNumber,
+      status: certificate.status,
+      revoked: certificate.status === 'revoked',
+      revocationReason: certificate.revocationReason || null,
+      revokedAt: certificate.revokedAt || null,
+      ocsp,
+      crl
+    });
+  } catch (error) {
+    sendRouteError(req, res, error, 'Failed to get certificate status:', 'Failed to get certificate status');
   }
 });
 

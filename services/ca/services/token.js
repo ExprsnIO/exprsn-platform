@@ -575,6 +575,67 @@ class TokenService {
   }
 
   /**
+   * Revoke ALL active tokens signed by a given certificate (revocation cascade).
+   *
+   * Security-critical: when a certificate is revoked, every token it signed must
+   * be revoked too — otherwise a leaked/compromised signing cert keeps minting
+   * trust through already-issued tokens. Called from
+   * certificate.revokeCertificate and the admin revoke route.
+   *
+   * Best-effort cache invalidation: a Redis hiccup must not abort the bulk
+   * revoke (the DB rows are the source of truth; validateToken re-reads them).
+   *
+   * @param {string} certificateId - Signing certificate id
+   * @param {string} [reason='certificate_revoked'] - Recorded on each token
+   * @param {Object} [options] - Reserved for future use
+   * @returns {Promise<number>} Number of tokens transitioned to 'revoked'
+   */
+  async revokeTokensByCertificateId(certificateId, reason = 'certificate_revoked', options = {}) {
+    // Collect affected ids first so their validation caches can be cleared.
+    const affected = await Token.findAll({
+      where: { certificateId, status: 'active' },
+      attributes: ['id']
+    });
+
+    if (affected.length === 0) {
+      return 0;
+    }
+
+    const [count] = await Token.update(
+      {
+        status: 'revoked',
+        revokedAt: Date.now(),
+        revokedReason: reason
+      },
+      {
+        where: { certificateId, status: 'active' }
+      }
+    );
+
+    // Invalidate each token's validation cache (mirror revokeToken). Best-effort.
+    await Promise.all(
+      affected.map(async (t) => {
+        try {
+          await redisClient.del(`token:validation:${t.id}`);
+        } catch (cacheError) {
+          logger.warn('Token cache invalidation failed during cascade', {
+            tokenId: t.id,
+            error: cacheError.message
+          });
+        }
+      })
+    );
+
+    logger.info('Token revocation cascade complete', {
+      certificateId,
+      revokedTokenCount: count,
+      reason
+    });
+
+    return count;
+  }
+
+  /**
    * List tokens for user
    */
   async listTokens(userId, filters = {}) {

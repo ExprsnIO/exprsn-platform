@@ -153,6 +153,16 @@ const generateCertificateSchema = Joi.object({
     .messages({
       'string.guid': 'Invalid issuer certificate ID format'
     }),
+  // When supplied, the private key is encrypted with this passphrase and stored,
+  // enabling later password-protected PKCS#12 (.p12) export of the cert+key.
+  password: Joi.string()
+    .min(8)
+    .max(128)
+    .optional()
+    .messages({
+      'string.min': 'Key passphrase must be at least 8 characters',
+      'string.max': 'Key passphrase must not exceed 128 characters'
+    }),
   keySize: Joi.number()
     .valid(2048, 4096)
     .default(2048)

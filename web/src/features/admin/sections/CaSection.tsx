@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
+  Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
+  Menu,
   MenuItem,
   Stack,
   Tab,
@@ -15,9 +18,15 @@ import {
   Tooltip,
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import BlockIcon from '@mui/icons-material/Block';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { caAdminApi, type IssueCertInput, type GenerateTokenInput } from '@/api/admin/ca';
+import {
+  caAdminApi,
+  type IssueCertInput,
+  type GenerateTokenInput,
+  type CertExportFormat,
+} from '@/api/admin/ca';
 import { caApi, type Certificate, type CaToken } from '@/api/ca';
 import { formatDate } from '@/features/files/util';
 import {
@@ -133,22 +142,115 @@ function IssueCertDialog({ open, onClose, onDone }: { open: boolean; onClose: ()
   );
 }
 
+/** good → success, revoked → error, unknown → warning. */
+const LIVE_STATUS_COLOR: Record<string, 'success' | 'error' | 'warning' | 'default'> = {
+  good: 'success',
+  valid: 'success',
+  active: 'success',
+  revoked: 'error',
+  unknown: 'warning',
+};
+
+/**
+ * Live revocation badge for one cert. Polls /ca/api/certificates/:id/status
+ * (~30s) so OCSP/CRL state stays fresh without a manual refresh. Stops polling
+ * once a cert is revoked (terminal). When both OCSP and CRL responders are
+ * disabled it shows "checking disabled" — the per-cert lookup can't validate.
+ */
+function CertLiveStatus({ cert }: { cert: Certificate }) {
+  const q = useQuery({
+    queryKey: ['ca', 'admin', 'cert-status', cert.id],
+    queryFn: () => caAdminApi.certificateStatus(cert.id),
+    refetchInterval: (query) => (query.state.data?.revoked ? false : 30000),
+    staleTime: 25000,
+  });
+
+  if (q.isLoading) {
+    return <Chip size="small" variant="outlined" icon={<CircularProgress size={10} />} label="checking…" />;
+  }
+  if (q.isError || !q.data) {
+    return <Chip size="small" variant="outlined" color="warning" label="unknown" />;
+  }
+
+  const d = q.data;
+  const ocspOn = !!d.ocsp?.enabled;
+  const crlOn = !!d.crl?.enabled;
+  if (!ocspOn && !crlOn) {
+    return (
+      <Tooltip title="OCSP and CRL responders are both disabled — live status cannot be checked">
+        <Chip size="small" variant="outlined" color="default" label="checking disabled" />
+      </Tooltip>
+    );
+  }
+
+  const label = d.revoked ? 'revoked' : (d.status ?? 'unknown').toLowerCase();
+  const color = LIVE_STATUS_COLOR[label] ?? 'default';
+  const tip = [
+    ocspOn ? `OCSP: ${d.ocsp?.status ?? 'enabled'}` : 'OCSP: disabled',
+    crlOn ? `CRL #${d.crl?.crlNumber ?? '?'}${d.crl?.listed ? ' (listed)' : ''}` : 'CRL: disabled',
+    d.crl?.nextUpdate ? `Next update ${formatDate(d.crl.nextUpdate)}` : null,
+    d.revoked && d.revocationReason ? `Reason: ${d.revocationReason}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <Tooltip title={tip}>
+      <Chip size="small" variant="outlined" color={color} label={label} />
+    </Tooltip>
+  );
+}
+
+const EXPORT_FORMATS: Array<{ format: CertExportFormat; label: string }> = [
+  { format: 'pem', label: 'PEM certificate' },
+  { format: 'der', label: 'DER (binary)' },
+  { format: 'chain', label: 'Full chain (PEM)' },
+  { format: 'pkcs12', label: 'PKCS#12 (.p12, with passphrase)' },
+];
+
 function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
   const qc = useQueryClient();
   const [issueOpen, setIssueOpen] = useState(false);
+  const [exportMenu, setExportMenu] = useState<{ anchor: HTMLElement; cert: Certificate } | null>(null);
+  const [pk12, setPk12] = useState<{ cert: Certificate; password: string } | null>(null);
   const query = useQuery({
     queryKey: ['ca', 'admin', 'certificates'],
     queryFn: () => caAdminApi.listCertificates({ limit: 100 }),
   });
   const download = useMutation({ mutationFn: (c: Certificate) => caApi.downloadCertificate(c), onError: (e) => onToast((e as Error).message) });
+  const exportCert = useMutation({
+    mutationFn: ({ cert, format, password }: { cert: Certificate; format: CertExportFormat; password?: string }) =>
+      caAdminApi.exportCertificate(cert, format, password),
+    onSuccess: (_r, v) => onToast(`Exported ${v.format.toUpperCase()}`),
+    onError: (e) => onToast((e as Error).message),
+  });
   const revoke = useMutation({
     mutationFn: (c: Certificate) => caAdminApi.revokeCertificate(c.id, 'Revoked from admin console'),
-    onSuccess: () => {
-      onToast('Certificate revoked');
+    onSuccess: (r, c) => {
+      const n = r.revokedTokenCount ?? 0;
+      onToast(
+        n > 0
+          ? `Certificate revoked — revoked ${n} dependent token${n === 1 ? '' : 's'}`
+          : 'Certificate revoked',
+      );
+      // Refresh certs, the cascaded tokens, and this cert's live status.
       qc.invalidateQueries({ queryKey: ['ca', 'admin', 'certificates'] });
+      qc.invalidateQueries({ queryKey: ['ca', 'admin', 'tokens'] });
+      qc.invalidateQueries({ queryKey: ['ca', 'admin', 'cert-status', c.id] });
     },
     onError: (e) => onToast((e as Error).message),
   });
+
+  const runExport = (format: CertExportFormat) => {
+    const cert = exportMenu?.cert;
+    setExportMenu(null);
+    if (!cert) return;
+    if (format === 'pkcs12') {
+      setPk12({ cert, password: '' });
+      return;
+    }
+    exportCert.mutate({ cert, format });
+  };
 
   return (
     <Stack spacing={2}>
@@ -165,6 +267,7 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
               { key: 'type', header: 'Type' },
               { key: 'serialNumber', header: 'Serial', mono: true, render: (c) => `${c.serialNumber?.slice(0, 16) ?? ''}…` },
               { key: 'status', header: 'Status', render: (c) => <StatusChip status={c.status} /> },
+              { key: 'live', header: 'Live status', render: (c) => <CertLiveStatus cert={c} /> },
               { key: 'notAfter', header: 'Expires', render: (c) => formatDate(c.notAfter) },
               {
                 key: 'actions',
@@ -175,9 +278,14 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
                     <Tooltip title="Download PEM">
                       <IconButton size="small" onClick={() => download.mutate(c)}><DownloadIcon fontSize="small" /></IconButton>
                     </Tooltip>
+                    <Tooltip title="Export…">
+                      <IconButton size="small" onClick={(e) => setExportMenu({ anchor: e.currentTarget, cert: c })}>
+                        <FileDownloadIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Revoke">
                       <span>
-                        <IconButton size="small" color="error" disabled={c.status !== 'active'} onClick={() => { if (confirm(`Revoke “${c.commonName}”?`)) revoke.mutate(c); }}>
+                        <IconButton size="small" color="error" disabled={c.status !== 'active'} onClick={() => { if (confirm(`Revoke “${c.commonName}”? This also revokes any dependent tokens.`)) revoke.mutate(c); }}>
                           <BlockIcon fontSize="small" />
                         </IconButton>
                       </span>
@@ -189,6 +297,41 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
           />
         )}
       </QueryState>
+      <Menu anchorEl={exportMenu?.anchor ?? null} open={!!exportMenu} onClose={() => setExportMenu(null)}>
+        {EXPORT_FORMATS.map((f) => (
+          <MenuItem key={f.format} onClick={() => runExport(f.format)}>{f.label}</MenuItem>
+        ))}
+      </Menu>
+      <Dialog open={!!pk12} onClose={() => setPk12(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Export PKCS#12</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            type="password"
+            label="Passphrase"
+            value={pk12?.password ?? ''}
+            onChange={(e) => setPk12((p) => (p ? { ...p, password: e.target.value } : p))}
+            sx={{ mt: 1 }}
+            autoComplete="new-password"
+            helperText="Required to encrypt the private key in the .p12 bundle."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPk12(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={!pk12?.password || exportCert.isPending}
+            onClick={() => {
+              if (!pk12?.password) return;
+              exportCert.mutate({ cert: pk12.cert, format: 'pkcs12', password: pk12.password });
+              setPk12(null);
+            }}
+          >
+            Export
+          </Button>
+        </DialogActions>
+      </Dialog>
       <IssueCertDialog open={issueOpen} onClose={() => setIssueOpen(false)} onDone={onToast} />
     </Stack>
   );

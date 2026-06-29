@@ -7,6 +7,9 @@ import { ProfileForm } from './ProfileForm';
 import { SecuritySection } from './SecuritySection';
 import { SessionsList } from './SessionsList';
 import { UserDids } from './UserDids';
+import { CertificatesTab } from './CertificatesTab';
+import { TokensTab } from './TokensTab';
+import { SecretsTab } from './SecretsTab';
 
 /**
  * Phase 4a — Account settings. Loads the rich identity once (`GET /auth/api/auth/me`)
@@ -34,6 +37,9 @@ export function AccountPage() {
           <Tab label="Security" />
           <Tab label="Sessions" />
           <Tab label="Identity" />
+          <Tab label="Certificates" />
+          <Tab label="Tokens" />
+          <Tab label="Secrets" />
         </Tabs>
       </Box>
 
@@ -41,6 +47,9 @@ export function AccountPage() {
       {tab === 1 && <SecuritySection />}
       {tab === 2 && <SessionsList />}
       {tab === 3 && <UserDids userId={user.id} />}
+      {tab === 4 && <CertificatesTab />}
+      {tab === 5 && <TokensTab />}
+      {tab === 6 && <SecretsTab />}
     </Stack>
   );
 }

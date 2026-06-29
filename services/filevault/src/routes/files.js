@@ -57,6 +57,29 @@ router.post('/upload',
 );
 
 /**
+ * List trashed (soft-deleted) files
+ * GET /api/files/trash
+ *
+ * MUST be registered before GET /:fileId so the literal "trash" segment
+ * isn't captured as a :fileId.
+ */
+router.get('/trash',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const files = await fileService.listTrash(req.userId, {
+      limit: parseInt(req.query.limit || '50'),
+      offset: parseInt(req.query.offset || '0')
+    });
+
+    res.json({
+      success: true,
+      files,
+      count: files.length
+    });
+  })
+);
+
+/**
  * Get file metadata
  * GET /api/files/:fileId
  */
@@ -160,6 +183,26 @@ router.get('/:fileId/versions',
     res.json({
       success: true,
       versions
+    });
+  })
+);
+
+/**
+ * Restore (undelete) a soft-deleted file
+ * POST /api/files/:fileId/restore
+ *
+ * Distinct from the version-restore route below (/:fileId/restore/:versionNumber).
+ */
+router.post('/:fileId/restore',
+  authenticate,
+  requirePermissions({ write: true }),
+  validateUUID('fileId'),
+  asyncHandler(async (req, res) => {
+    const file = await fileService.restoreFile(req.params.fileId, req.userId);
+
+    res.json({
+      success: true,
+      file
     });
   })
 );

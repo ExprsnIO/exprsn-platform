@@ -273,6 +273,56 @@ async function listFiles(userId, directoryId = null, options = {}) {
 }
 
 /**
+ * List the caller's trashed (soft-deleted) files.
+ *
+ * Returns only USER-owned files (owner_type 'user') that are soft-deleted,
+ * newest-deleted first. Mirrors the shape of listFiles().
+ *
+ * @param {string} userId
+ * @param {Object} options - { limit, offset }
+ */
+async function listTrash(userId, { limit = 50, offset = 0 } = {}) {
+  const files = await File.findAll({
+    where: {
+      userId,
+      ownerType: 'user',
+      isDeleted: true
+    },
+    limit,
+    offset,
+    order: [['deletedAt', 'DESC']],
+    include: [{ model: Directory, as: 'directory' }]
+  });
+
+  return files;
+}
+
+/**
+ * Restore (undelete) a soft-deleted file owned by the caller.
+ *
+ * Clears the soft-delete flag and deletedAt timestamp. Throws FILE_NOT_FOUND
+ * if the file doesn't exist or isn't owned by userId.
+ *
+ * @param {string} fileId
+ * @param {string} userId
+ */
+async function restoreFile(fileId, userId) {
+  const file = await File.findOne({ where: { id: fileId, userId, isDeleted: true } });
+
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  await file.update({
+    isDeleted: false,
+    deletedAt: null
+  });
+
+  logger.info(`File restored: ${fileId}`);
+  return file;
+}
+
+/**
  * Upload a new file into a group.
  *
  * Mirrors uploadFile() but stamps owner_type='group' and group_id so the file
@@ -430,6 +480,8 @@ module.exports = {
   downloadFileStream,
   updateFile,
   deleteFile,
+  listTrash,
+  restoreFile,
   listFiles,
   listGroupFiles,
   searchFiles,

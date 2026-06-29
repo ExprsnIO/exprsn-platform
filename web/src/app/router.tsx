@@ -9,6 +9,7 @@ import { BookmarksPage } from '@/features/timeline/BookmarksPage';
 import { SearchPage } from '@/features/timeline/SearchPage';
 import { NotificationsPage } from '@/features/moderation/NotificationsPage';
 import { FilesPage } from '@/features/files/FilesPage';
+import { SharePage } from '@/features/files/SharePage';
 import { GroupsPage } from '@/features/groups/GroupsPage';
 import { GroupDetailPage } from '@/features/groups/GroupDetailPage';
 import { PeoplePage } from '@/features/people/PeoplePage';
@@ -40,6 +41,8 @@ import { RequireAdmin } from '@/auth/RequireAdmin';
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorBoundary /> },
   { path: '/sso/callback', element: <SsoCallbackPage />, errorElement: <RouteErrorBoundary /> },
+  // Public share landing — anonymous visitors, no app shell / auth guard.
+  { path: '/s/:shareLinkId', element: <SharePage />, errorElement: <RouteErrorBoundary /> },
   {
     path: '/',
     element: (

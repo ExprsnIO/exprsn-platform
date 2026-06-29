@@ -462,11 +462,13 @@ No Socket.IO.
 |---|---|---|---|---|---|---|
 | POST | /filevault/api/files/upload | multipart `file` | path, directoryId, tags, metadata | file ≤ maxFileSize; 1 file | authenticate + write | directoryId=null, tags=[], metadata={} |
 | GET | /filevault/api/files | — | directoryId, limit, offset, tags | — | authenticate | limit=50, offset=0, tags=[] |
+| GET | /filevault/api/files/trash | — | limit, offset | — | authenticate | caller's soft-deleted user-owned files, newest-deleted first; limit=50, offset=0 |
 | GET | /filevault/api/files/:fileId | `fileId`(UUID) | — | UUID v4 | authenticate | — |
 | GET | /filevault/api/files/:fileId/download | `fileId`(UUID) | version | UUID v4 | authenticate + read | latest version |
 | PUT | /filevault/api/files/:fileId | `fileId`(UUID); multipart `file` | changeDescription | UUID v4; file ≤ maxFileSize | authenticate + write | — |
 | DELETE | /filevault/api/files/:fileId | `fileId`(UUID) | — | UUID v4 | authenticate + delete | — |
 | GET | /filevault/api/files/:fileId/versions | `fileId`(UUID) | — | UUID v4 | authenticate | — |
+| POST | /filevault/api/files/:fileId/restore | `fileId`(UUID) | — | UUID v4 | authenticate + write (owner) | undelete a soft-deleted file |
 | POST | /filevault/api/files/:fileId/restore/:versionNumber | `fileId`(UUID), `versionNumber` | — | UUID v4 | authenticate + write | — |
 | GET | /filevault/api/files/:fileId/diff | `fileId`(UUID), `from`, `to` | — | UUID v4 | authenticate | — |
 | POST | /filevault/api/directories | `name` | parentId | — | authenticate + write | parentId=null |

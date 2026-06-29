@@ -33,6 +33,8 @@ export const filevaultAdminApi = {
   cleanup: (minAge?: number) => http.post<Record<string, unknown>>('/filevault/api/admin/cleanup', minAge != null ? { minAge } : {}),
   cleanupBlobs: (minAge?: number) => http.post<Record<string, unknown>>('/filevault/api/admin/cleanup/blobs', minAge != null ? { minAge } : {}),
   verifyBlob: (blobId: string) => http.post<Record<string, unknown>>(`/filevault/api/admin/verify/${blobId}`, {}),
+  migrate: (body: { fileIds: string[]; toBackend: string; deleteSource?: boolean }) =>
+    http.post<Record<string, unknown>>('/filevault/api/admin/migrate', body),
 
   storageUsage: () => http.get<Record<string, unknown>>('/filevault/api/storage/usage'),
   storageQuota: () => http.get<Record<string, unknown>>('/filevault/api/storage/quota'),

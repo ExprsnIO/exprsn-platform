@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Tab, Tabs, TextField } from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Switch, Tab, Tabs, TextField } from '@mui/material';
 import { filevaultAdminApi, type Quota } from '@/api/admin/filevault';
 import { formatBytes } from '@/features/files/util';
 import { Card, DataTable, DataView, JsonDialog, QueryState, SectionHeader, StatCard, useToast } from '../ui';
@@ -74,22 +74,19 @@ function QuotasTab({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
-function MaintenanceTab({ onToast }: { onToast: (m: string) => void }) {
+function DuplicatesTab({ onToast }: { onToast: (m: string) => void }) {
   const qc = useQueryClient();
-  const [blobId, setBlobId] = useState('');
   const [view, setView] = useState<{ title: string; value: unknown } | null>(null);
   const duplicates = useQuery({ queryKey: ['fv', 'duplicates'], queryFn: filevaultAdminApi.duplicates });
   const run = (fn: () => Promise<unknown>, title: string) =>
     fn().then((v) => { setView({ title, value: v ?? { ok: true } }); qc.invalidateQueries({ queryKey: ['fv'] }); }).catch((e) => onToast((e as Error).message));
   return (
     <Stack spacing={2}>
-      <Alert severity="warning">Cleanup removes orphaned files/blobs older than the threshold; verify checks a blob&apos;s integrity.</Alert>
-      <Card title="Operations">
+      <Alert severity="warning">Cleanup permanently removes orphaned files / unreferenced blobs older than the retention threshold (24h default).</Alert>
+      <Card title="Cleanup">
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-          <Button variant="outlined" color="warning" onClick={() => { if (confirm('Run file cleanup?')) run(() => filevaultAdminApi.cleanup(), 'Cleanup'); }}>Cleanup files</Button>
-          <Button variant="outlined" color="warning" onClick={() => { if (confirm('Run blob cleanup?')) run(() => filevaultAdminApi.cleanupBlobs(), 'Blob cleanup'); }}>Cleanup blobs</Button>
-          <TextField size="small" label="Blob ID" value={blobId} onChange={(e) => setBlobId(e.target.value)} sx={{ minWidth: 240 }} />
-          <Button variant="outlined" disabled={!blobId} onClick={() => run(() => filevaultAdminApi.verifyBlob(blobId), 'Verify blob')}>Verify</Button>
+          <Button variant="outlined" color="warning" onClick={() => { if (confirm('Run orphaned-file cleanup?')) run(() => filevaultAdminApi.cleanup(), 'File cleanup'); }}>Cleanup files</Button>
+          <Button variant="outlined" color="warning" onClick={() => { if (confirm('Run unreferenced-blob cleanup?')) run(() => filevaultAdminApi.cleanupBlobs(), 'Blob cleanup'); }}>Cleanup blobs</Button>
         </Stack>
       </Card>
       <Card title="Duplicate files">
@@ -102,6 +99,7 @@ function MaintenanceTab({ onToast }: { onToast: (m: string) => void }) {
                 { key: 'hash', header: 'Hash', mono: true, render: (x) => String(x.hash ?? x.checksum ?? '—').slice(0, 24) },
                 { key: 'count', header: 'Copies', align: 'right', render: (x) => String(x.count ?? x.copies ?? '—') },
                 { key: 'size', header: 'Size', align: 'right', render: (x) => formatBytes(Number(x.size ?? x.fileSize ?? 0)) },
+                { key: 'view', header: '', align: 'right', render: (x) => <Button size="small" onClick={() => setView({ title: 'Duplicate group', value: x })}>Inspect</Button> },
               ]}
             />
           )}
@@ -112,21 +110,64 @@ function MaintenanceTab({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
-type FvTab = 'storage' | 'quotas' | 'maintenance';
+function MaintenanceTab({ onToast }: { onToast: (m: string) => void }) {
+  const qc = useQueryClient();
+  const [blobId, setBlobId] = useState('');
+  const [fileIds, setFileIds] = useState('');
+  const [toBackend, setToBackend] = useState('s3');
+  const [deleteSource, setDeleteSource] = useState(true);
+  const [view, setView] = useState<{ title: string; value: unknown } | null>(null);
+  const run = (fn: () => Promise<unknown>, title: string) =>
+    fn().then((v) => { setView({ title, value: v ?? { ok: true } }); qc.invalidateQueries({ queryKey: ['fv'] }); }).catch((e) => onToast((e as Error).message));
+  const ids = fileIds.split(',').map((s) => s.trim()).filter(Boolean);
+  return (
+    <Stack spacing={2}>
+      <Card title="Verify blob integrity">
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+          <TextField size="small" label="Blob ID" value={blobId} onChange={(e) => setBlobId(e.target.value)} sx={{ minWidth: 280 }} />
+          <Button variant="outlined" disabled={!blobId} onClick={() => run(() => filevaultAdminApi.verifyBlob(blobId.trim()), 'Verify blob')}>Verify</Button>
+        </Stack>
+      </Card>
+      <Card title="Migrate files between backends">
+        <Stack spacing={1.5}>
+          <Alert severity="warning">Moves the listed files to another storage backend; deleting the source is irreversible.</Alert>
+          <TextField size="small" label="File IDs" value={fileIds} onChange={(e) => setFileIds(e.target.value)} helperText="Comma-separated file IDs." fullWidth />
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+            <TextField size="small" label="Target backend" value={toBackend} onChange={(e) => setToBackend(e.target.value)} sx={{ minWidth: 200 }} />
+            <FormControlLabel control={<Switch checked={deleteSource} onChange={(e) => setDeleteSource(e.target.checked)} />} label="Delete source" />
+            <Button
+              variant="outlined"
+              color="warning"
+              disabled={ids.length === 0 || !toBackend.trim()}
+              onClick={() => { if (confirm(`Migrate ${ids.length} file(s) to "${toBackend}"?`)) run(() => filevaultAdminApi.migrate({ fileIds: ids, toBackend: toBackend.trim(), deleteSource }), 'Migration'); }}
+            >
+              Migrate
+            </Button>
+          </Stack>
+        </Stack>
+      </Card>
+      <JsonDialog open={!!view} title={view?.title ?? ''} value={view?.value} onClose={() => setView(null)} />
+    </Stack>
+  );
+}
+
+type FvTab = 'storage' | 'quotas' | 'duplicates' | 'maintenance';
 
 export function FilevaultSection() {
   const [tab, setTab] = useState<FvTab>('storage');
   const { showToast, ToastHost } = useToast();
   return (
     <Stack spacing={2} sx={{ pb: 6 }}>
-      <SectionHeader title="Files (FileVault)" subtitle="Storage stats, dedup, per-user quotas, blob maintenance — /filevault/api/admin" />
-      <Tabs value={tab} onChange={(_e, v) => setTab(v)}>
+      <SectionHeader title="Files (FileVault)" subtitle="Storage stats, dedup, per-user quotas, duplicates & blob maintenance — /filevault/api/admin" />
+      <Tabs value={tab} onChange={(_e, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
         <Tab value="storage" label="Storage" />
         <Tab value="quotas" label="Quotas" />
+        <Tab value="duplicates" label="Duplicates" />
         <Tab value="maintenance" label="Maintenance" />
       </Tabs>
       {tab === 'storage' && <StorageTab />}
       {tab === 'quotas' && <QuotasTab onToast={showToast} />}
+      {tab === 'duplicates' && <DuplicatesTab onToast={showToast} />}
       {tab === 'maintenance' && <MaintenanceTab onToast={showToast} />}
       {ToastHost}
     </Stack>

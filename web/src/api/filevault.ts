@@ -11,8 +11,80 @@ export interface FileItem {
   mimetype?: string;
   directoryId?: string | null;
   currentVersion?: number;
+  path?: string;
+  visibility?: 'private' | 'shared' | 'public';
+  tags?: string[];
+  deletedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  [k: string]: unknown;
+}
+
+/** A single stored revision of a file (GET /files/:id/versions). */
+export interface FileVersionItem {
+  id: string;
+  version: number;
+  size?: number;
+  changeDescription?: string | null;
+  contentHash?: string;
+  createdAt?: string;
+  [k: string]: unknown;
+}
+
+/** A line-level change in a text diff (one entry of `diff.changes`). */
+export interface VersionDiffChange {
+  value: string;
+  added?: boolean;
+  removed?: boolean;
+  count?: number;
+}
+
+export interface VersionDiffSummary {
+  additionsCount: number;
+  deletionsCount: number;
+  totalChanges: number;
+}
+
+export interface VersionDiff {
+  fromVersion: number;
+  toVersion: number;
+  diff: {
+    changes: VersionDiffChange[];
+    additions: unknown[];
+    deletions: unknown[];
+    summary: VersionDiffSummary;
+  };
+  summary: VersionDiffSummary;
+}
+
+/** Storage usage totals (GET /storage/usage). */
+export interface StorageUsage {
+  fileCount: number;
+  totalSize: number;
+  totalSizeMB: string;
+  totalSizeGB: string;
+}
+
+/** Quota figures (GET /storage/quota). */
+export interface StorageQuota {
+  used: number;
+  total: number;
+  available: number;
+  usedPercentage: string;
+}
+
+/** A directory level's children (GET /directories[?directoryId=]). */
+export interface DirectoryListing {
+  subdirectories: DirectoryItem[];
+  files: FileItem[];
+}
+
+/** Public share metadata (GET /share/:shareLinkId, no auth). */
+export interface SharedFileMeta {
+  id: string;
+  name: string;
+  size?: number;
+  mimetype?: string;
   [k: string]: unknown;
 }
 
@@ -157,6 +229,115 @@ export const filevaultApi = {
 
   deleteFile: (id: string) => http.del<{ success: boolean }>(`/filevault/api/files/${id}`),
 
+  /** Upload a new version of an existing file (multipart; multer field `file`). */
+  updateFile: (fileId: string, file: File, changeDescription?: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (changeDescription) form.append('changeDescription', changeDescription);
+    return http.put<{ success: boolean; file: FileItem }>(
+      `/filevault/api/files/${fileId}`,
+      undefined,
+      { rawBody: form },
+    );
+  },
+
+  // --- Directories (CRUD; one schema-scoped tree per user) ---
+
+  createDirectory: (name: string, parentId?: string | null) =>
+    http.post<{ success: boolean; directory: DirectoryItem }>('/filevault/api/directories', {
+      name,
+      parentId: parentId ?? null,
+    }),
+
+  /**
+   * List a directory level's children (folders + files). Pass the parent
+   * directory id (omit for the root). Note the backend query param is
+   * `directoryId`, not `parentId`.
+   */
+  listDirectories: (parentId?: string | null) => {
+    const sp = new URLSearchParams();
+    if (parentId) sp.set('directoryId', parentId);
+    const s = sp.toString();
+    return http.get<{ success: boolean } & DirectoryListing>(
+      `/filevault/api/directories${s ? `?${s}` : ''}`,
+    );
+  },
+
+  getDirectory: (directoryId: string) =>
+    http.get<{ success: boolean; directory: DirectoryItem }>(
+      `/filevault/api/directories/${directoryId}`,
+    ),
+
+  renameDirectory: (directoryId: string, name: string) =>
+    http.put<{ success: boolean; directory: DirectoryItem }>(
+      `/filevault/api/directories/${directoryId}/rename`,
+      { name },
+    ),
+
+  /** Move a directory under a new parent (null = root). Backend body key is `newParentId`. */
+  moveDirectory: (directoryId: string, newParentId: string | null) =>
+    http.put<{ success: boolean; directory: DirectoryItem }>(
+      `/filevault/api/directories/${directoryId}/move`,
+      { newParentId },
+    ),
+
+  deleteDirectory: (directoryId: string, recursive = false) =>
+    http.del<{ success: boolean }>(
+      `/filevault/api/directories/${directoryId}${recursive ? '?recursive=true' : ''}`,
+    ),
+
+  // --- Versions ---
+
+  listVersions: (fileId: string) =>
+    http.get<{ success: boolean; versions: FileVersionItem[] }>(
+      `/filevault/api/files/${fileId}/versions`,
+    ),
+
+  restoreVersion: (fileId: string, versionNumber: number) =>
+    http.post<{ success: boolean; file: FileItem }>(
+      `/filevault/api/files/${fileId}/restore/${versionNumber}`,
+    ),
+
+  diffVersions: (fileId: string, from: number, to: number) =>
+    http.get<{ success: boolean; diff: VersionDiff }>(
+      `/filevault/api/files/${fileId}/diff?from=${from}&to=${to}`,
+    ),
+
+  // --- Storage / quota ---
+
+  storageUsage: () =>
+    http.get<{ success: boolean; usage: StorageUsage }>('/filevault/api/storage/usage'),
+
+  storageQuota: () =>
+    http.get<{ success: boolean; quota: StorageQuota }>('/filevault/api/storage/quota'),
+
+  // --- Search ---
+
+  search: (q: string, params?: { limit?: number; offset?: number }) => {
+    const sp = new URLSearchParams({ q });
+    if (params?.limit != null) sp.set('limit', String(params.limit));
+    if (params?.offset != null) sp.set('offset', String(params.offset));
+    return http.get<{ success: boolean; query: string; files: FileItem[]; count: number }>(
+      `/filevault/api/search?${sp.toString()}`,
+    );
+  },
+
+  searchByTag: (tag: string) =>
+    http.get<{ success: boolean; tag: string; files: FileItem[]; count: number }>(
+      `/filevault/api/search/tag/${encodeURIComponent(tag)}`,
+    ),
+
+  // --- Trash (soft-deleted files) ---
+
+  listTrash: () =>
+    http.get<{ success: boolean; files: FileItem[]; count: number }>(
+      '/filevault/api/files/trash',
+    ),
+
+  /** Restore (undelete) a soft-deleted file. */
+  restoreFile: (fileId: string) =>
+    http.post<{ success: boolean; file: FileItem }>(`/filevault/api/files/${fileId}/restore`),
+
   // --- Group files (member-scoped; see /filevault/api/groups/:groupId/*) ---
 
   listGroupFiles: (groupId: string, params?: ListGroupFilesParams) =>
@@ -215,6 +396,16 @@ export const filevaultApi = {
 
   revokeShare: (shareLinkId: string) =>
     http.del<{ success: boolean }>(`/filevault/api/share/${shareLinkId}`),
+
+  /**
+   * Public share metadata (no auth). NOTE: the backend increments the link's
+   * use-count on every access, so a single fetch counts against `maxUses`.
+   */
+  getSharedFile: (shareLinkId: string) =>
+    http.get<{ success: boolean; file: SharedFileMeta }>(`/filevault/api/share/${shareLinkId}`),
+
+  /** The shareable in-app landing URL (the SPA `/s/:id` route). */
+  shareAppUrl: (shareLinkId: string): string => `${window.location.origin}/s/${shareLinkId}`,
 
   /** Build a same-origin public download URL for a share link. */
   shareDownloadUrl: (shareLinkId: string): string =>

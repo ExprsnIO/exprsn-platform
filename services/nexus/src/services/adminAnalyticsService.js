@@ -47,8 +47,9 @@ function resolvePeriod(query = {}) {
   };
 }
 
-// SQL expression bucketing the BIGINT-ms created_at into a YYYY-MM-DD date.
-const DAY_BUCKET = "to_char(to_timestamp(created_at / 1000), 'YYYY-MM-DD')";
+// SQL expression bucketing a BIGINT-ms timestamp column into a YYYY-MM-DD date.
+// The column varies by model (e.g. group_memberships uses joined_at, not created_at).
+const dayBucket = (tsCol) => `to_char(to_timestamp(${tsCol} / 1000), 'YYYY-MM-DD')`;
 
 /**
  * Daily new-row counts for a model since a timestamp.
@@ -57,14 +58,15 @@ const DAY_BUCKET = "to_char(to_timestamp(created_at / 1000), 'YYYY-MM-DD')";
  * @param {Object} [where] - extra where conditions
  * @returns {Promise<Map<string, number>>} date -> count
  */
-async function dailyCounts(model, since, where = {}) {
+async function dailyCounts(model, since, where = {}, tsCol = 'created_at') {
+  const bucket = dayBucket(tsCol);
   const rows = await model.findAll({
     attributes: [
-      [literal(DAY_BUCKET), 'date'],
+      [literal(bucket), 'date'],
       [fn('COUNT', col('id')), 'count']
     ],
-    where: { created_at: { [Op.gte]: since }, ...where },
-    group: [literal(DAY_BUCKET)],
+    where: { [tsCol]: { [Op.gte]: since }, ...where },
+    group: [literal(bucket)],
     order: [literal('1 ASC')],
     raw: true
   });
@@ -131,7 +133,7 @@ async function getPlatformStats(query = {}) {
 
   const [groupGrowth, memberGrowth, eventGrowth] = await Promise.all([
     dailyCounts(Group, since),
-    dailyCounts(GroupMembership, since),
+    dailyCounts(GroupMembership, since, {}, 'joined_at'),
     dailyCounts(Event, since)
   ]);
 
@@ -189,7 +191,7 @@ async function getGroupStats(groupId, query = {}) {
   ]);
 
   const [memberGrowth, eventGrowth, flagGrowth] = await Promise.all([
-    dailyCounts(GroupMembership, since, groupWhere),
+    dailyCounts(GroupMembership, since, groupWhere, 'joined_at'),
     dailyCounts(Event, since, groupWhere),
     dailyCounts(GroupContentFlag, since, groupWhere)
   ]);

@@ -44,20 +44,8 @@ async function generateToken(user, options = {}) {
     // Get the user's RBAC roles. These are carried in the token data so that
     // role-based guards (shared requireAdmin → role === 'admin') can authorize
     // a *platform* admin in modules that only see the CA token (e.g. nexus's
-    // platform-admin override for group management). Defensive: some callers may
-    // pass a plain object without the Sequelize association mixin.
-    let roleNames = [];
-    try {
-      if (typeof user.getRoles === 'function') {
-        const userRoles = await user.getRoles();
-        roleNames = (userRoles || []).map(r => r.name).filter(Boolean);
-      }
-    } catch (roleError) {
-      logger.warn('Failed to resolve user roles for token data', {
-        userId: user.id,
-        error: roleError.message
-      });
-    }
+    // platform-admin override for group management).
+    const roleNames = await resolveUserRoles(user);
 
     // Aggregate permissions from all groups
     let aggregatedPermissions = userGroups.reduce((acc, group) => {
@@ -186,8 +174,40 @@ async function revokeToken(tokenId, reason = 'User logout') {
   }
 }
 
+/**
+ * Resolve a user's RBAC roles into a normalized array carried in the CA token
+ * data AND surfaced on the session user object (login/remint/me), so the same
+ * role set drives both backend guards (shared requireAdmin → 'admin') and the
+ * SPA's RequireAdmin gate. Returns role slugs plus a normalized 'admin' marker
+ * when the user holds the platform super-admin role. Defensive: tolerates plain
+ * objects without the Sequelize association mixin.
+ * @param {Object} user
+ * @returns {Promise<string[]>}
+ */
+async function resolveUserRoles(user) {
+  try {
+    if (!user || typeof user.getRoles !== 'function') return [];
+    const userRoles = (await user.getRoles()) || [];
+    const slugs = userRoles.map(r => r.slug).filter(Boolean);
+    const names = userRoles.map(r => r.name).filter(Boolean);
+    const roles = new Set(slugs);
+    // The platform super-admin role IS the platform administrator.
+    if (slugs.includes('super-admin') || names.includes('Super Admin')) {
+      roles.add('admin');
+    }
+    return [...roles];
+  } catch (roleError) {
+    logger.warn('Failed to resolve user roles', {
+      userId: user && user.id,
+      error: roleError.message
+    });
+    return [];
+  }
+}
+
 module.exports = {
   generateToken,
   validateToken,
-  revokeToken
+  revokeToken,
+  resolveUserRoles
 };

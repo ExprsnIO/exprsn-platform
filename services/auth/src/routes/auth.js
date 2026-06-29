@@ -158,9 +158,11 @@ router.post('/login',
             logger.error('Failed to record session on login', { userId: user.id, error: sessionErr.message });
           }
 
+          const safeUser = user.toSafeObject();
+          safeUser.roles = await tokenService.resolveUserRoles(user);
           res.json({
             message: 'Login successful',
-            user: user.toSafeObject(),
+            user: safeUser,
             token
           });
         } catch (loginCbErr) {
@@ -628,7 +630,9 @@ router.get('/me', asyncHandler(async (req, res) => {
     throw new AppError('User not found', 404, 'USER_NOT_FOUND');
   }
 
-  res.json({ user: user.toSafeObject() });
+  const safeUser = user.toSafeObject();
+  safeUser.roles = await tokenService.resolveUserRoles(user);
+  res.json({ user: safeUser });
 }));
 
 /**
@@ -663,7 +667,9 @@ router.post('/token', asyncHandler(async (req, res) => {
     logger.error('Failed to record session on token re-mint', { userId: user.id, error: sessionErr.message });
   }
 
-  res.json({ token, user: user.toSafeObject() });
+  const safeUser = user.toSafeObject();
+  safeUser.roles = await tokenService.resolveUserRoles(user);
+  res.json({ token, user: safeUser });
 }));
 
 module.exports = router;

@@ -25,7 +25,7 @@ const { getSigningCertificateId } = require('../../../ca/services/platformSignin
  * status checks free of the use-decrement side effect while the CA remains the
  * source of truth for revocation and permissions.
  */
-async function generateCAToken({ fileId, userId, permissions, expiresAt }) {
+async function generateCAToken({ fileId, userId, permissions, expiresAt, shareType = 'link' }) {
   const certificateId = await getSigningCertificateId();
   const expirySeconds = expiresAt
     ? Math.max(1, Math.ceil((expiresAt.getTime() - Date.now()) / 1000))
@@ -43,7 +43,7 @@ async function generateCAToken({ fileId, userId, permissions, expiresAt }) {
       data: {
         fileId,
         sharedBy: userId,
-        shareType: 'link'
+        shareType
       }
     },
     userId,
@@ -116,7 +116,7 @@ async function createShareLink(fileId, userId, options = {}) {
 /**
  * Get share link by ID
  */
-async function getShareLink(shareLinkId) {
+async function getShareLink(shareLinkId, providedToken) {
   const shareLink = await ShareLink.findOne({
     where: { id: shareLinkId, isRevoked: false },
     include: [{ model: File, as: 'file' }]
@@ -124,6 +124,13 @@ async function getShareLink(shareLinkId) {
 
   if (!shareLink) {
     throw new Error('SHARE_LINK_NOT_FOUND');
+  }
+
+  // The capability is the CA token, not just the (still unguessable) link id:
+  // the caller MUST present the token that matches this link. Without it the
+  // link id alone grants nothing, so files are genuinely token-backed.
+  if (!providedToken || providedToken !== shareLink.tokenId) {
+    throw new Error('SHARE_TOKEN_REQUIRED');
   }
 
   // Check expiration
@@ -162,8 +169,8 @@ async function getShareLink(shareLinkId) {
 /**
  * Access file via share link
  */
-async function accessSharedFile(shareLinkId) {
-  const shareLink = await getShareLink(shareLinkId);
+async function accessSharedFile(shareLinkId, providedToken) {
+  const shareLink = await getShareLink(shareLinkId, providedToken);
 
   // Increment use count
   await shareLink.increment('useCount');
@@ -171,6 +178,64 @@ async function accessSharedFile(shareLinkId) {
   logger.info(`Share link accessed: ${shareLinkId} (use ${shareLink.useCount + 1})`);
 
   return shareLink.file;
+}
+
+/**
+ * Mint a standalone, file-scoped CA access token — Vault-style direct access to
+ * a single file WITHOUT a share-link row. The returned token id is the
+ * capability: anyone presenting it can read the file via
+ * GET /filevault/api/share/file/:fileId/download?token=<id> until it expires or
+ * is revoked. Only the file owner may mint one.
+ */
+async function createFileAccessToken(fileId, userId, options = {}) {
+  const file = await File.findOne({ where: { id: fileId, userId, isDeleted: false } });
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  const permissions = { read: true, write: false, delete: false, ...(options.permissions || {}) };
+  const expiresAt = options.expiresIn
+    ? new Date(Date.now() + options.expiresIn * 1000)
+    : null;
+
+  const token = await generateCAToken({ fileId, userId, permissions, expiresAt, shareType: 'file-access' });
+
+  logger.info(`File access token minted: ${token.id} for file ${fileId}`);
+  return { tokenId: token.id, expiresAt: token.expiresAt, permissions };
+}
+
+/**
+ * Resolve a file from a file-scoped CA access token (no share-link row). The CA
+ * is the source of truth: the token must be valid, carry read permission, and be
+ * scoped (tokenData.fileId) to exactly the requested file.
+ */
+async function accessFileByToken(fileId, providedToken) {
+  if (!providedToken) {
+    throw new Error('ACCESS_TOKEN_REQUIRED');
+  }
+
+  let validation;
+  try {
+    validation = await caTokenService.validateToken(providedToken, {
+      requiredPermissions: { read: true }
+    });
+  } catch (err) {
+    logger.warn(`File access token validation errored for file ${fileId}`, { error: err.message });
+    throw new Error('INVALID_ACCESS_TOKEN');
+  }
+
+  if (!validation || !validation.valid) {
+    throw new Error('INVALID_ACCESS_TOKEN');
+  }
+  if (!validation.tokenData || validation.tokenData.fileId !== fileId) {
+    throw new Error('ACCESS_TOKEN_FILE_MISMATCH');
+  }
+
+  const file = await File.findOne({ where: { id: fileId, isDeleted: false } });
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+  return file;
 }
 
 /**
@@ -239,5 +304,7 @@ module.exports = {
   accessSharedFile,
   revokeShareLink,
   listShareLinks,
-  listUserShareLinks
+  listUserShareLinks,
+  createFileAccessToken,
+  accessFileByToken
 };

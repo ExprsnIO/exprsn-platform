@@ -398,18 +398,35 @@ export const filevaultApi = {
     http.del<{ success: boolean }>(`/filevault/api/share/${shareLinkId}`),
 
   /**
-   * Public share metadata (no auth). NOTE: the backend increments the link's
-   * use-count on every access, so a single fetch counts against `maxUses`.
+   * Public share metadata (no auth). The CA token is the capability: it must be
+   * supplied and match the link. Metadata fetch does NOT consume a use.
    */
-  getSharedFile: (shareLinkId: string) =>
-    http.get<{ success: boolean; file: SharedFileMeta }>(`/filevault/api/share/${shareLinkId}`),
+  getSharedFile: (shareLinkId: string, token: string) =>
+    http.get<{ success: boolean; file: SharedFileMeta }>(
+      `/filevault/api/share/${shareLinkId}?token=${encodeURIComponent(token)}`,
+    ),
 
-  /** The shareable in-app landing URL (the SPA `/s/:id` route). */
-  shareAppUrl: (shareLinkId: string): string => `${window.location.origin}/s/${shareLinkId}`,
+  /** The shareable in-app landing URL (the SPA `/s/:id` route, carrying the token). */
+  shareAppUrl: (shareLinkId: string, token: string): string =>
+    `${window.location.origin}/s/${shareLinkId}?token=${encodeURIComponent(token)}`,
 
-  /** Build a same-origin public download URL for a share link. */
-  shareDownloadUrl: (shareLinkId: string): string =>
-    `${window.location.origin}/filevault/api/share/${shareLinkId}/download`,
+  /** Build a same-origin public download URL for a share link (token required). */
+  shareDownloadUrl: (shareLinkId: string, token: string): string =>
+    `${window.location.origin}/filevault/api/share/${shareLinkId}/download?token=${encodeURIComponent(token)}`,
+
+  /**
+   * Mint a file-scoped CA access token (Vault-style direct access, no share-link
+   * row). Returns the token id + a ready-to-use public download URL.
+   */
+  createFileAccessToken: (fileId: string, input?: { expiresIn?: number; permissions?: SharePermissions }) =>
+    http.post<{ success: boolean; tokenId: string; expiresAt: string | null; downloadUrl: string }>(
+      `/filevault/api/share/files/${fileId}/access-token`,
+      input ?? {},
+    ),
+
+  /** Same-origin public download URL for a file-scoped access token. */
+  fileTokenDownloadUrl: (fileId: string, token: string): string =>
+    `${window.location.origin}/filevault/api/share/file/${fileId}/download?token=${encodeURIComponent(token)}`,
 
   /**
    * Download a file's bytes and trigger a browser save. The download route is

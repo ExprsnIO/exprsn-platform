@@ -484,8 +484,10 @@ No Socket.IO.
 | POST | /filevault/api/share/files/:fileId/share | `fileId`(UUID) | permissions, expiresIn, maxUses | UUID v4 | authenticate (owner) | — |
 | GET | /filevault/api/share/files/:fileId/shares | `fileId`(UUID) | — | UUID v4 | authenticate (owner) | — |
 | GET | /filevault/api/share | — | limit, offset | — | authenticate | limit=50, offset=0 |
-| GET | /filevault/api/share/:shareLinkId | `shareLinkId`(UUID) | — | UUID v4 | **none — share-link UUID** | — |
-| GET | /filevault/api/share/:shareLinkId/download | `shareLinkId`(UUID) | — | UUID v4 | **none — share-link UUID** | — |
+| POST | /filevault/api/share/files/:fileId/access-token | `fileId`(UUID) | expiresIn, permissions | UUID v4 | authenticate (owner) | mint a file-scoped CA access token; returns `{tokenId, expiresAt, downloadUrl}` |
+| GET | /filevault/api/share/file/:fileId/download | `fileId`(UUID), `token`(query) | — | UUID v4 | **none — file-scoped CA token in ?token=** | direct token download (no share-link row); token must be valid + scoped to fileId |
+| GET | /filevault/api/share/:shareLinkId | `shareLinkId`(UUID), `token`(query) | — | UUID v4 | **none — but `?token=` must match the link's CA token** | metadata only (does not consume a use) |
+| GET | /filevault/api/share/:shareLinkId/download | `shareLinkId`(UUID), `token`(query) | — | UUID v4 | **none — but `?token=` must match the link's CA token** | consumes a use |
 | DELETE | /filevault/api/share/:shareLinkId | `shareLinkId`(UUID) | — | UUID v4 | authenticate (owner) | — |
 | GET | /filevault/api/search | `q` | limit, offset | — | authenticate | limit=50, offset=0 |
 | GET | /filevault/api/search/tag/:tag | `tag` | limit, offset | — | authenticate | limit=50, offset=0 |

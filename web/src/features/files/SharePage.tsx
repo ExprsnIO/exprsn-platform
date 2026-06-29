@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -11,20 +11,23 @@ import { formatBytes } from './util';
 /**
  * Public share landing (route `/s/:shareLinkId`, outside the auth shell). Fetches
  * link metadata anonymously and offers a Download button that hits the public
- * `/filevault/api/share/:id/download` route (no bearer required).
+ * `/filevault/api/share/:id/download` route (no bearer required). The CA token
+ * is the capability: it rides in `?token=` and is required for both metadata and
+ * download — the link id alone grants nothing.
  *
  * NOTE: the backend has no password-protected links (the create/download
  * handlers accept no password), so no password prompt is shown.
  */
 export function SharePage() {
   const { shareLinkId } = useParams<{ shareLinkId: string }>();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token') ?? '';
 
   const query = useQuery({
-    queryKey: ['filevault', 'shared', shareLinkId],
-    queryFn: () => filevaultApi.getSharedFile(shareLinkId as string),
-    enabled: !!shareLinkId,
-    // The backend increments the link's use-count on every metadata access, so
-    // never auto-refetch — one fetch per visit.
+    queryKey: ['filevault', 'shared', shareLinkId, token],
+    queryFn: () => filevaultApi.getSharedFile(shareLinkId as string, token),
+    // Require both the link id AND its token; without the token the link is inert.
+    enabled: !!shareLinkId && !!token,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     retry: false,
@@ -65,9 +68,18 @@ export function SharePage() {
             <Typography variant="h6">Exprsn</Typography>
           </Box>
 
-          {query.isLoading && <CircularProgress />}
+          {!token && (
+            <Stack spacing={1} alignItems="center">
+              <LinkOffIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
+              <Typography color="text.secondary">
+                This share link is missing its access token.
+              </Typography>
+            </Stack>
+          )}
 
-          {query.isError &&
+          {token && query.isLoading && <CircularProgress />}
+
+          {token && query.isError &&
             (isHttpError(query.error, 404) || isHttpError(query.error, 400) ? (
               <Stack spacing={1} alignItems="center">
                 <LinkOffIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
@@ -95,7 +107,7 @@ export function SharePage() {
                 size="large"
                 startIcon={<DownloadIcon />}
                 component="a"
-                href={filevaultApi.shareDownloadUrl(shareLinkId as string)}
+                href={filevaultApi.shareDownloadUrl(shareLinkId as string, token)}
               >
                 Download
               </Button>

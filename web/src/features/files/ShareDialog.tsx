@@ -64,7 +64,8 @@ export function ShareDialog({
       return filevaultApi.createShare(file.id, input);
     },
     onSuccess: (res) => {
-      void navigator.clipboard?.writeText(filevaultApi.shareAppUrl(res.shareLink.id));
+      // The token IS the capability — the copied link must carry it.
+      void navigator.clipboard?.writeText(filevaultApi.shareAppUrl(res.shareLink.id, res.token.id));
       onToast('Share link created and copied to clipboard');
       qc.invalidateQueries({ queryKey: sharesKey });
     },
@@ -80,8 +81,24 @@ export function ShareDialog({
     onError: (err) => onToast(toMessage(err)),
   });
 
+  // Direct per-file access token (Vault-style): mint a file-scoped CA token and
+  // copy a ready-to-use download URL — no share-link row.
+  const accessTokenMutation = useMutation({
+    mutationFn: () => filevaultApi.createFileAccessToken(file.id, { expiresIn: 86400 }),
+    onSuccess: (res) => {
+      const url = filevaultApi.fileTokenDownloadUrl(file.id, res.tokenId);
+      void navigator.clipboard?.writeText(url);
+      onToast('Direct download link created and copied (valid 24h)');
+    },
+    onError: (err) => onToast(toMessage(err)),
+  });
+
   const copyLink = (s: ShareLink) => {
-    void navigator.clipboard?.writeText(filevaultApi.shareAppUrl(s.id));
+    if (!s.tokenId) {
+      onToast('This link is missing its access token and cannot be copied');
+      return;
+    }
+    void navigator.clipboard?.writeText(filevaultApi.shareAppUrl(s.id, s.tokenId));
     onToast('Link copied');
   };
 
@@ -130,13 +147,22 @@ export function ShareDialog({
             <MenuItem value="write">Read &amp; write</MenuItem>
           </TextField>
 
-          <Button
-            variant="contained"
-            onClick={() => createMutation.mutate()}
-            disabled={createMutation.isPending}
-          >
-            {createMutation.isPending ? 'Creating…' : 'Create share link'}
-          </Button>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button
+              variant="contained"
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending}
+            >
+              {createMutation.isPending ? 'Creating…' : 'Create share link'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => accessTokenMutation.mutate()}
+              disabled={accessTokenMutation.isPending}
+            >
+              {accessTokenMutation.isPending ? 'Creating…' : 'Direct download link (24h)'}
+            </Button>
+          </Stack>
 
           <Divider />
 

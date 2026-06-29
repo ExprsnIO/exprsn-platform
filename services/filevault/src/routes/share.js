@@ -42,29 +42,72 @@ router.post('/files/:fileId/share',
 );
 
 /**
- * Access shared file
- * GET /api/share/:shareLinkId
+ * Mint a file-scoped access token (Vault-style direct access, no share-link row).
+ * POST /api/share/files/:fileId/access-token   { expiresIn?, permissions? }
  */
-router.get('/:shareLinkId',
-  validateUUID('shareLinkId'),
+router.post('/files/:fileId/access-token',
+  authenticate,
+  validateUUID('fileId'),
   asyncHandler(async (req, res) => {
-    const file = await shareService.accessSharedFile(req.params.shareLinkId);
+    const result = await shareService.createFileAccessToken(
+      req.params.fileId,
+      req.userId,
+      { expiresIn: req.body.expiresIn, permissions: req.body.permissions }
+    );
 
-    res.json({
+    res.status(201).json({
       success: true,
-      file
+      tokenId: result.tokenId,
+      expiresAt: result.expiresAt,
+      permissions: result.permissions,
+      downloadUrl: `/filevault/api/share/file/${req.params.fileId}/download?token=${result.tokenId}`
     });
   })
 );
 
 /**
- * Download shared file
- * GET /api/share/:shareLinkId/download
+ * Direct token download of a single file (no share link). PUBLIC: the file-scoped
+ * CA token in ?token= is the capability.
+ * GET /api/share/file/:fileId/download?token=<tokenId>
+ */
+router.get('/file/:fileId/download',
+  validateUUID('fileId'),
+  asyncHandler(async (req, res) => {
+    const file = await shareService.accessFileByToken(req.params.fileId, req.query.token);
+
+    const { stream } = await fileService.downloadFileStream(file.id, file.userId);
+    res.setHeader('Content-Type', file.mimetype);
+    res.setHeader('Content-Length', file.size);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.name}"`);
+    stream.pipe(res);
+  })
+);
+
+/**
+ * Share-link metadata (does NOT consume a use). PUBLIC, but the matching token
+ * is required.
+ * GET /api/share/:shareLinkId?token=<tokenId>
+ */
+router.get('/:shareLinkId',
+  validateUUID('shareLinkId'),
+  asyncHandler(async (req, res) => {
+    const shareLink = await shareService.getShareLink(req.params.shareLinkId, req.query.token);
+
+    res.json({
+      success: true,
+      file: shareLink.file
+    });
+  })
+);
+
+/**
+ * Download shared file (consumes a use). PUBLIC, but the matching token is required.
+ * GET /api/share/:shareLinkId/download?token=<tokenId>
  */
 router.get('/:shareLinkId/download',
   validateUUID('shareLinkId'),
   asyncHandler(async (req, res) => {
-    const file = await shareService.accessSharedFile(req.params.shareLinkId);
+    const file = await shareService.accessSharedFile(req.params.shareLinkId, req.query.token);
 
     // Get file stream without requiring authentication
     const { stream } = await fileService.downloadFileStream(file.id, file.userId);

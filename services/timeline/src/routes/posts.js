@@ -10,6 +10,7 @@ const { asyncHandler, AppError, validateRequired, validatePagination, requireGro
 const { requireToken, requireWrite, requireUpdate, requireDelete } = require('../middleware/auth');
 const { validatePostCreation, validatePostUpdate, validateUUID } = require('../middleware/validation');
 const postService = require('../services/postService');
+const heraldService = require('../services/heraldService');
 const { Post, Like, Comment, Repost, Bookmark } = require('../models');
 const { broadcastNewPost, broadcastPostLike, broadcastPostComment } = require('../socket');
 
@@ -67,6 +68,19 @@ router.post('/',
     if (req.io) {
       broadcastNewPost(req.io, post.toJSON());
     }
+
+    // Emit onto the plugin hook bus (fire-and-forget, NEVER throws into this
+    // request). Inert unless PLUGINS_ENABLED/LOWCODE_ENABLED; lazily required and
+    // wrapped so a missing/erroring plugins module can't affect post creation.
+    try {
+      const pluginHost = require('../../../plugins/src/services/pluginHost');
+      const json = post.toJSON ? post.toJSON() : post;
+      pluginHost.emit('timeline.post.created', {
+        module: 'timeline',
+        userId: req.userId,
+        post: { id: json.id, userId: json.userId, content: json.content, visibility: json.visibility, groupId: json.groupId },
+      }).catch(() => {});
+    } catch (_) { /* plugins module unavailable — ignore */ }
 
     res.status(201).json({
       success: true,
@@ -145,7 +159,7 @@ router.delete('/:id',
  * POST /api/posts/:id/like
  * Like a post
  */
-router.post('/:id/like', requireWrite, asyncHandler(async (req, res) => {
+router.post('/:id/like', requireWrite('/posts'), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const post = await Post.findOne({
@@ -169,6 +183,12 @@ router.post('/:id/like', requireWrite, asyncHandler(async (req, res) => {
     if (req.io) {
       broadcastPostLike(req.io, id, req.userId, post.groupId);
     }
+
+    // Notify the author (in-app bell). Fire-and-forget; self-likes are skipped
+    // inside notifyInteraction. Never block or fail the like on a notify error.
+    heraldService
+      .notifyInteraction('like', post.userId, req.userId, post)
+      .catch(() => {});
   }
 
   res.json({
@@ -205,7 +225,7 @@ router.delete('/:id/like', asyncHandler(async (req, res) => {
  * POST /api/posts/:id/comments
  * Comment on a post
  */
-router.post('/:id/comments', requireWrite, asyncHandler(async (req, res) => {
+router.post('/:id/comments', requireWrite('/posts'), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { content } = req.body;
 
@@ -232,6 +252,14 @@ router.post('/:id/comments', requireWrite, asyncHandler(async (req, res) => {
   if (req.io) {
     broadcastPostComment(req.io, id, comment.toJSON(), post.groupId);
   }
+
+  // Notify the post author (in-app bell). Fire-and-forget; self-comments skipped.
+  heraldService
+    .notifyInteraction('comment', post.userId, req.userId, post, {
+      commentText: content,
+      commentId: comment.id
+    })
+    .catch(() => {});
 
   res.status(201).json({
     message: 'Comment added',

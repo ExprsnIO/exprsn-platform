@@ -79,6 +79,15 @@ const config = {
   sentry: {
     dsn: process.env.SENTRY_DSN || null,
   },
+
+  // Extensibility framework feature flags. Both default OFF so the plugins and
+  // low-code modules load inert and never affect the MVP critical path. Sandbox
+  // (native-JS) execution is gated separately as the highest-risk surface.
+  features: {
+    pluginsEnabled: bool(process.env.PLUGINS_ENABLED, false),
+    pluginsScriptEnabled: bool(process.env.PLUGINS_SCRIPT_ENABLED, false),
+    lowcodeEnabled: bool(process.env.LOWCODE_ENABLED, false),
+  },
 };
 
 // Resolve the public base URL each module is reachable at, now that they share

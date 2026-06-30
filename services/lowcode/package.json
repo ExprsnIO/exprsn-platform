@@ -1,0 +1,14 @@
+{
+  "name": "@exprsn/lowcode",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Exprsn low-code module — entities/forms/flows app builder on the plugins trust layer.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"]
+  }
+}

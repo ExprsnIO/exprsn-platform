@@ -5,6 +5,7 @@ import { HealthPage } from '@/features/health/HealthPage';
 import { AccountPage } from '@/features/account/AccountPage';
 import { MessagesPage } from '@/features/messages/MessagesPage';
 import { TimelinePage } from '@/features/timeline/TimelinePage';
+import { PostDetailPage } from '@/features/timeline/PostDetailPage';
 import { BookmarksPage } from '@/features/timeline/BookmarksPage';
 import { SearchPage } from '@/features/timeline/SearchPage';
 import { NotificationsPage } from '@/features/moderation/NotificationsPage';
@@ -17,6 +18,7 @@ import { ProfilePage } from '@/features/people/ProfilePage';
 import { SecretsPage } from '@/features/secrets/SecretsPage';
 import { CaAdminPage } from '@/features/certs/CaAdminPage';
 import { StreamsPage } from '@/features/streams/StreamsPage';
+import { WatchPage } from '@/features/streams/WatchPage';
 import { RoomsPage } from '@/features/rooms/RoomsPage';
 import { PlaceholderPage } from '@/features/PlaceholderPage';
 import { AdminLayout } from '@/features/admin/AdminLayout';
@@ -31,6 +33,8 @@ import { ModeratorSection } from '@/features/admin/sections/ModeratorSection';
 import { AtprotoSection } from '@/features/admin/sections/AtprotoSection';
 import { SparkSection } from '@/features/admin/sections/SparkSection';
 import { FilevaultSection } from '@/features/admin/sections/FilevaultSection';
+import { PluginsSection } from '@/features/admin/sections/PluginsSection';
+import { LowcodeSection } from '@/features/admin/sections/LowcodeSection';
 import { LoginPage } from '@/auth/LoginPage';
 import { SsoCallbackPage } from '@/auth/SsoCallbackPage';
 import { RequireAuth } from '@/auth/RequireAuth';
@@ -61,6 +65,7 @@ export const router = createBrowserRouter([
           { index: true, element: <HealthPage /> },
           { path: 'messages', element: <MessagesPage /> },
           { path: 'feed', element: <TimelinePage /> },
+          { path: 'feed/:id', element: <PostDetailPage /> },
           { path: 'bookmarks', element: <BookmarksPage /> },
           { path: 'search', element: <SearchPage /> },
           { path: 'files', element: <FilesPage /> },
@@ -69,6 +74,7 @@ export const router = createBrowserRouter([
           { path: 'people', element: <PeoplePage /> },
           { path: 'people/:id', element: <ProfilePage /> },
           { path: 'streams', element: <StreamsPage /> },
+          { path: 'streams/watch/:id', element: <WatchPage /> },
           { path: 'rooms', element: <RoomsPage /> },
           { path: 'moderation', element: <NotificationsPage /> },
           { path: 'secrets', element: <SecretsPage /> },
@@ -105,6 +111,8 @@ export const router = createBrowserRouter([
           { path: 'atproto', element: <AtprotoSection /> },
           { path: 'spark', element: <SparkSection /> },
           { path: 'filevault', element: <FilevaultSection /> },
+          { path: 'plugins', element: <PluginsSection /> },
+          { path: 'lowcode', element: <LowcodeSection /> },
         ],
       },
     ],

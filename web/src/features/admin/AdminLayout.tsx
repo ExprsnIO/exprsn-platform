@@ -17,6 +17,8 @@ import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
+import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
@@ -42,6 +44,8 @@ const SECTIONS: AdminItem[] = [
   { label: 'AT-Protocol', to: '/admin/atproto', icon: HubOutlinedIcon },
   { label: 'Messaging (Spark)', to: '/admin/spark', icon: ChatBubbleOutlineOutlinedIcon },
   { label: 'Files (FileVault)', to: '/admin/filevault', icon: FolderOutlinedIcon },
+  { label: 'Plugins', to: '/admin/plugins', icon: ExtensionOutlinedIcon },
+  { label: 'Low-Code', to: '/admin/lowcode', icon: AccountTreeOutlinedIcon },
 ];
 
 function initials(name: string): string {

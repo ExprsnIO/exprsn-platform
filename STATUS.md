@@ -42,6 +42,25 @@ npm start              # https://localhost:8443  → GET /health
 
 ## Recently resolved
 
+### Extensibility framework — plugins + low-code (2026-06-30) — FLAG-GATED, NOT MVP-BLOCKING
+Built two new modules, both inert by default (`PLUGINS_ENABLED` / `LOWCODE_ENABLED`,
+default false), so the MVP critical path is untouched.
+- **`services/plugins`** — manifest-registry + never-throw hook bus; `declarative`,
+  `webhook` (HMAC-signed, retry + circuit breaker), and `script` (worker-thread +
+  `node:vm` sandbox, I/O brokered through the token/CA gateway, gated by
+  `PLUGINS_SCRIPT_ENABLED`) execution kinds; closed capability vocabulary; ajv
+  manifest validation w/ SSRF guard; scope resolver; install lifecycle state machine
+  with audited transitions; endpoint management; surfaces feed; admin + plugin-callback
+  auth. 19 unit tests green.
+- **`services/lowcode`** — separate app-builder runtime (entities/forms/flows/lookups)
+  that reuses the plugins trust layer; strong-typed properties + enums + lookups
+  (dimension/measure roles); flows execute on the shared hook bus. 4 unit tests green.
+- Wiring: registry +2 rows, migrate-sync schemas, `config.features`, `.env.example`,
+  a guarded `pluginHost.emit('timeline.post.created')`, and `web/` admin sections.
+- See `PLUGINS_PLAN.md` §9 (as-built) and `PLUGINS_DECISIONS.md` addendum (resolved
+  decisions). Deferred: Bull `worker:plugins`, CA-issued plugin tokens, `internal`
+  in-process tier, org-RBAC/group-aware enforcement.
+
 ### Security review of the branch (SP-11) — must-fix closed 2026-06-24
 Ran a security review over the `feat/admin-console-rbac-typed-config` branch diff
 (atproto bridge, admin/RBAC console, `/live` auth, filevault sharing, nexus

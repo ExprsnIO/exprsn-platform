@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn · Spark — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shell.css">
+<style>
+  /* Spark uses a 3-pane messenger layout inside the content area */
+  .content { padding: 0; height: calc(100vh - 57px); }
+  .spark { display: grid; grid-template-columns: 340px 1fr; height: 100%; }
+  @media (max-width: 860px){ .spark{ grid-template-columns: 1fr; } .convlist{ display:none; } }
+
+  .convlist { border-right: 1px solid var(--exprsn-border-color); background: var(--exprsn-bg-primary); display: flex; flex-direction: column; min-height: 0; }
+  .convlist .search { padding: 14px 16px 10px; }
+  .conv { display: flex; gap: 12px; padding: 12px 16px; cursor: pointer; border-left: 3px solid transparent; }
+  .conv:hover { background: var(--exprsn-bg-hover); }
+  .conv.active { background: color-mix(in srgb, var(--exprsn-primary) 8%, transparent); border-left-color: var(--exprsn-primary); }
+  .conv .info { flex: 1; min-width: 0; }
+  .conv .top { display: flex; justify-content: space-between; gap: 8px; }
+  .conv .n { font-weight: 600; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conv .t { font-size: .72rem; color: var(--exprsn-text-muted); flex: none; }
+  .conv .preview { font-size: .85rem; color: var(--exprsn-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .conv .badge { background: var(--exprsn-primary); color: #fff; font-size: .68rem; font-weight: 700; border-radius: 99px; padding: 1px 7px; }
+  .avwrap { position: relative; flex: none; }
+  .presence { position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--exprsn-bg-primary); background: var(--exprsn-gray-400); }
+  .presence.on { background: var(--exprsn-success); }
+
+  /* Thread */
+  .thread { display: flex; flex-direction: column; min-height: 0; background: var(--exprsn-bg-secondary); }
+  .thread .head { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--exprsn-bg-primary); border-bottom: 1px solid var(--exprsn-border-color); }
+  .thread .head .n { font-weight: 700; }
+  .thread .head .s { font-size: .8rem; color: var(--exprsn-text-muted); }
+  .e2e { margin: 14px auto 4px; display: inline-flex; gap: 6px; align-items: center; font-size: .78rem; color: var(--exprsn-text-muted); background: var(--exprsn-bg-tertiary); padding: 5px 12px; border-radius: 99px; }
+  .msgs { flex: 1; overflow-y: auto; padding: 8px 20px 16px; display: flex; flex-direction: column; gap: 4px; }
+  .day { text-align: center; font-size: .72rem; color: var(--exprsn-text-muted); margin: 14px 0 8px; font-weight: 600; }
+  .row { display: flex; gap: 10px; align-items: flex-end; margin-top: 8px; }
+  .row.mine { flex-direction: row-reverse; }
+  .bubble { max-width: 62%; padding: 9px 14px; border-radius: 18px; font-size: .92rem; line-height: 1.45; position: relative; }
+  .row.mine .bubble { background: var(--exprsn-primary); color: #fff; border-bottom-right-radius: 5px; }
+  .row:not(.mine) .bubble { background: var(--exprsn-bg-primary); border: 1px solid var(--exprsn-border-color); border-bottom-left-radius: 5px; }
+  .stamp { font-size: .68rem; color: var(--exprsn-text-muted); margin: 2px 4px 0; }
+  .reactions { display: flex; gap: 4px; margin-top: 6px; }
+  .react { font-size: .72rem; background: var(--exprsn-bg-tertiary); border: 1px solid var(--exprsn-border-color); padding: 1px 7px; border-radius: 99px; }
+  .react.me { background: color-mix(in srgb,var(--exprsn-primary) 14%,transparent); border-color: var(--exprsn-primary); color: var(--exprsn-primary); }
+  .attach { display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,.15); padding: 8px 10px; border-radius: 12px; margin-bottom: 6px; }
+  .row:not(.mine) .attach { background: var(--exprsn-bg-tertiary); }
+  .ftile { width: 36px; height: 36px; border-radius: 9px; background: var(--exprsn-gradient-warm); display: grid; place-items: center; color: #fff; flex: none; }
+  .imgtile { width: 200px; height: 130px; border-radius: 12px; background: var(--exprsn-gradient-cool); display: grid; place-items: center; color: rgba(255,255,255,.85); font-weight: 600; }
+  .typing { font-size: .8rem; color: var(--exprsn-text-muted); padding: 0 4px 6px; }
+
+  .composer2 { display: flex; gap: 10px; align-items: center; padding: 12px 18px; background: var(--exprsn-bg-primary); border-top: 1px solid var(--exprsn-border-color); }
+  .composer2 .field { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--exprsn-bg-secondary); border: 1px solid var(--exprsn-border-color); border-radius: 99px; padding: 6px 8px 6px 16px; }
+  .composer2 input { flex: 1; border: 0; background: transparent; font: inherit; font-size: .95rem; color: var(--exprsn-text-primary); }
+  .composer2 input:focus { outline: none; }
+  .composer2 .send { width: 42px; height: 42px; border-radius: 50%; background: var(--exprsn-primary); color: #fff; border: 0; cursor: pointer; font-size: 18px; }
+</style>
+</head>
+<body>
+<div class="mock-banner">EXPRSN PLATFORM · UI MOCKUP — Spark messaging (redesign exploration)</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">E</div><div class="name">exprsn</div></div>
+    <div class="nav-item"><span class="ico">⌂</span> Timeline</div>
+    <div class="nav-item active"><span class="ico">✦</span> Spark <span class="count">3</span></div>
+    <div class="nav-item"><span class="ico">◎</span> Nexus</div>
+    <div class="nav-item"><span class="ico">☺</span> People</div>
+    <div class="nav-item"><span class="ico">▦</span> Files</div>
+    <div class="nav-item"><span class="ico">▶</span> Streams</div>
+    <div class="nav-sep"></div>
+    <div class="nav-item"><span class="ico">⚑</span> Bookmarks</div>
+    <div class="nav-item"><span class="ico">⚙</span> Settings</div>
+    <div class="me"><div class="avatar sm g4">RH</div><div style="line-height:1.2"><div style="font-weight:600;font-size:.9rem">Rick Holland</div><div class="muted" style="font-size:.78rem">@rick</div></div></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1>Spark</h1>
+      <span class="chip purple dot">end-to-end encrypted</span>
+      <div class="spacer"></div>
+      <button class="btn primary sm">＋ New message</button>
+    </header>
+
+    <div class="content">
+      <div class="spark">
+        <!-- Conversation list -->
+        <div class="convlist">
+          <div class="search"><input class="input" placeholder="⌕  Search conversations"></div>
+          <div class="conv active">
+            <div class="avwrap"><div class="avatar md g3">AK</div><span class="presence on"></span></div>
+            <div class="info">
+              <div class="top"><span class="n">Ada Kingsley</span><span class="t">12m</span></div>
+              <div class="preview">Pushed the fix — can you re-run the suite?</div>
+            </div>
+          </div>
+          <div class="conv">
+            <div class="avwrap"><div class="avatar md g5">PT</div></div>
+            <div class="info">
+              <div class="top"><span class="n">Platform Team</span><span class="t">34m</span></div>
+              <div class="preview">Jordan: deploy window moved to 22:00 UTC</div>
+            </div>
+            <div style="align-self:center"><span class="badge">5</span></div>
+          </div>
+          <div class="conv">
+            <div class="avwrap"><div class="avatar md g2">JM</div><span class="presence on"></span></div>
+            <div class="info">
+              <div class="top"><span class="n">Jordan Mensah</span><span class="t">1h</span></div>
+              <div class="preview">🔒 Encrypted message</div>
+            </div>
+          </div>
+          <div class="conv">
+            <div class="avwrap"><div class="avatar md g6">DS</div></div>
+            <div class="info">
+              <div class="top"><span class="n">Design Sync</span><span class="t">3h</span></div>
+              <div class="preview">You: shared mockups.zip</div>
+            </div>
+          </div>
+          <div class="conv">
+            <div class="avwrap"><div class="avatar md g1">SN</div></div>
+            <div class="info">
+              <div class="top"><span class="n">Sora Nakamura</span><span class="t">Tue</span></div>
+              <div class="preview">Thanks! That clears it up 🙌</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active thread -->
+        <div class="thread">
+          <div class="head">
+            <div class="avwrap"><div class="avatar md g3">AK</div><span class="presence on"></span></div>
+            <div style="flex:1">
+              <div class="n">Ada Kingsley</div>
+              <div class="s">Active now · @ada</div>
+            </div>
+            <button class="iconbtn" title="Call">☎</button>
+            <button class="iconbtn" title="Video">▶</button>
+            <button class="iconbtn" title="Info">ⓘ</button>
+          </div>
+
+          <div class="msgs">
+            <div style="text-align:center"><span class="e2e">🔒 Messages are end-to-end encrypted</span></div>
+            <div class="day">Today</div>
+
+            <div class="row">
+              <div class="avatar sm g3">AK</div>
+              <div>
+                <div class="bubble">Pushed the auth session fix — Session rows now persist with the CA token id.</div>
+                <div class="reactions"><span class="react me">👍 2</span></div>
+              </div>
+            </div>
+
+            <div class="row mine">
+              <div>
+                <div class="bubble">Nice. Re-running <code style="background:rgba(255,255,255,.18);padding:1px 5px;border-radius:5px">npm run test:all</code> now.</div>
+                <div class="stamp" style="text-align:right">10:42 · ✓✓ seen</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="avatar sm g3">AK</div>
+              <div>
+                <div class="bubble">
+                  <div class="attach"><div class="ftile">⌗</div><div><div style="font-weight:600;font-size:.85rem">session.test.js</div><div style="font-size:.74rem;opacity:.8">4.2 KB · diff</div></div></div>
+                  Here's the green suite for reference.
+                </div>
+              </div>
+            </div>
+
+            <div class="row mine">
+              <div>
+                <div class="bubble">
+                  <div class="imgtile" style="background:var(--exprsn-gradient-purple)">▣ &nbsp;run-output.png</div>
+                </div>
+                <div class="bubble" style="margin-top:6px">All green ✅ logout revokes the token in-process too.</div>
+                <div class="stamp" style="text-align:right">10:48 · ✓✓ seen</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="avatar sm g3">AK</div>
+              <div><div class="bubble">Perfect, merging.</div></div>
+            </div>
+
+            <div class="typing">Ada is typing…</div>
+          </div>
+
+          <div class="composer2">
+            <button class="iconbtn" style="border:0" title="Attach">＋</button>
+            <div class="field">
+              <input placeholder="Message Ada…">
+              <span style="color:var(--exprsn-text-muted);font-size:18px;cursor:pointer">☺</span>
+            </div>
+            <button class="send" title="Send">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="btn ghost theme-toggle" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+</body>
+</html>

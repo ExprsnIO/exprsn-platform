@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn · Timeline — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shell.css">
+<style>
+  .feed-layout { display: grid; grid-template-columns: 1fr 320px; gap: 28px; max-width: 1080px; }
+  @media (max-width: 980px){ .feed-layout{ grid-template-columns: 1fr; } .aside{ display:none; } }
+  .feed-toggle { display: inline-flex; background: var(--exprsn-bg-tertiary); border-radius: var(--exprsn-radius-full); padding: 4px; gap: 2px; }
+  .feed-toggle button { border: 0; background: transparent; font: inherit; font-weight: 600; font-size: .875rem; color: var(--exprsn-text-muted); padding: 7px 18px; border-radius: 99px; cursor: pointer; }
+  .feed-toggle button.active { background: var(--exprsn-bg-primary); color: var(--exprsn-text-primary); box-shadow: var(--exprsn-shadow-sm); }
+
+  .composer { padding: 16px; margin-bottom: 20px; }
+  .composer .row { display: flex; gap: 12px; }
+  .composer textarea { flex: 1; border: 0; resize: none; background: transparent; font: inherit; font-size: 1.05rem; color: var(--exprsn-text-primary); min-height: 52px; }
+  .composer textarea:focus { outline: none; }
+  .composer textarea::placeholder { color: var(--exprsn-text-muted); }
+  .composer .tools { display: flex; align-items: center; gap: 4px; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--exprsn-border-color); }
+  .composer .tool { width: 36px; height: 36px; border-radius: 99px; display: grid; place-items: center; color: var(--exprsn-primary); cursor: pointer; font-size: 18px; }
+  .composer .tool:hover { background: color-mix(in srgb, var(--exprsn-primary) 12%, transparent); }
+
+  .post { padding: 18px 20px; margin-bottom: 16px; }
+  .post .head { display: flex; align-items: center; gap: 12px; }
+  .post .who { font-weight: 700; }
+  .post .handle, .post .time { color: var(--exprsn-text-muted); font-size: .875rem; }
+  .post .body { margin: 10px 0 4px; line-height: 1.55; }
+  .post .body a { font-weight: 500; }
+  .media { margin-top: 12px; border-radius: var(--exprsn-radius-lg); overflow: hidden; border: 1px solid var(--exprsn-border-color); height: 280px; background: var(--exprsn-gradient-cool); display: grid; place-items: center; color: rgba(255,255,255,.85); font-weight: 600; }
+  .actions { display: flex; gap: 6px; margin-top: 14px; }
+  .act { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 99px; color: var(--exprsn-text-muted); font-size: .85rem; font-weight: 500; cursor: pointer; }
+  .act:hover { background: var(--exprsn-bg-hover); color: var(--exprsn-text-primary); }
+  .act.liked { color: var(--exprsn-accent-pink); }
+  .act.liked:hover { background: color-mix(in srgb, var(--exprsn-accent-pink) 12%, transparent); }
+  .act.bm { margin-left: auto; }
+  .act.bm.on { color: var(--exprsn-primary); }
+
+  .widget { padding: 16px; margin-bottom: 18px; }
+  .widget h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--exprsn-text-muted); margin-bottom: 12px; }
+  .trend { padding: 8px 0; border-bottom: 1px solid var(--exprsn-border-color); }
+  .trend:last-child { border: 0; }
+  .trend .tag { font-weight: 700; color: var(--exprsn-text-primary); }
+  .trend .meta { font-size: .8rem; color: var(--exprsn-text-muted); }
+  .person { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .person .info { flex: 1; min-width: 0; }
+  .person .info .n { font-weight: 600; font-size: .9rem; }
+  .person .info .h { font-size: .8rem; color: var(--exprsn-text-muted); }
+</style>
+</head>
+<body>
+<div class="mock-banner">EXPRSN PLATFORM · UI MOCKUP — Timeline (redesign exploration)</div>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">E</div><div class="name">exprsn</div></div>
+    <div class="nav-item active"><span class="ico">⌂</span> Timeline</div>
+    <div class="nav-item"><span class="ico">✦</span> Spark <span class="count">3</span></div>
+    <div class="nav-item"><span class="ico">◎</span> Nexus</div>
+    <div class="nav-item"><span class="ico">☺</span> People</div>
+    <div class="nav-item"><span class="ico">▦</span> Files</div>
+    <div class="nav-item"><span class="ico">▶</span> Streams</div>
+    <div class="nav-sep"></div>
+    <div class="nav-item"><span class="ico">⚑</span> Bookmarks</div>
+    <div class="nav-item"><span class="ico">⚙</span> Settings</div>
+    <div class="me"><div class="avatar sm g4">RH</div><div style="line-height:1.2"><div style="font-weight:600;font-size:.9rem">Rick Holland</div><div class="muted" style="font-size:.78rem">@rick</div></div></div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <h1>Timeline</h1>
+      <span class="chip green dot">Live</span>
+      <div class="spacer"></div>
+      <div class="feed-toggle"><button class="active">Home</button><button>Global</button></div>
+      <button class="iconbtn" title="Search">⌕</button>
+    </header>
+
+    <div class="content">
+      <div class="feed-layout">
+        <!-- Feed column -->
+        <div>
+          <!-- Composer -->
+          <div class="card composer">
+            <div class="row">
+              <div class="avatar md g4">RH</div>
+              <textarea placeholder="What's happening, Rick?"></textarea>
+            </div>
+            <div class="tools">
+              <div class="tool" title="Image">▣</div>
+              <div class="tool" title="Video">▶</div>
+              <div class="tool" title="Poll">▤</div>
+              <div class="tool" title="Emoji">☺</div>
+              <div class="spacer"></div>
+              <span class="chip">🌐 Public</span>
+              <button class="btn primary" style="margin-left:10px">Post</button>
+            </div>
+          </div>
+
+          <!-- Post 1 -->
+          <article class="card post">
+            <div class="head">
+              <div class="avatar md g3">AK</div>
+              <div style="flex:1">
+                <div class="who">Ada Kingsley <span class="chip blue" style="margin-left:4px">✓ verified</span></div>
+                <div class="handle">@ada · 12m</div>
+              </div>
+              <button class="iconbtn" style="border:0;width:32px;height:32px">⋯</button>
+            </div>
+            <div class="body">Shipped the unified gateway today — ten services, one HTTPS port, one Socket.IO server. The consolidation paid off: cold start dropped from 40s to under 6. <a href="#">#exprsn</a> <a href="#">#platform</a></div>
+            <div class="media" style="background:var(--exprsn-gradient-purple)">▦ &nbsp;architecture-diagram.png</div>
+            <div class="actions">
+              <span class="act liked">♥ 248</span>
+              <span class="act">💬 41</span>
+              <span class="act">↻ 32</span>
+              <span class="act bm on">⚑</span>
+            </div>
+          </article>
+
+          <!-- Post 2 -->
+          <article class="card post">
+            <div class="head">
+              <div class="avatar md g2">JM</div>
+              <div style="flex:1">
+                <div class="who">Jordan Mensah</div>
+                <div class="handle">@jordan · 1h</div>
+              </div>
+              <button class="iconbtn" style="border:0;width:32px;height:32px">⋯</button>
+            </div>
+            <div class="body">Reminder: the Nexus governance vote on the new moderation rules closes tonight at 23:59. If your group hasn't weighed in yet, now's the time. 🗳️</div>
+            <div class="actions">
+              <span class="act">♥ 96</span>
+              <span class="act">💬 18</span>
+              <span class="act">↻ 7</span>
+              <span class="act bm">⚑</span>
+            </div>
+          </article>
+
+          <!-- Post 3 -->
+          <article class="card post">
+            <div class="head">
+              <div class="avatar md g5">SN</div>
+              <div style="flex:1">
+                <div class="who">Sora Nakamura</div>
+                <div class="handle">@sora · 3h</div>
+              </div>
+              <button class="iconbtn" style="border:0;width:32px;height:32px">⋯</button>
+            </div>
+            <div class="body">Going live in 10 with a deep-dive on end-to-end encryption in Spark. Come ask the hard questions. 🔐</div>
+            <div class="media" style="height:160px;background:linear-gradient(135deg,#ef4444,#f97316)">▶ &nbsp;Live in 10 min · Streams</div>
+            <div class="actions">
+              <span class="act">♥ 412</span>
+              <span class="act">💬 73</span>
+              <span class="act">↻ 51</span>
+              <span class="act bm">⚑</span>
+            </div>
+          </article>
+        </div>
+
+        <!-- Right rail -->
+        <div class="aside">
+          <div class="card widget">
+            <h3>Trending</h3>
+            <div class="trend"><div class="tag">#exprsn</div><div class="meta">2,481 posts</div></div>
+            <div class="trend"><div class="tag">#e2ee</div><div class="meta">1,003 posts</div></div>
+            <div class="trend"><div class="tag">#governance</div><div class="meta">876 posts</div></div>
+            <div class="trend"><div class="tag">#selfhosted</div><div class="meta">540 posts</div></div>
+          </div>
+          <div class="card widget">
+            <h3>Who to follow</h3>
+            <div class="person"><div class="avatar sm g1">DV</div><div class="info"><div class="n">Devon Vega</div><div class="h">@devon</div></div><button class="btn ghost sm">Follow</button></div>
+            <div class="person"><div class="avatar sm g6">MP</div><div class="info"><div class="n">Maya Park</div><div class="h">@maya</div></div><button class="btn ghost sm">Follow</button></div>
+            <div class="person"><div class="avatar sm g3">TL</div><div class="info"><div class="n">Theo Lund</div><div class="h">@theo</div></div><button class="btn ghost sm">Follow</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="btn ghost theme-toggle" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+</body>
+</html>

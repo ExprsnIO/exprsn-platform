@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Admin · Overview — /admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+<header class="navbar">
+  <a class="navbar-brand" href="admin-index.html"><span class="logo">E</span> Exprsn <span class="sub">Admin</span></a>
+  <div class="nav-right">
+    <span class="crumb">/admin</span>
+    <button class="theme-toggle" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+    <div class="admin-chip"><span class="av">RH</span> Rick H. · Owner</div>
+  </div>
+</header>
+<div class="shell">
+  <aside class="sidebar">
+  <div class="sidebar-heading">Platform</div>
+  <a class="snav active" href="admin-overview.html"><span class="ic">🏠</span> Overview</a>
+  <div class="sidebar-heading">Identity & Access</div>
+  <a class="snav" href="admin-ca.html"><span class="ic">📜</span> Certificate Authority</a>
+  <a class="snav" href="admin-auth.html"><span class="ic">🔑</span> Auth & Identity</a>
+  <a class="snav" href="admin-vault.html"><span class="ic">🔒</span> Vault</a>
+  <div class="sidebar-heading">Services</div>
+  <a class="snav" href="admin-nexus.html"><span class="ic">🌐</span> Groups (Nexus)</a>
+  <a class="snav" href="admin-spark.html"><span class="ic">💬</span> Messaging (Spark)</a>
+  <a class="snav" href="admin-live.html"><span class="ic">📡</span> Live Streaming</a>
+  <a class="snav" href="admin-filevault.html"><span class="ic">📁</span> Files (FileVault)</a>
+  <div class="sidebar-heading">Operations</div>
+  <a class="snav" href="admin-jobs.html"><span class="ic">⚙️</span> Jobs & Queues</a>
+  <a class="snav" href="admin-moderator.html"><span class="ic">🛡️</span> Moderation</a>
+  <a class="snav" href="admin-atproto.html"><span class="ic">🔗</span> AT-Protocol</a>
+  </aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>🏠 Overview</h1>
+        <p class="lead">Gateway health and per-module status across the ten consolidated services, running in one process behind a single HTTPS edge on :8443.</p>
+      </div>
+      <div class="actions"><button class="btn btn-ghost btn-sm">⟳ Refresh</button><button class="btn btn-primary">Run health check</button></div>
+    </div>
+    <div class="stat-row">
+  <div class="stat border-left-success"><div class="lbl">Modules online</div><div class="val">10 / 10</div><div class="delta" style="color:var(--exprsn-success)">all healthy</div></div>
+  <div class="stat border-left-info"><div class="lbl">Environment</div><div class="val">production</div><div class="delta" style="color:var(--exprsn-info)"><code>:8443</code> · TLS</div></div>
+  <div class="stat border-left-primary"><div class="lbl">Uptime</div><div class="val">18d 04h</div><div class="delta" style="color:var(--exprsn-text-muted)">since last deploy</div></div>
+  <div class="stat border-left-warning"><div class="lbl">Requests / min</div><div class="val">2,418</div><div class="delta" style="color:var(--exprsn-success)">▲ 6% vs 1h</div></div>
+</div><h2 class="section-title" style="margin:1.5rem 0 .75rem">Gateway modules</h2><div class="tablecard"><table class="table"><thead><tr><th>Module</th><th>Mount prefix</th><th>Schema</th><th>Socket namespace</th><th>Status</th></tr></thead><tbody>
+<tr><td>Certificate Authority</td><td><code>/ca</code></td><td><code>ca</code></td><td>—</td><td><span class="badge bg-success">healthy</span></td></tr>
+<tr><td>Auth & Identity</td><td><code>/auth</code></td><td><code>auth</code></td><td>—</td><td><span class="badge bg-success">healthy</span></td></tr>
+<tr><td>Spark (messaging)</td><td><code>/spark</code></td><td><code>spark</code></td><td><code>/spark</code></td><td><span class="badge bg-success">healthy</span></td></tr>
+<tr><td>Nexus (groups)</td><td><code>/nexus</code></td><td><code>nexus</code></td><td><code>/nexus</code></td><td><span class="badge bg-success">healthy</span></td></tr>
+<tr><td>FileVault</td><td><code>/filevault</code></td><td><code>filevault</code></td><td>—</td><td><span class="badge bg-success">healthy</span></td></tr>
+<tr><td>Vault (secrets)</td><td><code>/vault</code></td><td><code>vault</code></td><td>—</td><td><span class="badge bg-success">healthy</span></td></tr>
+<tr><td>Timeline</td><td><code>/timeline</code></td><td><code>timeline</code></td><td><code>/timeline</code></td><td><span class="badge bg-success">healthy</span></td></tr>
+<tr><td>Prefetch</td><td><code>/prefetch</code></td><td><code>prefetch</code></td><td>—</td><td><span class="badge bg-warning">degraded</span></td></tr>
+<tr><td>Moderator</td><td><code>/moderator</code></td><td><code>moderator</code></td><td><code>/moderator</code>, <code>/admin</code></td><td><span class="badge bg-success">healthy</span></td></tr>
+<tr><td>Live (streaming)</td><td><code>/live</code></td><td><code>live</code></td><td><code>/live</code></td><td><span class="badge bg-success">healthy</span></td></tr>
+</tbody></table></div>
+  </main>
+</div>
+</body>
+</html>

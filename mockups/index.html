@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn · UI mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shell.css">
+<style>
+  .page { max-width: 920px; margin: 0 auto; padding: 56px 24px; }
+  .hero { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .hero .logo { width: 52px; height: 52px; border-radius: 14px; background: var(--exprsn-gradient-primary); display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 26px; box-shadow: var(--exprsn-shadow-lg); }
+  .hero h1 { font-size: 2rem; letter-spacing: -.03em; }
+  .sub { color: var(--exprsn-text-muted); font-size: 1.05rem; margin-bottom: 36px; max-width: 620px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 680px){ .grid{ grid-template-columns: 1fr; } }
+  .tile { display: block; padding: 0; overflow: hidden; transition: transform .12s, box-shadow .12s; }
+  .tile:hover { transform: translateY(-3px); box-shadow: var(--exprsn-shadow-xl); }
+  .tile .top { height: 116px; display: grid; place-items: center; color: #fff; font-size: 40px; }
+  .tile .body { padding: 18px 20px; }
+  .tile .body h3 { font-size: 1.15rem; margin-bottom: 4px; }
+  .tile .body p { color: var(--exprsn-text-muted); font-size: .9rem; margin: 0; line-height: 1.5; }
+  .note { margin-top: 36px; font-size: .85rem; color: var(--exprsn-text-muted); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hero"><div class="logo">E</div><h1>Exprsn — UI mockups</h1></div>
+  <p class="sub">Redesign explorations for four core surfaces, built on the platform's own design tokens (<code>exprsn-unified.css</code>). Each opens standalone; toggle light/dark with the button at the bottom-right of every page.</p>
+
+  <div class="grid">
+    <a class="card tile" href="timeline.html">
+      <div class="top" style="background:var(--exprsn-gradient-cool)">⌂</div>
+      <div class="body"><h3>Timeline</h3><p>Home/Global feed, composer, post cards with likes, comments, reposts and bookmarks, plus a trending rail.</p></div>
+    </a>
+    <a class="card tile" href="spark.html">
+      <div class="top" style="background:var(--exprsn-gradient-purple)">✦</div>
+      <div class="body"><h3>Spark</h3><p>End-to-end encrypted messenger: conversation list, threaded bubbles, reactions, attachments and presence.</p></div>
+    </a>
+    <a class="card tile" href="nexus.html">
+      <div class="top" style="background:var(--exprsn-gradient-warm)">◎</div>
+      <div class="body"><h3>Nexus</h3><p>Group detail with cover, full tab bar, and a governance panel for proposals and member voting.</p></div>
+    </a>
+    <a class="card tile" href="settings.html">
+      <div class="top" style="background:linear-gradient(135deg,#10b981,#06b6d4)">⚙</div>
+      <div class="body"><h3>User settings</h3><p>Profile, password, 2FA with backup codes, active sessions tied to CA tokens, and decentralized identity.</p></div>
+    </a>
+  </div>
+
+  <p class="note">Mockups only — static HTML, no live data. Token vocabulary mirrors the real SPA so they can guide implementation in <code>web/src</code>.</p>
+</div>
+
+<button class="btn ghost theme-toggle" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+</body>
+</html>

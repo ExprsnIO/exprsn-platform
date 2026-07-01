@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Admin · Groups (Nexus) — /admin/nexus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+<header class="navbar">
+  <a class="navbar-brand" href="admin-index.html"><span class="logo">E</span> Exprsn <span class="sub">Admin</span></a>
+  <div class="nav-right">
+    <span class="crumb">/admin/nexus</span>
+    <button class="theme-toggle" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+    <div class="admin-chip"><span class="av">RH</span> Rick H. · Owner</div>
+  </div>
+</header>
+<div class="shell">
+  <aside class="sidebar">
+  <div class="sidebar-heading">Platform</div>
+  <a class="snav" href="admin-overview.html"><span class="ic">🏠</span> Overview</a>
+  <div class="sidebar-heading">Identity & Access</div>
+  <a class="snav" href="admin-ca.html"><span class="ic">📜</span> Certificate Authority</a>
+  <a class="snav" href="admin-auth.html"><span class="ic">🔑</span> Auth & Identity</a>
+  <a class="snav" href="admin-vault.html"><span class="ic">🔒</span> Vault</a>
+  <div class="sidebar-heading">Services</div>
+  <a class="snav active" href="admin-nexus.html"><span class="ic">🌐</span> Groups (Nexus)</a>
+  <a class="snav" href="admin-spark.html"><span class="ic">💬</span> Messaging (Spark)</a>
+  <a class="snav" href="admin-live.html"><span class="ic">📡</span> Live Streaming</a>
+  <a class="snav" href="admin-filevault.html"><span class="ic">📁</span> Files (FileVault)</a>
+  <div class="sidebar-heading">Operations</div>
+  <a class="snav" href="admin-jobs.html"><span class="ic">⚙️</span> Jobs & Queues</a>
+  <a class="snav" href="admin-moderator.html"><span class="ic">🛡️</span> Moderation</a>
+  <a class="snav" href="admin-atproto.html"><span class="ic">🔗</span> AT-Protocol</a>
+  </aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>🌐 Groups (Nexus)</h1>
+        <p class="lead">Tenant groups, their membership, governance proposals and events. Spot orphaned groups and moderate at the directory level.</p>
+      </div>
+      <div class="actions"><button class="btn btn-ghost btn-sm">⬇ Export</button><button class="btn btn-primary">＋ New group</button></div>
+    </div>
+    <div class="stat-row">
+  <div class="stat border-left-primary"><div class="lbl">Groups</div><div class="val">312</div><div class="delta" style="color:var(--exprsn-success)">▲ 14 this week</div></div>
+  <div class="stat border-left-info"><div class="lbl">Members</div><div class="val">18,402</div><div class="delta" style="color:var(--exprsn-text-muted)">across all groups</div></div>
+  <div class="stat border-left-warning"><div class="lbl">Active proposals</div><div class="val">23</div><div class="delta" style="color:var(--exprsn-warning-hover)">6 closing today</div></div>
+  <div class="stat border-left-success"><div class="lbl">Upcoming events</div><div class="val">41</div><div class="delta" style="color:var(--exprsn-text-muted)">next in 2h</div></div>
+</div><div class="toolbar"><div class="toolbar-row"><div class="search"><span class="si">🔍</span><input type="text" placeholder="Search groups by name, slug, or category…"></div><select class="minisel"><option>Visibility: All</option><option>Public</option><option>Private</option><option>Unlisted</option></select><select class="minisel"><option>Join: All</option><option>Open</option><option>Request</option><option>Invite</option></select></div></div><div class="tablecard"><table class="table"><thead><tr><th>Name</th><th>Visibility</th><th>Members</th><th>Join mode</th><th>Category</th><th>Status</th></tr></thead><tbody>
+<tr><td>Platform Builders</td><td><span class="badge bg-secondary">private</span></td><td>1,284</td><td>Request</td><td>Engineering</td><td><span class="badge bg-success">active</span></td></tr>
+<tr><td>Design Guild</td><td><span class="badge bg-info">public</span></td><td>842</td><td>Open</td><td>Design</td><td><span class="badge bg-success">active</span></td></tr>
+<tr><td>Security WG</td><td><span class="badge bg-warning">unlisted</span></td><td>96</td><td>Invite</td><td>Security</td><td><span class="badge bg-success">active</span></td></tr>
+<tr><td>Ops On-Call</td><td><span class="badge bg-secondary">private</span></td><td>34</td><td>Invite</td><td>Operations</td><td><span class="badge bg-success">active</span></td></tr>
+<tr><td>Beta Testers</td><td><span class="badge bg-info">public</span></td><td>2,019</td><td>Open</td><td>Community</td><td><span class="badge bg-danger">flagged</span></td></tr>
+</tbody></table></div>
+  </main>
+</div>
+</body>
+</html>

@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
 const roomService = require('../services/room');
+const { RoomInvite, RoomJoinRequest } = require('../models');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { validateBody, validateQuery, validateParams, schemas } = require('../middleware/validation');
 const logger = require('../utils/logger');
@@ -31,6 +32,9 @@ router.post('/',
         room
       });
     } catch (error) {
+      if (error.code === 'LIMIT_EXCEEDED') {
+        return res.status(403).json({ error: 'LIMIT_EXCEEDED', message: error.message });
+      }
       logger.error('Failed to create room:', error);
       res.status(500).json({
         error: 'CREATE_FAILED',
@@ -201,6 +205,19 @@ router.post('/:id/join',
             error: 'INVALID_PASSWORD',
             message: 'Incorrect room password'
           });
+        }
+      }
+
+      // Enforce the room's join policy (host always bypasses).
+      const hostId = room.hostId || room.host_id;
+      const joinPolicy = (room.settings && room.settings.joinPolicy) || 'open';
+      if (joinPolicy !== 'open' && String(hostId) !== String(req.user.id)) {
+        if (joinPolicy === 'invite') {
+          const invite = await RoomInvite.findOne({ where: { room_id: req.params.id, invitee_id: req.user.id, status: ['pending', 'accepted'] } });
+          if (!invite) return res.status(403).json({ error: 'INVITE_REQUIRED', message: 'You need an invite to join this room' });
+        } else if (joinPolicy === 'request') {
+          const approved = await RoomJoinRequest.findOne({ where: { room_id: req.params.id, user_id: req.user.id, status: 'approved' } });
+          if (!approved) return res.status(403).json({ error: 'APPROVAL_REQUIRED', message: 'A host must approve your request to join' });
         }
       }
 

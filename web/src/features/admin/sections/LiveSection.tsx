@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Alert,
   Button,
   Dialog,
   DialogActions,
@@ -186,9 +187,46 @@ function DestinationsTab({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
+/* --------------------------------------------------------------- workers */
+
+function WorkersTab() {
+  // ffmpeg fanout + recording queue depths (RabbitMQ). Poll every 5s.
+  const query = useQuery({
+    queryKey: ['live', 'workers'],
+    queryFn: liveAdminApi.workersStats,
+    refetchInterval: 5000,
+  });
+  return (
+    <QueryState query={query} empty="No worker stats.">
+      {(d) => {
+        const queues = d.queues;
+        if (!queues || queues.enabled === false) {
+          return <Alert severity="info">RabbitMQ disabled — ffmpeg fanout/recording queues are not running.</Alert>;
+        }
+        return (
+          <Stack spacing={2}>
+            <Card title="ffmpeg fanout queue">
+              <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                <StatCard label="Depth" value={queues.fanout?.depth ?? 0} hint="Pending fanout jobs" />
+                <StatCard label="Dead-letter" value={queues.fanout?.dlq ?? 0} hint="Failed fanout jobs" />
+              </Stack>
+            </Card>
+            <Card title="Recording queue">
+              <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                <StatCard label="Depth" value={queues.recording?.depth ?? 0} hint="Pending recording jobs" />
+                <StatCard label="Dead-letter" value={queues.recording?.dlq ?? 0} hint="Failed recording jobs" />
+              </Stack>
+            </Card>
+          </Stack>
+        );
+      }}
+    </QueryState>
+  );
+}
+
 /* ------------------------------------------------------------------- page */
 
-type LiveTab = 'streams' | 'rooms' | 'destinations' | 'config';
+type LiveTab = 'streams' | 'rooms' | 'destinations' | 'workers' | 'config';
 
 export function LiveSection() {
   const [tab, setTab] = useState<LiveTab>('streams');
@@ -211,11 +249,13 @@ export function LiveSection() {
         <Tab value="streams" label="Streams" />
         <Tab value="rooms" label="Rooms" />
         <Tab value="destinations" label="Destinations / Simulcast" />
+        <Tab value="workers" label="Workers" />
         <Tab value="config" label="Config" />
       </Tabs>
       {tab === 'streams' && <StreamsTab onToast={showToast} />}
       {tab === 'rooms' && <RoomsTab onToast={showToast} />}
       {tab === 'destinations' && <DestinationsTab onToast={showToast} />}
+      {tab === 'workers' && <WorkersTab />}
       {tab === 'config' && <ConfigSectionEditor sections={LIVE_CONFIG_SECTIONS} load={(sec) => liveAdminApi.getConfigSection(sec)} save={(sec, data) => liveAdminApi.saveConfigSection(sec, data)} />}
       {ToastHost}
     </Stack>

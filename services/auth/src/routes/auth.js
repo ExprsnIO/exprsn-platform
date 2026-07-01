@@ -64,6 +64,15 @@ router.post('/register',
 
   logger.info('User registered', { userId: user.id, email: user.email });
 
+  // Emit onto the plugin hook bus (fire-and-forget, best-effort, guarded).
+  try {
+    const pluginHost = require('../../../plugins/src/services/pluginHost');
+    pluginHost.emit('auth.user.registered', {
+      module: 'auth', userId: user.id,
+      user: { id: user.id, email: user.email, name: user.displayName },
+    }).catch(() => {});
+  } catch (_) { /* plugins module unavailable — ignore */ }
+
   // Send verification email
   try {
     const emailService = await getEmailService();

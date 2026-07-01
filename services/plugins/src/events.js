@@ -16,7 +16,7 @@
  */
 
 /** Known module surfaces a plugin may declare in `appliesTo`. */
-const MODULE_SURFACES = ['timeline', 'spark', 'moderator', 'lowcode', 'nexus', 'live'];
+const MODULE_SURFACES = ['timeline', 'spark', 'moderator', 'lowcode', 'nexus', 'live', 'auth', 'filevault'];
 
 /**
  * Known events. `module` is the emitting surface; `payload` documents the
@@ -28,6 +28,11 @@ const EVENTS = [
   { key: 'moderator.content.flagged', module: 'moderator', description: 'Moderation flagged a piece of content.' },
   { key: 'lowcode.record.created', module: 'lowcode', description: 'A low-code entity record was created.' },
   { key: 'lowcode.record.updated', module: 'lowcode', description: 'A low-code entity record was updated.' },
+  // Registered as known triggers so flows can be authored against them; the
+  // emitting call sites are wired in the platform-interaction pass.
+  { key: 'live.room.created', module: 'live', description: 'A live room was created.' },
+  { key: 'nexus.group.member.joined', module: 'nexus', description: 'A member joined a Nexus group.' },
+  { key: 'auth.user.registered', module: 'auth', description: 'A user completed registration.' },
 ];
 
 const EVENT_KEYS = new Set(EVENTS.map((e) => e.key));

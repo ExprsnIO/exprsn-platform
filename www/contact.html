@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contact — Exprsn</title>
+<meta name="description" content="Get in touch about Exprsn — self-hosted deployments, feature questions, or a walkthrough of the platform." />
+<meta name="theme-color" content="#0066ff" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/css/exprsn-unified.css" />
+<link rel="stylesheet" href="assets/css/site.css" />
+<script>
+  (function () {
+    try {
+      var m = localStorage.getItem('exprsn-theme');
+      if (m !== 'light' && m !== 'dark') m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', m);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="index.html" class="brand"><span class="logo">E</span> Exprsn</a>
+    <nav class="site-nav">
+      <a href="index.html" data-page="index.html">Home</a>
+      <a href="features.html" data-page="features.html">Features</a>
+      <a href="platform.html" data-page="platform.html">Platform</a>
+      <a href="about.html" data-page="about.html">About</a>
+      <a href="contact.html" data-page="contact.html">Contact</a>
+    </nav>
+    <div class="header-actions">
+      <a class="btn btn-secondary btn-sm" href="#" title="Coming soon">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="index.html#get-started">Get started</a>
+      <button class="nav-toggle" data-nav-toggle aria-label="Toggle menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section class="tight">
+    <div class="container">
+      <div class="eyebrow">Contact</div>
+      <h1 style="font-size:2.5rem; letter-spacing:-.02em; max-width:640px;">Questions about Exprsn? We read every message ourselves.</h1>
+      <p style="color:var(--exprsn-text-muted); font-size:1.0625rem; max-width:600px; margin-top:.75rem; line-height:1.65;">Whether you're evaluating Exprsn for your community or planning a self-hosted deployment, tell us what you're trying to do.</p>
+    </div>
+  </section>
+
+  <section class="tight">
+    <div class="container">
+      <div class="contact-layout">
+
+        <div class="card">
+          <div class="card-body">
+            <form id="contact-form">
+              <div class="form-group">
+                <label class="form-label required" for="name">Name</label>
+                <input class="form-control" type="text" id="name" name="name" required autocomplete="name" />
+              </div>
+              <div class="form-group">
+                <label class="form-label required" for="email">Email</label>
+                <input class="form-control" type="email" id="email" name="email" required autocomplete="email" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="topic">What's this about?</label>
+                <select class="form-control form-select" id="topic" name="topic">
+                  <option>General question</option>
+                  <option>Self-hosted deployment</option>
+                  <option>Feature request</option>
+                  <option>Security / responsible disclosure</option>
+                  <option>Press / partnerships</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label required" for="message">Message</label>
+                <textarea class="form-control" id="message" name="message" required placeholder="Tell us a bit about what you're looking for…"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary btn-lg w-100">Send message</button>
+              <div id="contact-status" class="alert"></div>
+            </form>
+          </div>
+        </div>
+
+        <div class="contact-info-card">
+          <div class="feature-card">
+            <div class="contact-info-item">
+              <div class="ico">✉</div>
+              <div><h4>Email</h4><p><a href="mailto:hello@exprsn.io">hello@exprsn.io</a></p></div>
+            </div>
+          </div>
+          <div class="feature-card">
+            <div class="contact-info-item">
+              <div class="ico">🛡</div>
+              <div><h4>Security disclosures</h4><p><a href="mailto:security@exprsn.io">security@exprsn.io</a></p></div>
+            </div>
+          </div>
+          <div class="feature-card">
+            <div class="contact-info-item">
+              <div class="ico">📘</div>
+              <div><h4>Docs &amp; architecture</h4><p>See the <a href="platform.html" style="color:var(--exprsn-primary);">Platform</a> page for the full technical reference.</p></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="index.html" class="brand"><span class="logo">E</span> Exprsn</a>
+        <p style="color:var(--exprsn-text-muted); font-size:.9375rem; max-width:320px; margin-top:.75rem;">One account for feed, messaging, groups, and live streaming — built on a self-hostable, single-process platform.</p>
+      </div>
+      <div>
+        <h5>Product</h5>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="index.html#get-started">Get started</a></li>
+          <li><a href="#" title="Coming soon">Sign in</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Developers</h5>
+        <ul>
+          <li><a href="platform.html">Architecture</a></li>
+          <li><a href="platform.html#modules">Module reference</a></li>
+          <li><a href="platform.html#running">Quick start</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Company</h5>
+        <ul>
+          <li><a href="about.html">About</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> Exprsn. All rights reserved.</span>
+      <span>Built on the Exprsn unified design system.</span>
+    </div>
+  </div>
+</footer>
+
+<button class="theme-fab" data-theme-fab aria-label="Toggle color theme">◐</button>
+<script src="assets/js/site.js"></script>
+</body>
+</html>

@@ -196,6 +196,8 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/config', require('./routes/config'));
+// Internal service-to-service org authorization lookups (HMAC service token only).
+app.use('/api/internal', require('./routes/internal'));
 
 /**
  * ═══════════════════════════════════════════════════════════

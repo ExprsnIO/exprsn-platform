@@ -11,6 +11,10 @@ const Event = require('./Event');
 const StreamDestination = require('./StreamDestination');
 const TimelineSegment = require('./TimelineSegment');
 const ModerationAction = require('./ModerationAction');
+const LiveConfig = require('./LiveConfig');
+const RoomInvite = require('./RoomInvite');
+const RoomJoinRequest = require('./RoomJoinRequest');
+const RoomFile = require('./RoomFile');
 
 /**
  * Set up model associations
@@ -131,5 +135,9 @@ module.exports = {
   Event,
   StreamDestination,
   TimelineSegment,
-  ModerationAction
+  ModerationAction,
+  LiveConfig,
+  RoomInvite,
+  RoomJoinRequest,
+  RoomFile
 };

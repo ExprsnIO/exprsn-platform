@@ -82,6 +82,7 @@ app.use('/health', healthRoutes);
 app.use('/api/streams', streamRoutes);
 app.use('/api/groups', groupStreamRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/rooms', require('./routes/roomCollab'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/simulcast', simulcastRoutes);
 app.use('/api/destinations', destinationRoutes);

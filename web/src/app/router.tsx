@@ -20,6 +20,8 @@ import { CaAdminPage } from '@/features/certs/CaAdminPage';
 import { StreamsPage } from '@/features/streams/StreamsPage';
 import { WatchPage } from '@/features/streams/WatchPage';
 import { RoomsPage } from '@/features/rooms/RoomsPage';
+import { AppsPage } from '@/features/apps/AppsPage';
+import { OrgsPage } from '@/features/orgs/OrgsPage';
 import { PlaceholderPage } from '@/features/PlaceholderPage';
 import { AdminLayout } from '@/features/admin/AdminLayout';
 import { DashboardPage } from '@/features/admin/DashboardPage';
@@ -71,6 +73,8 @@ export const router = createBrowserRouter([
           { path: 'files', element: <FilesPage /> },
           { path: 'groups', element: <GroupsPage /> },
           { path: 'groups/:id', element: <GroupDetailPage /> },
+          { path: 'apps', element: <AppsPage /> },
+          { path: 'orgs', element: <OrgsPage /> },
           { path: 'people', element: <PeoplePage /> },
           { path: 'people/:id', element: <ProfilePage /> },
           { path: 'streams', element: <StreamsPage /> },

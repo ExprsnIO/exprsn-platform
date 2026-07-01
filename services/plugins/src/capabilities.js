@@ -40,9 +40,13 @@ const CAPABILITIES = [
   { key: 'write:timeline.posts', description: 'Create timeline posts on a user\'s behalf.', routesThroughModerator: true },
   { key: 'write:spark.messages', description: 'Send spark messages on a user\'s behalf.', routesThroughModerator: true },
   { key: 'write:lowcode.records', description: 'Create/update low-code entity records.', routesThroughModerator: true },
+  { key: 'write:nexus.posts', description: 'Post to a Nexus group on a user\'s behalf.', routesThroughModerator: true },
+  { key: 'write:filevault.files', description: 'Write files into FileVault.' },
 
-  // ── call (webhook plugins only) ──
+  // ── call (webhook plugins + low-code module actions) ──
   { key: 'call:webhook', description: 'Receive signed outbound webhook deliveries.' },
+  { key: 'call:queues.enqueue', description: 'Enqueue a job onto a moderation/job queue.' },
+  { key: 'read:vault.secrets', description: 'Read a named secret from Vault (value never logged).' },
 ];
 
 const BY_KEY = new Map(CAPABILITIES.map((c) => [c.key, c]));

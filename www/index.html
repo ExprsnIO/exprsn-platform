@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Exprsn — One platform. Every conversation.</title>
+<meta name="description" content="Exprsn unifies feed, messaging, groups, and live streaming with an identity, secrets, and certificate layer developers actually own — one process, one port, fully self-hostable." />
+<meta name="theme-color" content="#0066ff" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/css/exprsn-unified.css" />
+<link rel="stylesheet" href="assets/css/site.css" />
+<script>
+  (function () {
+    try {
+      var m = localStorage.getItem('exprsn-theme');
+      if (m !== 'light' && m !== 'dark') m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', m);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="index.html" class="brand"><span class="logo">E</span> Exprsn</a>
+    <nav class="site-nav">
+      <a href="index.html" data-page="index.html" class="active">Home</a>
+      <a href="features.html" data-page="features.html">Features</a>
+      <a href="platform.html" data-page="platform.html">Platform</a>
+      <a href="about.html" data-page="about.html">About</a>
+      <a href="contact.html" data-page="contact.html">Contact</a>
+    </nav>
+    <div class="header-actions">
+      <a class="btn btn-secondary btn-sm" href="#" title="Coming soon">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="#get-started">Get started</a>
+      <button class="nav-toggle" data-nav-toggle aria-label="Toggle menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">● Now running as a single 8443 gateway, 11 modules in‑process</div>
+
+      <div class="audience-toggle" role="tablist" aria-label="Choose your audience">
+        <button type="button" class="active" data-audience="people">For people</button>
+        <button type="button" data-audience="devs">For developers</button>
+      </div>
+
+      <div data-audience-panel="people" class="active">
+        <h1>One platform for feed, messages, groups, and live — without ten different logins.</h1>
+        <p class="lede">Exprsn brings your Timeline feed, encrypted Spark messaging, Nexus groups and events, and Live streaming together behind a single account — with the privacy controls and moderation tooling to make it trustworthy.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary btn-lg" href="features.html">Explore features</a>
+          <a class="btn btn-secondary btn-lg" href="about.html">Why we built this</a>
+        </div>
+      </div>
+
+      <div data-audience-panel="devs">
+        <h1>Ten microservices, one process, one HTTPS port — and you own every line.</h1>
+        <p class="lede">Exprsn consolidates CA, auth, messaging, groups, files, secrets, feed, cache, moderation, and live streaming into a single Node.js gateway with per-module Postgres schemas. Plain Express, plain Sequelize, no proprietary runtime — self-host the whole stack.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary btn-lg" href="platform.html">Read the architecture</a>
+          <a class="btn btn-secondary btn-lg" href="contact.html">Talk to us</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stat strip -->
+  <div class="container">
+    <div class="stat-strip">
+      <div class="stat"><div class="num">11</div><div class="label">domain modules, one gateway</div></div>
+      <div class="stat"><div class="num">1</div><div class="label">HTTPS port to expose</div></div>
+      <div class="stat"><div class="num">1</div><div class="label">Postgres database, per‑module schemas</div></div>
+      <div class="stat"><div class="num">100%</div><div class="label">JSON APIs — bring your own front end</div></div>
+    </div>
+  </div>
+
+  <!-- Feature teaser -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="eyebrow">What's inside</div>
+        <h2>Every surface you'd normally stitch together yourself</h2>
+        <p>Feed, messaging, groups, streaming, identity, and secrets — designed as one coherent product, not ten separate accounts.</p>
+      </div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon g-cool">⌂</div>
+          <h3>Timeline</h3>
+          <p>A home and global feed with posts, likes, comments, reposts, and bookmarks — plus a trending rail that surfaces what's active right now.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon g-purple">✦</div>
+          <h3>Spark</h3>
+          <p>End‑to‑end encrypted messaging: threaded conversations, reactions, attachments, and live presence, without the metadata trail.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon g-warm">◎</div>
+          <h3>Nexus</h3>
+          <p>Groups and events with real governance — member proposals and voting, not just an admin toggling settings alone.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon g-sunset">▶</div>
+          <h3>Live</h3>
+          <p>Real‑time streaming with authenticated WebRTC signaling, built to publish from day one rather than bolted on later.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon g-success">🛡</div>
+          <h3>Vault &amp; FileVault</h3>
+          <p>Secrets management and encrypted file storage as first‑class modules — not an afterthought environment variable.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon g-primary">◆</div>
+          <h3>Auth &amp; CA</h3>
+          <p>OAuth2/OIDC/SAML with MFA, backed by a private certificate authority issuing the tokens everything else trusts.</p>
+        </div>
+      </div>
+      <p style="margin-top:2rem;"><a class="btn btn-outline-primary" href="features.html">See all features →</a></p>
+    </div>
+  </section>
+
+  <!-- Architecture teaser -->
+  <section class="tight" style="background:var(--exprsn-bg-tertiary);">
+    <div class="container">
+      <div class="grid grid-2" style="align-items:center;">
+        <div>
+          <div class="eyebrow">Under the hood</div>
+          <h2 style="font-size:1.75rem; margin-bottom:.75rem;">Ten formerly‑standalone services, now one deployable unit</h2>
+          <p style="color:var(--exprsn-text-muted); margin-bottom:1.5rem; line-height:1.65;">CA, auth, Spark, Nexus, FileVault, Vault, Timeline, Prefetch, Moderator, and Live used to be ten separate microservices on ten separate ports. Exprsn collapses that into a single Express gateway with one Socket.IO server and one Postgres database — each module keeps its own schema, so isolation survives the consolidation.</p>
+          <a class="btn btn-secondary" href="platform.html">Read the full architecture →</a>
+        </div>
+        <div class="arch-diagram">
+<pre style="margin:0;">┌──────────── one HTTPS port <span class="accent">(8443)</span> ────────────┐
+│  gateway: helmet · cors · compression          │
+│  <span class="accent2">/ca  /auth  /spark  /nexus  /live  …</span>          │
+│  single Socket.IO server <span class="accent3">(path: /socket.io)</span>   │
+└─────────────────────────────────────────────────┘
+              │                      │
+      one Postgres <span class="accent">exprsn</span>        one Redis
+   schemas: ca, auth, spark…    (namespaced keys)</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA band -->
+  <section id="get-started">
+    <div class="container">
+      <div class="cta-band">
+        <h2>Ready to see it running?</h2>
+        <p>Spin up the gateway locally in a few commands, or talk to us about a self-hosted deployment.</p>
+        <div class="hero-ctas" style="justify-content:center;">
+          <a class="btn btn-primary btn-lg" href="platform.html#running">View the quick start</a>
+          <a class="btn btn-outline-light btn-lg" href="contact.html">Contact us</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="index.html" class="brand"><span class="logo">E</span> Exprsn</a>
+        <p style="color:var(--exprsn-text-muted); font-size:.9375rem; max-width:320px; margin-top:.75rem;">One account for feed, messaging, groups, and live streaming — built on a self-hostable, single-process platform.</p>
+      </div>
+      <div>
+        <h5>Product</h5>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="index.html#get-started">Get started</a></li>
+          <li><a href="#" title="Coming soon">Sign in</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Developers</h5>
+        <ul>
+          <li><a href="platform.html">Architecture</a></li>
+          <li><a href="platform.html#modules">Module reference</a></li>
+          <li><a href="platform.html#running">Quick start</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Company</h5>
+        <ul>
+          <li><a href="about.html">About</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year>2026</span> Exprsn. All rights reserved.</span>
+      <span>Built on the Exprsn unified design system.</span>
+    </div>
+  </div>
+</footer>
+
+<button class="theme-fab" data-theme-fab aria-label="Toggle color theme">◐</button>
+<script src="assets/js/site.js"></script>
+</body>
+</html>

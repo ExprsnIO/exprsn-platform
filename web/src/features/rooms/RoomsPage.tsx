@@ -28,6 +28,7 @@ import { toMessage } from '@/lib/errors';
 import { roomApi, type Room } from '@/api/live';
 import { useWebRtcRoom } from './useWebRtcRoom';
 import { VideoTile } from './VideoTile';
+import { RoomPanel } from './RoomPanel';
 
 interface ActiveRoom {
   room: Room;
@@ -165,7 +166,8 @@ function RoomView({ active, onLeave }: { active: ActiveRoom; onLeave: () => void
   const cols = useMemo(() => Math.min(3, Math.ceil(Math.sqrt(tileCount))), [tileCount]);
 
   return (
-    <Stack spacing={2} sx={{ height: '100%' }}>
+    <Stack direction="row" spacing={2} sx={{ height: '100%' }}>
+      <Stack spacing={2} sx={{ flexGrow: 1, minWidth: 0, height: '100%' }}>
       <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
         <Typography variant="h6">{active.room.name}</Typography>
         <Chip
@@ -242,6 +244,8 @@ function RoomView({ active, onLeave }: { active: ActiveRoom; onLeave: () => void
           </Tooltip>
         </Stack>
       </Paper>
+      </Stack>
+      <RoomPanel room={active.room} currentUserId={user?.id} />
     </Stack>
   );
 }

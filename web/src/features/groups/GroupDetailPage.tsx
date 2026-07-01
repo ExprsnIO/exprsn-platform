@@ -45,6 +45,8 @@ import MessagesTab from './tabs/MessagesTab';
 import SubgroupsTab from './tabs/SubgroupsTab';
 import LiveTab from './tabs/LiveTab';
 import SecretsTab from './tabs/SecretsTab';
+import AppsTab from './tabs/AppsTab';
+import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined';
 
 /**
  * Tab registry — the single source of truth for the group's information
@@ -77,6 +79,7 @@ const TABS: TabDef[] = [
   { value: 'messages', label: 'Messages', icon: <ChatBubbleOutlineIcon />, Component: MessagesTab, visible: memberOnly },
   { value: 'channels', label: 'Channels', icon: <TagIcon />, Component: SubgroupsTab, visible: memberOrPublic },
   { value: 'live', label: 'Live', icon: <LiveTvOutlinedIcon />, Component: LiveTab, visible: (ctx) => ctx.can('goLive') },
+  { value: 'apps', label: 'Apps', icon: <AppsOutlinedIcon />, Component: AppsTab, visible: (ctx) => ctx.can('editGroup') },
   { value: 'secrets', label: 'Secrets', icon: <LockOutlinedIcon />, Component: SecretsTab, visible: (ctx) => ctx.can('manageSecrets') },
 ];
 

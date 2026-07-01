@@ -1,0 +1,1052 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.auth",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Auth/identity service lexicon for Bridge integration",
+      "key": "io.exprsn.auth"
+    }
+  },
+  "routes": [
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "health.db",
+      "type": "query",
+      "description": "Database health check",
+      "path": "/health/db",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "health.ca",
+      "type": "query",
+      "description": "CA connectivity health check",
+      "path": "/health/ca",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "wellKnown.openidConfiguration",
+      "type": "query",
+      "description": "OpenID Connect discovery document",
+      "path": "/.well-known/openid-configuration",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "wellKnown.jwks",
+      "type": "query",
+      "description": "JSON Web Key Set",
+      "path": "/.well-known/jwks.json",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "auth.register",
+      "type": "procedure",
+      "description": "Register a new user account",
+      "path": "/api/auth/register",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 10 },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "email": { "type": "string", "required": true },
+            "password": { "type": "string", "required": true },
+            "confirmPassword": { "type": "string" },
+            "displayName": { "type": "string" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "user": { "$ref": "#/defs/user" }
+          }
+        }
+      }
+    },
+    {
+      "id": "auth.login",
+      "type": "procedure",
+      "description": "Authenticate with email and password",
+      "path": "/api/auth/login",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 10 },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "email": { "type": "string", "required": true },
+            "password": { "type": "string", "required": true },
+            "rememberMe": { "type": "boolean" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "user": { "$ref": "#/defs/user" },
+            "token": { "type": "string" },
+            "mfaRequired": { "type": "boolean" },
+            "mfaToken": { "type": "string" }
+          }
+        }
+      }
+    },
+    {
+      "id": "auth.mfaVerify",
+      "type": "procedure",
+      "description": "Complete login by verifying an MFA code",
+      "path": "/api/auth/mfa/verify",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "auth.exchange",
+      "type": "procedure",
+      "description": "Exchange a single-use auth code for a session",
+      "path": "/api/auth/exchange",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "auth.logout",
+      "type": "procedure",
+      "description": "Log out the current session and revoke its CA token",
+      "path": "/api/auth/logout",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "auth.forgotPassword",
+      "type": "procedure",
+      "description": "Request a password reset token",
+      "path": "/api/auth/forgot-password",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "auth.resetPassword",
+      "type": "procedure",
+      "description": "Reset password using a reset token",
+      "path": "/api/auth/reset-password",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "auth.google",
+      "type": "query",
+      "description": "Begin Google OAuth login",
+      "path": "/api/auth/google",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "auth.googleCallback",
+      "type": "query",
+      "description": "Google OAuth callback",
+      "path": "/api/auth/google/callback",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "auth.github",
+      "type": "query",
+      "description": "Begin GitHub OAuth login",
+      "path": "/api/auth/github",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "auth.githubCallback",
+      "type": "query",
+      "description": "GitHub OAuth callback",
+      "path": "/api/auth/github/callback",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "auth.verifyEmail",
+      "type": "procedure",
+      "description": "Verify an email address with a token",
+      "path": "/api/auth/verify-email",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "auth.resendVerification",
+      "type": "procedure",
+      "description": "Resend an email verification token",
+      "path": "/api/auth/resend-verification",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "auth.changePassword",
+      "type": "procedure",
+      "description": "Change the current user's password",
+      "path": "/api/auth/change-password",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "auth.me",
+      "type": "query",
+      "description": "Get the current authenticated user",
+      "path": "/api/auth/me",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "auth.token",
+      "type": "procedure",
+      "description": "Re-mint a CA token for the current session",
+      "path": "/api/auth/token",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "mfa.setup",
+      "type": "procedure",
+      "description": "Begin MFA enrollment and generate backup codes",
+      "path": "/api/mfa/setup",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "mfa.verify",
+      "type": "procedure",
+      "description": "Verify and enable MFA",
+      "path": "/api/mfa/verify",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "mfa.validate",
+      "type": "procedure",
+      "description": "Validate an MFA TOTP or backup code",
+      "path": "/api/mfa/validate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "mfa.disable",
+      "type": "procedure",
+      "description": "Disable MFA for the current user",
+      "path": "/api/mfa/disable",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "mfa.regenerateBackupCodes",
+      "type": "procedure",
+      "description": "Regenerate MFA backup codes",
+      "path": "/api/mfa/regenerate-backup-codes",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "mfa.status",
+      "type": "query",
+      "description": "Get MFA status for the current user",
+      "path": "/api/mfa/status",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "sessions.list",
+      "type": "query",
+      "description": "List the current user's sessions",
+      "path": "/api/sessions",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "sessions.current",
+      "type": "query",
+      "description": "Get the current session",
+      "path": "/api/sessions/current",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "sessions.revoke",
+      "type": "procedure",
+      "description": "Revoke a specific session",
+      "path": "/api/sessions/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "sessions.revokeAll",
+      "type": "procedure",
+      "description": "Revoke all sessions except the current",
+      "path": "/api/sessions",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "sessions.refresh",
+      "type": "procedure",
+      "description": "Extend the current session lifetime",
+      "path": "/api/sessions/refresh",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "users.list",
+      "type": "query",
+      "description": "List users (admin only)",
+      "path": "/api/users",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "users.directory",
+      "type": "query",
+      "description": "Public people directory (safe fields only)",
+      "path": "/api/users/directory",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "users.profiles",
+      "type": "procedure",
+      "description": "Batch-fetch public profiles by ids",
+      "path": "/api/users/profiles",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "users.get",
+      "type": "query",
+      "description": "Get a user record (own or admin)",
+      "path": "/api/users/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "users.profile",
+      "type": "query",
+      "description": "Get a user's public profile projection",
+      "path": "/api/users/:id/profile",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "users.update",
+      "type": "procedure",
+      "description": "Update a user's profile (own only)",
+      "path": "/api/users/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "users.delete",
+      "type": "procedure",
+      "description": "Deactivate a user (own only)",
+      "path": "/api/users/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "users.groups",
+      "type": "query",
+      "description": "List a user's groups (own or admin)",
+      "path": "/api/users/:id/groups",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.list",
+      "type": "query",
+      "description": "List groups",
+      "path": "/api/groups",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.create",
+      "type": "procedure",
+      "description": "Create a group",
+      "path": "/api/groups",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.get",
+      "type": "query",
+      "description": "Get a group",
+      "path": "/api/groups/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.update",
+      "type": "procedure",
+      "description": "Update a group",
+      "path": "/api/groups/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.delete",
+      "type": "procedure",
+      "description": "Delete a group",
+      "path": "/api/groups/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.addMember",
+      "type": "procedure",
+      "description": "Add a member to a group",
+      "path": "/api/groups/:id/members",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.removeMember",
+      "type": "procedure",
+      "description": "Remove a member from a group",
+      "path": "/api/groups/:id/members/:userId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "tokens.generate",
+      "type": "procedure",
+      "description": "Generate a CA access token",
+      "path": "/api/tokens/generate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "tokens.validate",
+      "type": "procedure",
+      "description": "Validate a CA token and its permissions",
+      "path": "/api/tokens/validate",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "token": { "type": "string", "required": true },
+            "requiredPermissions": { "type": "array", "items": { "type": "string" } },
+            "resource": { "type": "string" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "valid": { "type": "boolean" },
+            "data": { "type": "object" }
+          }
+        }
+      }
+    },
+    {
+      "id": "tokens.revoke",
+      "type": "procedure",
+      "description": "Revoke a CA token",
+      "path": "/api/tokens/revoke",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "oauth2.authorize",
+      "type": "query",
+      "description": "OAuth2/OIDC authorization endpoint",
+      "path": "/api/oauth2/authorize",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "oauth2.authorizeConsent",
+      "type": "procedure",
+      "description": "Submit OAuth2 consent",
+      "path": "/api/oauth2/authorize",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "oauth2.token",
+      "type": "procedure",
+      "description": "OAuth2 token endpoint",
+      "path": "/api/oauth2/token",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "oauth2.revoke",
+      "type": "procedure",
+      "description": "OAuth2 token revocation endpoint",
+      "path": "/api/oauth2/revoke",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "oauth2.userinfo",
+      "type": "query",
+      "description": "OIDC userinfo endpoint",
+      "path": "/api/oauth2/userinfo",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "oauth2.introspect",
+      "type": "procedure",
+      "description": "OAuth2 token introspection endpoint",
+      "path": "/api/oauth2/introspect",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "saml.metadata",
+      "type": "query",
+      "description": "SAML service-provider metadata XML",
+      "path": "/api/saml/metadata",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "saml.login",
+      "type": "query",
+      "description": "Begin SAML SSO login",
+      "path": "/api/saml/login",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "saml.callback",
+      "type": "procedure",
+      "description": "SAML assertion consumer service",
+      "path": "/api/saml/callback",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "saml.logout",
+      "type": "query",
+      "description": "Begin SAML single logout",
+      "path": "/api/saml/logout",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "saml.logoutCallback",
+      "type": "procedure",
+      "description": "SAML single-logout service",
+      "path": "/api/saml/logout/callback",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "saml.providers",
+      "type": "query",
+      "description": "List configured SAML providers",
+      "path": "/api/saml/providers",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "saml.status",
+      "type": "query",
+      "description": "SAML configuration status",
+      "path": "/api/saml/status",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "organizations.create",
+      "type": "procedure",
+      "description": "Create an organization",
+      "path": "/api/organizations",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "organizations.list",
+      "type": "query",
+      "description": "List the current user's organizations",
+      "path": "/api/organizations",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "organizations.get",
+      "type": "query",
+      "description": "Get an organization",
+      "path": "/api/organizations/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "organizations.update",
+      "type": "procedure",
+      "description": "Update an organization",
+      "path": "/api/organizations/:id",
+      "method": "PATCH",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "organizations.delete",
+      "type": "procedure",
+      "description": "Delete an organization",
+      "path": "/api/organizations/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "organizations.members",
+      "type": "query",
+      "description": "List organization members",
+      "path": "/api/organizations/:id/members",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "organizations.addMember",
+      "type": "procedure",
+      "description": "Add a member to an organization",
+      "path": "/api/organizations/:id/members",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "organizations.removeMember",
+      "type": "procedure",
+      "description": "Remove a member from an organization",
+      "path": "/api/organizations/:id/members/:userId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "organizations.updateMember",
+      "type": "procedure",
+      "description": "Update an organization member's role",
+      "path": "/api/organizations/:id/members/:userId",
+      "method": "PATCH",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "organizations.transferOwnership",
+      "type": "procedure",
+      "description": "Transfer organization ownership",
+      "path": "/api/organizations/:id/transfer-ownership",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "applications.create",
+      "type": "procedure",
+      "description": "Create an OAuth2/OIDC application",
+      "path": "/api/applications",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "applications.list",
+      "type": "query",
+      "description": "List applications",
+      "path": "/api/applications",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "applications.get",
+      "type": "query",
+      "description": "Get an application",
+      "path": "/api/applications/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "applications.update",
+      "type": "procedure",
+      "description": "Update an application",
+      "path": "/api/applications/:id",
+      "method": "PATCH",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "applications.delete",
+      "type": "procedure",
+      "description": "Delete an application",
+      "path": "/api/applications/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "applications.regenerateSecret",
+      "type": "procedure",
+      "description": "Regenerate an application's client secret",
+      "path": "/api/applications/:id/regenerate-secret",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "applications.checkAccess",
+      "type": "query",
+      "description": "Check whether a user can access an application",
+      "path": "/api/applications/:id/check-access",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "roles.list",
+      "type": "query",
+      "description": "List roles",
+      "path": "/api/roles",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "roles.create",
+      "type": "procedure",
+      "description": "Create a role",
+      "path": "/api/roles",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "roles.get",
+      "type": "query",
+      "description": "Get a role",
+      "path": "/api/roles/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "roles.update",
+      "type": "procedure",
+      "description": "Update a role",
+      "path": "/api/roles/:id",
+      "method": "PATCH",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "roles.delete",
+      "type": "procedure",
+      "description": "Delete a role",
+      "path": "/api/roles/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "roles.assignUser",
+      "type": "procedure",
+      "description": "Assign a role to a user",
+      "path": "/api/roles/:id/assign-user",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "roles.revokeUser",
+      "type": "procedure",
+      "description": "Revoke a role from a user",
+      "path": "/api/roles/:id/revoke-user",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "roles.assignGroup",
+      "type": "procedure",
+      "description": "Assign a role to a group",
+      "path": "/api/roles/:id/assign-group",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "roles.revokeGroup",
+      "type": "procedure",
+      "description": "Revoke a role from a group",
+      "path": "/api/roles/:id/revoke-group",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "roles.permissions",
+      "type": "query",
+      "description": "List available permissions",
+      "path": "/api/roles/permissions",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "roles.userPermissions",
+      "type": "query",
+      "description": "Get effective permissions for a user",
+      "path": "/api/roles/users/:userId/permissions",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "roles.checkPermission",
+      "type": "procedure",
+      "description": "Check whether a user has a permission",
+      "path": "/api/roles/check-permission",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "roles.checkServiceAccess",
+      "type": "procedure",
+      "description": "Check whether a user can access a service",
+      "path": "/api/roles/check-service-access",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "config.get",
+      "type": "query",
+      "description": "Get an auth admin config section",
+      "path": "/api/config/:sectionId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "config.update",
+      "type": "procedure",
+      "description": "Update an auth admin config section",
+      "path": "/api/config/:sectionId",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 20 }
+    }
+  ],
+  "types": {
+    "user": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "email": { "type": "string" },
+        "emailVerified": { "type": "boolean" },
+        "displayName": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "bio": { "type": "string" },
+        "mfaEnabled": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "inactive", "suspended"] },
+        "lastLoginAt": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "group": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "organizationId": { "type": "string", "format": "uuid" },
+        "type": { "type": "string", "enum": ["system", "organization", "custom"] },
+        "permissions": { "type": "object" },
+        "parentId": { "type": "string", "format": "uuid" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "organization": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["enterprise", "team", "personal"] },
+        "ownerId": { "type": "string", "format": "uuid" },
+        "email": { "type": "string" },
+        "website": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "plan": { "type": "string", "enum": ["free", "starter", "professional", "enterprise"] },
+        "settings": { "type": "object" },
+        "status": { "type": "string", "enum": ["active", "suspended", "deleted"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "application": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "clientId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "organizationId": { "type": "string", "format": "uuid" },
+        "ownerId": { "type": "string", "format": "uuid" },
+        "type": { "type": "string", "enum": ["web", "native", "spa", "service", "m2m"] },
+        "clientType": { "type": "string", "enum": ["confidential", "public"] },
+        "redirectUris": { "type": "array", "items": { "type": "string" } },
+        "grantTypes": { "type": "array", "items": { "type": "string" } },
+        "scopes": { "type": "array", "items": { "type": "string" } },
+        "requirePkce": { "type": "boolean" },
+        "requireConsent": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "inactive", "revoked"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "role": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "organizationId": { "type": "string", "format": "uuid" },
+        "type": { "type": "string", "enum": ["system", "organization", "custom"] },
+        "isSystem": { "type": "boolean" },
+        "priority": { "type": "integer" },
+        "permissions": { "type": "array", "items": { "type": "string" } },
+        "serviceAccess": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "session": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "sessionId": { "type": "string" },
+        "userId": { "type": "string", "format": "uuid" },
+        "caTokenId": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "lastActivityAt": { "type": "string", "format": "date-time" },
+        "active": { "type": "boolean" }
+      }
+    },
+    "oauthToken": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "accessToken": { "type": "string" },
+        "accessTokenExpiresAt": { "type": "string", "format": "date-time" },
+        "refreshToken": { "type": "string" },
+        "refreshTokenExpiresAt": { "type": "string", "format": "date-time" },
+        "scope": { "type": "array", "items": { "type": "string" } },
+        "clientId": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "revoked": { "type": "boolean" },
+        "revokedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

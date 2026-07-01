@@ -7,6 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const interactionService = require('../services/interactionService');
+const heraldService = require('../services/heraldService');
 const { requireToken } = require('../middleware/auth');
 
 // All interaction routes need an authenticated user. requireToken validates the
@@ -147,6 +148,9 @@ router.post('/users/:id/follow', async (req, res) => {
     }
 
     const follow = await interactionService.followUser(userId, id);
+
+    // Notify the followed user (in-app bell). Fire-and-forget.
+    heraldService.notifyInteraction('follow', id, userId, {}).catch(() => {});
 
     res.status(201).json({ follow });
   } catch (error) {

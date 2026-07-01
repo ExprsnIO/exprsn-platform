@@ -1,0 +1,923 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.vault",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Vault (secrets) service lexicon for Bridge integration",
+      "key": "io.exprsn.vault"
+    }
+  },
+  "routes": [
+    {
+      "id": "secrets.list",
+      "type": "query",
+      "description": "List secrets (metadata only)",
+      "path": "/api/secrets/",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "secrets.get",
+      "type": "query",
+      "description": "Get a secret by path (optionally including its decrypted value)",
+      "path": "/api/secrets/:path(*)",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "secret": { "$ref": "#/defs/secret" }
+          }
+        }
+      }
+    },
+    {
+      "id": "secrets.create",
+      "type": "procedure",
+      "description": "Create a secret at the given path",
+      "path": "/api/secrets/:path(*)",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "key": { "type": "string", "required": true },
+            "value": { "type": "string", "required": true },
+            "encryptionKeyId": { "type": "string", "format": "uuid" },
+            "metadata": { "type": "object" },
+            "rotationPolicy": { "type": "object" },
+            "expiresAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "secret": { "$ref": "#/defs/secret" }
+          }
+        }
+      }
+    },
+    {
+      "id": "secrets.update",
+      "type": "procedure",
+      "description": "Update a secret's value or metadata",
+      "path": "/api/secrets/:path(*)",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "secrets.delete",
+      "type": "procedure",
+      "description": "Delete a secret",
+      "path": "/api/secrets/:path(*)",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "secrets.rotate",
+      "type": "procedure",
+      "description": "Rotate a secret's value",
+      "path": "/api/secrets/:path(*)/rotate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "keys.list",
+      "type": "query",
+      "description": "List encryption keys",
+      "path": "/api/keys/",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "keys.get",
+      "type": "query",
+      "description": "Get an encryption key by id",
+      "path": "/api/keys/:keyId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "keys.generate",
+      "type": "procedure",
+      "description": "Generate a new encryption key",
+      "path": "/api/keys/generate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "required": true },
+            "purpose": { "type": "string", "enum": ["general", "transit", "signing"] },
+            "rotationSchedule": { "type": "object" },
+            "expiresAt": { "type": "string", "format": "date-time" },
+            "metadata": { "type": "object" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "key": { "$ref": "#/defs/encryptionKey" }
+          }
+        }
+      }
+    },
+    {
+      "id": "keys.encrypt",
+      "type": "procedure",
+      "description": "Encrypt plaintext with a key (transit)",
+      "path": "/api/keys/encrypt",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "keys.decrypt",
+      "type": "procedure",
+      "description": "Decrypt ciphertext with a key (transit, sensitive)",
+      "path": "/api/keys/decrypt",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "keys.rotate",
+      "type": "procedure",
+      "description": "Rotate an encryption key",
+      "path": "/api/keys/:keyId/rotate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "keys.delete",
+      "type": "procedure",
+      "description": "Delete an encryption key",
+      "path": "/api/keys/:keyId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "credentials.list",
+      "type": "query",
+      "description": "List static credentials",
+      "path": "/api/credentials/",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "credentials.get",
+      "type": "query",
+      "description": "Get a credential by service and name (sensitive)",
+      "path": "/api/credentials/:service/:name",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "credentials.create",
+      "type": "procedure",
+      "description": "Create or store a credential",
+      "path": "/api/credentials/:service/:name",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "credentials.update",
+      "type": "procedure",
+      "description": "Update a credential (not implemented, returns 501)",
+      "path": "/api/credentials/:service/:name",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "credentials.delete",
+      "type": "procedure",
+      "description": "Delete a credential",
+      "path": "/api/credentials/:service/:name",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "credentials.database.generate",
+      "type": "procedure",
+      "description": "Generate dynamic database credentials",
+      "path": "/api/credentials/database/generate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "dynamic.database",
+      "type": "procedure",
+      "description": "Configure a dynamic database secret backend",
+      "path": "/api/dynamic/database",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "dynamic.apiKey",
+      "type": "procedure",
+      "description": "Configure a dynamic API-key secret backend",
+      "path": "/api/dynamic/api-key",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "dynamic.leases.list",
+      "type": "query",
+      "description": "List dynamic secret leases",
+      "path": "/api/dynamic/leases",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "dynamic.leases.renew",
+      "type": "procedure",
+      "description": "Renew a dynamic secret lease",
+      "path": "/api/dynamic/leases/:leaseId/renew",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "dynamic.leases.revoke",
+      "type": "procedure",
+      "description": "Revoke a dynamic secret lease",
+      "path": "/api/dynamic/leases/:leaseId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "audit.logs",
+      "type": "query",
+      "description": "Query audit logs",
+      "path": "/api/audit/logs",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "audit.stats",
+      "type": "query",
+      "description": "Get audit statistics",
+      "path": "/api/audit/stats",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "audit.export",
+      "type": "query",
+      "description": "Export audit logs as CSV",
+      "path": "/api/audit/export",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "admin.tokens.generate",
+      "type": "procedure",
+      "description": "Generate a vault access token",
+      "path": "/api/admin/tokens/generate",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "token": { "$ref": "#/defs/vaultToken" }
+          }
+        }
+      }
+    },
+    {
+      "id": "admin.tokens.list",
+      "type": "query",
+      "description": "List vault access tokens",
+      "path": "/api/admin/tokens",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "admin.tokens.get",
+      "type": "query",
+      "description": "Get a vault access token by id",
+      "path": "/api/admin/tokens/:tokenId",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "admin.tokens.revoke",
+      "type": "procedure",
+      "description": "Revoke a vault access token",
+      "path": "/api/admin/tokens/:tokenId/revoke",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.tokens.suspend",
+      "type": "procedure",
+      "description": "Suspend a vault access token",
+      "path": "/api/admin/tokens/:tokenId/suspend",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.tokens.reactivate",
+      "type": "procedure",
+      "description": "Reactivate a suspended vault access token",
+      "path": "/api/admin/tokens/:tokenId/reactivate",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.tokens.bulkRevoke",
+      "type": "procedure",
+      "description": "Bulk-revoke vault access tokens",
+      "path": "/api/admin/tokens/bulk/revoke",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.policies.create",
+      "type": "procedure",
+      "description": "Create an access policy",
+      "path": "/api/admin/policies",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.policies.list",
+      "type": "query",
+      "description": "List access policies",
+      "path": "/api/admin/policies",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "admin.policies.get",
+      "type": "query",
+      "description": "Get an access policy by id",
+      "path": "/api/admin/policies/:policyId",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "admin.policies.update",
+      "type": "procedure",
+      "description": "Update an access policy",
+      "path": "/api/admin/policies/:policyId",
+      "method": "PUT",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.policies.delete",
+      "type": "procedure",
+      "description": "Delete an access policy",
+      "path": "/api/admin/policies/:policyId",
+      "method": "DELETE",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.policies.suggest",
+      "type": "procedure",
+      "description": "Get AI-suggested policies for an entity",
+      "path": "/api/admin/policies/suggest",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.dashboard.stats",
+      "type": "query",
+      "description": "Get admin dashboard statistics",
+      "path": "/api/admin/dashboard/stats",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "admin.reports.access",
+      "type": "procedure",
+      "description": "Generate an access report",
+      "path": "/api/admin/reports/access",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.tokens.anomalies",
+      "type": "query",
+      "description": "Get anomalies detected for a token",
+      "path": "/api/admin/tokens/:tokenId/anomalies",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "admin.maintenance.purge",
+      "type": "procedure",
+      "description": "Purge expired tokens, leases, and audit data",
+      "path": "/api/admin/maintenance/purge",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "admin.maintenance.cacheClear",
+      "type": "procedure",
+      "description": "Clear the vault cache",
+      "path": "/api/admin/maintenance/cache/clear",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "groups.secrets.list",
+      "type": "query",
+      "description": "List secrets shared with a group (metadata only)",
+      "path": "/api/groups/:groupId/secrets",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "groups.secrets.share",
+      "type": "procedure",
+      "description": "Grant a group access to an existing secret",
+      "path": "/api/groups/:groupId/secrets/:path(*)/share",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "groups.secrets.revoke",
+      "type": "procedure",
+      "description": "Revoke a group's access to a secret",
+      "path": "/api/groups/:groupId/secrets/:path(*)/share",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "groups.secrets.reveal",
+      "type": "query",
+      "description": "Explicit, audited reveal of one shared secret's plaintext (group admin only)",
+      "path": "/api/groups/:groupId/secrets/:path(*)/reveal",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "config.get",
+      "type": "query",
+      "description": "Get a vault config section",
+      "path": "/api/config/:sectionId",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "config.update",
+      "type": "procedure",
+      "description": "Update a vault config section",
+      "path": "/api/config/:sectionId",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "connected",
+      "direction": "server->client",
+      "description": "Emitted after successful connect/auth with client id and welcome message",
+      "auth": "required"
+    },
+    {
+      "id": "subscribe",
+      "direction": "client->server",
+      "description": "Subscribe to one or more admin channels (joins rooms); payload must be an array",
+      "auth": "required"
+    },
+    {
+      "id": "unsubscribe",
+      "direction": "client->server",
+      "description": "Unsubscribe from one or more admin channels (leaves rooms); payload must be an array",
+      "auth": "required"
+    },
+    {
+      "id": "ping",
+      "direction": "client->server",
+      "description": "Heartbeat ping; server replies with pong",
+      "auth": "required"
+    },
+    {
+      "id": "pong",
+      "direction": "server->client",
+      "description": "Heartbeat reply with timestamp",
+      "auth": "required"
+    },
+    {
+      "id": "token:event",
+      "direction": "server->client",
+      "description": "Vault token lifecycle event (created/revoked/suspended) to the admin room",
+      "auth": "required"
+    },
+    {
+      "id": "policy:event",
+      "direction": "server->client",
+      "description": "Access policy change event to the admin room",
+      "auth": "required"
+    },
+    {
+      "id": "security:alert",
+      "direction": "server->client",
+      "description": "Security anomaly alert (critical/high severity) to the admin room",
+      "auth": "required"
+    },
+    {
+      "id": "stats:update",
+      "direction": "server->client",
+      "description": "Periodic statistics update to the admin room",
+      "auth": "required"
+    },
+    {
+      "id": "cache:stats",
+      "direction": "server->client",
+      "description": "Cache statistics update to the admin room",
+      "auth": "required"
+    },
+    {
+      "id": "audit:log",
+      "direction": "server->client",
+      "description": "Live audit log entry to the admin room",
+      "auth": "required"
+    },
+    {
+      "id": "notification",
+      "direction": "server->client",
+      "description": "Generic admin notification to the admin room",
+      "auth": "required"
+    },
+    {
+      "id": "server:shutdown",
+      "direction": "server->client",
+      "description": "Broadcast notice that the server is shutting down",
+      "auth": "none"
+    }
+  ],
+  "types": {
+    "secret": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "path": { "type": "string" },
+        "key": { "type": "string" },
+        "value": { "type": "string", "description": "Decrypted value, only when includeValue is set" },
+        "encryptionKeyId": { "type": "string", "format": "uuid" },
+        "version": { "type": "integer" },
+        "metadata": { "type": "object" },
+        "rotationPolicy": { "type": "object" },
+        "lastRotatedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "deprecated", "deleted"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "encryptionKey": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "algorithm": { "type": "string" },
+        "keyDerivation": { "type": "object" },
+        "version": { "type": "integer" },
+        "purpose": { "type": "string", "enum": ["general", "transit", "signing"] },
+        "rotationSchedule": { "type": "object" },
+        "lastRotatedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "rotating", "deprecated", "revoked"] },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "accessPolicy": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "policyType": { "type": "string", "enum": ["secret", "key", "credential", "global"] },
+        "rules": { "type": "object", "description": "Policy rules in JSONLex format" },
+        "entityTypes": { "type": "array", "items": { "type": "string" } },
+        "priority": { "type": "integer" },
+        "enforcementMode": { "type": "string", "enum": ["enforcing", "permissive", "audit"] },
+        "aiSuggested": { "type": "boolean" },
+        "aiConfidence": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "draft", "deprecated"] },
+        "createdBy": { "type": "string" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "vaultToken": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "tokenId": { "type": "string", "description": "Unique token identifier (prefix vt_)" },
+        "displayName": { "type": "string" },
+        "description": { "type": "string" },
+        "entityType": { "type": "string", "enum": ["user", "group", "organization", "service", "certificate"] },
+        "entityId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "permissions": { "type": "object" },
+        "pathPrefixes": { "type": "array", "items": { "type": "string" } },
+        "ipWhitelist": { "type": "array", "items": { "type": "string" } },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "maxUses": { "type": "integer" },
+        "usageCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["active", "revoked", "expired", "suspended"] },
+        "caTokenId": { "type": "string" },
+        "riskScore": { "type": "number" },
+        "lastUsedAt": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "lease": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "leaseId": { "type": "string" },
+        "secretType": { "type": "string", "description": "database, api_key, ssh_key, tls_cert" },
+        "secretPath": { "type": "string" },
+        "encryptionKeyId": { "type": "string", "format": "uuid" },
+        "ttl": { "type": "integer" },
+        "renewable": { "type": "boolean" },
+        "maxTTL": { "type": "integer" },
+        "renewCount": { "type": "integer" },
+        "lastRenewedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "expired", "revoked"] },
+        "revokedAt": { "type": "string", "format": "date-time" },
+        "revokedBy": { "type": "string" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "secretGroupAccess": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "secretId": { "type": "string", "format": "uuid" },
+        "groupId": { "type": "string", "format": "uuid" },
+        "permission": { "type": "string", "enum": ["read", "write", "manage"] },
+        "grantedBy": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "auditEntry": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "action": { "type": "string", "description": "read, create, update, delete, encrypt, decrypt, rotate" },
+        "resourceType": { "type": "string", "description": "secret, key, lease, credential" },
+        "resourceId": { "type": "string", "format": "uuid" },
+        "resourcePath": { "type": "string" },
+        "actor": { "type": "string" },
+        "actorIp": { "type": "string" },
+        "tokenId": { "type": "string", "format": "uuid" },
+        "success": { "type": "boolean" },
+        "errorMessage": { "type": "string" },
+        "metadata": { "type": "object" },
+        "duration": { "type": "integer" },
+        "requestId": { "type": "string", "format": "uuid" },
+        "userAgent": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

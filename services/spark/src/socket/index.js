@@ -7,6 +7,7 @@
 
 const { logger } = require('@exprsn/shared');
 const { deriveServiceToken } = require('@exprsn/shared/utils/serviceToken');
+const { getInternalHttpsAgent } = require('@exprsn/shared/utils/httpAgent');
 const axios = require('axios');
 const { Message, Conversation, Participant, MessageKey } = require('../models');
 const config = require('../config');
@@ -33,6 +34,65 @@ function buildServiceHeaders() {
   } catch (error) {
     logger.warn('Service identity not available for CA socket auth', { error: error.message });
     return {};
+  }
+}
+
+// In-platform notification ingest (HERALD_SERVICE_URL -> /moderator), which
+// emits onto the moderator /notifications socket the SPA bell listens to.
+const HERALD_URL = process.env.HERALD_SERVICE_URL || 'http://localhost:3014';
+
+/**
+ * Deliver one in-app notification via the moderator ingest endpoint. The moderator
+ * route is `POST /api/notifications` (single `channel`, not `channels`) and is
+ * guarded by the per-service HMAC token. Best-effort: never throws.
+ */
+async function notifyUser(userId, payload) {
+  try {
+    await axios.post(
+      `${HERALD_URL}/api/notifications`,
+      { userId, channel: 'in-app', ...payload },
+      {
+        timeout: 5000,
+        httpsAgent: getInternalHttpsAgent(),
+        headers: { 'Content-Type': 'application/json', ...buildServiceHeaders() }
+      }
+    );
+  } catch (err) {
+    logger.debug('notifyUser failed', { userId, error: err.message });
+  }
+}
+
+/**
+ * Notify a conversation's other active participants of a new message. Skips the
+ * sender and muted participants; encrypted message text is never included in the
+ * body (the recipient decrypts the real message in-app).
+ */
+async function notifyNewMessage({ conversationId, senderId, senderName, message }) {
+  try {
+    const conversation = await Conversation.findByPk(conversationId);
+    const participants = await Participant.findAll({ where: { conversationId, active: true } });
+    const title =
+      conversation && conversation.type === 'group'
+        ? `New message in ${conversation.name || 'group'}`
+        : `New message from ${senderName || 'someone'}`;
+    const body = message.encrypted
+      ? 'Sent you an encrypted message'
+      : (message.content || '').slice(0, 120);
+
+    await Promise.all(
+      participants
+        .filter((p) => p.userId !== senderId && !p.muted)
+        .map((p) =>
+          notifyUser(p.userId, {
+            type: 'message',
+            title,
+            body,
+            data: { conversationId, messageId: message.id, senderId, type: 'message' }
+          })
+        )
+    );
+  } catch (err) {
+    logger.debug('notifyNewMessage failed', { conversationId, error: err.message });
   }
 }
 
@@ -278,6 +338,14 @@ module.exports = function(io) {
             id: socket.userId,
             displayName: socket.tokenData?.displayName || 'User'
           }
+        });
+
+        // In-app notification to the other participants' bells (fire-and-forget).
+        notifyNewMessage({
+          conversationId,
+          senderId: socket.userId,
+          senderName: socket.tokenData?.displayName,
+          message
         });
 
         logger.info('Message sent', {

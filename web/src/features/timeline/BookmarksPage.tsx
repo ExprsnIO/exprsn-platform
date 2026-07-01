@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Stack, Typography } from '@mui/material';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
@@ -21,6 +22,7 @@ function patch(qc: ReturnType<typeof useQueryClient>, fn: (posts: Post[]) => Pos
  */
 export function BookmarksPage() {
   const userId = useAppStore((s) => s.user?.id);
+  const navigate = useNavigate();
   const qc = useQueryClient();
 
   const query = useQuery({
@@ -94,6 +96,7 @@ export function BookmarksPage() {
           isOwn={post.userId === userId}
           onToggleLike={(p) => likeMutation.mutate(p)}
           onToggleBookmark={(p) => unbookmarkMutation.mutate(p)}
+          onOpenDetail={(p) => navigate(`/feed/${p.id}`)}
           onUpdated={onUpdated}
           onDeleted={onDeleted}
         />

@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -15,6 +16,7 @@ import { namespace, connect } from '@/lib/realtime';
 import { useNamespaceStatus, type ConnState } from '@/lib/useRealtime';
 import { toMessage } from '@/lib/errors';
 import { timelineApi, type FeedResponse, type Post } from '@/api/timeline';
+import { prefetchApi } from '@/api/prefetch';
 import { Composer } from './Composer';
 import { PostCard, PostSkeleton } from './PostCard';
 
@@ -52,10 +54,19 @@ export function TimelinePage() {
   const userId = useAppStore((s) => s.user?.id);
   const conn = useNamespaceStatus(NS.timeline);
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
-  // Persisted across the session via TanStack Query cache; default to Home.
-  const kind = (qc.getQueryData<FeedKind>(['timeline', 'feedKind']) ?? 'home') as FeedKind;
-  const setKind = (k: FeedKind) => qc.setQueryData(['timeline', 'feedKind'], k);
+  // Active feed. Held in component state so toggling re-renders (the previous
+  // query-cache read had no observer, so setQueryData never re-rendered and the
+  // toggle was stuck on Home). Seeded from — and written back to — the query
+  // cache so the choice persists across navigation within the session.
+  const [kind, setKindState] = useState<FeedKind>(
+    () => (qc.getQueryData<FeedKind>(['timeline', 'feedKind']) ?? 'home') as FeedKind,
+  );
+  const setKind = (k: FeedKind) => {
+    qc.setQueryData(['timeline', 'feedKind'], k);
+    setKindState(k);
+  };
 
   const query = useQuery({
     queryKey: feedKey(kind),
@@ -144,6 +155,17 @@ export function TimelinePage() {
     },
   });
 
+  // Best-effort: once the Home feed has loaded, warm the user's prefetch cache
+  // for the next visit. Queued (not blocking) and fully fire-and-forget — any
+  // permission/availability error is swallowed so it never disrupts the feed.
+  const warmedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (kind !== 'home' || !userId || !query.isSuccess) return;
+    if (warmedFor.current === userId) return;
+    warmedFor.current = userId;
+    prefetchApi.schedulePrefetch(userId, 'high').catch(() => {});
+  }, [kind, userId, query.isSuccess]);
+
   const onPosted = (post: Post) =>
     patchPosts(qc, kind, (posts) => (posts.some((p) => p.id === post.id) ? posts : [post, ...posts]));
 
@@ -199,6 +221,7 @@ export function TimelinePage() {
           isOwn={post.userId === userId}
           onToggleLike={(p) => likeMutation.mutate(p)}
           onToggleBookmark={(p) => bookmarkMutation.mutate(p)}
+          onOpenDetail={(p) => navigate(`/feed/${p.id}`)}
           onUpdated={onUpdated}
           onDeleted={onDeleted}
         />

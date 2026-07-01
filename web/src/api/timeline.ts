@@ -10,10 +10,32 @@ export interface Like {
   createdAt?: string;
 }
 
-/** A media attachment persisted on a post; `id` is a FileVault fileId. */
+/**
+ * A media attachment persisted on a post (`Post.media` JSON array).
+ *
+ * Two addressing modes, checked in this order by the renderer:
+ *  - `url` — a directly-loadable URL (public/external asset or an HLS manifest
+ *    for live/video). Used by demo/seed content and link unfurls.
+ *  - `id`  — a FileVault fileId; bytes are bearer-authed and fetched as a blob
+ *    (the default for user uploads via the Composer).
+ *
+ * `type` drives how it renders: 'image' (grid + lightbox), 'video' (inline
+ * player), 'live' (HLS card → player), 'gallery' (alias for a run of images).
+ */
 export interface PostMedia {
-  id: string;
+  /** FileVault fileId (bearer-authed) — present on user uploads. */
+  id?: string;
+  /** 'image' | 'video' | 'live' | 'gallery' | string. */
   type?: string;
+  /** Directly-loadable URL (image src, mp4, or HLS .m3u8). */
+  url?: string;
+  /** Poster/preview image URL (videos and live cards). */
+  thumbnailUrl?: string;
+  /** Optional caption/title (shown on live + video cards). */
+  title?: string;
+  /** Intrinsic dimensions, when known (reserved for layout). */
+  width?: number;
+  height?: number;
   [k: string]: unknown;
 }
 
@@ -171,6 +193,9 @@ export const timelineApi = {
       ...(opts.groupId ? { groupId: opts.groupId } : {}),
     });
   },
+  /** A single post by id (full-content / permalink view). 403 if private + not author. */
+  getPost: (postId: string) =>
+    http.get<{ success: boolean; post: Post }>(`/timeline/api/posts/${postId}`),
   /** Edit a post's content (author-gated; 403 for non-authors). */
   updatePost: (postId: string, content: string) =>
     http.put<{ success: boolean; post: Post }>(`/timeline/api/posts/${postId}`, { content }),

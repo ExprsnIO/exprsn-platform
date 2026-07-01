@@ -10,6 +10,7 @@ import {
   Tabs,
   TextField,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -146,13 +147,27 @@ function PrefetchTab({ onToast }: { onToast: (m: string) => void }) {
     <Stack spacing={2}>
       <QueryState query={stats}>
         {(raw) => {
-          // Shape: { success, data: { name, waiting, active, completed, failed, delayed } }
+          // Shape: { success, data: { name, backend, waiting, ..., rabbit?: { depth, dlq } } }
           const s = ((raw.data as Record<string, unknown>) ?? raw) as Record<string, unknown>;
+          const backend = (s.backend as string) || 'redis';
+          const rabbit = s.rabbit as { depth?: number; dlq?: number } | undefined;
           return (
-            <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-              {['waiting', 'active', 'completed', 'failed', 'delayed'].map((k) => (
-                <StatCard key={k} label={k} value={(s[k] as number) ?? 0} />
-              ))}
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="body2" color="text.secondary">Queue backend:</Typography>
+                <Chip size="small" color={backend === 'rabbitmq' ? 'secondary' : 'default'} label={backend} />
+              </Stack>
+              <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                {['waiting', 'active', 'completed', 'failed', 'delayed'].map((k) => (
+                  <StatCard key={k} label={k} value={(s[k] as number) ?? 0} />
+                ))}
+                {backend === 'rabbitmq' && rabbit && (
+                  <>
+                    <StatCard label="rabbit depth" value={rabbit.depth ?? 0} />
+                    <StatCard label="rabbit DLQ" value={rabbit.dlq ?? 0} hint="dead-lettered" />
+                  </>
+                )}
+              </Stack>
             </Stack>
           );
         }}

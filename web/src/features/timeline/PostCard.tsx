@@ -26,11 +26,13 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { timelineApi, type Post } from '@/api/timeline';
 import { toMessage } from '@/lib/errors';
+import { ShareToChatDialog } from '@/features/messages/ShareToChatDialog';
 import { absoluteTime, initials, relativeTime, shortHandle } from './util';
 import { PostMediaGrid } from './PostMedia';
 
@@ -50,6 +52,7 @@ export function PostCard({
   onComment,
   onToggleRepost,
   onToggleBookmark,
+  onOpenDetail,
   onUpdated,
   onDeleted,
 }: {
@@ -58,6 +61,12 @@ export function PostCard({
   onToggleLike: (post: Post) => void;
   /** When provided, the comment affordance becomes a button. */
   onComment?: (post: Post) => void;
+  /**
+   * When provided, the timestamp links to the full-content view and the comment
+   * affordance opens it (unless `onComment` overrides). Used by feed lists to
+   * navigate to the post permalink; omitted on the detail page itself.
+   */
+  onOpenDetail?: (post: Post) => void;
   /** When provided, the repost affordance becomes a toggle button. */
   onToggleRepost?: (post: Post) => void;
   /** When provided, a bookmark toggle is shown. */
@@ -74,6 +83,7 @@ export function PostCard({
 
   const canManage = isOwn && (!!onUpdated || !!onDeleted);
   const [menuEl, setMenuEl] = useState<null | HTMLElement>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [draft, setDraft] = useState(post.content);
@@ -109,7 +119,15 @@ export function PostCard({
               {isOwn ? 'You' : shortHandle(post.userId)}
             </Typography>
             <Tooltip title={absoluteTime(post.createdAt)}>
-              <Typography variant="caption" color="text.secondary" sx={{ cursor: 'default' }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                onClick={onOpenDetail ? () => onOpenDetail(post) : undefined}
+                sx={{
+                  cursor: onOpenDetail ? 'pointer' : 'default',
+                  '&:hover': onOpenDetail ? { textDecoration: 'underline' } : undefined,
+                }}
+              >
                 · {relativeTime(post.createdAt)}
               </Typography>
             </Tooltip>
@@ -146,10 +164,13 @@ export function PostCard({
               </Box>
             </Tooltip>
 
-            {onComment ? (
-              <Tooltip title="Comment">
+            {onComment || onOpenDetail ? (
+              <Tooltip title={onComment ? 'Comment' : 'View thread'}>
                 <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
-                  <IconButton size="small" onClick={() => onComment(post)}>
+                  <IconButton
+                    size="small"
+                    onClick={() => (onComment ? onComment(post) : onOpenDetail?.(post))}
+                  >
                     <ChatBubbleOutlineIcon fontSize="small" />
                   </IconButton>
                   <Typography variant="caption">{post.commentCount ?? 0}</Typography>
@@ -199,6 +220,14 @@ export function PostCard({
                 </Box>
               </Tooltip>
             )}
+
+            <Tooltip title="Share to chat">
+              <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconButton size="small" onClick={() => setShareOpen(true)}>
+                  <SendOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Tooltip>
           </Stack>
         </Box>
       </Stack>
@@ -290,6 +319,23 @@ export function PostCard({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Share this post into a chat (link card) */}
+      <ShareToChatDialog
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title="Share post to chat"
+        payload={{
+          attachments: [
+            {
+              kind: 'link',
+              url: `/feed/${post.id}`,
+              title: post.content ? post.content.slice(0, 60) : 'Timeline post',
+              subtitle: 'Timeline post',
+            },
+          ],
+        }}
+      />
     </Paper>
   );
 }

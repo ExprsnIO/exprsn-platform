@@ -14,9 +14,14 @@ import {
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import AddReactionIcon from '@mui/icons-material/AddReaction';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
+import ReplyIcon from '@mui/icons-material/Reply';
+import ForwardIcon from '@mui/icons-material/Forward';
+import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
+import PushPinIcon from '@mui/icons-material/PushPin';
 import type { Message } from '@/api/spark';
 import { useE2eeStore } from '@/lib/e2eeStore';
 import { formatTime, initials, shortId } from './util';
+import { MessageAttachments } from './MessageAttachments';
 
 const QUICK_EMOJI = ['👍', '❤️', '😂', '🎉', '🙏'];
 
@@ -24,16 +29,30 @@ export function MessageItem({
   message,
   currentUserId,
   nameById,
+  parentSenderLabel,
+  canPin,
   onEdit,
   onDelete,
   onReact,
+  onReply,
+  onForward,
+  onPin,
+  onUnpin,
 }: {
   message: Message;
   currentUserId: string;
   nameById: Record<string, string>;
+  /** Sender label of the message this one replies to (shown as a quote chip). */
+  parentSenderLabel?: string;
+  /** Whether the viewer may pin/unpin (group admins/owners). */
+  canPin?: boolean;
   onEdit: (id: string, text: string) => void;
   onDelete: (id: string) => void;
   onReact: (id: string, emoji: string) => void;
+  onReply?: (message: Message) => void;
+  onForward?: (message: Message, decryptedText: string | null) => void;
+  onPin?: (id: string) => void;
+  onUnpin?: (id: string) => void;
 }) {
   const decrypt = useE2eeStore((s) => s.decrypt);
   const [text, setText] = useState<string | null>(message.encrypted ? null : message.content);
@@ -129,6 +148,23 @@ export function MessageItem({
           </Typography>
         )}
 
+        {message.parentMessageId && !message.deleted && (
+          <Box
+            sx={{
+              borderLeft: 2,
+              borderColor: mine ? 'primary.contrastText' : 'primary.main',
+              opacity: 0.8,
+              pl: 1,
+              mb: 0.5,
+            }}
+          >
+            <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+              <ReplyIcon sx={{ fontSize: 13 }} />
+              Reply to {parentSenderLabel || 'a message'}
+            </Typography>
+          </Box>
+        )}
+
         {editing ? (
           <TextField
             size="small"
@@ -149,7 +185,16 @@ export function MessageItem({
           body
         )}
 
+        {!message.deleted && Array.isArray(message.attachments) && message.attachments.length > 0 && (
+          <MessageAttachments attachments={message.attachments} mine={mine} />
+        )}
+
         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
+          {message.isPinned && !message.deleted && (
+            <Tooltip title="Pinned">
+              <PushPinIcon sx={{ fontSize: 13, opacity: 0.8 }} />
+            </Tooltip>
+          )}
           <Typography variant="caption" sx={{ opacity: 0.7 }}>
             {formatTime(message.createdAt)}
             {message.edited && !message.deleted ? ' · edited' : ''}
@@ -180,11 +225,9 @@ export function MessageItem({
           <IconButton size="small" onClick={(e) => setEmojiEl(e.currentTarget)}>
             <AddReactionIcon sx={{ fontSize: 16 }} />
           </IconButton>
-          {mine && (
-            <IconButton size="small" onClick={(e) => setMenuEl(e.currentTarget)}>
-              <MoreVertIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          )}
+          <IconButton size="small" onClick={(e) => setMenuEl(e.currentTarget)}>
+            <MoreVertIcon sx={{ fontSize: 16 }} />
+          </IconButton>
         </Box>
       )}
 
@@ -206,23 +249,69 @@ export function MessageItem({
       </Menu>
 
       <Menu anchorEl={menuEl} open={!!menuEl} onClose={() => setMenuEl(null)}>
-        <MenuItem
-          onClick={() => {
-            setDraft(text ?? '');
-            setEditing(true);
-            setMenuEl(null);
-          }}
-        >
-          Edit
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            onDelete(message.id);
-            setMenuEl(null);
-          }}
-        >
-          Delete
-        </MenuItem>
+        {onReply && (
+          <MenuItem
+            onClick={() => {
+              onReply(message);
+              setMenuEl(null);
+            }}
+          >
+            <ReplyIcon fontSize="small" sx={{ mr: 1 }} /> Reply
+          </MenuItem>
+        )}
+        {onForward && (
+          <MenuItem
+            onClick={() => {
+              onForward(message, text);
+              setMenuEl(null);
+            }}
+          >
+            <ForwardIcon fontSize="small" sx={{ mr: 1 }} /> Forward
+          </MenuItem>
+        )}
+        {canPin &&
+          (message.isPinned
+            ? onUnpin && (
+                <MenuItem
+                  onClick={() => {
+                    onUnpin(message.id);
+                    setMenuEl(null);
+                  }}
+                >
+                  <PushPinIcon fontSize="small" sx={{ mr: 1 }} /> Unpin
+                </MenuItem>
+              )
+            : onPin && (
+                <MenuItem
+                  onClick={() => {
+                    onPin(message.id);
+                    setMenuEl(null);
+                  }}
+                >
+                  <PushPinOutlinedIcon fontSize="small" sx={{ mr: 1 }} /> Pin
+                </MenuItem>
+              ))}
+        {mine && [
+          <MenuItem
+            key="edit"
+            onClick={() => {
+              setDraft(text ?? '');
+              setEditing(true);
+              setMenuEl(null);
+            }}
+          >
+            Edit
+          </MenuItem>,
+          <MenuItem
+            key="delete"
+            onClick={() => {
+              onDelete(message.id);
+              setMenuEl(null);
+            }}
+          >
+            Delete
+          </MenuItem>,
+        ]}
       </Menu>
     </Stack>
   );

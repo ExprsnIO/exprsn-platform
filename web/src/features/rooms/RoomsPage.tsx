@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -19,6 +20,8 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import CallEndIcon from '@mui/icons-material/CallEnd';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
+import ScreenShareIcon from '@mui/icons-material/ScreenShare';
+import StopScreenShareIcon from '@mui/icons-material/StopScreenShare';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useAppStore } from '@/app/store';
 import { toMessage } from '@/lib/errors';
@@ -134,8 +137,19 @@ function RoomView({ active, onLeave }: { active: ActiveRoom; onLeave: () => void
   const user = useAppStore((s) => s.user);
   const displayName = user?.displayName || user?.firstName || user?.email || 'You';
 
-  const { status, error, localStream, peers, audioEnabled, videoEnabled, toggleAudio, toggleVideo, leave } =
-    useWebRtcRoom(active.room.id, { displayName, password: active.password });
+  const {
+    status,
+    error,
+    localStream,
+    peers,
+    audioEnabled,
+    videoEnabled,
+    isScreenSharing,
+    toggleAudio,
+    toggleVideo,
+    toggleScreenShare,
+    leave,
+  } = useWebRtcRoom(active.room.id, { displayName, password: active.password });
 
   const handleLeave = () => {
     leave();
@@ -187,11 +201,11 @@ function RoomView({ active, onLeave }: { active: ActiveRoom; onLeave: () => void
       >
         <VideoTile
           stream={localStream}
-          label={`${displayName} (you)`}
+          label={`${displayName} (you)${isScreenSharing ? ' · sharing' : ''}`}
           muted
-          mirrored
+          mirrored={!isScreenSharing}
           audioEnabled={audioEnabled}
-          videoEnabled={videoEnabled}
+          videoEnabled={isScreenSharing ? true : videoEnabled}
         />
         {peers.map((p) => (
           <VideoTile
@@ -216,6 +230,11 @@ function RoomView({ active, onLeave }: { active: ActiveRoom; onLeave: () => void
               {videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
             </IconButton>
           </Tooltip>
+          <Tooltip title={isScreenSharing ? 'Stop sharing screen' : 'Share screen'}>
+            <IconButton color={isScreenSharing ? 'primary' : 'default'} onClick={() => void toggleScreenShare()}>
+              {isScreenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Leave room">
             <IconButton color="error" onClick={handleLeave}>
               <CallEndIcon />
@@ -229,9 +248,33 @@ function RoomView({ active, onLeave }: { active: ActiveRoom; onLeave: () => void
 
 export function RoomsPage() {
   const [active, setActive] = useState<ActiveRoom | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const autoJoined = useRef(false);
+
+  // Deep-link join: a chat "Join call" card navigates to /rooms?join=<code>.
+  // Resolve the room by code and enter it once.
+  useEffect(() => {
+    const code = searchParams.get('join');
+    if (!code || autoJoined.current || active) return;
+    autoJoined.current = true;
+    roomApi
+      .getRoomByCode(code.trim())
+      .then(({ room }) => setActive({ room }))
+      .catch((e) => setJoinError(toMessage(e)))
+      .finally(() => {
+        searchParams.delete('join');
+        setSearchParams(searchParams, { replace: true });
+      });
+  }, [searchParams, active, setSearchParams]);
 
   return (
     <Box sx={{ height: '100%' }}>
+      {joinError && !active && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setJoinError(null)}>
+          {joinError}
+        </Alert>
+      )}
       {active ? (
         <RoomView active={active} onLeave={() => setActive(null)} />
       ) : (

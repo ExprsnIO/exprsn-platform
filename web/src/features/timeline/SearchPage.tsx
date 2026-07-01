@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   useInfiniteQuery,
   useMutation,
@@ -44,6 +45,7 @@ function patch(
  */
 export function SearchPage() {
   const userId = useAppStore((s) => s.user?.id);
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [input, setInput] = useState('');
   const [q, setQ] = useState('');
@@ -205,6 +207,7 @@ export function SearchPage() {
               isOwn={post.userId === userId}
               onToggleLike={(p) => likeMutation.mutate(p)}
               onToggleBookmark={(p) => bookmarkMutation.mutate(p)}
+              onOpenDetail={(p) => navigate(`/feed/${p.id}`)}
               onUpdated={onUpdated}
               onDeleted={onDeleted}
             />

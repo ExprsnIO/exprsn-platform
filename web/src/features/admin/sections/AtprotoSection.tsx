@@ -83,6 +83,9 @@ function OverviewTab() {
             <StatCard label="Queue waiting" value={d.queue?.waiting ?? 0} />
             <StatCard label="Queue active" value={d.queue?.active ?? 0} />
             <StatCard label="Queue failed" value={d.queue?.failed ?? 0} />
+            {d.moderationDlq != null && (
+              <StatCard label="DID moderation DLQ" value={d.moderationDlq} hint="dead-lettered DID items" />
+            )}
           </Stack>
         )}
       </QueryState>

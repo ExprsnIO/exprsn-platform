@@ -5,6 +5,7 @@ import { useE2eeStore } from '@/lib/e2eeStore';
 import { encryptMessage } from '@/lib/crypto';
 import { emitSpark, onSpark, sparkSocket } from '@/lib/sparkRealtime';
 import type { PresenceStatus } from '@/lib/sparkRealtime';
+import { sendEncryptedMessage, type SendOptions } from './send';
 
 const messagesKey = (id: string) => ['spark', 'messages', id] as const;
 
@@ -200,18 +201,8 @@ export function useConversation(conversationId: string, currentUserId: string) {
   );
 
   const send = useCallback(
-    async (text: string) => {
-      if (!keyFingerprint) throw new Error('Encryption is locked.');
-      const { encryptedContent, recipientKeys } = await encryptForConversation(text);
-      emitSpark('send:message', {
-        conversationId,
-        encrypted: true,
-        encryptedContent,
-        senderKeyFingerprint: keyFingerprint,
-        recipientKeys,
-      });
-    },
-    [encryptForConversation, keyFingerprint, conversationId],
+    (text: string, opts?: SendOptions) => sendEncryptedMessage(conversationId, text, opts),
+    [conversationId],
   );
 
   const edit = useCallback(

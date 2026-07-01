@@ -1,0 +1,452 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.atproto",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "AT-Protocol / Bluesky bridge: firehose ingest, labeler, label firehose, and did:exprsn identity",
+      "key": "io.exprsn.atproto"
+    }
+  },
+  "routes": [
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check ({ ok, enabled, transport })",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "identity.get",
+      "type": "query",
+      "description": "Active labeler DID + signing key + published state",
+      "path": "/identity",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "serviceRecord.get",
+      "type": "query",
+      "description": "The app.bsky.labeler.service declaration record",
+      "path": "/service-record",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "stats.get",
+      "type": "query",
+      "description": "Label counts, last seq, inbound count, moderation queue counts",
+      "path": "/stats",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "inboundLabels.list",
+      "type": "query",
+      "description": "INGEST: labels consumed from external labelers",
+      "path": "/inbound-labels",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "externalLabelers.list",
+      "type": "query",
+      "description": "Subscriptions + live health (status, lastEventAt, connectAttempts, heartbeatAt, lastError)",
+      "path": "/external-labelers",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "externalLabelers.add",
+      "type": "procedure",
+      "description": "Subscribe to a labeler (DID or wss URL); worker reconciles + connects",
+      "path": "/external-labelers",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "externalLabelers.remove",
+      "type": "procedure",
+      "description": "Unsubscribe from a labeler (deactivate, or purge with ?purge)",
+      "path": "/external-labelers",
+      "method": "DELETE",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "feedRecord.get",
+      "type": "query",
+      "description": "The app.bsky.feed.generator record + uri to publish",
+      "path": "/feed-record",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "userDids.list",
+      "type": "query",
+      "description": "Per-user DIDs; mints did:exprsn lazily",
+      "path": "/users/:userId/dids",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "userDids.link",
+      "type": "procedure",
+      "description": "Link did:web/did:plc (must resolve; starts unverified)",
+      "path": "/users/:userId/dids",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "userDids.challenge",
+      "type": "procedure",
+      "description": "Issue a proof-of-control challenge token",
+      "path": "/users/:userId/dids/challenge",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "userDids.verify",
+      "type": "procedure",
+      "description": "Verify control (well-known file for web, profile desc for plc)",
+      "path": "/users/:userId/dids/verify",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "userDids.unlink",
+      "type": "procedure",
+      "description": "Unlink a DID (method ∈ web/plc)",
+      "path": "/users/:userId/dids/:method",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "labels.verify",
+      "type": "procedure",
+      "description": "INGEST: resolve issuer DID + verify a label signature (pure read)",
+      "path": "/labels/verify",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "labels.apply",
+      "type": "procedure",
+      "description": "OUTGEST: manually sign + emit a label (operator action)",
+      "path": "/labels",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "labels.negate",
+      "type": "procedure",
+      "description": "Retract all our labels for a URI (queued to the worker)",
+      "path": "/labels/negate",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "wellKnown.didJson",
+      "type": "query",
+      "description": "Labeler DID document (#atproto_label key + #atproto_labeler service)",
+      "path": "/.well-known/did.json",
+      "method": "GET",
+      "auth": "none",
+      "rootMount": true,
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "wellKnown.atprotoDid",
+      "type": "query",
+      "description": "The labeler DID (text/plain)",
+      "path": "/.well-known/atproto-did",
+      "method": "GET",
+      "auth": "none",
+      "rootMount": true,
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "labels.query",
+      "type": "query",
+      "description": "com.atproto.label.queryLabels: query the labels we issue",
+      "path": "/xrpc/com.atproto.label.queryLabels",
+      "method": "GET",
+      "auth": "none",
+      "rootMount": true,
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "uriPatterns": {
+              "type": "array",
+              "items": { "type": "string" },
+              "required": true
+            },
+            "sources": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "limit": { "type": "integer" },
+            "cursor": { "type": "string" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "cursor": { "type": "string" },
+            "labels": {
+              "type": "array",
+              "items": { "$ref": "#/defs/label" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "identity.resolveDid",
+      "type": "query",
+      "description": "com.exprsn.identity.resolveDid: resolve a DID to its document",
+      "path": "/xrpc/com.exprsn.identity.resolveDid",
+      "method": "GET",
+      "auth": "none",
+      "rootMount": true,
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "did": {
+              "type": "string",
+              "required": true
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": { "$ref": "#/defs/didDocument" }
+      }
+    },
+    {
+      "id": "feed.describeGenerator",
+      "type": "query",
+      "description": "app.bsky.feed.describeFeedGenerator → { did, feeds:[{uri}] }",
+      "path": "/xrpc/app.bsky.feed.describeFeedGenerator",
+      "method": "GET",
+      "auth": "none",
+      "rootMount": true,
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "feed.getSkeleton",
+      "type": "query",
+      "description": "app.bsky.feed.getFeedSkeleton → curated feed (ingested posts minus active !hide)",
+      "path": "/xrpc/app.bsky.feed.getFeedSkeleton",
+      "method": "GET",
+      "auth": "none",
+      "rootMount": true,
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "labels.subscribe",
+      "type": "subscription",
+      "description": "com.atproto.label.subscribeLabels: framed #labels stream (backfill + live) over WebSocket; ?cursor=N",
+      "path": "/xrpc/com.atproto.label.subscribeLabels",
+      "method": "GET",
+      "auth": "none",
+      "rootMount": true,
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    }
+  ],
+  "types": {
+    "label": {
+      "type": "object",
+      "properties": {
+        "seq": { "type": "integer" },
+        "ver": { "type": "integer" },
+        "src": { "type": "string" },
+        "uri": { "type": "string" },
+        "cid": { "type": "string" },
+        "val": { "type": "string" },
+        "neg": { "type": "boolean" },
+        "cts": { "type": "string", "format": "date-time" },
+        "exp": { "type": "string", "format": "date-time" },
+        "sig": { "type": "bytes" },
+        "signingKeyId": { "type": "string" },
+        "moderationCaseId": { "type": "string", "format": "uuid" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "inboundLabel": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "labelerEndpoint": { "type": "string" },
+        "srcSeq": { "type": "integer" },
+        "ver": { "type": "integer" },
+        "src": { "type": "string" },
+        "uri": { "type": "string" },
+        "cid": { "type": "string" },
+        "val": { "type": "string" },
+        "neg": { "type": "boolean" },
+        "cts": { "type": "string", "format": "date-time" },
+        "exp": { "type": "string", "format": "date-time" },
+        "verified": { "type": "boolean" }
+      }
+    },
+    "externalLabeler": {
+      "type": "object",
+      "properties": {
+        "endpoint": { "type": "string" },
+        "did": { "type": "string" },
+        "cursor": { "type": "integer" },
+        "active": { "type": "boolean" },
+        "status": {
+          "type": "string",
+          "enum": ["idle", "connecting", "connected", "disconnected"]
+        },
+        "lastEventAt": { "type": "string", "format": "date-time" },
+        "connectAttempts": { "type": "integer" },
+        "heartbeatAt": { "type": "string", "format": "date-time" },
+        "lastError": { "type": "string" },
+        "lastConnectedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "userDid": {
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "format": "uuid" },
+        "didExprsn": { "type": "string" },
+        "didWeb": { "type": "string" },
+        "didWebVerified": { "type": "boolean" },
+        "didWebProof": { "type": "string" },
+        "didPlc": { "type": "string" },
+        "didPlcVerified": { "type": "boolean" },
+        "didPlcProof": { "type": "string" }
+      }
+    },
+    "feedSkeletonItem": {
+      "type": "object",
+      "properties": {
+        "post": { "type": "string" }
+      }
+    },
+    "didDocument": {
+      "type": "object",
+      "properties": {
+        "@context": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "id": { "type": "string" },
+        "alsoKnownAs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "verificationMethod": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "service": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    }
+  }
+}

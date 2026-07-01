@@ -6,6 +6,8 @@
 
 require('dotenv').config();
 
+const rabbit = require('@exprsn/shared/utils/rabbit');
+
 module.exports = {
   // Application
   app: {
@@ -19,6 +21,28 @@ module.exports = {
     count: parseInt(process.env.PREFETCH_WORKER_COUNT || '20', 10),
     concurrency: parseInt(process.env.PREFETCH_JOB_CONCURRENCY || '100', 10),
     batchSize: parseInt(process.env.PREFETCH_BATCH_SIZE || '50', 10)
+  },
+
+  // Queue backend selection
+  //   PREFETCH_QUEUE_BACKEND = 'redis' (default, Bull/Redis) | 'rabbitmq'
+  // When 'rabbitmq' but the broker is disabled/unreachable, the enqueue path
+  // transparently falls back to the Bull/Redis queue.
+  queue: {
+    backend: process.env.PREFETCH_QUEUE_BACKEND || 'redis' // 'redis' | 'rabbitmq'
+  },
+
+  // RabbitMQ (optional queue backend)
+  //   RABBITMQ_URL or RABBITMQ_USER/PASSWORD/HOST/PORT (consumed by the shared helper)
+  //   RABBITMQ_ENABLED=false  -> broker disabled (rabbit.isEnabled() === false)
+  //   PREFETCH_RABBIT_EXCHANGE (default 'exprsn.prefetch')
+  //   PREFETCH_RABBIT_QUEUE    (default 'exprsn.prefetch'); DLQ is '<queue>.dlq'
+  //   PREFETCH_RABBIT_PREFETCH (default 20) — consumer in-flight message limit
+  rabbit: {
+    enabled: rabbit.isEnabled(),
+    exchange: process.env.PREFETCH_RABBIT_EXCHANGE || 'exprsn.prefetch',
+    queue: process.env.PREFETCH_RABBIT_QUEUE || 'exprsn.prefetch',
+    routingKey: 'prefetch',
+    prefetch: parseInt(process.env.PREFETCH_RABBIT_PREFETCH || '20', 10)
   },
 
   // Redis (Cache)

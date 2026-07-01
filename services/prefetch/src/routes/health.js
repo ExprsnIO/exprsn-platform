@@ -139,12 +139,18 @@ router.get('/', asyncHandler(async (req, res) => {
 
     checks.checks.queue = {
       status: isBackedUp ? 'degraded' : 'healthy',
+      backend: queueStats.backend,
       waiting: queueStats.waiting,
       active: queueStats.active,
       completed: queueStats.completed,
       failed: queueStats.failed,
       delayed: queueStats.delayed
     };
+
+    // Surface RabbitMQ broker depths when that backend is active.
+    if (queueStats.rabbit) {
+      checks.checks.queue.rabbit = queueStats.rabbit;
+    }
 
     if (isBackedUp) {
       checks.checks.queue.warning = 'High job backlog detected';

@@ -165,7 +165,7 @@ router.get('/trending/topics', asyncHandler(async (req, res) => {
       }
     },
     order: [
-      ['score', 'DESC'],
+      ['trendScore', 'DESC'],
       ['createdAt', 'DESC']
     ],
     limit,
@@ -190,13 +190,13 @@ router.get('/trending/hashtags', asyncHandler(async (req, res) => {
   // Get trending hashtags
   const trending = await Trending.findAll({
     where: {
-      type: 'hashtag',
+      topicType: 'hashtag',
       createdAt: {
         [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000)
       }
     },
     order: [
-      ['score', 'DESC'],
+      ['trendScore', 'DESC'],
       ['createdAt', 'DESC']
     ],
     limit,
@@ -207,8 +207,8 @@ router.get('/trending/hashtags', asyncHandler(async (req, res) => {
     success: true,
     hashtags: trending.map(t => ({
       tag: t.topic,
-      score: t.score,
-      postCount: t.metadata?.postCount || 0
+      score: t.trendScore,
+      postCount: t.postsCount || 0
     })),
     count: trending.length,
     pagination: { page, limit, hasMore: trending.length === limit }

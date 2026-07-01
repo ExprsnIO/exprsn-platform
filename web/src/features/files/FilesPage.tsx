@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -32,6 +32,9 @@ import {
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CreateNewFolderOutlinedIcon from '@mui/icons-material/CreateNewFolderOutlined';
+import NoteAddOutlinedIcon from '@mui/icons-material/NoteAddOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
@@ -47,9 +50,14 @@ import { toMessage } from '@/lib/errors';
 import { filevaultApi, type DirectoryItem, type FileItem } from '@/api/filevault';
 import { ShareDialog } from './ShareDialog';
 import { VersionHistoryDialog } from './VersionHistoryDialog';
-import { FilePreview } from './FilePreview';
 import { MoveDialog } from './MoveDialog';
-import { formatBytes, formatDate } from './util';
+import { formatBytes, formatDate, isEditable, isImageType } from './util';
+
+// Heavy, dialog-only components (Monaco, xlsx/mammoth, canvas) are lazy-loaded
+// so they don't bloat the initial bundle — they fetch on first open.
+const FilePreview = lazy(() => import('./FilePreview').then((m) => ({ default: m.FilePreview })));
+const FileEditor = lazy(() => import('./FileEditor').then((m) => ({ default: m.FileEditor })));
+const ImageAnnotator = lazy(() => import('./ImageAnnotator').then((m) => ({ default: m.ImageAnnotator })));
 
 interface Crumb {
   id: string | null;
@@ -146,6 +154,10 @@ export function FilesPage() {
   const [moveTarget, setMoveTarget] = useState<DirectoryItem | null>(null);
   const [renameTarget, setRenameTarget] = useState<DirectoryItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editorTarget, setEditorTarget] = useState<FileItem | null>(null);
+  const [annotateTarget, setAnnotateTarget] = useState<FileItem | null>(null);
+  const [renameFileTarget, setRenameFileTarget] = useState<FileItem | null>(null);
+  const [newFileOpen, setNewFileOpen] = useState(false);
 
   const explorer = useQuery({
     queryKey: [...EXPLORER_KEY, dirId],
@@ -233,6 +245,28 @@ export function FilesPage() {
     onSuccess: () => {
       setToast('Folder renamed');
       setRenameTarget(null);
+      invalidate();
+    },
+    onError: (err) => setToast(toMessage(err)),
+  });
+
+  // Create a new blank file and open it straight in the editor.
+  const createFile = useMutation({
+    mutationFn: (name: string) => filevaultApi.createFile(name, dirId),
+    onSuccess: (res) => {
+      setToast('File created');
+      setNewFileOpen(false);
+      invalidate();
+      if (res?.file) setEditorTarget(res.file as FileItem);
+    },
+    onError: (err) => setToast(toMessage(err)),
+  });
+
+  const renameFileMut = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => filevaultApi.renameFile(id, name),
+    onSuccess: () => {
+      setToast('File renamed');
+      setRenameFileTarget(null);
       invalidate();
     },
     onError: (err) => setToast(toMessage(err)),
@@ -332,6 +366,13 @@ export function FilesPage() {
                 ),
               }}
             />
+            <Button
+              variant="outlined"
+              startIcon={<NoteAddOutlinedIcon />}
+              onClick={() => setNewFileOpen(true)}
+            >
+              New file
+            </Button>
             <Button
               variant="outlined"
               startIcon={<CreateNewFolderOutlinedIcon />}
@@ -610,6 +651,25 @@ export function FilesPage() {
                             </Tooltip>
                           ) : (
                             <>
+                              {isEditable(f.mimetype, f.name) && (
+                                <Tooltip title="Edit">
+                                  <IconButton size="small" onClick={() => setEditorTarget(f)}>
+                                    <EditOutlinedIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                              {isImageType(f.mimetype) && (
+                                <Tooltip title="Annotate">
+                                  <IconButton size="small" onClick={() => setAnnotateTarget(f)}>
+                                    <BrushOutlinedIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                              <Tooltip title="Rename">
+                                <IconButton size="small" onClick={() => setRenameFileTarget(f)}>
+                                  <DriveFileRenameOutlineIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
                               <Tooltip title="Download">
                                 <IconButton size="small" onClick={() => download.mutate(f)}>
                                   <DownloadIcon fontSize="small" />
@@ -687,20 +747,67 @@ export function FilesPage() {
           onMove={(dest) => moveFolder.mutate({ id: moveTarget.id, dest })}
         />
       )}
-      {previewTarget && (
-        <FilePreview
-          file={previewTarget}
-          open={!!previewTarget}
-          onClose={() => setPreviewTarget(null)}
-          onDownload={(f) => download.mutate(f)}
-          onShare={(f) => {
-            setPreviewTarget(null);
-            setShareTarget(f);
-          }}
-          onVersions={(f) => {
-            setPreviewTarget(null);
-            setVersionTarget(f);
-          }}
+      <Suspense fallback={null}>
+        {previewTarget && (
+          <FilePreview
+            file={previewTarget}
+            open={!!previewTarget}
+            onClose={() => setPreviewTarget(null)}
+            onDownload={(f) => download.mutate(f)}
+            onShare={(f) => {
+              setPreviewTarget(null);
+              setShareTarget(f);
+            }}
+            onVersions={(f) => {
+              setPreviewTarget(null);
+              setVersionTarget(f);
+            }}
+          />
+        )}
+        {editorTarget && (
+          <FileEditor
+            file={editorTarget}
+            open={!!editorTarget}
+            onClose={() => setEditorTarget(null)}
+            onSaved={(m) => {
+              setToast(m);
+              invalidate();
+            }}
+          />
+        )}
+        {annotateTarget && (
+          <ImageAnnotator
+            file={annotateTarget}
+            open={!!annotateTarget}
+            onClose={() => setAnnotateTarget(null)}
+            onSaved={(m) => {
+              setToast(m);
+              invalidate();
+            }}
+          />
+        )}
+      </Suspense>
+      {newFileOpen && (
+        <NameDialog
+          title="New file"
+          label="File name (e.g. notes.md)"
+          confirmLabel="Create & edit"
+          open={newFileOpen}
+          busy={createFile.isPending}
+          onClose={() => setNewFileOpen(false)}
+          onSubmit={(name) => createFile.mutate(name)}
+        />
+      )}
+      {renameFileTarget && (
+        <NameDialog
+          title="Rename file"
+          label="New name"
+          initial={renameFileTarget.name}
+          confirmLabel="Rename"
+          open={!!renameFileTarget}
+          busy={renameFileMut.isPending}
+          onClose={() => setRenameFileTarget(null)}
+          onSubmit={(name) => renameFileMut.mutate({ id: renameFileTarget.id, name })}
         />
       )}
       {shareTarget && (

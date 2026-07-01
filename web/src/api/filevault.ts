@@ -198,6 +198,20 @@ async function fetchObjectUrl(path: string): Promise<string> {
   return URL.createObjectURL(blob);
 }
 
+/** Bearer-authed fetch returning the raw Response (for .text()/.arrayBuffer()). */
+async function fetchRaw(path: string): Promise<Response> {
+  const headers = new Headers();
+  const token = tokenStore.get();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const res = await fetch(`${config.apiBase}${path}`, { headers, credentials: 'include' });
+  if (!res.ok) {
+    let body: Record<string, unknown> = {};
+    try { body = await res.json(); } catch { /* non-JSON */ }
+    throw new ApiError(res.status, body);
+  }
+  return res;
+}
+
 /** Parse a filename out of a Content-Disposition header, falling back. */
 function filenameFromDisposition(header: string | null, fallback: string): string {
   if (!header) return fallback;
@@ -231,6 +245,45 @@ export const filevaultApi = {
 
   /** Upload a new version of an existing file (multipart; multer field `file`). */
   updateFile: (fileId: string, file: File, changeDescription?: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (changeDescription) form.append('changeDescription', changeDescription);
+    return http.put<{ success: boolean; file: FileItem }>(
+      `/filevault/api/files/${fileId}`,
+      undefined,
+      { rawBody: form },
+    );
+  },
+
+  // --- In-browser editor: create / rename / read-content / save-as-new-version ---
+
+  /** Create a new blank (or seeded) file. */
+  createFile: (name: string, directoryId?: string | null, content?: string) =>
+    http.post<{ success: boolean; file: FileItem }>('/filevault/api/files/create', {
+      name,
+      directoryId: directoryId ?? null,
+      content: content ?? '',
+    }),
+
+  /** Rename a file (metadata only — no new version). */
+  renameFile: (fileId: string, name: string) =>
+    http.patch<{ success: boolean; file: FileItem }>(`/filevault/api/files/${fileId}/rename`, { name }),
+
+  /** Fetch a file's content as decoded text (for the editor / CSV / JSON). */
+  getTextContent: (fileId: string): Promise<string> =>
+    fetchRaw(`/filevault/api/files/${fileId}/download`).then((r) => r.text()),
+
+  /** Fetch a file's content as an ArrayBuffer (for docx/xlsx viewers). */
+  getArrayBuffer: (fileId: string): Promise<ArrayBuffer> =>
+    fetchRaw(`/filevault/api/files/${fileId}/download`).then((r) => r.arrayBuffer()),
+
+  /**
+   * Save edited content as a NEW VERSION. `data` may be text or a Blob (e.g. an
+   * annotated-image canvas export). Reuses updateFile (PUT → new version).
+   */
+  saveContent: (fileId: string, data: Blob | string, filename: string, changeDescription?: string) => {
+    const blob = typeof data === 'string' ? new Blob([data], { type: 'text/plain;charset=utf-8' }) : data;
+    const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
     const form = new FormData();
     form.append('file', file);
     if (changeDescription) form.append('changeDescription', changeDescription);

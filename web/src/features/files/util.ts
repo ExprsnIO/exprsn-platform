@@ -45,6 +45,67 @@ export function isTextType(mimetype?: string): boolean {
   );
 }
 
+/** True for Markdown files. */
+export function isMarkdown(mimetype?: string, name?: string): boolean {
+  return mimetype === 'text/markdown' || /\.(md|markdown)$/i.test(name || '');
+}
+
+/** True for video mimetypes (inline <video> player). */
+export function isVideoType(mimetype?: string): boolean {
+  return !!mimetype && mimetype.startsWith('video/');
+}
+
+/** True for audio mimetypes (inline <audio> player). */
+export function isAudioType(mimetype?: string): boolean {
+  return !!mimetype && mimetype.startsWith('audio/');
+}
+
+/** True for CSV/TSV files (rendered as a table). */
+export function isCsvType(mimetype?: string, name?: string): boolean {
+  return mimetype === 'text/csv' || mimetype === 'text/tab-separated-values' || /\.(csv|tsv)$/i.test(name || '');
+}
+
+/** True for JSON files. */
+export function isJsonType(mimetype?: string, name?: string): boolean {
+  return mimetype === 'application/json' || mimetype === 'text/json' || /\.json$/i.test(name || '');
+}
+
+/** True for Office documents we can render read-only (docx/xlsx). */
+export function isOfficeType(mimetype?: string, name?: string): boolean {
+  const n = name || '';
+  return (
+    mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    /\.(docx|xlsx)$/i.test(n)
+  );
+}
+
+/** True for files the in-browser editor can open + save (text/code/markdown/json/csv). */
+export function isEditable(mimetype?: string, name?: string): boolean {
+  return isTextType(mimetype) || isMarkdown(mimetype, name) || isCsvType(mimetype, name) || isJsonType(mimetype, name);
+}
+
+/** Map a file to a Monaco language id (best-effort by extension, then mimetype). */
+export function monacoLanguageFor(mimetype?: string, name?: string): string {
+  const ext = (name || '').toLowerCase().split('.').pop() || '';
+  const byExt: Record<string, string> = {
+    js: 'javascript', mjs: 'javascript', cjs: 'javascript', jsx: 'javascript',
+    ts: 'typescript', tsx: 'typescript', json: 'json', md: 'markdown', markdown: 'markdown',
+    html: 'html', htm: 'html', css: 'css', scss: 'scss', less: 'less',
+    py: 'python', rb: 'ruby', go: 'go', rs: 'rust', java: 'java', c: 'c', h: 'c',
+    cpp: 'cpp', cc: 'cpp', cs: 'csharp', php: 'php', sh: 'shell', bash: 'shell',
+    yml: 'yaml', yaml: 'yaml', xml: 'xml', sql: 'sql', csv: 'plaintext', txt: 'plaintext',
+    dockerfile: 'dockerfile', ini: 'ini', toml: 'ini',
+  };
+  if (byExt[ext]) return byExt[ext];
+  if (mimetype === 'application/json') return 'json';
+  if (mimetype === 'text/markdown') return 'markdown';
+  if (mimetype === 'text/html') return 'html';
+  if (mimetype === 'text/css') return 'css';
+  if (mimetype === 'application/xml') return 'xml';
+  return 'plaintext';
+}
+
 /**
  * Convert a `<input type="datetime-local">` value to whole seconds from now,
  * clamped to >= 1. Returns undefined for an empty/past value.

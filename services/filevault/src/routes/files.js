@@ -18,6 +18,22 @@ const {
   asyncHandler
 } = require('../middleware');
 
+// Infer a sensible mimetype for a newly-created (blank) file from its extension,
+// so the SPA opens it in the right editor/preview. Defaults to text/plain.
+const EXT_MIME = {
+  md: 'text/markdown', markdown: 'text/markdown', txt: 'text/plain', log: 'text/plain',
+  js: 'text/javascript', mjs: 'text/javascript', cjs: 'text/javascript', jsx: 'text/javascript',
+  ts: 'text/typescript', tsx: 'text/typescript', json: 'application/json', csv: 'text/csv',
+  html: 'text/html', htm: 'text/html', css: 'text/css', scss: 'text/css',
+  py: 'text/x-python', rb: 'text/x-ruby', go: 'text/x-go', rs: 'text/x-rust',
+  java: 'text/x-java', c: 'text/x-c', h: 'text/x-c', cpp: 'text/x-c++', sh: 'text/x-sh',
+  yml: 'text/yaml', yaml: 'text/yaml', xml: 'application/xml', sql: 'text/x-sql', env: 'text/plain'
+};
+function mimeFromName(name) {
+  const ext = String(name).toLowerCase().split('.').pop();
+  return EXT_MIME[ext] || 'text/plain';
+}
+
 /**
  * Upload file
  * POST /api/files/upload
@@ -53,6 +69,53 @@ router.post('/upload',
         createdAt: file.createdAt
       }
     });
+  })
+);
+
+/**
+ * Create a new (blank or seeded) file — used by the in-browser editor's
+ * "New file" action. JSON body: { name, directoryId?, content?, visibility? }.
+ * POST /api/files/create
+ */
+router.post('/create',
+  authenticate,
+  requirePermissions({ write: true }),
+  asyncHandler(async (req, res) => {
+    const name = String(req.body.name || '').trim();
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'NAME_REQUIRED' });
+    }
+    const file = await fileService.uploadFile({
+      userId: req.userId,
+      buffer: Buffer.from(typeof req.body.content === 'string' ? req.body.content : '', 'utf8'),
+      filename: name,
+      directoryId: req.body.directoryId || null,
+      tags: [],
+      metadata: {},
+      mimetype: mimeFromName(name),
+      visibility: req.body.visibility
+    });
+    res.status(201).json({
+      success: true,
+      file: {
+        id: file.id, name: file.name, path: file.path, size: file.size,
+        mimetype: file.mimetype, version: file.currentVersion, createdAt: file.createdAt
+      }
+    });
+  })
+);
+
+/**
+ * Rename a file (metadata only — no new version).
+ * PATCH /api/files/:fileId/rename   body: { name }
+ */
+router.patch('/:fileId/rename',
+  authenticate,
+  requirePermissions({ write: true }),
+  validateUUID('fileId'),
+  asyncHandler(async (req, res) => {
+    const file = await fileService.renameFile(req.params.fileId, req.userId, req.body.name);
+    res.json({ success: true, file: { id: file.id, name: file.name, version: file.currentVersion } });
   })
 );
 

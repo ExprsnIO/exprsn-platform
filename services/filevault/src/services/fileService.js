@@ -248,6 +248,23 @@ async function deleteFile(fileId, userId) {
 }
 
 /**
+ * Rename a file (metadata only — does not create a new content version).
+ */
+async function renameFile(fileId, userId, name) {
+  const clean = String(name || '').trim();
+  if (!clean) throw new Error('INVALID_NAME');
+
+  const file = await File.findOne({ where: { id: fileId, userId, isDeleted: false } });
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  await file.update({ name: clean });
+  logger.info(`File renamed: ${fileId} -> ${clean}`);
+  return file;
+}
+
+/**
  * List files in directory
  */
 async function listFiles(userId, directoryId = null, options = {}) {
@@ -479,6 +496,7 @@ module.exports = {
   downloadFile,
   downloadFileStream,
   updateFile,
+  renameFile,
   deleteFile,
   listTrash,
   restoreFile,

@@ -6,8 +6,10 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const ModerationAction = require('../models/ModerationAction');
-const ModerationCase = require('../models/ModerationCase');
+// Use the INITIALIZED Sequelize models (sequelize-index), not the raw factory
+// functions in ../models/* — `require('../models/ModerationAction')` returns a
+// `(sequelize) => Model` factory with no .findAll, so the legacy import 500'd.
+const { ModerationAction, ModerationCase } = require('../models/sequelize-index');
 const moderationActions = require('../services/moderationActions');
 const logger = require('../utils/logger');
 
@@ -22,31 +24,20 @@ router.get('/recent', async (req, res) => {
 
     const actions = await ModerationAction.findAll({
       limit: parseInt(limit),
-      order: [['created_at', 'DESC']],
-      attributes: [
-        'id',
-        'action_type',
-        'content_type',
-        'content_id',
-        'source_service',
-        'reason',
-        'moderator_id',
-        'created_at',
-        'metadata'
-      ],
-      raw: true
+      order: [['performedAt', 'DESC']]
     });
 
-    // Format actions for frontend
+    // Format actions for frontend (model getters are camelCase; the table has
+    // `action`/`performed_by`/`performed_at`, not action_type/moderator_id).
     const formattedActions = actions.map(action => ({
       id: action.id,
-      actionType: action.action_type,
-      contentType: action.content_type,
-      contentId: action.content_id,
-      sourceService: action.source_service,
+      actionType: action.action,
+      contentType: action.contentType,
+      contentId: action.contentId,
+      sourceService: action.sourceService,
       reason: action.reason || 'No reason provided',
-      moderator: action.moderator_id || 'System',
-      timestamp: action.created_at,
+      moderator: action.performedBy || 'System',
+      timestamp: action.performedAt,
       metadata: action.metadata
     }));
 
@@ -104,11 +95,8 @@ router.get('/content/:contentType/:contentId', async (req, res) => {
     const { contentType, contentId } = req.params;
 
     const actions = await ModerationAction.findAll({
-      where: {
-        content_type: contentType,
-        content_id: contentId
-      },
-      order: [['created_at', 'DESC']]
+      where: { contentType, contentId },
+      order: [['performedAt', 'DESC']]
     });
 
     res.json({
@@ -183,33 +171,19 @@ router.post('/execute', async (req, res) => {
 router.get('/providers/status', async (req, res) => {
   try {
     const config = require('../config');
+    const ai = config.ai || {};
     const providers = [];
 
-    // Check Claude AI
-    if (config.ai.claude.enabled && config.ai.claude.apiKey) {
-      providers.push({
-        name: 'Claude',
-        available: true,
-        model: config.ai.claude.model || 'claude-3-5-sonnet-20241022'
-      });
+    // Optional-chain each provider — config.ai may omit a provider key entirely
+    // (e.g. no `deepseek`), which must not 500 the whole status endpoint.
+    if (ai.claude && ai.claude.enabled && ai.claude.apiKey) {
+      providers.push({ name: 'Claude', available: true, model: ai.claude.model || 'claude-3-5-sonnet-20241022' });
     }
-
-    // Check OpenAI
-    if (config.ai.openai.enabled && config.ai.openai.apiKey) {
-      providers.push({
-        name: 'OpenAI',
-        available: true,
-        model: config.ai.openai.model || 'gpt-4'
-      });
+    if (ai.openai && ai.openai.enabled && ai.openai.apiKey) {
+      providers.push({ name: 'OpenAI', available: true, model: ai.openai.model || 'gpt-4' });
     }
-
-    // Check DeepSeek
-    if (config.ai.deepseek.enabled && config.ai.deepseek.apiKey) {
-      providers.push({
-        name: 'DeepSeek',
-        available: true,
-        model: config.ai.deepseek.model || 'deepseek-chat'
-      });
+    if (ai.deepseek && ai.deepseek.enabled && ai.deepseek.apiKey) {
+      providers.push({ name: 'DeepSeek', available: true, model: ai.deepseek.model || 'deepseek-chat' });
     }
 
     // If no providers configured, add placeholder

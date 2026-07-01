@@ -1,339 +1,182 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * Workflow Integration Routes
- * Handles workflow management and automated moderation
+ * Workflow Routes
+ * Admin CRUD + manual execution for moderation workflows, backed
+ * by the local workflowEngine (durable Bull runtime). Replaces the
+ * former external Workflow-service proxy.
+ *
+ * Whole router is admin-only.
  * ═══════════════════════════════════════════════════════════
  */
 
 const express = require('express');
 const router = express.Router();
-const workflowService = require('../services/workflowIntegration');
 const logger = require('../src/utils/logger');
+const requireAdmin = require('../src/middleware/requireAdmin');
+const engine = require('../services/workflowEngine');
+
+router.use(requireAdmin);
+
+/** Sample context used when Execute is invoked without one. */
+function sampleContext() {
+  const text = 'This is a sample content item for workflow testing.';
+  return {
+    contentType: 'text',
+    contentId: 'sample',
+    sourceService: 'manual',
+    userId: null,
+    contentText: text,
+    scores: {},
+    content: { contentType: 'text', contentText: text, sourceService: 'manual' }
+  };
+}
+
+// ── Execution history (declared before param routes) ──────────────────────────
+
+/**
+ * GET /api/workflows/executions
+ * Recent workflow executions.
+ */
+router.get('/executions', async (req, res) => {
+  try {
+    const executions = await engine.listExecutions(50);
+    res.json({ success: true, executions });
+  } catch (error) {
+    logger.error('Failed to list executions', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to list executions' });
+  }
+});
+
+/**
+ * GET /api/workflows/executions/recent
+ * Alias for /executions.
+ */
+router.get('/executions/recent', async (req, res) => {
+  try {
+    const executions = await engine.listExecutions(50);
+    res.json({ success: true, executions });
+  } catch (error) {
+    logger.error('Failed to list executions', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to list executions' });
+  }
+});
+
+/**
+ * GET /api/workflows/executions/:id
+ * A single execution record.
+ */
+router.get('/executions/:id', async (req, res) => {
+  try {
+    const execution = await engine.getExecution(req.params.id);
+    if (!execution) {
+      return res.status(404).json({ success: false, error: 'Execution not found' });
+    }
+    res.json({ success: true, execution });
+  } catch (error) {
+    logger.error('Failed to get execution', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to get execution' });
+  }
+});
+
+// ── Workflow listing ──────────────────────────────────────────────────────────
 
 /**
  * GET /api/workflows
- * List all active moderation workflows
+ * List all workflows.
  */
 router.get('/', async (req, res) => {
   try {
-    const workflows = await workflowService.listActiveWorkflows();
-
-    res.json({
-      success: true,
-      workflows,
-      count: workflows.length
-    });
-
+    const workflows = await engine.listWorkflows();
+    res.json({ success: true, workflows, count: workflows.length });
   } catch (error) {
     logger.error('Failed to list workflows', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to list workflows'
-    });
+    res.status(500).json({ success: false, error: 'Failed to list workflows' });
   }
 });
 
 /**
  * GET /api/workflows/active
- * Get active workflows for dashboard display
+ * Enabled workflows only.
  */
 router.get('/active', async (req, res) => {
   try {
-    const workflows = await workflowService.listActiveWorkflows();
-
-    // Format for dashboard display
-    const formatted = workflows.map(wf => ({
-      id: wf.id,
-      name: wf.name,
-      description: wf.description,
-      enabled: wf.enabled,
-      executionCount: wf.executionCount || 0,
-      updatedAt: wf.updatedAt
-    }));
-
-    res.json(formatted);
-
+    const workflows = (await engine.listWorkflows()).filter((w) => w && w.enabled !== false);
+    res.json({ success: true, workflows, count: workflows.length });
   } catch (error) {
-    logger.error('Failed to get active workflows', { error: error.message });
-    res.status(500).json([]);
+    logger.error('Failed to list active workflows', { error: error.message });
+    res.status(500).json({ success: false, error: 'Failed to list active workflows' });
   }
 });
 
+// ── Workflow CRUD ─────────────────────────────────────────────────────────────
+
 /**
  * POST /api/workflows
- * Create a new moderation workflow
+ * Create a workflow (id generated if missing).
  */
 router.post('/', async (req, res) => {
   try {
-    const { name, description, trigger, steps, enabled, tags } = req.body;
-
-    // Validation
-    if (!name || !steps || !Array.isArray(steps)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: name, steps'
-      });
+    const spec = req.body || {};
+    if (!spec.name && !spec.id) {
+      return res.status(400).json({ success: false, error: 'Missing required field: name' });
     }
-
-    const result = await workflowService.createWorkflow({
-      name,
-      description,
-      trigger,
-      steps,
-      enabled,
-      tags
-    });
-
-    if (result.success) {
-      res.status(201).json(result);
-    } else {
-      res.status(500).json(result);
-    }
-
+    const workflow = await engine.saveWorkflow(spec);
+    res.status(201).json({ success: true, workflow });
   } catch (error) {
     logger.error('Failed to create workflow', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create workflow'
-    });
+    res.status(500).json({ success: false, error: 'Failed to create workflow' });
   }
 });
 
 /**
  * PUT /api/workflows/:id
- * Update a workflow
+ * Update a workflow (merges over the existing definition).
  */
 router.put('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const updates = req.body;
-
-    const result = await workflowService.updateWorkflow(id, updates);
-
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(500).json(result);
+    const existing = await engine.getWorkflow(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Workflow not found' });
     }
-
+    const merged = { ...existing, ...(req.body || {}), id: req.params.id };
+    const workflow = await engine.saveWorkflow(merged);
+    res.json({ success: true, workflow });
   } catch (error) {
     logger.error('Failed to update workflow', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update workflow'
-    });
+    res.status(500).json({ success: false, error: 'Failed to update workflow' });
   }
 });
 
 /**
  * DELETE /api/workflows/:id
- * Delete a workflow
+ * Remove a workflow.
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const result = await workflowService.deleteWorkflow(id);
-
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(500).json(result);
-    }
-
+    const result = await engine.deleteWorkflow(req.params.id);
+    res.json({ success: true, ...result });
   } catch (error) {
     logger.error('Failed to delete workflow', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete workflow'
-    });
+    res.status(500).json({ success: false, error: 'Failed to delete workflow' });
   }
 });
 
 /**
  * POST /api/workflows/:id/execute
- * Execute a workflow manually
+ * Manually run a workflow (durable, queued). Returns ids the UI can poll.
  */
 router.post('/:id/execute', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { data } = req.body;
-
-    const result = await workflowService.executeWorkflow(id, data);
-
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(500).json(result);
+    const workflow = await engine.getWorkflow(req.params.id);
+    if (!workflow) {
+      return res.status(404).json({ success: false, error: 'Workflow not found' });
     }
-
+    const context = (req.body && req.body.context) || sampleContext();
+    const result = await engine.runWorkflow(req.params.id, context, 'manual');
+    res.json({ success: true, ...result });
   } catch (error) {
     logger.error('Failed to execute workflow', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to execute workflow'
-    });
-  }
-});
-
-/**
- * POST /api/workflows/trigger/:id
- * Trigger a specific workflow (alias for execute)
- */
-router.post('/trigger/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = req.body;
-
-    const result = await workflowService.executeWorkflow(id, data);
-
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(500).json(result);
-    }
-
-  } catch (error) {
-    logger.error('Failed to trigger workflow', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to trigger workflow'
-    });
-  }
-});
-
-/**
- * GET /api/workflows/executions/:executionId
- * Get workflow execution status
- */
-router.get('/executions/:executionId', async (req, res) => {
-  try {
-    const { executionId } = req.params;
-
-    const result = await workflowService.getExecutionStatus(executionId);
-
-    if (result.success) {
-      res.json(result.execution);
-    } else {
-      res.status(404).json({
-        success: false,
-        error: 'Execution not found'
-      });
-    }
-
-  } catch (error) {
-    logger.error('Failed to get execution status', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get execution status'
-    });
-  }
-});
-
-/**
- * POST /api/workflows/callback
- * Handle callbacks from Workflow service
- */
-router.post('/callback', async (req, res) => {
-  try {
-    const data = req.body;
-
-    logger.info('Received workflow callback', {
-      executionId: data.executionId,
-      workflowId: data.workflowId
-    });
-
-    const result = await workflowService.handleCallback(data);
-
-    if (result.success) {
-      res.json({ success: true });
-    } else {
-      res.status(500).json(result);
-    }
-
-  } catch (error) {
-    logger.error('Failed to handle callback', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to handle callback'
-    });
-  }
-});
-
-/**
- * POST /api/workflows/setup-defaults
- * Create default moderation workflows
- */
-router.post('/setup-defaults', async (req, res) => {
-  try {
-    const results = await workflowService.createDefaultWorkflows();
-
-    const successCount = results.filter(r => r.success).length;
-
-    res.json({
-      success: true,
-      created: successCount,
-      total: results.length,
-      results
-    });
-
-  } catch (error) {
-    logger.error('Failed to setup defaults', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to setup default workflows'
-    });
-  }
-});
-
-/**
- * POST /api/moderate/auto
- * Trigger automated moderation workflow for content
- */
-router.post('/moderate/auto', async (req, res) => {
-  try {
-    const { contentId, contentType, content, authorId, metadata } = req.body;
-
-    // Validation
-    if (!contentId || !contentType || !content) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: contentId, contentType, content'
-      });
-    }
-
-    const result = await workflowService.triggerModerationWorkflow(
-      {
-        id: contentId,
-        type: contentType,
-        text: content,
-        authorId,
-        metadata
-      },
-      req.body.context || {}
-    );
-
-    if (result.success) {
-      res.json({
-        success: true,
-        message: 'Moderation workflow triggered',
-        executionId: result.executionId,
-        workflowId: result.workflowId
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to trigger workflow',
-        details: result.error
-      });
-    }
-
-  } catch (error) {
-    logger.error('Failed to auto-moderate', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to trigger automated moderation'
-    });
+    res.status(500).json({ success: false, error: 'Failed to execute workflow' });
   }
 });
 

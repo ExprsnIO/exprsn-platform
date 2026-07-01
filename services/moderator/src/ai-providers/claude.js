@@ -89,6 +89,7 @@ Analyze this content for:
 3. Spam (promotional content, repetitive messages)
 4. Violence (threats, graphic violence, gore)
 5. Hate Speech (discrimination, slurs, targeted harassment)
+6. Sentiment (overall emotional tone, where 0 = very positive, 50 = neutral, 100 = very negative)
 
 Respond ONLY with a JSON object in this exact format (no other text):
 {
@@ -97,6 +98,7 @@ Respond ONLY with a JSON object in this exact format (no other text):
   "spam_score": <0-100>,
   "violence_score": <0-100>,
   "hate_speech_score": <0-100>,
+  "sentiment_score": <0-100, 0=very positive, 100=very negative>,
   "overall_risk_score": <0-100>,
   "flags": ["flag1", "flag2"],
   "explanation": "Brief explanation of the scores"
@@ -138,6 +140,9 @@ Be objective and consistent. Consider context and intent.`;
         spamScore: parsed.spam_score || 0,
         violenceScore: parsed.violence_score || 0,
         hateSpeechScore: parsed.hate_speech_score || 0,
+        // 0=very positive … 100=very negative; default neutral (50) when omitted.
+        // Use nullish coalescing so a legitimate 0 (very positive) is preserved.
+        sentimentScore: parsed.sentiment_score ?? 50,
         flags: parsed.flags || [],
         explanation: parsed.explanation || '',
         rawResponse: data

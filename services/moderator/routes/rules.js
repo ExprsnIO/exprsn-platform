@@ -10,6 +10,11 @@ const router = express.Router();
 const { ModerationRule } = require('../models/sequelize-index');
 const logger = require('../src/utils/logger');
 const ruleEngineService = require('../services/ruleEngineService');
+const requireAdmin = require('../src/middleware/requireAdmin');
+
+// Moderation rules are admin-only (read + write). Previously the whole router
+// was unauthenticated — any bearer could list/modify policy.
+router.use(requireAdmin);
 
 /**
  * GET /api/rules
@@ -106,7 +111,9 @@ router.post('/', async (req, res) => {
       thresholdScore,
       action,
       enabled = true,
-      priority = 0
+      priority = 0,
+      parentRuleId = null,
+      metadata = {}
     } = req.body;
 
     // Validate required fields
@@ -128,7 +135,9 @@ router.post('/', async (req, res) => {
       action,
       enabled,
       priority,
-      createdBy: req.user?.id // If auth middleware is used
+      parentRuleId,
+      metadata,
+      createdBy: req.userId
     });
 
     logger.info('Rule created', {
@@ -165,7 +174,9 @@ router.put('/:id', async (req, res) => {
       thresholdScore,
       action,
       enabled,
-      priority
+      priority,
+      parentRuleId,
+      metadata
     } = req.body;
 
     const rule = await ModerationRule.findByPk(id);
@@ -187,7 +198,9 @@ router.put('/:id', async (req, res) => {
       ...(thresholdScore !== undefined && { thresholdScore }),
       ...(action !== undefined && { action }),
       ...(enabled !== undefined && { enabled }),
-      ...(priority !== undefined && { priority })
+      ...(priority !== undefined && { priority }),
+      ...(parentRuleId !== undefined && { parentRuleId }),
+      ...(metadata !== undefined && { metadata })
     });
 
     logger.info('Rule updated', {
@@ -253,7 +266,7 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/test', async (req, res) => {
   try {
     const { id } = req.params;
-    const { contentType, contentText, riskScore, scores } = req.body;
+    const { contentType, contentText, sourceService, contentMetadata, authorDid, riskScore, scores } = req.body;
 
     const rule = await ModerationRule.findByPk(id);
 
@@ -264,29 +277,30 @@ router.post('/:id/test', async (req, res) => {
       });
     }
 
-    // Test rule evaluation
+    // Evaluate THIS rule's scope + conditions in isolation (ignores priority,
+    // chaining and other rules) so the builder can confirm a rule matches.
     const testContent = {
       contentType,
       contentText,
-      sourceService: 'test'
+      sourceService: sourceService || 'test',
+      contentMetadata: contentMetadata || (authorDid ? { authorDid } : {}),
+      authorDid
     };
+    const testScores = { riskScore, ...scores };
 
-    const testScores = {
-      riskScore,
-      ...scores
-    };
+    const matched = await ruleEngineService.evaluateSingleRule(rule, testContent, testScores);
 
-    const result = await ruleEngineService.evaluateRules(testContent, testScores);
+    // Also run the full pipeline so the tester can see what action would win
+    // overall (safeguards/chaining/priority included).
+    const pipeline = await ruleEngineService.evaluateRules(testContent, testScores);
 
     res.json({
       success: true,
       test: {
-        rule: {
-          id: rule.id,
-          name: rule.name
-        },
-        matched: result.matched && result.rule?.id === id,
-        result
+        rule: { id: rule.id, name: rule.name, action: rule.action },
+        matched,
+        wouldWin: pipeline.matched && pipeline.rule?.id === id,
+        pipeline
       }
     });
   } catch (error) {

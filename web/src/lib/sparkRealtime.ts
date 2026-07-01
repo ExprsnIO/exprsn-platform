@@ -6,7 +6,7 @@
  * lazy connect/disconnect live in lib/realtime.ts.
  */
 import { connect, namespace, NS } from './realtime';
-import type { Message } from '@/api/spark';
+import type { ChatAttachment, Message } from '@/api/spark';
 
 // ── client → server ──────────────────────────────────────────────────────────
 
@@ -18,6 +18,8 @@ export interface SendMessagePayload {
   recipientKeys: Array<{ userId: string; encryptedKey: string }>;
   contentType?: string;
   parentMessageId?: string | null;
+  /** Plaintext attachment descriptors (FileVault refs, call cards, share links). */
+  attachments?: ChatAttachment[];
 }
 
 export interface EditMessagePayload {

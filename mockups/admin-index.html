@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Admin — all sections</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin-shell.css">
+<style>
+  .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
+  @media (max-width: 900px){ .grid{ grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 620px){ .grid{ grid-template-columns: 1fr; } }
+  .tile { display: block; background: var(--exprsn-surface-raised); border: 1px solid var(--exprsn-border-color); border-radius: var(--exprsn-radius-xl); box-shadow: var(--exprsn-shadow-sm); padding: 1.2rem 1.3rem; transition: var(--exprsn-transition-base); }
+  .tile:hover { transform: translateY(-3px); box-shadow: var(--exprsn-shadow-lg); border-color: var(--exprsn-primary); }
+  .tile .ic { font-size: 1.7rem; }
+  .tile h3 { font-size: 1.05rem; margin: .55rem 0 .25rem; }
+  .tile p { color: var(--exprsn-text-muted); font-size: .85rem; margin: 0; line-height: 1.5; }
+  .tile .crumb { font-family: var(--exprsn-font-family-mono); font-size: .72rem; color: var(--exprsn-text-muted); margin-top: .7rem; display: inline-block; }
+</style>
+</head>
+<body>
+<header class="navbar">
+  <a class="navbar-brand" href="admin-index.html"><span class="logo">E</span> Exprsn <span class="sub">Admin</span></a>
+  <div class="nav-right">
+    <span class="crumb">/admin</span>
+    <button class="theme-toggle" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+    <div class="admin-chip"><span class="av">RH</span> Rick H. · Owner</div>
+  </div>
+</header>
+<main class="main" style="max-width:1080px;margin:0 auto;padding:2rem 1.5rem">
+  <div class="page-head">
+    <div>
+      <h1>Admin console</h1>
+      <p class="lead">Mockups for every admin surface across the consolidated platform. Each page shares one design language and a global section sidebar.</p>
+    </div>
+  </div>
+  <div class="grid">
+    <a class="tile" href="admin-overview.html"><span class="ic">🏠</span><h3>Overview</h3><p>Gateway health and per-module status across all ten services.</p><span class="crumb">/admin</span></a>
+    <a class="tile" href="admin-ca.html"><span class="ic">📜</span><h3>Certificate Authority</h3><p>Private PKI — issuance, revocation, chains and HSM-backed keys.</p><span class="crumb">/admin/ca</span></a>
+    <a class="tile" href="admin-auth.html"><span class="ic">🔑</span><h3>Auth &amp; Identity</h3><p>Organizations, users, roles, tokens and the DID registry.</p><span class="crumb">/admin/auth</span></a>
+    <a class="tile" href="admin-jobs.html"><span class="ic">⚙️</span><h3>Jobs &amp; Queues</h3><p>Bull queues — waiting, active, failed; pause, resume and drain.</p><span class="crumb">/admin/jobs</span></a>
+    <a class="tile" href="admin-nexus.html"><span class="ic">🌐</span><h3>Groups (Nexus)</h3><p>Group directory, membership, governance proposals and events.</p><span class="crumb">/admin/nexus</span></a>
+    <a class="tile" href="admin-live.html"><span class="ic">📡</span><h3>Live Streaming</h3><p>WebRTC publish, HLS playback, viewers and signaling rooms.</p><span class="crumb">/admin/live</span></a>
+    <a class="tile" href="admin-vault.html"><span class="ic">🔒</span><h3>Vault</h3><p>Service tokens, secrets and signing keys with risk scoring.</p><span class="crumb">/admin/vault</span></a>
+    <a class="tile" href="admin-moderator.html"><span class="ic">🛡️</span><h3>Moderation</h3><p>Cross-module review queue with risk scores and SLA tracking.</p><span class="crumb">/admin/moderator</span></a>
+    <a class="tile" href="admin-atproto.html"><span class="ic">🔗</span><h3>AT-Protocol</h3><p>Labeler identity, feed generator and label sync queues.</p><span class="crumb">/admin/atproto</span></a>
+    <a class="tile" href="admin-spark.html"><span class="ic">💬</span><h3>Messaging (Spark)</h3><p>Conversation volume, media job queues and runtime config.</p><span class="crumb">/admin/spark</span></a>
+    <a class="tile" href="admin-filevault.html"><span class="ic">📁</span><h3>Files (FileVault)</h3><p>Content-addressed storage, dedup, quotas and backend health.</p><span class="crumb">/admin/filevault</span></a>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,915 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.ca",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Certificate Authority service lexicon for Bridge integration (X.509 certs, capability tokens, OCSP, CRL, ACME)",
+      "key": "io.exprsn.ca"
+    }
+  },
+  "routes": [
+    {
+      "id": "tickets.generate",
+      "type": "procedure",
+      "description": "Generate a short-lived single-use ticket for the current session",
+      "path": "/tickets/generate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "tokens.generate",
+      "type": "procedure",
+      "description": "Generate a capability token bound to a certificate",
+      "path": "/api/tokens/generate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "certificateId": { "type": "string", "format": "uuid", "required": true },
+            "permissions": { "type": "object", "required": true },
+            "resource": { "$ref": "#/defs/resourceRef", "required": true },
+            "expiryType": { "type": "string", "enum": ["time", "uses"] },
+            "expiresAt": { "type": "integer" },
+            "maxUses": { "type": "integer" },
+            "notBefore": { "type": "integer" },
+            "data": { "type": "object" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "token": { "$ref": "#/defs/token" }
+          }
+        }
+      }
+    },
+    {
+      "id": "tokens.validate",
+      "type": "procedure",
+      "description": "Validate a token and check its permissions against a resource",
+      "path": "/api/tokens/validate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "token": { "type": "string" },
+            "tokenId": { "type": "string", "format": "uuid" },
+            "requiredPermissions": { "type": "object" },
+            "resource": { "type": "string" },
+            "resourceValue": { "type": "string" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "valid": { "type": "boolean" },
+            "errors": { "type": "array", "items": { "type": "string" } },
+            "token": { "$ref": "#/defs/token" }
+          }
+        }
+      }
+    },
+    {
+      "id": "tokens.revoke",
+      "type": "procedure",
+      "description": "Revoke a capability token",
+      "path": "/api/tokens/revoke",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "tokens.list",
+      "type": "query",
+      "description": "List the current user's tokens",
+      "path": "/api/tokens",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "tokens.refresh",
+      "type": "procedure",
+      "description": "Refresh a token's expiry",
+      "path": "/api/tokens/:id/refresh",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "tokens.introspect",
+      "type": "query",
+      "description": "Introspect a token by id",
+      "path": "/api/tokens/:id/introspect",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "certificates.generateRoot",
+      "type": "procedure",
+      "description": "Generate a root CA certificate",
+      "path": "/api/certificates/generate-root",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "certificates.generateIntermediate",
+      "type": "procedure",
+      "description": "Generate an intermediate CA certificate",
+      "path": "/api/certificates/generate-intermediate",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "certificates.generateCodeSigning",
+      "type": "procedure",
+      "description": "Generate a code-signing certificate",
+      "path": "/api/certificates/generate-code-signing",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "certificates.generate",
+      "type": "procedure",
+      "description": "Generate an entity/leaf certificate",
+      "path": "/api/certificates/generate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "certificates.list",
+      "type": "query",
+      "description": "List the current user's certificates",
+      "path": "/api/certificates",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "certificates.get",
+      "type": "query",
+      "description": "Get a certificate by id",
+      "path": "/api/certificates/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "certificates.revoke",
+      "type": "procedure",
+      "description": "Revoke a certificate (cascades token revocation)",
+      "path": "/api/certificates/:id/revoke",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "certificates.export",
+      "type": "query",
+      "description": "Export a certificate (pem/der/chain/pkcs12)",
+      "path": "/api/certificates/:id/export",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "certificates.status",
+      "type": "query",
+      "description": "Get a certificate's live revocation/OCSP/CRL status",
+      "path": "/api/certificates/:id/status",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "certificates.csr",
+      "type": "procedure",
+      "description": "Sign a certificate from a submitted CSR",
+      "path": "/api/certificates/csr",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "certificates.renew",
+      "type": "procedure",
+      "description": "Renew a certificate",
+      "path": "/api/certificates/:id/renew",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "certificates.chain",
+      "type": "query",
+      "description": "Get a certificate's full chain",
+      "path": "/api/certificates/:id/chain",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "certificates.download",
+      "type": "query",
+      "description": "Download a certificate (pem/der)",
+      "path": "/api/certificates/:id/download",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "auth.verifyPassword",
+      "type": "procedure",
+      "description": "Verify a user's password",
+      "path": "/api/auth/verify-password",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "config.getSection",
+      "type": "query",
+      "description": "Get a CA config section",
+      "path": "/api/config/:sectionId",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "config.setSection",
+      "type": "procedure",
+      "description": "Update a CA config section",
+      "path": "/api/config/:sectionId",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "admin.stats",
+      "type": "query",
+      "description": "Get CA dashboard statistics",
+      "path": "/admin/api/stats",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.activity",
+      "type": "query",
+      "description": "List recent CA activity",
+      "path": "/admin/api/activity",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.certificates.recent",
+      "type": "query",
+      "description": "List recently issued certificates",
+      "path": "/admin/api/certificates/recent",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.tokens.recent",
+      "type": "query",
+      "description": "List recently issued tokens",
+      "path": "/admin/api/tokens/recent",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.timeseries",
+      "type": "query",
+      "description": "Get timeseries metrics (certificates/tokens/users)",
+      "path": "/admin/api/timeseries/:type",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.health",
+      "type": "query",
+      "description": "Get CA subsystem health",
+      "path": "/admin/api/health",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.users.list",
+      "type": "query",
+      "description": "List users",
+      "path": "/admin/api/users",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.groups.list",
+      "type": "query",
+      "description": "List groups",
+      "path": "/admin/api/groups",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.roles.list",
+      "type": "query",
+      "description": "List roles",
+      "path": "/admin/api/roles",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.certificates.issue",
+      "type": "procedure",
+      "description": "Issue a certificate (admin)",
+      "path": "/admin/api/certificates/issue",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "admin.certificates.revoke",
+      "type": "procedure",
+      "description": "Revoke a certificate (admin, cascades token revocation)",
+      "path": "/admin/api/certificates/:id/revoke",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "admin.certificates.download",
+      "type": "query",
+      "description": "Download a certificate (admin)",
+      "path": "/admin/api/certificates/:id/download",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.tokens.generate",
+      "type": "procedure",
+      "description": "Generate a token (admin)",
+      "path": "/admin/api/tokens/generate",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "admin.tokens.validate",
+      "type": "procedure",
+      "description": "Validate a token (admin)",
+      "path": "/admin/api/tokens/validate",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "admin.tokens.revoke",
+      "type": "procedure",
+      "description": "Revoke a token (admin)",
+      "path": "/admin/api/tokens/:id/revoke",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "admin.ocsp.status",
+      "type": "query",
+      "description": "Get OCSP responder status",
+      "path": "/admin/api/ocsp/status",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.crl.status",
+      "type": "query",
+      "description": "Get CRL status",
+      "path": "/admin/api/crl/status",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.crl.generate",
+      "type": "procedure",
+      "description": "Generate a fresh CRL",
+      "path": "/admin/api/crl/generate",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "admin.config.get",
+      "type": "query",
+      "description": "Get masked safe CA config",
+      "path": "/admin/api/config",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.config.update",
+      "type": "procedure",
+      "description": "Update whitelisted CA config keys",
+      "path": "/admin/api/config/update",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "admin.certificates.list",
+      "type": "query",
+      "description": "List all certificates (admin)",
+      "path": "/admin/api/certificates",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.tokens.list",
+      "type": "query",
+      "description": "List all tokens (admin)",
+      "path": "/admin/api/tokens",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "ocsp.request",
+      "type": "procedure",
+      "description": "OCSP request via POST (raw DER OCSPRequest)",
+      "path": "/ocsp/",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "ocsp.status",
+      "type": "query",
+      "description": "OCSP responder status",
+      "path": "/ocsp/status",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "ocsp.batch",
+      "type": "procedure",
+      "description": "Batch OCSP status by serial numbers",
+      "path": "/ocsp/batch",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "ocsp.requestGet",
+      "type": "query",
+      "description": "OCSP request via GET (base64 DER OCSPRequest)",
+      "path": "/ocsp/*",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "crl.current",
+      "type": "query",
+      "description": "Current CRL (DER, cacheable)",
+      "path": "/crl/current.crl",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "crl.pem",
+      "type": "query",
+      "description": "Current CRL (PEM attachment)",
+      "path": "/crl/",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "crl.der",
+      "type": "query",
+      "description": "Current CRL (DER attachment)",
+      "path": "/crl/der",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "crl.info",
+      "type": "query",
+      "description": "CRL metadata/info",
+      "path": "/crl/info",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "acme.directory",
+      "type": "query",
+      "description": "ACME directory",
+      "path": "/acme/directory",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "acme.newNonce",
+      "type": "query",
+      "description": "ACME new-nonce (HEAD/GET)",
+      "path": "/acme/new-nonce",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "acme.newAccount",
+      "type": "procedure",
+      "description": "ACME new-account (JWS jwk)",
+      "path": "/acme/new-account",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "acme.account",
+      "type": "procedure",
+      "description": "ACME account update (JWS kid)",
+      "path": "/acme/acct/:id",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "acme.accountOrders",
+      "type": "procedure",
+      "description": "ACME list account orders (JWS kid)",
+      "path": "/acme/acct/:id/orders",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "acme.newOrder",
+      "type": "procedure",
+      "description": "ACME new-order (JWS kid)",
+      "path": "/acme/new-order",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "acme.order",
+      "type": "procedure",
+      "description": "ACME get order (JWS kid)",
+      "path": "/acme/order/:id",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "acme.authz",
+      "type": "procedure",
+      "description": "ACME get/deactivate authorization (JWS kid)",
+      "path": "/acme/authz/:id",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "acme.challenge",
+      "type": "procedure",
+      "description": "ACME respond to challenge (JWS kid)",
+      "path": "/acme/chall/:id",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "acme.finalize",
+      "type": "procedure",
+      "description": "ACME finalize order with CSR (JWS kid)",
+      "path": "/acme/order/:id/finalize",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "acme.cert",
+      "type": "procedure",
+      "description": "ACME download issued certificate chain (JWS kid)",
+      "path": "/acme/cert/:id",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "acme.revokeCert",
+      "type": "procedure",
+      "description": "ACME revoke certificate (JWS kid or jwk)",
+      "path": "/acme/revoke-cert",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "acme.keyChange",
+      "type": "procedure",
+      "description": "ACME key-change (JWS kid; always 501)",
+      "path": "/acme/key-change",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    }
+  ],
+  "events": [
+    {
+      "id": "certificate:subscribe",
+      "direction": "client->server",
+      "description": "Subscribe to updates for a certificate",
+      "auth": "none"
+    },
+    {
+      "id": "certificate:unsubscribe",
+      "direction": "client->server",
+      "description": "Unsubscribe from a certificate's updates",
+      "auth": "none"
+    },
+    {
+      "id": "token:subscribe",
+      "direction": "client->server",
+      "description": "Subscribe to updates for a token",
+      "auth": "none"
+    },
+    {
+      "id": "token:unsubscribe",
+      "direction": "client->server",
+      "description": "Unsubscribe from a token's updates",
+      "auth": "none"
+    },
+    {
+      "id": "dashboard:subscribe",
+      "direction": "client->server",
+      "description": "Subscribe to the authenticated user's dashboard stream",
+      "auth": "required"
+    },
+    {
+      "id": "ping",
+      "direction": "client->server",
+      "description": "Heartbeat ping; server replies with pong",
+      "auth": "none"
+    },
+    {
+      "id": "pong",
+      "direction": "server->client",
+      "description": "Heartbeat reply to ping",
+      "auth": "none"
+    },
+    {
+      "id": "certificate:created",
+      "direction": "server->client",
+      "description": "A certificate was created",
+      "auth": "none"
+    },
+    {
+      "id": "certificates:updated",
+      "direction": "server->client",
+      "description": "Certificate list/state changed",
+      "auth": "none"
+    },
+    {
+      "id": "certificate:revoked",
+      "direction": "server->client",
+      "description": "A certificate was revoked",
+      "auth": "none"
+    },
+    {
+      "id": "token:created",
+      "direction": "server->client",
+      "description": "A token was created",
+      "auth": "none"
+    },
+    {
+      "id": "tokens:updated",
+      "direction": "server->client",
+      "description": "Token list/state changed",
+      "auth": "none"
+    },
+    {
+      "id": "token:revoked",
+      "direction": "server->client",
+      "description": "A token was revoked",
+      "auth": "none"
+    },
+    {
+      "id": "token:validated",
+      "direction": "server->client",
+      "description": "A token validation result",
+      "auth": "none"
+    },
+    {
+      "id": "token:used",
+      "direction": "server->client",
+      "description": "A token was used",
+      "auth": "none"
+    },
+    {
+      "id": "user:login",
+      "direction": "server->client",
+      "description": "A user logged in",
+      "auth": "none"
+    },
+    {
+      "id": "dashboard:stats",
+      "direction": "server->client",
+      "description": "Dashboard statistics push",
+      "auth": "none"
+    },
+    {
+      "id": "user:created",
+      "direction": "server->client",
+      "description": "A user was created",
+      "auth": "none"
+    },
+    {
+      "id": "user:updated",
+      "direction": "server->client",
+      "description": "A user was updated",
+      "auth": "none"
+    },
+    {
+      "id": "user:deleted",
+      "direction": "server->client",
+      "description": "A user was deleted",
+      "auth": "none"
+    },
+    {
+      "id": "group:created",
+      "direction": "server->client",
+      "description": "A group was created",
+      "auth": "none"
+    },
+    {
+      "id": "group:updated",
+      "direction": "server->client",
+      "description": "A group was updated",
+      "auth": "none"
+    },
+    {
+      "id": "role:created",
+      "direction": "server->client",
+      "description": "A role was created",
+      "auth": "none"
+    },
+    {
+      "id": "system:health",
+      "direction": "server->client",
+      "description": "System health push",
+      "auth": "none"
+    },
+    {
+      "id": "moderation:event",
+      "direction": "server->client",
+      "description": "A moderation event relayed to the CA namespace",
+      "auth": "none"
+    },
+    {
+      "id": "system:notification",
+      "direction": "server->client",
+      "description": "A system notification (optionally targeted)",
+      "auth": "none"
+    }
+  ],
+  "types": {
+    "certificate": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "serialNumber": { "type": "string" },
+        "commonName": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["root", "intermediate", "entity", "san", "code_signing", "client", "server"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "revoked", "expired"]
+        },
+        "keySize": { "type": "integer", "enum": [2048, 4096, 8192] },
+        "algorithm": { "type": "string" },
+        "issuerId": { "type": "string", "format": "uuid" },
+        "notBefore": { "type": "string", "format": "date-time" },
+        "notAfter": { "type": "string", "format": "date-time" },
+        "revoked": { "type": "boolean" },
+        "revocationReason": { "type": "string" },
+        "revokedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "token": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "certificateId": { "type": "string", "format": "uuid" },
+        "permissions": { "type": "object" },
+        "resource": { "$ref": "#/defs/resourceRef" },
+        "expiryType": { "type": "string", "enum": ["time", "uses"] },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "notBefore": { "type": "string", "format": "date-time" },
+        "maxUses": { "type": "integer" },
+        "usedCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["active", "revoked", "expired", "used"] },
+        "data": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "resourceRef": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "value": { "type": "string" }
+      }
+    },
+    "ocspStatus": {
+      "type": "object",
+      "properties": {
+        "serialNumber": { "type": "string" },
+        "status": { "type": "string", "enum": ["good", "revoked", "unknown"] },
+        "revocationReason": { "type": "string" },
+        "revokedAt": { "type": "string", "format": "date-time" },
+        "thisUpdate": { "type": "string", "format": "date-time" },
+        "nextUpdate": { "type": "string", "format": "date-time" },
+        "producedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "crlInfo": {
+      "type": "object",
+      "properties": {
+        "crlNumber": { "type": "integer" },
+        "issuer": { "type": "string" },
+        "thisUpdate": { "type": "string", "format": "date-time" },
+        "nextUpdate": { "type": "string", "format": "date-time" },
+        "revokedCount": { "type": "integer" },
+        "format": { "type": "string", "enum": ["pem", "der"] }
+      }
+    },
+    "acmeOrder": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "ready", "processing", "valid", "invalid"]
+        },
+        "identifiers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["dns"] },
+              "value": { "type": "string" }
+            }
+          }
+        },
+        "authorizations": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "finalize": { "type": "string", "format": "uri" },
+        "certificate": { "type": "string", "format": "uri" },
+        "notBefore": { "type": "string", "format": "date-time" },
+        "notAfter": { "type": "string", "format": "date-time" },
+        "expires": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

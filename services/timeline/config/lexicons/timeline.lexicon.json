@@ -1,0 +1,1128 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.timeline",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Timeline service lexicon for Bridge integration",
+      "key": "io.exprsn.timeline"
+    }
+  },
+  "routes": [
+    {
+      "id": "posts.create",
+      "type": "procedure",
+      "description": "Create a new post",
+      "path": "/api/posts/",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "content": {
+              "type": "string",
+              "required": true,
+              "maxLength": 4000
+            },
+            "mediaIds": {
+              "type": "array",
+              "items": { "type": "string", "format": "uuid" }
+            },
+            "visibility": {
+              "type": "string",
+              "enum": ["public", "followers", "private"]
+            },
+            "replyTo": { "type": "string", "format": "uuid" },
+            "quoteOf": { "type": "string", "format": "uuid" },
+            "groupId": { "type": "string", "format": "uuid" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "post": { "$ref": "#/defs/post" }
+          }
+        }
+      }
+    },
+    {
+      "id": "posts.get",
+      "type": "query",
+      "description": "Get a post by id",
+      "path": "/api/posts/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "posts.update",
+      "type": "procedure",
+      "description": "Update a post",
+      "path": "/api/posts/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "posts.delete",
+      "type": "procedure",
+      "description": "Delete a post",
+      "path": "/api/posts/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "posts.like",
+      "type": "procedure",
+      "description": "Like a post",
+      "path": "/api/posts/:id/like",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "posts.unlike",
+      "type": "procedure",
+      "description": "Remove a like from a post",
+      "path": "/api/posts/:id/like",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "posts.comments.create",
+      "type": "procedure",
+      "description": "Add a comment to a post",
+      "path": "/api/posts/:id/comments",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "posts.comments.list",
+      "type": "query",
+      "description": "List comments on a post",
+      "path": "/api/posts/:id/comments",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "posts.thread",
+      "type": "query",
+      "description": "Get the reply thread for a post",
+      "path": "/api/posts/:id/thread",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "posts.quotes",
+      "type": "query",
+      "description": "List quote posts of a post",
+      "path": "/api/posts/:id/quotes",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "posts.analytics",
+      "type": "query",
+      "description": "Get analytics for a post (owner only)",
+      "path": "/api/posts/:id/analytics",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "posts.repost",
+      "type": "procedure",
+      "description": "Repost a post",
+      "path": "/api/posts/:id/repost",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "posts.unrepost",
+      "type": "procedure",
+      "description": "Remove a repost",
+      "path": "/api/posts/:id/repost",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "posts.bookmark",
+      "type": "procedure",
+      "description": "Bookmark a post",
+      "path": "/api/posts/:id/bookmark",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "posts.unbookmark",
+      "type": "procedure",
+      "description": "Remove a bookmark from a post",
+      "path": "/api/posts/:id/bookmark",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "posts.likes",
+      "type": "query",
+      "description": "List users who liked a post",
+      "path": "/api/posts/:id/likes",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "posts.reposts",
+      "type": "query",
+      "description": "List users who reposted a post",
+      "path": "/api/posts/:id/reposts",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "timeline.home",
+      "type": "query",
+      "description": "Get the authenticated user's home timeline",
+      "path": "/api/timeline/",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "timeline.global",
+      "type": "query",
+      "description": "Get the global public timeline",
+      "path": "/api/timeline/global",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "timeline.explore",
+      "type": "query",
+      "description": "Get the explore feed",
+      "path": "/api/timeline/explore",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "timeline.trending",
+      "type": "query",
+      "description": "Get the trending feed",
+      "path": "/api/timeline/trending",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "timeline.bookmarks",
+      "type": "query",
+      "description": "Get the authenticated user's bookmarked posts",
+      "path": "/api/timeline/bookmarks",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "timeline.likes",
+      "type": "query",
+      "description": "Get the authenticated user's liked posts",
+      "path": "/api/timeline/likes",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "timeline.user",
+      "type": "query",
+      "description": "Get a user's timeline",
+      "path": "/api/timeline/user/:userId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "timeline.group",
+      "type": "query",
+      "description": "Get a group's timeline (members only)",
+      "path": "/api/timeline/group/:groupId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "interactions.like",
+      "type": "procedure",
+      "description": "Like a post via interactions endpoint",
+      "path": "/api/interactions/:id/like",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "interactions.unlike",
+      "type": "procedure",
+      "description": "Remove a like via interactions endpoint",
+      "path": "/api/interactions/:id/like",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "interactions.repost",
+      "type": "procedure",
+      "description": "Repost via interactions endpoint",
+      "path": "/api/interactions/:id/repost",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "interactions.unrepost",
+      "type": "procedure",
+      "description": "Remove a repost via interactions endpoint",
+      "path": "/api/interactions/:id/repost",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "interactions.bookmark",
+      "type": "procedure",
+      "description": "Bookmark via interactions endpoint",
+      "path": "/api/interactions/:id/bookmark",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "interactions.unbookmark",
+      "type": "procedure",
+      "description": "Remove a bookmark via interactions endpoint",
+      "path": "/api/interactions/:id/bookmark",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "interactions.follow",
+      "type": "procedure",
+      "description": "Follow a user",
+      "path": "/api/interactions/users/:id/follow",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "interactions.unfollow",
+      "type": "procedure",
+      "description": "Unfollow a user",
+      "path": "/api/interactions/users/:id/follow",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "interactions.followStatus",
+      "type": "query",
+      "description": "Check follow status for a user",
+      "path": "/api/interactions/users/:id/follow",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "lists.create",
+      "type": "procedure",
+      "description": "Create a list",
+      "path": "/api/lists/",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "lists.list",
+      "type": "query",
+      "description": "List the authenticated user's lists",
+      "path": "/api/lists/",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "lists.get",
+      "type": "query",
+      "description": "Get a list by id",
+      "path": "/api/lists/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "lists.update",
+      "type": "procedure",
+      "description": "Update a list",
+      "path": "/api/lists/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "lists.delete",
+      "type": "procedure",
+      "description": "Delete a list",
+      "path": "/api/lists/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "lists.members.add",
+      "type": "procedure",
+      "description": "Add a member to a list",
+      "path": "/api/lists/:id/members",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "lists.members.remove",
+      "type": "procedure",
+      "description": "Remove a member from a list",
+      "path": "/api/lists/:id/members/:userId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "lists.timeline",
+      "type": "query",
+      "description": "Get the timeline for a list",
+      "path": "/api/lists/:id/timeline",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "search.posts",
+      "type": "query",
+      "description": "Search posts",
+      "path": "/api/search/posts",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "search.hashtags",
+      "type": "query",
+      "description": "Search hashtags",
+      "path": "/api/search/hashtags",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "search.trending.topics",
+      "type": "query",
+      "description": "Get trending topics",
+      "path": "/api/search/trending/topics",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "search.trending.hashtags",
+      "type": "query",
+      "description": "Get trending hashtags",
+      "path": "/api/search/trending/hashtags",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "jobs.stats",
+      "type": "query",
+      "description": "Get aggregate job queue statistics",
+      "path": "/api/jobs/stats",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "jobs.stats.queue",
+      "type": "query",
+      "description": "Get statistics for a specific queue",
+      "path": "/api/jobs/stats/:queueName",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "jobs.list",
+      "type": "query",
+      "description": "List jobs in a queue",
+      "path": "/api/jobs/:queueName/jobs",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "jobs.get",
+      "type": "query",
+      "description": "Get a single job",
+      "path": "/api/jobs/:queueName/job/:jobId",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "jobs.pause",
+      "type": "procedure",
+      "description": "Pause a queue",
+      "path": "/api/jobs/:queueName/pause",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "jobs.resume",
+      "type": "procedure",
+      "description": "Resume a queue",
+      "path": "/api/jobs/:queueName/resume",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "jobs.clean",
+      "type": "procedure",
+      "description": "Clean completed/failed jobs from a queue",
+      "path": "/api/jobs/:queueName/clean",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "jobs.retry",
+      "type": "procedure",
+      "description": "Retry a failed job",
+      "path": "/api/jobs/:queueName/job/:jobId/retry",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "jobs.delete",
+      "type": "procedure",
+      "description": "Delete a job",
+      "path": "/api/jobs/:queueName/job/:jobId",
+      "method": "DELETE",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "attachments.posts.upload",
+      "type": "procedure",
+      "description": "Upload attachments to a post",
+      "path": "/api/attachments/posts/:postId",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "attachments.comments.upload",
+      "type": "procedure",
+      "description": "Upload attachments to a comment",
+      "path": "/api/attachments/comments/:commentId",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "attachments.posts.list",
+      "type": "query",
+      "description": "List attachments for a post",
+      "path": "/api/attachments/posts/:postId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "attachments.comments.list",
+      "type": "query",
+      "description": "List attachments for a comment",
+      "path": "/api/attachments/comments/:commentId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "attachments.get",
+      "type": "query",
+      "description": "Get attachment metadata",
+      "path": "/api/attachments/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "attachments.update",
+      "type": "procedure",
+      "description": "Update attachment metadata",
+      "path": "/api/attachments/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "attachments.delete",
+      "type": "procedure",
+      "description": "Delete an attachment",
+      "path": "/api/attachments/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "attachments.download",
+      "type": "query",
+      "description": "Download an attachment",
+      "path": "/api/attachments/:id/download",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "attachments.share",
+      "type": "procedure",
+      "description": "Create a share link for an attachment",
+      "path": "/api/attachments/:id/share",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "config.get",
+      "type": "query",
+      "description": "Get a timeline config section",
+      "path": "/api/config/:sectionId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "config.update",
+      "type": "procedure",
+      "description": "Update a timeline config section",
+      "path": "/api/config/:sectionId",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "webhooks.bluesky",
+      "type": "procedure",
+      "description": "Bluesky inbound webhook (HMAC-SHA256 signature required)",
+      "path": "/api/webhooks/bluesky",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "webhooks.moderator",
+      "type": "procedure",
+      "description": "Moderator inbound webhook (no signature check)",
+      "path": "/api/webhooks/moderator",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.db",
+      "type": "query",
+      "description": "Database health check",
+      "path": "/health/db",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.redis",
+      "type": "query",
+      "description": "Redis health check",
+      "path": "/health/redis",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.ca",
+      "type": "query",
+      "description": "CA dependency health check",
+      "path": "/health/ca",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.herald",
+      "type": "query",
+      "description": "Herald dependency health check",
+      "path": "/health/herald",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.elasticsearch",
+      "type": "query",
+      "description": "Elasticsearch dependency health check",
+      "path": "/health/elasticsearch",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.queues",
+      "type": "query",
+      "description": "Job queues health check",
+      "path": "/health/queues",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.ready",
+      "type": "query",
+      "description": "Readiness probe",
+      "path": "/health/ready",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.live",
+      "type": "query",
+      "description": "Liveness probe",
+      "path": "/health/live",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "subscribe:timeline",
+      "direction": "client->server",
+      "description": "Subscribe to the global timeline room",
+      "auth": "required"
+    },
+    {
+      "id": "unsubscribe:timeline",
+      "direction": "client->server",
+      "description": "Unsubscribe from the global timeline room",
+      "auth": "required"
+    },
+    {
+      "id": "subscribe:group",
+      "direction": "client->server",
+      "description": "Subscribe to a group's timeline room",
+      "auth": "required"
+    },
+    {
+      "id": "unsubscribe:group",
+      "direction": "client->server",
+      "description": "Unsubscribe from a group's timeline room",
+      "auth": "required"
+    },
+    {
+      "id": "subscribed:timeline",
+      "direction": "server->client",
+      "description": "Acknowledgement of timeline subscription",
+      "auth": "required"
+    },
+    {
+      "id": "unsubscribed:timeline",
+      "direction": "server->client",
+      "description": "Acknowledgement of timeline unsubscription",
+      "auth": "required"
+    },
+    {
+      "id": "new:post",
+      "direction": "server->client",
+      "description": "A new post was broadcast to the timeline or group room",
+      "auth": "required"
+    },
+    {
+      "id": "post:liked",
+      "direction": "server->client",
+      "description": "A post was liked (postId, userId)",
+      "auth": "required"
+    },
+    {
+      "id": "post:commented",
+      "direction": "server->client",
+      "description": "A post received a comment (postId, comment)",
+      "auth": "required"
+    },
+    {
+      "id": "post:created",
+      "direction": "server->client",
+      "description": "A post was created (from IPC handlers)",
+      "auth": "required"
+    },
+    {
+      "id": "post:updated",
+      "direction": "server->client",
+      "description": "A post was updated (from IPC handlers)",
+      "auth": "required"
+    },
+    {
+      "id": "post:deleted",
+      "direction": "server->client",
+      "description": "A post was deleted (from IPC handlers)",
+      "auth": "required"
+    }
+  ],
+  "types": {
+    "post": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "content": { "type": "string", "maxLength": 4000 },
+        "contentType": {
+          "type": "string",
+          "enum": ["text", "image", "video", "link"]
+        },
+        "media": {
+          "type": "array",
+          "items": { "$ref": "#/defs/media" }
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public", "followers", "private"]
+        },
+        "groupId": { "type": "string", "format": "uuid" },
+        "likeCount": { "type": "integer" },
+        "commentCount": { "type": "integer" },
+        "repostCount": { "type": "integer" },
+        "metadata": { "type": "object" },
+        "blueskyUri": { "type": "string" },
+        "blueskyDid": { "type": "string" },
+        "blueskyRkey": { "type": "string" },
+        "syncedToBluesky": { "type": "boolean" },
+        "deleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "media": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "postId": { "type": "string", "format": "uuid" },
+        "commentId": { "type": "string", "format": "uuid" },
+        "fileUrl": { "type": "string", "format": "uri" },
+        "mimeType": { "type": "string" },
+        "size": { "type": "integer" },
+        "description": { "type": "string" },
+        "altText": { "type": "string" },
+        "isPrimary": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "interaction": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "type": {
+          "type": "string",
+          "enum": ["like", "comment", "repost"]
+        },
+        "postId": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "bookmark": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "postId": { "type": "string", "format": "uuid" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "feedItem": {
+      "type": "object",
+      "properties": {
+        "post": { "$ref": "#/defs/post" },
+        "repostedBy": { "type": "string", "format": "uuid" },
+        "liked": { "type": "boolean" },
+        "reposted": { "type": "boolean" },
+        "bookmarked": { "type": "boolean" },
+        "cursor": { "type": "string" }
+      }
+    }
+  }
+}

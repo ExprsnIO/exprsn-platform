@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn · Nexus — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shell.css">
+<style>
+  .wrap { max-width: 980px; }
+  .cover { height: 180px; border-radius: var(--exprsn-radius-2xl); background: var(--exprsn-gradient-purple); position: relative; box-shadow: var(--exprsn-shadow-md); }
+  .cover .badge { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; }
+  .ghead { display: flex; gap: 18px; align-items: flex-end; margin: -42px 0 8px; padding: 0 20px; }
+  .ghead .avatar { border: 4px solid var(--exprsn-bg-secondary); box-shadow: var(--exprsn-shadow-md); }
+  .ghead .meta { flex: 1; padding-bottom: 6px; }
+  .ghead .meta h2 { font-size: 1.6rem; letter-spacing: -.02em; }
+  .ghead .meta .row { display: flex; gap: 14px; align-items: center; margin-top: 6px; color: var(--exprsn-text-muted); font-size: .88rem; flex-wrap: wrap; }
+  .ghead .cta { display: flex; gap: 8px; padding-bottom: 8px; }
+  .facepile { display: flex; }
+  .facepile .avatar { margin-left: -8px; border: 2px solid var(--exprsn-bg-secondary); }
+  .facepile .avatar:first-child { margin: 0; }
+
+  .layout { display: grid; grid-template-columns: 1fr 300px; gap: 24px; margin-top: 18px; }
+  @media (max-width: 900px){ .layout{ grid-template-columns: 1fr; } .grail{ display:none; } }
+
+  .gtabs { display: flex; gap: 2px; overflow-x: auto; }
+  .panel { padding: 20px; margin-top: 16px; }
+  .panel h3 { font-size: 1rem; margin-bottom: 4px; }
+  .panel .lead { color: var(--exprsn-text-muted); font-size: .9rem; margin-bottom: 16px; }
+
+  .proposal { border: 1px solid var(--exprsn-border-color); border-radius: var(--exprsn-radius-lg); padding: 16px; margin-bottom: 14px; }
+  .proposal .top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .proposal .title { font-weight: 700; }
+  .proposal p { color: var(--exprsn-text-secondary); font-size: .9rem; margin: 0 0 12px; }
+  .vote-bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--exprsn-bg-tertiary); margin-bottom: 8px; }
+  .vote-bar .yes { background: var(--exprsn-success); } .vote-bar .no { background: var(--exprsn-danger); } .vote-bar .ab { background: var(--exprsn-gray-400); }
+  .vote-legend { display: flex; gap: 16px; font-size: .8rem; color: var(--exprsn-text-muted); }
+  .vote-legend b { color: var(--exprsn-text-primary); }
+  .vote-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .vote-btn { flex: 1; justify-content: center; }
+
+  .stat { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--exprsn-border-color); font-size: .9rem; }
+  .stat:last-child { border: 0; }
+  .stat .k { color: var(--exprsn-text-muted); }
+  .stat .v { font-weight: 600; }
+  .member { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .member .info { flex: 1; } .member .info .n { font-weight: 600; font-size: .9rem; }
+  .member .info .r { font-size: .76rem; color: var(--exprsn-text-muted); }
+  .widget { padding: 16px; margin-bottom: 16px; }
+  .widget h3 { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--exprsn-text-muted); margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="mock-banner">EXPRSN PLATFORM · UI MOCKUP — Nexus groups (redesign exploration)</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">E</div><div class="name">exprsn</div></div>
+    <div class="nav-item"><span class="ico">⌂</span> Timeline</div>
+    <div class="nav-item"><span class="ico">✦</span> Spark <span class="count">3</span></div>
+    <div class="nav-item active"><span class="ico">◎</span> Nexus</div>
+    <div class="nav-item"><span class="ico">☺</span> People</div>
+    <div class="nav-item"><span class="ico">▦</span> Files</div>
+    <div class="nav-item"><span class="ico">▶</span> Streams</div>
+    <div class="nav-sep"></div>
+    <div class="nav-item"><span class="ico">⚑</span> Bookmarks</div>
+    <div class="nav-item"><span class="ico">⚙</span> Settings</div>
+    <div class="me"><div class="avatar sm g4">RH</div><div style="line-height:1.2"><div style="font-weight:600;font-size:.9rem">Rick Holland</div><div class="muted" style="font-size:.78rem">@rick</div></div></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <span class="muted" style="font-weight:600">Nexus</span>
+      <span class="muted">/</span>
+      <h1>Platform Builders</h1>
+      <div class="spacer"></div>
+      <button class="iconbtn" title="Search group">⌕</button>
+      <button class="iconbtn" title="Notifications">🔔</button>
+    </header>
+
+    <div class="content">
+      <div class="wrap">
+        <div class="cover">
+          <div class="badge"><span class="chip purple dot">Private</span><span class="chip">Request to join</span></div>
+        </div>
+        <div class="ghead">
+          <div class="avatar xl g4" style="border-radius:var(--exprsn-radius-2xl)">PB</div>
+          <div class="meta">
+            <h2>Platform Builders</h2>
+            <div class="row">
+              <span>◎ Engineering</span>
+              <span>· 1,284 members</span>
+              <span>· 📍 Remote</span>
+              <span class="chip green dot">42 online</span>
+            </div>
+          </div>
+          <div class="cta">
+            <button class="btn ghost">✦ Message</button>
+            <button class="btn primary">✓ Joined</button>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="card" style="padding:0 8px">
+          <div class="gtabs tabs">
+            <div class="tab">About</div>
+            <div class="tab active">Posts</div>
+            <div class="tab">Members</div>
+            <div class="tab">Events</div>
+            <div class="tab">Files</div>
+            <div class="tab">Galleries</div>
+            <div class="tab">Live</div>
+            <div class="tab">Governance</div>
+            <div class="tab">Subgroups</div>
+            <div class="tab">Secrets</div>
+          </div>
+        </div>
+
+        <div class="layout">
+          <!-- Main column: Governance panel highlighted -->
+          <div>
+            <div class="card panel">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                <h3 style="margin:0">Governance</h3>
+                <span class="chip blue">2 active proposals</span>
+                <div class="spacer" style="flex:1"></div>
+                <button class="btn primary sm">＋ New proposal</button>
+              </div>
+              <div class="lead">Members vote on rule changes, roles, and moderation actions. Quorum 20% · simple majority.</div>
+
+              <div class="proposal">
+                <div class="top">
+                  <span class="chip purple">Rule change</span>
+                  <span class="chip green dot">Active</span>
+                  <div class="spacer" style="flex:1"></div>
+                  <span class="muted" style="font-size:.8rem">closes in 6h</span>
+                </div>
+                <div class="title">Require 2FA for all moderators</div>
+                <p>Proposed by @ada — moderators handle member-action queues, so accounts should be hardened with mandatory two-factor before being granted the role.</p>
+                <div class="vote-bar"><div class="yes" style="width:68%"></div><div class="no" style="width:18%"></div><div class="ab" style="width:14%"></div></div>
+                <div class="vote-legend"><span><b>68%</b> Yes</span><span><b>18%</b> No</span><span><b>14%</b> Abstain</span><span style="margin-left:auto">412 / 1,284 voted</span></div>
+                <div class="vote-actions">
+                  <button class="btn ghost vote-btn" style="color:var(--exprsn-success);border-color:var(--exprsn-success)">✓ Yes</button>
+                  <button class="btn ghost vote-btn">✕ No</button>
+                  <button class="btn ghost vote-btn">– Abstain</button>
+                </div>
+              </div>
+
+              <div class="proposal">
+                <div class="top">
+                  <span class="chip amber">Role change</span>
+                  <span class="chip green dot">Active</span>
+                  <div class="spacer" style="flex:1"></div>
+                  <span class="muted" style="font-size:.8rem">closes in 2d</span>
+                </div>
+                <div class="title">Promote @jordan to moderator</div>
+                <p>Proposed by @sora — Jordan has handled the events calendar for three months and is ready for moderation duties.</p>
+                <div class="vote-bar"><div class="yes" style="width:52%"></div><div class="no" style="width:9%"></div><div class="ab" style="width:39%"></div></div>
+                <div class="vote-legend"><span><b>52%</b> Yes</span><span><b>9%</b> No</span><span><b>39%</b> Abstain</span><span style="margin-left:auto">⚠ quorum not met</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right rail -->
+          <div class="grail">
+            <div class="card widget">
+              <h3>At a glance</h3>
+              <div class="stat"><span class="k">Visibility</span><span class="v">Private</span></div>
+              <div class="stat"><span class="k">Join mode</span><span class="v">Request</span></div>
+              <div class="stat"><span class="k">Created</span><span class="v">Mar 2025</span></div>
+              <div class="stat"><span class="k">Members</span><span class="v">1,284</span></div>
+              <div class="stat"><span class="k">Subgroups</span><span class="v">6</span></div>
+            </div>
+            <div class="card widget">
+              <h3>Admins & moderators</h3>
+              <div class="member"><div class="avatar sm g3">AK</div><div class="info"><div class="n">Ada Kingsley</div><div class="r">Owner</div></div><span class="chip purple">owner</span></div>
+              <div class="member"><div class="avatar sm g1">DV</div><div class="info"><div class="n">Devon Vega</div><div class="r">Admin</div></div><span class="chip blue">admin</span></div>
+              <div class="member"><div class="avatar sm g5">TL</div><div class="info"><div class="n">Theo Lund</div><div class="r">Moderator</div></div><span class="chip">mod</span></div>
+            </div>
+            <div class="card widget">
+              <h3>Members</h3>
+              <div class="facepile" style="margin-bottom:10px">
+                <div class="avatar sm g1">JM</div><div class="avatar sm g2">MP</div><div class="avatar sm g3">SN</div>
+                <div class="avatar sm g5">RH</div><div class="avatar sm g6">DV</div>
+                <div class="avatar sm" style="background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-secondary)">+1.2k</div>
+              </div>
+              <button class="btn ghost sm" style="width:100%;justify-content:center">View all members</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="btn ghost theme-toggle" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+</body>
+</html>

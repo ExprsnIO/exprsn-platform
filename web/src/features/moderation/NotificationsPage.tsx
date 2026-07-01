@@ -19,6 +19,7 @@ import { useAppStore } from '@/app/store';
 import { NS } from '@/lib/realtime';
 import { useNamespaceStatus, type ConnState } from '@/lib/useRealtime';
 import { useNotificationsStore, selectUnreadCount } from '@/lib/notificationsStore';
+import { notificationsApi } from '@/api/notifications';
 import { relativeTime } from '@/features/timeline/util';
 
 const CHIP_COLOR: Record<ConnState, 'success' | 'warning' | 'default' | 'error'> = {
@@ -50,6 +51,25 @@ export function NotificationsPage() {
   const remove = useNotificationsStore((s) => s.remove);
   const clear = useNotificationsStore((s) => s.clear);
 
+  // Optimistic store update + durable persistence (best-effort) so read/dismiss
+  // state survives a reload.
+  const handleMarkRead = (id: string) => {
+    markRead(id);
+    notificationsApi.markRead(id).catch(() => {});
+  };
+  const handleMarkAllRead = () => {
+    markAllRead();
+    notificationsApi.markAllRead().catch(() => {});
+  };
+  const handleRemove = (id: string) => {
+    remove(id);
+    notificationsApi.remove(id).catch(() => {});
+  };
+  const handleClear = () => {
+    clear();
+    notificationsApi.clear().catch(() => {});
+  };
+
   if (!userId) return <Alert severity="error">Not signed in.</Alert>;
 
   return (
@@ -65,7 +85,7 @@ export function NotificationsPage() {
               size="small"
               startIcon={<DoneAllIcon />}
               disabled={unread === 0}
-              onClick={markAllRead}
+              onClick={handleMarkAllRead}
             >
               Mark all read
             </Button>
@@ -78,7 +98,7 @@ export function NotificationsPage() {
               color="inherit"
               startIcon={<DeleteSweepIcon />}
               disabled={items.length === 0}
-              onClick={clear}
+              onClick={handleClear}
             >
               Clear
             </Button>
@@ -87,8 +107,8 @@ export function NotificationsPage() {
       </Stack>
 
       <Alert severity="info" variant="outlined">
-        Notifications stream in live and are kept only for this session — there is no
-        server-side history to load.
+        Notifications stream in live and are also saved, so your history and unread
+        count are restored when you return. Read state and dismissals are kept too.
       </Alert>
 
       {items.length === 0 ? (
@@ -102,10 +122,10 @@ export function NotificationsPage() {
               <ListItem
                 key={n.id}
                 divider
-                onMouseEnter={() => !n.read && markRead(n.id)}
+                onMouseEnter={() => !n.read && handleMarkRead(n.id)}
                 sx={{ bgcolor: n.read ? 'transparent' : 'action.hover', alignItems: 'flex-start' }}
                 secondaryAction={
-                  <IconButton edge="end" size="small" onClick={() => remove(n.id)}>
+                  <IconButton edge="end" size="small" onClick={() => handleRemove(n.id)}>
                     <CloseIcon fontSize="small" />
                   </IconButton>
                 }

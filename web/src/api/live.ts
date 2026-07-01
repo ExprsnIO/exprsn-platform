@@ -50,6 +50,44 @@ export interface ListGroupStreamsParams {
   offset?: number;
 }
 
+export interface ListStreamsParams {
+  status?: string;
+  visibility?: string;
+  userId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/** An ephemeral live-stream chat message (delivered over the /live socket). */
+export interface StreamChatMessage {
+  id: string;
+  streamId: string;
+  userId?: string;
+  displayName?: string;
+  message: string;
+  ts: number;
+}
+
+/** A recorded stream or room (VOD). */
+export interface Recording {
+  id: string;
+  stream_id?: string;
+  room_id?: string;
+  user_id?: string;
+  title?: string;
+  description?: string;
+  hls_url?: string;
+  dash_url?: string;
+  storage_url?: string;
+  thumbnail_url?: string;
+  status?: 'processing' | 'ready' | 'failed' | 'deleted';
+  duration_seconds?: number;
+  file_size_bytes?: number;
+  resolution?: string;
+  created_at?: string;
+  [k: string]: unknown;
+}
+
 /**
  * Rewrite a self-hosted SRS playback URL (http://host:8085/live/<key>.m3u8) to
  * the same-origin HTTPS path proxied by nginx (/srs/live/<key>.m3u8), avoiding
@@ -67,8 +105,21 @@ export function playableHlsUrl(hlsUrl?: string): string | null {
 }
 
 export const liveApi = {
-  listStreams: () => http.get<{ success: boolean; streams: Stream[] }>('/live/api/streams'),
+  listStreams: (params?: ListStreamsParams) => {
+    const sp = new URLSearchParams();
+    if (params?.status) sp.set('status', params.status);
+    if (params?.visibility) sp.set('visibility', params.visibility);
+    if (params?.userId) sp.set('userId', params.userId);
+    if (params?.limit != null) sp.set('limit', String(params.limit));
+    if (params?.offset != null) sp.set('offset', String(params.offset));
+    const q = sp.toString();
+    return http.get<{ success: boolean; streams: Stream[]; pagination?: StreamPagination }>(
+      `/live/api/streams${q ? `?${q}` : ''}`,
+    );
+  },
   getStream: (id: string) => http.get<{ success: boolean; stream: Stream }>(`/live/api/streams/${id}`),
+  getStreamRecordings: (id: string) =>
+    http.get<{ success: boolean; recordings: Recording[] }>(`/live/api/streams/${id}/recordings`),
   createStream: (input: CreateStreamInput) =>
     http.post<{ success: boolean; stream: Stream }>('/live/api/streams', input),
   startStream: (id: string) =>
@@ -152,4 +203,6 @@ export const roomApi = {
       `/live/api/rooms/${id}/leave?socketId=${encodeURIComponent(socketId)}`,
       {},
     ),
+  getRoomRecordings: (id: string) =>
+    http.get<{ success: boolean; recordings: Recording[] }>(`/live/api/rooms/${id}/recordings`),
 };

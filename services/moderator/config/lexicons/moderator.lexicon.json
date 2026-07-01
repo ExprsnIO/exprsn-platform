@@ -1,0 +1,1156 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.moderator",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Moderator service lexicon for Bridge integration",
+      "key": "io.exprsn.moderator"
+    }
+  },
+  "routes": [
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.db",
+      "type": "query",
+      "description": "Database health check",
+      "path": "/health/db",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.aiProviders",
+      "type": "query",
+      "description": "AI provider connectivity health check",
+      "path": "/health/ai-providers",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "moderate.content",
+      "type": "procedure",
+      "description": "Submit a content item for moderation analysis",
+      "path": "/api/moderate/content",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "contentType": {
+              "type": "string",
+              "required": true,
+              "enum": ["text", "image", "video", "audio", "post", "comment", "message", "profile", "file"]
+            },
+            "contentId": {
+              "type": "string",
+              "required": true
+            },
+            "sourceService": {
+              "type": "string",
+              "required": true
+            },
+            "userId": {
+              "type": "string",
+              "format": "uuid",
+              "required": true
+            },
+            "contentText": {
+              "type": "string"
+            },
+            "contentUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "contentMetadata": {
+              "type": "object"
+            },
+            "aiProvider": {
+              "type": "string",
+              "enum": ["claude", "openai", "deepseek", "local"]
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "case": { "$ref": "#/defs/moderationCase" },
+            "verdict": { "$ref": "#/defs/verdict" }
+          }
+        }
+      }
+    },
+    {
+      "id": "moderate.status",
+      "type": "query",
+      "description": "Get moderation status for a content item",
+      "path": "/api/moderate/status/:sourceService/:contentType/:contentId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "moderate.batch",
+      "type": "procedure",
+      "description": "Submit a batch of content items for moderation (1-100)",
+      "path": "/api/moderate/batch",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "queue.pending",
+      "type": "query",
+      "description": "List pending review-queue items",
+      "path": "/api/queue/pending",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "queue.list",
+      "type": "query",
+      "description": "List review-queue items by priority/status",
+      "path": "/api/queue",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "queue.get",
+      "type": "query",
+      "description": "Get a review-queue item",
+      "path": "/api/queue/:id",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "queue.approve",
+      "type": "procedure",
+      "description": "Approve a queued content item",
+      "path": "/api/queue/:itemId/approve",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "queue.reject",
+      "type": "procedure",
+      "description": "Reject a queued content item",
+      "path": "/api/queue/:itemId/reject",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "queue.analyze",
+      "type": "procedure",
+      "description": "Run AI analysis on a queued content item",
+      "path": "/api/queue/:id/analyze",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "queue.warn",
+      "type": "procedure",
+      "description": "Issue a warning action on a queued item",
+      "path": "/api/queue/:id/warn",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "queue.remove",
+      "type": "procedure",
+      "description": "Remove content for a queued item",
+      "path": "/api/queue/:id/remove",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "queue.ban",
+      "type": "procedure",
+      "description": "Ban the user for a queued item",
+      "path": "/api/queue/:id/ban",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "queue.skip",
+      "type": "procedure",
+      "description": "Skip/deprioritize a queued item",
+      "path": "/api/queue/:id/skip",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "reports.create",
+      "type": "procedure",
+      "description": "File a user report against content",
+      "path": "/api/reports",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "reports.get",
+      "type": "query",
+      "description": "Get a report",
+      "path": "/api/reports/:id",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "reports.resolve",
+      "type": "procedure",
+      "description": "Resolve a report",
+      "path": "/api/reports/:id/resolve",
+      "method": "PUT",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "rules.list",
+      "type": "query",
+      "description": "List moderation rules",
+      "path": "/api/rules",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "rules.get",
+      "type": "query",
+      "description": "Get a moderation rule",
+      "path": "/api/rules/:id",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "rules.create",
+      "type": "procedure",
+      "description": "Create a moderation rule",
+      "path": "/api/rules",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "required": true
+            },
+            "action": {
+              "type": "string",
+              "required": true,
+              "enum": ["auto_approve", "approve", "reject", "hide", "remove", "warn", "flag", "escalate", "require_review"]
+            },
+            "conditions": {
+              "type": "object",
+              "required": true
+            },
+            "description": {
+              "type": "string"
+            },
+            "appliesTo": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "sourceServices": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "thresholdScore": {
+              "type": "integer"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "priority": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "rule": { "$ref": "#/defs/moderationRule" }
+          }
+        }
+      }
+    },
+    {
+      "id": "rules.update",
+      "type": "procedure",
+      "description": "Update a moderation rule",
+      "path": "/api/rules/:id",
+      "method": "PUT",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "rules.delete",
+      "type": "procedure",
+      "description": "Delete a moderation rule",
+      "path": "/api/rules/:id",
+      "method": "DELETE",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "rules.test",
+      "type": "procedure",
+      "description": "Test a moderation rule against sample content",
+      "path": "/api/rules/:id/test",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "rules.enable",
+      "type": "procedure",
+      "description": "Enable a moderation rule",
+      "path": "/api/rules/:id/enable",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "rules.disable",
+      "type": "procedure",
+      "description": "Disable a moderation rule",
+      "path": "/api/rules/:id/disable",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "appeals.create",
+      "type": "procedure",
+      "description": "File an appeal against a moderation decision",
+      "path": "/api/appeals",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "appeals.list",
+      "type": "query",
+      "description": "List appeals",
+      "path": "/api/appeals",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "appeals.stats",
+      "type": "query",
+      "description": "Appeals summary statistics",
+      "path": "/api/appeals/stats/summary",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "appeals.byCase",
+      "type": "query",
+      "description": "Get appeals for a moderation case",
+      "path": "/api/appeals/case/:moderationItemId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "appeals.get",
+      "type": "query",
+      "description": "Get an appeal",
+      "path": "/api/appeals/:id",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "appeals.review",
+      "type": "procedure",
+      "description": "Review (approve/deny) an appeal",
+      "path": "/api/appeals/:id/review",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "workflows.list",
+      "type": "query",
+      "description": "List moderation workflows",
+      "path": "/api/workflows",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "workflows.active",
+      "type": "query",
+      "description": "List active (enabled) workflows",
+      "path": "/api/workflows/active",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "workflows.create",
+      "type": "procedure",
+      "description": "Create a moderation workflow",
+      "path": "/api/workflows",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "workflows.update",
+      "type": "procedure",
+      "description": "Update a workflow",
+      "path": "/api/workflows/:id",
+      "method": "PUT",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "workflows.delete",
+      "type": "procedure",
+      "description": "Delete a workflow",
+      "path": "/api/workflows/:id",
+      "method": "DELETE",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "workflows.execute",
+      "type": "procedure",
+      "description": "Execute a workflow",
+      "path": "/api/workflows/:id/execute",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "workflows.trigger",
+      "type": "procedure",
+      "description": "Trigger a workflow by id",
+      "path": "/api/workflows/trigger/:id",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "workflows.execution",
+      "type": "query",
+      "description": "Get a workflow execution record",
+      "path": "/api/workflows/executions/:executionId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "workflows.callback",
+      "type": "procedure",
+      "description": "Workflow step callback ingest",
+      "path": "/api/workflows/callback",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "workflows.setupDefaults",
+      "type": "procedure",
+      "description": "Provision default workflows",
+      "path": "/api/workflows/setup-defaults",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "workflows.moderateAuto",
+      "type": "procedure",
+      "description": "Auto-moderate content through the workflow engine",
+      "path": "/api/workflows/moderate/auto",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "metrics.get",
+      "type": "query",
+      "description": "Get moderation metrics for a period",
+      "path": "/api/metrics",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "metrics.export",
+      "type": "query",
+      "description": "Export moderation metrics as CSV",
+      "path": "/api/metrics/export",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "actions.recent",
+      "type": "query",
+      "description": "List recent moderation actions",
+      "path": "/api/actions/recent",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "actions.get",
+      "type": "query",
+      "description": "Get a moderation action",
+      "path": "/api/actions/:id",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "actions.byContent",
+      "type": "query",
+      "description": "List moderation actions for a content item",
+      "path": "/api/actions/content/:contentType/:contentId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "actions.execute",
+      "type": "procedure",
+      "description": "Execute a moderation action on content",
+      "path": "/api/actions/execute",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "actions.providersStatus",
+      "type": "query",
+      "description": "Get action-provider connectivity status",
+      "path": "/api/actions/providers/status",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "config.get",
+      "type": "query",
+      "description": "Get a moderator config section",
+      "path": "/api/config/:sectionId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "config.set",
+      "type": "procedure",
+      "description": "Update a moderator config section (moderation-ai only)",
+      "path": "/api/config/:sectionId",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "notifications.create",
+      "type": "procedure",
+      "description": "Service ingest: push a notification for a user (per-service HMAC)",
+      "path": "/api/notifications",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "notifications.list",
+      "type": "query",
+      "description": "List the caller's persisted notifications",
+      "path": "/api/notifications",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "notifications.unreadCount",
+      "type": "query",
+      "description": "Get the caller's unread notification count",
+      "path": "/api/notifications/unread-count",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "notifications.readAll",
+      "type": "procedure",
+      "description": "Mark all the caller's notifications read",
+      "path": "/api/notifications/read-all",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "notifications.read",
+      "type": "procedure",
+      "description": "Mark one notification read",
+      "path": "/api/notifications/:id/read",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "notifications.delete",
+      "type": "procedure",
+      "description": "Dismiss one notification",
+      "path": "/api/notifications/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "notifications.clear",
+      "type": "procedure",
+      "description": "Clear all the caller's notifications",
+      "path": "/api/notifications",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "connection",
+      "namespace": "/moderation",
+      "direction": "server-side",
+      "description": "Socket connects; joins room moderators (and admins if handshake.query.role=admin). No token auth.",
+      "auth": "none"
+    },
+    {
+      "id": "disconnect",
+      "namespace": "/moderation",
+      "direction": "client->server",
+      "description": "Moderator socket disconnects",
+      "auth": "none"
+    },
+    {
+      "id": "queue:update",
+      "namespace": "/moderation",
+      "direction": "server->client",
+      "description": "Review-queue change broadcast to the moderators/admins rooms",
+      "auth": "none"
+    },
+    {
+      "id": "case:update",
+      "namespace": "/moderation",
+      "direction": "server->client",
+      "description": "Moderation case status/action change broadcast to the moderators/admins rooms",
+      "auth": "none"
+    },
+    {
+      "id": "handshake",
+      "namespace": "/notifications",
+      "direction": "server-side",
+      "description": "Namespace use() validates a CA token (read:true) and requires data.valid && data.userId before connect",
+      "auth": "required"
+    },
+    {
+      "id": "connection",
+      "namespace": "/notifications",
+      "direction": "server-side",
+      "description": "Authenticated socket connects; joins room user:{userId} from the validated token",
+      "auth": "required"
+    },
+    {
+      "id": "disconnect",
+      "namespace": "/notifications",
+      "direction": "client->server",
+      "description": "Notifications socket disconnects",
+      "auth": "required"
+    },
+    {
+      "id": "notification",
+      "namespace": "/notifications",
+      "direction": "server->client",
+      "description": "A persisted notification delivered live to room user:{userId} (emitted by the HTTP ingest route)",
+      "auth": "required"
+    }
+  ],
+  "types": {
+    "moderationCase": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "contentType": {
+          "type": "string",
+          "enum": ["text", "image", "video", "audio", "post", "comment", "message", "profile", "file"]
+        },
+        "contentId": {
+          "type": "string"
+        },
+        "sourceService": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "contentText": {
+          "type": "string"
+        },
+        "contentUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "contentMetadata": {
+          "type": "object"
+        },
+        "riskScore": {
+          "type": "integer"
+        },
+        "riskLevel": {
+          "type": "string",
+          "enum": ["safe", "low", "medium", "high", "critical"]
+        },
+        "scores": {
+          "type": "object",
+          "properties": {
+            "toxicity": { "type": "integer" },
+            "nsfw": { "type": "integer" },
+            "spam": { "type": "integer" },
+            "violence": { "type": "integer" },
+            "hateSpeech": { "type": "integer" },
+            "sentiment": { "type": "integer" }
+          }
+        },
+        "aiProvider": {
+          "type": "string",
+          "enum": ["claude", "openai", "deepseek", "local"]
+        },
+        "aiModel": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected", "flagged", "reviewing", "appealed", "escalated"]
+        },
+        "action": {
+          "type": "string",
+          "enum": ["auto_approve", "approve", "reject", "hide", "remove", "warn", "flag", "escalate", "require_review"]
+        },
+        "requiresReview": {
+          "type": "boolean"
+        },
+        "submittedAt": {
+          "type": "integer"
+        },
+        "processedAt": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "moderationRule": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "appliesTo": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["text", "image", "video", "audio", "post", "comment", "message", "profile", "file"]
+          }
+        },
+        "sourceServices": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "conditions": {
+          "type": "object"
+        },
+        "thresholdScore": {
+          "type": "integer"
+        },
+        "action": {
+          "type": "string",
+          "enum": ["auto_approve", "approve", "reject", "hide", "remove", "warn", "flag", "escalate", "require_review"]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "priority": {
+          "type": "integer"
+        },
+        "parentRuleId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "createdBy": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "trigger": {
+          "type": "object"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "queue": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "moderationItemId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "normal", "high", "urgent"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "in_review", "resolved", "skipped"]
+        },
+        "assignedTo": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "notification": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string"
+        },
+        "channel": {
+          "type": "string",
+          "enum": ["in-app", "email", "push"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "normal", "high"]
+        },
+        "read": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "description": "Translation of a moderation case into AT-Protocol label values",
+      "properties": {
+        "vals": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["!hide", "!warn", "toxic", "nsfw", "spam", "violence", "hate", "negative-sentiment"]
+          }
+        },
+        "neg": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

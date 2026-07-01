@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Admin · Files (FileVault) — /admin/filevault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+<header class="navbar">
+  <a class="navbar-brand" href="admin-index.html"><span class="logo">E</span> Exprsn <span class="sub">Admin</span></a>
+  <div class="nav-right">
+    <span class="crumb">/admin/filevault</span>
+    <button class="theme-toggle" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+    <div class="admin-chip"><span class="av">RH</span> Rick H. · Owner</div>
+  </div>
+</header>
+<div class="shell">
+  <aside class="sidebar">
+  <div class="sidebar-heading">Platform</div>
+  <a class="snav" href="admin-overview.html"><span class="ic">🏠</span> Overview</a>
+  <div class="sidebar-heading">Identity & Access</div>
+  <a class="snav" href="admin-ca.html"><span class="ic">📜</span> Certificate Authority</a>
+  <a class="snav" href="admin-auth.html"><span class="ic">🔑</span> Auth & Identity</a>
+  <a class="snav" href="admin-vault.html"><span class="ic">🔒</span> Vault</a>
+  <div class="sidebar-heading">Services</div>
+  <a class="snav" href="admin-nexus.html"><span class="ic">🌐</span> Groups (Nexus)</a>
+  <a class="snav" href="admin-spark.html"><span class="ic">💬</span> Messaging (Spark)</a>
+  <a class="snav" href="admin-live.html"><span class="ic">📡</span> Live Streaming</a>
+  <a class="snav active" href="admin-filevault.html"><span class="ic">📁</span> Files (FileVault)</a>
+  <div class="sidebar-heading">Operations</div>
+  <a class="snav" href="admin-jobs.html"><span class="ic">⚙️</span> Jobs & Queues</a>
+  <a class="snav" href="admin-moderator.html"><span class="ic">🛡️</span> Moderation</a>
+  <a class="snav" href="admin-atproto.html"><span class="ic">🔗</span> AT-Protocol</a>
+  </aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>📁 Files (FileVault)</h1>
+        <p class="lead">Content-addressed file storage with deduplication. Monitor capacity, per-user quotas, and backend health.</p>
+      </div>
+      <div class="actions"><button class="btn btn-ghost btn-sm">⬇ Export</button><button class="btn btn-primary">Manage quotas</button></div>
+    </div>
+    <div class="stat-row">
+  <div class="stat border-left-primary"><div class="lbl">Files</div><div class="val">1.2M</div><div class="delta" style="color:var(--exprsn-text-muted)">across all users</div></div>
+  <div class="stat border-left-info"><div class="lbl">Total size</div><div class="val">8.4 TB</div><div class="delta" style="color:var(--exprsn-info)">of 12 TB</div></div>
+  <div class="stat border-left-success"><div class="lbl">Users</div><div class="val">9,840</div><div class="delta" style="color:var(--exprsn-text-muted)">with stored files</div></div>
+  <div class="stat border-left-success"><div class="lbl">Unique blobs</div><div class="val">902K</div><div class="delta" style="color:var(--exprsn-success)">dedup 1.33×</div></div>
+</div><div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem"><div class="tablecard" style="padding:1.25rem"><h3 class="htitle">Deduplication</h3><p class="lead" style="margin:.4rem 0 1rem">Content-addressed blobs shared across uploads.</p><div class="vmrow"><span class="k">Dedup ratio</span> 1.33×</div><div class="vmrow" style="margin-top:.5rem"><span class="k">Saved</span> 2.1 TB</div></div><div class="tablecard" style="padding:1.25rem"><h3 class="htitle">Storage backend health</h3><div class="vmrow"><span class="k">Backend</span> <code>s3://exprsn-blobs</code></div><div class="vmrow" style="margin-top:.5rem"><span class="k">Replication</span> <span class="badge bg-success">3× healthy</span></div><div class="vmrow" style="margin-top:.5rem"><span class="k">Latency p95</span> <span class="badge bg-success">38 ms</span></div></div></div><div class="tablecard"><table class="table"><thead><tr><th>User</th><th>Files</th><th>Used</th><th>Quota</th><th>Status</th></tr></thead><tbody>
+<tr><td>@rick</td><td>2,104</td><td>18.2 GB</td><td>50 GB</td><td><span class="badge bg-success">ok</span></td></tr>
+<tr><td>@ada</td><td>8,902</td><td>46.1 GB</td><td>50 GB</td><td><span class="badge bg-warning">near limit</span></td></tr>
+<tr><td>@devon</td><td>410</td><td>2.0 GB</td><td>50 GB</td><td><span class="badge bg-success">ok</span></td></tr>
+<tr><td>@maya</td><td>12,008</td><td>51.4 GB</td><td>50 GB</td><td><span class="badge bg-danger">over quota</span></td></tr>
+</tbody></table></div>
+  </main>
+</div>
+</body>
+</html>

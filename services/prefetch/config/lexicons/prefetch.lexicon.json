@@ -1,0 +1,429 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.prefetch",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Prefetch (cache) service lexicon for Bridge integration. The prefetch router is double-mounted, so every route listed under /api/prefetch/... is also reachable under /api/cache/...",
+      "key": "io.exprsn.prefetch"
+    }
+  },
+  "routes": [
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.redis",
+      "type": "query",
+      "description": "Redis cache health check",
+      "path": "/health/redis",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.timeline",
+      "type": "query",
+      "description": "Timeline service dependency health check",
+      "path": "/health/timeline",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.ca",
+      "type": "query",
+      "description": "CA service dependency health check",
+      "path": "/health/ca",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.cache",
+      "type": "query",
+      "description": "Cache subsystem health check",
+      "path": "/health/cache",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.ready",
+      "type": "query",
+      "description": "Readiness probe",
+      "path": "/health/ready",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.live",
+      "type": "query",
+      "description": "Liveness probe",
+      "path": "/health/live",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "config.get",
+      "type": "query",
+      "description": "Get a prefetch configuration section (prefetch/prefetch-settings/prefetch-cache/prefetch-performance); 404 on unknown section",
+      "path": "/api/config/:sectionId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "config.update",
+      "type": "procedure",
+      "description": "Update a prefetch configuration section (settings/cache/performance); 404 on unknown section",
+      "path": "/api/config/:sectionId",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "prefetch.schedule",
+      "type": "procedure",
+      "description": "Schedule a background timeline prefetch for a user (CA write, self-or-admin); returns 202",
+      "path": "/api/prefetch/schedule/:userId",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "priority": {
+              "type": "string",
+              "enum": ["high", "medium", "low"]
+            },
+            "delay": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "prefetch.immediate",
+      "type": "procedure",
+      "description": "Run an immediate timeline prefetch for a user (CA write, self-or-admin)",
+      "path": "/api/prefetch/immediate/:userId",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "priority": {
+              "type": "string",
+              "enum": ["high", "medium", "low"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "prefetch.get",
+      "type": "query",
+      "description": "Get a user's cached timeline (CA read, self-or-admin); 404 if not cached",
+      "path": "/api/prefetch/:userId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "$ref": "#/defs/cacheEntry"
+        }
+      }
+    },
+    {
+      "id": "prefetch.invalidate",
+      "type": "procedure",
+      "description": "Invalidate a user's cached timeline (CA delete, self-or-admin)",
+      "path": "/api/prefetch/:userId/timeline",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "prefetch.status",
+      "type": "query",
+      "description": "Get prefetch/cache status for a user (CA read, self-or-admin)",
+      "path": "/api/prefetch/status/:userId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "prefetch.queue.stats",
+      "type": "query",
+      "description": "Get prefetch queue statistics (CA read)",
+      "path": "/api/prefetch/queue/stats",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "$ref": "#/defs/queueStats"
+        }
+      }
+    },
+    {
+      "id": "prefetch.queue.failed",
+      "type": "query",
+      "description": "List failed prefetch jobs (CA read); default limit 10",
+      "path": "/api/prefetch/queue/failed",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "prefetch.queue.retry",
+      "type": "procedure",
+      "description": "Retry a failed prefetch job by id (CA write)",
+      "path": "/api/prefetch/queue/retry/:jobId",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "prefetch.metrics",
+      "type": "query",
+      "description": "Get aggregate cache/prefetch metrics (CA read)",
+      "path": "/api/prefetch/metrics",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "$ref": "#/defs/cacheMetrics"
+        }
+      }
+    },
+    {
+      "id": "prefetch.metrics.byDate",
+      "type": "query",
+      "description": "Get cache/prefetch metrics for a date (YYYY-MM-DD, else 400) (CA read)",
+      "path": "/api/prefetch/metrics/:date",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "$ref": "#/defs/cacheMetrics"
+        }
+      }
+    }
+  ],
+  "types": {
+    "cacheEntry": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["hot", "warm"]
+        },
+        "posts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "postsCount": {
+          "type": "integer"
+        },
+        "fetchedAt": {
+          "type": "integer"
+        }
+      }
+    },
+    "prefetchJob": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "active", "completed", "failed", "delayed"]
+        },
+        "attempts": {
+          "type": "integer"
+        },
+        "delay": {
+          "type": "integer"
+        },
+        "failedReason": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "queueStats": {
+      "type": "object",
+      "properties": {
+        "waiting": {
+          "type": "integer"
+        },
+        "active": {
+          "type": "integer"
+        },
+        "completed": {
+          "type": "integer"
+        },
+        "failed": {
+          "type": "integer"
+        },
+        "delayed": {
+          "type": "integer"
+        }
+      }
+    },
+    "cacheMetrics": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string"
+        },
+        "hits": {
+          "type": "object",
+          "properties": {
+            "hot": {
+              "type": "integer"
+            },
+            "warm": {
+              "type": "integer"
+            },
+            "total": {
+              "type": "integer"
+            }
+          }
+        },
+        "misses": {
+          "type": "integer"
+        },
+        "hitRate": {
+          "type": "number"
+        },
+        "totalRequests": {
+          "type": "integer"
+        }
+      }
+    },
+    "prefetchMetrics": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer"
+        },
+        "avgDuration": {
+          "type": "integer"
+        },
+        "minDuration": {
+          "type": "integer"
+        },
+        "maxDuration": {
+          "type": "integer"
+        },
+        "p50": {
+          "type": "integer"
+        },
+        "p95": {
+          "type": "integer"
+        },
+        "p99": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

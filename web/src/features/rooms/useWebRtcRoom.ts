@@ -40,8 +40,10 @@ interface UseWebRtcRoomResult {
   peers: RemotePeer[];
   audioEnabled: boolean;
   videoEnabled: boolean;
+  isScreenSharing: boolean;
   toggleAudio: () => void;
   toggleVideo: () => void;
+  toggleScreenShare: () => Promise<void>;
   leave: () => void;
 }
 
@@ -61,10 +63,15 @@ export function useWebRtcRoom(
   const [peers, setPeers] = useState<RemotePeer[]>([]);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   // Mutable refs so the socket handlers always see live state without re-binding.
   const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  // While screen sharing we swap the outbound video track on every peer; keep the
+  // camera track to restore it, and the display stream to stop it on teardown.
+  const cameraTrackRef = useRef<MediaStreamTrack | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const metaRef = useRef<Map<string, Omit<RemotePeer, 'stream' | 'isAudioEnabled' | 'isVideoEnabled'>>>(
     new Map(),
@@ -119,10 +126,15 @@ export function useWebRtcRoom(
 
       pc = new RTCPeerConnection(ICE_SERVERS);
 
-      // Publish our local tracks to this peer.
+      // Publish our local tracks to this peer. While screen sharing, publish the
+      // screen video track (not the camera) so a peer joining mid-share sees the
+      // screen; audio always comes from the camera/mic stream.
       const local = localStreamRef.current;
       if (local) {
-        for (const track of local.getTracks()) pc.addTrack(track, local);
+        const screenTrack = screenStreamRef.current?.getVideoTracks()[0] ?? null;
+        for (const track of local.getAudioTracks()) pc.addTrack(track, local);
+        const videoTrack = screenTrack ?? local.getVideoTracks()[0] ?? null;
+        if (videoTrack) pc.addTrack(videoTrack, local);
       }
 
       pc.onicecandidate = (ev) => {
@@ -180,9 +192,13 @@ export function useWebRtcRoom(
 
     for (const id of Array.from(peersRef.current.keys())) closePeer(id);
 
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current = null;
+    cameraTrackRef.current = null;
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
     setLocalStream(null);
+    setIsScreenSharing(false);
 
     if (socket) {
       socket.off();
@@ -359,6 +375,63 @@ export function useWebRtcRoom(
     if (roomId) socketRef.current?.emit('update-participant-state', { roomId, state: { videoEnabled: next } });
   }, [videoEnabled, roomId]);
 
+  // Swap the outbound video track on every peer connection (camera <-> screen).
+  const replaceOutboundVideo = useCallback((track: MediaStreamTrack) => {
+    for (const pc of peersRef.current.values()) {
+      const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+      if (sender) void sender.replaceTrack(track);
+    }
+  }, []);
+
+  const stopScreenShare = useCallback(() => {
+    const camera = cameraTrackRef.current;
+    const camStream = localStreamRef.current;
+    if (camera) replaceOutboundVideo(camera);
+
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current = null;
+    cameraTrackRef.current = null;
+
+    // Re-bind the local tile to the camera stream (new object → VideoTile rebinds).
+    if (camStream) {
+      const restored = new MediaStream([...camStream.getAudioTracks(), ...camStream.getVideoTracks()]);
+      setLocalStream(restored);
+    }
+    setIsScreenSharing(false);
+  }, [replaceOutboundVideo]);
+
+  const startScreenShare = useCallback(async () => {
+    const camStream = localStreamRef.current;
+    if (!camStream) return;
+
+    let display: MediaStream;
+    try {
+      display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    } catch {
+      // User cancelled the picker, or no permission — leave the camera as-is.
+      return;
+    }
+    const screenTrack = display.getVideoTracks()[0];
+    if (!screenTrack) return;
+
+    cameraTrackRef.current = camStream.getVideoTracks()[0] ?? null;
+    screenStreamRef.current = display;
+
+    replaceOutboundVideo(screenTrack);
+
+    // Show the screen in the local tile (keep audio from the camera stream).
+    setLocalStream(new MediaStream([...camStream.getAudioTracks(), screenTrack]));
+    setIsScreenSharing(true);
+
+    // Browser "Stop sharing" UI ends the track → fall back to the camera.
+    screenTrack.addEventListener('ended', () => stopScreenShare(), { once: true });
+  }, [replaceOutboundVideo, stopScreenShare]);
+
+  const toggleScreenShare = useCallback(async () => {
+    if (isScreenSharing) stopScreenShare();
+    else await startScreenShare();
+  }, [isScreenSharing, startScreenShare, stopScreenShare]);
+
   return {
     status,
     error,
@@ -366,8 +439,10 @@ export function useWebRtcRoom(
     peers,
     audioEnabled,
     videoEnabled,
+    isScreenSharing,
     toggleAudio,
     toggleVideo,
+    toggleScreenShare,
     leave,
   };
 }

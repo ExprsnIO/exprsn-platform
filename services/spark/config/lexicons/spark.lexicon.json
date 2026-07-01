@@ -1,0 +1,930 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.spark",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Spark messaging service lexicon for Bridge integration",
+      "key": "io.exprsn.spark"
+    }
+  },
+  "routes": [
+    {
+      "id": "conversations.create",
+      "type": "procedure",
+      "description": "Create a conversation (direct or group)",
+      "path": "/api/conversations",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["direct", "group"],
+              "required": true
+            },
+            "participantIds": {
+              "type": "array",
+              "items": { "type": "string", "format": "uuid" },
+              "required": true
+            },
+            "name": { "type": "string" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "conversation": { "$ref": "#/defs/conversation" }
+          }
+        }
+      }
+    },
+    {
+      "id": "conversations.list",
+      "type": "query",
+      "description": "List the caller's conversations",
+      "path": "/api/conversations",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "conversations.get",
+      "type": "query",
+      "description": "Get a conversation by id",
+      "path": "/api/conversations/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "conversations.update",
+      "type": "procedure",
+      "description": "Update conversation name/description/settings",
+      "path": "/api/conversations/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "conversations.delete",
+      "type": "procedure",
+      "description": "Leave/delete a conversation (soft-leave)",
+      "path": "/api/conversations/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "conversations.participants.add",
+      "type": "procedure",
+      "description": "Add a participant to a conversation",
+      "path": "/api/conversations/:id/participants",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "messages.list",
+      "type": "query",
+      "description": "List messages in a conversation",
+      "path": "/api/messages/:conversationId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "messages.get",
+      "type": "query",
+      "description": "Get a single message with reactions and replies",
+      "path": "/api/messages/:conversationId/:messageId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "messages.update",
+      "type": "procedure",
+      "description": "Edit a message (sender only)",
+      "path": "/api/messages/:conversationId/:messageId",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "messages.delete",
+      "type": "procedure",
+      "description": "Delete a message (soft delete, sender only)",
+      "path": "/api/messages/:conversationId/:messageId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "messages.search",
+      "type": "query",
+      "description": "Search messages within a conversation",
+      "path": "/api/messages/:conversationId/search",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "messages.search.suggestions",
+      "type": "query",
+      "description": "Search suggestions across conversations",
+      "path": "/api/messages/search/suggestions",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "attachments.upload",
+      "type": "procedure",
+      "description": "Upload a message attachment",
+      "path": "/api/attachments/upload",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      },
+      "input": {
+        "encoding": "multipart/form-data",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "binary",
+              "required": true
+            },
+            "messageId": {
+              "type": "string",
+              "format": "uuid",
+              "required": true
+            },
+            "conversationId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "attachment": { "$ref": "#/defs/attachment" }
+          }
+        }
+      }
+    },
+    {
+      "id": "attachments.get",
+      "type": "query",
+      "description": "Get attachment metadata",
+      "path": "/api/attachments/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "attachments.download",
+      "type": "query",
+      "description": "Get a signed download URL for an attachment",
+      "path": "/api/attachments/:id/download",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 50
+      }
+    },
+    {
+      "id": "attachments.delete",
+      "type": "procedure",
+      "description": "Delete an attachment (sender only)",
+      "path": "/api/attachments/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "attachments.list",
+      "type": "query",
+      "description": "List a conversation's attachments",
+      "path": "/api/attachments/conversations/:conversationId/attachments",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "queues.clean",
+      "type": "procedure",
+      "description": "Clean a job queue",
+      "path": "/api/queues/:name/clean",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "queues.stats",
+      "type": "query",
+      "description": "Get stats for all queues",
+      "path": "/api/queues/stats",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "queues.stats.byName",
+      "type": "query",
+      "description": "Get stats for a single queue",
+      "path": "/api/queues/:name/stats",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "queues.pause",
+      "type": "procedure",
+      "description": "Pause a job queue",
+      "path": "/api/queues/:name/pause",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "queues.resume",
+      "type": "procedure",
+      "description": "Resume a job queue",
+      "path": "/api/queues/:name/resume",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "encryption.keys.generate",
+      "type": "procedure",
+      "description": "Generate/register an E2EE device keypair",
+      "path": "/api/encryption/keys/generate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "deviceId": {
+              "type": "string",
+              "required": true,
+              "maxLength": 255
+            },
+            "publicKey": {
+              "type": "string",
+              "maxLength": 16384
+            },
+            "encryptedPrivateKey": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "passwordHash": {
+              "type": "string",
+              "minLength": 32
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "key": { "$ref": "#/defs/encryptionKey" }
+          }
+        }
+      }
+    },
+    {
+      "id": "encryption.keys.public.get",
+      "type": "query",
+      "description": "Get a user's public key",
+      "path": "/api/encryption/keys/public/:userId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "encryption.keys.public.batch",
+      "type": "procedure",
+      "description": "Get public keys for a batch of users",
+      "path": "/api/encryption/keys/public/batch",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "encryption.keys.myKeys",
+      "type": "query",
+      "description": "List the caller's device keys",
+      "path": "/api/encryption/keys/my-keys",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "encryption.keys.mine",
+      "type": "query",
+      "description": "Get the caller's opaque key blob",
+      "path": "/api/encryption/keys/mine",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "encryption.keys.rotate",
+      "type": "procedure",
+      "description": "Rotate a device key with old/new password hash",
+      "path": "/api/encryption/keys/:keyId/rotate",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 10
+      }
+    },
+    {
+      "id": "encryption.keys.delete",
+      "type": "procedure",
+      "description": "Delete a device key",
+      "path": "/api/encryption/keys/:keyId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "encryption.messages.keys.set",
+      "type": "procedure",
+      "description": "Set per-recipient encrypted message keys",
+      "path": "/api/encryption/messages/:messageId/keys",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "encryption.messages.keys.get",
+      "type": "query",
+      "description": "Get per-recipient encrypted message keys",
+      "path": "/api/encryption/messages/:messageId/keys",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "messages.forward",
+      "type": "procedure",
+      "description": "Forward a message to other conversations",
+      "path": "/api/messages/:id/forward",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "messages.pin",
+      "type": "procedure",
+      "description": "Pin a message",
+      "path": "/api/messages/:id/pin",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "messages.unpin",
+      "type": "procedure",
+      "description": "Unpin a message",
+      "path": "/api/messages/:id/unpin",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "conversations.pinned",
+      "type": "query",
+      "description": "List pinned messages in a conversation",
+      "path": "/api/conversations/:id/pinned",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "messages.thread",
+      "type": "query",
+      "description": "List replies in a message thread",
+      "path": "/api/messages/:id/thread",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "messages.reply",
+      "type": "procedure",
+      "description": "Reply to a message in a thread",
+      "path": "/api/messages/:id/reply",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "conversations.settings.update",
+      "type": "procedure",
+      "description": "Update per-user conversation settings",
+      "path": "/api/conversations/:id/settings",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "conversations.settings.get",
+      "type": "query",
+      "description": "Get per-user conversation settings",
+      "path": "/api/conversations/:id/settings",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "conversations.mute",
+      "type": "procedure",
+      "description": "Mute a conversation",
+      "path": "/api/conversations/:id/mute",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "conversations.unmute",
+      "type": "procedure",
+      "description": "Unmute a conversation",
+      "path": "/api/conversations/:id/unmute",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "groups.channels.list",
+      "type": "query",
+      "description": "List/auto-provision a group's chat and announcement channels",
+      "path": "/api/groups/:groupId/channels",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "groups.channels.messages.create",
+      "type": "procedure",
+      "description": "Post a plaintext message to a group channel",
+      "path": "/api/groups/:groupId/channels/:channelKind/messages",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.db",
+      "type": "query",
+      "description": "Database health check",
+      "path": "/health/db",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.ca",
+      "type": "query",
+      "description": "CA connectivity health check",
+      "path": "/health/ca",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "config.get",
+      "type": "query",
+      "description": "Get a runtime config section",
+      "path": "/api/config/:sectionId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "config.set",
+      "type": "procedure",
+      "description": "Set a runtime config section",
+      "path": "/api/config/:sectionId",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "join:conversation",
+      "direction": "client->server",
+      "description": "Join a conversation room",
+      "auth": "required"
+    },
+    {
+      "id": "leave:conversation",
+      "direction": "client->server",
+      "description": "Leave a conversation room",
+      "auth": "required"
+    },
+    {
+      "id": "send:message",
+      "direction": "client->server",
+      "description": "Send a message (needs write; participant)",
+      "auth": "required"
+    },
+    {
+      "id": "typing:start",
+      "direction": "client->server",
+      "description": "Signal typing started",
+      "auth": "required"
+    },
+    {
+      "id": "typing:stop",
+      "direction": "client->server",
+      "description": "Signal typing stopped",
+      "auth": "required"
+    },
+    {
+      "id": "mark:read",
+      "direction": "client->server",
+      "description": "Mark a message as read",
+      "auth": "required"
+    },
+    {
+      "id": "add:reaction",
+      "direction": "client->server",
+      "description": "Add a reaction to a message",
+      "auth": "required"
+    },
+    {
+      "id": "edit:message",
+      "direction": "client->server",
+      "description": "Edit a message (needs write; sender)",
+      "auth": "required"
+    },
+    {
+      "id": "delete:message",
+      "direction": "client->server",
+      "description": "Delete a message (needs delete; sender)",
+      "auth": "required"
+    },
+    {
+      "id": "presence:update",
+      "direction": "client->server",
+      "description": "Update presence status",
+      "auth": "required"
+    },
+    {
+      "id": "new:message",
+      "direction": "server->client",
+      "description": "A new message was broadcast to the room",
+      "auth": "none"
+    },
+    {
+      "id": "typing:start",
+      "direction": "server->client",
+      "description": "A user started typing",
+      "auth": "none"
+    },
+    {
+      "id": "typing:stop",
+      "direction": "server->client",
+      "description": "A user stopped typing",
+      "auth": "none"
+    },
+    {
+      "id": "read:receipt",
+      "direction": "server->client",
+      "description": "A read receipt for a message",
+      "auth": "none"
+    },
+    {
+      "id": "new:reaction",
+      "direction": "server->client",
+      "description": "A reaction was added to a message",
+      "auth": "none"
+    },
+    {
+      "id": "message:edited",
+      "direction": "server->client",
+      "description": "A message was edited",
+      "auth": "none"
+    },
+    {
+      "id": "message:deleted",
+      "direction": "server->client",
+      "description": "A message was deleted",
+      "auth": "none"
+    },
+    {
+      "id": "user:status",
+      "direction": "server->client",
+      "description": "A user's presence status changed",
+      "auth": "none"
+    },
+    {
+      "id": "error",
+      "direction": "server->client",
+      "description": "Emitted on handler failure",
+      "auth": "none"
+    },
+    {
+      "id": "participant:added",
+      "direction": "server->client",
+      "description": "A participant was added (from REST)",
+      "auth": "none"
+    },
+    {
+      "id": "message:new",
+      "direction": "server->client",
+      "description": "A new message from a REST route (forward/reply)",
+      "auth": "none"
+    },
+    {
+      "id": "message:pinned",
+      "direction": "server->client",
+      "description": "A message was pinned (from REST)",
+      "auth": "none"
+    },
+    {
+      "id": "message:unpinned",
+      "direction": "server->client",
+      "description": "A message was unpinned (from REST)",
+      "auth": "none"
+    },
+    {
+      "id": "message:reply",
+      "direction": "server->client",
+      "description": "A reply was posted (from REST)",
+      "auth": "none"
+    }
+  ],
+  "types": {
+    "conversation": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "type": { "type": "string", "enum": ["direct", "group"] },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "avatar": { "type": "string" },
+        "createdBy": { "type": "string", "format": "uuid" },
+        "groupId": { "type": "string", "format": "uuid" },
+        "channelKind": { "type": "string", "enum": ["chat", "announcement"] },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "settings": { "type": "object" },
+        "metadata": { "type": "object" },
+        "active": { "type": "boolean" }
+      }
+    },
+    "message": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "conversationId": { "type": "string", "format": "uuid" },
+        "senderId": { "type": "string", "format": "uuid" },
+        "content": { "type": "string" },
+        "contentType": { "type": "string", "enum": ["text", "image", "video", "file", "audio"] },
+        "encrypted": { "type": "boolean" },
+        "encryptedContent": { "type": "string" },
+        "senderKeyFingerprint": { "type": "string" },
+        "parentMessageId": { "type": "string", "format": "uuid" },
+        "attachments": { "type": "array" },
+        "mentions": { "type": "array" },
+        "edited": { "type": "boolean" },
+        "editedAt": { "type": "string", "format": "date-time" },
+        "deleted": { "type": "boolean" },
+        "deletedAt": { "type": "string", "format": "date-time" },
+        "readBy": { "type": "array" },
+        "deliveredTo": { "type": "array" },
+        "forwardedFrom": { "type": "string", "format": "uuid" }
+      }
+    },
+    "attachment": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "messageId": { "type": "string", "format": "uuid" },
+        "fileName": { "type": "string" },
+        "originalName": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "fileSize": { "type": "integer" },
+        "fileUrl": { "type": "string" },
+        "thumbnailUrl": { "type": "string" },
+        "duration": { "type": "integer" },
+        "dimensions": { "type": "object" },
+        "encrypted": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["pending", "processing", "ready", "failed"] },
+        "metadata": { "type": "object" }
+      }
+    },
+    "reaction": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "messageId": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "emoji": { "type": "string" }
+      }
+    },
+    "encryptionKey": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "deviceId": { "type": "string" },
+        "publicKey": { "type": "string" },
+        "encryptedPrivateKey": { "type": "string" },
+        "salt": { "type": "string" },
+        "keyFingerprint": { "type": "string" },
+        "keyType": { "type": "string", "enum": ["rsa-4096"] },
+        "active": { "type": "boolean" },
+        "lastUsedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" }
+      }
+    },
+    "participant": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "conversationId": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "role": { "type": "string", "enum": ["owner", "admin", "member"] },
+        "lastReadMessageId": { "type": "string", "format": "uuid" },
+        "lastReadAt": { "type": "string", "format": "date-time" },
+        "muted": { "type": "boolean" },
+        "mutedUntil": { "type": "string", "format": "date-time" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "leftAt": { "type": "string", "format": "date-time" },
+        "active": { "type": "boolean" },
+        "metadata": { "type": "object" }
+      }
+    }
+  }
+}

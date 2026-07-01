@@ -121,6 +121,18 @@ module.exports = (sequelize) => {
       },
       field: 'hate_speech_score'
     },
+    // Sentiment: 0 = very positive … 50 = neutral … 100 = very negative.
+    // Informational + rule-targetable (rules threshold scores.sentimentScore);
+    // intentionally NOT part of the overall risk weighting.
+    sentimentScore: {
+      type: DataTypes.INTEGER,
+      defaultValue: 50,
+      validate: {
+        min: 0,
+        max: 100
+      },
+      field: 'sentiment_score'
+    },
 
     // AI provider used
     aiProvider: {
@@ -232,7 +244,8 @@ module.exports = (sequelize) => {
         nsfw: values.nsfwScore,
         spam: values.spamScore,
         violence: values.violenceScore,
-        hateSpeech: values.hateSpeechScore
+        hateSpeech: values.hateSpeechScore,
+        sentiment: values.sentimentScore
       },
       aiProvider: values.aiProvider,
       aiModel: values.aiModel,

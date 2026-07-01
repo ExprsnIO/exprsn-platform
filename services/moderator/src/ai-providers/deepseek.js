@@ -90,6 +90,7 @@ Evaluate the content across these dimensions:
 3. **Spam**: Promotional content, repetitive messages, bot-like behavior
 4. **Violence**: Threats, graphic violence, gore, violent imagery
 5. **Hate Speech**: Discrimination, slurs, targeted harassment based on identity
+6. **Sentiment**: Overall emotional tone, scored 0 (very positive) … 50 (neutral) … 100 (very negative)
 
 Provide scores from 0-100 for each dimension where:
 - 0-30: Safe, no issues
@@ -105,6 +106,7 @@ Respond with ONLY a valid JSON object:
   "spam_score": <number 0-100>,
   "violence_score": <number 0-100>,
   "hate_speech_score": <number 0-100>,
+  "sentiment_score": <number 0-100, 0=very positive, 100=very negative>,
   "overall_risk_score": <number 0-100>,
   "flags": [<array of specific issues>],
   "explanation": "<brief explanation>"
@@ -129,6 +131,9 @@ Respond with ONLY a valid JSON object:
         spamScore: parsed.spam_score || 0,
         violenceScore: parsed.violence_score || 0,
         hateSpeechScore: parsed.hate_speech_score || 0,
+        // 0=very positive … 100=very negative; default neutral (50) when omitted.
+        // Use nullish coalescing so a legitimate 0 (very positive) is preserved.
+        sentimentScore: parsed.sentiment_score ?? 50,
         flags: parsed.flags || [],
         explanation: parsed.explanation || '',
         rawResponse: data

@@ -1,0 +1,971 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.nexus",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Nexus groups service lexicon for Bridge integration",
+      "key": "io.exprsn.nexus"
+    }
+  },
+  "routes": [
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "health.db",
+      "type": "query",
+      "description": "Database health check",
+      "path": "/health/db",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "health.cache",
+      "type": "query",
+      "description": "Cache (Redis) health check",
+      "path": "/health/cache",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "health.all",
+      "type": "query",
+      "description": "Aggregate health check",
+      "path": "/health/all",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 300 }
+    },
+    {
+      "id": "groups.create",
+      "type": "procedure",
+      "description": "Create a new group",
+      "path": "/api/groups",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string", "minLength": 2, "maxLength": 255 },
+            "description": { "type": "string", "maxLength": 5000 },
+            "visibility": { "type": "string", "enum": ["public", "private", "secret"] },
+            "joinMode": { "type": "string", "enum": ["open", "request", "invite"] },
+            "governanceModel": { "type": "string" },
+            "governanceRules": { "type": "object" },
+            "category": { "type": "string", "maxLength": 100 },
+            "tags": { "type": "array", "items": { "type": "string", "maxLength": 50 } },
+            "avatarUrl": { "type": "string", "format": "uri", "maxLength": 500 },
+            "bannerUrl": { "type": "string", "format": "uri", "maxLength": 500 },
+            "maxMembers": { "type": "integer", "minimum": 1 },
+            "location": { "type": "string" },
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" },
+            "website": { "type": "string", "format": "uri", "maxLength": 500 },
+            "metadata": { "type": "object" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "group": { "$ref": "#/defs/group" }
+          }
+        }
+      }
+    },
+    {
+      "id": "groups.list",
+      "type": "query",
+      "description": "List/browse groups",
+      "path": "/api/groups",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.search",
+      "type": "procedure",
+      "description": "Advanced group search",
+      "path": "/api/groups/search",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "groups.discover.nearby",
+      "type": "query",
+      "description": "Discover groups near a location",
+      "path": "/api/groups/discover/nearby",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.discover.activity",
+      "type": "query",
+      "description": "Discover groups by recent activity",
+      "path": "/api/groups/discover/activity",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.search.popular",
+      "type": "query",
+      "description": "Popular search terms / groups",
+      "path": "/api/groups/search/popular",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.get",
+      "type": "query",
+      "description": "Get a group by id",
+      "path": "/api/groups/:id",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.related",
+      "type": "query",
+      "description": "Get groups related to a group",
+      "path": "/api/groups/:id/related",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.update",
+      "type": "procedure",
+      "description": "Update a group",
+      "path": "/api/groups/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.delete",
+      "type": "procedure",
+      "description": "Delete a group",
+      "path": "/api/groups/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.members.list",
+      "type": "query",
+      "description": "List a group's members",
+      "path": "/api/groups/:id/members",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "groups.join",
+      "type": "procedure",
+      "description": "Join a group",
+      "path": "/api/groups/:id/join",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.leave",
+      "type": "procedure",
+      "description": "Leave a group",
+      "path": "/api/groups/:id/leave",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.members.remove",
+      "type": "procedure",
+      "description": "Remove a member from a group",
+      "path": "/api/groups/:id/members/:userId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.invite",
+      "type": "procedure",
+      "description": "Create a group invite",
+      "path": "/api/groups/:id/invite",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.joinRequests.approve",
+      "type": "procedure",
+      "description": "Approve a group join request",
+      "path": "/api/groups/:id/join-requests/:requestId/approve",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "groups.joinRequests.reject",
+      "type": "procedure",
+      "description": "Reject a group join request",
+      "path": "/api/groups/:id/join-requests/:requestId/reject",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "memberships.list",
+      "type": "query",
+      "description": "List the current user's memberships",
+      "path": "/api/memberships",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "memberships.user",
+      "type": "query",
+      "description": "List another user's public-group memberships",
+      "path": "/api/memberships/user/:userId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "events.create",
+      "type": "procedure",
+      "description": "Create a group event",
+      "path": "/api/events",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.list",
+      "type": "query",
+      "description": "List events",
+      "path": "/api/events",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "events.get",
+      "type": "query",
+      "description": "Get an event by id",
+      "path": "/api/events/:id",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "events.update",
+      "type": "procedure",
+      "description": "Update an event",
+      "path": "/api/events/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.cancel",
+      "type": "procedure",
+      "description": "Cancel an event",
+      "path": "/api/events/:id/cancel",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.delete",
+      "type": "procedure",
+      "description": "Delete an event",
+      "path": "/api/events/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.rsvp",
+      "type": "procedure",
+      "description": "RSVP to an event",
+      "path": "/api/events/:id/rsvp",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.rsvp.get",
+      "type": "query",
+      "description": "Get the current user's RSVP for an event",
+      "path": "/api/events/:id/rsvp",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "events.rsvp.delete",
+      "type": "procedure",
+      "description": "Remove the current user's RSVP",
+      "path": "/api/events/:id/rsvp",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.attendees",
+      "type": "query",
+      "description": "List event attendees",
+      "path": "/api/events/:id/attendees",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "events.checkIn",
+      "type": "procedure",
+      "description": "Check in an attendee to an event",
+      "path": "/api/events/:id/check-in/:userId",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.reminders.set",
+      "type": "procedure",
+      "description": "Set event reminder schedule",
+      "path": "/api/events/:id/reminders",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.reminders.delete",
+      "type": "procedure",
+      "description": "Clear event reminders",
+      "path": "/api/events/:id/reminders",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.notify",
+      "type": "procedure",
+      "description": "Send an update notification to event attendees",
+      "path": "/api/events/:id/notify",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.live",
+      "type": "procedure",
+      "description": "Link or unlink a live stream to an event",
+      "path": "/api/events/:id/live",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "events.reminders.presets",
+      "type": "query",
+      "description": "Get available reminder presets",
+      "path": "/api/events/reminders/presets",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "governance.proposals.create",
+      "type": "procedure",
+      "description": "Create a governance proposal",
+      "path": "/api/governance/proposals",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "governance.proposals.list",
+      "type": "query",
+      "description": "List governance proposals",
+      "path": "/api/governance/proposals",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "governance.proposals.get",
+      "type": "query",
+      "description": "Get a proposal by id",
+      "path": "/api/governance/proposals/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "governance.proposals.update",
+      "type": "procedure",
+      "description": "Update a proposal",
+      "path": "/api/governance/proposals/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "governance.proposals.delete",
+      "type": "procedure",
+      "description": "Cancel/delete a proposal",
+      "path": "/api/governance/proposals/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "governance.proposals.vote",
+      "type": "procedure",
+      "description": "Cast a vote on a proposal",
+      "path": "/api/governance/proposals/:id/vote",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "governance.proposals.results",
+      "type": "query",
+      "description": "Get proposal results",
+      "path": "/api/governance/proposals/:id/results",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "governance.proposals.votes",
+      "type": "query",
+      "description": "List votes on a proposal",
+      "path": "/api/governance/proposals/:id/votes",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "governance.proposals.execute",
+      "type": "procedure",
+      "description": "Execute a passed proposal",
+      "path": "/api/governance/proposals/:id/execute",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "governance.proposals.close",
+      "type": "procedure",
+      "description": "Close a proposal's voting",
+      "path": "/api/governance/proposals/:id/close",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "trending.groups",
+      "type": "query",
+      "description": "Get trending groups",
+      "path": "/api/trending/groups",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "trending.update",
+      "type": "procedure",
+      "description": "Recompute trending stats (admin)",
+      "path": "/api/trending/update",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "recommendations.list",
+      "type": "query",
+      "description": "Get group recommendations for the current user",
+      "path": "/api/recommendations",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "recommendations.generate",
+      "type": "procedure",
+      "description": "Generate fresh group recommendations",
+      "path": "/api/recommendations/generate",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 10 }
+    },
+    {
+      "id": "recommendations.track",
+      "type": "procedure",
+      "description": "Track a recommendation interaction",
+      "path": "/api/recommendations/:id/track",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "recommendations.analytics",
+      "type": "query",
+      "description": "Get recommendation analytics",
+      "path": "/api/recommendations/analytics",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "moderation.flags.create",
+      "type": "procedure",
+      "description": "Flag group content for moderation",
+      "path": "/api/moderation/flags",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "moderation.flags.list",
+      "type": "query",
+      "description": "List content flags for a group",
+      "path": "/api/moderation/flags/:groupId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "moderation.queue",
+      "type": "query",
+      "description": "Get a group's moderation queue",
+      "path": "/api/moderation/queue/:groupId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "moderation.cases.get",
+      "type": "query",
+      "description": "Get a moderation case",
+      "path": "/api/moderation/cases/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "moderation.cases.action",
+      "type": "procedure",
+      "description": "Take action on a moderation case",
+      "path": "/api/moderation/cases/:id/action",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "moderation.cases.assign",
+      "type": "procedure",
+      "description": "Assign moderators to a case",
+      "path": "/api/moderation/cases/:id/assign",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "moderation.flags.resolve",
+      "type": "procedure",
+      "description": "Resolve a content flag",
+      "path": "/api/moderation/flags/:flagId/resolve",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "admin.stats",
+      "type": "query",
+      "description": "Platform-wide nexus statistics",
+      "path": "/api/admin/stats",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.groups.stats",
+      "type": "query",
+      "description": "Per-group statistics",
+      "path": "/api/admin/groups/:id/stats",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "admin.audit",
+      "type": "query",
+      "description": "Admin audit log",
+      "path": "/api/admin/audit",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 30 }
+    },
+    {
+      "id": "calendar.eventIcal",
+      "type": "query",
+      "description": "Get an event as iCalendar",
+      "path": "/api/calendar/events/:id/ical",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "calendar.groupIcal",
+      "type": "query",
+      "description": "Get a group's events as iCalendar",
+      "path": "/api/calendar/groups/:groupId/ical",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "calendar.userIcal",
+      "type": "query",
+      "description": "Get the current user's events as iCalendar",
+      "path": "/api/calendar/users/:userId/ical",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "calendar.caldav",
+      "type": "query",
+      "description": "CalDAV/CardDAV sync endpoints",
+      "path": "/api/calendar/caldav",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "subgroups.create",
+      "type": "procedure",
+      "description": "Create a subgroup/channel",
+      "path": "/api/subgroups",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "subgroups.list",
+      "type": "query",
+      "description": "List subgroups of a parent group",
+      "path": "/api/subgroups",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "subgroups.get",
+      "type": "query",
+      "description": "Get a subgroup by id",
+      "path": "/api/subgroups/:id",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "subgroups.update",
+      "type": "procedure",
+      "description": "Update a subgroup",
+      "path": "/api/subgroups/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "subgroups.delete",
+      "type": "procedure",
+      "description": "Delete a subgroup",
+      "path": "/api/subgroups/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "subgroups.members.add",
+      "type": "procedure",
+      "description": "Add a member to a subgroup",
+      "path": "/api/subgroups/:id/members",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "subgroups.members.remove",
+      "type": "procedure",
+      "description": "Remove a member from a subgroup",
+      "path": "/api/subgroups/:id/members/:userId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "subgroups.access",
+      "type": "query",
+      "description": "Check the current user's subgroup access",
+      "path": "/api/subgroups/:id/access",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "config.get",
+      "type": "query",
+      "description": "Get an admin config section",
+      "path": "/api/config/:sectionId",
+      "method": "GET",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 100 }
+    },
+    {
+      "id": "config.set",
+      "type": "procedure",
+      "description": "Update an admin config section",
+      "path": "/api/config/:sectionId",
+      "method": "POST",
+      "auth": "admin",
+      "rateLimit": { "window": 60000, "max": 20 }
+    },
+    {
+      "id": "internal.groupMembership",
+      "type": "query",
+      "description": "Service-to-service group membership lookup",
+      "path": "/api/internal/groups/:id/membership/:userId",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": { "window": 60000, "max": 100 }
+    }
+  ],
+  "types": {
+    "group": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "creatorId": { "type": "string", "format": "uuid" },
+        "visibility": { "type": "string", "enum": ["public", "private", "secret"] },
+        "joinMode": { "type": "string", "enum": ["open", "request", "invite"] },
+        "governanceModel": { "type": "string" },
+        "governanceRules": { "type": "object" },
+        "category": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "avatarUrl": { "type": "string", "format": "uri" },
+        "bannerUrl": { "type": "string", "format": "uri" },
+        "memberCount": { "type": "integer" },
+        "maxMembers": { "type": "integer" },
+        "location": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "website": { "type": "string", "format": "uri" },
+        "metadata": { "type": "object" },
+        "isFeatured": { "type": "boolean" },
+        "isVerified": { "type": "boolean" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "membership": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "groupId": { "type": "string", "format": "uuid" },
+        "role": { "type": "string", "enum": ["owner", "admin", "moderator", "member"] },
+        "customRoleId": { "type": "string", "format": "uuid" },
+        "status": { "type": "string", "enum": ["active", "pending", "suspended", "left"] },
+        "invitedBy": { "type": "string", "format": "uuid" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "leftAt": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "groupId": { "type": "string", "format": "uuid" },
+        "creatorId": { "type": "string", "format": "uuid" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "eventType": { "type": "string" },
+        "location": { "type": "string" },
+        "virtualUrl": { "type": "string", "format": "uri" },
+        "liveStreamId": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "timezone": { "type": "string" },
+        "maxAttendees": { "type": "integer" },
+        "attendeeCount": { "type": "integer" },
+        "rsvpDeadline": { "type": "string", "format": "date-time" },
+        "requiresApproval": { "type": "boolean" },
+        "visibility": { "type": "string" },
+        "coverImageUrl": { "type": "string", "format": "uri" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "rsvp": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "eventId": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "rsvpStatus": { "type": "string", "enum": ["going", "maybe", "not-going", "waitlist"] },
+        "checkInStatus": { "type": "string" },
+        "guestCount": { "type": "integer" },
+        "notes": { "type": "string" },
+        "rsvpedAt": { "type": "string", "format": "date-time" },
+        "checkedInAt": { "type": "string", "format": "date-time" },
+        "checkedInBy": { "type": "string", "format": "uuid" }
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "groupId": { "type": "string", "format": "uuid" },
+        "proposerId": { "type": "string", "format": "uuid" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "proposalType": { "type": "string" },
+        "votingMethod": { "type": "string" },
+        "quorumRequired": { "type": "integer" },
+        "status": { "type": "string", "enum": ["draft", "active", "passed", "rejected", "cancelled", "executed"] },
+        "voteCountYes": { "type": "integer" },
+        "voteCountNo": { "type": "integer" },
+        "voteCountAbstain": { "type": "integer" },
+        "totalVotes": { "type": "integer" },
+        "actionData": { "type": "object" },
+        "votingStartsAt": { "type": "string", "format": "date-time" },
+        "votingEndsAt": { "type": "string", "format": "date-time" },
+        "executedAt": { "type": "string", "format": "date-time" },
+        "closedAt": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "vote": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "proposalId": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "vote": { "type": "string", "enum": ["yes", "no", "abstain"] },
+        "weight": { "type": "number" },
+        "reason": { "type": "string" },
+        "votedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "subgroup": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "parentGroupId": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["channel", "subgroup", "category"] },
+        "creatorId": { "type": "string", "format": "uuid" },
+        "visibility": { "type": "string" },
+        "inheritPermissions": { "type": "boolean" },
+        "permissions": { "type": "object" },
+        "allowedRoles": { "type": "array", "items": { "type": "string" } },
+        "category": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "avatarUrl": { "type": "string", "format": "uri" },
+        "bannerUrl": { "type": "string", "format": "uri" },
+        "memberCount": { "type": "integer" },
+        "maxMembers": { "type": "integer" },
+        "sortOrder": { "type": "integer" },
+        "isPinned": { "type": "boolean" },
+        "isArchived": { "type": "boolean" },
+        "settings": { "type": "object" },
+        "metadata": { "type": "object" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "moderationFlag": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "groupId": { "type": "string", "format": "uuid" },
+        "reporterId": { "type": "string", "format": "uuid" },
+        "contentType": { "type": "string" },
+        "contentId": { "type": "string" },
+        "contentOwnerId": { "type": "string", "format": "uuid" },
+        "flagReason": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "under-review", "resolved", "dismissed", "escalated"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "assignedTo": { "type": "string", "format": "uuid" },
+        "moderatorCaseId": { "type": "string", "format": "uuid" },
+        "resolution": { "type": "string" },
+        "action": { "type": "string" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "resolvedAt": { "type": "string", "format": "date-time" },
+        "resolvedBy": { "type": "string", "format": "uuid" }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "userId": { "type": "string", "format": "uuid" },
+        "groupId": { "type": "string", "format": "uuid" },
+        "score": { "type": "number" },
+        "rank": { "type": "integer" },
+        "categoryMatchScore": { "type": "number" },
+        "tagsMatchScore": { "type": "number" },
+        "similarGroupsScore": { "type": "number" },
+        "trendingScore": { "type": "number" },
+        "socialScore": { "type": "number" },
+        "activityScore": { "type": "number" },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "reasonsText": { "type": "string" },
+        "wasShown": { "type": "boolean" },
+        "wasClicked": { "type": "boolean" },
+        "wasJoined": { "type": "boolean" },
+        "wasDismissed": { "type": "boolean" },
+        "dismissReason": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

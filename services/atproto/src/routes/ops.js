@@ -14,6 +14,7 @@
  */
 
 const express = require('express');
+const rabbit = require('@exprsn/shared/utils/rabbit');
 const config = require('../../config');
 const identityService = require('../labeler/identityService');
 const labelService = require('../labeler/labelService');
@@ -56,13 +57,15 @@ function createOpsRouter(models) {
 
   router.get('/stats', adminGuard, async (req, res) => {
     try {
-      const [total, max, inbound, counts] = await Promise.all([
+      const dlqEnabled = config.moderationDlq.enabled && rabbit.isEnabled();
+      const [total, max, inbound, counts, moderationDlq] = await Promise.all([
         models.Label.count(),
         models.Label.max('seq'),
         models.InboundLabel.count(),
         moderationQueue.getJobCounts(),
+        dlqEnabled ? rabbit.queueDepth(config.moderationDlq.queue) : Promise.resolve(null),
       ]);
-      res.json({ labels: { total, lastSeq: max || 0 }, inboundLabels: inbound, queue: counts });
+      res.json({ labels: { total, lastSeq: max || 0 }, inboundLabels: inbound, queue: counts, moderationDlq });
     } catch (err) {
       res.status(500).json({ error: 'stats_failed' });
     }

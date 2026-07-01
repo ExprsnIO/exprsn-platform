@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn · Settings — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shell.css">
+<style>
+  .wrap { max-width: 940px; }
+  .settings { display: grid; grid-template-columns: 210px 1fr; gap: 28px; }
+  @media (max-width: 820px){ .settings{ grid-template-columns: 1fr; } .vtabs{ flex-direction: row; overflow-x:auto; } }
+
+  .vtabs { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 80px; align-self: start; }
+  .vtab { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--exprsn-radius-lg); color: var(--exprsn-text-secondary); font-weight: 500; font-size: .92rem; cursor: pointer; white-space: nowrap; }
+  .vtab:hover { background: var(--exprsn-bg-hover); color: var(--exprsn-text-primary); }
+  .vtab.active { background: color-mix(in srgb, var(--exprsn-primary) 12%, transparent); color: var(--exprsn-primary); font-weight: 600; }
+  .vtab .ico { width: 18px; text-align: center; }
+
+  .section { padding: 22px; margin-bottom: 20px; }
+  .section > h2 { font-size: 1.15rem; margin-bottom: 2px; }
+  .section > .desc { color: var(--exprsn-text-muted); font-size: .9rem; margin-bottom: 18px; }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-weight: 600; font-size: .85rem; margin-bottom: 6px; }
+  .field .hint { font-size: .8rem; color: var(--exprsn-text-muted); margin-top: 5px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 600px){ .grid2{ grid-template-columns: 1fr; } }
+
+  .profile-head { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; }
+  .listrow { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--exprsn-border-color); }
+  .listrow:first-of-type { border-top: 0; }
+  .listrow .info { flex: 1; min-width: 0; }
+  .listrow .info .n { font-weight: 600; font-size: .92rem; }
+  .listrow .info .s { font-size: .82rem; color: var(--exprsn-text-muted); margin-top: 2px; }
+  .device { width: 40px; height: 40px; border-radius: var(--exprsn-radius-lg); background: var(--exprsn-bg-tertiary); display: grid; place-items: center; font-size: 18px; flex: none; }
+  .mono-pill { font-family: var(--exprsn-font-family-mono); font-size: .78rem; background: var(--exprsn-bg-tertiary); padding: 3px 8px; border-radius: var(--exprsn-radius-sm); color: var(--exprsn-text-secondary); }
+
+  .toggle { width: 44px; height: 26px; border-radius: 99px; background: var(--exprsn-primary); position: relative; flex: none; cursor: pointer; }
+  .toggle::after { content: ""; position: absolute; right: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; }
+  .toggle.off { background: var(--exprsn-gray-300); }
+  .toggle.off::after { left: 3px; right: auto; }
+
+  .callout { display: flex; gap: 12px; padding: 14px 16px; border-radius: var(--exprsn-radius-lg); background: var(--exprsn-success-bg); color: var(--exprsn-success-text); font-size: .9rem; align-items: center; }
+  .callout.amber { background: var(--exprsn-warning-bg); color: var(--exprsn-warning-text); }
+</style>
+</head>
+<body>
+<div class="mock-banner">EXPRSN PLATFORM · UI MOCKUP — User settings (redesign exploration)</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">E</div><div class="name">exprsn</div></div>
+    <div class="nav-item"><span class="ico">⌂</span> Timeline</div>
+    <div class="nav-item"><span class="ico">✦</span> Spark <span class="count">3</span></div>
+    <div class="nav-item"><span class="ico">◎</span> Nexus</div>
+    <div class="nav-item"><span class="ico">☺</span> People</div>
+    <div class="nav-item"><span class="ico">▦</span> Files</div>
+    <div class="nav-item"><span class="ico">▶</span> Streams</div>
+    <div class="nav-sep"></div>
+    <div class="nav-item"><span class="ico">⚑</span> Bookmarks</div>
+    <div class="nav-item active"><span class="ico">⚙</span> Settings</div>
+    <div class="me"><div class="avatar sm g4">RH</div><div style="line-height:1.2"><div style="font-weight:600;font-size:.9rem">Rick Holland</div><div class="muted" style="font-size:.78rem">@rick</div></div></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1>Account settings</h1>
+      <div class="spacer"></div>
+      <span class="muted" style="font-size:.85rem">All changes saved</span>
+    </header>
+
+    <div class="content">
+      <div class="wrap">
+        <div class="settings">
+          <!-- Vertical tabs -->
+          <nav class="vtabs">
+            <div class="vtab"><span class="ico">☺</span> Profile</div>
+            <div class="vtab active"><span class="ico">🛡</span> Security</div>
+            <div class="vtab"><span class="ico">▤</span> Sessions</div>
+            <div class="vtab"><span class="ico">⬡</span> Identity</div>
+            <div class="vtab"><span class="ico">▦</span> Certificates</div>
+            <div class="vtab"><span class="ico">⛁</span> Tokens</div>
+            <div class="vtab"><span class="ico">🔑</span> Secrets</div>
+          </nav>
+
+          <!-- Right: Security pane shown -->
+          <div>
+            <!-- Profile preview card -->
+            <div class="card section" style="padding-bottom:14px">
+              <div class="profile-head">
+                <div class="avatar xl g4">RH</div>
+                <div style="flex:1">
+                  <h2 style="margin-bottom:2px">Rick Holland</h2>
+                  <div class="muted">@rick · me@rickholland.net</div>
+                  <div style="margin-top:8px;display:flex;gap:8px"><span class="chip green dot">verified</span><span class="chip purple">did:exprsn:rick</span></div>
+                </div>
+                <button class="btn ghost sm">Edit profile</button>
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="card section">
+              <h2>Password</h2>
+              <div class="desc">Use a strong, unique password. Last changed 3 months ago.</div>
+              <div class="field"><label>Current password</label><input class="input" type="password" value="············"></div>
+              <div class="grid2">
+                <div class="field"><label>New password</label><input class="input" type="password" placeholder="••••••••"></div>
+                <div class="field"><label>Confirm new password</label><input class="input" type="password" placeholder="••••••••"></div>
+              </div>
+              <button class="btn primary">Update password</button>
+            </div>
+
+            <!-- 2FA -->
+            <div class="card section">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px">
+                <h2 style="margin:0">Two-factor authentication</h2>
+                <span class="chip green dot">On</span>
+              </div>
+              <div class="desc">An authenticator app is required at sign-in in addition to your password.</div>
+
+              <div class="listrow">
+                <div class="device">📱</div>
+                <div class="info"><div class="n">Authenticator app (TOTP)</div><div class="s">Added Jan 14, 2026</div></div>
+                <button class="btn ghost sm">Remove</button>
+              </div>
+              <div class="listrow">
+                <div class="device">🔢</div>
+                <div class="info"><div class="n">Backup codes</div><div class="s">7 of 10 remaining</div></div>
+                <button class="btn ghost sm">Regenerate</button>
+              </div>
+
+              <div class="callout amber" style="margin-top:16px">⚠ &nbsp;You have 3 backup codes left. Regenerate to keep a full set available.</div>
+            </div>
+
+            <!-- Active sessions (preview of Sessions tab) -->
+            <div class="card section">
+              <div style="display:flex;align-items:center;gap:10px">
+                <h2 style="margin:0">Active sessions</h2>
+                <div class="spacer" style="flex:1"></div>
+                <button class="btn ghost sm" style="color:var(--exprsn-danger)">Revoke all others</button>
+              </div>
+              <div class="desc">Each session maps to a live CA token. Revoking signs that device out immediately.</div>
+
+              <div class="listrow">
+                <div class="device">💻</div>
+                <div class="info"><div class="n">MacBook Pro · Chrome <span class="chip green" style="margin-left:4px">this device</span></div><div class="s">San Francisco, US · active now · <span class="mono-pill">tok_a91…f2</span></div></div>
+              </div>
+              <div class="listrow">
+                <div class="device">📱</div>
+                <div class="info"><div class="n">iPhone 15 · Safari</div><div class="s">San Francisco, US · 2h ago</div></div>
+                <button class="btn ghost sm">Revoke</button>
+              </div>
+              <div class="listrow">
+                <div class="device">🖥</div>
+                <div class="info"><div class="n">Linux workstation · Firefox</div><div class="s">Remote · yesterday</div></div>
+                <button class="btn ghost sm">Revoke</button>
+              </div>
+            </div>
+
+            <!-- Identity / DIDs preview -->
+            <div class="card section">
+              <h2>Decentralized identity</h2>
+              <div class="desc">DIDs and the certificates issued to them by the in-process CA.</div>
+              <div class="listrow">
+                <div class="device">⬡</div>
+                <div class="info"><div class="n">did:exprsn:rick</div><div class="s">Primary · issued by Exprsn CA · valid until 2027</div></div>
+                <span class="chip green dot">active</span>
+              </div>
+              <div class="listrow">
+                <div class="device">▦</div>
+                <div class="info"><div class="n">device-cert · MacBook Pro</div><div class="s"><span class="mono-pill">SHA256:3f…ac</span> · expires in 89 days</div></div>
+                <span class="chip blue">leaf</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="btn ghost theme-toggle" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+</body>
+</html>

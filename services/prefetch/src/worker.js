@@ -7,7 +7,7 @@
 const config = require('./config');
 const logger = require('./utils/logger');
 const ActivityBasedStrategy = require('./strategies/activityBased');
-const { registerProcessor, closePrefetchQueue } = require('./queues/prefetchQueue');
+const { registerProcessor, registerRabbitConsumer, closePrefetchQueue } = require('./queues/prefetchQueue');
 const { destroyTokenCache } = require('./utils/caClient');
 
 // Initialize strategies
@@ -28,9 +28,32 @@ async function runWorker() {
   logger.info('Prefetch worker started');
   logger.info(`Worker concurrency: ${config.worker.concurrency}`);
   logger.info(`Batch size: ${config.worker.batchSize}`);
+  logger.info(`Queue backend: ${config.queue.backend}`);
 
-  // Consume prefetch jobs (idempotent — also auto-registers under PREFETCH_ROLE=worker)
-  registerProcessor();
+  // Consume prefetch jobs. The backend is config-driven:
+  //  - 'rabbitmq' (when the broker is reachable) consumes the RabbitMQ work
+  //    queue; if the broker is unavailable we fall back to the Bull processor so
+  //    the worker is never left without a consumer.
+  //  - 'redis' (default) registers the Bull processor.
+  let consuming = 'bull';
+  if (config.queue.backend === 'rabbitmq') {
+    try {
+      const tag = await registerRabbitConsumer();
+      if (tag) {
+        consuming = 'rabbitmq';
+      } else {
+        logger.warn('RabbitMQ backend selected but broker unavailable; using Bull processor');
+        registerProcessor();
+      }
+    } catch (error) {
+      logger.warn('Failed to start RabbitMQ consumer; using Bull processor', { error: error.message });
+      registerProcessor();
+    }
+  } else {
+    // Idempotent — also auto-registers under PREFETCH_ROLE=worker
+    registerProcessor();
+  }
+  logger.info(`Prefetch consumer active: ${consuming}`);
 
   // Periodically enqueue activity-based prefetch jobs for the consumer to process
   if (config.strategies.activityBased) {

@@ -124,8 +124,17 @@ class WorkflowIntegrationService {
       return response.data.workflows || [];
 
     } catch (error) {
-      logger.error('Failed to list workflows', { error: error.message });
-      return [];
+      // No standalone Workflow service is deployed in the consolidated platform,
+      // so fall back to workflows persisted locally in moderator_config
+      // (category 'workflows'). Keeps the Workflows admin tab populated.
+      logger.warn('External Workflow service unavailable; using local workflows', { error: error.message });
+      try {
+        const { ModeratorConfig } = require('../models/sequelize-index');
+        const rows = await ModeratorConfig.findAll({ where: { category: 'workflows' } });
+        return (rows || []).map((r) => r.value).filter(Boolean);
+      } catch (_) {
+        return [];
+      }
     }
   }
 

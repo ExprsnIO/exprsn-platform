@@ -1,0 +1,1039 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.live",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Live streaming and video-room service lexicon for Bridge integration",
+      "key": "io.exprsn.live"
+    }
+  },
+  "routes": [
+    {
+      "id": "discovery.index",
+      "type": "query",
+      "description": "Service index / discovery",
+      "path": "/",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "discovery.stats",
+      "type": "query",
+      "description": "Public service statistics",
+      "path": "/api/stats",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "health.main",
+      "type": "query",
+      "description": "Service health check",
+      "path": "/health",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 300
+      }
+    },
+    {
+      "id": "streams.create",
+      "type": "procedure",
+      "description": "Create a live stream",
+      "path": "/api/streams",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "required": true,
+              "maxLength": 255
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "visibility": {
+              "type": "string",
+              "enum": ["public", "unlisted", "private"]
+            },
+            "isRecording": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "success": { "type": "boolean" },
+            "stream": { "$ref": "#/defs/stream" }
+          }
+        }
+      }
+    },
+    {
+      "id": "streams.list",
+      "type": "query",
+      "description": "List streams",
+      "path": "/api/streams",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "streams.get",
+      "type": "query",
+      "description": "Get a single stream",
+      "path": "/api/streams/:id",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "streams.update",
+      "type": "procedure",
+      "description": "Update a stream (owner)",
+      "path": "/api/streams/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "streams.delete",
+      "type": "procedure",
+      "description": "Delete a stream (owner)",
+      "path": "/api/streams/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "streams.start",
+      "type": "procedure",
+      "description": "Start a stream (owner)",
+      "path": "/api/streams/:id/start",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "streams.stop",
+      "type": "procedure",
+      "description": "Stop a stream (owner)",
+      "path": "/api/streams/:id/stop",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "streams.shareEvents",
+      "type": "procedure",
+      "description": "Record a stream share/watch analytics event",
+      "path": "/api/streams/:id/share-events",
+      "method": "POST",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "streams.recordings",
+      "type": "query",
+      "description": "List a stream's recordings",
+      "path": "/api/streams/:id/recordings",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "rooms.create",
+      "type": "procedure",
+      "description": "Create a video room",
+      "path": "/api/rooms",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "rooms.list",
+      "type": "query",
+      "description": "List rooms",
+      "path": "/api/rooms",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "rooms.getByCode",
+      "type": "query",
+      "description": "Get a room by join code",
+      "path": "/api/rooms/code/:code",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "rooms.get",
+      "type": "query",
+      "description": "Get a single room",
+      "path": "/api/rooms/:id",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "rooms.update",
+      "type": "procedure",
+      "description": "Update a room (owner)",
+      "path": "/api/rooms/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "rooms.join",
+      "type": "procedure",
+      "description": "Join a room",
+      "path": "/api/rooms/:id/join",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "rooms.leave",
+      "type": "procedure",
+      "description": "Leave a room",
+      "path": "/api/rooms/:id/leave",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "rooms.participants",
+      "type": "query",
+      "description": "List a room's participants",
+      "path": "/api/rooms/:id/participants",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "rooms.recordings",
+      "type": "query",
+      "description": "List a room's recordings",
+      "path": "/api/rooms/:id/recordings",
+      "method": "GET",
+      "auth": "optional",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "rooms.delete",
+      "type": "procedure",
+      "description": "Close/delete a room (owner)",
+      "path": "/api/rooms/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "simulcast.start",
+      "type": "procedure",
+      "description": "Start simulcast for a stream (owner)",
+      "path": "/api/simulcast/:streamId/start",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "simulcast.stop",
+      "type": "procedure",
+      "description": "Stop simulcast for a stream (owner)",
+      "path": "/api/simulcast/:streamId/stop",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "simulcast.status",
+      "type": "query",
+      "description": "Get simulcast status (owner)",
+      "path": "/api/simulcast/:streamId/status",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "simulcast.health",
+      "type": "query",
+      "description": "Get simulcast health (owner)",
+      "path": "/api/simulcast/:streamId/health",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "simulcast.metrics",
+      "type": "query",
+      "description": "Get simulcast metrics (owner)",
+      "path": "/api/simulcast/:streamId/metrics",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "simulcast.destinations.add",
+      "type": "procedure",
+      "description": "Attach a destination to an active simulcast (owner)",
+      "path": "/api/simulcast/:streamId/destinations",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "simulcast.destinations.remove",
+      "type": "procedure",
+      "description": "Detach a destination from an active simulcast (owner)",
+      "path": "/api/simulcast/:streamId/destinations/:destinationId",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "destinations.list",
+      "type": "query",
+      "description": "List streaming destinations (secrets excluded)",
+      "path": "/api/destinations",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "destinations.get",
+      "type": "query",
+      "description": "Get a streaming destination (owner, secrets excluded)",
+      "path": "/api/destinations/:id",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "destinations.create",
+      "type": "procedure",
+      "description": "Create a streaming destination",
+      "path": "/api/destinations",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "destinations.update",
+      "type": "procedure",
+      "description": "Update a streaming destination (owner)",
+      "path": "/api/destinations/:id",
+      "method": "PUT",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 30
+      }
+    },
+    {
+      "id": "destinations.delete",
+      "type": "procedure",
+      "description": "Delete a streaming destination (owner)",
+      "path": "/api/destinations/:id",
+      "method": "DELETE",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "destinations.platforms.authUrl",
+      "type": "query",
+      "description": "Get OAuth auth URL for a streaming platform",
+      "path": "/api/destinations/platforms/:platform/auth-url",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "destinations.platforms.exchangeToken",
+      "type": "procedure",
+      "description": "Exchange OAuth code for platform tokens and create a destination",
+      "path": "/api/destinations/platforms/:platform/exchange-token",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "destinations.testConnection",
+      "type": "procedure",
+      "description": "Test a destination's connection (owner)",
+      "path": "/api/destinations/:id/test-connection",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "groups.streams.create",
+      "type": "procedure",
+      "description": "Create a group-owned live stream (group admin)",
+      "path": "/api/groups/:groupId/streams",
+      "method": "POST",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    },
+    {
+      "id": "groups.streams.list",
+      "type": "query",
+      "description": "List a group's streams (group member)",
+      "path": "/api/groups/:groupId/streams",
+      "method": "GET",
+      "auth": "required",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "config.get",
+      "type": "query",
+      "description": "Get a live config section (live-rooms/live-recordings/live-settings)",
+      "path": "/api/config/:sectionId",
+      "method": "GET",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 100
+      }
+    },
+    {
+      "id": "config.update",
+      "type": "procedure",
+      "description": "Update a live config section (live-settings only)",
+      "path": "/api/config/:sectionId",
+      "method": "POST",
+      "auth": "none",
+      "rateLimit": {
+        "window": 60000,
+        "max": 20
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "join-stream",
+      "direction": "client->server",
+      "description": "Join a stream as a viewer; emits viewer-count-updated/viewer-joined and chat-history",
+      "auth": "none"
+    },
+    {
+      "id": "leave-stream",
+      "direction": "client->server",
+      "description": "Leave a stream's viewer room",
+      "auth": "none"
+    },
+    {
+      "id": "stream-chat-message",
+      "direction": "client->server",
+      "description": "Post an ephemeral chat message to a stream; posting requires a validated CA identity",
+      "auth": "required"
+    },
+    {
+      "id": "join-room",
+      "direction": "client->server",
+      "description": "Join a video room (requires a Participant DB row matched by socket_id)",
+      "auth": "none"
+    },
+    {
+      "id": "update-participant-state",
+      "direction": "client->server",
+      "description": "Update audio/video/screen-share state; emits participant-state-changed",
+      "auth": "none"
+    },
+    {
+      "id": "leave-room",
+      "direction": "client->server",
+      "description": "Leave a video room",
+      "auth": "none"
+    },
+    {
+      "id": "signal",
+      "direction": "client->server",
+      "description": "Forward a generic WebRTC signal to a peer (per-event auth is a known gap)",
+      "auth": "none"
+    },
+    {
+      "id": "offer",
+      "direction": "client->server",
+      "description": "Forward a WebRTC offer to a peer (per-event auth is a known gap)",
+      "auth": "none"
+    },
+    {
+      "id": "answer",
+      "direction": "client->server",
+      "description": "Forward a WebRTC answer to a peer (per-event auth is a known gap)",
+      "auth": "none"
+    },
+    {
+      "id": "ice-candidate",
+      "direction": "client->server",
+      "description": "Forward a WebRTC ICE candidate to a peer (per-event auth is a known gap)",
+      "auth": "none"
+    },
+    {
+      "id": "disconnect",
+      "direction": "client->server",
+      "description": "Socket disconnect; marks the Participant disconnected and updates counts",
+      "auth": "none"
+    },
+    {
+      "id": "viewer-count-updated",
+      "direction": "server->client",
+      "description": "Updated viewer count for a stream room",
+      "auth": "none"
+    },
+    {
+      "id": "viewer-joined",
+      "direction": "server->client",
+      "description": "A viewer joined a stream",
+      "auth": "none"
+    },
+    {
+      "id": "viewer-left",
+      "direction": "server->client",
+      "description": "A viewer left a stream",
+      "auth": "none"
+    },
+    {
+      "id": "chat-history",
+      "direction": "server->client",
+      "description": "Recent ephemeral chat history sent to a joining socket",
+      "auth": "none"
+    },
+    {
+      "id": "stream-chat-message",
+      "direction": "server->client",
+      "description": "Broadcast of an ephemeral stream chat message to the stream room",
+      "auth": "none"
+    },
+    {
+      "id": "participant-joined",
+      "direction": "server->client",
+      "description": "A participant joined a room (also emitted from REST join)",
+      "auth": "none"
+    },
+    {
+      "id": "existing-participants",
+      "direction": "server->client",
+      "description": "Current participants sent to a joining socket",
+      "auth": "none"
+    },
+    {
+      "id": "participant-state-changed",
+      "direction": "server->client",
+      "description": "A participant's audio/video/screen-share state changed",
+      "auth": "none"
+    },
+    {
+      "id": "participant-left",
+      "direction": "server->client",
+      "description": "A participant left a room (also emitted from REST leave)",
+      "auth": "none"
+    },
+    {
+      "id": "signal",
+      "direction": "server->client",
+      "description": "WebRTC signal forwarded from a peer",
+      "auth": "none"
+    },
+    {
+      "id": "offer",
+      "direction": "server->client",
+      "description": "WebRTC offer forwarded from a peer",
+      "auth": "none"
+    },
+    {
+      "id": "answer",
+      "direction": "server->client",
+      "description": "WebRTC answer forwarded from a peer",
+      "auth": "none"
+    },
+    {
+      "id": "ice-candidate",
+      "direction": "server->client",
+      "description": "WebRTC ICE candidate forwarded from a peer",
+      "auth": "none"
+    },
+    {
+      "id": "stream-started",
+      "direction": "server->client",
+      "description": "A stream went live (namespace broadcast)",
+      "auth": "none"
+    },
+    {
+      "id": "stream-ended",
+      "direction": "server->client",
+      "description": "A stream ended (namespace broadcast)",
+      "auth": "none"
+    },
+    {
+      "id": "stream-deleted",
+      "direction": "server->client",
+      "description": "A stream was deleted (namespace broadcast)",
+      "auth": "none"
+    },
+    {
+      "id": "room-closed",
+      "direction": "server->client",
+      "description": "A room was closed (to room)",
+      "auth": "none"
+    },
+    {
+      "id": "error",
+      "direction": "server->client",
+      "description": "Error emitted on join/post failure",
+      "auth": "none"
+    }
+  ],
+  "types": {
+    "stream": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "group_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "hls_url": {
+          "type": "string"
+        },
+        "dash_url": {
+          "type": "string"
+        },
+        "thumbnail_url": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "live", "ended", "error"]
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public", "unlisted", "private"]
+        },
+        "viewer_count": {
+          "type": "integer"
+        },
+        "peak_viewer_count": {
+          "type": "integer"
+        },
+        "duration_seconds": {
+          "type": "integer"
+        },
+        "is_recording": {
+          "type": "boolean"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "room": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "host_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "room_code": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "active", "ended"]
+        },
+        "is_private": {
+          "type": "boolean"
+        },
+        "max_participants": {
+          "type": "integer"
+        },
+        "current_participant_count": {
+          "type": "integer"
+        },
+        "peak_participant_count": {
+          "type": "integer"
+        },
+        "is_recording": {
+          "type": "boolean"
+        },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "enableChat": { "type": "boolean" },
+            "enableScreenShare": { "type": "boolean" },
+            "enableRecording": { "type": "boolean" },
+            "muteOnJoin": { "type": "boolean" },
+            "videoOnJoin": { "type": "boolean" }
+          }
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "participant": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "room_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "stream_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "socket_id": {
+          "type": "string"
+        },
+        "peer_id": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["connected", "disconnected", "reconnecting"]
+        },
+        "role": {
+          "type": "string",
+          "enum": ["host", "moderator", "participant", "viewer"]
+        },
+        "is_audio_enabled": {
+          "type": "boolean"
+        },
+        "is_video_enabled": {
+          "type": "boolean"
+        },
+        "is_screen_sharing": {
+          "type": "boolean"
+        },
+        "joined_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "left_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "recording": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "stream_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "room_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "hls_url": {
+          "type": "string"
+        },
+        "dash_url": {
+          "type": "string"
+        },
+        "storage_url": {
+          "type": "string"
+        },
+        "thumbnail_url": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["processing", "ready", "failed", "deleted"]
+        },
+        "format": {
+          "type": "string"
+        },
+        "duration_seconds": {
+          "type": "integer"
+        },
+        "file_size_bytes": {
+          "type": "integer"
+        },
+        "resolution": {
+          "type": "string"
+        },
+        "bitrate": {
+          "type": "integer"
+        },
+        "codec": {
+          "type": "string"
+        },
+        "view_count": {
+          "type": "integer"
+        },
+        "download_count": {
+          "type": "integer"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public", "unlisted", "private"]
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "chatMessage": {
+      "type": "object",
+      "description": "Ephemeral stream chat message (not persisted to Postgres)",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "streamId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "ts": {
+          "type": "integer"
+        }
+      }
+    },
+    "presence": {
+      "type": "object",
+      "description": "Viewer/participant presence snapshot broadcast over the /live namespace",
+      "properties": {
+        "streamId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "roomId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "socketId": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "viewerCount": {
+          "type": "integer"
+        },
+        "participantCount": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "object",
+          "properties": {
+            "audioEnabled": { "type": "boolean" },
+            "videoEnabled": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

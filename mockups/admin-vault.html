@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Admin · Vault — /admin/vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+<header class="navbar">
+  <a class="navbar-brand" href="admin-index.html"><span class="logo">E</span> Exprsn <span class="sub">Admin</span></a>
+  <div class="nav-right">
+    <span class="crumb">/admin/vault</span>
+    <button class="theme-toggle" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+    <div class="admin-chip"><span class="av">RH</span> Rick H. · Owner</div>
+  </div>
+</header>
+<div class="shell">
+  <aside class="sidebar">
+  <div class="sidebar-heading">Platform</div>
+  <a class="snav" href="admin-overview.html"><span class="ic">🏠</span> Overview</a>
+  <div class="sidebar-heading">Identity & Access</div>
+  <a class="snav" href="admin-ca.html"><span class="ic">📜</span> Certificate Authority</a>
+  <a class="snav" href="admin-auth.html"><span class="ic">🔑</span> Auth & Identity</a>
+  <a class="snav active" href="admin-vault.html"><span class="ic">🔒</span> Vault</a>
+  <div class="sidebar-heading">Services</div>
+  <a class="snav" href="admin-nexus.html"><span class="ic">🌐</span> Groups (Nexus)</a>
+  <a class="snav" href="admin-spark.html"><span class="ic">💬</span> Messaging (Spark)</a>
+  <a class="snav" href="admin-live.html"><span class="ic">📡</span> Live Streaming</a>
+  <a class="snav" href="admin-filevault.html"><span class="ic">📁</span> Files (FileVault)</a>
+  <div class="sidebar-heading">Operations</div>
+  <a class="snav" href="admin-jobs.html"><span class="ic">⚙️</span> Jobs & Queues</a>
+  <a class="snav" href="admin-moderator.html"><span class="ic">🛡️</span> Moderation</a>
+  <a class="snav" href="admin-atproto.html"><span class="ic">🔗</span> AT-Protocol</a>
+  </aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>🔒 Vault</h1>
+        <p class="lead">Service tokens, user secrets and signing keys with risk scoring. Rotate, revoke, and audit credential exposure.</p>
+      </div>
+      <div class="actions"><button class="btn btn-ghost btn-sm">⬇ Audit export</button><button class="btn btn-primary">Rotate keys</button></div>
+    </div>
+    <div class="stat-row">
+  <div class="stat border-left-primary"><div class="lbl">Tokens</div><div class="val">311</div><div class="delta" style="color:var(--exprsn-warning-hover)">2 pending review</div></div>
+  <div class="stat border-left-info"><div class="lbl">Secrets</div><div class="val">1,044</div><div class="delta" style="color:var(--exprsn-text-muted)">encrypted at rest</div></div>
+  <div class="stat border-left-success"><div class="lbl">Signing keys</div><div class="val">18</div><div class="delta" style="color:var(--exprsn-success)">FIPS 140-3 HSM</div></div>
+  <div class="stat border-left-danger"><div class="lbl">High risk</div><div class="val">3</div><div class="delta" style="color:var(--exprsn-danger)">needs rotation</div></div>
+</div><div class="stat-row">
+  <div class="stat border-left-danger"><div class="lbl">High risk</div><div class="val">3</div><div class="delta" style="color:var(--exprsn-danger)">age > 365d</div></div>
+  <div class="stat border-left-warning"><div class="lbl">Medium risk</div><div class="val">14</div><div class="delta" style="color:var(--exprsn-warning-hover)">age > 90d</div></div>
+  <div class="stat border-left-success"><div class="lbl">Low risk</div><div class="val">1,338</div><div class="delta" style="color:var(--exprsn-success)">healthy</div></div>
+  <div class="stat border-left-warning"><div class="lbl">Expiring < 30d</div><div class="val">6</div><div class="delta" style="color:var(--exprsn-warning-hover)">auto-reminder on</div></div>
+</div><div class="tablecard"><table class="table"><thead><tr><th>Credential</th><th>Type</th><th>Owner</th><th>Risk</th><th>Last rotated</th><th>Status</th></tr></thead><tbody>
+<tr><td><code>svc:platform</code></td><td>Service token</td><td>platform</td><td><span class="badge bg-danger">high</span></td><td>412 days ago</td><td><span class="badge bg-success">active</span></td></tr>
+<tr><td><code>did:exprsn:rick/sign</code></td><td>Signing key</td><td>@rick</td><td><span class="badge bg-success">low</span></td><td>12 days ago</td><td><span class="badge bg-success">active</span></td></tr>
+<tr><td><code>api:nexus-export</code></td><td>API token</td><td>nexus</td><td><span class="badge bg-warning">medium</span></td><td>94 days ago</td><td><span class="badge bg-success">active</span></td></tr>
+<tr><td><code>smtp-relay</code></td><td>Secret</td><td>auth</td><td><span class="badge bg-success">low</span></td><td>3 days ago</td><td><span class="badge bg-success">active</span></td></tr>
+</tbody></table></div>
+  </main>
+</div>
+</body>
+</html>

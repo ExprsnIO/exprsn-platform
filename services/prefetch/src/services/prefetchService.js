@@ -120,7 +120,10 @@ async function fetchTimelineFromService(userId) {
             headers: {
               'Authorization': `Bearer ${token}`
             },
-            timeout: config.performance.prefetchTimeout
+            timeout: config.performance.prefetchTimeout,
+            // Must mirror the first attempt: the gateway uses a self-signed cert
+            // in dev, so the retry needs the same internal agent or TLS fails.
+            httpsAgent: getInternalHttpsAgent()
           }
         );
         return response.data;

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -15,6 +16,8 @@ import {
   Paper,
   Snackbar,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -25,10 +28,13 @@ import StopIcon from '@mui/icons-material/Stop';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import LiveTvIcon from '@mui/icons-material/LiveTv';
 import { useAppStore } from '@/app/store';
 import { toMessage } from '@/lib/errors';
 import { liveApi, playableHlsUrl, type Stream } from '@/api/live';
 import { HlsPlayer } from './HlsPlayer';
+import { RecordingsList } from './RecordingsList';
 
 const STREAMS_KEY = ['live', 'streams'] as const;
 
@@ -81,6 +87,11 @@ function StreamDetail({
     onError: (e) => onToast(toMessage(e)),
   });
 
+  const recordings = useQuery({
+    queryKey: [...STREAMS_KEY, stream.id, 'recordings'],
+    queryFn: () => liveApi.getStreamRecordings(stream.id),
+  });
+
   const ingest = ingestParts(s.rtmp_url);
   const copy = (t: string) => navigator.clipboard.writeText(t).then(() => onToast('Copied'), () => onToast('Copy failed'));
   const live = s.isLive || s.status === 'live';
@@ -118,6 +129,13 @@ function StreamDetail({
           <Typography variant="body2" color="text.secondary">No ingest URL available.</Typography>
         )}
       </Paper>
+
+      {(recordings.data?.recordings?.length ?? 0) > 0 && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>Recordings</Typography>
+          <RecordingsList recordings={recordings.data?.recordings ?? []} />
+        </Paper>
+      )}
     </Stack>
   );
 }
@@ -138,33 +156,108 @@ function Field({ label, value, onCopy, secret }: { label: string; value: string;
 }
 
 /**
- * Phase 5 — Live streaming. Create/list streams, view with an HLS player, get
- * the RTMP ingest details for OBS, and start/stop. Ingest is served by the
- * configured provider (self-hosted SRS by default, or Cloudflare Stream).
+ * Browse streams that are live right now (public + unlisted). Clicking a card
+ * opens the public watch experience (player + chat + presence).
+ */
+function DiscoverGrid({ onWatch }: { onWatch: (s: Stream) => void }) {
+  const query = useQuery({
+    queryKey: [...STREAMS_KEY, 'discover'],
+    queryFn: () => liveApi.listStreams({ status: 'live', limit: 50 }),
+    refetchInterval: 15000,
+  });
+
+  if (query.isLoading) {
+    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress size={28} /></Box>;
+  }
+  if (query.isError) return <Alert severity="error">{toMessage(query.error)}</Alert>;
+
+  // Don't surface private streams in discovery even if the API returns them.
+  const streams = (query.data?.streams ?? []).filter((s) => s.visibility !== 'private');
+
+  if (streams.length === 0) {
+    return (
+      <Paper variant="outlined" sx={{ p: 6, textAlign: 'center' }}>
+        <LiveTvIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+        <Typography color="text.secondary">No one is live right now. Check back soon.</Typography>
+      </Paper>
+    );
+  }
+
+  return (
+    <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' } }}>
+      {streams.map((s) => (
+        <Paper
+          key={s.id}
+          variant="outlined"
+          sx={{ overflow: 'hidden', cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
+          onClick={() => onWatch(s)}
+        >
+          <Box sx={{ position: 'relative', aspectRatio: '16 / 9', bgcolor: '#000' }}>
+            {s.thumbnail_url ? (
+              <Box component="img" src={s.thumbnail_url} alt={s.title} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <LiveTvIcon sx={{ fontSize: 48, color: 'grey.700' }} />
+              </Box>
+            )}
+            <Chip size="small" color="error" label="● LIVE" sx={{ position: 'absolute', top: 8, left: 8 }} />
+            <Chip
+              size="small"
+              icon={<VisibilityIcon />}
+              label={s.currentViewers ?? s.viewer_count ?? 0}
+              sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: 'rgba(0,0,0,0.6)', color: '#fff' }}
+            />
+          </Box>
+          <Box sx={{ p: 1.5 }}>
+            <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600 }}>{s.title}</Typography>
+            {s.description && (
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                {s.description}
+              </Typography>
+            )}
+          </Box>
+        </Paper>
+      ))}
+    </Box>
+  );
+}
+
+/**
+ * Phase 5 — Live streaming. A "Browse" tab discovers streams that are live now
+ * (opening the public watch page), and a "My streams" tab is the owner console:
+ * create streams, grab the RTMP ingest details for OBS, start/stop, and delete.
+ * Ingest is served by the configured provider (self-hosted SRS or Cloudflare).
  */
 export function StreamsPage() {
   const userId = useAppStore((s) => s.user?.id);
+  const navigate = useNavigate();
   const qc = useQueryClient();
+  const [tab, setTab] = useState<'browse' | 'mine'>('browse');
   const [selected, setSelected] = useState<Stream | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ title: '', description: '' });
   const [toast, setToast] = useState<string | null>(null);
 
-  const query = useQuery({ queryKey: STREAMS_KEY, queryFn: liveApi.listStreams });
+  const mineKey = [...STREAMS_KEY, 'mine', userId] as const;
+  const query = useQuery({
+    queryKey: mineKey,
+    queryFn: () => liveApi.listStreams({ userId }),
+    enabled: !!userId && tab === 'mine',
+  });
 
   const createM = useMutation({
     mutationFn: () => liveApi.createStream({ title: form.title.trim(), description: form.description.trim() || undefined }),
     onSuccess: (res) => {
       setDialogOpen(false);
       setForm({ title: '', description: '' });
-      qc.invalidateQueries({ queryKey: STREAMS_KEY });
+      qc.invalidateQueries({ queryKey: mineKey });
       if (res.stream) setSelected(res.stream);
     },
     onError: (e) => setToast(toMessage(e)),
   });
   const deleteM = useMutation({
     mutationFn: (s: Stream) => liveApi.deleteStream(s.id),
-    onSuccess: () => { setToast('Stream deleted'); qc.invalidateQueries({ queryKey: STREAMS_KEY }); },
+    onSuccess: () => { setToast('Stream deleted'); qc.invalidateQueries({ queryKey: mineKey }); },
     onError: (e) => setToast(toMessage(e)),
   });
 
@@ -172,7 +265,7 @@ export function StreamsPage() {
   const streams = query.data?.streams ?? [];
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 820, mx: 'auto', pb: 6 }}>
+    <Stack spacing={2} sx={{ maxWidth: 1100, mx: 'auto', pb: 6 }}>
       {selected ? (
         <StreamDetail stream={selected} onBack={() => setSelected(null)} onToast={setToast} />
       ) : (
@@ -180,36 +273,52 @@ export function StreamsPage() {
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="h5">Live</Typography>
             <Box sx={{ flex: 1 }} />
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>New stream</Button>
+            {tab === 'mine' && (
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>New stream</Button>
+            )}
           </Stack>
 
-          {query.isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress size={28} /></Box>}
-          {query.isError && <Alert severity="error">{toMessage(query.error)}</Alert>}
-          {query.isSuccess && streams.length === 0 && (
-            <Paper variant="outlined" sx={{ p: 6, textAlign: 'center' }}>
-              <Typography color="text.secondary">No streams yet. Create one to get your RTMP ingest details.</Typography>
-            </Paper>
-          )}
+          <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tab value="browse" label="Browse" />
+            <Tab value="mine" label="My streams" />
+          </Tabs>
 
-          {streams.map((s) => (
-            <Paper key={s.id} variant="outlined" sx={{ p: 2 }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setSelected(s)}>
+          {tab === 'browse' && <DiscoverGrid onWatch={(s) => navigate(`/streams/watch/${s.id}`)} />}
+
+          {tab === 'mine' && (
+            <Stack spacing={2}>
+              {query.isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress size={28} /></Box>}
+              {query.isError && <Alert severity="error">{toMessage(query.error)}</Alert>}
+              {query.isSuccess && streams.length === 0 && (
+                <Paper variant="outlined" sx={{ p: 6, textAlign: 'center' }}>
+                  <Typography color="text.secondary">No streams yet. Create one to get your RTMP ingest details.</Typography>
+                </Paper>
+              )}
+
+              {streams.map((s) => (
+                <Paper key={s.id} variant="outlined" sx={{ p: 2 }}>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{s.title}</Typography>
-                    {statusChip(s)}
+                    <Box sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setSelected(s)}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{s.title}</Typography>
+                        {statusChip(s)}
+                      </Stack>
+                      {s.description && <Typography variant="body2" color="text.secondary">{s.description}</Typography>}
+                    </Box>
+                    <Tooltip title="Watch">
+                      <IconButton size="small" onClick={() => navigate(`/streams/watch/${s.id}`)}><VisibilityIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                    <Button size="small" onClick={() => setSelected(s)}>Manage</Button>
+                    <Tooltip title="Delete">
+                      <IconButton size="small" color="error" onClick={() => { if (window.confirm(`Delete "${s.title}"?`)) deleteM.mutate(s); }}>
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </Stack>
-                  {s.description && <Typography variant="body2" color="text.secondary">{s.description}</Typography>}
-                </Box>
-                <Button size="small" onClick={() => setSelected(s)}>Open</Button>
-                <Tooltip title="Delete">
-                  <IconButton size="small" color="error" onClick={() => { if (window.confirm(`Delete "${s.title}"?`)) deleteM.mutate(s); }}>
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            </Paper>
-          ))}
+                </Paper>
+              ))}
+            </Stack>
+          )}
         </>
       )}
 

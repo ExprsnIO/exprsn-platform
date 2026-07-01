@@ -15,6 +15,17 @@ const float = (v, d) => (v === undefined || v === '' ? d : parseFloat(v));
 const bool = (v, d) => (v === undefined ? d : String(v).toLowerCase() === 'true');
 const list = (v) =>
   (v ? String(v).split(',').map((s) => s.trim()).filter(Boolean) : []);
+// Parse a JSON object from env; returns null on empty/invalid so callers fall
+// back to their hardcoded defaults (configurable, but never breaks on bad JSON).
+const json = (v) => {
+  if (v === undefined || v === '') return null;
+  try {
+    const parsed = JSON.parse(v);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+};
 
 const config = {
   enabled: bool(process.env.ATPROTO_ENABLED, false),
@@ -57,7 +68,18 @@ const config = {
     // Label values we declare in app.bsky.labeler.service.
     labelValues: list(process.env.ATPROTO_LABEL_VALUES).length
       ? list(process.env.ATPROTO_LABEL_VALUES)
-      : ['spam', 'nsfw', 'toxic', 'hate', 'violence', '!warn', '!hide'],
+      : ['spam', 'nsfw', 'toxic', 'hate', 'violence', 'negative-sentiment', '!warn', '!hide'],
+    // ── Verdict → label mapping overrides (see src/labeler/verdictMapper.js) ──
+    // Optional per-category score thresholds (0..100). JSON object keyed by
+    // category (toxic/nsfw/spam/violence/hate). Merges over the mapper defaults;
+    // unset categories keep their default. e.g. {"toxic":60,"nsfw":50}
+    verdictThresholds: json(process.env.ATPROTO_VERDICT_THRESHOLDS) || null,
+    // Optional moderator-action → system-label-value map. JSON object, e.g.
+    // {"reject":"!hide","escalate":"!hide"}. Merges over the mapper defaults.
+    actionLabels: json(process.env.ATPROTO_ACTION_LABELS) || null,
+    // Negative-sentiment score (0..100) at/above which we apply the
+    // 'negative-sentiment' label value.
+    sentimentLabelThreshold: num(process.env.ATPROTO_SENTIMENT_LABEL_THRESHOLD, 80),
     // PLC directory for resolving + submitting did:plc operations.
     plcDirectoryUrl: process.env.ATPROTO_PLC_DIRECTORY_URL || 'https://plc.directory',
     // PDS account that hosts the labeler repo (for did:plc publishing).
@@ -101,6 +123,21 @@ const config = {
       : ['!hide', 'porn', 'sexual', 'nudity', 'csam', 'child-sexual-abuse-material'],
     // Public AppView used to fetch post content for the AI pass.
     appviewUrl: process.env.ATPROTO_APPVIEW_URL || 'https://public.api.bsky.app',
+  },
+
+  // ── Moderation dead-letter queue (RabbitMQ) ───────────────────────────
+  // When a 'moderate-atproto' Bull job exhausts its retries, the failed DID
+  // item is routed to a RabbitMQ dead-letter queue so it isn't silently lost.
+  // A consumer in the worker then bounded-re-drives it (up to maxRedrive) back
+  // onto the Bull queue, or records it permanently failed. DID-method-agnostic:
+  // covers did:web / did:plc / did:exprsn alike.
+  //   ATPROTO_MODERATION_DLQ      'false' to disable DLQ routing (default on)
+  //   ATPROTO_DLQ_MAX_REDRIVE     max times a dead-lettered item is re-enqueued (default 2)
+  moderationDlq: {
+    enabled: process.env.ATPROTO_MODERATION_DLQ !== 'false',
+    exchange: 'exprsn.atproto.moderation',
+    queue: 'exprsn.atproto.moderation.dlq',
+    maxRedrive: num(process.env.ATPROTO_DLQ_MAX_REDRIVE, 2),
   },
 
   // Shared Redis (Bull) — same instance/db as the moderator so we enqueue onto

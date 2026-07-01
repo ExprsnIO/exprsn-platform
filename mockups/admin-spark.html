@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Admin · Messaging (Spark) — /admin/spark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+<header class="navbar">
+  <a class="navbar-brand" href="admin-index.html"><span class="logo">E</span> Exprsn <span class="sub">Admin</span></a>
+  <div class="nav-right">
+    <span class="crumb">/admin/spark</span>
+    <button class="theme-toggle" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+    <div class="admin-chip"><span class="av">RH</span> Rick H. · Owner</div>
+  </div>
+</header>
+<div class="shell">
+  <aside class="sidebar">
+  <div class="sidebar-heading">Platform</div>
+  <a class="snav" href="admin-overview.html"><span class="ic">🏠</span> Overview</a>
+  <div class="sidebar-heading">Identity & Access</div>
+  <a class="snav" href="admin-ca.html"><span class="ic">📜</span> Certificate Authority</a>
+  <a class="snav" href="admin-auth.html"><span class="ic">🔑</span> Auth & Identity</a>
+  <a class="snav" href="admin-vault.html"><span class="ic">🔒</span> Vault</a>
+  <div class="sidebar-heading">Services</div>
+  <a class="snav" href="admin-nexus.html"><span class="ic">🌐</span> Groups (Nexus)</a>
+  <a class="snav active" href="admin-spark.html"><span class="ic">💬</span> Messaging (Spark)</a>
+  <a class="snav" href="admin-live.html"><span class="ic">📡</span> Live Streaming</a>
+  <a class="snav" href="admin-filevault.html"><span class="ic">📁</span> Files (FileVault)</a>
+  <div class="sidebar-heading">Operations</div>
+  <a class="snav" href="admin-jobs.html"><span class="ic">⚙️</span> Jobs & Queues</a>
+  <a class="snav" href="admin-moderator.html"><span class="ic">🛡️</span> Moderation</a>
+  <a class="snav" href="admin-atproto.html"><span class="ic">🔗</span> AT-Protocol</a>
+  </aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>💬 Messaging (Spark)</h1>
+        <p class="lead">Messaging runtime: conversation volume, media/attachment job queues, and module configuration for /spark/api.</p>
+      </div>
+      <div class="actions"><button class="btn btn-ghost btn-sm">View queues</button><button class="btn btn-primary">Edit config</button></div>
+    </div>
+    <div class="stat-row">
+  <div class="stat border-left-primary"><div class="lbl">Conversations</div><div class="val">42,118</div><div class="delta" style="color:var(--exprsn-text-muted)">direct + group</div></div>
+  <div class="stat border-left-success"><div class="lbl">Messages (24h)</div><div class="val">318,902</div><div class="delta" style="color:var(--exprsn-success)">▲ 4%</div></div>
+  <div class="stat border-left-info"><div class="lbl">E2EE coverage</div><div class="val">98.2%</div><div class="delta" style="color:var(--exprsn-info)">of conversations</div></div>
+  <div class="stat border-left-warning"><div class="lbl">Media jobs</div><div class="val">6</div><div class="delta" style="color:var(--exprsn-warning-hover)">in flight</div></div>
+</div><div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem"><div class="tablecard" style="padding:1.25rem"><h3 class="htitle">Queues</h3><div class="vmrow" style="margin-top:.6rem"><span class="k"><code>spark:attachments</code></span> 4 active · 1,194 done</div><div class="vmrow" style="margin-top:.5rem"><span class="k"><code>spark:thumbnails</code></span> 2 active · 9,022 done</div><div class="vmrow" style="margin-top:.5rem"><span class="k"><code>spark:transcode</code></span> 0 active · 211 done</div></div><div class="tablecard" style="padding:1.25rem"><h3 class="htitle">Config</h3><div class="vmrow"><span class="k">Max attachment</span> 100 MB</div><div class="vmrow" style="margin-top:.5rem"><span class="k">Retention</span> indefinite</div><div class="vmrow" style="margin-top:.5rem"><span class="k">Encryption</span> <span class="badge bg-success">E2EE default</span></div><div class="vmrow" style="margin-top:.5rem"><span class="k">Redis adapter</span> <span class="badge bg-info">single instance</span></div></div></div>
+  </main>
+</div>
+</body>
+</html>

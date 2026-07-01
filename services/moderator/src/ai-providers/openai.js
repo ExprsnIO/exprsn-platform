@@ -140,6 +140,7 @@ Provide scores (0-100) for:
 - spam_score: Promotional content, repetitive messages
 - violence_score: Threats, graphic violence
 - hate_speech_score: Discrimination, slurs, targeted harassment
+- sentiment_score: Overall emotional tone (0 = very positive, 50 = neutral, 100 = very negative)
 - overall_risk_score: Overall risk assessment
 
 Also include:
@@ -153,6 +154,7 @@ Respond with valid JSON matching this structure:
   "spam_score": 0,
   "violence_score": 0,
   "hate_speech_score": 0,
+  "sentiment_score": 50,
   "overall_risk_score": 0,
   "flags": [],
   "explanation": ""
@@ -173,6 +175,10 @@ Respond with valid JSON matching this structure:
       spamScore: detailedAnalysis.spam_score || 0,
       violenceScore: detailedAnalysis.violence_score || 0,
       hateSpeechScore: detailedAnalysis.hate_speech_score || 0,
+      // 0=very positive … 100=very negative; default neutral (50) when omitted.
+      // Use nullish coalescing so a legitimate 0 (very positive) is preserved.
+      // OpenAI's moderation API has no sentiment category, so it is GPT-only.
+      sentimentScore: detailedAnalysis.sentiment_score ?? 50,
       flags: detailedAnalysis.flags || [],
       explanation: detailedAnalysis.explanation || ''
     };

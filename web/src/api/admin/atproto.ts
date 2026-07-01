@@ -10,6 +10,8 @@ export interface AtprotoStats {
   labels: { total: number; lastSeq: number };
   inboundLabels: number;
   queue: Record<string, number>;
+  /** Depth of the DID moderation dead-letter queue (null when DLQ disabled). */
+  moderationDlq?: number | null;
 }
 
 export interface AtprotoIdentity {

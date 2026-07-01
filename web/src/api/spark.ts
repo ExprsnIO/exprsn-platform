@@ -20,6 +20,32 @@ export interface Reaction {
   createdAt: string;
 }
 
+/**
+ * A structured attachment carried in `Message.attachments` (a plaintext JSON
+ * array, even on E2EE messages — see the file-security decision in the MVP
+ * features work). The `kind` discriminates render + behaviour:
+ *  - image/video/file — FileVault-backed (`fileId`); bytes are bearer-authed.
+ *  - call             — a "join video call" card pointing at a /live room.
+ *  - link             — a share card (e.g. a timeline post permalink).
+ */
+export interface ChatAttachment {
+  kind: 'image' | 'video' | 'file' | 'call' | 'link';
+  /** FileVault fileId for image/video/file kinds. */
+  fileId?: string;
+  name?: string;
+  mimetype?: string;
+  size?: number;
+  /** Poster preview for a video attachment, when available. */
+  thumbnailUrl?: string;
+  /** call kind. */
+  roomId?: string;
+  roomCode?: string;
+  /** link/share kind. */
+  url?: string;
+  title?: string;
+  subtitle?: string;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -30,8 +56,11 @@ export interface Message {
   encryptedContent: string | null;
   senderKeyFingerprint: string | null;
   parentMessageId: string | null;
-  attachments: unknown[];
+  attachments: ChatAttachment[];
   mentions: unknown[];
+  /** Pin state (surfaced via the enhanced routes). */
+  isPinned?: boolean;
+  pinnedAt?: string | null;
   edited: boolean;
   editedAt: string | null;
   deleted: boolean;
@@ -131,6 +160,33 @@ export const sparkApi = {
 
   getConversation: (id: string) =>
     http.get<{ conversation: Conversation }>(`/spark/api/conversations/${id}`),
+
+  /** Rename / re-describe / re-setting a conversation (admins/owners for groups). */
+  updateConversation: (
+    id: string,
+    body: { name?: string | null; description?: string | null; settings?: ConversationSettings },
+  ) => http.put<{ conversation: Conversation }>(`/spark/api/conversations/${id}`, body),
+
+  /** Add a participant to a (group) conversation. */
+  addParticipant: (conversationId: string, userId: string) =>
+    http.post<{ participant: Participant }>(
+      `/spark/api/conversations/${conversationId}/participants`,
+      { userId },
+    ),
+
+  /** Leave a conversation (soft-removes the caller's participant row). */
+  leaveConversation: (id: string) =>
+    http.del<{ success: boolean }>(`/spark/api/conversations/${id}`),
+
+  // ── pinned messages (enhanced routes; pin/unpin is admin/owner-gated) ────────
+  listPinned: (conversationId: string) =>
+    http.get<{ messages: Message[] } | { pinnedMessages: Message[] }>(
+      `/spark/api/conversations/${conversationId}/pinned`,
+    ),
+  pinMessage: (messageId: string) =>
+    http.post<{ success: boolean }>(`/spark/api/messages/${messageId}/pin`),
+  unpinMessage: (messageId: string) =>
+    http.post<{ success: boolean }>(`/spark/api/messages/${messageId}/unpin`),
 
   listMessages: (conversationId: string, params: { page?: number; limit?: number } = {}) => {
     const q = new URLSearchParams();

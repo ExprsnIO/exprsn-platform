@@ -61,7 +61,8 @@ const models = {
   EmailTemplate: require('./EmailTemplate')(sequelize),
   EmailLog: require('./EmailLog')(sequelize),
   ModeratorConfig: require('./ModeratorConfig')(sequelize),
-  RateLimitViolation: require('./RateLimitViolation')(sequelize)
+  RateLimitViolation: require('./RateLimitViolation')(sequelize),
+  WorkflowExecution: require('./WorkflowExecution')(sequelize)
 };
 
 // Set up associations

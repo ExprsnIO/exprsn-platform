@@ -7,6 +7,7 @@
 
 const aiProviderFactory = require('../src/ai-providers');
 const riskCalculator = require('../src/utils/risk-calculator');
+const ruleEngineService = require('./ruleEngineService');
 const logger = require('../src/utils/logger');
 // Use the canonical Sequelize model layer (models/sequelize-index, the layer
 // db:migrate syncs). The legacy raw-pg `../models` (BaseModel) is a different
@@ -15,8 +16,7 @@ const logger = require('../src/utils/logger');
 const {
   ModerationCase: ModerationItem,
   ReviewQueue,
-  ModerationAction,
-  ModerationRule
+  ModerationAction
 } = require('../models/sequelize-index');
 
 class ModerationService {
@@ -83,10 +83,13 @@ class ModerationService {
 
       const riskLevel = riskCalculator.getRiskLevel(overallRisk);
 
-      // Check custom rules
+      // Check custom rules (nested conditions, chaining, safeguards, sentiment)
       const ruleAction = await this._applyCustomRules({
         contentType,
+        contentId,
         sourceService,
+        contentText,
+        contentMetadata,
         scores: aiResult,
         riskScore: overallRisk
       });
@@ -111,6 +114,7 @@ class ModerationService {
         spamScore: aiResult.spamScore,
         violenceScore: aiResult.violenceScore,
         hateSpeechScore: aiResult.hateSpeechScore,
+        sentimentScore: aiResult.sentimentScore,
         aiProvider: aiResult.provider,
         aiModel: aiResult.model,
         aiResponse: aiResult.rawResponse || aiResult,
@@ -144,6 +148,27 @@ class ModerationService {
         action
       });
 
+      // Route into matching queue buckets + trigger content_submitted workflows.
+      // Best-effort and lazily required (never block/fail moderation on these).
+      try {
+        const triggerCtx = {
+          contentType,
+          contentId,
+          sourceService,
+          contentText,
+          contentMetadata,
+          authorDid: contentMetadata.authorDid,
+          scores: { ...aiResult, riskScore: overallRisk },
+          riskScore: overallRisk,
+          action,
+          moderationItemId: moderationItem.id
+        };
+        require('./queueRegistry').route(triggerCtx).catch(() => {});
+        require('./workflowEngine').triggerForContent(triggerCtx).catch(() => {});
+      } catch (hookErr) {
+        logger.warn('Queue/workflow trigger failed', { error: hookErr.message });
+      }
+
       return this._formatModerationResult(moderationItem);
     } catch (error) {
       logger.error('Content moderation failed', {
@@ -175,45 +200,34 @@ class ModerationService {
   }
 
   /**
-   * Apply custom moderation rules
+   * Apply custom moderation rules via the rule engine (nested boolean
+   * conditions, keyword/regex/sentiment leaves, rule chaining, and safeguard
+   * rules). Returns the winning action string, or null if no rule matched.
    * @private
    */
   async _applyCustomRules(params) {
-    const { contentType, sourceService, scores, riskScore } = params;
+    const { contentType, contentId, sourceService, contentText, contentMetadata = {}, scores, riskScore } = params;
 
-    // Get applicable rules
-    const rules = await ModerationRule.findAll({
-      where: {
-        enabled: true
-      },
-      order: [['priority', 'DESC']]
-    });
+    const content = {
+      contentType,
+      contentId,
+      sourceService,
+      contentText,
+      contentMetadata,
+      authorDid: contentMetadata.authorDid
+    };
+    const ruleScores = { ...scores, riskScore };
 
-    for (const rule of rules) {
-      // Check if rule applies to this content type
-      if (rule.appliesToArray && !rule.appliesToArray.includes(contentType)) {
-        continue;
+    try {
+      const result = await ruleEngineService.evaluateRules(content, ruleScores);
+      if (result.matched) {
+        logger.info('Custom rule applied', { ruleName: result.rule && result.rule.name, action: result.action, safeguard: result.safeguard });
+        return result.action;
       }
-
-      // Check if rule applies to this service
-      if (rule.sourceServicesArray && !rule.sourceServicesArray.includes(sourceService)) {
-        continue;
-      }
-
-      // Check threshold
-      if (rule.thresholdScore !== null && riskScore < rule.thresholdScore) {
-        continue;
-      }
-
-      // Rule applies
-      logger.info('Custom rule applied', {
-        ruleName: rule.name,
-        action: rule.action
-      });
-
-      return rule.action;
+    } catch (error) {
+      // Never let a rule-engine error block moderation; fall back to AI verdict.
+      logger.error('Rule engine evaluation failed; using AI verdict', { error: error.message, contentId });
     }
-
     return null;
   }
 
@@ -312,7 +326,8 @@ class ModerationService {
         nsfw: moderationItem.nsfwScore,
         spam: moderationItem.spamScore,
         violence: moderationItem.violenceScore,
-        hateSpeech: moderationItem.hateSpeechScore
+        hateSpeech: moderationItem.hateSpeechScore,
+        sentiment: moderationItem.sentimentScore
       },
       approved: moderationItem.status === 'approved',
       rejected: moderationItem.status === 'rejected',

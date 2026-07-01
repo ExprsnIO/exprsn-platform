@@ -66,6 +66,9 @@ app.use('/api/moderate', moderationRoutes);
 app.use('/api/queue', reviewRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/rules', rulesRoutes);
+app.use('/api/agents', require('../routes/agents'));
+app.use('/api/wordlists', require('../routes/wordlists'));
+app.use('/api/queues', require('../routes/queues'));
 app.use('/api/appeals', appealsRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/metrics', metricsRoutes);
@@ -264,6 +267,17 @@ async function init(ctx) {
     logger.error('Failed to initialize services', {
       error: error.message
     });
+  }
+
+  // Queue registry (live Redis/Bull buckets) + workflow execution engine.
+  try {
+    const queueRegistry = require('../services/queueRegistry');
+    await queueRegistry.ensureLiveQueues();
+    const workflowEngine = require('../services/workflowEngine');
+    await workflowEngine.init();
+    logger.info('Queue registry + workflow engine initialized');
+  } catch (error) {
+    logger.error('Failed to initialize queue/workflow engine', { error: error.message });
   }
 }
 

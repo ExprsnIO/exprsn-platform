@@ -65,6 +65,27 @@ module.exports = (sequelize) => {
       defaultValue: 0
     },
 
+    // Rule chaining: a child rule is only evaluated when its parent matched in
+    // the same pass (staged policies). NULL = top-level rule.
+    parentRuleId: {
+      type: DataTypes.UUID,
+      field: 'parent_rule_id',
+      allowNull: true
+    },
+
+    // Free-form rule metadata. Recognized keys:
+    //   safeguard: bool — when matched, EXEMPTS the content (force-approve,
+    //              short-circuits all other rules). Protects against false positives.
+    //   gate: bool — rule is a pure gate: when matched it does NOT take its own
+    //              terminal action, it only unlocks its child rules.
+    //   labelVals: string[] — explicit atproto label values to emit on match
+    //              (overrides verdictMapper defaults).
+    metadata: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {}
+    },
+
     // Metadata
     createdBy: {
       type: DataTypes.UUID,

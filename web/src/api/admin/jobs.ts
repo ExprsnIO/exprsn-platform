@@ -78,9 +78,19 @@ export const timelineConfigApi = {
 export function asQueueMap(raw: unknown): Record<string, QueueStats> {
   if (!raw || typeof raw !== 'object') return {};
   const obj = raw as Record<string, unknown>;
-  const inner = (obj.stats ?? obj.queues ?? obj.data ?? obj) as Record<string, unknown>;
+  const inner = obj.stats ?? obj.queues ?? obj.data ?? obj;
   const out: Record<string, QueueStats> = {};
-  for (const [k, v] of Object.entries(inner)) {
+  // Array shape: `[{ name, waiting, ... }]` (e.g. timeline /jobs/stats) — key by
+  // each item's `name`, NOT by array index (which yielded queue "0").
+  if (Array.isArray(inner)) {
+    for (const v of inner) {
+      if (v && typeof v === 'object' && typeof (v as Record<string, unknown>).name === 'string') {
+        out[String((v as Record<string, unknown>).name)] = v as QueueStats;
+      }
+    }
+    return out;
+  }
+  for (const [k, v] of Object.entries(inner as Record<string, unknown>)) {
     if (v && typeof v === 'object' && !Array.isArray(v)) out[k] = v as QueueStats;
   }
   return out;

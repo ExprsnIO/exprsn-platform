@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Admin · Jobs & Queues — /admin/jobs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+<header class="navbar">
+  <a class="navbar-brand" href="admin-index.html"><span class="logo">E</span> Exprsn <span class="sub">Admin</span></a>
+  <div class="nav-right">
+    <span class="crumb">/admin/jobs</span>
+    <button class="theme-toggle" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+    <div class="admin-chip"><span class="av">RH</span> Rick H. · Owner</div>
+  </div>
+</header>
+<div class="shell">
+  <aside class="sidebar">
+  <div class="sidebar-heading">Platform</div>
+  <a class="snav" href="admin-overview.html"><span class="ic">🏠</span> Overview</a>
+  <div class="sidebar-heading">Identity & Access</div>
+  <a class="snav" href="admin-ca.html"><span class="ic">📜</span> Certificate Authority</a>
+  <a class="snav" href="admin-auth.html"><span class="ic">🔑</span> Auth & Identity</a>
+  <a class="snav" href="admin-vault.html"><span class="ic">🔒</span> Vault</a>
+  <div class="sidebar-heading">Services</div>
+  <a class="snav" href="admin-nexus.html"><span class="ic">🌐</span> Groups (Nexus)</a>
+  <a class="snav" href="admin-spark.html"><span class="ic">💬</span> Messaging (Spark)</a>
+  <a class="snav" href="admin-live.html"><span class="ic">📡</span> Live Streaming</a>
+  <a class="snav" href="admin-filevault.html"><span class="ic">📁</span> Files (FileVault)</a>
+  <div class="sidebar-heading">Operations</div>
+  <a class="snav active" href="admin-jobs.html"><span class="ic">⚙️</span> Jobs & Queues</a>
+  <a class="snav" href="admin-moderator.html"><span class="ic">🛡️</span> Moderation</a>
+  <a class="snav" href="admin-atproto.html"><span class="ic">🔗</span> AT-Protocol</a>
+  </aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>⚙️ Jobs & Queues</h1>
+        <p class="lead">Bull queues across modules. Workers run out-of-process (worker:timeline, worker:prefetch); pause, resume, retry and drain from here.</p>
+      </div>
+      <div class="actions"><button class="btn btn-ghost btn-sm">⏸ Pause all</button><button class="btn btn-primary">Browse jobs</button></div>
+    </div>
+    <div class="stat-row">
+  <div class="stat border-left-primary"><div class="lbl">Waiting</div><div class="val">134</div><div class="delta" style="color:var(--exprsn-text-muted)">queued</div></div>
+  <div class="stat border-left-info"><div class="lbl">Active</div><div class="val">12</div><div class="delta" style="color:var(--exprsn-info)">processing now</div></div>
+  <div class="stat border-left-success"><div class="lbl">Completed (24h)</div><div class="val">48,902</div><div class="delta" style="color:var(--exprsn-success)">▲ throughput ok</div></div>
+  <div class="stat border-left-danger"><div class="lbl">Failed</div><div class="val">27</div><div class="delta" style="color:var(--exprsn-danger)">2 retrying</div></div>
+</div><div class="stat-row">
+  <div class="stat border-left-warning"><div class="lbl">Delayed</div><div class="val">9</div><div class="delta" style="color:var(--exprsn-warning-hover)">scheduled</div></div>
+  <div class="stat border-left-warning"><div class="lbl">Paused queues</div><div class="val">1</div><div class="delta" style="color:var(--exprsn-warning-hover)">prefetch:media</div></div>
+  <div class="stat border-left-primary"><div class="lbl">Avg wait</div><div class="val">420 ms</div><div class="delta" style="color:var(--exprsn-text-muted)">p95 1.2s</div></div>
+  <div class="stat border-left-success"><div class="lbl">Workers</div><div class="val">4 / 4</div><div class="delta" style="color:var(--exprsn-success)">online</div></div>
+</div><h2 class="section-title" style="margin:1.5rem 0 .75rem">Queues</h2><div class="tablecard"><table class="table"><thead><tr><th>Queue</th><th>Module</th><th>Waiting</th><th>Active</th><th>Completed</th><th>Failed</th><th>State</th><th>Controls</th></tr></thead><tbody>
+<tr><td><code>timeline:fanout</code></td><td>Timeline</td><td>82</td><td>6</td><td>31,204</td><td>11</td><td><span class="badge bg-success">running</span></td><td><button class="btn btn-ghost btn-sm">⏸ Pause</button></td></tr>
+<tr><td><code>timeline:notify</code></td><td>Timeline</td><td>14</td><td>2</td><td>9,880</td><td>3</td><td><span class="badge bg-success">running</span></td><td><button class="btn btn-ghost btn-sm">⏸ Pause</button></td></tr>
+<tr><td><code>prefetch:link</code></td><td>Prefetch</td><td>31</td><td>4</td><td>6,742</td><td>9</td><td><span class="badge bg-success">running</span></td><td><button class="btn btn-ghost btn-sm">⏸ Pause</button></td></tr>
+<tr><td><code>prefetch:media</code></td><td>Prefetch</td><td>7</td><td>0</td><td>1,088</td><td>4</td><td><span class="badge bg-warning">paused</span></td><td><button class="btn btn-success btn-sm">▶ Resume</button></td></tr>
+<tr><td><code>spark:attachments</code></td><td>Spark</td><td>0</td><td>0</td><td>1,194</td><td>0</td><td><span class="badge bg-secondary">idle</span></td><td><button class="btn btn-ghost btn-sm">🧹 Clean</button></td></tr>
+</tbody></table></div>
+  </main>
+</div>
+</body>
+</html>

@@ -41,6 +41,7 @@ module.exports = (sequelize) => {
         'email',
         'ai_providers',
         'workflows',
+        'queues',
         'rate_limiting',
         'notifications',
         'advanced'

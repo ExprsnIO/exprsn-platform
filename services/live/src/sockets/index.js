@@ -4,12 +4,21 @@
  */
 
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 const { deriveServiceToken } = require('@exprsn/shared/utils/serviceToken');
 const config = require('../config');
 const logger = require('../utils/logger');
 const streamService = require('../services/stream');
 const roomService = require('../services/room');
 const { Participant } = require('../models');
+
+// Live stream chat is ephemeral (Twitch-style): messages live only in memory,
+// mirroring the in-memory viewer/participant tracking. These bound the blast
+// radius of an open chat firehose on a single-gateway MVP.
+const CHAT_MAX_MESSAGE_LENGTH = 500;   // chars; longer messages are truncated
+const CHAT_HISTORY_LIMIT = 50;         // messages retained per stream for late joiners
+const CHAT_RATE_WINDOW_MS = 10000;     // sliding window for the send rate limit
+const CHAT_RATE_MAX = 8;               // max messages per window per socket
 
 // The CA's /api/tokens/validate is guarded by requireSessionOrService, so a
 // server-to-server call must present an identity-bound service token. Mirror the
@@ -57,6 +66,7 @@ class SocketHandler {
     this.connections = new Map(); // socketId -> { userId, streamId?, roomId? }
     this.streamViewers = new Map(); // streamId -> Set of socketIds
     this.roomParticipants = new Map(); // roomId -> Map of socketId -> participantData
+    this.streamChat = new Map(); // streamId -> array of recent chat messages (capped)
 
     this.setupAuth();
     this.setupHandlers();
@@ -177,6 +187,12 @@ class SocketHandler {
           viewerCount
         });
 
+        // Replay recent chat so a late joiner has context immediately.
+        const history = this.streamChat.get(streamId);
+        if (history && history.length) {
+          socket.emit('chat-history', { streamId, messages: history });
+        }
+
         logger.info('Joined stream successfully', {
           socketId: socket.id,
           streamId,
@@ -203,6 +219,106 @@ class SocketHandler {
         logger.error('Error leaving stream:', error);
       }
     });
+
+    // Send a chat message to a stream. Reading chat is open to anonymous
+    // viewers (they receive `chat-history` + broadcasts), but POSTING requires a
+    // validated CA identity — the author is bound to that identity, never to
+    // client-supplied data, so chat can't be spoofed.
+    socket.on('stream-chat-message', ({ streamId, message, displayName } = {}) => {
+      try {
+        if (!this.requireAuthed(socket, 'stream-chat-message')) {
+          return;
+        }
+
+        if (!streamId || typeof message !== 'string') {
+          return;
+        }
+
+        // Only members of the stream's socket room may post to it (you must have
+        // joined the stream you're chatting in).
+        const viewers = this.streamViewers.get(streamId);
+        if (!viewers || !viewers.has(socket.id)) {
+          socket.emit('error', {
+            event: 'stream-chat-message',
+            code: 'NOT_IN_STREAM',
+            message: 'Join the stream before chatting'
+          });
+          return;
+        }
+
+        const text = message.trim().slice(0, CHAT_MAX_MESSAGE_LENGTH);
+        if (!text) {
+          return;
+        }
+
+        if (this.isChatRateLimited(socket)) {
+          socket.emit('error', {
+            event: 'stream-chat-message',
+            code: 'RATE_LIMITED',
+            message: 'You are sending messages too quickly'
+          });
+          return;
+        }
+
+        const chatMessage = {
+          id: uuidv4(),
+          streamId,
+          userId: socket.userId,
+          // Display name is cosmetic (client-supplied); the userId above is the
+          // authoritative, identity-bound author. Cap + fall back to identity.
+          displayName: this.resolveChatDisplayName(socket, displayName),
+          message: text,
+          ts: Date.now()
+        };
+
+        this.appendChatHistory(streamId, chatMessage);
+
+        // Broadcast to everyone in the stream room (including the sender, so the
+        // client renders from a single authoritative source).
+        this.io.to(streamId).emit('stream-chat-message', chatMessage);
+
+      } catch (error) {
+        logger.error('Error handling stream chat message:', error);
+      }
+    });
+  }
+
+  /**
+   * Sliding-window send rate limit, per socket. Keeps an open chat from being
+   * used to flood the room. Returns true when the caller should be throttled.
+   */
+  isChatRateLimited(socket) {
+    const now = Date.now();
+    const times = (socket._chatTimes || []).filter((t) => now - t < CHAT_RATE_WINDOW_MS);
+    if (times.length >= CHAT_RATE_MAX) {
+      socket._chatTimes = times;
+      return true;
+    }
+    times.push(now);
+    socket._chatTimes = times;
+    return false;
+  }
+
+  /** Pick a safe, bounded display name for a chat author. */
+  resolveChatDisplayName(socket, supplied) {
+    const trimmed = typeof supplied === 'string' ? supplied.trim() : '';
+    const raw =
+      trimmed ||
+      (socket.userId ? `user-${String(socket.userId).slice(0, 8)}` : 'Anonymous');
+    return String(raw).slice(0, 80);
+  }
+
+  /** Append a message to a stream's capped in-memory history buffer. */
+  appendChatHistory(streamId, message) {
+    let history = this.streamChat.get(streamId);
+    if (!history) {
+      history = [];
+      this.streamChat.set(streamId, history);
+    }
+    history.push(message);
+    if (history.length > CHAT_HISTORY_LIMIT) {
+      history.splice(0, history.length - CHAT_HISTORY_LIMIT);
+    }
   }
 
   /**
@@ -619,8 +735,9 @@ class SocketHandler {
   broadcastStreamDeleted(streamId) {
     this.io.emit('stream-deleted', { streamId });
 
-    // Cleanup viewers
+    // Cleanup viewers + ephemeral chat
     this.streamViewers.delete(streamId);
+    this.streamChat.delete(streamId);
 
     logger.info('Broadcast stream deleted', { streamId });
   }

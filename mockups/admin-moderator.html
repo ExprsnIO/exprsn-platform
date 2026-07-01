@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprsn Admin · Moderation — /admin/moderator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin-shell.css">
+</head>
+<body>
+<header class="navbar">
+  <a class="navbar-brand" href="admin-index.html"><span class="logo">E</span> Exprsn <span class="sub">Admin</span></a>
+  <div class="nav-right">
+    <span class="crumb">/admin/moderator</span>
+    <button class="theme-toggle" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark'">◐ Theme</button>
+    <div class="admin-chip"><span class="av">RH</span> Rick H. · Owner</div>
+  </div>
+</header>
+<div class="shell">
+  <aside class="sidebar">
+  <div class="sidebar-heading">Platform</div>
+  <a class="snav" href="admin-overview.html"><span class="ic">🏠</span> Overview</a>
+  <div class="sidebar-heading">Identity & Access</div>
+  <a class="snav" href="admin-ca.html"><span class="ic">📜</span> Certificate Authority</a>
+  <a class="snav" href="admin-auth.html"><span class="ic">🔑</span> Auth & Identity</a>
+  <a class="snav" href="admin-vault.html"><span class="ic">🔒</span> Vault</a>
+  <div class="sidebar-heading">Services</div>
+  <a class="snav" href="admin-nexus.html"><span class="ic">🌐</span> Groups (Nexus)</a>
+  <a class="snav" href="admin-spark.html"><span class="ic">💬</span> Messaging (Spark)</a>
+  <a class="snav" href="admin-live.html"><span class="ic">📡</span> Live Streaming</a>
+  <a class="snav" href="admin-filevault.html"><span class="ic">📁</span> Files (FileVault)</a>
+  <div class="sidebar-heading">Operations</div>
+  <a class="snav" href="admin-jobs.html"><span class="ic">⚙️</span> Jobs & Queues</a>
+  <a class="snav active" href="admin-moderator.html"><span class="ic">🛡️</span> Moderation</a>
+  <a class="snav" href="admin-atproto.html"><span class="ic">🔗</span> AT-Protocol</a>
+  </aside>
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>🛡️ Moderation</h1>
+        <p class="lead">Cross-module moderation queue. Content from Timeline, Spark, and Nexus is risk-scored and routed here for review.</p>
+      </div>
+      <div class="actions"><button class="btn btn-ghost btn-sm">Filters</button><button class="btn btn-primary">Review queue</button></div>
+    </div>
+    <div class="stat-row">
+  <div class="stat border-left-danger"><div class="lbl">Pending</div><div class="val">48</div><div class="delta" style="color:var(--exprsn-danger)">12 high priority</div></div>
+  <div class="stat border-left-success"><div class="lbl">Reviewed today</div><div class="val">312</div><div class="delta" style="color:var(--exprsn-success)">▲ on pace</div></div>
+  <div class="stat border-left-warning"><div class="lbl">Actions taken</div><div class="val">27</div><div class="delta" style="color:var(--exprsn-warning-hover)">18 removed · 9 warned</div></div>
+  <div class="stat border-left-info"><div class="lbl">Avg response</div><div class="val">6m 12s</div><div class="delta" style="color:var(--exprsn-success)">SLA 15m</div></div>
+</div><div class="toolbar"><div class="toolbar-row"><div class="search"><span class="si">🔍</span><input type="text" placeholder="Search reports by content, source, or reporter…"></div><select class="minisel"><option>Risk: All</option><option>High</option><option>Medium</option><option>Low</option></select><select class="minisel"><option>Status: All</option><option>Pending</option><option>Approved</option><option>Removed</option></select></div></div><div class="tablecard"><table class="table"><thead><tr><th>Content</th><th>Source</th><th>Risk</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead><tbody>
+<tr><td>Spam links in reply thread</td><td>Timeline</td><td><span class="badge bg-danger">high</span></td><td>P1</td><td><span class="badge bg-warning">pending</span></td><td><button class="btn btn-success btn-sm">Approve</button> <button class="btn btn-danger btn-sm">Remove</button></td></tr>
+<tr><td>Reported DM — harassment</td><td>Spark</td><td><span class="badge bg-danger">high</span></td><td>P1</td><td><span class="badge bg-warning">pending</span></td><td><button class="btn btn-success btn-sm">Approve</button> <button class="btn btn-danger btn-sm">Remove</button></td></tr>
+<tr><td>Off-topic group post</td><td>Nexus</td><td><span class="badge bg-success">low</span></td><td>P3</td><td><span class="badge bg-warning">pending</span></td><td><button class="btn btn-success btn-sm">Approve</button> <button class="btn btn-danger btn-sm">Remove</button></td></tr>
+<tr><td>Possible CSAM auto-flag</td><td>FileVault</td><td><span class="badge bg-danger">high</span></td><td>P0</td><td><span class="badge bg-danger">escalated</span></td><td><button class="btn btn-outline-primary btn-sm">Escalate</button></td></tr>
+</tbody></table></div>
+  </main>
+</div>
+</body>
+</html>

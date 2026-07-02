@@ -20,6 +20,7 @@ const lookupProviders = require('../services/lookupProviders');
 const flowActions = require('../services/flowActions');
 const flowEngine = require('../services/flowEngine');
 const flowScheduler = require('../services/flowScheduler');
+const formLayout = require('../services/formLayout');
 const recordStore = require('../services/recordStore');
 const entityService = require('../services/entityService');
 const scopeAuthority = require('../services/scopeAuthority');
@@ -279,11 +280,23 @@ router.get('/forms', async (req, res, next) => {
     res.json({ forms: await LcForm.findAll({ where }) });
   } catch (e) { next(e); }
 });
+/** Validate a form's layout against its entity; 400s via thrown error. */
+async function checkFormLayout(appId, entityKey, layout) {
+  const entity = await LcEntity.findOne({ where: { appId, key: entityKey } });
+  if (!entity) { const e = new Error(`unknown entity "${entityKey}"`); e.status = 400; throw e; }
+  const errors = formLayout.validateLayout(entity, layout);
+  if (errors.length) { const e = new Error(errors.join('; ')); e.status = 400; e.details = errors; throw e; }
+}
+
 router.post('/forms', async (req, res, next) => {
   try {
-    const { appId, entityKey, key, name, layout = {} } = req.body || {};
+    const { appId, entityKey, key, name, layout = {}, isPublic = false, settings = {} } = req.body || {};
     await assertApp(req, appId);
-    const form = await LcForm.create({ appId, entityKey, key, name, layout });
+    try { await checkFormLayout(appId, entityKey, layout); }
+    catch (err) { if (err.status === 400) return res.status(400).json({ error: 'INVALID_LAYOUT', message: err.message, details: err.details }); throw err; }
+    // Public slugs are server-generated (unguessable), never caller-chosen.
+    const slug = isPublic ? crypto.randomBytes(9).toString('hex') : null;
+    const form = await LcForm.create({ appId, entityKey, key, name, layout, isPublic: !!isPublic, slug, settings });
     res.status(201).json({ form });
   } catch (e) { if (e.name && e.name.startsWith('Sequelize')) return res.status(400).json({ error: 'BAD_REQUEST', message: e.message }); next(e); }
 });
@@ -300,7 +313,16 @@ router.put('/forms/:id', async (req, res, next) => {
     const form = await LcForm.findByPk(req.params.id);
     if (!form) return res.status(404).json({ error: 'NOT_FOUND' });
     await assertApp(req, form.appId);
-    for (const k of ['name', 'entityKey', 'layout']) if (req.body[k] !== undefined) form[k] = req.body[k];
+    if (req.body.layout !== undefined || req.body.entityKey !== undefined) {
+      try { await checkFormLayout(form.appId, req.body.entityKey || form.entityKey, req.body.layout !== undefined ? req.body.layout : form.layout); }
+      catch (err) { if (err.status === 400) return res.status(400).json({ error: 'INVALID_LAYOUT', message: err.message, details: err.details }); throw err; }
+    }
+    if (req.body.isPublic !== undefined) {
+      form.isPublic = !!req.body.isPublic;
+      if (form.isPublic && !form.slug) form.slug = crypto.randomBytes(9).toString('hex');
+      if (!form.isPublic) form.slug = null; // un-publishing invalidates the old link
+    }
+    for (const k of ['name', 'entityKey', 'layout', 'settings']) if (req.body[k] !== undefined) form[k] = req.body[k];
     await form.save();
     res.json({ form });
   } catch (e) { next(e); }

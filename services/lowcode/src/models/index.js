@@ -118,8 +118,19 @@ const LcForm = sequelize.define('LcForm', {
   entityKey: { type: DataTypes.STRING(64), allowNull: false, field: 'entity_key' },
   key: { type: DataTypes.STRING(64), allowNull: false, validate: { is: /^[a-z][a-z0-9_-]*$/ } },
   name: { type: DataTypes.STRING(255), allowNull: false },
-  // { sections:[{ title, fields:[fieldKey] }], submitLabel? }
+  /**
+   * { sections: [{ title?, fields: [ 'fieldKey' | { key, visibleWhen?,
+   *   placeholder?, help? } ] }], steps?: boolean, submitLabel? }
+   * `visibleWhen` is a condition tree over the in-progress record data
+   * (shared evaluator); `steps: true` renders each section as a wizard step.
+   */
   layout: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+  // Public (anonymous) form: reachable at /api/hooks/forms/:slug with no auth.
+  // Only fields listed in the layout are accepted from anonymous submitters.
+  isPublic: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_public' },
+  slug: { type: DataTypes.STRING(64), allowNull: true, unique: true },
+  // { successMessage?, allowMultipleSubmissions? … } — renderer hints.
+  settings: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
 }, {
   tableName: 'lc_forms', underscored: true, timestamps: true,
   indexes: [{ unique: true, fields: ['app_id', 'key'] }],

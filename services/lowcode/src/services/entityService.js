@@ -12,7 +12,7 @@
  */
 
 const { Op } = require('sequelize');
-const { LcApp, LcLookup, LcEntity, LcRecord } = require('../models');
+const { LcApp, LcLookup, LcEntity, LcRecord, LcForm, LcFlow } = require('../models');
 const typeSystem = require('./typeSystem');
 const lookupProviders = require('./lookupProviders');
 const recordStore = require('./recordStore');
@@ -138,6 +138,48 @@ async function exportEntity(entity, { authorization } = {}) {
   return recordStore.exportEntity(entity, records, { authorization });
 }
 
+/**
+ * Truncate an entity — delete ALL of its records and clean up any mirrored
+ * FileVault files (best-effort per record so one failure can't strand the rest).
+ * Returns the number of records removed.
+ */
+async function truncateEntity(entity, { authorization } = {}) {
+  const records = await LcRecord.findAll({ where: { entityId: entity.id } });
+  for (const record of records) {
+    await recordStore.onDelete(entity, record, { authorization }).catch(() => {});
+  }
+  const removed = await LcRecord.destroy({ where: { entityId: entity.id } });
+  return removed;
+}
+
+/**
+ * Delete an entity outright: truncate its records first (with FileVault cleanup),
+ * then remove the entity definition. Returns { removedRecords }.
+ */
+async function deleteEntity(entity, { authorization } = {}) {
+  const removedRecords = await truncateEntity(entity, { authorization });
+  await entity.destroy();
+  return { removedRecords };
+}
+
+/**
+ * Delete an app and everything scoped to it — entities (with their records +
+ * FileVault cleanup), lookups, forms and flows. Returns a summary of counts.
+ */
+async function deleteApp(app, { authorization } = {}) {
+  const entities = await LcEntity.findAll({ where: { appId: app.id } });
+  let removedRecords = 0;
+  for (const entity of entities) {
+    const { removedRecords: n } = await deleteEntity(entity, { authorization });
+    removedRecords += n;
+  }
+  const removedLookups = await LcLookup.destroy({ where: { appId: app.id } });
+  const removedForms = await LcForm.destroy({ where: { appId: app.id } });
+  const removedFlows = await LcFlow.destroy({ where: { appId: app.id } });
+  await app.destroy();
+  return { removedEntities: entities.length, removedRecords, removedLookups, removedForms, removedFlows };
+}
+
 /** Drive the entity's record state machine for one event. */
 async function transitionRecord(record, entity, event, ctx = {}) {
   if (!entity.stateMachine) { const e = new Error('entity has no state machine'); e.status = 400; throw e; }
@@ -148,4 +190,4 @@ async function transitionRecord(record, entity, event, ctx = {}) {
   return record;
 }
 
-module.exports = { resolveLookups, checkReferences, validate, createRecord, updateRecord, deleteRecord, transitionRecord, exportEntity };
+module.exports = { resolveLookups, checkReferences, validate, createRecord, updateRecord, deleteRecord, transitionRecord, exportEntity, truncateEntity, deleteEntity, deleteApp };

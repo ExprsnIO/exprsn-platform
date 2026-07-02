@@ -37,6 +37,8 @@ import { SparkSection } from '@/features/admin/sections/SparkSection';
 import { FilevaultSection } from '@/features/admin/sections/FilevaultSection';
 import { PluginsSection } from '@/features/admin/sections/PluginsSection';
 import { LowcodeSection } from '@/features/admin/sections/LowcodeSection';
+import { EntityDetailPage } from '@/features/lowcode/pages/EntityDetailPage';
+import { FlowDetailPage } from '@/features/lowcode/pages/FlowDetailPage';
 import { LoginPage } from '@/auth/LoginPage';
 import { SsoCallbackPage } from '@/auth/SsoCallbackPage';
 import { RequireAuth } from '@/auth/RequireAuth';
@@ -117,6 +119,8 @@ export const router = createBrowserRouter([
           { path: 'filevault', element: <FilevaultSection /> },
           { path: 'plugins', element: <PluginsSection /> },
           { path: 'lowcode', element: <LowcodeSection /> },
+          { path: 'lowcode/entities/:id', element: <EntityDetailPage /> },
+          { path: 'lowcode/flows/:id', element: <FlowDetailPage /> },
         ],
       },
     ],

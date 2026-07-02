@@ -10,6 +10,7 @@ const { Op } = require('sequelize');
 const router = express.Router();
 const { LcApp, LcEntity, LcRecord } = require('../models');
 const entityService = require('../services/entityService');
+const recordQuery = require('../services/recordQuery');
 const membershipResolver = require('../services/membershipResolver');
 const { requireUser } = require('../../../plugins/src/middleware/auth');
 
@@ -58,14 +59,14 @@ async function loadVisibleRecord(req) {
 
 router.get('/:entityKey/records', loadEntity, async (req, res, next) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 100, 500);
-    const where = { entityId: req.entity.id, ...(await visibilityWhere(req)) };
-    // Optional exact-match field filters: ?f.<field>=<value> → data.<field> = value
-    for (const [k, v] of Object.entries(req.query)) {
-      if (k.startsWith('f.')) where[`data.${k.slice(2)}`] = v;
-    }
-    const records = await LcRecord.findAll({ where, order: [['createdAt', 'DESC']], limit });
-    res.json({ records });
+    // Advanced filter/sort/pagination (see recordQuery); AND'd with visibility.
+    const { conditions, order, limit, offset } = recordQuery.build(req.entity, req.query);
+    const where = {
+      entityId: req.entity.id,
+      [Op.and]: [await visibilityWhere(req), ...conditions],
+    };
+    const { count, rows } = await LcRecord.findAndCountAll({ where, order, limit, offset });
+    res.json({ records: rows, total: count, limit, offset });
   } catch (e) { next(e); }
 });
 

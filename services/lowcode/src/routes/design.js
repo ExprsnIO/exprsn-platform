@@ -107,6 +107,25 @@ router.patch('/apps/:id', async (req, res, next) => {
     res.json({ app });
   } catch (e) { next(e); }
 });
+router.get('/apps/:id', async (req, res, next) => {
+  try {
+    const app = await LcApp.findByPk(req.params.id);
+    if (!app) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, app);
+    res.json({ app });
+  } catch (e) { next(e); }
+});
+// Delete an app and everything scoped to it (entities+records, lookups, forms,
+// flows). Destructive + cascading — the SPA gates this behind a typed confirm.
+router.delete('/apps/:id', async (req, res, next) => {
+  try {
+    const app = await LcApp.findByPk(req.params.id);
+    if (!app) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, app);
+    const removed = await entityService.deleteApp(app, { authorization: req.get('authorization') });
+    res.json({ ok: true, removed });
+  } catch (e) { next(e); }
+});
 
 // ── Lookups ───────────────────────────────────────────────────────────────
 // The dynamic-lookup provider catalog (static registry, no DB — safe to read).
@@ -153,6 +172,23 @@ router.get('/lookups/:id/resolved', async (req, res, next) => {
     await assertApp(req, lookup.appId);
     const values = await lookupProviders.resolveLookup(lookup, { appId: lookup.appId, authorization: req.get('authorization') });
     res.json({ key: lookup.key, dynamic: lookupProviders.isDynamic(lookup), values });
+  } catch (e) { next(e); }
+});
+router.get('/lookups/:id', async (req, res, next) => {
+  try {
+    const lookup = await LcLookup.findByPk(req.params.id);
+    if (!lookup) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, lookup.appId);
+    res.json({ lookup });
+  } catch (e) { next(e); }
+});
+router.delete('/lookups/:id', async (req, res, next) => {
+  try {
+    const lookup = await LcLookup.findByPk(req.params.id);
+    if (!lookup) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, lookup.appId);
+    await lookup.destroy();
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 
@@ -204,6 +240,34 @@ router.post('/entities/:id/export', async (req, res, next) => {
     res.json({ export: result });
   } catch (e) { next(e); }
 });
+// Truncate: delete ALL of an entity's records (keeps the entity definition).
+router.post('/entities/:id/truncate', async (req, res, next) => {
+  try {
+    const entity = await LcEntity.findByPk(req.params.id);
+    if (!entity) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, entity.appId);
+    const removed = await entityService.truncateEntity(entity, { authorization: req.get('authorization') });
+    res.json({ ok: true, removed });
+  } catch (e) { next(e); }
+});
+router.get('/entities/:id', async (req, res, next) => {
+  try {
+    const entity = await LcEntity.findByPk(req.params.id);
+    if (!entity) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, entity.appId);
+    res.json({ entity });
+  } catch (e) { next(e); }
+});
+// Delete an entity and all of its records (with FileVault cleanup).
+router.delete('/entities/:id', async (req, res, next) => {
+  try {
+    const entity = await LcEntity.findByPk(req.params.id);
+    if (!entity) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, entity.appId);
+    const removed = await entityService.deleteEntity(entity, { authorization: req.get('authorization') });
+    res.json({ ok: true, removed });
+  } catch (e) { next(e); }
+});
 
 // ── Forms ───────────────────────────────────────────────────────────────────
 router.get('/forms', async (req, res, next) => {
@@ -219,6 +283,33 @@ router.post('/forms', async (req, res, next) => {
     const form = await LcForm.create({ appId, entityKey, key, name, layout });
     res.status(201).json({ form });
   } catch (e) { if (e.name && e.name.startsWith('Sequelize')) return res.status(400).json({ error: 'BAD_REQUEST', message: e.message }); next(e); }
+});
+router.get('/forms/:id', async (req, res, next) => {
+  try {
+    const form = await LcForm.findByPk(req.params.id);
+    if (!form) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, form.appId);
+    res.json({ form });
+  } catch (e) { next(e); }
+});
+router.put('/forms/:id', async (req, res, next) => {
+  try {
+    const form = await LcForm.findByPk(req.params.id);
+    if (!form) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, form.appId);
+    for (const k of ['name', 'entityKey', 'layout']) if (req.body[k] !== undefined) form[k] = req.body[k];
+    await form.save();
+    res.json({ form });
+  } catch (e) { next(e); }
+});
+router.delete('/forms/:id', async (req, res, next) => {
+  try {
+    const form = await LcForm.findByPk(req.params.id);
+    if (!form) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, form.appId);
+    await form.destroy();
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
 // ── Flows ───────────────────────────────────────────────────────────────────
@@ -252,6 +343,38 @@ router.patch('/flows/:id', async (req, res, next) => {
     await flow.save();
     res.json({ flow });
   } catch (e) { next(e); }
+});
+router.get('/flows/:id', async (req, res, next) => {
+  try {
+    const flow = await LcFlow.findByPk(req.params.id);
+    if (!flow) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, flow.appId);
+    res.json({ flow });
+  } catch (e) { next(e); }
+});
+router.delete('/flows/:id', async (req, res, next) => {
+  try {
+    const flow = await LcFlow.findByPk(req.params.id);
+    if (!flow) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, flow.appId);
+    await flow.destroy();
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// Catalogs the SPA editors need to build flows without hardcoding vocab:
+// known hook-bus events, action types, storage modes, field types/roles.
+router.get('/catalog', (req, res) => {
+  res.json({
+    events: events.eventKeys(),
+    actions: flowActions.knownActionTypes(),
+    capabilities: capabilities.capabilityKeys(),
+    storageModes: recordStore.MODES,
+    fieldTypes: typeSystem.FIELD_TYPES,
+    fieldRoles: typeSystem.FIELD_ROLES,
+    aggregations: typeSystem.AGGREGATIONS,
+    lookupProviders: lookupProviders.listProviders(),
+  });
 });
 
 module.exports = router;

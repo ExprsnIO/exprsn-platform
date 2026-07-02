@@ -12,6 +12,8 @@
  *                                     in/nin take a comma-separated list.
  * Sort:  ?sort=-amount,createdAt    → comma list, leading '-' = DESC. Whitelisted
  *                                     to the entity's fields + a few row columns.
+ * Search: ?q=<text>                 → case-insensitive substring OR'd across all
+ *                                     string/text/enum fields.
  * Page:  ?limit= (≤500)  ?offset=
  * ═══════════════════════════════════════════════════════════
  */
@@ -79,6 +81,14 @@ function build(entity, query = {}) {
       const cond = buildCondition(field, 'eq', rawVal);
       if (cond) conditions.push(cond);
     }
+  }
+
+  // Free-text search — substring OR across every human-text field.
+  if (query.q !== undefined && String(query.q).trim() !== '') {
+    const needle = `%${String(query.q).trim()}%`;
+    const textFields = (entity.fields || []).filter((f) => ['string', 'text', 'enum'].includes(f.type));
+    const ors = textFields.map((f) => sequelize.where(textExpr(f), Op.iLike, needle));
+    if (ors.length) conditions.push({ [Op.or]: ors });
   }
 
   // Sort — default newest first.

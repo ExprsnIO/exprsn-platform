@@ -15,7 +15,9 @@
  * ═══════════════════════════════════════════════════════════
  */
 
-const FIELD_TYPES = ['string', 'text', 'number', 'integer', 'boolean', 'date', 'datetime', 'enum', 'reference', 'json'];
+const formula = require('./formula');
+
+const FIELD_TYPES = ['string', 'text', 'number', 'integer', 'boolean', 'date', 'datetime', 'enum', 'reference', 'json', 'file'];
 const FIELD_ROLES = ['dimension', 'measure', 'attribute'];
 const AGGREGATIONS = ['sum', 'avg', 'count', 'min', 'max'];
 
@@ -33,6 +35,14 @@ function validateFieldDef(field) {
     errors.push(`enum field "${field.key}" needs enumValues or enumLookup`);
   }
   if (field.type === 'reference' && !field.refEntity) errors.push(`reference field "${field.key}" needs refEntity`);
+  // A computed field carries a formula; its stored value is derived on every
+  // write (input for the key is ignored). Reject un-parseable formulas at
+  // design time so a bad expression can't silently null a column later.
+  if (field.formula !== undefined) {
+    const parsed = formula.parse(field.formula);
+    if (!parsed.ok) errors.push(`field "${field.key}" has an invalid formula: ${parsed.error}`);
+    if (['reference', 'file'].includes(field.type)) errors.push(`field "${field.key}" cannot be computed (type ${field.type})`);
+  }
   return errors;
 }
 
@@ -93,6 +103,17 @@ function validateValue(field, raw, lookups = {}) {
     case 'reference':
       if (!UUID_RE.test(String(value))) return { ok: false, error: `"${field.key}" must be a record id (uuid)` };
       break;
+    case 'file': {
+      // A file value is a FileVault pointer: { fileId, name?, size?, mime? }.
+      // A bare uuid string is accepted and normalized to { fileId }.
+      const obj = typeof value === 'string' ? { fileId: value } : value;
+      if (!obj || typeof obj !== 'object' || !UUID_RE.test(String(obj.fileId || ''))) {
+        return { ok: false, error: `"${field.key}" must be a file reference ({ fileId })` };
+      }
+      const clean = { fileId: obj.fileId };
+      for (const k of ['name', 'size', 'mime']) if (obj[k] !== undefined) clean[k] = obj[k];
+      return { ok: true, value: clean };
+    }
     case 'json':
       if (typeof value !== 'object') return { ok: false, error: `"${field.key}" must be a JSON object/array` };
       break;
@@ -109,9 +130,24 @@ function validateValue(field, raw, lookups = {}) {
 function validateRecord(fields, data, lookups = {}) {
   const errors = [];
   const out = {};
+  const computed = [];
   for (const field of fields || []) {
+    // Computed fields ignore input entirely — they're derived after the plain
+    // fields validate so a formula can reference sibling values.
+    if (field.formula !== undefined) { computed.push(field); continue; }
     const res = validateValue(field, (data || {})[field.key], lookups);
     if (!res.ok) errors.push(res.error);
+    else if (res.value !== null && res.value !== undefined) out[field.key] = res.value;
+  }
+  for (const field of computed) {
+    const value = formula.evaluate(field.formula, out);
+    if (value === null || value === undefined) {
+      if (field.required) errors.push(`"${field.key}" formula produced no value`);
+      continue;
+    }
+    // The formula result must still satisfy the field's declared type.
+    const res = validateValue(field, value, lookups);
+    if (!res.ok) errors.push(`${res.error} (computed)`);
     else if (res.value !== null && res.value !== undefined) out[field.key] = res.value;
   }
   return { valid: errors.length === 0, errors, data: out };

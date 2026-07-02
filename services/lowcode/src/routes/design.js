@@ -553,6 +553,29 @@ router.delete('/flows/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ── AI assist ────────────────────────────────────────────────────────────────
+const aiAssist = require('../services/aiAssist');
+const aiHits = new Map();
+
+// Natural language → entity/flow DRAFT. Nothing is persisted — the studio
+// shows the draft in the normal editor and saving re-validates as usual.
+router.post('/ai/generate', async (req, res, next) => {
+  try {
+    const now = Date.now();
+    const h = aiHits.get(req.userId);
+    if (h && now - h.windowStart < 60000 && h.count >= 10) return res.status(429).json({ error: 'RATE_LIMITED', message: 'Too many generations — retry in a minute' });
+    aiHits.set(req.userId, h && now - h.windowStart < 60000 ? { ...h, count: h.count + 1 } : { windowStart: now, count: 1 });
+
+    const { kind, prompt, appId } = req.body || {};
+    if (appId) await assertApp(req, appId);
+    const out = await aiAssist.generate(kind, prompt);
+    res.json({ kind, ...out });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: 'AI_GENERATE', message: e.message });
+    next(e);
+  }
+});
+
 // Catalogs the SPA editors need to build flows without hardcoding vocab:
 // known hook-bus events, action types, storage modes, field types/roles.
 router.get('/catalog', (req, res) => {
@@ -566,6 +589,7 @@ router.get('/catalog', (req, res) => {
     fieldRoles: typeSystem.FIELD_ROLES,
     aggregations: typeSystem.AGGREGATIONS,
     lookupProviders: lookupProviders.listProviders(),
+    aiAssist: aiAssist.isConfigured(),
   });
 });
 

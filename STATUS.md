@@ -42,6 +42,25 @@ npm start              # https://localhost:8443  → GET /health
 
 ## Recently resolved
 
+### Low-code gap closure v2 (2026-07-02) — branch `feature/lowcode-gap-closure`, FLAG-GATED
+Closed the feature-gap review against modern low-code platforms (all tiers). Backend:
+single-record GET, bulk ops, CSV import/export, server-side aggregation (`/aggregate`),
+`?q=` search, formula (computed) fields via a safe expression engine, `file` field type,
+flow engine v2 (per-action `when`/`onError`/retries, `LcFlowRun` history + `/runs`,
+manual `/execute`, schedule/webhook/manual triggers, `http_request` action with SSRF
+guard + new `call:http.request` capability), forms v2 (layout validation, `visibleWhen`,
+wizard steps, public anonymous forms at `/api/hooks/forms/:slug`), app bundle
+export/import, **enforced** app status (draft = builders only, archived = read-only +
+flows stop), saved views (`LcView`), AI assist (`/ai/generate`, needs `CLAUDE_API_KEY`).
+Frontend: forms tab + builder, public `/f/:slug` page, kanban board, saved views, CSV
+buttons, flow trigger picker + run history + Run-now, AI generate buttons. 108 lowcode
+unit tests green; web build + vitest green.
+- **Deploy note:** new columns (`lc_flows.trigger`, `lc_forms.is_public/slug/settings`)
+  and tables (`lc_flow_runs`, `lc_views`). Dev boot self-heals (`sync({alter:true})`
+  in module init); the sync-based `db:migrate` creates the new TABLES but will NOT add
+  the new COLUMNS on an existing non-dev DB — align schema before enabling there.
+- Scheduler is single-instance by design (matches the single-gateway MVP decision).
+
 ### Extensibility framework — plugins + low-code (2026-06-30) — FLAG-GATED, NOT MVP-BLOCKING
 Built two new modules, both inert by default (`PLUGINS_ENABLED` / `LOWCODE_ENABLED`,
 default false), so the MVP critical path is untouched.

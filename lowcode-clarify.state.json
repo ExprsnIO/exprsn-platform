@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-01T20:05:30.955Z",
+  "answers": {
+    "scope.primary": {
+      "choice": 0,
+      "note": "start here — foundation for all other tracks",
+      "at": "decided"
+    },
+    "scope.flags": {
+      "choice": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "note": "all lowcode/plugins flags on for dev/staging",
+      "at": "decided"
+    },
+    "scope.also": {
+      "choice": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "note": "SPA + sockets + emit points + plugin lifecycle follow",
+      "at": "decided"
+    },
+    "ent.persistence": {
+      "choice": 0,
+      "note": "MVP: keep single JSONB table",
+      "at": "rec"
+    },
+    "ent.references": {
+      "choice": 0,
+      "note": "validate target exists on write (implemented)",
+      "at": "done"
+    },
+    "ent.ownership": {
+      "choice": 0,
+      "note": "scope like flows (platform/org/group/user) — scope cols added; platform+owner enforced",
+      "at": "done"
+    },
+    "ent.evolution": {
+      "choice": 0,
+      "note": "tolerant lazy read",
+      "at": "rec"
+    },
+    "ent.uniqueness": {
+      "choice": 0,
+      "note": "DB unique index on JSONB expression (JS check retained for MVP)",
+      "at": "rec"
+    },
+    "look.source": {
+      "choice": 0,
+      "note": "static + dynamic providers (implemented)",
+      "at": "done"
+    },
+    "look.providers": {
+      "choice": [
+        0,
+        1,
+        2
+      ],
+      "note": "lowcode.entity in-process + platform.users/nexus.groups best-effort",
+      "at": "done"
+    },
+    "look.scope": {
+      "choice": 0,
+      "note": "app-scoped + platform-global",
+      "at": "done"
+    },
+    "flow.triggers": {
+      "choice": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": "record.* live; timeline/spark/moderator emit exist; live/nexus registered (emit sites pending)",
+      "at": "partial"
+    },
+    "flow.actions": {
+      "choice": [
+        0,
+        1,
+        2,
+        4,
+        5,
+        6,
+        7
+      ],
+      "note": "create/update/transition_record native + notify/flag; write-back + emit-socket next passes",
+      "at": "partial"
+    },
+    "flow.execution": {
+      "choice": 0,
+      "note": "sync in-process best-effort (MVP single-gateway)",
+      "at": "done"
+    },
+    "flow.scheduling": {
+      "choice": 0,
+      "note": "event-driven only for now",
+      "at": "rec"
+    },
+    "flow.steps": {
+      "choice": 0,
+      "note": "single-shot action list",
+      "at": "rec"
+    },
+    "flow.runlog": {
+      "choice": 0,
+      "note": "reuse plugin_deliveries",
+      "at": "rec"
+    },
+    "plat.emit": {
+      "choice": 0,
+      "note": "broad — wire major modules (next pass)",
+      "at": "decided"
+    },
+    "plat.capabilities": {
+      "choice": 0,
+      "note": "extend vocab for chosen write-back actions",
+      "at": "rec"
+    },
+    "plat.surfaces": {
+      "choice": 0,
+      "note": "admin sections + user menu items/pages",
+      "at": "rec"
+    },
+    "spa.entry": {
+      "choice": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "note": "standalone /apps + Nexus + Live + Spark",
+      "at": "decided"
+    },
+    "spa.rendering": {
+      "choice": 0,
+      "note": "auto-generate from entity + form defs",
+      "at": "rec"
+    },
+    "spa.grid": {
+      "choice": 0,
+      "note": "filter/sort/aggregate via dimension/measure",
+      "at": "rec"
+    },
+    "spa.permissions": {
+      "choice": 0,
+      "note": "per-app role/scope gating",
+      "at": "rec"
+    },
+    "rt.model": {
+      "choice": 1,
+      "note": "dynamic namespace per app (/lowcode/:app)",
+      "at": "decided"
+    },
+    "rt.hosts": {
+      "choice": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "note": "Nexus, Live, Spark, standalone",
+      "at": "decided"
+    },
+    "rt.features": {
+      "choice": [
+        0,
+        1,
+        2
+      ],
+      "note": "live record subs, presence, custom app events",
+      "at": "rec"
+    },
+    "rt.auth": {
+      "choice": 0,
+      "note": "CA token + per-room membership gate",
+      "at": "rec"
+    },
+    "rt.direction": {
+      "choice": 0,
+      "note": "read-only mirror + flow-driven emits",
+      "at": "rec"
+    },
+    "rt.scaling": {
+      "choice": 0,
+      "note": "single-instance in-memory rooms (MVP)",
+      "at": "rec"
+    },
+    "plug.worker": {
+      "choice": 0,
+      "note": "build worker:plugins (Bull)",
+      "at": "rec"
+    },
+    "plug.identity": {
+      "choice": 0,
+      "note": "stay on HMAC plugin:<key> (MVP)",
+      "at": "rec"
+    },
+    "plug.grants": {
+      "choice": 0,
+      "note": "enforce grants on actions/callbacks",
+      "at": "rec"
+    },
+    "plug.moderator": {
+      "choice": 0,
+      "note": "skip — keep moderator separate (as-built)",
+      "at": "rec"
+    }
+  }
+}

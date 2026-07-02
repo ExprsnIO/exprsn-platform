@@ -5,8 +5,14 @@
 
 const { Room, Participant, Recording } = require('../models');
 const logger = require('../utils/logger');
+const liveConfig = require('./liveConfig');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+
+// Thrown when an admin-configured limit blocks the action (mapped to 403).
+class LimitError extends Error {
+  constructor(message) { super(message); this.name = 'LimitError'; this.code = 'LIMIT_EXCEEDED'; }
+}
 
 class RoomService {
   /**
@@ -39,6 +45,21 @@ class RoomService {
         settings = {}
       } = roomData;
 
+      // ── enforce admin limits + room policy ────────────────────────────────
+      const limits = await liveConfig.limits();
+      const policy = await liveConfig.roomPolicy();
+      const activeRooms = await Room.count({ where: { status: ['waiting', 'active'] } });
+      if (limits.maxLiveRooms && activeRooms >= limits.maxLiveRooms) {
+        throw new LimitError(`Max concurrent live rooms reached (${limits.maxLiveRooms})`);
+      }
+      // Clamp participants to the platform cap.
+      const cappedParticipants = Math.min(
+        parseInt(maxParticipants, 10) || 10,
+        limits.maxParticipantsPerRoom || 50
+      );
+      // Default join policy from config unless the caller specified one.
+      const joinPolicy = settings.joinPolicy || policy.defaultJoinPolicy || 'open';
+
       // Generate unique room code
       let roomCode = this.generateRoomCode();
       let attempts = 0;
@@ -62,7 +83,7 @@ class RoomService {
         name,
         description,
         room_code: roomCode,
-        max_participants: maxParticipants,
+        max_participants: cappedParticipants,
         is_private: isPrivate,
         password_hash: passwordHash,
         status: 'waiting',
@@ -70,11 +91,22 @@ class RoomService {
           enableChat: true,
           enableScreenShare: true,
           enableRecording: false,
-          muteOnJoin: false,
+          muteOnJoin: policy.autoMuteOnJoin || false,
           videoOnJoin: true,
+          joinPolicy,                         // open | invite | request
+          whoCanPublish: policy.whoCanPublish || 'host',
           ...settings
         }
       });
+
+      // Emit onto the plugin hook bus (fire-and-forget, best-effort, guarded).
+      try {
+        const pluginHost = require('../../../plugins/src/services/pluginHost');
+        pluginHost.emit('live.room.created', {
+          module: 'live', userId,
+          room: { id: room.id, name: room.name, isPrivate: room.is_private, roomCode },
+        }).catch(() => {});
+      } catch (_) { /* plugins module unavailable — ignore */ }
 
       logger.info('Room created', { roomId: room.id, userId, roomCode });
 

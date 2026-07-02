@@ -71,6 +71,15 @@ async function handleOpenJoin(userId, groupId) {
     joinedAt
   });
 
+  // Emit onto the plugin hook bus (fire-and-forget, best-effort, guarded).
+  try {
+    const pluginHost = require('../../../plugins/src/services/pluginHost');
+    pluginHost.emit('nexus.group.member.joined', {
+      module: 'nexus', userId, groupId,
+      membership: { id: membership.id, role: membership.role },
+    }).catch(() => {});
+  } catch (_) { /* plugins module unavailable — ignore */ }
+
   // Increment member count
   await Group.increment('memberCount', { where: { id: groupId } });
 

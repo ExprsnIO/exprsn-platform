@@ -69,4 +69,23 @@ router.get('/groups/:id/membership/:userId', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/internal/users/:userId/groups
+ *
+ * List the ids of groups a user is an ACTIVE member of, for cross-module data
+ * isolation (e.g. low-code record visibility). Returns: { groupIds: string[] }.
+ */
+router.get('/users/:userId/groups', async (req, res) => {
+  try {
+    const rows = await GroupMembership.findAll({
+      where: { userId: req.params.userId, status: 'active' },
+      attributes: ['groupId'],
+    });
+    return res.json({ groupIds: rows.map((r) => r.groupId) });
+  } catch (error) {
+    logger.error('Internal group-ids lookup failed', { userId: req.params.userId, error: error.message });
+    return res.status(500).json({ error: 'MEMBERSHIP_LOOKUP_ERROR', message: 'Failed to resolve group memberships' });
+  }
+});
+
 module.exports = router;

@@ -158,6 +158,8 @@ export interface Room {
   description?: string;
   room_code: string;
   is_private?: boolean;
+  /** How outsiders get in: 'open' = anyone with the code, 'request' = host approval. */
+  join_policy?: 'open' | 'request';
   max_participants?: number;
   current_participant_count?: number;
   status?: string;
@@ -205,4 +207,111 @@ export const roomApi = {
     ),
   getRoomRecordings: (id: string) =>
     http.get<{ success: boolean; recordings: Recording[] }>(`/live/api/rooms/${id}/recordings`),
+};
+
+// --- Room collaboration: invites, join requests, shared files, recording -----
+// All under /live/api/rooms/:id/*. Host-only endpoints 403 for non-hosts; the
+// UI gates them by host_id but still tolerates 403/404 gracefully.
+
+/** A pending/accepted invite the host extended to another user. */
+export interface RoomInvite {
+  id: string;
+  inviteeId: string;
+  status: 'pending' | 'accepted' | 'declined' | 'revoked' | string;
+  createdAt?: string;
+  [k: string]: unknown;
+}
+
+/** A request from an outsider to join a request-policy room. */
+export interface RoomJoinRequest {
+  id: string;
+  userId: string;
+  status: 'pending' | 'approved' | 'denied' | string;
+  createdAt?: string;
+  [k: string]: unknown;
+}
+
+/** A file attached to a room — either a shared FileVault file or an ephemeral upload. */
+export interface RoomFile {
+  id: string;
+  name: string;
+  mimetype?: string;
+  size?: number;
+  kind: 'vault' | 'ephemeral';
+  /** Present for `kind: 'vault'` — the underlying FileVault file id. */
+  fileId?: string;
+  createdAt?: string;
+  [k: string]: unknown;
+}
+
+export type RecordingQuality = 'source' | '1080p' | '720p';
+
+export const roomCollabApi = {
+  // ── Invites (host) ────────────────────────────────────────────────────────
+  listInvites: (roomId: string) =>
+    http.get<{ success: boolean; invites: RoomInvite[] }>(`/live/api/rooms/${roomId}/invites`),
+  createInvite: (roomId: string, inviteeId: string) =>
+    http.post<{ success: boolean; invite: RoomInvite }>(`/live/api/rooms/${roomId}/invites`, {
+      inviteeId,
+    }),
+  revokeInvite: (roomId: string, inviteId: string) =>
+    http.del<{ success: boolean }>(`/live/api/rooms/${roomId}/invites/${inviteId}`),
+
+  // ── Join requests ─────────────────────────────────────────────────────────
+  /** Requester asks to join a request-policy room. */
+  requestToJoin: (roomId: string) =>
+    http.post<{ success: boolean; request: RoomJoinRequest }>(
+      `/live/api/rooms/${roomId}/join-requests`,
+      {},
+    ),
+  /** Host lists pending join requests. */
+  listJoinRequests: (roomId: string) =>
+    http.get<{ success: boolean; requests: RoomJoinRequest[] }>(
+      `/live/api/rooms/${roomId}/join-requests`,
+    ),
+  approveJoinRequest: (roomId: string, reqId: string) =>
+    http.post<{ success: boolean; request: RoomJoinRequest }>(
+      `/live/api/rooms/${roomId}/join-requests/${reqId}/approve`,
+      {},
+    ),
+  denyJoinRequest: (roomId: string, reqId: string) =>
+    http.post<{ success: boolean; request: RoomJoinRequest }>(
+      `/live/api/rooms/${roomId}/join-requests/${reqId}/deny`,
+      {},
+    ),
+
+  // ── Files ─────────────────────────────────────────────────────────────────
+  listFiles: (roomId: string) =>
+    http.get<{ success: boolean; files: RoomFile[] }>(`/live/api/rooms/${roomId}/files`),
+  /** Share an existing FileVault file into the room. */
+  shareFile: (roomId: string, fileId: string) =>
+    http.post<{ success: boolean; file: RoomFile }>(`/live/api/rooms/${roomId}/files/share`, {
+      fileId,
+    }),
+  /** Ephemeral multipart upload (multer field name `file`). */
+  uploadFile: (roomId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return http.post<{ success: boolean; file: RoomFile }>(
+      `/live/api/rooms/${roomId}/files/upload`,
+      undefined,
+      { rawBody: form },
+    );
+  },
+  deleteFile: (roomId: string, fileId: string) =>
+    http.del<{ success: boolean }>(`/live/api/rooms/${roomId}/files/${fileId}`),
+
+  // ── Recording ─────────────────────────────────────────────────────────────
+  startRecording: (roomId: string, quality?: RecordingQuality) =>
+    http.post<{ success: boolean; recording: Recording }>(
+      `/live/api/rooms/${roomId}/recording/start`,
+      quality ? { quality } : {},
+    ),
+  stopRecording: (roomId: string) =>
+    http.post<{ success: boolean; recording: Recording }>(
+      `/live/api/rooms/${roomId}/recording/stop`,
+      {},
+    ),
+  listRecordings: (roomId: string) =>
+    http.get<{ success: boolean; recordings: Recording[] }>(`/live/api/rooms/${roomId}/recordings`),
 };

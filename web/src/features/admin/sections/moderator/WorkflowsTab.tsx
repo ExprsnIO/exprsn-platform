@@ -7,10 +7,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, IconButton, Stack, Tooltip } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { moderatorAdminApi, type WorkflowSpec } from '@/api/admin/moderator';
 import { DataTable, JsonDialog, QueryState, SectionHeader } from '../../ui';
 import { WorkflowBuilderDialog } from './WorkflowBuilderDialog';
+import { WorkflowCanvasDialog } from './WorkflowCanvasDialog';
 import { ExecutionsViewer } from './ExecutionsViewer';
 
 function triggerText(w: WorkflowSpec): string {
@@ -22,6 +24,7 @@ export function WorkflowsTab({ onToast }: { onToast: (m: string) => void }) {
   const qc = useQueryClient();
   const [view, setView] = useState<'list' | 'executions'>('list');
   const [dialog, setDialog] = useState<{ workflow: WorkflowSpec | null } | null>(null);
+  const [canvas, setCanvas] = useState<{ workflow: WorkflowSpec | null } | null>(null);
   const [result, setResult] = useState<{ title: string; value: unknown } | null>(null);
   const query = useQuery({ queryKey: ['mod', 'workflows'], queryFn: moderatorAdminApi.workflows });
 
@@ -43,7 +46,8 @@ export function WorkflowsTab({ onToast }: { onToast: (m: string) => void }) {
           <>
             <Button variant={view === 'list' ? 'contained' : 'outlined'} onClick={() => setView('list')}>Workflows</Button>
             <Button variant={view === 'executions' ? 'contained' : 'outlined'} onClick={() => setView('executions')}>Executions</Button>
-            {view === 'list' && <Button variant="contained" color="primary" onClick={() => setDialog({ workflow: null })}>New workflow</Button>}
+            {view === 'list' && <Button variant="outlined" color="primary" onClick={() => setDialog({ workflow: null })}>New workflow</Button>}
+            {view === 'list' && <Button variant="contained" color="primary" startIcon={<AccountTreeIcon />} onClick={() => setCanvas({ workflow: null })}>New (visual)</Button>}
           </>
         }
       />
@@ -68,6 +72,7 @@ export function WorkflowsTab({ onToast }: { onToast: (m: string) => void }) {
                   render: (w) => (
                     <>
                       <Tooltip title="Execute"><IconButton size="small" color="success" onClick={() => execute(w.id)}><PlayArrowIcon fontSize="small" /></IconButton></Tooltip>
+                      <Tooltip title="Visual editor"><IconButton size="small" onClick={() => setCanvas({ workflow: w })}><AccountTreeIcon fontSize="small" /></IconButton></Tooltip>
                       <Tooltip title="Edit"><IconButton size="small" onClick={() => setDialog({ workflow: w })}><EditIcon fontSize="small" /></IconButton></Tooltip>
                       <IconButton size="small" color="error" onClick={() => { if (confirm('Delete workflow?')) act(() => moderatorAdminApi.deleteWorkflow(w.id), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton>
                     </>
@@ -80,6 +85,7 @@ export function WorkflowsTab({ onToast }: { onToast: (m: string) => void }) {
       )}
 
       <WorkflowBuilderDialog open={!!dialog} workflow={dialog?.workflow} onClose={() => setDialog(null)} onDone={onToast} />
+      <WorkflowCanvasDialog open={!!canvas} workflow={canvas?.workflow} onClose={() => setCanvas(null)} onDone={onToast} />
       <JsonDialog open={!!result} title={result?.title ?? ''} value={result?.value} onClose={() => setResult(null)} />
     </Stack>
   );

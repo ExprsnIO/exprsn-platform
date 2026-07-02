@@ -39,7 +39,18 @@ function q(params?: Record<string, string | number | boolean | undefined>): stri
   return s ? `?${s}` : '';
 }
 
-export const LIVE_CONFIG_SECTIONS = ['live-rooms', 'live-recordings', 'live-settings'];
+// Persisted Live config sections surfaced via ConfigSectionEditor, grouped
+// logically: general settings, capacity/provider, rooms, recording, moderation.
+export const LIVE_CONFIG_SECTIONS = [
+  'live-settings',
+  'limits',
+  'provider',
+  'live-rooms',
+  'roompolicy',
+  'recording',
+  'live-recordings',
+  'moderation',
+];
 
 export const liveAdminApi = {
   stats: () => http.get<Record<string, unknown>>('/live/api/stats'),
@@ -66,4 +77,15 @@ export const liveAdminApi = {
 
   getConfigSection: (s: string) => http.get<unknown>(`/live/api/config/${s}`),
   saveConfigSection: (s: string, data: unknown) => http.post<unknown>(`/live/api/config/${s}`, data),
+
+  // RabbitMQ ffmpeg fanout + recording queue depths for the Workers tab.
+  workersStats: () =>
+    http.get<{
+      success?: boolean;
+      queues?: {
+        enabled: boolean;
+        fanout?: { depth: number; dlq: number };
+        recording?: { depth: number; dlq: number };
+      };
+    }>('/live/api/config/workers/stats'),
 };

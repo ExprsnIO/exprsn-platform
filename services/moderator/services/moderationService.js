@@ -287,6 +287,17 @@ class ModerationService {
       reportId,
       performedAt: Date.now()
     });
+
+    // Emit onto the plugin hook bus so plugins + low-code flows can react to a
+    // logged moderation action (fire-and-forget, best-effort, guarded). Fires on
+    // any logged action; the payload carries `action` so flows can match.
+    try {
+      const pluginHost = require('../../plugins/src/services/pluginHost');
+      pluginHost.emit('moderator.content.flagged', {
+        module: 'moderator', userId: performedBy || undefined,
+        content: { action, contentType, contentId, reason, isAutomated },
+      }).catch(() => {});
+    } catch (_) { /* plugins module unavailable — ignore */ }
   }
 
   /**

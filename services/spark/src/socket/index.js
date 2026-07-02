@@ -316,6 +316,17 @@ module.exports = function(io) {
           mentions: mentions || []
         });
 
+        // Emit onto the plugin hook bus (fire-and-forget, best-effort). Inert
+        // unless PLUGINS_ENABLED/LOWCODE_ENABLED; lazily required + guarded so a
+        // missing/erroring plugins module can't affect message delivery.
+        try {
+          const pluginHost = require('../../../plugins/src/services/pluginHost');
+          pluginHost.emit('spark.message.created', {
+            module: 'spark', userId: socket.userId,
+            message: { id: message.id, conversationId, senderId: socket.userId, contentType: message.contentType, encrypted: !!message.encrypted },
+          }).catch(() => {});
+        } catch (_) { /* plugins module unavailable — ignore */ }
+
         // Persist per-recipient message keys BEFORE broadcasting new:message, so
         // recipients can fetch their key the instant the broadcast lands.
         if (encrypted && Array.isArray(recipientKeys) && recipientKeys.length > 0) {

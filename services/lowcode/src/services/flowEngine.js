@@ -16,30 +16,37 @@
  */
 
 const { createLogger } = require('@exprsn/shared');
-const { LcFlow, LcEntity } = require('../models');
+const { LcFlow, LcApp } = require('../models');
 
 const pluginHost = require('../../../plugins/src/services/pluginHost');
 const { matches } = require('../../../plugins/src/services/conditionEvaluator');
+const flowActions = require('./flowActions');
+const moduleActions = require('./moduleActions');
 
 const logger = createLogger('exprsn-lowcode-flow');
 let unsubscribe = null;
 
-/** Low-code-native action: create a record in an entity of the same app. */
-async function actionCreateRecord(action, ctx) {
-  const entityService = require('./entityService');
-  const entity = await LcEntity.findOne({ where: { appId: action.appId || ctx.app, key: action.entityKey } });
-  if (!entity) return { type: 'create_record', error: `unknown entity ${action.entityKey}` };
-  const record = await entityService.createRecord(entity, action.data || {}, { userId: ctx.userId });
-  return { type: 'create_record', recordId: record.id };
+/** The capabilities a flow's app has been granted for module write actions. */
+async function appCapabilities(appId) {
+  try { const app = await LcApp.findByPk(appId, { attributes: ['capabilities'] }); return (app && app.capabilities) || []; }
+  catch { return []; }
 }
 
 async function runFlow(flow, event, ctx) {
   if (flow.match && !matches(flow.match, ctx)) return;
   const runCtx = { pluginKey: `lowcode:${flow.key}`, event, ctx };
+  // Only pay for the app-capabilities lookup if a module action is present.
+  const needsCaps = (flow.actions || []).some((a) => moduleActions.isModuleAction(a.type));
+  const caps = needsCaps ? await appCapabilities(flow.appId) : [];
   for (const action of flow.actions || []) {
     try {
-      if (action.type === 'create_record') {
-        await actionCreateRecord(action, ctx);
+      if (flowActions.isNativeAction(action.type)) {
+        // Native actions mutate records against the event payload directly.
+        await flowActions.NATIVE_ACTIONS[action.type](action, ctx);
+      } else if (moduleActions.isModuleAction(action.type)) {
+        // Capability-gated reach into another module.
+        const result = await moduleActions.run(action.type, action, ctx, caps);
+        if (result.error) logger.warn('Low-code module action skipped', { flow: flow.key, type: action.type, error: result.error });
       } else if (pluginHost.ACTIONS[action.type]) {
         await pluginHost.ACTIONS[action.type](action, runCtx);
       } else {

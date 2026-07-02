@@ -8,6 +8,77 @@ const router = express.Router();
 const { Room, Recording } = require('../models');
 const config = require('../config');
 const logger = require('../utils/logger');
+const liveConfig = require('../services/liveConfig');
+const liveQueue = require('../services/liveQueue');
+
+// Persisted config sections rendered by the admin ConfigSectionEditor
+// ({ title, description, fields:[{name,label,type,value,options?}] }).
+const SECTIONS = {
+  limits: {
+    title: 'Streaming Limits', description: 'Caps enforced by the room/stream APIs',
+    fields: [
+      { name: 'maxLiveRooms', label: 'Max concurrent live rooms', type: 'number' },
+      { name: 'maxParticipantsPerRoom', label: 'Max participants per room', type: 'number' },
+      { name: 'maxBitrateKbps', label: 'Max bitrate (kbps)', type: 'number' },
+      { name: 'maxResolution', label: 'Max resolution', type: 'select', options: ['720p', '1080p', '4K'] },
+      { name: 'maxStreamDurationMin', label: 'Max stream duration (min)', type: 'number' },
+      { name: 'maxSimulcastDestinations', label: 'Max simulcast destinations', type: 'number' }
+    ]
+  },
+  provider: {
+    title: 'Streaming Provider', description: 'Ingest provider + SRS endpoints',
+    fields: [
+      { name: 'streamingProvider', label: 'Provider', type: 'select', options: ['srs', 'cloudflare'] },
+      { name: 'srsRtmpUrl', label: 'SRS RTMP ingest URL', type: 'text' },
+      { name: 'srsHlsBase', label: 'SRS HLS base URL', type: 'text' },
+      { name: 'srsApiUrl', label: 'SRS API URL', type: 'text' }
+    ]
+  },
+  recording: {
+    title: 'Recording Pipeline', description: 'Recording defaults + retention',
+    fields: [
+      { name: 'recordingEnabled', label: 'Enable recording', type: 'checkbox' },
+      { name: 'autoRecord', label: 'Auto-record streams', type: 'checkbox' },
+      { name: 'format', label: 'Format', type: 'select', options: ['mp4', 'hls'] },
+      { name: 'quality', label: 'Quality', type: 'select', options: ['source', '1080p', '720p'] },
+      { name: 'retentionDays', label: 'Retention (days)', type: 'number' }
+    ]
+  },
+  roompolicy: {
+    title: 'Room Policy', description: 'Default join + publish policy',
+    fields: [
+      { name: 'defaultJoinPolicy', label: 'Default join policy', type: 'select', options: ['open', 'invite', 'request'] },
+      { name: 'whoCanPublish', label: 'Who can publish', type: 'select', options: ['host', 'all'] },
+      { name: 'allowGuests', label: 'Allow guests', type: 'checkbox' },
+      { name: 'lockable', label: 'Rooms lockable', type: 'checkbox' }
+    ]
+  },
+  moderation: {
+    title: 'Moderation Settings', description: 'In-room moderation defaults',
+    fields: [
+      { name: 'profanityFilter', label: 'Profanity filter', type: 'checkbox' },
+      { name: 'autoMuteOnJoin', label: 'Auto-mute on join', type: 'checkbox' },
+      { name: 'requireApproval', label: 'Require approval to speak', type: 'checkbox' },
+      { name: 'bannedWords', label: 'Banned words (comma-sep)', type: 'text' },
+      { name: 'maxWarnings', label: 'Max warnings before removal', type: 'number' }
+    ]
+  }
+};
+
+async function buildSection(id) {
+  const meta = SECTIONS[id];
+  const values = await liveConfig.getSection(id);
+  return { title: meta.title, description: meta.description, fields: meta.fields.map((f) => ({ ...f, value: values[f.name] })) };
+}
+
+// Live worker/queue depths for the admin Workers view.
+router.get('/workers/stats', async (req, res) => {
+  try {
+    res.json({ success: true, queues: await liveQueue.stats() });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 router.get('/:sectionId', async (req, res) => {
   const { sectionId } = req.params;
@@ -26,6 +97,7 @@ router.get('/:sectionId', async (req, res) => {
         data = await getLiveSettings();
         break;
       default:
+        if (SECTIONS[sectionId]) { data = await buildSection(sectionId); break; }
         return res.status(404).json({ success: false, error: 'Configuration section not found' });
     }
 
@@ -48,6 +120,7 @@ router.post('/:sectionId', async (req, res) => {
         result = await updateLiveSettings(configData);
         break;
       default:
+        if (SECTIONS[sectionId]) { result = await liveConfig.setSection(sectionId, configData); break; }
         return res.status(404).json({ success: false, error: 'Configuration section not found' });
     }
 

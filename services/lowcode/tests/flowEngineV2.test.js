@@ -111,6 +111,17 @@ describe('flowEngine.runFlow', () => {
   });
 });
 
+describe('archived apps', () => {
+  test('flows of archived apps never run', async () => {
+    const { LcApp } = require('../src/models');
+    LcApp.findByPk.mockResolvedValueOnce({ capabilities: [], status: 'archived' });
+    const flow = baseFlow({ actions: [{ type: 'ok_action' }] });
+    const run = await flowEngine.runFlow(flow, 'ev', {});
+    expect(run).toBeNull();
+    expect(flowActions.NATIVE_ACTIONS.ok_action).not.toHaveBeenCalled();
+  });
+});
+
 describe('flowEngine.onEvent trigger filtering', () => {
   test('non-event-triggered flows never dispatch off the bus', async () => {
     const { LcFlow } = require('../src/models');

@@ -136,6 +136,22 @@ const LcForm = sequelize.define('LcForm', {
   indexes: [{ unique: true, fields: ['app_id', 'key'] }],
 });
 
+// ── Saved view = a named grid/kanban/calendar configuration over an entity ──
+const LcView = sequelize.define('LcView', {
+  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  appId: { type: DataTypes.UUID, allowNull: false, field: 'app_id' },
+  entityKey: { type: DataTypes.STRING(64), allowNull: false, field: 'entity_key' },
+  name: { type: DataTypes.STRING(255), allowNull: false },
+  // null ownerId = shared with everyone who can see the app (admin-created).
+  ownerId: { type: DataTypes.UUID, allowNull: true, field: 'owner_id' },
+  viewType: { type: DataTypes.ENUM('grid', 'kanban', 'calendar'), allowNull: false, defaultValue: 'grid', field: 'view_type' },
+  // { filters?, sort?, columns?, groupByField? (kanban), dateField? (calendar) }
+  config: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+}, {
+  tableName: 'lc_views', underscored: true, timestamps: true,
+  indexes: [{ fields: ['app_id', 'entity_key'] }, { fields: ['owner_id'] }],
+});
+
 // ── Flow = trigger → condition → action, executed on the plugins hook bus ───
 const LcFlow = sequelize.define('LcFlow', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -202,4 +218,4 @@ LcApp.hasMany(LcLookup, { foreignKey: 'app_id', as: 'lookups' });
 LcFlow.hasMany(LcFlowRun, { foreignKey: 'flow_id', as: 'runs' });
 LcFlowRun.belongsTo(LcFlow, { foreignKey: 'flow_id', as: 'flow' });
 
-module.exports = { sequelize, LcApp, LcLookup, LcEntity, LcRecord, LcForm, LcFlow, LcFlowRun };
+module.exports = { sequelize, LcApp, LcLookup, LcEntity, LcRecord, LcForm, LcFlow, LcFlowRun, LcView };

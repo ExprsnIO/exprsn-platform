@@ -8,13 +8,15 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const router = express.Router();
-const { LcApp, LcEntity, LcRecord } = require('../models');
+const { LcApp, LcEntity, LcRecord, LcView } = require('../models');
 const entityService = require('../services/entityService');
 const recordQuery = require('../services/recordQuery');
 const recordAggregate = require('../services/recordAggregate');
 const csv = require('../services/csv');
 const membershipResolver = require('../services/membershipResolver');
+const scopeAuthority = require('../services/scopeAuthority');
 const { requireUser } = require('../../../plugins/src/middleware/auth');
+const { isPlatformAdmin } = require('@exprsn/shared/utils/platformAdmin');
 
 const IMPORT_MAX_ROWS = 2000;
 const BULK_MAX_ITEMS = 1000;
@@ -40,8 +42,31 @@ async function loadEntity(req, res, next) {
     if (!matches.length) return res.status(404).json({ error: 'NOT_FOUND', message: 'entity not found' });
     if (matches.length > 1) return res.status(409).json({ error: 'AMBIGUOUS_ENTITY', message: `entity key '${req.params.entityKey}' exists in multiple apps — pass ?appKey or ?appId` });
     req.entity = matches[0];
+
+    // Lifecycle enforcement (app status is real, not decorative):
+    //   draft     — records are reachable only by users who can ADMIN the app
+    //               (builders working on an unreleased app)
+    //   published — normal runtime
+    //   archived  — read-only for everyone (mutations 403)
+    const app = await LcApp.findByPk(req.entity.appId, { attributes: ['id', 'status', 'scopeType', 'scopeId'] });
+    req.app = app;
+    const status = (app && app.status) || 'published';
+    if (status === 'archived' && req.method !== 'GET') {
+      return res.status(403).json({ error: 'APP_ARCHIVED', message: 'This app is archived — its records are read-only' });
+    }
+    if (status === 'draft') {
+      const identity = { userId: req.userId, email: req.userEmail, isPlatformAdmin: isPlatformAdmin(req.userEmail) };
+      const ok = await scopeAuthority.canAdminApp(identity, app);
+      if (!ok) return res.status(403).json({ error: 'APP_NOT_PUBLISHED', message: 'This app is a draft — only its builders can use it until it is published' });
+    }
     next();
   } catch (e) { next(e); }
+}
+
+/** Can the requester administer the current app's scope? (view sharing etc.) */
+async function canAdminCurrentApp(req) {
+  const identity = { userId: req.userId, email: req.userEmail, isPlatformAdmin: isPlatformAdmin(req.userEmail) };
+  return scopeAuthority.canAdminApp(identity, req.app);
 }
 
 /**
@@ -242,6 +267,64 @@ router.delete('/:entityKey/records/:id', loadEntity, async (req, res, next) => {
     const record = await loadVisibleRecord(req);
     if (!record) return res.json({ ok: false });
     await entityService.deleteRecord(record, req.entity, { authorization: req.get('authorization') });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// ── Saved views (named grid/kanban/calendar configurations) ─────────────────
+
+const VIEW_TYPES = ['grid', 'kanban', 'calendar'];
+
+/** Own views + shared (ownerless) views for this entity. */
+router.get('/:entityKey/views', loadEntity, async (req, res, next) => {
+  try {
+    const views = await LcView.findAll({
+      where: { appId: req.entity.appId, entityKey: req.entity.key, [Op.or]: [{ ownerId: null }, { ownerId: req.userId }] },
+      order: [['name', 'ASC']],
+    });
+    res.json({ views });
+  } catch (e) { next(e); }
+});
+
+router.post('/:entityKey/views', loadEntity, async (req, res, next) => {
+  try {
+    const { name, viewType = 'grid', config = {}, shared = false } = req.body || {};
+    if (!name || typeof name !== 'string') return res.status(400).json({ error: 'BAD_REQUEST', message: 'name is required' });
+    if (!VIEW_TYPES.includes(viewType)) return res.status(400).json({ error: 'BAD_REQUEST', message: `viewType must be one of: ${VIEW_TYPES.join(', ')}` });
+    if (typeof config !== 'object' || Array.isArray(config)) return res.status(400).json({ error: 'BAD_REQUEST', message: 'config must be an object' });
+    // A shared view is visible to every user of the app — only its admins may
+    // publish one; personal views need no special authority.
+    if (shared && !(await canAdminCurrentApp(req))) return res.status(403).json({ error: 'FORBIDDEN', message: 'Only app admins may create shared views' });
+    const view = await LcView.create({ appId: req.entity.appId, entityKey: req.entity.key, name, viewType, config, ownerId: shared ? null : req.userId });
+    res.status(201).json({ view });
+  } catch (e) { next(e); }
+});
+
+/** Load a view the requester may modify: their own, or (app admin) a shared one. */
+async function loadEditableView(req) {
+  const view = await LcView.findOne({ where: { id: req.params.id, appId: req.entity.appId, entityKey: req.entity.key } });
+  if (!view) return null;
+  if (view.ownerId === req.userId) return view;
+  if (view.ownerId === null && (await canAdminCurrentApp(req))) return view;
+  return null;
+}
+
+router.put('/:entityKey/views/:id', loadEntity, async (req, res, next) => {
+  try {
+    const view = await loadEditableView(req);
+    if (!view) return res.status(404).json({ error: 'NOT_FOUND' });
+    if (req.body.viewType !== undefined && !VIEW_TYPES.includes(req.body.viewType)) return res.status(400).json({ error: 'BAD_REQUEST', message: `viewType must be one of: ${VIEW_TYPES.join(', ')}` });
+    for (const k of ['name', 'viewType', 'config']) if (req.body[k] !== undefined) view[k] = req.body[k];
+    await view.save();
+    res.json({ view });
+  } catch (e) { next(e); }
+});
+
+router.delete('/:entityKey/views/:id', loadEntity, async (req, res, next) => {
+  try {
+    const view = await loadEditableView(req);
+    if (!view) return res.status(404).json({ error: 'NOT_FOUND' });
+    await view.destroy();
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

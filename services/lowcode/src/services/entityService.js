@@ -12,7 +12,7 @@
  */
 
 const { Op } = require('sequelize');
-const { LcApp, LcLookup, LcEntity, LcRecord, LcForm, LcFlow } = require('../models');
+const { LcApp, LcLookup, LcEntity, LcRecord, LcForm, LcFlow, LcFlowRun, LcView } = require('../models');
 const typeSystem = require('./typeSystem');
 const lookupProviders = require('./lookupProviders');
 const recordStore = require('./recordStore');
@@ -175,6 +175,8 @@ async function deleteApp(app, { authorization } = {}) {
   }
   const removedLookups = await LcLookup.destroy({ where: { appId: app.id } });
   const removedForms = await LcForm.destroy({ where: { appId: app.id } });
+  await LcFlowRun.destroy({ where: { appId: app.id } });
+  await LcView.destroy({ where: { appId: app.id } });
   const removedFlows = await LcFlow.destroy({ where: { appId: app.id } });
   await app.destroy();
   return { removedEntities: entities.length, removedRecords, removedLookups, removedForms, removedFlows };

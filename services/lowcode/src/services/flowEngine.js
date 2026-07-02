@@ -39,10 +39,10 @@ const CONTEXT_SNIPPET = 4000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** The capabilities a flow's app has been granted for module write actions. */
-async function appCapabilities(appId) {
-  try { const app = await LcApp.findByPk(appId, { attributes: ['capabilities'] }); return (app && app.capabilities) || []; }
-  catch { return []; }
+/** The flow's app row (capability grants + lifecycle status), fail-soft. */
+async function flowApp(appId) {
+  try { return await LcApp.findByPk(appId, { attributes: ['capabilities', 'status'] }); }
+  catch { return null; }
 }
 
 /** Truncate an arbitrary value so a run row can never balloon. */
@@ -105,7 +105,12 @@ async function runAction(flow, action, i, ctx, caps, runCtx) {
  */
 async function runFlow(flow, trigger, ctx, { triggeredBy = null, recordSkipped = false, ignoreMatch = false } = {}) {
   const startedAt = new Date();
-  const matched = ignoreMatch || !flow.match || matches(flow.match, ctx);
+  const app = await flowApp(flow.appId);
+  // Archived apps are frozen — their automations stop firing too.
+  if (app && app.status === 'archived') {
+    if (!recordSkipped) return null;
+  }
+  const matched = (!app || app.status !== 'archived') && (ignoreMatch || !flow.match || matches(flow.match, ctx));
 
   let status; let steps = []; let error = null;
   if (!matched) {
@@ -113,8 +118,7 @@ async function runFlow(flow, trigger, ctx, { triggeredBy = null, recordSkipped =
     status = 'skipped';
   } else {
     const runCtx = { pluginKey: `lowcode:${flow.key}`, event: trigger, ctx };
-    const needsCaps = (flow.actions || []).some((a) => moduleActions.isModuleAction(a.type));
-    const caps = needsCaps ? await appCapabilities(flow.appId) : [];
+    const caps = (app && app.capabilities) || [];
     let stopped = false;
     for (let i = 0; i < (flow.actions || []).length; i += 1) {
       if (stopped) { steps.push({ i, type: flow.actions[i].type, status: 'skipped' }); continue; }

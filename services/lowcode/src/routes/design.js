@@ -119,6 +119,106 @@ router.get('/apps/:id', async (req, res, next) => {
     res.json({ app });
   } catch (e) { next(e); }
 });
+/**
+ * Export an app's DEFINITION as a portable JSON bundle (entities, lookups,
+ * forms, flows — no records, no ids). Webhook secrets and public-form slugs
+ * are deliberately stripped: they're regenerated on import so a shared bundle
+ * can never replay another installation's credentials.
+ */
+router.get('/apps/:id/export', async (req, res, next) => {
+  try {
+    const app = await LcApp.findByPk(req.params.id);
+    if (!app) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, app);
+    const [entities, lookups, forms, flows] = await Promise.all([
+      LcEntity.findAll({ where: { appId: app.id } }),
+      LcLookup.findAll({ where: { appId: app.id } }),
+      LcForm.findAll({ where: { appId: app.id } }),
+      LcFlow.findAll({ where: { appId: app.id } }),
+    ]);
+    const bundle = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      app: { key: app.key, name: app.name, description: app.description, capabilities: app.capabilities || [] },
+      entities: entities.map((e) => ({ key: e.key, name: e.name, description: e.description, fields: e.fields, stateMachine: e.stateMachine, storage: e.storage })),
+      lookups: lookups.map((l) => ({ key: l.key, name: l.name, values: l.values, source: l.source })),
+      forms: forms.map((f) => ({ key: f.key, entityKey: f.entityKey, name: f.name, layout: f.layout, settings: f.settings })),
+      flows: flows.map((f) => ({
+        key: f.key, name: f.name, event: f.event, match: f.match, actions: f.actions, enabled: f.enabled,
+        trigger: f.trigger && f.trigger.type === 'webhook' ? { type: 'webhook' } : f.trigger,
+      })),
+    };
+    res.setHeader('Content-Disposition', `attachment; filename="${app.key}.lowcode.json"`);
+    res.json({ bundle });
+  } catch (e) { next(e); }
+});
+
+/**
+ * Import a bundle as a NEW app (this is also "duplicate app" and "install
+ * template"). Everything re-validates as if authored fresh; capabilities are
+ * platform-power grants so they only survive when a platform admin imports;
+ * forms always land private (no public slug rides in on a bundle).
+ */
+router.post('/apps/import', async (req, res, next) => {
+  try {
+    const { bundle, key, name, scopeType = 'platform', scopeId = null } = req.body || {};
+    if (!bundle || typeof bundle !== 'object' || !bundle.app) return res.status(400).json({ error: 'BAD_BUNDLE', message: 'body.bundle must be an exported app bundle' });
+    await assertScope(req, scopeType, scopeId);
+
+    const appKey = key || bundle.app.key;
+    if (await LcApp.findOne({ where: { key: appKey } })) {
+      return res.status(409).json({ error: 'KEY_TAKEN', message: `app key '${appKey}' already exists — pass a different key` });
+    }
+    const caps = req.isPlatformAdmin ? (bundle.app.capabilities || []) : [];
+    const unknown = capabilities.unknownCapabilities(caps);
+    if (unknown.length) return res.status(400).json({ error: 'UNKNOWN_CAPABILITY', unknown });
+
+    // Validate everything BEFORE creating anything (no half-imported apps).
+    const problems = [];
+    for (const e of bundle.entities || []) {
+      const errs = (e.fields || []).flatMap((f) => typeSystem.validateFieldDef(f));
+      if (errs.length) problems.push(`entity ${e.key}: ${errs.join('; ')}`);
+      const storageErr = validateStorage(e.storage);
+      if (storageErr) problems.push(`entity ${e.key}: ${storageErr}`);
+    }
+    for (const l of bundle.lookups || []) {
+      const srcErr = validateLookupSource(l.source);
+      if (srcErr) problems.push(`lookup ${l.key}: ${srcErr}`);
+    }
+    const entityKeys = new Set((bundle.entities || []).map((e) => e.key));
+    for (const f of bundle.forms || []) {
+      if (!entityKeys.has(f.entityKey)) problems.push(`form ${f.key}: unknown entity "${f.entityKey}"`);
+      else {
+        const errs = formLayout.validateLayout({ fields: (bundle.entities.find((e) => e.key === f.entityKey) || {}).fields }, f.layout);
+        if (errs.length) problems.push(`form ${f.key}: ${errs.join('; ')}`);
+      }
+    }
+    const flowRows = [];
+    for (const f of bundle.flows || []) {
+      const actionErrors = flowActions.validateActions(f.actions || []);
+      if (actionErrors.length) { problems.push(`flow ${f.key}: ${actionErrors.join('; ')}`); continue; }
+      try { flowRows.push({ ...f, ...resolveTrigger(f) }); }
+      catch (err) { problems.push(`flow ${f.key}: ${err.message}`); }
+    }
+    if (problems.length) return res.status(400).json({ error: 'INVALID_BUNDLE', details: problems });
+
+    const app = await LcApp.create({
+      key: appKey, name: name || bundle.app.name, description: bundle.app.description,
+      capabilities: caps, scopeType, scopeId, createdBy: req.userId, status: 'draft',
+    });
+    for (const l of bundle.lookups || []) await LcLookup.create({ appId: app.id, key: l.key, name: l.name, values: l.values || [], source: l.source || null });
+    for (const e of bundle.entities || []) await LcEntity.create({ appId: app.id, key: e.key, name: e.name, description: e.description, fields: e.fields || [], stateMachine: e.stateMachine || null, storage: e.storage || null });
+    for (const f of bundle.forms || []) await LcForm.create({ appId: app.id, key: f.key, entityKey: f.entityKey, name: f.name, layout: f.layout || {}, settings: f.settings || {}, isPublic: false, slug: null });
+    for (const f of flowRows) await LcFlow.create({ appId: app.id, key: f.key, name: f.name, event: f.event, trigger: f.trigger, match: f.match || null, actions: f.actions || [], enabled: f.enabled !== false });
+    flowScheduler.refresh().catch(() => {});
+
+    res.status(201).json({
+      app,
+      imported: { entities: (bundle.entities || []).length, lookups: (bundle.lookups || []).length, forms: (bundle.forms || []).length, flows: flowRows.length },
+    });
+  } catch (e) { if (e.name && e.name.startsWith('Sequelize')) return res.status(400).json({ error: 'BAD_REQUEST', message: e.message }); next(e); }
+});
+
 // Delete an app and everything scoped to it (entities+records, lookups, forms,
 // flows). Destructive + cascading — the SPA gates this behind a typed confirm.
 router.delete('/apps/:id', async (req, res, next) => {

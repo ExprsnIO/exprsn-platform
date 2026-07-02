@@ -7,16 +7,18 @@
  */
 import { http } from '@/lib/http';
 import type {
-  LcApp, Entity, Lookup, Form, Flow, LcRecord, LookupValue,
-  RecordListParams, RecordListResult, LowcodeCatalog,
+  LcApp, Entity, Lookup, Form, Flow, FlowRun, LcRecord, LcView, LookupValue,
+  RecordListParams, RecordListResult, LowcodeCatalog, AggregateResult, AppBundle, ViewType, ViewConfig,
 } from '@/api/admin/lowcode';
 import { recordListQuery } from '@/api/admin/lowcode';
 
 export type {
-  LcApp, Entity, Lookup, Form, Flow, LcRecord, LookupValue, Field,
+  LcApp, Entity, Lookup, Form, Flow, FlowRun, FlowRunStep, FlowTrigger, FlowTriggerType,
+  LcRecord, LcView, ViewType, ViewConfig, LookupValue, Field,
   FieldType, FieldRole, StateMachine, EntityStorage, StorageMode,
   LookupSource, LowcodeCatalog, RecordFilter, RecordSort, RecordListParams,
-  RecordListResult, FilterOp,
+  RecordListResult, FilterOp, FormLayout, FormSection, FormLayoutField,
+  AggregateResult, AppBundle,
 } from '@/api/admin/lowcode';
 
 export type ScopeType = 'platform' | 'organization' | 'group' | 'user';
@@ -79,9 +81,26 @@ export const lowcodeApi = {
   updateFlow: (id: string, body: Partial<Flow>) => http.patch<{ flow: Flow }>(`/lowcode/api/design/flows/${id}`, body),
   deleteFlow: (id: string) => http.del<{ ok: boolean }>(`/lowcode/api/design/flows/${id}`),
 
+  // ── design: flow execution + run history ──
+  executeFlow: (id: string, ctx: Record<string, unknown> = {}) =>
+    http.post<{ run: FlowRun }>(`/lowcode/api/design/flows/${id}/execute`, { ctx }),
+  flowRuns: (id: string, limit = 50) =>
+    http.get<{ runs: FlowRun[] }>(`/lowcode/api/design/flows/${id}/runs?limit=${limit}`),
+
+  // ── design: app bundle export/import (duplicate / template install) ──
+  exportApp: (id: string) => http.get<{ bundle: AppBundle }>(`/lowcode/api/design/apps/${id}/export`),
+  importApp: (body: { bundle: AppBundle; key?: string; name?: string; scopeType?: ScopeType; scopeId?: string | null }) =>
+    http.post<{ app: LcApp; imported: Record<string, number> }>('/lowcode/api/design/apps/import', body),
+
+  // ── design: AI assist (natural language → entity/flow draft) ──
+  aiGenerate: (body: { kind: 'entity' | 'flow'; prompt: string; appId?: string }) =>
+    http.post<{ kind: string; draft: Record<string, unknown>; warnings: string[] }>('/lowcode/api/design/ai/generate', body),
+
   // ── runtime records (disambiguate entity by appKey; advanced filter/sort/page) ──
   records: (entityKey: string, appKey: string, params: Omit<RecordListParams, 'appKey' | 'appId'> = {}) =>
     http.get<RecordListResult>(`/lowcode/api/data/${enc(entityKey)}/records${recordListQuery({ ...params, appKey })}`),
+  getRecord: (entityKey: string, appKey: string, id: string) =>
+    http.get<{ record: LcRecord }>(`/lowcode/api/data/${enc(entityKey)}/records/${id}${qs({ appKey })}`),
   createRecord: (entityKey: string, appKey: string, body: Record<string, unknown>) =>
     http.post<{ record: LcRecord }>(`/lowcode/api/data/${enc(entityKey)}/records${qs({ appKey })}`, body),
   updateRecord: (entityKey: string, appKey: string, id: string, body: Record<string, unknown>) =>
@@ -90,4 +109,25 @@ export const lowcodeApi = {
     http.post<{ record: LcRecord }>(`/lowcode/api/data/${enc(entityKey)}/records/${id}/transition${qs({ appKey })}`, body),
   deleteRecord: (entityKey: string, appKey: string, id: string) =>
     http.del<{ ok: boolean }>(`/lowcode/api/data/${enc(entityKey)}/records/${id}${qs({ appKey })}`),
+
+  // ── runtime: bulk + import/export + aggregation ──
+  bulkRecords: (entityKey: string, appKey: string, body: { create?: Record<string, unknown>[]; update?: { id: string; data: Record<string, unknown> }[]; delete?: string[] }) =>
+    http.post<{ created: unknown[]; updated: unknown[]; deleted: unknown[] }>(`/lowcode/api/data/${enc(entityKey)}/records/bulk${qs({ appKey })}`, body),
+  importRecords: (entityKey: string, appKey: string, body: { csv?: string; records?: Record<string, unknown>[] }) =>
+    http.post<{ created: number; failed: number; errors: { row: number; errors: string[] }[] }>(`/lowcode/api/data/${enc(entityKey)}/records/import${qs({ appKey })}`, body),
+  /** CSV text of the (filtered) records — caller turns it into a download. */
+  exportRecordsCsv: (entityKey: string, appKey: string, params: Omit<RecordListParams, 'appKey' | 'appId'> = {}) =>
+    http.get<string>(`/lowcode/api/data/${enc(entityKey)}/records/export${recordListQuery({ ...params, appKey })}`),
+  aggregate: (entityKey: string, appKey: string, params: { groupBy?: string; metrics?: string } = {}) =>
+    http.get<AggregateResult>(`/lowcode/api/data/${enc(entityKey)}/aggregate${qs({ appKey, ...params })}`),
+
+  // ── runtime: saved views ──
+  views: (entityKey: string, appKey: string) =>
+    http.get<{ views: LcView[] }>(`/lowcode/api/data/${enc(entityKey)}/views${qs({ appKey })}`),
+  createView: (entityKey: string, appKey: string, body: { name: string; viewType?: ViewType; config?: ViewConfig; shared?: boolean }) =>
+    http.post<{ view: LcView }>(`/lowcode/api/data/${enc(entityKey)}/views${qs({ appKey })}`, body),
+  updateView: (entityKey: string, appKey: string, id: string, body: Partial<LcView>) =>
+    http.put<{ view: LcView }>(`/lowcode/api/data/${enc(entityKey)}/views/${id}${qs({ appKey })}`, body),
+  deleteView: (entityKey: string, appKey: string, id: string) =>
+    http.del<{ ok: boolean }>(`/lowcode/api/data/${enc(entityKey)}/views/${id}${qs({ appKey })}`),
 };

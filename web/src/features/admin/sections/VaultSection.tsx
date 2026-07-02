@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  MenuItem,
   Stack,
   Tab,
   Tabs,
@@ -105,14 +106,44 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
+const EMPTY_POLICY_FORM = {
+  name: '',
+  description: '',
+  policyType: 'secret',
+  rules: '{}',
+  entityTypes: '',
+  priority: '',
+  enforcementMode: 'enforcing',
+};
+
 function PoliciesTab({ onToast }: { onToast: (m: string) => void }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [json, setJson] = useState('{\n  "name": "",\n  "policyType": "secret",\n  "rules": {}\n}');
+  const [form, setForm] = useState(EMPTY_POLICY_FORM);
+  const [rulesError, setRulesError] = useState<string | null>(null);
+  const set = (k: keyof typeof EMPTY_POLICY_FORM) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
   const query = useQuery({ queryKey: ['vault', 'policies'], queryFn: () => vaultAdminApi.listPolicies() });
   const create = useMutation({
-    mutationFn: () => vaultAdminApi.createPolicy(JSON.parse(json)),
-    onSuccess: () => { onToast('Policy created'); setOpen(false); qc.invalidateQueries({ queryKey: ['vault', 'policies'] }); },
+    mutationFn: () => {
+      // Mirrors the backend createPolicySchema (services/vault/src/routes/admin.js).
+      let rules: unknown;
+      try { rules = JSON.parse(form.rules || '{}'); }
+      catch { setRulesError('Rules must be a valid JSON object.'); return Promise.reject(new Error('Rules must be a valid JSON object.')); }
+      setRulesError(null);
+      const body: Record<string, unknown> = {
+        name: form.name.trim(),
+        policyType: form.policyType,
+        rules,
+        enforcementMode: form.enforcementMode,
+      };
+      if (form.description.trim()) body.description = form.description.trim();
+      const entityTypes = form.entityTypes.split(',').map((s) => s.trim()).filter(Boolean);
+      if (entityTypes.length) body.entityTypes = entityTypes;
+      if (form.priority !== '') body.priority = Number(form.priority);
+      return vaultAdminApi.createPolicy(body);
+    },
+    onSuccess: () => { onToast('Policy created'); setOpen(false); setForm(EMPTY_POLICY_FORM); qc.invalidateQueries({ queryKey: ['vault', 'policies'] }); },
     onError: (e) => onToast((e as Error).message),
   });
   const del = (id: string) => vaultAdminApi.deletePolicy(id).then(() => { onToast('Policy deleted'); qc.invalidateQueries({ queryKey: ['vault', 'policies'] }); }).catch((e) => onToast((e as Error).message));
@@ -138,11 +169,37 @@ function PoliciesTab({ onToast }: { onToast: (m: string) => void }) {
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Create policy</DialogTitle>
         <DialogContent>
-          <TextField fullWidth multiline minRows={8} value={json} onChange={(e) => setJson(e.target.value)} inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }} sx={{ mt: 1 }} />
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Name" required value={form.name} onChange={set('name')} />
+            <TextField label="Description" multiline minRows={2} value={form.description} onChange={set('description')} />
+            <Stack direction="row" spacing={2}>
+              <TextField select label="Policy type" required value={form.policyType} onChange={set('policyType')} sx={{ flex: 1 }}>
+                {['secret', 'key', 'credential', 'global'].map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+              </TextField>
+              <TextField select label="Enforcement" value={form.enforcementMode} onChange={set('enforcementMode')} sx={{ flex: 1 }}>
+                {['enforcing', 'permissive', 'audit'].map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+              </TextField>
+            </Stack>
+            <Stack direction="row" spacing={2}>
+              <TextField label="Entity types" placeholder="comma-separated" value={form.entityTypes} onChange={set('entityTypes')} sx={{ flex: 2 }} />
+              <TextField label="Priority" type="number" inputProps={{ min: 1, max: 1000 }} value={form.priority} onChange={set('priority')} sx={{ flex: 1 }} />
+            </Stack>
+            <TextField
+              label="Rules (JSON object)"
+              required
+              multiline
+              minRows={4}
+              value={form.rules}
+              onChange={set('rules')}
+              error={!!rulesError}
+              helperText={rulesError ?? 'Free-form rule object evaluated by the policy engine.'}
+              inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
+            />
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="contained" disabled={create.isPending} onClick={() => create.mutate()}>Create</Button>
+          <Button variant="contained" disabled={create.isPending || !form.name.trim()} onClick={() => create.mutate()}>Create</Button>
         </DialogActions>
       </Dialog>
     </Stack>

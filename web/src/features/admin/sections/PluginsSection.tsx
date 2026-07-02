@@ -36,17 +36,6 @@ const SCOPE_TYPES: ScopeType[] = ['platform', 'organization', 'group', 'user'];
 const INSTALL_STATUSES = ['installed', 'enabled', 'disabled', 'error'];
 const DELIVERY_STATUSES = ['queued', 'running', 'completed', 'failed', 'skipped'];
 
-const SAMPLE_MANIFEST = `{
-  "pluginKey": "my-plugin",
-  "name": "My Plugin",
-  "description": "",
-  "publisher": "exprsn",
-  "version": "1.0.0",
-  "kind": "webhook",
-  "capabilities": [],
-  "events": []
-}`;
-
 interface TabProps {
   onToast: (m: string) => void;
   onError: (e: unknown) => void;
@@ -54,14 +43,70 @@ interface TabProps {
 
 /* ----------------------------------------------------------------- catalog */
 
+// 'internal' is rejected by the validator (post-MVP tier), so the form only
+// offers the three registerable kinds.
+const REGISTERABLE_KINDS = ['declarative', 'webhook', 'script'];
+
+const EMPTY_MANIFEST_FORM = {
+  key: '',
+  name: '',
+  version: '1.0.0',
+  publisher: 'exprsn',
+  description: '',
+  kind: 'webhook',
+  capabilities: [] as string[],
+  events: [] as string[],
+  appliesTo: [] as string[],
+  endpointUrl: '',
+  endpointTimeoutMs: '',
+  scriptSource: '',
+  behavior: '{\n  "match": {},\n  "actions": []\n}',
+};
+
+/** Assemble a manifest object (MANIFEST_SCHEMA shape) from the form state. */
+function buildManifest(f: typeof EMPTY_MANIFEST_FORM): Record<string, unknown> {
+  const m: Record<string, unknown> = {
+    key: f.key.trim(),
+    name: f.name.trim(),
+    version: f.version.trim(),
+    kind: f.kind,
+  };
+  if (f.description.trim()) m.description = f.description.trim();
+  if (f.publisher.trim()) m.publisher = f.publisher.trim();
+  if (f.capabilities.length) m.capabilities = f.capabilities;
+  if (f.events.length) m.events = f.events;
+  if (f.appliesTo.length) m.appliesTo = f.appliesTo;
+  if (f.kind === 'webhook') {
+    const endpoint: Record<string, unknown> = { url: f.endpointUrl.trim() };
+    if (f.endpointTimeoutMs !== '') endpoint.timeoutMs = Number(f.endpointTimeoutMs);
+    m.endpoint = endpoint;
+    // The validator requires webhook plugins to declare call:webhook.
+    if (!f.capabilities.includes('call:webhook')) m.capabilities = [...f.capabilities, 'call:webhook'];
+  }
+  if (f.kind === 'script') m.script = { source: f.scriptSource };
+  if (f.kind === 'declarative') {
+    try { m.behavior = JSON.parse(f.behavior || '{}'); } catch { m.behavior = f.behavior; }
+  }
+  return m;
+}
+
 function RegisterManifestDialog({ onToast, onError }: TabProps) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState(SAMPLE_MANIFEST);
+  const [form, setForm] = useState(EMPTY_MANIFEST_FORM);
+  const [rawMode, setRawMode] = useState(false);
+  const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[] | null>(null);
+  const set = <K extends keyof typeof EMPTY_MANIFEST_FORM>(k: K, v: (typeof EMPTY_MANIFEST_FORM)[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
 
-  const parse = (): Record<string, unknown> | null => {
+  // Live vocabularies: the closed capability registry + known events/surfaces.
+  const caps = useQuery({ queryKey: ['plugins', 'capabilities'], queryFn: pluginsAdminApi.capabilities, enabled: open });
+  const evs = useQuery({ queryKey: ['plugins', 'events'], queryFn: pluginsAdminApi.events, enabled: open });
+
+  const currentManifest = (): Record<string, unknown> | null => {
+    if (!rawMode) return buildManifest(form);
     try {
       const v = JSON.parse(text || '{}');
       if (typeof v !== 'object' || v == null || Array.isArray(v)) throw new Error('Manifest must be a JSON object.');
@@ -72,8 +117,14 @@ function RegisterManifestDialog({ onToast, onError }: TabProps) {
     }
   };
 
+  const toggleRaw = () => {
+    if (!rawMode) setText(JSON.stringify(buildManifest(form), null, 2));
+    setRawMode((r) => !r);
+    setErrors(null);
+  };
+
   const validate = async () => {
-    const manifest = parse();
+    const manifest = currentManifest();
     if (!manifest) return;
     setBusy(true);
     try {
@@ -88,7 +139,7 @@ function RegisterManifestDialog({ onToast, onError }: TabProps) {
   };
 
   const register = async () => {
-    const manifest = parse();
+    const manifest = currentManifest();
     if (!manifest) return;
     setBusy(true);
     try {
@@ -97,6 +148,7 @@ function RegisterManifestDialog({ onToast, onError }: TabProps) {
       qc.invalidateQueries({ queryKey: ['plugins', 'catalog'] });
       setOpen(false);
       setErrors(null);
+      setForm(EMPTY_MANIFEST_FORM);
     } catch (e) {
       onError(e);
     } finally {
@@ -104,15 +156,48 @@ function RegisterManifestDialog({ onToast, onError }: TabProps) {
     }
   };
 
+  const multiSelect = (
+    label: string,
+    value: string[],
+    onChange: (v: string[]) => void,
+    options: { key: string; description?: string }[],
+    helper?: string,
+  ) => (
+    <TextField
+      select
+      label={label}
+      value={value}
+      onChange={(e) => onChange(typeof e.target.value === 'string' ? String(e.target.value).split(',') : (e.target.value as unknown as string[]))}
+      SelectProps={{
+        multiple: true,
+        renderValue: (sel) => (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {(sel as string[]).map((v) => <Chip key={v} size="small" label={v} />)}
+          </Box>
+        ),
+      }}
+      helperText={helper}
+    >
+      {options.map((o) => (
+        <MenuItem key={o.key} value={o.key}>
+          <Stack>
+            <Typography variant="body2">{o.key}</Typography>
+            {o.description && <Typography variant="caption" color="text.secondary">{o.description}</Typography>}
+          </Stack>
+        </MenuItem>
+      ))}
+    </TextField>
+  );
+
   return (
     <>
       <Button variant="contained" onClick={() => { setOpen(true); setErrors(null); }}>
         Register manifest
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>Register plugin manifest</DialogTitle>
+        <DialogTitle>Register plugin</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
+          {rawMode ? (
             <TextField
               label="Manifest (JSON)"
               value={text}
@@ -121,19 +206,70 @@ function RegisterManifestDialog({ onToast, onError }: TabProps) {
               minRows={12}
               maxRows={24}
               fullWidth
+              sx={{ mt: 1 }}
               inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
             />
-            {errors != null && (
-              errors.length === 0
-                ? <Alert severity="success">Manifest is valid.</Alert>
-                : <Alert severity="error"><ul style={{ margin: 0, paddingLeft: 18 }}>{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Alert>
-            )}
-          </Stack>
+          ) : (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Stack direction="row" spacing={2}>
+                <TextField label="Key" required placeholder="my-plugin" helperText="lowercase, [a-z0-9_-]" value={form.key} onChange={(e) => set('key', e.target.value)} sx={{ flex: 1 }} />
+                <TextField label="Name" required value={form.name} onChange={(e) => set('name', e.target.value)} sx={{ flex: 2 }} />
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <TextField select label="Kind" required value={form.kind} onChange={(e) => set('kind', e.target.value)} sx={{ flex: 1 }}>
+                  {REGISTERABLE_KINDS.map((k) => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+                </TextField>
+                <TextField label="Version" required helperText="semver" value={form.version} onChange={(e) => set('version', e.target.value)} sx={{ flex: 1 }} />
+                <TextField label="Publisher" value={form.publisher} onChange={(e) => set('publisher', e.target.value)} sx={{ flex: 1 }} />
+              </Stack>
+              <TextField label="Description" multiline minRows={2} value={form.description} onChange={(e) => set('description', e.target.value)} />
+              {multiSelect('Capabilities', form.capabilities, (v) => set('capabilities', v), caps.data?.capabilities ?? [],
+                form.kind === 'webhook' ? '"call:webhook" is added automatically for webhook plugins.' : undefined)}
+              {multiSelect('Events', form.events, (v) => set('events', v), evs.data?.events ?? [])}
+              {multiSelect('Applies to (surfaces)', form.appliesTo, (v) => set('appliesTo', v),
+                (evs.data?.surfaces ?? []).map((s) => ({ key: s })))}
+              {form.kind === 'webhook' && (
+                <Stack direction="row" spacing={2}>
+                  <TextField label="Endpoint URL" required placeholder="https://…" value={form.endpointUrl} onChange={(e) => set('endpointUrl', e.target.value)} sx={{ flex: 3 }} />
+                  <TextField label="Timeout (ms)" type="number" inputProps={{ min: 250, max: 30000 }} value={form.endpointTimeoutMs} onChange={(e) => set('endpointTimeoutMs', e.target.value)} sx={{ flex: 1 }} />
+                </Stack>
+              )}
+              {form.kind === 'script' && (
+                <TextField
+                  label="Script source"
+                  required
+                  multiline
+                  minRows={6}
+                  helperText="Sandboxed: only ctx + platform are in scope."
+                  value={form.scriptSource}
+                  onChange={(e) => set('scriptSource', e.target.value)}
+                  inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
+                />
+              )}
+              {form.kind === 'declarative' && (
+                <TextField
+                  label="Behavior (JSON: match tree and/or actions)"
+                  required
+                  multiline
+                  minRows={4}
+                  value={form.behavior}
+                  onChange={(e) => set('behavior', e.target.value)}
+                  inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
+                />
+              )}
+            </Stack>
+          )}
+          {errors != null && (
+            errors.length === 0
+              ? <Alert severity="success" sx={{ mt: 2 }}>Manifest is valid.</Alert>
+              : <Alert severity="error" sx={{ mt: 2 }}><ul style={{ margin: 0, paddingLeft: 18 }}>{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Alert>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={validate} disabled={busy} sx={{ mr: 'auto' }}>Validate</Button>
+          <Button onClick={toggleRaw} sx={{ mr: 'auto' }}>{rawMode ? 'Form view' : 'Edit as JSON'}</Button>
+          <Button onClick={validate} disabled={busy}>Validate</Button>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={register} disabled={busy}>Register</Button>
+          <Button variant="contained" onClick={register} disabled={busy || (!rawMode && (!form.key.trim() || !form.name.trim()))}>Register</Button>
         </DialogActions>
       </Dialog>
     </>

@@ -69,6 +69,16 @@ export default function RecordFormDialog({ open, entity, appKey, record, lookupO
   const renderField = (f: Field) => {
     const raw = values[f.key];
     const common = { label: f.label + (f.required ? ' *' : ''), fullWidth: true } as const;
+    // Computed fields derive server-side on every save — show, never edit.
+    if (f.formula !== undefined) {
+      return (
+        <TextField
+          key={f.key} {...common} disabled
+          value={raw === undefined || raw === null ? '' : typeof raw === 'object' ? JSON.stringify(raw) : String(raw)}
+          helperText={`computed: ${f.formula}`}
+        />
+      );
+    }
     switch (f.type) {
       case 'boolean':
         return (
@@ -97,6 +107,11 @@ export default function RecordFormDialog({ open, entity, appKey, record, lookupO
         return <TextField key={f.key} {...common} multiline minRows={f.type === 'json' ? 4 : 2} value={(raw as string) ?? ''} onChange={(e) => set(f.key, e.target.value)} helperText={f.type === 'json' ? 'JSON object or array' : undefined} />;
       case 'reference':
         return <TextField key={f.key} {...common} value={(raw as string) ?? ''} onChange={(e) => set(f.key, e.target.value)} helperText={`Record id of ${f.refEntity ?? 'referenced entity'}`} />;
+      case 'file': {
+        // Stored as { fileId, name?, … }; accept a FileVault file id here.
+        const fileId = typeof raw === 'object' && raw !== null ? String((raw as { fileId?: string }).fileId ?? '') : String(raw ?? '');
+        return <TextField key={f.key} {...common} value={fileId} onChange={(e) => set(f.key, e.target.value || undefined)} helperText="FileVault file id (copy it from Files)" />;
+      }
       default:
         return <TextField key={f.key} {...common} value={(raw as string) ?? ''} onChange={(e) => set(f.key, e.target.value)} />;
     }

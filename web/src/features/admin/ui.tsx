@@ -518,7 +518,7 @@ export function JsonDialog({
         {raw ? (
           <Box
             component="pre"
-            sx={{ m: 0, p: 1.5, bgcolor: 'grey.100', borderRadius: 1, fontSize: 12, overflow: 'auto', maxHeight: '60vh' }}
+            sx={{ m: 0, p: 1.5, bgcolor: 'background.default', borderRadius: 1, fontSize: 12, overflow: 'auto', maxHeight: '60vh' }}
           >
             {JSON.stringify(value, null, 2)}
           </Box>

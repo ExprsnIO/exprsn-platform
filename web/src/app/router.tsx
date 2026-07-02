@@ -39,6 +39,7 @@ import { PluginsSection } from '@/features/admin/sections/PluginsSection';
 import { LowcodeSection } from '@/features/admin/sections/LowcodeSection';
 import { EntityDetailPage } from '@/features/lowcode/pages/EntityDetailPage';
 import { FlowDetailPage } from '@/features/lowcode/pages/FlowDetailPage';
+import { PublicFormPage } from '@/features/lowcode/PublicFormPage';
 import { LoginPage } from '@/auth/LoginPage';
 import { SsoCallbackPage } from '@/auth/SsoCallbackPage';
 import { RequireAuth } from '@/auth/RequireAuth';
@@ -51,6 +52,8 @@ export const router = createBrowserRouter([
   { path: '/sso/callback', element: <SsoCallbackPage />, errorElement: <RouteErrorBoundary /> },
   // Public share landing — anonymous visitors, no app shell / auth guard.
   { path: '/s/:shareLinkId', element: <SharePage />, errorElement: <RouteErrorBoundary /> },
+  // Public low-code form landing — anonymous submissions, same pattern.
+  { path: '/f/:slug', element: <PublicFormPage />, errorElement: <RouteErrorBoundary /> },
   {
     path: '/',
     element: (

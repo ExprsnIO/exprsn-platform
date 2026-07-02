@@ -56,7 +56,8 @@ export type FieldType =
   | 'datetime'
   | 'enum'
   | 'reference'
-  | 'json';
+  | 'json'
+  | 'file';
 
 export type FieldRole = 'dimension' | 'measure' | 'attribute';
 
@@ -75,6 +76,8 @@ export interface Field {
   default?: unknown;
   min?: number;
   max?: number;
+  /** Computed field — value derived on every write; input for the key ignored. */
+  formula?: string;
   [k: string]: unknown;
 }
 
@@ -104,17 +107,51 @@ export interface Entity {
   [k: string]: unknown;
 }
 
+/** One layout entry: a bare field key or an annotated field. */
+export interface FormLayoutField {
+  key: string;
+  /** Condition tree over the in-progress values — hides the field until true. */
+  visibleWhen?: Record<string, unknown> | null;
+  placeholder?: string;
+  help?: string;
+}
+
+export interface FormSection {
+  title?: string;
+  fields: (string | FormLayoutField)[];
+}
+
+export interface FormLayout {
+  sections?: FormSection[];
+  /** true = render each section as a wizard step. */
+  steps?: boolean;
+  submitLabel?: string;
+}
+
 export interface Form {
   id: string;
   appId: string;
   entityKey: string;
   key: string;
   name: string;
-  layout?: Record<string, unknown>;
+  layout?: FormLayout;
+  isPublic?: boolean;
+  slug?: string | null;
+  settings?: Record<string, unknown>;
   [k: string]: unknown;
 }
 
 export type FlowScopeType = ScopeType | string;
+
+export type FlowTriggerType = 'event' | 'schedule' | 'webhook' | 'manual';
+
+export interface FlowTrigger {
+  type: FlowTriggerType;
+  /** schedule: 5-field cron expression. */
+  cron?: string;
+  /** webhook: server-generated shared secret (present in design reads). */
+  secret?: string;
+}
 
 export interface Flow {
   id: string;
@@ -122,11 +159,78 @@ export interface Flow {
   key: string;
   name: string;
   event: string;
+  trigger?: FlowTrigger | null;
   match?: Record<string, unknown> | null;
   actions: unknown[];
   scopeType: FlowScopeType;
   enabled: boolean;
   [k: string]: unknown;
+}
+
+export interface FlowRunStep {
+  i: number;
+  type: string;
+  status: 'ok' | 'error' | 'skipped';
+  error?: string;
+  result?: unknown;
+  ms?: number;
+  attempts?: number;
+}
+
+export interface FlowRun {
+  id: string;
+  flowId: string;
+  appId?: string;
+  trigger: string;
+  status: 'success' | 'partial' | 'error' | 'skipped';
+  steps: FlowRunStep[];
+  error?: string | null;
+  context?: unknown;
+  triggeredBy?: string | null;
+  startedAt?: string;
+  finishedAt?: string;
+  createdAt?: string;
+}
+
+export type ViewType = 'grid' | 'kanban' | 'calendar';
+
+export interface ViewConfig {
+  filters?: RecordFilter[];
+  sort?: RecordSort[];
+  q?: string;
+  /** kanban: the enum field that defines the columns. */
+  groupByField?: string;
+  /** calendar: the date/datetime field records are placed by. */
+  dateField?: string;
+  [k: string]: unknown;
+}
+
+export interface LcView {
+  id: string;
+  appId: string;
+  entityKey: string;
+  name: string;
+  ownerId: string | null;
+  viewType: ViewType;
+  config: ViewConfig;
+  [k: string]: unknown;
+}
+
+export interface AggregateResult {
+  groups: Record<string, unknown>[];
+  metrics: { agg: string; field: string; alias: string }[];
+  groupBy: string[];
+}
+
+/** Portable app definition bundle (export/import/duplicate/template). */
+export interface AppBundle {
+  version: number;
+  exportedAt?: string;
+  app: { key: string; name: string; description?: string; capabilities?: string[] };
+  entities?: unknown[];
+  lookups?: unknown[];
+  forms?: unknown[];
+  flows?: unknown[];
 }
 
 export interface LcRecord {
@@ -147,12 +251,15 @@ export interface LcRecord {
 export interface LowcodeCatalog {
   events: string[];
   actions: string[];
+  triggerTypes?: FlowTriggerType[];
   capabilities: string[];
   storageModes: StorageMode[];
   fieldTypes: FieldType[];
   fieldRoles: FieldRole[];
   aggregations: string[];
   lookupProviders: { key: string; label?: string; [k: string]: unknown }[];
+  /** true when the backend has an AI provider configured for /ai/generate. */
+  aiAssist?: boolean;
 }
 
 // ── Record list query (advanced server-side filter/sort/pagination) ──────────
@@ -176,6 +283,8 @@ export interface RecordListParams {
   offset?: number;
   sort?: RecordSort[];
   filters?: RecordFilter[];
+  /** Free-text search OR'd across string/text/enum fields. */
+  q?: string;
 }
 
 export interface RecordListResult {
@@ -192,6 +301,7 @@ export function recordListQuery(params: RecordListParams = {}): string {
   if (params.appId) sp.set('appId', params.appId);
   if (params.limit != null) sp.set('limit', String(params.limit));
   if (params.offset != null) sp.set('offset', String(params.offset));
+  if (params.q) sp.set('q', params.q);
   if (params.sort?.length) {
     sp.set('sort', params.sort.map((s) => `${s.dir === 'desc' ? '-' : ''}${s.field}`).join(','));
   }
@@ -252,6 +362,10 @@ export const lowcodeAdminApi = {
   updateFlow: (id: string, body: Partial<Flow>) =>
     http.patch<{ flow: Flow }>(`/lowcode/api/design/flows/${id}`, body),
   deleteFlow: (id: string) => http.del<{ ok: boolean }>(`/lowcode/api/design/flows/${id}`),
+  executeFlow: (id: string, ctx: Record<string, unknown> = {}) =>
+    http.post<{ run: FlowRun }>(`/lowcode/api/design/flows/${id}/execute`, { ctx }),
+  flowRuns: (id: string, limit = 50) =>
+    http.get<{ runs: FlowRun[] }>(`/lowcode/api/design/flows/${id}/runs?limit=${limit}`),
 
   // ── data (runtime records) ──
   records: (entityKey: string, params: RecordListParams = {}) =>

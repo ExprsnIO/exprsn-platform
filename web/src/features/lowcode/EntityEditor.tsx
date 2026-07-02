@@ -28,6 +28,8 @@ const NUMERIC: FieldType[] = ['number', 'integer'];
 export interface EntityEditorProps {
   /** Existing entity (edit) or null (create). */
   entity: Entity | null;
+  /** Seed values for a NEW entity (e.g. an AI-generated draft). */
+  draft?: Partial<Entity> | null;
   /** appId the entity belongs to (required on create). */
   appId: string;
   /** Sibling entities of the app (for reference-field targets). */
@@ -39,13 +41,14 @@ export interface EntityEditorProps {
   onSave: (payload: Partial<Entity>) => void;
 }
 
-export function EntityEditor({ entity, appId, entities = [], lookups = [], busy, onCancel, onSave }: EntityEditorProps) {
+export function EntityEditor({ entity, draft = null, appId, entities = [], lookups = [], busy, onCancel, onSave }: EntityEditorProps) {
   const { catalog } = useCatalog();
-  const [name, setName] = useState(entity?.name ?? '');
-  const [key, setKey] = useState(entity?.key ?? '');
-  const [description, setDescription] = useState(entity?.description ?? '');
-  const [fields, setFields] = useState<EField[]>(() => withIds(entity?.fields));
-  const [sm, setSm] = useState<StateMachine | null>(entity?.stateMachine ?? null);
+  const seed = entity ?? draft;
+  const [name, setName] = useState(seed?.name ?? '');
+  const [key, setKey] = useState(seed?.key ?? '');
+  const [description, setDescription] = useState(seed?.description ?? '');
+  const [fields, setFields] = useState<EField[]>(() => withIds(seed?.fields));
+  const [sm, setSm] = useState<StateMachine | null>(seed?.stateMachine ?? null);
   const [storageMode, setStorageMode] = useState<EntityStorage['mode']>(entity?.storage?.mode ?? 'db');
   const [storageDir, setStorageDir] = useState(entity?.storage?.directory ?? '');
   const [raw, setRaw] = useState(false);
@@ -53,11 +56,13 @@ export function EntityEditor({ entity, appId, entities = [], lookups = [], busy,
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Refresh when switching between different entities on the detail page.
-    setName(entity?.name ?? ''); setKey(entity?.key ?? ''); setDescription(entity?.description ?? '');
-    setFields(withIds(entity?.fields)); setSm(entity?.stateMachine ?? null);
+    // Refresh when switching between different entities on the detail page,
+    // or when a generated draft arrives for a new entity.
+    const s = entity ?? draft;
+    setName(s?.name ?? ''); setKey(s?.key ?? ''); setDescription(s?.description ?? '');
+    setFields(withIds(s?.fields)); setSm(s?.stateMachine ?? null);
     setStorageMode(entity?.storage?.mode ?? 'db'); setStorageDir(entity?.storage?.directory ?? '');
-  }, [entity]);
+  }, [entity, draft]);
 
   const patchField = (id: string, patch: Partial<Field>) =>
     setFields((fs) => fs.map((f) => (f._id === id ? { ...f, ...patch } : f)));
@@ -143,8 +148,23 @@ export function EntityEditor({ entity, appId, entities = [], lookups = [], busy,
                     </TextField>
                     <FormControlLabel control={<Checkbox size="small" checked={!!f.required} onChange={(e) => patchField(f._id, { required: e.target.checked })} />} label="required" />
                     <FormControlLabel control={<Checkbox size="small" checked={!!f.unique} onChange={(e) => patchField(f._id, { unique: e.target.checked })} />} label="unique" />
+                    {!['reference', 'file'].includes(f.type) && (
+                      <FormControlLabel
+                        control={<Checkbox size="small" checked={f.formula !== undefined} onChange={(e) => patchField(f._id, { formula: e.target.checked ? '' : undefined })} />}
+                        label="computed"
+                      />
+                    )}
                     <Tooltip title="Remove field"><IconButton size="small" color="error" onClick={() => removeField(f._id)} sx={{ ml: 'auto' }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
                   </Stack>
+                  {f.formula !== undefined && (
+                    <TextField
+                      label="formula" size="small" fullWidth sx={{ mt: 1 }} value={f.formula}
+                      onChange={(e) => patchField(f._id, { formula: e.target.value })}
+                      placeholder="price * quantity"
+                      helperText="Computed on every save; input for this field is ignored. Functions: if, concat, upper, round, coalesce, days_between, …"
+                      inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
+                    />
+                  )}
                   {/* type-specific options */}
                   {(f.type === 'enum') && (
                     <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>

@@ -38,6 +38,7 @@ import AutorenewIcon from '@mui/icons-material/Autorenew';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { toMessage } from '@/lib/errors';
 import { formatDate } from '@/features/files/util';
+import { DataView } from '@/features/admin/ui';
 import {
   caUserApi,
   type ExpiryType,
@@ -297,20 +298,7 @@ function IntrospectDialog({ token, onClose }: { token: UserToken | null; onClose
       <DialogContent dividers>
         {query.isLoading && <CircularProgress size={20} />}
         {query.isError && <Alert severity="error">{toMessage(query.error)}</Alert>}
-        {query.data && (
-          <Box
-            component="pre"
-            sx={{
-              m: 0,
-              fontFamily: 'monospace',
-              fontSize: 12,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-all',
-            }}
-          >
-            {JSON.stringify(query.data.introspection, null, 2)}
-          </Box>
-        )}
+        {query.data && <DataView value={query.data.introspection} />}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Close</Button>

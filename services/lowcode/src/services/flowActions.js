@@ -97,6 +97,9 @@ function validateActions(actions) {
   actions.forEach((a, i) => {
     if (!a || typeof a !== 'object' || !a.type) { errors.push(`action[${i}] needs a type`); return; }
     if (!known.has(a.type)) errors.push(`action[${i}] has unknown type "${a.type}"`);
+    if (a.onError !== undefined && !['continue', 'stop'].includes(a.onError)) errors.push(`action[${i}].onError must be 'continue' or 'stop'`);
+    if (a.retries !== undefined && (!Number.isInteger(a.retries) || a.retries < 0 || a.retries > 3)) errors.push(`action[${i}].retries must be an integer 0–3`);
+    if (a.when !== undefined && a.when !== null && (typeof a.when !== 'object' || Array.isArray(a.when))) errors.push(`action[${i}].when must be a condition object`);
   });
   return errors;
 }

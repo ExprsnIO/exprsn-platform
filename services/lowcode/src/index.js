@@ -37,6 +37,8 @@ app.get('/health', (req, res) => res.json({ status: 'ok', module: 'lowcode', ena
 // never fronts record reads/writes.
 app.use('/api/design', require('./routes/design'));
 app.use('/api/data', require('./routes/records'));
+// Unauthenticated ingress (webhook flows, public forms) — own credentials.
+app.use('/api/hooks', require('./routes/hooks'));
 
 app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND', message: 'Endpoint not found' }));
 // eslint-disable-next-line no-unused-vars
@@ -57,6 +59,7 @@ async function init() {
     await db.sequelize.authenticate();
     if (process.env.NODE_ENV === 'development') await db.sequelize.sync({ alter: true });
     flowEngine.start(); // subscribe flows to the shared plugin hook bus
+    await require('./services/flowScheduler').start(); // cron-triggered flows
     logger.info('Low-code module initialized');
   } catch (err) {
     logger.error('Failed to initialize low-code module', { error: err.message });

@@ -46,6 +46,7 @@ const CAPABILITIES = [
   // ── call (webhook plugins + low-code module actions) ──
   { key: 'call:webhook', description: 'Receive signed outbound webhook deliveries.' },
   { key: 'call:queues.enqueue', description: 'Enqueue a job onto a moderation/job queue.' },
+  { key: 'call:http.request', description: 'Make outbound HTTP requests to external hosts from flows (private/loopback ranges blocked).' },
   { key: 'read:vault.secrets', description: 'Read a named secret from Vault (value never logged).' },
 ];
 

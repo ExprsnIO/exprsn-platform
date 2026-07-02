@@ -44,6 +44,34 @@ async function get(url, params, ctx) {
   return data;
 }
 
+/**
+ * SSRF guard for the generic http_request action: only http(s) to external
+ * hosts. Loopback/link-local/private hostnames and IP literals are refused
+ * (redirects are also disabled on the request) unless the operator explicitly
+ * opts in via LOWCODE_HTTP_ALLOW_PRIVATE=true. Note: a hostname that RESOLVES
+ * to a private address (DNS rebinding) is not caught here — keep the platform
+ * egress-filtered in production.
+ */
+function assertExternalUrl(raw) {
+  let url;
+  try { url = new URL(String(raw)); } catch { throw new Error(`invalid url "${raw}"`); }
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error(`unsupported protocol ${url.protocol}`);
+  if (process.env.LOWCODE_HTTP_ALLOW_PRIVATE === 'true') return;
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
+    throw new Error('private hostnames are not allowed');
+  }
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    const priv = a === 127 || a === 10 || a === 0 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31) || (a === 169 && b === 254);
+    if (priv) throw new Error('private/loopback addresses are not allowed');
+  }
+  if (host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) {
+    throw new Error('private/loopback addresses are not allowed');
+  }
+}
+
 /** Each action: { capability, run(action, ctx) → resultObject }. */
 const MODULE_ACTIONS = {
   post_timeline: {
@@ -81,6 +109,35 @@ const MODULE_ACTIONS = {
       const content = typeof action.content === 'string' ? action.content : JSON.stringify(action.content ?? {}, null, 2);
       const data = await post(`${base('FILEVAULT_SERVICE_URL', '/filevault')}/api/files/create`, { name: action.name || 'lowcode.json', content, visibility: action.visibility || 'private' }, ctx);
       return { type: 'write_file', fileId: data && data.file && data.file.id };
+    },
+  },
+  http_request: {
+    capability: 'call:http.request',
+    async run(action) {
+      const method = String(action.method || 'GET').toUpperCase();
+      if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) throw new Error(`unsupported method ${method}`);
+      assertExternalUrl(action.url);
+      const headers = {};
+      for (const [k, v] of Object.entries(action.headers || {})) {
+        // Callers may set app-level headers (auth tokens etc.) but not smuggle
+        // transport/identity headers.
+        if (/^(host|content-length|x-service-id|x-service-token)$/i.test(k)) continue;
+        headers[k] = String(v);
+      }
+      const res = await axios.request({
+        url: action.url, method, headers,
+        data: action.body !== undefined ? action.body : undefined,
+        timeout: 10000, maxContentLength: 512 * 1024, maxBodyLength: 512 * 1024,
+        maxRedirects: 0, // a redirect could bounce into a private range
+        validateStatus: () => true,
+      });
+      let body = res.data;
+      if (typeof body === 'string' && body.length > 4000) body = `${body.slice(0, 4000)}…`;
+      else if (body && typeof body === 'object') {
+        const s = JSON.stringify(body);
+        if (s.length > 4000) body = { _truncated: true, preview: s.slice(0, 4000) };
+      }
+      return { type: 'http_request', status: res.status, ok: res.status >= 200 && res.status < 300, contentType: res.headers['content-type'], body };
     },
   },
   read_secret: {

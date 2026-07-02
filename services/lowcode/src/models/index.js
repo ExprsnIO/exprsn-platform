@@ -131,14 +131,53 @@ const LcFlow = sequelize.define('LcFlow', {
   appId: { type: DataTypes.UUID, allowNull: false, field: 'app_id' },
   key: { type: DataTypes.STRING(64), allowNull: false, validate: { is: /^[a-z][a-z0-9_-]*$/ } },
   name: { type: DataTypes.STRING(255), allowNull: false },
-  event: { type: DataTypes.STRING(128), allowNull: false }, // hook-bus event key
+  /**
+   * `event` is the hook-bus event key for event-triggered flows. Non-event
+   * triggers store a sentinel here (_schedule/_webhook/_manual) — sentinels are
+   * never emitted on the bus, so the event index stays the dispatch path.
+   */
+  event: { type: DataTypes.STRING(128), allowNull: false },
+  /**
+   * How the flow fires (null = legacy event trigger using `event`):
+   *   { type: 'event' }
+   *   { type: 'schedule', cron: '0 9 * * 1' }  (standard 5-field cron)
+   *   { type: 'webhook', secret: '<hex>' }   → POST /api/hooks/flows/:appKey/:flowKey
+   *   { type: 'manual' }                     → design-API execute only
+   */
+  trigger: { type: DataTypes.JSONB, allowNull: true },
   match: { type: DataTypes.JSONB, allowNull: true },        // condition tree
+  /**
+   * Ordered action list. Each action: { type, …params } plus optional
+   * per-action controls: `when` (condition tree gating just this action),
+   * `onError` ('continue'|'stop', default continue), `retries` (0–3).
+   */
   actions: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
   scopeType: { type: DataTypes.ENUM('platform', 'organization', 'group', 'user'), allowNull: false, defaultValue: 'platform', field: 'scope_type' },
   enabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
 }, {
   tableName: 'lc_flows', underscored: true, timestamps: true,
   indexes: [{ unique: true, fields: ['app_id', 'key'] }, { fields: ['event'] }, { fields: ['enabled'] }],
+});
+
+// ── Flow run = one execution's audit trail (per-step results) ───────────────
+const LcFlowRun = sequelize.define('LcFlowRun', {
+  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  flowId: { type: DataTypes.UUID, allowNull: false, field: 'flow_id' },
+  appId: { type: DataTypes.UUID, allowNull: false, field: 'app_id' },
+  // What fired it: the hook-bus event key, or 'manual' | 'schedule' | 'webhook'.
+  trigger: { type: DataTypes.STRING(128), allowNull: false },
+  status: { type: DataTypes.ENUM('success', 'partial', 'error', 'skipped'), allowNull: false },
+  // Truncated snapshot of the triggering context (secrets never land here).
+  context: { type: DataTypes.JSONB, allowNull: true },
+  // [{ i, type, status: 'ok'|'error'|'skipped', error?, result?, ms, attempts }]
+  steps: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+  error: { type: DataTypes.TEXT, allowNull: true },
+  triggeredBy: { type: DataTypes.UUID, allowNull: true, field: 'triggered_by' },
+  startedAt: { type: DataTypes.DATE, allowNull: false, field: 'started_at' },
+  finishedAt: { type: DataTypes.DATE, allowNull: true, field: 'finished_at' },
+}, {
+  tableName: 'lc_flow_runs', underscored: true, timestamps: true, updatedAt: false,
+  indexes: [{ fields: ['flow_id', 'created_at'] }, { fields: ['app_id'] }],
 });
 
 // ── Associations ────────────────────────────────────────────────────────────
@@ -149,5 +188,7 @@ LcRecord.belongsTo(LcEntity, { foreignKey: 'entity_id', as: 'entity' });
 LcApp.hasMany(LcForm, { foreignKey: 'app_id', as: 'forms' });
 LcApp.hasMany(LcFlow, { foreignKey: 'app_id', as: 'flows' });
 LcApp.hasMany(LcLookup, { foreignKey: 'app_id', as: 'lookups' });
+LcFlow.hasMany(LcFlowRun, { foreignKey: 'flow_id', as: 'runs' });
+LcFlowRun.belongsTo(LcFlow, { foreignKey: 'flow_id', as: 'flow' });
 
-module.exports = { sequelize, LcApp, LcLookup, LcEntity, LcRecord, LcForm, LcFlow };
+module.exports = { sequelize, LcApp, LcLookup, LcEntity, LcRecord, LcForm, LcFlow, LcFlowRun };

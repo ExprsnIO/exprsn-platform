@@ -13,10 +13,13 @@
  */
 const express = require('express');
 const router = express.Router();
-const { LcApp, LcLookup, LcEntity, LcForm, LcFlow } = require('../models');
+const crypto = require('crypto');
+const { LcApp, LcLookup, LcEntity, LcForm, LcFlow, LcFlowRun } = require('../models');
 const typeSystem = require('../services/typeSystem');
 const lookupProviders = require('../services/lookupProviders');
 const flowActions = require('../services/flowActions');
+const flowEngine = require('../services/flowEngine');
+const flowScheduler = require('../services/flowScheduler');
 const recordStore = require('../services/recordStore');
 const entityService = require('../services/entityService');
 const scopeAuthority = require('../services/scopeAuthority');
@@ -313,6 +316,37 @@ router.delete('/forms/:id', async (req, res, next) => {
 });
 
 // ── Flows ───────────────────────────────────────────────────────────────────
+
+const TRIGGER_TYPES = ['event', 'schedule', 'webhook', 'manual'];
+// Sentinel event-column values for non-event triggers (never emitted on the bus).
+const TRIGGER_SENTINELS = { schedule: '_schedule', webhook: '_webhook', manual: '_manual' };
+
+/**
+ * Normalize/validate a flow's trigger + event pair. Returns { trigger, event }
+ * or throws { status:400 }. A webhook trigger gets a server-generated secret
+ * (callers can't choose their own — that's how it stays high-entropy).
+ */
+function resolveTrigger(body, existing = null) {
+  const bad = (message, extra) => { const e = new Error(message); e.status = 400; e.extra = extra; throw e; };
+  const trigger = body.trigger !== undefined ? body.trigger : (existing && existing.trigger) || null;
+  const eventKey = body.event !== undefined ? body.event : (existing && existing.event);
+
+  if (!trigger || trigger.type === undefined || trigger.type === 'event') {
+    if (!events.isKnownEvent(eventKey)) bad(`event '${eventKey}' is not a known hook-bus event`, { known: events.eventKeys() });
+    return { trigger: trigger ? { type: 'event' } : null, event: eventKey };
+  }
+  if (!TRIGGER_TYPES.includes(trigger.type)) bad(`trigger.type must be one of: ${TRIGGER_TYPES.join(', ')}`);
+  if (trigger.type === 'schedule') {
+    if (!flowScheduler.validateCron(trigger.cron)) bad(`trigger.cron '${trigger.cron || ''}' is not a valid cron expression`);
+    return { trigger: { type: 'schedule', cron: trigger.cron }, event: TRIGGER_SENTINELS.schedule };
+  }
+  if (trigger.type === 'webhook') {
+    const prior = existing && existing.trigger && existing.trigger.type === 'webhook' ? existing.trigger.secret : null;
+    return { trigger: { type: 'webhook', secret: prior || crypto.randomBytes(24).toString('hex') }, event: TRIGGER_SENTINELS.webhook };
+  }
+  return { trigger: { type: 'manual' }, event: TRIGGER_SENTINELS.manual };
+}
+
 router.get('/flows', async (req, res, next) => {
   try {
     const where = await scopedListWhere(req);
@@ -321,12 +355,15 @@ router.get('/flows', async (req, res, next) => {
 });
 router.post('/flows', async (req, res, next) => {
   try {
-    const { appId, key, name, event, match = null, actions = [], scopeType = 'platform', enabled = true } = req.body || {};
+    const { appId, key, name, match = null, actions = [], scopeType = 'platform', enabled = true } = req.body || {};
     await assertApp(req, appId);
-    if (!events.isKnownEvent(event)) return res.status(400).json({ error: 'UNKNOWN_EVENT', message: `event '${event}' is not a known hook-bus event`, known: events.eventKeys() });
+    let resolved;
+    try { resolved = resolveTrigger(req.body || {}); }
+    catch (err) { if (err.status === 400) return res.status(400).json({ error: 'BAD_TRIGGER', message: err.message, ...(err.extra || {}) }); throw err; }
     const actionErrors = flowActions.validateActions(actions);
     if (actionErrors.length) return res.status(400).json({ error: 'INVALID_ACTIONS', details: actionErrors, known: flowActions.knownActionTypes() });
-    const flow = await LcFlow.create({ appId, key, name, event, match, actions, scopeType, enabled });
+    const flow = await LcFlow.create({ appId, key, name, event: resolved.event, trigger: resolved.trigger, match, actions, scopeType, enabled });
+    flowScheduler.refresh().catch(() => {});
     res.status(201).json({ flow });
   } catch (e) { if (e.name && e.name.startsWith('Sequelize')) return res.status(400).json({ error: 'BAD_REQUEST', message: e.message }); next(e); }
 });
@@ -339,9 +376,40 @@ router.patch('/flows/:id', async (req, res, next) => {
       const actionErrors = flowActions.validateActions(req.body.actions);
       if (actionErrors.length) return res.status(400).json({ error: 'INVALID_ACTIONS', details: actionErrors, known: flowActions.knownActionTypes() });
     }
+    if (req.body.trigger !== undefined || req.body.event !== undefined) {
+      try {
+        const resolved = resolveTrigger(req.body, flow);
+        flow.trigger = resolved.trigger;
+        flow.event = resolved.event;
+      } catch (err) { if (err.status === 400) return res.status(400).json({ error: 'BAD_TRIGGER', message: err.message, ...(err.extra || {}) }); throw err; }
+    }
     for (const k of ['name', 'match', 'actions', 'enabled', 'scopeType']) if (req.body[k] !== undefined) flow[k] = req.body[k];
     await flow.save();
+    flowScheduler.refresh().catch(() => {});
     res.json({ flow });
+  } catch (e) { next(e); }
+});
+// Manual/test execution — runs the flow NOW against a caller-supplied sample
+// context (body.ctx), even if the flow is disabled. Actions have their real
+// side effects; there is no dry-run. Set ctx._ignoreMatch to bypass `match`.
+router.post('/flows/:id/execute', async (req, res, next) => {
+  try {
+    const flow = await LcFlow.findByPk(req.params.id);
+    if (!flow) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, flow.appId);
+    const run = await flowEngine.executeManual(flow, (req.body && req.body.ctx) || {}, { userId: req.userId });
+    res.json({ run });
+  } catch (e) { next(e); }
+});
+// Run history (newest first). ?limit ≤ 100.
+router.get('/flows/:id/runs', async (req, res, next) => {
+  try {
+    const flow = await LcFlow.findByPk(req.params.id);
+    if (!flow) return res.status(404).json({ error: 'NOT_FOUND' });
+    await assertApp(req, flow.appId);
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const runs = await LcFlowRun.findAll({ where: { flowId: flow.id }, order: [['createdAt', 'DESC']], limit });
+    res.json({ runs });
   } catch (e) { next(e); }
 });
 router.get('/flows/:id', async (req, res, next) => {
@@ -358,6 +426,7 @@ router.delete('/flows/:id', async (req, res, next) => {
     if (!flow) return res.status(404).json({ error: 'NOT_FOUND' });
     await assertApp(req, flow.appId);
     await flow.destroy();
+    flowScheduler.refresh().catch(() => {});
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -368,6 +437,7 @@ router.get('/catalog', (req, res) => {
   res.json({
     events: events.eventKeys(),
     actions: flowActions.knownActionTypes(),
+    triggerTypes: TRIGGER_TYPES,
     capabilities: capabilities.capabilityKeys(),
     storageModes: recordStore.MODES,
     fieldTypes: typeSystem.FIELD_TYPES,

@@ -519,7 +519,10 @@ export function FilesPage() {
                 <TableHead>
                   <TableRow>
                     <TableCell padding="checkbox" />
-                    <TableCell>Name</TableCell>
+                    {/* Keep names readable: without a floor the break-all name
+                        cell collapses to one character per line when Type/Modified
+                        content is wide. */}
+                    <TableCell sx={{ minWidth: 220 }}>Name</TableCell>
                     <TableCell>Type</TableCell>
                     <TableCell align="right">Size</TableCell>
                     <TableCell>{view === 'trash' ? 'Deleted' : 'Modified'}</TableCell>
@@ -635,8 +638,10 @@ export function FilesPage() {
                             </Link>
                           )}
                         </TableCell>
-                        <TableCell sx={{ color: 'text.secondary' }}>{f.mimetype ?? '—'}</TableCell>
-                        <TableCell align="right">{formatBytes(f.size)}</TableCell>
+                        {/* Mimetypes have few break points; without 'anywhere' the
+                            column's minimum width crowds out Name and Actions. */}
+                        <TableCell sx={{ color: 'text.secondary', overflowWrap: 'anywhere' }}>{f.mimetype ?? '—'}</TableCell>
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{formatBytes(f.size)}</TableCell>
                         <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
                           {formatDate(view === 'trash' ? f.deletedAt : f.updatedAt || f.createdAt)}
                         </TableCell>

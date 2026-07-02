@@ -34,10 +34,10 @@ export interface GraphEdge {
 }
 
 export const KIND_ACCENT: Record<NodeKind, string> = {
-  trigger: 'var(--exprsn-info, #2563eb)',
-  condition: 'var(--exprsn-warning, #d97706)',
-  action: 'var(--exprsn-success, #16a34a)',
-  parallel: 'var(--exprsn-primary, #7c3aed)',
-  step: 'var(--exprsn-info, #2563eb)',
-  end: 'var(--exprsn-gray-500, #6b7280)',
+  trigger: 'var(--exprsn-info, #3b82f6)',
+  condition: 'var(--exprsn-warning, #f59e0b)',
+  action: 'var(--exprsn-success, #10b981)',
+  parallel: 'var(--exprsn-secondary, #7c3aed)',
+  step: 'var(--exprsn-info, #3b82f6)',
+  end: 'var(--exprsn-gray-500, #737373)',
 };

@@ -41,7 +41,10 @@ type Op =
   // (as an ImageBitmap-able canvas) and the new dimensions.
   | { kind: 'crop'; image: HTMLCanvasElement; width: number; height: number };
 
-const SWATCHES = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#111827', '#ffffff'];
+// Concrete hex (not var()) because these are baked into exported canvas pixels;
+// values mirror the Unified tokens: danger, warning, accent-green, info,
+// accent-purple, black, white.
+const SWATCHES = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#0a0a0a', '#ffffff'];
 const STROKE_WIDTHS = [2, 4, 8, 14];
 
 /**
@@ -435,7 +438,7 @@ export function ImageAnnotator({
                   cursor: 'pointer',
                   border: '2px solid',
                   borderColor: color === c ? 'primary.main' : 'divider',
-                  boxShadow: c === '#ffffff' ? 'inset 0 0 0 1px rgba(0,0,0,0.2)' : undefined,
+                  boxShadow: c === '#ffffff' ? 'inset 0 0 0 1px color-mix(in srgb, var(--exprsn-black) 20%, transparent)' : undefined,
                 }}
               />
             ))}

@@ -32,7 +32,7 @@ function CanvasNode({ data }: NodeProps<GraphNodeData>) {
         <Stack>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             {data.badge && (
-              <Box component="span" sx={{ fontSize: 10, fontWeight: 700, color: '#fff', bgcolor: accent, px: 0.75, py: 0.25, borderRadius: 1, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+              <Box component="span" sx={{ fontSize: 10, fontWeight: 700, color: 'var(--exprsn-text-inverse)', bgcolor: accent, px: 0.75, py: 0.25, borderRadius: 1, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                 {data.badge}
               </Box>
             )}

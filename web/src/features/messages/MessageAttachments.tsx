@@ -68,7 +68,7 @@ function ImageAttachment({ a, mine }: { a: ChatAttachment; mine: boolean }) {
           borderRadius: 1.5,
           overflow: 'hidden',
           cursor: 'pointer',
-          bgcolor: mine ? 'rgba(255,255,255,0.15)' : 'action.hover',
+          bgcolor: mine ? 'color-mix(in srgb, var(--exprsn-white) 15%, transparent)' : 'action.hover',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -140,7 +140,7 @@ function FileAttachment({ a, mine }: { a: ChatAttachment; mine: boolean }) {
         px: 1.25,
         py: 1,
         borderRadius: 1.5,
-        bgcolor: mine ? 'rgba(255,255,255,0.15)' : 'action.hover',
+        bgcolor: mine ? 'color-mix(in srgb, var(--exprsn-white) 15%, transparent)' : 'action.hover',
         minWidth: 200,
         maxWidth: 280,
       }}

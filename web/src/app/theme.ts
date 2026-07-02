@@ -1,5 +1,5 @@
 import { createTheme, type Theme } from '@mui/material/styles';
-import { exprsnTokens, FONT_FAMILY, FONT_FAMILY_MONO, type ThemeMode } from './tokens';
+import { exprsnTokens, FONT_FAMILY, FONT_FAMILY_MONO, WHITE, BLACK, type ThemeMode } from './tokens';
 
 /**
  * Builds the MUI theme from the Exprsn Unified design tokens (src/app/tokens.ts
@@ -14,12 +14,13 @@ export function buildTheme(mode: ThemeMode): Theme {
   return createTheme({
     palette: {
       mode,
-      primary: { main: t.primary, light: t.primaryLight, dark: t.primaryDark, contrastText: '#ffffff' },
-      secondary: { main: t.secondary, dark: t.secondaryHover, contrastText: '#ffffff' },
-      success: { main: t.success, contrastText: '#ffffff' },
-      error: { main: t.danger, contrastText: '#ffffff' },
-      warning: { main: t.warning, contrastText: '#0a0a0a' },
-      info: { main: t.info, contrastText: '#ffffff' },
+      common: { white: WHITE, black: BLACK },
+      primary: { main: t.primary, light: t.primaryLight, dark: t.primaryDark, contrastText: WHITE },
+      secondary: { main: t.secondary, dark: t.secondaryHover, contrastText: WHITE },
+      success: { main: t.success, contrastText: WHITE },
+      error: { main: t.danger, contrastText: WHITE },
+      warning: { main: t.warning, contrastText: BLACK },
+      info: { main: t.info, contrastText: WHITE },
       background: { default: t.bgSecondary, paper: t.surfaceRaised },
       text: { primary: t.textPrimary, secondary: t.textSecondary, disabled: t.textMuted },
       divider: t.border,
@@ -36,6 +37,18 @@ export function buildTheme(mode: ThemeMode): Theme {
       button: { fontWeight: 600, textTransform: 'none' },
     },
     components: {
+      // MUI ButtonBase suppresses the native outline, hiding keyboard focus; the
+      // style guide requires a visible brand ring on buttons (WCAG 2.1 AA).
+      MuiButtonBase: {
+        styleOverrides: {
+          root: {
+            '&.Mui-focusVisible': {
+              outline: '2px solid var(--exprsn-primary)',
+              outlineOffset: 2,
+            },
+          },
+        },
+      },
       MuiButton: {
         defaultProps: { disableElevation: true },
         styleOverrides: {

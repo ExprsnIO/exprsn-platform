@@ -36,7 +36,7 @@ export function VideoTile({
       sx={{
         position: 'relative',
         aspectRatio: '16 / 9',
-        bgcolor: 'black',
+        bgcolor: 'common.black',
         borderRadius: 1,
         overflow: 'hidden',
       }}
@@ -68,7 +68,7 @@ export function VideoTile({
         <Chip
           size="small"
           label={label}
-          sx={{ bgcolor: 'rgba(0,0,0,0.6)', color: 'white' }}
+          sx={{ bgcolor: 'color-mix(in srgb, var(--exprsn-black) 60%, transparent)', color: 'common.white' }}
         />
         {!audioEnabled && (
           <MicOffIcon sx={{ color: 'error.light', fontSize: 18 }} titleAccess="Muted" />

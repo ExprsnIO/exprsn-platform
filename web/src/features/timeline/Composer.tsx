@@ -149,9 +149,9 @@ export function Composer({ onPosted }: { onPosted: (post: Post) => void }) {
                     position: 'absolute',
                     top: 2,
                     right: 2,
-                    bgcolor: 'rgba(0,0,0,0.55)',
+                    bgcolor: 'color-mix(in srgb, var(--exprsn-black) 55%, transparent)',
                     color: 'common.white',
-                    '&:hover': { bgcolor: 'rgba(0,0,0,0.75)' },
+                    '&:hover': { bgcolor: 'color-mix(in srgb, var(--exprsn-black) 75%, transparent)' },
                   }}
                 >
                   <CloseIcon sx={{ fontSize: 16 }} />

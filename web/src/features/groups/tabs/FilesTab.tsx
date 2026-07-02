@@ -141,7 +141,7 @@ export default function FilesTab({ groupId, ctx }: GroupTabProps) {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
+                  <TableCell sx={{ minWidth: 220 }}>Name</TableCell>
                   <TableCell>Type</TableCell>
                   <TableCell align="right">Size</TableCell>
                   <TableCell>Modified</TableCell>
@@ -159,8 +159,8 @@ export default function FilesTab({ groupId, ctx }: GroupTabProps) {
                         <InsertDriveFileOutlinedIcon fontSize="small" color="action" />
                         <span style={{ wordBreak: 'break-all' }}>{f.name}</span>
                       </TableCell>
-                      <TableCell sx={{ color: 'text.secondary' }}>{f.mimetype ?? '—'}</TableCell>
-                      <TableCell align="right">{formatBytes(f.size)}</TableCell>
+                      <TableCell sx={{ color: 'text.secondary', overflowWrap: 'anywhere' }}>{f.mimetype ?? '—'}</TableCell>
+                      <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{formatBytes(f.size)}</TableCell>
                       <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
                         {formatDate(f.updatedAt || f.createdAt)}
                       </TableCell>

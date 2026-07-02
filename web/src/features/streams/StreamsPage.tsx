@@ -192,7 +192,7 @@ function DiscoverGrid({ onWatch }: { onWatch: (s: Stream) => void }) {
           sx={{ overflow: 'hidden', cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
           onClick={() => onWatch(s)}
         >
-          <Box sx={{ position: 'relative', aspectRatio: '16 / 9', bgcolor: '#000' }}>
+          <Box sx={{ position: 'relative', aspectRatio: '16 / 9', bgcolor: 'common.black' }}>
             {s.thumbnail_url ? (
               <Box component="img" src={s.thumbnail_url} alt={s.title} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
@@ -205,7 +205,7 @@ function DiscoverGrid({ onWatch }: { onWatch: (s: Stream) => void }) {
               size="small"
               icon={<VisibilityIcon />}
               label={s.currentViewers ?? s.viewer_count ?? 0}
-              sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: 'rgba(0,0,0,0.6)', color: '#fff' }}
+              sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: 'color-mix(in srgb, var(--exprsn-black) 60%, transparent)', color: 'common.white' }}
             />
           </Box>
           <Box sx={{ p: 1.5 }}>

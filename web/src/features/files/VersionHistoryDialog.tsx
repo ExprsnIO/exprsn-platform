@@ -52,9 +52,9 @@ function DiffView({ changes }: { changes: VersionDiffChange[] }) {
             ? 'error.main'
             : 'text.secondary';
         const bg = c.added
-          ? 'rgba(46,160,67,0.12)'
+          ? 'color-mix(in srgb, var(--exprsn-success) 12%, transparent)'
           : c.removed
-            ? 'rgba(248,81,73,0.12)'
+            ? 'color-mix(in srgb, var(--exprsn-danger) 12%, transparent)'
             : 'transparent';
         // Prefix each line of the hunk with the +/-/space marker.
         const lines = c.value.replace(/\n$/, '').split('\n');

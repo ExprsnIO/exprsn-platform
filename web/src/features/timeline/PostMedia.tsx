@@ -95,7 +95,7 @@ function PlayBadge({ live }: { live?: boolean }) {
           width: 48,
           height: 48,
           borderRadius: '50%',
-          bgcolor: 'rgba(0,0,0,0.55)',
+          bgcolor: 'color-mix(in srgb, var(--exprsn-black) 55%, transparent)',
           color: 'common.white',
           display: 'flex',
           alignItems: 'center',
@@ -201,7 +201,7 @@ function LiveCard({ item }: { item: PostMedia }) {
                 right: 0,
                 p: 1,
                 color: 'common.white',
-                background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                background: 'linear-gradient(transparent, color-mix(in srgb, var(--exprsn-black) 70%, transparent))',
               }}
               noWrap
             >
@@ -330,7 +330,7 @@ function Lightbox({
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  bgcolor: i === index ? 'common.white' : 'rgba(255,255,255,0.4)',
+                  bgcolor: i === index ? 'common.white' : 'color-mix(in srgb, var(--exprsn-white) 40%, transparent)',
                 }}
               />
             ))}
@@ -397,7 +397,7 @@ export function PostMediaGrid({ media }: { media: PostMedia[] }) {
                     sx={{
                       position: 'absolute',
                       inset: 0,
-                      bgcolor: 'rgba(0,0,0,0.55)',
+                      bgcolor: 'color-mix(in srgb, var(--exprsn-black) 55%, transparent)',
                       color: 'common.white',
                       display: 'flex',
                       alignItems: 'center',

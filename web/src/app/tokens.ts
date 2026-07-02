@@ -30,7 +30,10 @@ interface ExprsnPalette {
   borderStrong: string;
 }
 
-// Constant across modes (semantic + accent stay fixed per the style guide).
+// Constant across modes (semantic + accent + neutrals stay fixed per the style guide).
+export const WHITE = '#ffffff';
+export const BLACK = '#0a0a0a';
+
 const constants = {
   primaryLight: '#4d94ff',
   primaryDark: '#0047b3',

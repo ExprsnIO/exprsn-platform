@@ -8,9 +8,17 @@ export function personInitials(name?: string | null, fallbackId?: string): strin
   return (fallbackId ?? '?').slice(0, 2).toUpperCase();
 }
 
-/** A stable-ish avatar background color derived from an id. */
+/** A stable-ish avatar background color derived from an id (Unified accent tokens). */
 export function avatarColor(id?: string): string {
-  const palette = ['#5b8def', '#9b59b6', '#16a085', '#e67e22', '#e74c3c', '#2c82c9', '#27ae60'];
+  const palette = [
+    'var(--exprsn-primary)',
+    'var(--exprsn-accent-purple)',
+    'var(--exprsn-accent-green)',
+    'var(--exprsn-accent-orange)',
+    'var(--exprsn-accent-pink)',
+    'var(--exprsn-accent-cyan)',
+    'var(--exprsn-secondary)',
+  ];
   if (!id) return palette[0];
   let hash = 0;
   for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;

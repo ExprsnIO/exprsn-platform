@@ -43,13 +43,13 @@ export function HlsPlayer({ src }: { src: string | null }) {
   }, [src]);
 
   return (
-    <Box sx={{ position: 'relative', bgcolor: '#000', borderRadius: 2, overflow: 'hidden', aspectRatio: '16 / 9' }}>
+    <Box sx={{ position: 'relative', bgcolor: 'common.black', borderRadius: 2, overflow: 'hidden', aspectRatio: '16 / 9' }}>
       <video
         ref={videoRef}
         controls
         playsInline
         muted
-        style={{ width: '100%', height: '100%', display: 'block', background: '#000' }}
+        style={{ width: '100%', height: '100%', display: 'block', background: 'var(--exprsn-black)' }}
       />
       {waiting && (
         <Box

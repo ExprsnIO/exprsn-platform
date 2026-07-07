@@ -600,7 +600,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   pull in only if the sprint gains slack. Route to sr-developer at BUILD.
 
 ### BUG-003 — /live WebRTC relay to client-supplied `to` lacks shared-room check
-- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `b682236`; qa verify pending) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done (landed `b682236`; QA-verified 2026-07-07 — 52/52 green + canRelayTo bypass review clean) · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** `/live` signaling relays to a client-supplied `to` socket id
@@ -617,7 +617,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   to systems-architect before landing.
 
 ### BUG-004 — Seed scripts ship a default password with no prod guard
-- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `e845a33`; qa verify pending) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done (landed `e845a33` + QA follow-up `b534b56` extending the prod refusal to the 5 demo seeders; QA-verified across all 8 entry points 2026-07-07) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** `scripts/seed/common.js` carries a committed default password
@@ -631,7 +631,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   architect/DBA gate.
 
 ### BUG-005 — Permission-inspect endpoints leak another user's permissions
-- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `b24a828`; qa verify pending) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done (landed `b24a828`; QA-verified 2026-07-07 — suite green + bypass review clean) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** In `auth/src/routes/roles.js`, `GET /users/:userId/permissions`
@@ -936,7 +936,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - If automated, the run is wired into CI (`.github/workflows/ci.yml`).
 
 ### TASK-002 — Stabilize the remaining auth Jest suites
-- **Type:** task · **Status:** in-review → `active/sprint-2026-07.md` (landed `ed1f477`; qa verify pending) · **Priority:** P1 · **Size:** M
+- **Type:** task · **Status:** done (landed `ed1f477`; QA-verified 2026-07-07 — full suite 14/267 green re-run, product diffs reviewed as tightening) · **Priority:** P1 · **Size:** M
 - **CI note (per AC, 2026-07-07):** the auth portion can move toward **blocking** with two prerequisites: (1) the CI test job must create `exprsn_auth_test` + export `AUTH_DB_*` (service containers exist; the bootstrap step doesn't), and (2) runs must stay strictly serialized per DB — two jest invocations sharing the test DB corrupt each other (each suite drops/recreates the `auth` schema in `beforeAll`). Recommend a split gate: auth blocking now, other modules non-blocking until their stale-test backlogs get the same treatment (`scripts/test-all.js` needs per-module status reporting for that).
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** #9 note (auth stabilization)
@@ -1021,7 +1021,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - Bottlenecks filed as fresh tickets; single-instance MVP-load sign-off.
 
 ### TASK-013 — Nexus calendar/contacts: document subscription URLs + clean up broken JSON "DAV" scaffolding
-- **Type:** task · **Status:** in-review → `active/sprint-2026-07.md` (landed `cbf49d3`; qa verify pending) · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** done (landed `cbf49d3` + doc fix `95ceb97` removing the unsupported `?token=` claim; QA-verified 2026-07-07) · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** FEAT-001 Slice 0 (see `sprints/assessments/FEAT-001.md`) · STATUS "group Calendar tab" note
 - **Description:** The cost-benefit-analyzer's "do now" slice of the FEAT-001 DAV

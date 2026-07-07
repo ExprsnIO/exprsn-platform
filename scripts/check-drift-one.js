@@ -129,10 +129,25 @@ function findSequelize(exported) {
       const idxCols = (di.fields || []).map(norm).filter(Boolean);
       if (idxCols.length) declaredSets.push(new Set(idxCols));
     }
-    // attribute-level unique also creates an index
+    // attribute-level unique also creates an index. Sequelize represents a
+    // COMPOSITE unique (e.g. a two-column PK declared via dual primaryKey:true,
+    // or `unique: 'name'`) as a shared STRING name on each participating
+    // attribute — `a.unique === '<name>'`; only `a.unique === true` (boolean)
+    // is a genuine single-column unique. Group by the shared name so a composite
+    // unique yields ONE expected set (matching the live composite index), not a
+    // false single-column expectation per column (BUG-007).
+    const uniqueGroups = new Map(); // unique-name -> Set(fields)
     for (const a of Object.values(attrs)) {
-      if (a.unique && a.field) declaredSets.push(new Set([a.field]));
+      if (!a.unique || !a.field) continue;
+      if (a.unique === true) {
+        declaredSets.push(new Set([a.field]));
+      } else {
+        const key = String(a.unique);
+        if (!uniqueGroups.has(key)) uniqueGroups.set(key, new Set());
+        uniqueGroups.get(key).add(a.field);
+      }
     }
+    for (const s of uniqueGroups.values()) declaredSets.push(s);
     const missingIndexes = declaredSets
       .filter((ds) => !liveSets.some((ls) => setEq(ds, ls)))
       .map((ds) => [...ds].join('+'));

@@ -900,6 +900,23 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   ticket's AC scope). Crisp, S, no schema/infra — jr-developer candidate; natural
   pull-in if Sprint 2026-07 drains early, alongside `BUG-001`/`BUG-002`.
 
+### BUG-012 — oauth2 `client_credentials` grant request 500s (unimplemented, unhandled)
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** found during TASK-002 suite stabilization 2026-07-07
+- **Description:** The oauth2-server model in `services/auth` has no
+  `getUserFromClient`, so `POST /auth/api/oauth2/token` with
+  `grant_type=client_credentials` from an authorized client throws instead of
+  returning a proper OAuth error. The stabilized `oauth2.test.js` covers the
+  `unauthorized_client` rejection path only.
+- **Acceptance criteria:**
+  - `client_credentials` either implemented (model `getUserFromClient`) or
+    explicitly rejected with a spec-correct `unsupported_grant_type` /
+    `unauthorized_client` error — no 500 / unhandled throw.
+  - Test covers the chosen behavior.
+- **Notes:** Filed 2026-07-07 from the TASK-002 report. Decide implement-vs-reject
+  with PM; either way S-sized, jr/sr candidate.
+
 ---
 
 ## Tasks
@@ -919,7 +936,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - If automated, the run is wired into CI (`.github/workflows/ci.yml`).
 
 ### TASK-002 — Stabilize the remaining auth Jest suites
-- **Type:** task · **Status:** in-progress → `active/sprint-2026-07.md` · **Priority:** P1 · **Size:** M
+- **Type:** task · **Status:** in-review → `active/sprint-2026-07.md` (landed `ed1f477`; qa verify pending) · **Priority:** P1 · **Size:** M
+- **CI note (per AC, 2026-07-07):** the auth portion can move toward **blocking** with two prerequisites: (1) the CI test job must create `exprsn_auth_test` + export `AUTH_DB_*` (service containers exist; the bootstrap step doesn't), and (2) runs must stay strictly serialized per DB — two jest invocations sharing the test DB corrupt each other (each suite drops/recreates the `auth` schema in `beforeAll`). Recommend a split gate: auth blocking now, other modules non-blocking until their stale-test backlogs get the same treatment (`scripts/test-all.js` needs per-module status reporting for that).
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** #9 note (auth stabilization)
 - **Description:** Since `SP-6`/`#9`, `services/auth/tests/session.test.js` is green,
@@ -1252,6 +1270,23 @@ sign-off.)*
     is already keyed by `sourceService`/`contentId`; the new values are just data).
   - `sourceService` discriminators: `timeline` / `filevault` / `spark` (distinct from atproto's
     `bluesky`) keep idempotency keys from colliding. Sized **L** → route to **sr-developer**.
+
+### TASK-020 — Fix-or-delete the broken dead `auth` rbac middleware
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** found during TASK-002 suite stabilization 2026-07-07
+- **Description:** `services/auth/src/middleware/rbac.js` imports `getRbacService`
+  and calls `hasAnyPermission` / `hasAllRoles` / `isOrganizationMember` /
+  `isGroupMember` / `getUserRoles` — none of which `rbacService.js` exports. No
+  route currently uses it, but any future consumer gets a runtime TypeError. The
+  stabilized `rbac.test.js` covers only the service-independent pieces
+  (`requireOwnership`, `anyOf`, `allOf`) and documents this in its header.
+- **Acceptance criteria:**
+  - Either the middleware is reconciled against the real `rbacService` API (with
+    tests for the service-backed guards) or the dead functions are deleted; no
+    exported function calls a nonexistent service method.
+- **Notes:** Filed 2026-07-07 from the TASK-002 report. Dead-code hygiene, S,
+  jr-developer candidate.
 
 ---
 

@@ -600,7 +600,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   pull in only if the sprint gains slack. Route to sr-developer at BUILD.
 
 ### BUG-003 — /live WebRTC relay to client-supplied `to` lacks shared-room check
-- **Type:** bug · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-progress → `active/sprint-2026-07.md` · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** `/live` signaling relays to a client-supplied `to` socket id
@@ -617,7 +617,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   to systems-architect before landing.
 
 ### BUG-004 — Seed scripts ship a default password with no prod guard
-- **Type:** bug · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `e845a33`; qa verify pending) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** `scripts/seed/common.js` carries a committed default password
@@ -631,7 +631,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   architect/DBA gate.
 
 ### BUG-005 — Permission-inspect endpoints leak another user's permissions
-- **Type:** bug · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `b24a828`; qa verify pending) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** In `auth/src/routes/roles.js`, `GET /users/:userId/permissions`
@@ -882,6 +882,24 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   the doc update with **TASK-017** (API_SURFACE moderator-auth note) once landed.
   FEAT-010/FEAT-015/FEAT-012/FEAT-020 depend on this router's final auth posture.
 
+### BUG-011 — `POST /auth/api/roles/check-service-access` trusts a body-supplied `userId` (same shape as BUG-005)
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** sibling of BUG-005 (permission-inspect info disclosure); found during BUG-005 implementation 2026-07-07
+- **Description:** In `services/auth/src/routes/roles.js` (~L576),
+  `POST /check-service-access` reads `userId = req.user.id` **defaulting from the
+  body** with no self-or-admin check — the identical shape BUG-005 just fixed on
+  `GET /users/:userId/permissions` and `POST /check-permission`. Any authenticated
+  user can probe another user's service-access grants (info disclosure).
+- **Acceptance criteria:**
+  - The endpoint is restricted self-or-admin, reusing the `canInspectPermissions`
+    helper added by BUG-005 (`services/auth/src/routes/roles.js`).
+  - Test added to `services/auth/tests/permissionInspect.test.js`: a non-admin
+    cannot check another user's service access (403).
+- **Notes:** Filed 2026-07-07 from the BUG-005 implementation report (out of that
+  ticket's AC scope). Crisp, S, no schema/infra — jr-developer candidate; natural
+  pull-in if Sprint 2026-07 drains early, alongside `BUG-001`/`BUG-002`.
+
 ---
 
 ## Tasks
@@ -901,7 +919,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - If automated, the run is wired into CI (`.github/workflows/ci.yml`).
 
 ### TASK-002 — Stabilize the remaining auth Jest suites
-- **Type:** task · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P1 · **Size:** M
+- **Type:** task · **Status:** in-progress → `active/sprint-2026-07.md` · **Priority:** P1 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** #9 note (auth stabilization)
 - **Description:** Since `SP-6`/`#9`, `services/auth/tests/session.test.js` is green,
@@ -985,7 +1003,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - Bottlenecks filed as fresh tickets; single-instance MVP-load sign-off.
 
 ### TASK-013 — Nexus calendar/contacts: document subscription URLs + clean up broken JSON "DAV" scaffolding
-- **Type:** task · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** in-review → `active/sprint-2026-07.md` (landed `cbf49d3`; qa verify pending) · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** FEAT-001 Slice 0 (see `sprints/assessments/FEAT-001.md`) · STATUS "group Calendar tab" note
 - **Description:** The cost-benefit-analyzer's "do now" slice of the FEAT-001 DAV

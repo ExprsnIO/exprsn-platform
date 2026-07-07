@@ -73,7 +73,9 @@ class LabelerConsumer {
     logger.info('Labeler consumer connecting', { url });
     this.attempts = (this.attempts || 0) + 1;
     this._update({ status: 'connecting', connectAttempts: this.attempts });
-    this.ws = new WebSocket(url);
+    // maxPayload bounds a single inbound frame from the remote labeler
+    // (ws defaults to 100 MiB — a hostile/buggy peer could OOM us).
+    this.ws = new WebSocket(url, { maxPayload: config.limits.labelWsMaxPayload });
     this.ws.binaryType = 'nodebuffer';
 
     this.ws.on('open', () => {

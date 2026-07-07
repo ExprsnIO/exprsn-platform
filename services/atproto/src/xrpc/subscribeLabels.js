@@ -18,6 +18,7 @@
 
 const { WebSocketServer } = require('ws');
 const { Op } = require('sequelize');
+const config = require('../../config');
 const logger = require('../../utils/logger');
 const labelService = require('../labeler/labelService');
 const labelBus = require('../labeler/labelBus');
@@ -27,7 +28,9 @@ const PATH = '/xrpc/com.atproto.label.subscribeLabels';
 const BACKFILL_PAGE = 500;
 
 function createSubscribeLabelsServer(models) {
-  const wss = new WebSocketServer({ noServer: true });
+  // maxPayload bounds inbound frames from subscribers (we never expect any,
+  // but without it `ws` buffers up to 100 MiB per frame — DoS guard).
+  const wss = new WebSocketServer({ noServer: true, maxPayload: config.limits.labelWsMaxPayload });
 
   async function frame(seq, label) {
     const { dagCbor } = await load();
@@ -40,6 +43,14 @@ function createSubscribeLabelsServer(models) {
     const url = new URL(req.url, 'http://localhost');
     const cursorParam = url.searchParams.get('cursor');
     let cursor = cursorParam != null && cursorParam !== '' ? cursorParam : null;
+
+    // A non-numeric cursor would crash BigInt(cursor) below (and error the
+    // backfill query). Reject it cleanly instead of throwing.
+    if (cursor != null && !/^\d+$/.test(cursor)) {
+      logger.warn('subscribeLabels rejected invalid cursor', { cursor: String(cursor).slice(0, 64) });
+      try { ws.close(1008, 'invalid_cursor'); } catch (_) { /* noop */ }
+      return;
+    }
 
     const send = async (row) => {
       if (ws.readyState !== ws.OPEN) return;

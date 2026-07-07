@@ -57,4 +57,37 @@ describe('PdsClient', () => {
     });
     await expect(pds.login('x', 'y')).rejects.toThrow('bad creds');
   });
+
+  test('oversized response body is rejected (streamed cap), not buffered', async () => {
+    // An endless response stream — without the cap this would buffer forever.
+    const chunk = new Uint8Array(64 * 1024);
+    let cancelled = false;
+    const res = {
+      ok: true,
+      status: 200,
+      body: {
+        getReader() {
+          return {
+            async read() { return { done: false, value: chunk }; },
+            async cancel() { cancelled = true; },
+          };
+        },
+      },
+      text: async () => { throw new Error('must not slurp the body'); },
+    };
+    const pds = new PdsClient({
+      url: 'https://pds.example',
+      fetchImpl: async () => res,
+      maxBodyBytes: 4096,
+    });
+    await expect(pds.getRecommendedDidCredentials()).rejects.toThrow(/exceeded 4096 bytes/);
+    expect(cancelled).toBe(true);
+  });
+
+  test('body cap defaults from config (ATPROTO_PDS_MAX_BODY_BYTES)', () => {
+    const config = require('../config');
+    const pds = new PdsClient({ url: 'https://pds.example' });
+    expect(pds.maxBodyBytes).toBe(config.limits.pdsMaxBodyBytes);
+    expect(config.limits.pdsMaxBodyBytes).toBeGreaterThan(0);
+  });
 });

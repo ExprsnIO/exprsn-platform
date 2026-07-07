@@ -13,11 +13,15 @@
  * ═══════════════════════════════════════════════════════════
  */
 
+const config = require('../../config');
+const { readCapped } = require('../util/safeFetch');
+
 class PdsClient {
-  constructor({ url, fetchImpl = fetch }) {
+  constructor({ url, fetchImpl = fetch, maxBodyBytes = config.limits.pdsMaxBodyBytes }) {
     if (!url) throw new Error('PDS url is required');
     this.url = url.replace(/\/+$/, '');
     this.fetch = fetchImpl;
+    this.maxBodyBytes = maxBodyBytes;
     this.session = null;
   }
 
@@ -34,7 +38,16 @@ class PdsClient {
       headers,
       body: body ? JSON.stringify(body) : undefined,
     });
-    const text = await res.text();
+    // Bounded read: never buffer an oversized upstream response (DoS guard).
+    let text;
+    try {
+      text = await readCapped(res, this.maxBodyBytes);
+    } catch (err) {
+      if (err.message === 'response_too_large') {
+        throw new Error(`XRPC ${nsid} response exceeded ${this.maxBodyBytes} bytes`);
+      }
+      throw err;
+    }
     const json = text ? JSON.parse(text) : {};
     if (!res.ok) {
       const err = new Error(json.message || json.error || `XRPC ${nsid} ${res.status}`);

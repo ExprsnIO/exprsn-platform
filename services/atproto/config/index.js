@@ -125,6 +125,20 @@ const config = {
     appviewUrl: process.env.ATPROTO_APPVIEW_URL || 'https://public.api.bsky.app',
   },
 
+  // ── Input size caps (DoS guards) ───────────────────────────────────────
+  // Bounds on data we buffer from remote peers. Oversized upstream responses /
+  // frames are rejected instead of buffering unbounded.
+  limits: {
+    // Max bytes read from a PDS XRPC response body (pdsClient).
+    pdsMaxBodyBytes: num(process.env.ATPROTO_PDS_MAX_BODY_BYTES, 1_000_000),
+    // Max bytes read from an AppView response body (appviewClient).
+    appviewMaxBodyBytes: num(process.env.ATPROTO_APPVIEW_MAX_BODY_BYTES, 1_000_000),
+    // Max ws frame size (bytes) on the label streams: inbound frames from
+    // external labelers (labelConsumer) and inbound frames on our own
+    // subscribeLabels server. `ws` defaults to 100 MiB without this.
+    labelWsMaxPayload: num(process.env.ATPROTO_LABEL_WS_MAX_PAYLOAD, 1_000_000),
+  },
+
   // ── Moderation dead-letter queue (RabbitMQ) ───────────────────────────
   // When a 'moderate-atproto' Bull job exhausts its retries, the failed DID
   // item is routed to a RabbitMQ dead-letter queue so it isn't silently lost.

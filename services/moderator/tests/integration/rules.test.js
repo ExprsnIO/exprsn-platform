@@ -193,16 +193,13 @@ describe('Rule Engine Service Integration', () => {
     });
   });
 
-  describe('applyCustomRules', () => {
-    it('aggregates custom rule results', async () => {
-      const result = await ruleEngineService.applyCustomRules(
-        { contentType: 'post', contentText: 'text' },
-        [{ name: 'custom-1', action: 'flag' }]
-      );
-
-      expect(result).toHaveProperty('matched');
-      expect(result).toHaveProperty('rules');
-      expect(result).toHaveProperty('count');
-    });
-  });
+  // NOTE (BUG-008): no `applyCustomRules` describe block here — that method
+  // never existed on `ruleEngineService` (confirmed against the source; the
+  // real API is `evaluateRules`/`applyKeywordFilters`/`applyRegexFilters`).
+  // The behavior it was meant to cover — aggregating multiple custom rules
+  // and picking a winner — is already exercised above via `evaluateRules`
+  // ("returns the highest-priority matching rule first", two simultaneously
+  // matching rules). The private `_applyCustomRules` wrapper on
+  // `moderationService` (a thin call into `evaluateRules`) is covered via
+  // `moderateContent` in `tests/integration/moderation.test.js`.
 });

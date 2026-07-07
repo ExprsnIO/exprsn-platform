@@ -9,8 +9,9 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
-> product-manager grooms `backlog → ready` and commits `ready` tickets into the
-> active sprint (`active/sprint-2026-07.md`).
+> product-manager grooms `backlog → ready` and commits `ready` tickets into an
+> active sprint. In-flight: `active/sprint-2026-07.md` (in-house/deploy-path slice)
+> and `active/sprint-2026-08.md` (user-safety P1 moderation slice — BUG-010 + FEAT-010).
 
 ---
 
@@ -188,6 +189,374 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   (where the scanner runs); no schema change expected. If the analyzer finds it's pure
   must-do hardening with no real alternative it may be re-typed TASK, but the gate stands
   until assessed. Sized **M** for one scanner integration; route to sr-developer.
+
+*(Moderation gap-analysis intake — 2026-07-07. FEATs filed `backlog` with
+`Cost/Benefit: pending`; per the gate they cannot leave `backlog` until the
+cost-benefit-analyzer attaches an assessment. Grouped by the analysis's three tiers
+— Tier 1 = MVP-blocking for public UGC, Tier 2 = ops maturity / post-MVP, Tier 3 =
+compliance & analytics. Existing tickets **SPIKE-001** (auth-gate the 6 unauthenticated
+moderator routers), **TASK-014** (real rejection-notice emails), **TASK-017**
+(API_SURFACE moderator-auth doc drift), and **FEAT-007** (FileVault ClamAV scanning)
+are cross-referenced, not re-filed.)*
+
+### FEAT-008 — CSAM perceptual-hash matching (PhotoDNA/PDQ) + NCMEC report hook on every image path *(Tier 1)*
+- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** — *(architect + dba sign-off required before commit)*
+- **Legacy:** moderation gap analysis Tier 1 · relates to FEAT-007 (FileVault upload-path hardening) + FEAT-009 (central pipeline wiring)
+- **Cost/Benefit:** done — **DEFER pending a human legal/provider decision (needs-more-info on the gating item — not an engineering C/B).** The binding cost is external onboarding + legal registration (PhotoDNA access, NCMEC reporting-entity status, CSAM hash-list custody), **not** code. Do not commit engineering until (a) leadership/legal confirms public image UGC is in scope this cycle and (b) a provider path is chosen — strongly prefer a hosted service over self-custody. Revisit trigger: **before any public image upload path is exposed.**
+  - **Cost — engineering is L, but that is NOT the binding constraint.** The binding costs are external/legal: PhotoDNA (Microsoft) is **access-gated** — API keys issued only to vetted, approved organizations via an application, onboarding measured in weeks; a real NCMEC report hook implies becoming a registered US reporting entity (ESP); and known-CSAM **hash lists** (NCMEC/IWF/Thorn) are access-controlled, not downloadable. PDQ (Meta, open-source) removes the hashing-tech gate but solves neither the hash-list nor the reporting-registration problem. Handling also carries strict legal duties (quarantine-not-re-serve, evidence preservation, statutory reporting window) with criminal-liability exposure if mishandled.
+  - **Complexity/risk — HIGHEST of the four, and it is legal/compliance risk more than engineering risk.** Architecturally it is the **opposite posture to FEAT-009**: CSAM must be a **synchronous, fail-closed pre-gate** that blocks before content is ever served — you cannot optimistically publish then retract. So it does **not** ride FEAT-009's async pipeline; it shares the 3 image hook points (coordinate wiring) but is its own blocking check.
+  - **Infra/ops.** A hash store (new table — sync `db:migrate` creates it fine, no ALTER trap) OR **none** if a hosted matcher is used; a synchronous match adds upload latency on every image path (filevault / timeline / spark media); the NCMEC hook is a new fail-closed, audited outbound integration.
+  - **Value — HIGH but conditional/legal.** It is a mandatory-reporting gate that attaches once you host **public** user image uploads. Per the in-house MVP posture (`CLAUDE.md` / MVP-scope memory — no remote, not near public MVP), that trigger has not fired this cycle → the value is latent, not yet due.
+  - **Cheaper alt (build-vs-buy).** A **hosted** CSAM service materially cuts legal surface + onboarding vs. self-hosting PhotoDNA + DIY reporting: **Cloudflare's CSAM Scanning Tool is free for Cloudflare customers** and (per its 2023+ update) **no longer requires the operator to hold NCMEC credentials**; **Thorn Safer** is a commercial API (custom pricing, also on AWS Marketplace); **Hive AI** offers a CSAM-detection API. All trade a per-scan/subscription cost for **zero hash-list custody** and far faster onboarding — strongly recommended over self-custody.
+  - **Smaller slice — do NOT build the matcher speculatively.** The correct "slice" is a gate + a human decision: (1) keep public image UGC **un-exposed** until this lands (scope/feature-flag), and (2) run the legal/registration track (choose provider, reporting-entity status, custody model) as a **prerequisite that must complete before engineering starts**.
+  - **Verdict — DEFER / needs-more-info.** Explicitly **not** a call the analyst can close as build/no-build: the gating decision (provider, NCMEC/reporting registration, custody of CSAM material) is legal/organizational and must be made by a human **with counsel** — escalate. If public image UGC is confirmed for a near cycle, re-scope to a **hosted-provider integration** (likely **M** once access is granted, not L).
+  - **Handoffs — HUMAN / leadership + legal** own the provider + reporting-registration + custody decision (blocking). **systems-architect** — the synchronous fail-closed pre-gate on the 3 image paths + new moderator hashing service (structural; coordinate hook points with FEAT-009 and FEAT-007). **dba** — hash-store table only if self-hosted (new table, no ALTER trap).
+  - **Caveat.** Legally mandatory once public; the expensive, blocking work is **external onboarding/registration, not code**; must not self-custody hash lists or hand-roll NCMEC reporting without counsel.
+- **Description:** No image upload path performs known-CSAM detection. Add perceptual-hash
+  matching (PhotoDNA and/or PDQ) against a known-hash store on **every** image path —
+  FileVault upload, timeline media, spark media — with an NCMEC report hook fired on a
+  positive match. This is a **legal gate before public image UGC** (mandatory reporting).
+  Implemented as a new moderator-side hashing/matching service plus a hash store, invoked
+  from the image upload hooks in filevault/timeline/spark.
+- **Acceptance criteria:**
+  - A moderator-side perceptual-hash service computes PhotoDNA/PDQ hashes and matches them
+    against a hash store; a positive match blocks the upload/publish with a correlation-id'd
+    error and quarantines rather than serving the content.
+  - Every image path is wired: FileVault upload (`services/filevault` upload routes),
+    timeline media, and spark media — verified against `API_SURFACE.md` before wiring; no
+    image path bypasses the check.
+  - A positive match fires an NCMEC report hook (config-driven credentials/endpoint) with
+    the required evidence payload; the reporting flow is fail-closed and audited.
+  - Hash-store and NCMEC enablement are config-driven; when enforcement is on, an
+    unreachable matcher **rejects** (fail-closed), does not silently accept.
+  - Automated test: a seeded known-hash entry blocks a matching image; a benign image passes.
+  - No new open/unauthenticated surface; security invariants unchanged.
+- **Notes:** FEAT — **Cost/Benefit gate applies** (stays `backlog` / `pending` until the
+  cost-benefit-analyzer assesses). Real build-vs-buy tradeoff: PhotoDNA (Microsoft, access-
+  gated) vs. open PDQ (Meta) vs. a hosted CSAM API, each with legal/onboarding and ongoing
+  cost — squarely a C/B question. **Structural** (new moderator service + a new inter-module
+  invocation on three upload paths) → **systems-architect** sign-off; the **hash store** is a
+  new table/store → **dba** sign-off (new table is created by sync `db:migrate`; a hosted
+  store may need none). Sequence alongside FEAT-009 (both wire the upload paths into
+  moderation) and coordinate with FEAT-007 (same FileVault upload path). Sized **L**; route
+  to sr-developer once assessed.
+
+### FEAT-009 — Route filevault + timeline + spark content through the central `moderateContent` pipeline *(Tier 1)*
+- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** — *(architect sign-off required before commit — new inter-module contract)*
+- **Legacy:** moderation gap analysis Tier 1 · reference pattern `services/atproto/src/ingest/moderationBridge.js` · relates to FEAT-016 (image/video productionization)
+- **Cost/Benefit:** done — **proceed (MVP slice); sequence FIRST among the Tier-1 auto-moderation FEATs.** In-process `moderateContent` wiring is the backbone the auto-moderation stack plugs into; the architect design already exists (`sprints/moderation-routing-plan.md` Item B, buildable ticket TASK-019). Ship the fail-open inline-async MVP slice (filevault + timeline + plaintext group-spark; DMs report-only); defer the durable moderator Bull worker + backfill sweep to Tier 2.
+- **Cost/Benefit assessment (cost-benefit-analyzer · 2026-07-07): proceed (MVP slice), sequence first.**
+  - **Cost — L, largely designed.** A lazy `submitForModeration()` in-process helper mirroring `atproto/src/ingest/moderationBridge.js`, wired at 3 hook points (timeline `posts.js POST /`, filevault `files.js POST /upload`+`/create`, spark `messageService.sendMessage`), plus new **authenticated** module-side action sinks for filevault + spark (timeline's `/api/webhooks/moderator` sink already exists and is authed post-`BUG-006`). Moderator needs **no new schema** — `ModerationCase` is already keyed `(sourceService, contentType, contentId)`. The real data cost is on the consumers: filevault `File` + spark `Message` each need a moderation-state column = an **ALTER on an existing table**, so the migration `up()` must be run directly (sync `db:migrate` will NOT ALTER — the documented trap); timeline reuses `metadata` JSON (no migration). Per-module integration tests.
+  - **Complexity/risk.** In-process `require` pulls moderator's model layer into 3 modules' require graph (already true for atproto — acceptable; keep the require lazy + wrapped). **Fail-open blind spot:** on any moderator/AI outage every module publishes with only a `moderation:pending` marker → without a backfill sweep it stays permanently unmoderated. **Spark E2EE** content is structurally un-moderatable (no server-side plaintext) → plaintext group/channel only, DMs report-only. Idempotency is in the service (dedupe key), so at-least-once retries are safe.
+  - **Infra/ops.** MVP can be fire-and-forget inline-async — **no new process**. A durable moderator-owned `moderate-ugc` Bull queue + `worker:moderator` is the production version (architect/dba open question in the design doc) → defer.
+  - **Value — HIGH, MVP-blocking for public UGC.** Today only atproto UGC is actually moderated; this makes native timeline/filevault/spark content moderated at all, and it is the plug-in point FEAT-008 (shared hooks), FEAT-016 (vision), FEAT-018 (PII), FEAT-019 (spam) and FEAT-013 (reputation) all depend on — the highest-leverage of the four.
+  - **Cheaper alt / smaller slice.** The design doc already slices it: (1) filevault first (not broadcast, simplest), (2) timeline (reuse the existing authed sink + `approvalService` hold), (3) spark last, plaintext group/channel only. MVP = inline-async fail-open across those + a `moderation:pending` marker on failure; defer the Bull worker, backfill sweep, and any queryable indexed `moderationStatus` column to a fast-follow.
+  - **Verdict — proceed, first among the Tier-1 auto-moderation features.** The two independent user-safety FEATs (FEAT-010 reports, FEAT-011 block/mute) do **not** depend on this and can run in parallel; FEAT-008 (CSAM) shares the image hook points but is a different (synchronous fail-closed) posture gated on a legal decision, not on this.
+  - **Handoffs — systems-architect** already owns the contract (design doc + TASK-019 sign-off gate at COMMIT). **dba** — filevault `File` + spark `Message` moderation-state columns are ALTERs on existing tables (run `up()` directly, then `db:check`), plus the deferred `moderate-ugc` Bull queue/worker. **product-manager** — the DM-scanning policy call (recommend report-only for MVP). **qa-specialist** — verdict-enforcement (hold/retract/quarantine/redact) + fail-open behavior tests.
+  - **Caveat.** Fail-open without a **committed** backfill sweep makes "moderated" hollow — the MVP slice must at least write the `moderation:pending` marker and schedule the backfill as a fast-follow.
+- **Implementation ticket:** **TASK-019** (architect-signed buildable ticket per `sprints/moderation-routing-plan.md` Item B) is filed and **`blocked` on this FEAT's Cost/Benefit sign-off** — the C/B gate lives here on the parent FEAT; run the cost-benefit-analyzer to unblock both.
+- **Description:** Today only the atproto ingest path is truly wired into the central
+  `moderateContent` pipeline (`services/moderator/services/moderationService.js`); filevault,
+  timeline, and spark user content never flows through it. Route those three modules'
+  content-create paths through `moderateContent`, following the proven bridge pattern in
+  `services/atproto/src/ingest/moderationBridge.js`, so platform UGC is actually moderated
+  rather than published unchecked.
+- **Acceptance criteria:**
+  - Timeline post creation (`services/timeline/src/services/approvalService.js` and the
+    post-create path), spark message send, and filevault upload each invoke `moderateContent`
+    via the moderator ingest contract before the content becomes visible/durable.
+  - The bridge reuses the atproto `moderationBridge.js` shape (a shared inter-module
+    contract), with per-service HMAC auth over `*_SERVICE_URL`; routes verified against
+    `API_SURFACE.md`.
+  - A verdict of block/hold prevents publish (or holds for review, consistent with the
+    existing timeline approval-hold `metadata.approval` state); allow lets it through; the
+    verdict is recorded/auditable.
+  - Failure mode is explicit and documented (fail-open vs. fail-closed per content type),
+    not an unhandled 500; correlation-id'd errors.
+  - Integration test per module shows content passing/blocked through the pipeline.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** **Structural** — introduces a new
+  cross-module contract (three producers → moderator ingest) → **systems-architect** sign-off
+  before commit (they own cross-module contracts + the ingest shape). Likely no schema change
+  itself, but confirm with **dba** if a verdict/hold column is added to an existing table
+  (ALTER-on-existing needs the migration `up()` run directly — sync `db:migrate` won't ALTER).
+  This is the backbone the other moderation FEATs (FEAT-008 image hashing, FEAT-016 vision,
+  FEAT-018 PII, FEAT-019 spam) plug into — sequence it early among Tier-1. Sized **L**; route
+  to sr-developer once assessed.
+
+### FEAT-010 — User-facing report/flag UI wired to the existing `Report` backend *(Tier 1)*
+- **Type:** feature · **Status:** in-sprint → `active/sprint-2026-08.md` · **Priority:** P1 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** BUG-010 — the report-submit path must land on the Item-A `requireUser` gate with `reportedBy` bound to `req.userId`, **not** the current unauthenticated, body-trusted `POST /api/reports`. Sequence FEAT-010's submit after BUG-010 A1. *(Prior SPIKE-001 coordination is subsumed by BUG-010, the spike's implementation ticket.)*
+- **Legacy:** moderation gap analysis Tier 1 · SPIKE-001 (moderator `reports.js` auth posture) · relates to TASK-014 (rejection-notice emails)
+- **Cost/Benefit:** done — **proceed (timeline-first slice); best cost/value ratio of the four.** The `Report` model + `POST /api/reports` already exist, so this is mostly SPA work. **Hard prerequisite:** it must ship on top of the SPIKE-001 / design-doc Item A auth gate (`requireUser` + bind `reportedBy` to `req.userId`), NOT against today's unauthenticated, body-trusted reports endpoint. Independent of FEAT-009 — can run in parallel.
+  - **Cost — M, skewing low.** The backend exists: `services/moderator/models/Report.js` has a fixed `reason` ENUM (`spam, harassment, hate_speech, violence, nsfw, misinformation, copyright, personal_info, other`) and `contentType` incl. `post`/`message`/`file`, plus `POST /api/reports` (`services/moderator/routes/reports.js`). So the reason picker binds to a known enum (satisfies the no-JSON-only-modals rule with no new categories endpoint). Frontend: a "Report" action in the timeline `PostCard` overflow (`web/src/features/timeline/PostCard.tsx` exists) + the spark message overflow, a structured reason form + confirmation, and a double-report guard (unique `reportedBy`+`contentId` — minor backend add). New components under `web/src/features/moderation/`.
+  - **Complexity/risk — LOW, with ONE real dependency.** `reports.js POST /` is currently **unauthenticated and trusts `reportedBy` from the body** (SPIKE-001; design doc Item A). A user-report UI must **not** ship against that spoofable surface — it needs the designed `requireUser` middleware and `reportedBy` bound to the validated `req.userId`. Small, already-designed backend change, but it must land with or before the UI. This dependency is on **Item A**, NOT on FEAT-009.
+  - **Infra/ops — none.** No new schema (the `Report` table exists), no new module, no worker.
+  - **Value — HIGH per unit cost; cheapest of the four.** A user-facing "report abuse" path is effectively table-stakes / app-store-review expectation for public UGC, and it is the human-in-the-loop complement to FEAT-009 (auto-moderation) and FEAT-011 (block).
+  - **Cheaper alt / smaller slice — timeline-only first** (the `PostCard` surface exists), spark reporting as a fast-follow; reason list from the static ENUM (defer any live `GET /reasons` endpoint).
+  - **Verdict — proceed, smaller (timeline-first) slice.** Sequence after/with the Item A `requireUser` gate on `reports.js`; independent of FEAT-009 and parallelizable with FEAT-011. Route to sr-developer (SPA + cross-module wiring).
+  - **Handoffs — systems-architect / SPIKE-001** own the `reports.js` auth posture (requireUser + identity binding) — the one gating dependency. **product-manager** — confirm the double-report / rate-limit UX. No dba (no schema change beyond an optional unique guard).
+  - **Caveat.** Do not ship against the current unauthenticated, body-trusted reports endpoint — without the `requireUser` gate + `reportedBy = req.userId` binding, the UI creates a trivially spoofable mass-report abuse vector.
+- **Description:** The moderator `Report` backend (`services/moderator/routes/reports.js`)
+  exists, but there is no user-facing way to report/flag content. Add report/flag entry points
+  to the timeline and spark post/message overflow menus, wired to the reports endpoints, with a
+  reason picker and confirmation.
+- **Acceptance criteria:**
+  - Timeline posts and spark messages expose a "Report" action in their overflow menu that
+    submits to the moderator reports endpoint (routes verified against `API_SURFACE.md`) with
+    a structured reason (not a free-text-only blob) — per the "no JSON-only modals" rule, a
+    real form bound to live reason categories.
+  - A submitted report creates a `Report` row and surfaces in the existing admin
+    review/reports surface; the reporter gets confirmation and cannot trivially double-report
+    the same item.
+  - New/changed frontend lives in `web/src/features/moderation/` + the timeline/spark UIs; no
+    backend auth is weakened.
+  - The reports endpoint's auth posture matches SPIKE-001's decision (a user report is an
+    authenticated write) — do not ship against an unauthenticated write surface without
+    reconciling with that spike.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** Mostly frontend + light backend wiring;
+  the one real dependency is **SPIKE-001** — `reports.js` is currently unauthenticated, and a
+  user-report submit path should be an authenticated write, so groom this alongside the
+  architect's gating decision. Sized **M**; route to sr-developer (SPA + cross-module wiring)
+  once assessed.
+
+### FEAT-011 — Block/mute (baseline social safety) *(Tier 1)*
+- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** — *(architect + dba sign-off required before commit)*
+- **Legacy:** moderation gap analysis Tier 1
+- **Cost/Benefit:** done — **proceed (block-first, timeline-first slice).** Confirmed greenfield: no block/mute and no follow/social-graph model exists today, so this is new relationship storage + cross-module enforcement. **systems-architect must scope WHERE the relationship lives (shared queryable store vs per-module) before COMMIT** — that decision drives M vs L. Independent of FEAT-009.
+  - **Cost — L until scoped (M achievable as a block-only, single-surface slice).** Confirmed no existing substrate: a repo grep finds no block/mute feature and **no follow/social-graph model** (only `ca/AuditLog` mentions "follow") — so there is no relationship table to extend; it is built from scratch. Need: new block/mute relationship table(s), create/list/undo endpoints, and enforcement on every content-surfacing path (timeline feed filtering, spark delivery / DM prevention). **Enforcement is the expensive, coupled part, not the CRUD.**
+  - **Complexity/risk — MEDIUM-HIGH and structural.** Core question: where the relationship lives so enforcement is consistent, not per-module divergent — a **shared queryable store** (queried by timeline + spark) vs **per-module copies**. If it lands in `shared/`, the two-copy discipline applies (`shared/` + `services/shared/`). Real risk = inconsistent enforcement (blocked on timeline but not spark). Hot-path enforcement likely wants a Redis-cached block list (dba).
+  - **Infra/ops.** New table(s): sync `db:migrate` creates **new** tables fine (no ALTER trap unless an existing table gains a column). Possible new cross-module query surface (prefer in-process over new `*_SERVICE_URL` HMAC hops) + an optional Redis cache.
+  - **Value — HIGH; baseline social safety and table-stakes / app-store expectation** for public UGC. User-controlled (not admin/AI), so independent of and complementary to the moderation pipeline.
+  - **Cheaper alt / smaller slice — block only for v1** (drop mute — block is the higher-value safety primitive; mute is a softer preference), and **timeline feed suppression first**, with spark suppression + DM-prevention + mute as fast-follows. Store the relationship in one place, exposed via a queryable endpoint. ~70% of the value at **M** instead of **L**.
+  - **Verdict — proceed, smaller (block-first, timeline-first) slice.** Needs **systems-architect** sign-off on the storage locus (shared vs per-module — the structural driver, sets final size) and **dba** on the new table before COMMIT. Independent of FEAT-009; parallelizable with FEAT-010.
+  - **Handoffs — systems-architect** — shared-vs-per-module relationship store + cross-module enforcement contract (structural; gates COMMIT). **dba** — new block/mute table(s) (new-table create is safe under sync `db:migrate`) + any Redis block-list cache. If it lands in `shared/`, update both copies. **qa-specialist** — enforcement-consistency tests across surfaces.
+  - **Caveat.** Enforcement consistency is the real risk: a block honored on timeline but not on spark/DMs is a safety failure — scope the slice so every **in-scope** surface enforces, rather than shipping partial enforcement broadly.
+- **Description:** No block or mute capability exists anywhere on the platform — a baseline
+  social-safety gap for public UGC. Add per-user block/mute (a user can block/mute another user
+  so their content and interactions are suppressed), enforced across the surfaces where users
+  see each other's content (at least timeline + spark).
+- **Acceptance criteria:**
+  - A user can block and mute another user, and list/undo those relationships, via new
+    endpoints (routes verified against `API_SURFACE.md`); the relationship is persisted.
+  - Enforcement: a blocked user's posts/messages/interactions are suppressed for the blocker
+    on timeline + spark (and DMs are prevented per the agreed semantics); mute suppresses
+    surfacing without notifying.
+  - Block/mute state is queryable by the consuming modules (shared feature or a queryable
+    store), so enforcement is consistent, not per-module divergent.
+  - Automated tests cover block-suppression and mute-suppression on at least one surface.
+  - Security invariants unchanged; no new open surface.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** **Structural** — likely a shared
+  spark/timeline capability (where the relationship lives + how each module enforces it) →
+  **systems-architect** sign-off; **new table(s)** for the block/mute relationships → **dba**
+  sign-off (new table created by sync `db:migrate`; if any existing table gains a column that's
+  the ALTER-gap). If it lands in `shared/`, state "update both copies" (`shared/` and
+  `services/shared/`). Sized **M–L** (call it **L** until architect scopes shared vs.
+  per-module); route to sr-developer once assessed.
+
+### FEAT-012 — Reviewer assignment + claim + SLA timers + backlog-aging on ReviewQueue *(Tier 2)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** — *(dba sign-off required — ALTER on an existing table)*
+- **Legacy:** moderation gap analysis Tier 2 · relates to SPIKE-001 (moderator `review.js`/`metrics.js` auth) + FEAT-020 (analytics)
+- **Cost/Benefit:** pending
+- **Description:** The `ReviewQueue` has no workflow beyond existence — no reviewer assignment,
+  claim/lock, SLA timers, or backlog-aging. Add assignment + claim so two reviewers don't
+  double-handle an item, SLA timers per item, and aging surfaced on the admin Queue tab.
+- **Acceptance criteria:**
+  - A reviewer can claim/assign a `ReviewQueue` item (claim locks it to that reviewer with a
+    releasable lock); routes in `services/moderator/routes/review.js`, verified against
+    `API_SURFACE.md`.
+  - Each item carries an SLA deadline; items past SLA and backlog-aging buckets are computed
+    and exposed (surfaced via `services/moderator/services` + `routes/metrics.js` and the admin
+    Queue tab).
+  - The `ReviewQueue` model (`services/moderator/models/ReviewQueue.js`) gains the
+    assignee/claim/SLA columns via a migration whose `up()` is run directly (sync `db:migrate`
+    will NOT ALTER an existing table); `npm run db:check` is clean after.
+  - Tests cover claim-locking (no double-claim) and SLA-breach flagging.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** **Data ticket** — adds columns to the
+  **existing** `ReviewQueue` table → the ALTER-gap: **dba** owns the migration and must run its
+  `up()` directly (sync `db:migrate` only creates new tables), then `db:check`. Auth posture of
+  `review.js`/`metrics.js` ties to **SPIKE-001**. Sized **M**; route to sr-developer once
+  assessed.
+
+### FEAT-013 — Strikes/reputation accumulation + shadowban enforcement *(Tier 2)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** — *(dba sign-off required)*
+- **Legacy:** moderation gap analysis Tier 2 · relates to FEAT-009 (pipeline propagation)
+- **Cost/Benefit:** pending
+- **Description:** Moderation actions don't accumulate: there's no strike/reputation tally per
+  user and no shadowban enforcement. Add strike/reputation accumulation on `UserAction`, with
+  thresholds that trigger enforcement (incl. shadowban — the user's content is suppressed to
+  others without notice), propagated to the source services so enforcement is real.
+- **Acceptance criteria:**
+  - Moderation actions accrue strikes/reputation per user (`services/moderator/models/UserAction.js`
+    + `services/moderator/services/moderationActions.js`); thresholds are configurable.
+  - Crossing a threshold applies an enforcement state (warn / limit / shadowban) that is
+    **propagated to the source services** (timeline/spark) and actually suppresses the user's
+    content there — verified end-to-end, not just recorded in moderator.
+  - A shadowbanned user's own view is unchanged while others don't see their content.
+  - Schema changes for accumulation/enforcement state go via a directly-run migration `up()`
+    if they ALTER an existing table (sync `db:migrate` won't ALTER); `db:check` clean after.
+  - Tests cover threshold-crossing → enforcement and shadowban suppression on one surface.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** **Data + propagation** — schema on
+  `UserAction` (**dba**; watch the ALTER-gap if extending an existing table) plus a cross-module
+  enforcement signal to timeline/spark (this couples with **FEAT-009**'s pipeline — sequence
+  after it). Sized **M–L**; call it **L** until the propagation surface is scoped. Route to
+  sr-developer once assessed.
+
+### FEAT-014 — Rule versioning + simulation/dry-run (replay a rule change against past content) *(Tier 2)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** — *(dba sign-off — rule version history)*
+- **Legacy:** moderation gap analysis Tier 2
+- **Cost/Benefit:** pending
+- **Description:** `ModerationRule` changes are made blind — no version history and no way to
+  simulate a rule change before it goes live. Add rule versioning (history of edits, with
+  rollback) and a dry-run/simulation mode that replays a proposed rule change against a corpus
+  of past content and reports what would have changed.
+- **Acceptance criteria:**
+  - `ModerationRule` edits are versioned (`services/moderator/models/ModerationRule.js` gains a
+    version history / a companion history table); a prior version can be viewed and restored.
+  - A simulation endpoint runs a candidate rule set through `ruleEngineService.js` against a
+    bounded sample of past content and returns the diff (what newly matches / stops matching)
+    **without** applying any action.
+  - The admin rule builder (`web/src/features/admin/sections/moderator/RuleBuilderDialog.tsx`)
+    can trigger a dry-run and show the result before save.
+  - Schema for version history: a **new table** is created by sync `db:migrate`; a column added
+    to the existing `ModerationRule` table needs its migration `up()` run directly. `db:check`
+    clean after.
+  - Tests cover version rollback and a simulation diff.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** **Data ticket** — version-history storage →
+  **dba** (a new history table is fine under sync `db:migrate`; an ALTER on the existing table is
+  the gap). Sized **M**; route to sr-developer once assessed.
+
+### FEAT-015 — User-facing appeal UI over the existing appeal backend *(Tier 2)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** — *(coordinate with SPIKE-001: `appeals` router is one of the 6 unauthenticated routers under review)*
+- **Legacy:** moderation gap analysis Tier 2 · SPIKE-001 (moderator `appeals.js` auth posture)
+- **Cost/Benefit:** pending
+- **Description:** The moderator appeal backend (`services/moderator/routes/appeals.js`) exists
+  with no user-facing UI. Add a frontend flow so a user whose content was actioned can view the
+  decision and submit an appeal, and see its status.
+- **Acceptance criteria:**
+  - A user can see that their content was actioned and submit an appeal via a structured form
+    (bound to live data, not JSON-only) wired to the appeals endpoints (verified against
+    `API_SURFACE.md`); appeal status is visible to the user.
+  - New frontend lives under `web/`; no backend auth is weakened.
+  - The appeals endpoint auth posture matches **SPIKE-001**'s decision (an appeal submit is an
+    authenticated write) — reconcile before shipping.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** Frontend-mostly over an existing backend;
+  the dependency is **SPIKE-001** (`appeals.js` currently unauthenticated — a user appeal is an
+  authenticated write). Sized **S–M** (call it **S** if the backend needs no change); route by
+  final size — S with crisp acceptance to jr-developer, else sr — once assessed.
+
+### FEAT-016 — Image/video moderation productionization (unify vision path into live pipeline + video frame sampling) *(Tier 2)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** — *(sequence after FEAT-009 — the live pipeline it plugs into)*
+- **Legacy:** moderation gap analysis Tier 2 · relates to FEAT-009 (central pipeline) + FEAT-008 (CSAM hashing)
+- **Cost/Benefit:** pending
+- **Description:** The vision classification path in `services/moderator/services/classification.js`
+  is not wired into the live `moderateContent` pipeline, and there is no video handling. Unify the
+  vision path into `moderationService.js`'s live flow and add video frame-sampling so videos are
+  moderated (not just images), using the existing `services/moderator/src/ai-providers/`.
+- **Acceptance criteria:**
+  - The vision path in `classification.js` is invoked as part of the live `moderateContent`
+    flow in `moderationService.js` (not a dead/parallel path) for image content.
+  - Video content is sampled (representative frames extracted) and each sampled frame runs
+    through the vision classifiers; an aggregate video verdict is produced.
+  - Provider selection uses `services/moderator/src/ai-providers/` (claude/deepseek/openai) and
+    is config-driven; costs/limits documented.
+  - Tests cover an image verdict via the live pipeline and a video-sampling verdict.
+- **Notes:** FEAT — **Cost/Benefit gate applies** (vision/video inference has real per-call cost
+  — a genuine C/B weigh). **Depends on FEAT-009** (the pipeline it plugs into) — sequence after
+  it; complements **FEAT-008** (perceptual-hash CSAM is a separate, mandatory check, not a
+  classifier verdict). Video frame extraction may want the Live ffmpeg tooling — loop
+  **systems-architect** if it needs a worker. Sized **L**; route to sr-developer once assessed.
+
+### FEAT-017 — DSA/transparency reporting + retention policy + age-gating *(Tier 3)*
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** — *(architect + legal input required before commit)*
+- **Legacy:** moderation gap analysis Tier 3 (compliance)
+- **Cost/Benefit:** pending
+- **Description:** No compliance-reporting, data-retention, or age-gating machinery exists. Add
+  DSA-style transparency reporting (aggregate moderation-action reporting for a period), a
+  content/moderation-data retention policy (with enforced deletion), and age-gating on
+  registration/content. Legal-driven — scope must be set with legal counsel.
+- **Acceptance criteria:**
+  - A transparency report can be generated for a period (counts of reports, actions, appeals,
+    outcomes) in the format legal specifies.
+  - A retention policy is defined and **enforced** (moderation/content data past its retention
+    window is deleted or anonymized on schedule).
+  - Age-gating is applied at the agreed enforcement point(s) with the agreed thresholds.
+  - Scope and the specific legal obligations are documented and signed off by legal before build.
+- **Notes:** FEAT — **Cost/Benefit gate applies**, and this one additionally **needs legal
+  input to even scope the acceptance criteria** (DSA applicability, retention windows, age
+  thresholds are legal calls, not engineering). **systems-architect** for the reporting +
+  retention-enforcement design (likely a scheduled worker + new tables → **dba**). Escalate the
+  legal-scope question up rather than guessing. Sized **L** (probably decomposable per pillar —
+  transparency / retention / age-gating — once legal scopes it); route once assessed.
+
+### FEAT-018 — PII detection (emails/phones/SSN/doxxing) in the moderation pipeline *(Tier 3)*
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** — *(sequence after FEAT-009 — plugs into the pipeline)*
+- **Legacy:** moderation gap analysis Tier 3 · relates to FEAT-009 (central pipeline)
+- **Cost/Benefit:** pending
+- **Description:** The moderation pipeline does not detect PII/doxxing. Add PII detection
+  (emails, phone numbers, SSNs, and doxxing patterns) as a classifier in the moderation flow so
+  content exposing personal information can be flagged/held.
+- **Acceptance criteria:**
+  - A PII detector runs as part of `moderateContent` (via FEAT-009's pipeline) and flags
+    content containing emails/phones/SSNs/known doxxing patterns, with a confidence/type on the
+    verdict.
+  - Detection rules are configurable (which PII classes are enforced) and false-positive-tuned
+    against a documented sample.
+  - Tests cover each PII class (positive) and clean content (negative).
+- **Notes:** FEAT — **Cost/Benefit gate applies.** Plugs into **FEAT-009**'s pipeline —
+  sequence after it. Likely integrates with `classification.js`/`ruleEngineService.js`; may use
+  a library or an AI provider (`src/ai-providers/`) — a build-vs-buy weigh for the C/B. Sized
+  **M–L** (call it **M** for a regex/library baseline; larger if AI-provider-backed); route to
+  sr-developer once assessed.
+
+### FEAT-019 — Spam/bot/coordinated-behavior detection (velocity / cross-content) *(Tier 3)*
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** — *(architect + dba sign-off — cross-content velocity state)*
+- **Legacy:** moderation gap analysis Tier 3 · relates to FEAT-009 (pipeline) + FEAT-013 (reputation)
+- **Cost/Benefit:** pending
+- **Description:** No spam/bot or coordinated-inauthentic-behavior detection exists. Add
+  velocity-based and cross-content signals (e.g. post/message rate, duplicate/near-duplicate
+  content across accounts, coordinated bursts) feeding the moderation pipeline.
+- **Acceptance criteria:**
+  - Velocity signals (per-user/content rate over a window) and cross-content similarity signals
+    are computed and feed a spam/coordination verdict into the moderation flow.
+  - Thresholds are configurable; a flagged burst/duplicate cluster is surfaced to review
+    (and can feed FEAT-013 reputation).
+  - The velocity/similarity state is stored appropriately (Redis for rate windows; a table for
+    persisted clusters) — data/queue design signed off by dba.
+  - Tests cover a velocity trip and a near-duplicate cross-account cluster.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** **Structural + data** — needs a place for
+  velocity/cross-content state (Redis windows and/or a new table) → **systems-architect** +
+  **dba** sign-off; couples with **FEAT-009** (pipeline) and **FEAT-013** (reputation). Sized
+  **M–L**; call it **L** until the state design is scoped. Route to sr-developer once assessed.
+
+### FEAT-020 — Moderation analytics dashboard (accuracy, appeal-rate, SLA-breach, backlog-aging) *(Tier 3)*
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** — *(coordinate with SPIKE-001: `metrics.js` auth posture; relates to FEAT-012 SLA/aging data)*
+- **Legacy:** moderation gap analysis Tier 3 · SPIKE-001 (moderator `metrics.js` auth) · relates to FEAT-012 (SLA/backlog-aging source data)
+- **Cost/Benefit:** pending
+- **Description:** There is no moderation analytics surface. Add a dashboard reporting moderation
+  accuracy, appeal-rate, SLA-breach rate, and backlog-aging, backed by
+  `services/moderator/services` + `routes/metrics.js` and rendered on the admin Metrics tab.
+- **Acceptance criteria:**
+  - Metrics are computed and exposed via the moderator metrics endpoint (verified against
+    `API_SURFACE.md`): moderation accuracy, appeal rate, SLA-breach rate, backlog-aging buckets.
+  - The admin Metrics tab renders them (charts/tables, real data bound — not JSON-only).
+  - SLA-breach / backlog-aging metrics reuse the data FEAT-012 introduces (sequence after or
+    alongside it); accuracy/appeal-rate derive from existing action/appeal records.
+  - `metrics.js` auth posture matches **SPIKE-001**'s decision (admin-gated read).
+- **Notes:** FEAT — **Cost/Benefit gate applies.** Reporting layer over existing/near-existing
+  data; the real dependencies are **FEAT-012** (SLA/aging source data) and **SPIKE-001**
+  (`metrics.js` gating). Sized **M**; route to sr-developer once assessed.
 
 ---
 
@@ -441,6 +810,77 @@ grooming.)*
   post-teardown race). The full atproto suite is now deterministically green (10 suites /
   75 tests over 13+ runs). `labelSigner.test.js` was affected by the same root cause and
   is fixed by the same one-liner. Verified by orchestrator (75/75).
+
+*(Moderation routing & auth-gating — implementation intake 2026-07-07, from the
+systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is the
+`SPIKE-001` follow-up implementation ticket the spike's AC called for.)*
+
+### BUG-010 — Auth-gate the 6 unauthenticated moderator REST routers (SPIKE-001 fix)
+- **Type:** bug · **Status:** in-sprint → `active/sprint-2026-08.md` · **Priority:** P1 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** — *(systems-architect sign-off already given in `sprints/moderation-routing-plan.md`; no DB migrations)*
+- **Legacy:** SPIKE-001 (architect review → this is its per-AC follow-up implementation ticket) · SP-11 security theme (unauthenticated read/write surface) · sibling to BUG-006 (unauthenticated mutation surface) · API_SURFACE.md L30 (see TASK-017 doc drift)
+- **Description:** Closes out the security finding from **SPIKE-001**, per the
+  architect's decision in `sprints/moderation-routing-plan.md` (Item A). Moderator's
+  `moderation` / `review` / `reports` / `metrics` / `actions` / `appeals` routers
+  (`services/moderator/routes/*.js`) carry **no** auth middleware — no `requireAdmin`,
+  no bearer/HMAC check — unlike their gated siblings `rules`/`agents`/`wordlists`/
+  `queues`/`workflows`. They expose moderation state and, worse, **mutate** it
+  (execute actions, resolve reports, decide appeals) for unauthenticated callers.
+  **Typed BUG** (not TASK) deliberately: this is a live unauthenticated-mutation
+  defect on a pre-public surface, matching the repo convention set by **BUG-006**
+  (unauthenticated moderator-webhook mutation) and the SP-11 security-bug batch
+  (`BUG-001`…`BUG-005`). Gate all six per the design doc's per-endpoint auth table,
+  across three surfaces: existing **`requireAdmin`** (console reads + moderator
+  mutations), a **new `requireUser`** (any valid CA bearer, no role gate — for
+  end-user report/appeal *submit*), and a **new `requireService`** HMAC gate
+  (inter-module HTTP submit/status), extracted from the inline gate already in
+  `services/moderator/src/routes/notifications.js`. Build **A1** (P1 mutation paths +
+  bind submit-handler identity to `req.userId`) before **A2** (read paths).
+- **Acceptance criteria:**
+  - **New middleware:** `services/moderator/src/middleware/requireUser.js` (clones
+    `requireAdmin`'s CA-validate block, drops the role check, sets `req.userId` from
+    the validated token) and `services/moderator/src/middleware/requireService.js`
+    (HMAC `X-Service-ID`/`X-Service-Token` via `verifyServiceToken`, extracted from
+    `routes/notifications.js:41-47`, 401 on missing/invalid) exist; both import from
+    `@exprsn/shared` (no `services/shared/` two-copy edit needed).
+  - **A1 — the four P1 unauthenticated-mutation paths reject unauthenticated calls
+    (401):** `POST /api/actions/execute`; `review` `POST /:id/remove`, `/:id/ban`,
+    `/:id/reject`, `/:id/warn` (and the sibling `/approve`, `/skip`, `/analyze`);
+    `PUT /api/reports/:id/resolve`; `POST /api/appeals/:id/review`.
+  - **A1 — actor identity is bound to the validated token, not the body:** `reports`
+    `POST /` derives `reportedBy` from `req.userId` (no longer trusts the body);
+    `appeals` `POST /` derives the appellant from `req.userId` (replaces
+    `req.body.userId`, `appeals.js:41`); `appeals` `POST /:id/review` derives the
+    reviewer from `req.userId` (replaces `req.body.reviewerId`, `appeals.js:157`).
+    A spoofed `reportedBy`/`userId`/`reviewerId` in the body has no effect.
+  - **A1 — `moderation` router service auth:** `POST /content` and `POST /batch`
+    require `requireService`; `GET /status/:sourceService/:contentType/:contentId`
+    accepts **either** `requireService` **or** `requireAdmin`. The in-process
+    atproto/Item-B `moderateContent` direct-require path is unaffected (trusted
+    same-process call — no HTTP auth added or needed).
+  - **A2 — read paths gated:** `review`, `metrics`, `actions` gated uniformly with
+    `router.use(requireAdmin)` (matching the `rules`/`wordlists` idiom); the mixed
+    routers `reports` and `appeals` gated **per route** (`requireUser` on submit,
+    `requireAdmin` on all `GET` lists/`:id`/stats/case and `PUT`/decision paths).
+    Every endpoint of all six routers is gated per the design-doc table; none remain
+    unauthenticated.
+  - `health` (`routes/health.js`, `/health`) stays public (not one of the six, no
+    moderation data). Existing gated routers
+    (`rules`/`agents`/`wordlists`/`queues`/`workflows`) are unchanged.
+  - No new open/unauthenticated surface; security invariants unchanged (fail-closed
+    `DEV_BYPASS`, CORS never wildcard-with-credentials, correlation-id error handler,
+    per-schema isolation). **No DB migrations.**
+  - Tests: an unauthenticated call to each of the four P1 mutation paths returns 401;
+    a submit with a spoofed body-actor is bound to the token identity; an admin read
+    path rejects a valid non-admin bearer.
+- **Notes:** Groomed → `ready` 2026-07-07. **Architect sign-off already given**
+  (`sprints/moderation-routing-plan.md`, Item A — security-structural / module-surface
+  posture) so no separate architect gate at COMMIT; **no DB migrations** (so no dba
+  gate) and no `registry.js`/namespace/`init()` change. Build **A1 (P1) first**, then
+  **A2 (P2 reads)**. Sized **M** → route to **sr-developer** at BUILD (security-sensitive
+  auth wiring, two new middleware, per-route gating on three mixed routers). Coordinate
+  the doc update with **TASK-017** (API_SURFACE moderator-auth note) once landed.
+  FEAT-010/FEAT-015/FEAT-012/FEAT-020 depend on this router's final auth posture.
 
 ---
 
@@ -718,6 +1158,83 @@ grooming.)*
   the preserve-to-branch + triage decision; a full "land it" would be a separate, larger
   build ticket filed from the architect's decision. PM ran **no** git command.
 
+*(Moderation routing & auth-gating — implementation intake 2026-07-07, from the
+systems-architect design doc `sprints/moderation-routing-plan.md`, Item B. TASK-019
+is the implementation of **FEAT-009** and stays blocked on FEAT-009's Cost/Benefit
+sign-off.)*
+
+### TASK-019 — Route filevault + timeline + spark UGC through the central `moderateContent` pipeline (implements FEAT-009)
+- **Type:** task · **Status:** blocked · **Priority:** P1 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** **FEAT-009 Cost/Benefit gate** (still `pending` — the parent FEAT this ticket implements cannot be promoted past `backlog`, and this ticket cannot reach `ready`/COMMIT, until the cost-benefit-analyzer attaches an assessment); **dba co-sign** required on schema/queue shape before COMMIT; four open design decisions (see Notes) must be resolved first
+- **Legacy:** implements **FEAT-009** (Tier-1 moderation gap analysis) · design `sprints/moderation-routing-plan.md` (Item B) · reference pattern `services/atproto/src/ingest/moderationBridge.js` · relates to BUG-006 (authenticated timeline sink), BUG-010 (the `requireService`-gated HTTP fallback contract), TASK-009 (in-process direction), FEAT-008/FEAT-016/FEAT-018/FEAT-019 (plug into this backbone)
+- **Description:** The **structural, cross-module implementation of FEAT-009** per the
+  architect's design doc (`sprints/moderation-routing-plan.md`, Item B). Today only
+  atproto auto-submits UGC into the central engine; route filevault, timeline, and spark
+  user content through `moderationService.moderateContent` too. **In-process `require`**
+  of the moderator engine (mirroring `services/atproto/src/ingest/moderationBridge.js`),
+  **not** an HTTP self-call to `MODERATOR_SERVICE_URL` — one process, and it aligns with
+  the `TASK-009` direction (don't add `*_SERVICE_URL` hops we intend to remove). Posture
+  is **async/optimistic**: publish/store/deliver first, moderate off the user path,
+  **retract on an adverse verdict** via an authenticated module webhook. Filed as a
+  **TASK that implements FEAT-009** (not a second FEAT) so the C/B gate lives on the
+  single parent FEAT; this ticket carries the buildable, architect-signed acceptance
+  criteria and stays `blocked` on that gate.
+- **Acceptance criteria:**
+  - A thin, **lazy, best-effort `submitForModeration()` helper** (in-process `require`
+    of `moderator/services/moderationService`, fire-and-forget, `.catch()` — never
+    awaited into the request, never throws into the response path) is established with
+    the `sourceService`/`contentId` conventions. The HTTP `POST /api/moderate/content`
+    route (now `requireService`-gated per **BUG-010**) is kept as the external/out-of-
+    process fallback contract, not the in-process path.
+  - **filevault** (built first — files aren't broadcast): `services/filevault/src/routes/files.js`
+    `POST /upload` and `POST /create` submit after `fileService.uploadFile` returns —
+    `sourceService='filevault'`, `contentId = file.id`, text→`contentText`, images→`contentUrl`;
+    a **new authenticated (HMAC `requireService`) `/api/moderation/action` sink** in
+    filevault quarantines (visibility=private / `moderationStatus`) on an adverse verdict.
+  - **timeline** (built second): `services/timeline/src/routes/posts.js` `POST /` submits
+    after `postService.createPost`, beside the existing `approvalService` block —
+    `sourceService='timeline'`, `contentId = post.id`; reuses `approvalService.holdForApproval()`
+    for the pre-hold policy path; adverse verdict retracts via the **existing authenticated**
+    `POST /timeline/api/webhooks/moderator` sink, merging (not clobbering) `metadata.moderation`
+    (the BUG-006 fix).
+  - **spark** (built last — E2EE-constrained): `services/spark/src/services/messageService.js`
+    `sendMessage()` submits after `Message.create` — `sourceService='spark'`,
+    `contentId = message.id`, **plaintext-only** (`encrypted=true`/`content=null` messages
+    are **skipped**, never submitted); a **new authenticated action sink** in spark
+    redacts/removes on an adverse verdict.
+  - **Idempotency:** each module passes a **stable** `contentId` (the row UUID) and its
+    **own** `sourceService` string; `(sourceService, contentType, contentId)` is the dedupe
+    key (`moderationService.js:49`), so retries / at-least-once delivery are no-ops.
+  - **Failure mode is explicit and documented per content type — fail-open**
+    (publish/store/deliver) with a `moderation:pending` marker for backfill; correlation-id'd
+    errors, never an unhandled 500 on the user write path.
+  - **The new filevault + spark action sinks ship WITH HMAC auth**, not after — no
+    recreation of the BUG-006 unauthenticated-mutation hole.
+  - Integration test per module: content passes clean / is held-or-retracted on an adverse
+    verdict through the live pipeline; fail-open behavior verified when moderator/AI is down.
+  - **Build order:** filevault → timeline → spark.
+- **Notes:** **Architect sign-off given** in `sprints/moderation-routing-plan.md` (new
+  inter-module moderation-submit contract + async/optimistic + fail-open posture +
+  authenticated action sinks) — but each step is a structural inter-module change, so the
+  architect sign-off gate stands **at COMMIT**, and **dba co-sign is required** on the
+  schema/queue shape. **Open decisions to resolve before this can be groomed to `ready` /
+  committed** (flagged as blockers):
+  - **(a) spark 1:1 DM policy** (architect + PM): proactively moderate DMs vs. report-only.
+    **PM recommendation: report-only for MVP** (E2EE + privacy) — DMs enter moderation only
+    via a user `POST /api/reports`; proactive scope = plaintext group/channel + attachments.
+  - **(b) durable Bull queue vs. fire-and-forget** (dba): a moderator-owned `moderate-ugc`
+    Bull queue + `worker:*` process now, or inline-async fire-and-forget for MVP + queue later.
+  - **(c) fail-open backfill sweep** (dba): who re-submits `moderation:pending` items, and on
+    what cadence — without it, fail-open = permanently unmoderated.
+  - **(d) moderation-state storage** (dba): JSON `metadata` key (no ALTER risk on JSONB) vs.
+    a dedicated **indexed column** on `Post`/`File`/`Message`. **ALTER-gap reminder:** sync
+    `db:migrate` creates new tables but does **not** ALTER existing ones — a new column on an
+    existing table needs its migration `up()` run directly (schema-qualified per module) or
+    every query on that table 500s. moderator itself needs **no** new schema (`ModerationCase`
+    is already keyed by `sourceService`/`contentId`; the new values are just data).
+  - `sourceService` discriminators: `timeline` / `filevault` / `spark` (distinct from atproto's
+    `bluesky`) keep idempotency keys from colliding. Sized **L** → route to **sr-developer**.
+
 ---
 
 ## Spikes
@@ -755,6 +1272,11 @@ bounded exploration before it can be a task.
   Do **not** auto-file a fix — the point is the architect decides *whether/how* to gate.
   `TASK-017` (doc drift) narrows the API_SURFACE moderator line and should reflect this
   spike's outcome once decided.
+- **Outcome (2026-07-07):** architect decision recorded in `sprints/moderation-routing-plan.md`
+  (Item A) — all six routers must be gated per a per-endpoint table across `requireAdmin` /
+  new `requireUser` / new `requireService` surfaces, with the four unauthenticated-mutation
+  paths flagged **P1**. Follow-up implementation ticket **BUG-010** (this spike's AC deliverable)
+  filed and groomed to `ready`.
 
 ---
 

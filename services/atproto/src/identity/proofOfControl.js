@@ -16,18 +16,23 @@
 
 const didResolver = require('./didResolver');
 const appviewClient = require('../ingest/appviewClient');
+const { safeFetch, readCapped } = require('../util/safeFetch');
 
 /** Check the .well-known challenge file for a did:web host. */
 async function checkWellKnown(did, token, { fetchImpl = fetch } = {}) {
   const parsed = didResolver.parseDid(did);
   if (!parsed || parsed.method !== 'web') return false;
-  // did:web:host[%3Aport][:path…] → authority is the first segment.
+  // did:web:host[%3Aport][:path…] → authority is the first segment, and it comes
+  // straight from the DID the user LINKED (caller-influenced), so this fetch goes
+  // through safeFetch (https-only; blocks private/loopback/link-local/ULA/reserved
+  // by IP literal AND DNS-resolved; no redirects; timeout) plus a capped read —
+  // same SSRF guard didResolver applies to did:web resolution.
   const authority = decodeURIComponent(parsed.id.split(':')[0]);
   const url = `https://${authority}/.well-known/atproto-did-challenge.txt`;
   try {
-    const res = await fetchImpl(url);
+    const res = await safeFetch(url, { fetchImpl });
     if (!res.ok) return false;
-    const body = await res.text();
+    const body = await readCapped(res);
     return body.includes(token);
   } catch (_) {
     return false;

@@ -7,14 +7,18 @@
  * them via dynamic import(), cached after first load. Every consumer is async,
  * so the import cost is paid once on the first sign/encode.
  *
- * `dynImport` uses the Function constructor so test transpilers (Jest/Babel)
- * can't rewrite the import() into a require() — it always runs as a native
- * dynamic import, in both plain Node and under Jest.
+ * `dynImport` is a direct `import(specifier)`. It must NOT be hidden behind a
+ * `new Function`/`eval` indirection: under Jest's `--experimental-vm-modules`
+ * that detaches the import from this module's dynamic-import hook, so an
+ * in-flight ESM link can resolve against a peer suite's torn-down VM and throw
+ * "Test environment has been torn down" (BUG-009). A direct import() inherits
+ * the current module's live binding. No transpiler in this repo rewrites
+ * import() into require() (production is plain Node), so it stays a native
+ * dynamic import in both plain Node and under Jest.
  * ═══════════════════════════════════════════════════════════
  */
 
-// eslint-disable-next-line no-new-func
-const dynImport = new Function('specifier', 'return import(specifier)');
+const dynImport = (specifier) => import(specifier);
 
 let cache = null;
 let decodeFirstFn = null;

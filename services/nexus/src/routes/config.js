@@ -115,7 +115,9 @@ async function getGroupsConfig() {
 
 async function getEventsConfig() {
   const totalEvents = await Event.count();
-  const upcomingEvents = await Event.count({ where: { start_time: { [Op.gte]: new Date() } } });
+  // start_time is a BIGINT epoch-ms column — a Date object would be cast to its
+  // string form and fail with "invalid input syntax for type bigint".
+  const upcomingEvents = await Event.count({ where: { startTime: { [Op.gte]: Date.now() } } });
 
   return {
     title: 'Event Management',

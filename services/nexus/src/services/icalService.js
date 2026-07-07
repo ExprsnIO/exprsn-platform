@@ -11,8 +11,14 @@
 
 const ical = require('ical-generator').default;
 const moment = require('moment-timezone');
+const { Op } = require('sequelize');
 const { Event, EventAttendee, Group } = require('../models');
 const logger = require('../utils/logger');
+
+// Event time columns are BIGINT epoch-ms and come back from pg as STRINGS —
+// moment('175...') misparses and $-style operators were removed in Sequelize 5+,
+// so coerce numbers here and use Op.gte in queries.
+const tsMoment = (v) => moment(v == null ? undefined : Number(v));
 
 /**
  * Generate iCal for a single event
@@ -39,8 +45,8 @@ async function generateEventICal(eventId, baseUrl = null) {
 
     calendar.createEvent({
       id: event.id,
-      start: moment(event.startTime).tz(event.timezone),
-      end: event.endTime ? moment(event.endTime).tz(event.timezone) : moment(event.startTime).add(1, 'hour').tz(event.timezone),
+      start: tsMoment(event.startTime).tz(event.timezone || 'UTC'),
+      end: event.endTime ? tsMoment(event.endTime).tz(event.timezone || 'UTC') : tsMoment(event.startTime).add(1, 'hour').tz(event.timezone || 'UTC'),
       summary: event.title,
       description: event.description || '',
       location: event.eventType === 'virtual'
@@ -53,8 +59,8 @@ async function generateEventICal(eventId, baseUrl = null) {
       },
       timezone: event.timezone,
       status: event.status === 'cancelled' ? 'CANCELLED' : 'CONFIRMED',
-      created: moment(event.createdAt),
-      lastModified: moment(event.updatedAt),
+      created: tsMoment(event.createdAt),
+      lastModified: tsMoment(event.updatedAt),
       categories: event.tags || []
     });
 
@@ -86,7 +92,7 @@ async function generateGroupCalendar(groupId, options = {}) {
     };
 
     if (upcoming) {
-      whereClause.startTime = { $gte: Date.now() };
+      whereClause.startTime = { [Op.gte]: Date.now() };
     }
 
     const events = await Event.findAll({
@@ -112,10 +118,10 @@ async function generateGroupCalendar(groupId, options = {}) {
     events.forEach(event => {
       calendar.createEvent({
         id: event.id,
-        start: moment(event.startTime).tz(event.timezone),
+        start: tsMoment(event.startTime).tz(event.timezone || 'UTC'),
         end: event.endTime
-          ? moment(event.endTime).tz(event.timezone)
-          : moment(event.startTime).add(1, 'hour').tz(event.timezone),
+          ? tsMoment(event.endTime).tz(event.timezone || 'UTC')
+          : tsMoment(event.startTime).add(1, 'hour').tz(event.timezone || 'UTC'),
         summary: event.title,
         description: event.description || '',
         location: event.eventType === 'virtual'
@@ -127,8 +133,8 @@ async function generateGroupCalendar(groupId, options = {}) {
         },
         timezone: event.timezone,
         status: event.status === 'cancelled' ? 'CANCELLED' : 'CONFIRMED',
-        created: moment(event.createdAt),
-        lastModified: moment(event.updatedAt),
+        created: tsMoment(event.createdAt),
+        lastModified: tsMoment(event.updatedAt),
         categories: event.tags || []
       });
     });
@@ -161,7 +167,7 @@ async function generateUserCalendar(userId, options = {}) {
         as: 'event',
         where: {
           status: ['published', 'cancelled'],
-          ...(upcoming ? { startTime: { $gte: Date.now() } } : {})
+          ...(upcoming ? { startTime: { [Op.gte]: Date.now() } } : {})
         },
         include: [{
           model: Group,
@@ -189,10 +195,10 @@ async function generateUserCalendar(userId, options = {}) {
 
       calendar.createEvent({
         id: event.id,
-        start: moment(event.startTime).tz(event.timezone),
+        start: tsMoment(event.startTime).tz(event.timezone || 'UTC'),
         end: event.endTime
-          ? moment(event.endTime).tz(event.timezone)
-          : moment(event.startTime).add(1, 'hour').tz(event.timezone),
+          ? tsMoment(event.endTime).tz(event.timezone || 'UTC')
+          : tsMoment(event.startTime).add(1, 'hour').tz(event.timezone || 'UTC'),
         summary: event.title,
         description: event.description || '',
         location: event.eventType === 'virtual'
@@ -204,8 +210,8 @@ async function generateUserCalendar(userId, options = {}) {
         } : undefined,
         timezone: event.timezone,
         status: event.status === 'cancelled' ? 'CANCELLED' : 'CONFIRMED',
-        created: moment(event.createdAt),
-        lastModified: moment(event.updatedAt),
+        created: tsMoment(event.createdAt),
+        lastModified: tsMoment(event.updatedAt),
         categories: event.tags || []
       });
     });
@@ -251,10 +257,10 @@ async function generateMultiEventCalendar(eventIds, calendarName = 'Events') {
     events.forEach(event => {
       calendar.createEvent({
         id: event.id,
-        start: moment(event.startTime).tz(event.timezone),
+        start: tsMoment(event.startTime).tz(event.timezone || 'UTC'),
         end: event.endTime
-          ? moment(event.endTime).tz(event.timezone)
-          : moment(event.startTime).add(1, 'hour').tz(event.timezone),
+          ? tsMoment(event.endTime).tz(event.timezone || 'UTC')
+          : tsMoment(event.startTime).add(1, 'hour').tz(event.timezone || 'UTC'),
         summary: event.title,
         description: event.description || '',
         location: event.eventType === 'virtual'
@@ -266,8 +272,8 @@ async function generateMultiEventCalendar(eventIds, calendarName = 'Events') {
         } : undefined,
         timezone: event.timezone,
         status: event.status === 'cancelled' ? 'CANCELLED' : 'CONFIRMED',
-        created: moment(event.createdAt),
-        lastModified: moment(event.updatedAt),
+        created: tsMoment(event.createdAt),
+        lastModified: tsMoment(event.updatedAt),
         categories: event.tags || []
       });
     });

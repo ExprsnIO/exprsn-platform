@@ -39,6 +39,8 @@ import AboutTab from './tabs/AboutTab';
 import PostsTab from './tabs/PostsTab';
 import MembersTab from './tabs/MembersTab';
 import EventsTab from './tabs/EventsTab';
+import CalendarTab from './tabs/CalendarTab';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import GalleriesTab from './tabs/GalleriesTab';
 import FilesTab from './tabs/FilesTab';
 import MessagesTab from './tabs/MessagesTab';
@@ -74,6 +76,7 @@ const TABS: TabDef[] = [
   { value: 'posts', label: 'Posts', icon: <ForumOutlinedIcon />, Component: PostsTab, visible: memberOrPublic },
   { value: 'members', label: 'Members', icon: <PeopleAltIcon />, Component: MembersTab, visible: memberOrPublic },
   { value: 'events', label: 'Events', icon: <EventIcon />, Component: EventsTab, visible: memberOrPublic },
+  { value: 'calendar', label: 'Calendar', icon: <CalendarMonthIcon />, Component: CalendarTab, visible: memberOrPublic },
   { value: 'galleries', label: 'Galleries', icon: <CollectionsOutlinedIcon />, Component: GalleriesTab, visible: memberOrPublic },
   { value: 'files', label: 'Files', icon: <FolderOutlinedIcon />, Component: FilesTab, visible: memberOnly },
   { value: 'messages', label: 'Messages', icon: <ChatBubbleOutlineIcon />, Component: MessagesTab, visible: memberOnly },

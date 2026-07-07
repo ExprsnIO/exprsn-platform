@@ -105,7 +105,9 @@ function generateMemberVCard(membership, userProfile = {}) {
     `CATEGORIES:${escapevCardValue(role)}`,
     `X-GROUP-ID:${groupId}`,
     `X-MEMBERSHIP-ID:${membership.id}`,
-    `REV:${new Date(membership.joinedAt).toISOString()}`,
+    // joinedAt is a BIGINT epoch-ms column returned as a string — coerce, and
+    // fall back to now for rows where it's missing/invalid.
+    `REV:${(() => { const d = new Date(Number(membership.joinedAt)); return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString(); })()}`,
     'END:VCARD'
   ].filter(Boolean).join('\r\n');
 

@@ -32,11 +32,18 @@ export interface Membership {
   [k: string]: unknown;
 }
 
+export type GovernanceModel = 'centralized' | 'decentralized' | 'dao' | 'consensus';
+
 export interface CreateGroupInput {
   name: string;
   description?: string;
   visibility?: GroupVisibility;
   joinMode?: JoinMode;
+  governanceModel?: GovernanceModel;
+  category?: string;
+  tags?: string[];
+  maxMembers?: number | null;
+  website?: string;
   location?: string;
   /** Decimal degrees, -90..90. Sent together with longitude or not at all. */
   latitude?: number;
@@ -354,6 +361,27 @@ export const nexusApi = {
       `/nexus/api/groups/${groupId}/join-requests/${requestId}/reject`,
       reason ? { reason } : {},
     ),
+
+  // ── Calendar & contacts (iCal / CalDAV / CardDAV) ─────────────────────────
+  /** Group members as vCards (JSON envelope with per-member `vcard` strings). */
+  listGroupContacts: (groupId: string) =>
+    http.get<{ success: boolean; contacts: Array<{ id: string; href?: string; etag?: string; vcard: string }>; count: number }>(
+      `/nexus/api/calendar/carddav/groups/${groupId}/contacts`,
+    ),
+  /** Group contacts as a raw .vcf payload for download. */
+  groupContactsVcf: (groupId: string) =>
+    http.get<string>(`/nexus/api/calendar/carddav/groups/${groupId}/contacts?format=vcf`),
+  /** Group calendar as a raw .ics payload for download. */
+  groupICal: (groupId: string) =>
+    http.get<string>(`/nexus/api/calendar/groups/${groupId}/ical?upcoming=false&limit=500`),
+  /** Stable protocol paths for external calendar/contact clients. */
+  calendarSyncPaths: (groupId: string) => ({
+    ical: `/nexus/api/calendar/groups/${groupId}/ical`,
+    caldav: `/nexus/api/calendar/caldav/groups/${groupId}/calendar`,
+    caldavEvents: `/nexus/api/calendar/caldav/groups/${groupId}/events`,
+    carddav: `/nexus/api/calendar/carddav/groups/${groupId}/addressbook`,
+    carddavContacts: `/nexus/api/calendar/carddav/groups/${groupId}/contacts`,
+  }),
 
   // ── Events lifecycle (Phase 1) ───────────────────────────────────────────
   createEvent: (input: CreateEventInput) =>

@@ -128,16 +128,36 @@ export interface TokenPermissions {
 export type ResourceType = 'url' | 'did' | 'cid';
 export type ExpiryType = 'time' | 'use' | 'persistent';
 
+/** Compact scope group reference on a token (spec v1.1). */
+export interface TokenScopeGroup {
+  id: string;
+  name?: string;
+  type?: string;
+}
+
 export interface UserToken {
   id: string;
+  version?: string;
   certificateId?: string;
   resourceType?: ResourceType | string;
   resourceValue?: string;
   permissions?: TokenPermissions;
   expiryType?: ExpiryType | string;
-  expiresAt?: string | null;
+  notBefore?: number | null;
+  expiresAt?: string | number | null;
   usesRemaining?: number | null;
+  maxUses?: number | null;
+  useCount?: number;
+  lastUsedAt?: number | null;
   status?: string;
+  revokedAt?: number | null;
+  revokedReason?: string | null;
+  revokedBy?: string | null;
+  groupId?: string | null;
+  group?: TokenScopeGroup | null;
+  organizationId?: string | null;
+  organization?: TokenScopeGroup | null;
+  certificate?: { id: string; commonName?: string; serialNumber?: string; status?: string } | null;
   createdAt?: string;
   [k: string]: unknown;
 }
@@ -151,7 +171,25 @@ export interface GenerateTokenBody {
   expiresAt?: number;
   /** Required for use-based tokens. */
   maxUses?: number;
+  /** Optional scope: a CA directory group the token is issued for. */
+  groupId?: string;
+  /** Optional scope: an organization (organizational-unit/department group). */
+  organizationId?: string;
 }
+
+/** One of the caller's CA directory group memberships (with membership role). */
+export interface MyGroupMembership {
+  id: string;
+  name: string;
+  slug?: string;
+  /** distribution_list | organizational_unit | team | department */
+  type: string;
+  /** member | admin | owner */
+  role: string;
+}
+
+/** Group types that count as an "organization" for token scoping. */
+export const ORGANIZATION_GROUP_TYPES = ['organizational_unit', 'department'];
 
 // ── Authed-blob download (mirrors caApi.downloadCertificate / filevaultApi) ──
 
@@ -260,16 +298,39 @@ export const caUserApi = {
   },
 
   // --- Tokens (owner-scoped) ---
-  listTokens: (status?: string) =>
-    http.get<{ success: boolean; tokens: UserToken[] }>(
-      `/ca/api/tokens${status ? `?status=${encodeURIComponent(status)}` : ''}`,
-    ),
+  /**
+   * List the caller's tokens. With a groupId/organizationId filter, lists that
+   * scope's tokens instead (requires group/org admin, or system admin).
+   */
+  listTokens: (params?: { status?: string; groupId?: string; organizationId?: string }) => {
+    const sp = new URLSearchParams();
+    if (params?.status) sp.set('status', params.status);
+    if (params?.groupId) sp.set('groupId', params.groupId);
+    if (params?.organizationId) sp.set('organizationId', params.organizationId);
+    const q = sp.toString();
+    return http.get<{ success: boolean; tokens: UserToken[] }>(`/ca/api/tokens${q ? `?${q}` : ''}`);
+  },
 
   generateToken: (body: GenerateTokenBody) =>
     http.post<{ success: boolean; token: UserToken }>('/ca/api/tokens/generate', body),
 
   revokeToken: (tokenId: string, reason: string) =>
     http.post<{ success: boolean; token: UserToken }>('/ca/api/tokens/revoke', { tokenId, reason }),
+
+  /**
+   * Invalidate every active token in a scope. `user` scope: self (or admin);
+   * `group`/`organization` scope: admins/owners of that group/org.
+   */
+  revokeTokensBulk: (scope: 'user' | 'group' | 'organization', targetId: string, reason: string) =>
+    http.post<{ success: boolean; revokedCount: number }>('/ca/api/tokens/revoke-bulk', {
+      scope,
+      targetId,
+      reason,
+    }),
+
+  /** The caller's CA directory group memberships (for token scoping). */
+  listMyGroups: () =>
+    http.get<{ success: boolean; groups: MyGroupMembership[] }>('/ca/api/users/me/groups'),
 
   /** Time-based tokens only. `expiresAt` is absolute epoch ms in the future. */
   refreshToken: (tokenId: string, expiresAt: number) =>

@@ -19,6 +19,7 @@ export interface Certificate {
 
 export interface CaToken {
   id: string;
+  version?: string;
   userId?: string;
   certificateId?: string;
   permissionRead?: boolean;
@@ -30,9 +31,23 @@ export interface CaToken {
   resourceValue?: string;
   expiryType?: string;
   issuedAt?: string;
-  expiresAt?: string;
+  notBefore?: string | null;
+  expiresAt?: string | null;
+  usesRemaining?: number | null;
+  maxUses?: number | null;
+  useCount?: number;
+  lastUsedAt?: string | null;
   status?: string;
+  revokedAt?: string | null;
   revokedReason?: string | null;
+  revokedBy?: string | null;
+  groupId?: string | null;
+  organizationId?: string | null;
+  /** Included by the admin list endpoint. */
+  user?: { id: string; username?: string; email?: string } | null;
+  certificate?: { id: string; commonName?: string; serialNumber?: string; status?: string } | null;
+  group?: { id: string; name?: string; type?: string } | null;
+  organization?: { id: string; name?: string; type?: string } | null;
   [k: string]: unknown;
 }
 
@@ -62,8 +77,9 @@ export const caApi = {
     ),
   revokeCertificate: (id: string, reason: string) =>
     http.post<{ success: boolean }>(`/ca/admin/api/certificates/${id}/revoke`, { reason }),
+  /** NOTE: the backend's revoke schema requires `tokenId` in the body too. */
   revokeToken: (id: string, reason: string) =>
-    http.post<{ success: boolean }>(`/ca/admin/api/tokens/${id}/revoke`, { reason }),
+    http.post<{ success: boolean }>(`/ca/admin/api/tokens/${id}/revoke`, { tokenId: id, reason }),
 
   /** Download a certificate's PEM (bearer-authenticated → blob save). */
   downloadCertificate: async (cert: Certificate): Promise<void> => {

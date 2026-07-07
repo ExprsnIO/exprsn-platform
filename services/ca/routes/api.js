@@ -25,6 +25,7 @@ const {
   generateTokenSchema,
   validateTokenSchema,
   revokeTokenSchema,
+  bulkRevokeTokenSchema,
   refreshTokenSchema,
   validate
 } = require('../validators');
@@ -256,7 +257,9 @@ router.post('/tokens/revoke',
       token: {
         id: token.id,
         status: token.status,
-        revokedAt: token.revokedAt
+        revokedAt: token.revokedAt,
+        revokedReason: token.revokedReason,
+        revokedBy: token.revokedBy
       }
     });
   } catch (error) {
@@ -265,28 +268,148 @@ router.post('/tokens/revoke',
 });
 
 /**
- * GET /api/tokens - List user tokens
+ * POST /api/tokens/revoke-bulk - Invalidate every active token in a scope
+ * (spec v1.1 §10.2). Scopes: user (self or admin), group / organization
+ * (admin/owner of that group/org, or a system admin).
  */
-router.get('/tokens', requireSession, async (req, res) => {
+router.post('/tokens/revoke-bulk',
+  requireSession,
+  validate(bulkRevokeTokenSchema),
+  async (req, res) => {
   try {
-    const tokens = await tokenService.listTokens(req.session.user.id, {
-      status: req.query.status,
-      limit: parseInt(req.query.limit) || 50
-    });
+    const { scope, targetId, reason } = req.body;
+
+    const isAdmin = await userHasAdminRole(req.session.user.id);
+    const scopeFilter =
+      scope === 'user' ? { userId: targetId } :
+      scope === 'group' ? { groupId: targetId } :
+      { organizationId: targetId };
+
+    const revokedCount = await tokenService.revokeTokensByScope(
+      scopeFilter,
+      reason || `Bulk revocation (${scope})`,
+      req.session.user.id,
+      { isAdmin }
+    );
 
     res.status(200).json({
       success: true,
-      tokens: tokens.map(t => ({
-        id: t.id,
-        resourceType: t.resourceType,
-        resourceValue: t.resourceValue,
-        permissions: t.getPermissions(),
-        expiryType: t.expiryType,
-        expiresAt: t.expiresAt,
-        usesRemaining: t.usesRemaining,
-        status: t.status,
-        createdAt: t.createdAt
+      revokedCount
+    });
+  } catch (error) {
+    sendRouteError(req, res, error, 'Bulk token revocation failed:', 'Failed to revoke tokens');
+  }
+});
+
+/**
+ * GET /api/users/me/groups - The caller's CA directory group memberships
+ * (with their membership role). Used by the SPA to offer group/organization
+ * scoping when generating tokens and to expose group-admin token actions.
+ */
+router.get('/users/me/groups', requireSession, async (req, res) => {
+  try {
+    const { UserGroup, Group } = require('../models');
+    const memberships = await UserGroup.findAll({
+      where: { userId: req.session.user.id }
+    });
+
+    const groupIds = memberships.map(m => m.groupId);
+    const groups = groupIds.length
+      ? await Group.findAll({ where: { id: groupIds, status: 'active' } })
+      : [];
+
+    res.status(200).json({
+      success: true,
+      groups: groups.map(g => ({
+        id: g.id,
+        name: g.name,
+        slug: g.slug,
+        type: g.type,
+        role: memberships.find(m => m.groupId === g.id)?.role || 'member'
       }))
+    });
+  } catch (error) {
+    sendRouteError(req, res, error, 'Failed to list user groups:', 'Failed to list groups');
+  }
+});
+
+/**
+ * Serialize a token for list payloads (spec v1.1 fields included).
+ */
+function tokenListView(t) {
+  return {
+    id: t.id,
+    version: t.version,
+    resourceType: t.resourceType,
+    resourceValue: t.resourceValue,
+    permissions: t.getPermissions(),
+    expiryType: t.expiryType,
+    notBefore: t.notBefore,
+    expiresAt: t.expiresAt,
+    usesRemaining: t.usesRemaining,
+    maxUses: t.maxUses,
+    useCount: t.useCount,
+    lastUsedAt: t.lastUsedAt,
+    status: t.status,
+    revokedAt: t.revokedAt,
+    revokedReason: t.revokedReason,
+    revokedBy: t.revokedBy,
+    groupId: t.groupId,
+    group: t.group ? { id: t.group.id, name: t.group.name, type: t.group.type } : null,
+    organizationId: t.organizationId,
+    organization: t.organization
+      ? { id: t.organization.id, name: t.organization.name, type: t.organization.type }
+      : null,
+    certificate: t.certificate
+      ? {
+          id: t.certificate.id,
+          commonName: t.certificate.commonName,
+          serialNumber: t.certificate.serialNumber,
+          status: t.certificate.status
+        }
+      : null,
+    createdAt: t.createdAt
+  };
+}
+
+/**
+ * GET /api/tokens - List user tokens.
+ * With ?groupId= / ?organizationId=, lists that scope's tokens instead —
+ * allowed for admins of the group/org (or system admins).
+ */
+router.get('/tokens', requireSession, async (req, res) => {
+  try {
+    const callerId = req.session.user.id;
+    const { groupId, organizationId } = req.query;
+
+    let ownerId = callerId;
+    const filters = {
+      status: req.query.status,
+      limit: parseInt(req.query.limit) || 50
+    };
+
+    if (groupId || organizationId) {
+      const scopeGroupId = groupId || organizationId;
+      const isAdmin = await userHasAdminRole(callerId);
+      if (!isAdmin && !(await tokenService.isGroupAdmin(callerId, scopeGroupId))) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'SCOPE_NOT_AUTHORIZED',
+            message: 'Only a group/organization admin may list its tokens'
+          }
+        });
+      }
+      ownerId = null; // scope-wide listing
+      if (groupId) filters.groupId = groupId;
+      if (organizationId) filters.organizationId = organizationId;
+    }
+
+    const tokens = await tokenService.listTokens(ownerId, filters);
+
+    res.status(200).json({
+      success: true,
+      tokens: tokens.map(tokenListView)
     });
   } catch (error) {
     sendRouteError(req, res, error, 'Failed to list tokens:', 'Failed to list tokens');

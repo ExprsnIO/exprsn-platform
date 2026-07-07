@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- * Token Model - Implementation of Exprsn CA Token Specification v1.0
+ * Token Model - Implementation of Exprsn CA Token Specification v1.1
  * ═══════════════════════════════════════════════════════════════════════
  */
 
@@ -16,7 +16,7 @@ module.exports = (sequelize, DataTypes) => {
     version: {
       type: DataTypes.STRING(10),
       allowNull: false,
-      defaultValue: '1.0'
+      defaultValue: '1.1'
     },
     userId: {
       type: DataTypes.UUID,
@@ -31,6 +31,27 @@ module.exports = (sequelize, DataTypes) => {
       field: 'certificate_id',
       references: {
         model: 'certificates',
+        key: 'id'
+      }
+    },
+    // Optional scoping (spec v1.1): a token may be issued on behalf of a CA
+    // directory group and/or organization (an organizational-unit/department
+    // group). Admins of that group/org may invalidate the token.
+    groupId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'group_id',
+      references: {
+        model: 'groups',
+        key: 'id'
+      }
+    },
+    organizationId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'organization_id',
+      references: {
+        model: 'groups',
         key: 'id'
       }
     },
@@ -152,6 +173,12 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       field: 'revoked_reason'
     },
+    revokedBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'revoked_by',
+      comment: 'User id of the principal who revoked the token (null = system, e.g. certificate cascade)'
+    },
     metadata: {
       type: DataTypes.JSONB,
       defaultValue: {},
@@ -176,6 +203,8 @@ module.exports = (sequelize, DataTypes) => {
     indexes: [
       { fields: ['user_id'] },
       { fields: ['certificate_id'] },
+      { fields: ['group_id'] },
+      { fields: ['organization_id'] },
       { fields: ['status'] },
       { fields: ['expiry_type'] },
       { fields: ['expires_at'] },
@@ -241,8 +270,11 @@ module.exports = (sequelize, DataTypes) => {
       expiresAt: this.expiresAt,
       expiryType: this.expiryType,
       usesRemaining: this.usesRemaining,
+      maxUses: this.maxUses,
       useCount: this.useCount,
       lastUsedAt: this.lastUsedAt,
+      groupId: this.groupId,
+      organizationId: this.organizationId,
       checksum: this.checksum,
       signature: this.signature
     };

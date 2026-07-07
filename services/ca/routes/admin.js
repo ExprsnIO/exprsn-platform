@@ -12,8 +12,9 @@ const { Op } = require('sequelize');
 const db = require('../models');
 const {
   generateCertificateSchema,
-  generateTokenSchema,
+  adminGenerateTokenSchema,
   revokeTokenSchema,
+  bulkRevokeTokenSchema,
   validate
 } = require('../validators');
 const tokenService = require('../services/token');
@@ -656,25 +657,32 @@ router.get('/api/certificates/:id/download', requireAuth, requireAdmin, async (r
 router.post('/api/tokens/generate',
   requireAuth,
   requireAdmin,
-  validate(generateTokenSchema),
+  validate(adminGenerateTokenSchema),
   async (req, res) => {
   try {
     const tokenService = require('../services/token');
-    const { certificateId, permissions, resourceType, resourceValue, expiryType, expiryValue } = req.body;
+    const {
+      certificateId, permissions, resourceType, resourceValue,
+      expiryType, expirySeconds, maxUses, notBefore,
+      userId, groupId, organizationId, data
+    } = req.body;
 
-    // Validate required fields
-    if (!certificateId || !resourceType || !resourceValue) {
-      return res.status(400).json({ error: 'Certificate ID, resource type, and resource value are required' });
-    }
+    // Admins may mint a token on behalf of a subject user; default to themselves.
+    const subjectUserId = userId || actingUserId(req);
 
     const token = await tokenService.generateToken({
       certificateId,
-      permissions: permissions || { read: true },
+      permissions,
       resourceType,
       resourceValue,
-      expiryType: expiryType || 'time',
-      expiryValue: expiryValue || 3600
-    }, actingUserId(req), { isAdmin: true });
+      expiryType,
+      expirySeconds,
+      maxUses,
+      notBefore,
+      groupId,
+      organizationId,
+      data
+    }, subjectUserId, { isAdmin: true });
 
     req.logger.info('Token generated', { tokenId: token.id });
     res.json({ success: true, token });
@@ -733,6 +741,37 @@ router.post('/api/tokens/:id/revoke',
   } catch (error) {
     req.logger.error('Failed to revoke token:', error);
     res.status(500).json({ error: error.message || 'Failed to revoke token' });
+  }
+});
+
+/**
+ * API: Bulk Revoke Tokens by scope (user / group / organization)
+ */
+router.post('/api/tokens/revoke-bulk',
+  requireAuth,
+  requireAdmin,
+  validate(bulkRevokeTokenSchema),
+  async (req, res) => {
+  try {
+    const { scope, targetId, reason } = req.body;
+
+    const scopeFilter =
+      scope === 'user' ? { userId: targetId } :
+      scope === 'group' ? { groupId: targetId } :
+      { organizationId: targetId };
+
+    const revokedCount = await tokenService.revokeTokensByScope(
+      scopeFilter,
+      reason || `Bulk revocation (${scope}) by administrator`,
+      actingUserId(req),
+      { isAdmin: true }
+    );
+
+    req.logger.info('Bulk token revocation', { scope, targetId, revokedCount });
+    res.json({ success: true, revokedCount });
+  } catch (error) {
+    req.logger.error('Failed to bulk revoke tokens:', error);
+    res.status(500).json({ error: error.message || 'Failed to bulk revoke tokens' });
   }
 });
 
@@ -1021,11 +1060,18 @@ router.get('/api/certificates', requireAuth, requireAdmin, async (req, res) => {
  */
 router.get('/api/tokens', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { status, expiryType, limit = 50, offset = 0 } = req.query;
+    const {
+      status, expiryType, userId, certificateId, groupId, organizationId,
+      limit = 50, offset = 0
+    } = req.query;
 
     const where = {};
     if (status) where.status = status;
     if (expiryType) where.expiryType = expiryType;
+    if (userId) where.userId = userId;
+    if (certificateId) where.certificateId = certificateId;
+    if (groupId) where.groupId = groupId;
+    if (organizationId) where.organizationId = organizationId;
 
     const tokens = await Token.findAll({
       where,
@@ -1041,7 +1087,17 @@ router.get('/api/tokens', requireAuth, requireAdmin, async (req, res) => {
         {
           model: Certificate,
           as: 'certificate',
-          attributes: ['id', 'commonName', 'serialNumber']
+          attributes: ['id', 'commonName', 'serialNumber', 'status']
+        },
+        {
+          model: Group,
+          as: 'group',
+          attributes: ['id', 'name', 'type']
+        },
+        {
+          model: Group,
+          as: 'organization',
+          attributes: ['id', 'name', 'type']
         }
       ]
     });

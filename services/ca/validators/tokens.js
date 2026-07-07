@@ -82,11 +82,58 @@ const generateTokenSchema = Joi.object({
     .messages({
       'number.min': 'Not-before time must be in the future or present'
     }),
+  groupId: Joi.string()
+    .uuid()
+    .optional()
+    .allow(null)
+    .messages({
+      'string.guid': 'Invalid group ID format'
+    }),
+  organizationId: Joi.string()
+    .uuid()
+    .optional()
+    .allow(null)
+    .messages({
+      'string.guid': 'Invalid organization ID format'
+    }),
   data: Joi.object()
     .optional()
     .messages({
       'object.base': 'Token data must be a valid JSON object'
     })
+});
+
+/**
+ * Admin token generation schema — the admin console sends flat
+ * resourceType/resourceValue and a relative expiry (seconds) or max uses.
+ */
+const adminGenerateTokenSchema = Joi.object({
+  certificateId: Joi.string().uuid().required(),
+  permissions: Joi.object({
+    read: Joi.boolean().default(false),
+    write: Joi.boolean().default(false),
+    append: Joi.boolean().default(false),
+    delete: Joi.boolean().default(false),
+    update: Joi.boolean().default(false)
+  }).default({ read: true }),
+  resourceType: Joi.string().valid('url', 'did', 'cid').required(),
+  resourceValue: Joi.string().max(1000).required(),
+  expiryType: Joi.string().valid('time', 'use', 'persistent').default('time'),
+  expirySeconds: Joi.when('expiryType', {
+    is: 'time',
+    then: Joi.number().integer().min(1).max(10 * 365 * 24 * 3600).default(3600),
+    otherwise: Joi.number().optional().allow(null)
+  }),
+  maxUses: Joi.when('expiryType', {
+    is: 'use',
+    then: Joi.number().integer().min(1).max(1000000).required(),
+    otherwise: Joi.number().optional().allow(null)
+  }),
+  notBefore: Joi.number().integer().optional().allow(null),
+  userId: Joi.string().uuid().optional().allow(null),
+  groupId: Joi.string().uuid().optional().allow(null),
+  organizationId: Joi.string().uuid().optional().allow(null),
+  data: Joi.object().optional()
 });
 
 /**
@@ -155,6 +202,33 @@ const revokeTokenSchema = Joi.object({
 });
 
 /**
+ * Bulk token revocation schema — exactly one scope
+ */
+const bulkRevokeTokenSchema = Joi.object({
+  scope: Joi.string()
+    .valid('user', 'group', 'organization')
+    .required()
+    .messages({
+      'any.only': 'Scope must be one of: user, group, organization',
+      'any.required': 'Scope is required'
+    }),
+  targetId: Joi.string()
+    .uuid()
+    .required()
+    .messages({
+      'string.guid': 'Invalid target ID format',
+      'any.required': 'Target ID is required'
+    }),
+  reason: Joi.string()
+    .max(255)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Reason must not exceed 255 characters'
+    })
+});
+
+/**
  * Token refresh schema
  */
 const refreshTokenSchema = Joi.object({
@@ -177,7 +251,9 @@ const refreshTokenSchema = Joi.object({
 
 module.exports = {
   generateTokenSchema,
+  adminGenerateTokenSchema,
   validateTokenSchema,
   revokeTokenSchema,
+  bulkRevokeTokenSchema,
   refreshTokenSchema
 };

@@ -208,11 +208,24 @@ const EXPORT_FORMATS: Array<{ format: CertExportFormat; label: string }> = [
   { format: 'pkcs12', label: 'PKCS#12 (.p12, with passphrase)' },
 ];
 
+/** X.509 revocation reasons (mirrors the Certificate.revocationReason ENUM). */
+const CERT_REVOCATION_REASONS = [
+  'unspecified',
+  'keyCompromise',
+  'caCompromise',
+  'affiliationChanged',
+  'superseded',
+  'cessationOfOperation',
+  'privilegeWithdrawn',
+];
+
 function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
   const qc = useQueryClient();
   const [issueOpen, setIssueOpen] = useState(false);
   const [exportMenu, setExportMenu] = useState<{ anchor: HTMLElement; cert: Certificate } | null>(null);
   const [pk12, setPk12] = useState<{ cert: Certificate; password: string } | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<Certificate | null>(null);
+  const [revokeReason, setRevokeReason] = useState('unspecified');
   const query = useQuery({
     queryKey: ['ca', 'admin', 'certificates'],
     queryFn: () => caAdminApi.listCertificates({ limit: 100 }),
@@ -225,7 +238,7 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
     onError: (e) => onToast((e as Error).message),
   });
   const revoke = useMutation({
-    mutationFn: (c: Certificate) => caAdminApi.revokeCertificate(c.id, 'Revoked from admin console'),
+    mutationFn: (c: Certificate) => caAdminApi.revokeCertificate(c.id, revokeReason),
     onSuccess: (r, c) => {
       const n = r.revokedTokenCount ?? 0;
       onToast(
@@ -237,6 +250,7 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
       qc.invalidateQueries({ queryKey: ['ca', 'admin', 'certificates'] });
       qc.invalidateQueries({ queryKey: ['ca', 'admin', 'tokens'] });
       qc.invalidateQueries({ queryKey: ['ca', 'admin', 'cert-status', c.id] });
+      setRevokeTarget(null);
     },
     onError: (e) => onToast((e as Error).message),
   });
@@ -285,7 +299,7 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
                     </Tooltip>
                     <Tooltip title="Revoke">
                       <span>
-                        <IconButton size="small" color="error" disabled={c.status !== 'active'} onClick={() => { if (confirm(`Revoke “${c.commonName}”? This also revokes any dependent tokens.`)) revoke.mutate(c); }}>
+                        <IconButton size="small" color="error" disabled={c.status !== 'active'} onClick={() => { setRevokeReason('unspecified'); setRevokeTarget(c); }}>
                           <BlockIcon fontSize="small" />
                         </IconButton>
                       </span>
@@ -333,62 +347,400 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
         </DialogActions>
       </Dialog>
       <IssueCertDialog open={issueOpen} onClose={() => setIssueOpen(false)} onDone={onToast} />
+      {/* Revoke certificate — cascades to every token it signed. */}
+      <Dialog open={!!revokeTarget} onClose={() => setRevokeTarget(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Revoke certificate</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Certificate" value={revokeTarget?.commonName ?? ''} disabled size="small" />
+            <TextField
+              select
+              label="Reason"
+              value={revokeReason}
+              onChange={(e) => setRevokeReason(e.target.value)}
+            >
+              {CERT_REVOCATION_REASONS.map((r) => (
+                <MenuItem key={r} value={r}>{r}</MenuItem>
+              ))}
+            </TextField>
+            <Chip
+              color="warning"
+              variant="outlined"
+              label="Every API token backed by this certificate will also be revoked"
+              sx={{ height: 'auto', '& .MuiChip-label': { whiteSpace: 'normal', py: 0.5 } }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRevokeTarget(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={revoke.isPending}
+            onClick={() => revokeTarget && revoke.mutate(revokeTarget)}
+          >
+            {revoke.isPending ? 'Revoking…' : 'Revoke'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
 
 /* ----------------------------------------------------------------- tokens */
 
+/** Group types that count as an "organization" for token scoping. */
+const ORG_GROUP_TYPES = ['organizational_unit', 'department'];
+
+const EMPTY_TOKEN_FORM: GenerateTokenInput = {
+  certificateId: '',
+  resourceType: 'url',
+  resourceValue: '*',
+  expiryType: 'time',
+  expirySeconds: 3600,
+  maxUses: 10,
+  permissions: { read: true },
+  userId: '',
+  groupId: '',
+  organizationId: '',
+};
+
 function GenerateTokenDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: (m: string) => void }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState<GenerateTokenInput>({ certificateId: '', resourceType: 'service', resourceValue: '*', expiryType: 'time', expiryValue: 3600, permissions: { read: true } });
+  const [form, setForm] = useState<GenerateTokenInput>({ ...EMPTY_TOKEN_FORM });
+
+  // Live data for the pickers — signing certs (CA certs can't sign tokens),
+  // subject users, and directory groups/organizations.
+  const certs = useQuery({
+    queryKey: ['ca', 'admin', 'certificates'],
+    queryFn: () => caAdminApi.listCertificates({ limit: 100 }),
+    enabled: open,
+  });
+  const users = useQuery({
+    queryKey: ['ca', 'admin', 'users'],
+    queryFn: () => caAdminApi.listUsers({ limit: 100 }),
+    enabled: open,
+  });
+  const groups = useQuery({
+    queryKey: ['ca', 'admin', 'groups'],
+    queryFn: caAdminApi.listGroups,
+    enabled: open,
+  });
+
+  const signingCerts = (certs.data?.certificates ?? []).filter(
+    (c) => c.status === 'active' && c.type !== 'root' && c.type !== 'intermediate',
+  );
+  const allGroups = groups.data?.groups ?? [];
+  const orgGroups = allGroups.filter((g) => ORG_GROUP_TYPES.includes(String(g.type ?? '')));
+
   const mut = useMutation({
-    mutationFn: () => caAdminApi.generateToken(form),
+    mutationFn: () => {
+      const body: GenerateTokenInput = {
+        certificateId: form.certificateId,
+        resourceType: form.resourceType,
+        resourceValue: form.resourceValue,
+        expiryType: form.expiryType,
+        permissions: form.permissions,
+      };
+      if (form.expiryType === 'time') body.expirySeconds = form.expirySeconds;
+      if (form.expiryType === 'use') body.maxUses = form.maxUses;
+      if (form.userId) body.userId = form.userId;
+      if (form.groupId) body.groupId = form.groupId;
+      if (form.organizationId) body.organizationId = form.organizationId;
+      return caAdminApi.generateToken(body);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ca', 'admin', 'tokens'] });
       onDone('Token generated');
+      setForm({ ...EMPTY_TOKEN_FORM });
       onClose();
     },
     onError: (e) => onDone(`Generate failed: ${(e as Error).message}`),
   });
   const togglePerm = (k: string) => setForm({ ...form, permissions: { ...form.permissions, [k]: !form.permissions?.[k] } });
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Generate token</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField label="Certificate ID (UUID)" required value={form.certificateId} onChange={(e) => setForm({ ...form, certificateId: e.target.value })} />
+          <TextField
+            select
+            label="Signing certificate"
+            required
+            value={form.certificateId}
+            onChange={(e) => setForm({ ...form, certificateId: e.target.value })}
+            helperText={
+              signingCerts.length === 0
+                ? 'No active token-capable certificates (root/intermediate CA certs cannot sign tokens)'
+                : 'The token is backed by this certificate — revoking it revokes the token'
+            }
+          >
+            {signingCerts.map((c) => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.commonName} ({c.type}) — {c.serialNumber?.slice(0, 12)}…
+              </MenuItem>
+            ))}
+          </TextField>
           <Stack direction="row" spacing={2}>
-            <TextField label="Resource type" value={form.resourceType} onChange={(e) => setForm({ ...form, resourceType: e.target.value })} sx={{ flex: 1 }} />
-            <TextField label="Resource value" value={form.resourceValue} onChange={(e) => setForm({ ...form, resourceValue: e.target.value })} sx={{ flex: 1 }} />
+            <TextField select label="Resource type" value={form.resourceType} onChange={(e) => setForm({ ...form, resourceType: e.target.value })} sx={{ minWidth: 140 }}>
+              {['url', 'did', 'cid'].map((t) => (
+                <MenuItem key={t} value={t}>{t}</MenuItem>
+              ))}
+            </TextField>
+            <TextField label="Resource value" fullWidth required value={form.resourceValue} onChange={(e) => setForm({ ...form, resourceValue: e.target.value })} />
           </Stack>
-          <TextField label="Expiry (seconds)" type="number" value={form.expiryValue} onChange={(e) => setForm({ ...form, expiryValue: Number(e.target.value) })} />
+          <Stack direction="row" spacing={2}>
+            <TextField select label="Expiry" value={form.expiryType} onChange={(e) => setForm({ ...form, expiryType: e.target.value })} sx={{ minWidth: 140 }}>
+              <MenuItem value="time">time</MenuItem>
+              <MenuItem value="use">use</MenuItem>
+              <MenuItem value="persistent">persistent</MenuItem>
+            </TextField>
+            {form.expiryType === 'time' && (
+              <TextField label="Expires in (seconds)" type="number" fullWidth value={form.expirySeconds} onChange={(e) => setForm({ ...form, expirySeconds: Number(e.target.value) })} inputProps={{ min: 1 }} />
+            )}
+            {form.expiryType === 'use' && (
+              <TextField label="Max uses" type="number" fullWidth value={form.maxUses} onChange={(e) => setForm({ ...form, maxUses: Number(e.target.value) })} inputProps={{ min: 1 }} />
+            )}
+          </Stack>
           <Stack direction="row" spacing={1}>
-            {['read', 'write', 'update', 'delete', 'admin'].map((p) => (
+            {['read', 'write', 'append', 'update', 'delete'].map((p) => (
               <Button key={p} size="small" variant={form.permissions?.[p] ? 'contained' : 'outlined'} onClick={() => togglePerm(p)}>{p}</Button>
             ))}
+          </Stack>
+          <TextField
+            select
+            label="Subject user (optional)"
+            value={form.userId}
+            onChange={(e) => setForm({ ...form, userId: e.target.value })}
+            helperText="Mint the token on behalf of this user; defaults to you"
+          >
+            <MenuItem value=""><em>Me (acting admin)</em></MenuItem>
+            {(users.data?.users ?? []).map((u) => (
+              <MenuItem key={u.id} value={u.id}>{u.username ?? u.email ?? u.id}</MenuItem>
+            ))}
+          </TextField>
+          <Stack direction="row" spacing={2}>
+            <TextField
+              select
+              label="Group scope (optional)"
+              value={form.groupId}
+              onChange={(e) => setForm({ ...form, groupId: e.target.value })}
+              sx={{ flex: 1 }}
+              disabled={allGroups.length === 0}
+              helperText="Group admins can invalidate the token"
+            >
+              <MenuItem value=""><em>None</em></MenuItem>
+              {allGroups.map((g) => (
+                <MenuItem key={g.id} value={g.id}>{String(g.name ?? g.id)} ({String(g.type ?? '')})</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="Organization scope (optional)"
+              value={form.organizationId}
+              onChange={(e) => setForm({ ...form, organizationId: e.target.value })}
+              sx={{ flex: 1 }}
+              disabled={orgGroups.length === 0}
+              helperText="Org admins can invalidate the token"
+            >
+              <MenuItem value=""><em>None</em></MenuItem>
+              {orgGroups.map((g) => (
+                <MenuItem key={g.id} value={g.id}>{String(g.name ?? g.id)}</MenuItem>
+              ))}
+            </TextField>
           </Stack>
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={!form.certificateId || mut.isPending} onClick={() => mut.mutate()}>Generate</Button>
+        <Button variant="contained" disabled={!form.certificateId || !form.resourceValue || mut.isPending} onClick={() => mut.mutate()}>
+          {mut.isPending ? 'Generating…' : 'Generate'}
+        </Button>
       </DialogActions>
     </Dialog>
   );
 }
 
-function TokensTab({ onToast }: { onToast: (m: string) => void }) {
+/** Structured revoke dialog (single token) — reason is recorded on the token. */
+function RevokeTokenDialog({
+  token,
+  onClose,
+  onDone,
+}: {
+  token: CaToken | null;
+  onClose: () => void;
+  onDone: (m: string) => void;
+}) {
   const qc = useQueryClient();
-  const [genOpen, setGenOpen] = useState(false);
-  const query = useQuery({ queryKey: ['ca', 'admin', 'tokens'], queryFn: () => caAdminApi.listTokens({ limit: 100 }) });
-  const revoke = useMutation({
-    mutationFn: (t: CaToken) => caAdminApi.revokeToken(t.id, 'Revoked from admin console'),
+  const [reason, setReason] = useState('');
+  const mut = useMutation({
+    mutationFn: () => caAdminApi.revokeToken(token!.id, reason.trim() || 'Revoked by administrator'),
     onSuccess: () => {
-      onToast('Token revoked');
       qc.invalidateQueries({ queryKey: ['ca', 'admin', 'tokens'] });
+      onDone('Token revoked');
+      setReason('');
+      onClose();
     },
-    onError: (e) => onToast((e as Error).message),
+    onError: (e) => onDone((e as Error).message),
+  });
+  return (
+    <Dialog open={!!token} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Revoke token</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField label="Token" value={token?.id ?? ''} disabled size="small" />
+          <TextField
+            label="Reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            inputProps={{ maxLength: 255 }}
+            helperText="Recorded on the token (revokedReason) with your identity (revokedBy)"
+            autoFocus
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" color="error" disabled={mut.isPending} onClick={() => mut.mutate()}>
+          {mut.isPending ? 'Revoking…' : 'Revoke'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/** Bulk invalidation by scope: all tokens of a user, group, or organization. */
+function BulkRevokeDialog({
+  open,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDone: (m: string) => void;
+}) {
+  const qc = useQueryClient();
+  const [scope, setScope] = useState<'user' | 'group' | 'organization'>('user');
+  const [targetId, setTargetId] = useState('');
+  const [reason, setReason] = useState('');
+
+  const users = useQuery({
+    queryKey: ['ca', 'admin', 'users'],
+    queryFn: () => caAdminApi.listUsers({ limit: 100 }),
+    enabled: open && scope === 'user',
+  });
+  const groups = useQuery({
+    queryKey: ['ca', 'admin', 'groups'],
+    queryFn: caAdminApi.listGroups,
+    enabled: open && scope !== 'user',
+  });
+
+  const allGroups = groups.data?.groups ?? [];
+  const options =
+    scope === 'user'
+      ? (users.data?.users ?? []).map((u) => ({ id: u.id, label: u.username ?? u.email ?? u.id }))
+      : allGroups
+          .filter((g) => (scope === 'organization' ? ORG_GROUP_TYPES.includes(String(g.type ?? '')) : true))
+          .map((g) => ({ id: g.id, label: `${String(g.name ?? g.id)} (${String(g.type ?? '')})` }));
+
+  const mut = useMutation({
+    mutationFn: () => caAdminApi.bulkRevokeTokens(scope, targetId, reason.trim() || `Bulk revocation (${scope})`),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['ca', 'admin', 'tokens'] });
+      onDone(`Revoked ${r.revokedCount} token${r.revokedCount === 1 ? '' : 's'}`);
+      setTargetId('');
+      setReason('');
+      onClose();
+    },
+    onError: (e) => onDone((e as Error).message),
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Bulk revoke tokens</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            select
+            label="Scope"
+            value={scope}
+            onChange={(e) => {
+              setScope(e.target.value as typeof scope);
+              setTargetId('');
+            }}
+            helperText="Every active token in the selected scope is invalidated"
+          >
+            <MenuItem value="user">User — all of a user's tokens</MenuItem>
+            <MenuItem value="group">Group — tokens scoped to a group</MenuItem>
+            <MenuItem value="organization">Organization — tokens scoped to an org</MenuItem>
+          </TextField>
+          <TextField
+            select
+            label={scope === 'user' ? 'User' : scope === 'group' ? 'Group' : 'Organization'}
+            required
+            value={targetId}
+            onChange={(e) => setTargetId(e.target.value)}
+            disabled={options.length === 0}
+            helperText={options.length === 0 ? 'No entries available for this scope' : undefined}
+          >
+            {options.map((o) => (
+              <MenuItem key={o.id} value={o.id}>{o.label}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            inputProps={{ maxLength: 255 }}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" color="error" disabled={!targetId || mut.isPending} onClick={() => mut.mutate()}>
+          {mut.isPending ? 'Revoking…' : 'Revoke all'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/** Expiry cell: date for time-based, uses-left for use-based, else the type.
+ * Token timestamps are epoch-ms BIGINTs (serialized as numeric strings). */
+function tokenExpiryCell(t: CaToken) {
+  if (t.expiryType === 'time') {
+    const v = t.expiresAt;
+    if (v == null) return '—';
+    const n = Number(v);
+    return formatDate(Number.isFinite(n) ? new Date(n).toISOString() : String(v));
+  }
+  if (t.expiryType === 'use') return `${t.usesRemaining ?? '?'}${t.maxUses ? ` / ${t.maxUses}` : ''} uses left`;
+  return t.expiryType ?? '—';
+}
+
+/** Compact scope cell (group / organization names). */
+function tokenScopeCell(t: CaToken) {
+  const parts: string[] = [];
+  if (t.organization?.name) parts.push(`org: ${t.organization.name}`);
+  if (t.group?.name) parts.push(`group: ${t.group.name}`);
+  return parts.length ? parts.join(' · ') : '—';
+}
+
+function TokensTab({ onToast }: { onToast: (m: string) => void }) {
+  const [genOpen, setGenOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<CaToken | null>(null);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [expiryFilter, setExpiryFilter] = useState('');
+  const query = useQuery({
+    queryKey: ['ca', 'admin', 'tokens', statusFilter, expiryFilter],
+    queryFn: () =>
+      caAdminApi.listTokens({
+        limit: 100,
+        status: statusFilter || undefined,
+        expiryType: expiryFilter || undefined,
+      }),
   });
   const validate = useMutation({
     mutationFn: (t: CaToken) => caAdminApi.validateToken(t.id),
@@ -398,8 +750,23 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" justifyContent="flex-end">
-        <Button variant="contained" onClick={() => setGenOpen(true)}>Generate token</Button>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <TextField select size="small" label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 140 }}>
+          <MenuItem value="">All</MenuItem>
+          {['active', 'revoked', 'expired', 'exhausted'].map((s) => (
+            <MenuItem key={s} value={s}>{s}</MenuItem>
+          ))}
+        </TextField>
+        <TextField select size="small" label="Expiry type" value={expiryFilter} onChange={(e) => setExpiryFilter(e.target.value)} sx={{ minWidth: 140 }}>
+          <MenuItem value="">All</MenuItem>
+          {['time', 'use', 'persistent'].map((s) => (
+            <MenuItem key={s} value={s}>{s}</MenuItem>
+          ))}
+        </TextField>
+        <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+          <Button color="error" variant="outlined" onClick={() => setBulkOpen(true)}>Bulk revoke…</Button>
+          <Button variant="contained" onClick={() => setGenOpen(true)}>Generate token</Button>
+        </Stack>
       </Stack>
       <QueryState query={query}>
         {(d) => (
@@ -408,6 +775,24 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
             rowKey={(t) => t.id}
             columns={[
               { key: 'id', header: 'Token', mono: true, render: (t) => `${t.id.slice(0, 8)}…` },
+              { key: 'user', header: 'User', render: (t) => t.user?.username ?? t.user?.email ?? (t.userId ? `${String(t.userId).slice(0, 8)}…` : '—') },
+              {
+                key: 'cert',
+                header: 'Certificate',
+                render: (t) =>
+                  t.certificate ? (
+                    <Tooltip title={t.certificate.status === 'revoked' ? 'Certificate revoked — token invalid' : `Serial ${t.certificate.serialNumber ?? ''}`}>
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color={t.certificate.status === 'revoked' ? 'error' : 'default'}
+                        label={t.certificate.commonName ?? t.certificate.id.slice(0, 8)}
+                      />
+                    </Tooltip>
+                  ) : (
+                    '—'
+                  ),
+              },
               {
                 key: 'perms',
                 header: 'Permissions',
@@ -416,8 +801,20 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
                 ),
               },
               { key: 'resource', header: 'Resource', mono: true, render: (t) => `${t.resourceType ?? ''}:${t.resourceValue ?? ''}` },
-              { key: 'status', header: 'Status', render: (t) => <StatusChip status={t.status} /> },
-              { key: 'expiresAt', header: 'Expires', render: (t) => (t.expiryType === 'time' ? formatDate(t.expiresAt) : t.expiryType ?? '—') },
+              { key: 'scope', header: 'Scope', render: (t) => tokenScopeCell(t) },
+              { key: 'expiresAt', header: 'Expiry', render: (t) => tokenExpiryCell(t) },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (t) =>
+                  t.status === 'revoked' && (t.revokedReason || t.revokedBy) ? (
+                    <Tooltip title={`${t.revokedReason ?? ''}${t.revokedBy ? ` · by ${String(t.revokedBy).slice(0, 8)}…` : ' · by system'}`}>
+                      <span><StatusChip status={t.status} /></span>
+                    </Tooltip>
+                  ) : (
+                    <StatusChip status={t.status} />
+                  ),
+              },
               {
                 key: 'actions',
                 header: 'Actions',
@@ -427,7 +824,7 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
                     <Tooltip title="Validate"><IconButton size="small" onClick={() => validate.mutate(t)}><RefreshIcon fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Revoke">
                       <span>
-                        <IconButton size="small" color="error" disabled={t.status !== 'active'} onClick={() => { if (confirm(`Revoke token ${t.id.slice(0, 8)}…?`)) revoke.mutate(t); }}>
+                        <IconButton size="small" color="error" disabled={t.status !== 'active'} onClick={() => setRevokeTarget(t)}>
                           <BlockIcon fontSize="small" />
                         </IconButton>
                       </span>
@@ -440,6 +837,8 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
         )}
       </QueryState>
       <GenerateTokenDialog open={genOpen} onClose={() => setGenOpen(false)} onDone={onToast} />
+      <RevokeTokenDialog token={revokeTarget} onClose={() => setRevokeTarget(null)} onDone={onToast} />
+      <BulkRevokeDialog open={bulkOpen} onClose={() => setBulkOpen(false)} onDone={onToast} />
     </Stack>
   );
 }

@@ -37,6 +37,7 @@ const sequelize = new Sequelize(
 const User = require('./User')(sequelize, Sequelize.DataTypes);
 const Profile = require('./Profile')(sequelize, Sequelize.DataTypes);
 const Group = require('./Group')(sequelize, Sequelize.DataTypes);
+const UserGroup = require('./UserGroup')(sequelize, Sequelize.DataTypes);
 const Role = require('./Role')(sequelize, Sequelize.DataTypes);
 const RoleSet = require('./RoleSet')(sequelize, Sequelize.DataTypes);
 const Certificate = require('./Certificate')(sequelize, Sequelize.DataTypes);
@@ -61,9 +62,9 @@ const AcmeNonce = require('./AcmeNonce')(sequelize, Sequelize.DataTypes);
 User.hasMany(Profile, { foreignKey: 'userId', as: 'profiles', onDelete: 'CASCADE' });
 Profile.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
-// User <-> Group (Many-to-Many)
-User.belongsToMany(Group, { through: 'UserGroups', as: 'groups', foreignKey: 'userId' });
-Group.belongsToMany(User, { through: 'UserGroups', as: 'users', foreignKey: 'groupId' });
+// User <-> Group (Many-to-Many, through UserGroup which carries the membership role)
+User.belongsToMany(Group, { through: UserGroup, as: 'groups', foreignKey: 'userId' });
+Group.belongsToMany(User, { through: UserGroup, as: 'users', foreignKey: 'groupId' });
 
 // User <-> Role (Many-to-Many)
 User.belongsToMany(Role, { through: 'UserRoles', as: 'roles', foreignKey: 'userId' });
@@ -92,6 +93,11 @@ Certificate.hasMany(Token, { foreignKey: 'certificateId', as: 'tokens' });
 // Token <-> User (Many-to-One)
 Token.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(Token, { foreignKey: 'userId', as: 'tokens' });
+
+// Token <-> Group scoping (spec v1.1): optional group / organization the token
+// was issued for; admins of either may invalidate the token.
+Token.belongsTo(Group, { foreignKey: 'groupId', as: 'group' });
+Token.belongsTo(Group, { foreignKey: 'organizationId', as: 'organization' });
 
 // Ticket <-> User (Many-to-One)
 Ticket.belongsTo(User, { foreignKey: 'userId', as: 'user' });
@@ -155,6 +161,7 @@ const db = {
   User,
   Profile,
   Group,
+  UserGroup,
   Role,
   RoleSet,
   Certificate,

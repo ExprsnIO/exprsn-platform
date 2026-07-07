@@ -3,19 +3,19 @@
  * Token Configuration Module
  * ═══════════════════════════════════════════════════════════════════════
  *
- * See: TOKEN_SPECIFICATION_V1.0.md for complete token specification
+ * See: TOKEN_SPECIFICATION_V1.1.md for complete token specification
  */
 
 /**
  * CA Token configuration
- * Implements TOKEN_SPECIFICATION_V1.0
+ * Implements TOKEN_SPECIFICATION_V1.1
  */
 module.exports = {
   /**
    * Token specification version
    * @type {string}
    */
-  version: process.env.TOKEN_VERSION || '1.0',
+  version: process.env.TOKEN_VERSION || '1.1',
 
   /**
    * Maximum token size (bytes)

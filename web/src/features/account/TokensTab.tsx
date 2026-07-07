@@ -41,8 +41,10 @@ import { formatDate } from '@/features/files/util';
 import { DataView } from '@/features/admin/ui';
 import {
   caUserApi,
+  ORGANIZATION_GROUP_TYPES,
   type ExpiryType,
   type GenerateTokenBody,
+  type MyGroupMembership,
   type ResourceType,
   type TokenPermissions,
   type UserCertificate,
@@ -51,12 +53,21 @@ import {
 
 const TOKENS_KEY = ['ca', 'me', 'tokens'] as const;
 const CERTS_KEY = ['ca', 'me', 'certificates'] as const;
+const MY_GROUPS_KEY = ['ca', 'me', 'groups'] as const;
 
 const STATUS_COLOR: Record<string, 'success' | 'error' | 'warning' | 'default'> = {
   active: 'success',
   revoked: 'error',
   expired: 'warning',
+  exhausted: 'warning',
 };
+
+/** formatDate for epoch-ms token fields (BIGINTs serialize as numeric strings). */
+function formatTs(v?: string | number | null): string {
+  if (v == null) return '';
+  const n = Number(v);
+  return formatDate(Number.isFinite(n) && n > 0 ? new Date(n).toISOString() : String(v));
+}
 
 const PERM_KEYS: Array<{ key: keyof TokenPermissions; label: string }> = [
   { key: 'read', label: 'R' },
@@ -94,14 +105,45 @@ function permBadges(perms?: TokenPermissions) {
   );
 }
 
-function statusChip(status?: string) {
-  return (
+function statusChip(token: UserToken) {
+  const status = token.status;
+  const chip = (
     <Chip
       size="small"
       variant="outlined"
       color={STATUS_COLOR[status ?? ''] ?? 'default'}
       label={status ?? 'unknown'}
     />
+  );
+  if (status === 'revoked' && (token.revokedReason || token.revokedAt)) {
+    const parts = [
+      token.revokedReason ? `Reason: ${token.revokedReason}` : null,
+      token.revokedAt ? `At: ${formatTs(token.revokedAt)}` : null,
+      token.revokedBy ? `By: ${token.revokedBy.slice(0, 8)}…` : 'By: system',
+    ].filter(Boolean);
+    return (
+      <Tooltip title={parts.join(' · ')}>
+        <span>{chip}</span>
+      </Tooltip>
+    );
+  }
+  return chip;
+}
+
+/** Compact group/organization scope cell. */
+function scopeCell(token: UserToken) {
+  const parts: string[] = [];
+  if (token.organization?.name) parts.push(`org: ${token.organization.name}`);
+  else if (token.organizationId) parts.push(`org: ${token.organizationId.slice(0, 8)}…`);
+  if (token.group?.name) parts.push(`group: ${token.group.name}`);
+  else if (token.groupId) parts.push(`group: ${token.groupId.slice(0, 8)}…`);
+  if (!parts.length) return <Typography variant="body2" color="text.disabled">—</Typography>;
+  return (
+    <Tooltip title="Admins of this group/organization can also revoke this token">
+      <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+        {parts.join(' · ')}
+      </Typography>
+    </Tooltip>
   );
 }
 
@@ -114,6 +156,8 @@ const EMPTY_GEN = {
   /** Duration in seconds for time-based tokens (converted to an absolute ts). */
   expirySeconds: 3600,
   maxUses: 10,
+  groupId: '',
+  organizationId: '',
 };
 
 /** Generate-token dialog: pick a token-capable cert, permissions, resource, expiry. */
@@ -121,17 +165,21 @@ function GenerateDialog({
   open,
   onClose,
   tokenCerts,
+  myGroups,
   onToast,
 }: {
   open: boolean;
   onClose: () => void;
   tokenCerts: UserCertificate[];
+  myGroups: MyGroupMembership[];
   onToast: (m: string) => void;
 }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({ ...EMPTY_GEN });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  const orgOptions = myGroups.filter((g) => ORGANIZATION_GROUP_TYPES.includes(g.type));
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -146,6 +194,8 @@ function GenerateDialog({
       } else if (form.expiryType === 'use') {
         body.maxUses = form.maxUses;
       }
+      if (form.groupId) body.groupId = form.groupId;
+      if (form.organizationId) body.organizationId = form.organizationId;
       return caUserApi.generateToken(body);
     },
     onSuccess: () => {
@@ -270,6 +320,55 @@ function GenerateDialog({
               />
             )}
           </Stack>
+
+          {myGroups.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Scope (optional)
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                Scoping a token to a group or organization lets that scope's admins invalidate it.
+              </Typography>
+              <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
+                <FormControl fullWidth>
+                  <InputLabel id="scope-group-label">Group</InputLabel>
+                  <Select
+                    labelId="scope-group-label"
+                    label="Group"
+                    value={form.groupId}
+                    onChange={(e) => set('groupId', e.target.value)}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {myGroups.map((g) => (
+                      <MenuItem key={g.id} value={g.id}>
+                        {g.name} ({g.type})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth disabled={orgOptions.length === 0}>
+                  <InputLabel id="scope-org-label">Organization</InputLabel>
+                  <Select
+                    labelId="scope-org-label"
+                    label="Organization"
+                    value={form.organizationId}
+                    onChange={(e) => set('organizationId', e.target.value)}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {orgOptions.map((g) => (
+                      <MenuItem key={g.id} value={g.id}>
+                        {g.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Box>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -317,25 +416,35 @@ export function TokensTab() {
   const [refreshSeconds, setRefreshSeconds] = useState(3600);
   // Revoke confirm.
   const [revokeToken, setRevokeToken] = useState<UserToken | null>(null);
+  const [revokeReason, setRevokeReason] = useState('');
 
   const query = useQuery({ queryKey: TOKENS_KEY, queryFn: () => caUserApi.listTokens() });
   const certQuery = useQuery({
     queryKey: CERTS_KEY,
     queryFn: () => caUserApi.listCertificates({ limit: 100 }),
   });
+  const groupsQuery = useQuery({
+    queryKey: MY_GROUPS_KEY,
+    queryFn: () => caUserApi.listMyGroups(),
+  });
+  const myGroups = groupsQuery.data?.groups ?? [];
 
   // Token-capable certs are the user's active certs (password certs cannot sign,
   // but the list response doesn't expose that flag, so the backend enforces it).
   const tokenCerts = (certQuery.data?.certificates ?? []).filter((c) => c.status === 'active');
-  const certName = (id?: string) =>
-    tokenCerts.find((c) => c.id === id)?.commonName ?? (id ? `${id.slice(0, 8)}…` : '—');
+  const certName = (t: UserToken) =>
+    t.certificate?.commonName ??
+    tokenCerts.find((c) => c.id === t.certificateId)?.commonName ??
+    (t.certificateId ? `${t.certificateId.slice(0, 8)}…` : '—');
 
   const revokeMutation = useMutation({
-    mutationFn: () => caUserApi.revokeToken(revokeToken!.id, 'User requested revocation'),
+    mutationFn: () =>
+      caUserApi.revokeToken(revokeToken!.id, revokeReason.trim() || 'User requested revocation'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: TOKENS_KEY });
       setToast('Token revoked');
       setRevokeToken(null);
+      setRevokeReason('');
     },
     onError: (e) => setToast(toMessage(e)),
   });
@@ -364,8 +473,9 @@ export function TokensTab() {
       </Stack>
 
       <Alert severity="info" variant="outlined">
-        Each token is signed by one of your certificates. Revoking that certificate revokes its
-        tokens.
+        Each token is backed by one of your certificates — revoking the certificate revokes its
+        tokens. Tokens can be time-based, use-based, or persistent, and can be invalidated by you,
+        a system admin, or (for scoped tokens) an admin of the token's group/organization.
       </Alert>
 
       {query.isLoading && (
@@ -390,6 +500,7 @@ export function TokensTab() {
                   <TableCell>Permissions</TableCell>
                   <TableCell>Resource</TableCell>
                   <TableCell>Expiry</TableCell>
+                  <TableCell>Scope</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
@@ -400,19 +511,30 @@ export function TokensTab() {
                     <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                       {t.id.slice(0, 8)}…
                     </TableCell>
-                    <TableCell sx={{ color: 'text.secondary' }}>{certName(t.certificateId)}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>
+                      {t.certificate?.status === 'revoked' ? (
+                        <Tooltip title="Signing certificate revoked — the token is invalid">
+                          <Typography variant="body2" color="error">
+                            {certName(t)}
+                          </Typography>
+                        </Tooltip>
+                      ) : (
+                        certName(t)
+                      )}
+                    </TableCell>
                     <TableCell>{permBadges(t.permissions)}</TableCell>
                     <TableCell sx={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
                       {t.resourceType}:{t.resourceValue}
                     </TableCell>
                     <TableCell sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
                       {t.expiryType === 'time'
-                        ? formatDate(t.expiresAt)
+                        ? formatTs(t.expiresAt)
                         : t.expiryType === 'use'
-                          ? `${t.usesRemaining ?? '?'} uses left`
+                          ? `${t.usesRemaining ?? '?'}${t.maxUses ? ` / ${t.maxUses}` : ''} uses left`
                           : t.expiryType}
                     </TableCell>
-                    <TableCell>{statusChip(t.status)}</TableCell>
+                    <TableCell>{scopeCell(t)}</TableCell>
+                    <TableCell>{statusChip(t)}</TableCell>
                     <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                       <Tooltip title="Introspect">
                         <IconButton size="small" onClick={() => setIntrospectToken(t)}>
@@ -457,6 +579,7 @@ export function TokensTab() {
         open={genOpen}
         onClose={() => setGenOpen(false)}
         tokenCerts={tokenCerts}
+        myGroups={myGroups}
         onToast={setToast}
       />
 
@@ -496,9 +619,16 @@ export function TokensTab() {
       <Dialog open={!!revokeToken} onClose={() => setRevokeToken(null)} fullWidth maxWidth="xs">
         <DialogTitle>Revoke token</DialogTitle>
         <DialogContent>
-          <DialogContentText>
+          <DialogContentText sx={{ mb: 2 }}>
             Revoke token {revokeToken?.id.slice(0, 8)}…? This cannot be undone.
           </DialogContentText>
+          <TextField
+            label="Reason (optional)"
+            fullWidth
+            value={revokeReason}
+            onChange={(e) => setRevokeReason(e.target.value)}
+            inputProps={{ maxLength: 255 }}
+          />
         </DialogContent>
         <DialogActions>
           <Button color="inherit" onClick={() => setRevokeToken(null)}>

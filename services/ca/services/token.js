@@ -1,11 +1,11 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════
- * Token Service - Implementation of Exprsn CA Token Specification v1.0
- * See: TOKEN_SPECIFICATION_V1.0.md
+ * Token Service - Implementation of Exprsn CA Token Specification v1.1
+ * See: TOKEN_SPECIFICATION_V1.1.md (ExprsnIO/jsonlexicon-nodejs)
  * ═══════════════════════════════════════════════════════════════════════
  */
 
-const { Token, Certificate, AuditLog } = require('../models');
+const { Token, Certificate, Group, UserGroup, AuditLog } = require('../models');
 const crypto = require('../crypto');
 const { getStorage } = require('../storage');
 const config = require('../config');
@@ -26,7 +26,90 @@ function serviceError(code, message, status) {
   return error;
 }
 
+/**
+ * Group types that count as an "organization" for token scoping.
+ */
+const ORGANIZATION_GROUP_TYPES = ['organizational_unit', 'department'];
+
 class TokenService {
+  /**
+   * Is the user an admin (role admin/owner) of the given CA directory group?
+   * @param {string} userId
+   * @param {string} groupId
+   * @returns {Promise<boolean>}
+   */
+  async isGroupAdmin(userId, groupId) {
+    if (!userId || !groupId) {
+      return false;
+    }
+    const membership = await UserGroup.findOne({
+      where: { userId, groupId, role: ['admin', 'owner'] }
+    });
+    return !!membership;
+  }
+
+  /**
+   * May the actor invalidate this token? (spec v1.1 §10)
+   * Allowed: the token owner, a system admin, or an admin/owner of the
+   * token's group or organization scope.
+   * @param {Object} token - Token instance
+   * @param {string} actorId - Acting user id
+   * @param {Object} [options] - { isAdmin }
+   * @returns {Promise<boolean>}
+   */
+  async canInvalidateToken(token, actorId, options = {}) {
+    if (options.isAdmin) {
+      return true;
+    }
+    if (actorId && token.userId === actorId) {
+      return true;
+    }
+    if (token.groupId && await this.isGroupAdmin(actorId, token.groupId)) {
+      return true;
+    }
+    if (token.organizationId && await this.isGroupAdmin(actorId, token.organizationId)) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Resolve and validate a group/organization scope for token issuance.
+   * Non-admin issuers must be an active member of the scope group.
+   * @param {string} groupId - ca.groups id
+   * @param {string} userId - Issuing user
+   * @param {Object} options - { isAdmin, organization: bool }
+   * @returns {Promise<Object>} Group instance
+   */
+  async resolveScopeGroup(groupId, userId, { isAdmin = false, organization = false } = {}) {
+    const group = await Group.findByPk(groupId);
+    if (!group || group.status !== 'active') {
+      throw serviceError(
+        organization ? 'ORGANIZATION_NOT_FOUND' : 'GROUP_NOT_FOUND',
+        `${organization ? 'Organization' : 'Group'} not found or not active`,
+        404
+      );
+    }
+    if (organization && !ORGANIZATION_GROUP_TYPES.includes(group.type)) {
+      throw serviceError(
+        'NOT_AN_ORGANIZATION',
+        'organizationId must reference an organizational unit or department group',
+        400
+      );
+    }
+    if (!isAdmin) {
+      const membership = await UserGroup.findOne({ where: { userId, groupId } });
+      if (!membership) {
+        throw serviceError(
+          'SCOPE_MEMBERSHIP_REQUIRED',
+          `You are not a member of the requested ${organization ? 'organization' : 'group'} scope`,
+          403
+        );
+      }
+    }
+    return group;
+  }
+
   /**
    * Generate token (Section 8 of specification)
    * @param {Object} params - Token generation parameters
@@ -66,6 +149,24 @@ class TokenService {
         );
       }
 
+      // Group/organization scoping (spec v1.1): validate the referenced groups
+      // and (for non-admins) the issuer's membership in them.
+      let groupId = null;
+      let organizationId = null;
+      if (params.groupId) {
+        const group = await this.resolveScopeGroup(params.groupId, userId, {
+          isAdmin: options.isAdmin
+        });
+        groupId = group.id;
+      }
+      if (params.organizationId) {
+        const organization = await this.resolveScopeGroup(params.organizationId, userId, {
+          isAdmin: options.isAdmin,
+          organization: true
+        });
+        organizationId = organization.id;
+      }
+
       // Get private key from storage
       const storage = getStorage();
       const privateKey = await storage.getPrivateKey(certificate.id);
@@ -80,8 +181,14 @@ class TokenService {
       let maxUses = null;
 
       if (params.expiryType === 'time') {
-        const expirySeconds = params.expirySeconds || config.token.defaults.expirySeconds;
-        expiresAt = issuedAt + (expirySeconds * 1000);
+        // Callers may pass an absolute expiresAt (the API schema's shape) or a
+        // relative expirySeconds; absolute wins when both are present.
+        if (params.expiresAt && params.expiresAt > issuedAt) {
+          expiresAt = params.expiresAt;
+        } else {
+          const expirySeconds = params.expirySeconds || config.token.defaults.expirySeconds;
+          expiresAt = issuedAt + (expirySeconds * 1000);
+        }
       } else if (params.expiryType === 'use') {
         maxUses = params.maxUses || config.token.defaults.maxUses;
         usesRemaining = maxUses;
@@ -93,6 +200,8 @@ class TokenService {
         version: config.token.version,
         userId,
         certificateId: certificate.id,
+        groupId,
+        organizationId,
         permissionRead: params.permissions.read || false,
         permissionWrite: params.permissions.write || false,
         permissionAppend: params.permissions.append || false,
@@ -135,6 +244,15 @@ class TokenService {
       if (token.expiryType === 'use') {
         tokenForChecksum.usesRemaining = token.usesRemaining;
         tokenForChecksum.maxUses = token.maxUses;
+      }
+
+      // Add scope fields if applicable (v1.1). Conditional so pre-1.1 tokens
+      // (which have no scope) keep verifying against their original payload.
+      if (token.groupId) {
+        tokenForChecksum.groupId = token.groupId;
+      }
+      if (token.organizationId) {
+        tokenForChecksum.organizationId = token.organizationId;
       }
 
       // Calculate checksum (Section 4.2.5)
@@ -276,6 +394,26 @@ class TokenService {
         };
       }
 
+      // Step 5b: Check scope groups (spec v1.1) — a token scoped to a group or
+      // organization is only valid while that group/organization stays active
+      // (deactivating/archiving the scope invalidates its tokens).
+      if (token.groupId || token.organizationId) {
+        const scopeIds = [token.groupId, token.organizationId].filter(Boolean);
+        const scopeGroups = await Group.findAll({ where: { id: scopeIds } });
+        const inactive = scopeIds.find(id => {
+          const g = scopeGroups.find(sg => sg.id === id);
+          return !g || g.status !== 'active';
+        });
+        if (inactive) {
+          return {
+            valid: false,
+            error: 'SCOPE_INACTIVE',
+            message: 'Token group/organization scope is not active',
+            scopeId: inactive
+          };
+        }
+      }
+
       // Step 6: Verify certificate (Section 9.1.5)
       const certificate = token.certificate;
       if (!certificate) {
@@ -324,8 +462,20 @@ class TokenService {
       };
 
       if (token.expiryType === 'use') {
-        tokenForVerification.usesRemaining = token.usesRemaining;
+        // The signature was created at issuance, when usesRemaining === maxUses.
+        // Reconstruct with the issuance values — using the current (decremented)
+        // usesRemaining would fail verification after the first use.
+        tokenForVerification.usesRemaining = token.maxUses;
         tokenForVerification.maxUses = token.maxUses;
+      }
+
+      // Scope fields are part of the signed payload for v1.1 tokens (conditional
+      // so pre-1.1 tokens keep verifying against their original payload).
+      if (token.groupId) {
+        tokenForVerification.groupId = token.groupId;
+      }
+      if (token.organizationId) {
+        tokenForVerification.organizationId = token.organizationId;
       }
 
       const canonicalData = JSON.stringify(tokenForVerification, Object.keys(tokenForVerification).sort());
@@ -461,6 +611,7 @@ class TokenService {
         expiresAt: token.expiresAt,
         token: {
           id: token.id,
+          version: token.version,
           permissions: token.getPermissions(),
           resource: {
             [token.resourceType]: token.resourceValue
@@ -468,7 +619,10 @@ class TokenService {
           expiryType: token.expiryType,
           expiresAt: token.expiresAt,
           usesRemaining: token.usesRemaining,
+          maxUses: token.maxUses,
           useCount: token.useCount,
+          groupId: token.groupId,
+          organizationId: token.organizationId,
           data: token.tokenData
         }
       };
@@ -536,23 +690,28 @@ class TokenService {
   }
 
   /**
-   * Revoke token
-   * Scoped to the owning user unless options.isAdmin is true
+   * Revoke (invalidate) a token — spec v1.1 §10.
+   * Authorized principals: the token owner, a system admin, or an admin/owner
+   * of the token's group or organization scope.
    */
   async revokeToken(tokenId, reason, userId = null, options = {}) {
-    const where = { id: tokenId };
-    if (userId && !options.isAdmin) {
-      where.userId = userId;
-    }
-
-    const token = await Token.findOne({ where });
+    const token = await Token.findByPk(tokenId);
     if (!token) {
       throw serviceError('TOKEN_NOT_FOUND', 'Token not found', 404);
+    }
+
+    if (!(await this.canInvalidateToken(token, userId, options))) {
+      throw serviceError(
+        'REVOKE_NOT_AUTHORIZED',
+        'Only the token owner, a system admin, or an admin of the token\'s group/organization may revoke it',
+        403
+      );
     }
 
     token.status = 'revoked';
     token.revokedAt = Date.now();
     token.revokedReason = reason;
+    token.revokedBy = userId || null;
     await token.save();
 
     // Invalidate cache
@@ -568,10 +727,96 @@ class TokenService {
       status: 'success',
       severity: 'warning',
       message: `Token revoked: ${reason}`,
-      details: { tokenId: token.id, reason }
+      details: { tokenId: token.id, reason, revokedBy: userId }
     });
 
     return token;
+  }
+
+  /**
+   * Bulk-revoke every active token in a user/group/organization scope
+   * (spec v1.1 §10.2). Authorization:
+   *  - scope user:         the user themself, or a system admin
+   *  - scope group/org:    an admin/owner of that group/org, or a system admin
+   *
+   * @param {Object} scope - Exactly one of { userId, groupId, organizationId }
+   * @param {string} reason - Recorded on each token
+   * @param {string} actorId - Acting user id (recorded as revokedBy)
+   * @param {Object} [options] - { isAdmin }
+   * @returns {Promise<number>} Number of tokens revoked
+   */
+  async revokeTokensByScope(scope, reason, actorId, options = {}) {
+    const where = { status: 'active' };
+
+    if (scope.userId) {
+      if (!options.isAdmin && scope.userId !== actorId) {
+        throw serviceError(
+          'REVOKE_NOT_AUTHORIZED',
+          'Only the user themself or a system admin may bulk-revoke a user\'s tokens',
+          403
+        );
+      }
+      where.userId = scope.userId;
+    } else if (scope.groupId || scope.organizationId) {
+      const scopeGroupId = scope.groupId || scope.organizationId;
+      if (!options.isAdmin && !(await this.isGroupAdmin(actorId, scopeGroupId))) {
+        throw serviceError(
+          'REVOKE_NOT_AUTHORIZED',
+          'Only a group/organization admin or a system admin may bulk-revoke its tokens',
+          403
+        );
+      }
+      if (scope.groupId) {
+        where.groupId = scope.groupId;
+      } else {
+        where.organizationId = scope.organizationId;
+      }
+    } else {
+      throw serviceError('SCOPE_REQUIRED', 'A user, group, or organization scope is required', 400);
+    }
+
+    const affected = await Token.findAll({ where, attributes: ['id'] });
+    if (affected.length === 0) {
+      return 0;
+    }
+
+    const [count] = await Token.update(
+      {
+        status: 'revoked',
+        revokedAt: Date.now(),
+        revokedReason: reason,
+        revokedBy: actorId || null
+      },
+      { where }
+    );
+
+    // Best-effort cache invalidation (DB rows are the source of truth).
+    await Promise.all(
+      affected.map(async (t) => {
+        try {
+          await redisClient.del(`token:validation:${t.id}`);
+        } catch (cacheError) {
+          logger.warn('Token cache invalidation failed during bulk revoke', {
+            tokenId: t.id,
+            error: cacheError.message
+          });
+        }
+      })
+    );
+
+    await AuditLog.log({
+      userId: actorId,
+      action: 'token.revoke.bulk',
+      resourceType: 'token',
+      status: 'success',
+      severity: 'warning',
+      message: `Bulk token revocation (${count} token(s)): ${reason}`,
+      details: { scope, reason, revokedTokenCount: count }
+    });
+
+    logger.info('Bulk token revocation complete', { scope, revokedTokenCount: count, reason });
+
+    return count;
   }
 
   /**
@@ -605,7 +850,8 @@ class TokenService {
       {
         status: 'revoked',
         revokedAt: Date.now(),
-        revokedReason: reason
+        revokedReason: reason,
+        revokedBy: options.revokedBy || null
       },
       {
         where: { certificateId, status: 'active' }
@@ -636,18 +882,27 @@ class TokenService {
   }
 
   /**
-   * List tokens for user
+   * List tokens for user (or, when userId is null, by scope filters only —
+   * callers are responsible for authorizing scope-wide listings).
    */
   async listTokens(userId, filters = {}) {
-    const where = { userId };
+    const where = {};
+    if (userId) where.userId = userId;
 
     if (filters.status) where.status = filters.status;
     if (filters.resourceType) where.resourceType = filters.resourceType;
     if (filters.expiryType) where.expiryType = filters.expiryType;
+    if (filters.groupId) where.groupId = filters.groupId;
+    if (filters.organizationId) where.organizationId = filters.organizationId;
+    if (filters.certificateId) where.certificateId = filters.certificateId;
 
     return await Token.findAll({
       where,
-      include: [{ association: 'certificate', attributes: ['id', 'commonName', 'serialNumber'] }],
+      include: [
+        { association: 'certificate', attributes: ['id', 'commonName', 'serialNumber', 'status'] },
+        { association: 'group', attributes: ['id', 'name', 'type'] },
+        { association: 'organization', attributes: ['id', 'name', 'type'] }
+      ],
       order: [['createdAt', 'DESC']],
       limit: filters.limit || 50
     });
@@ -747,7 +1002,9 @@ class TokenService {
           {
             association: 'user',
             attributes: ['id', 'email', 'username']
-          }
+          },
+          { association: 'group', attributes: ['id', 'name', 'type'] },
+          { association: 'organization', attributes: ['id', 'name', 'type'] }
         ]
       });
 
@@ -799,6 +1056,19 @@ class TokenService {
       if (token.status === 'revoked') {
         introspection.revokedAt = token.revokedAt;
         introspection.revokedReason = token.revokedReason;
+        introspection.revokedBy = token.revokedBy;
+      }
+
+      // Add scope info (v1.1)
+      if (token.groupId || token.organizationId) {
+        introspection.scope = {
+          groupId: token.groupId,
+          group: token.group ? { id: token.group.id, name: token.group.name, type: token.group.type } : undefined,
+          organizationId: token.organizationId,
+          organization: token.organization
+            ? { id: token.organization.id, name: token.organization.name, type: token.organization.type }
+            : undefined
+        };
       }
 
       // Add certificate status

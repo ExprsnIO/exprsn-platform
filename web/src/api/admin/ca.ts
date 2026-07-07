@@ -87,11 +87,32 @@ export interface IssueCertInput {
 
 export interface GenerateTokenInput {
   certificateId: string;
-  resourceType: string;
+  resourceType: 'url' | 'did' | 'cid' | string;
   resourceValue: string;
   permissions?: Record<string, boolean>;
+  /** time | use | persistent */
   expiryType?: string;
-  expiryValue?: number;
+  /** Relative expiry for time-based tokens. */
+  expirySeconds?: number;
+  /** Required for use-based tokens. */
+  maxUses?: number;
+  /** Subject user the token is minted for (defaults to the acting admin). */
+  userId?: string;
+  /** Optional scope: CA directory group. */
+  groupId?: string;
+  /** Optional scope: organization (organizational-unit/department group). */
+  organizationId?: string;
+}
+
+/** CA directory group (admin list). */
+export interface CaGroup {
+  id: string;
+  name?: string;
+  slug?: string;
+  /** distribution_list | organizational_unit | team | department */
+  type?: string;
+  status?: string;
+  [k: string]: unknown;
 }
 
 export const caAdminApi = {
@@ -160,7 +181,16 @@ export const caAdminApi = {
     URL.revokeObjectURL(url);
   },
 
-  listTokens: (params?: { status?: string; expiryType?: string; limit?: number; offset?: number }) =>
+  listTokens: (params?: {
+    status?: string;
+    expiryType?: string;
+    userId?: string;
+    certificateId?: string;
+    groupId?: string;
+    organizationId?: string;
+    limit?: number;
+    offset?: number;
+  }) =>
     http.get<{ tokens: CaToken[]; pagination?: Record<string, number> }>(`/ca/admin/api/tokens${q(params)}`),
   generateToken: (input: GenerateTokenInput) =>
     http.post<{ token: CaToken; tokenValue?: string }>('/ca/admin/api/tokens/generate', input),
@@ -173,13 +203,25 @@ export const caAdminApi = {
   revokeToken: (id: string, reason: string) =>
     http.post<{ success: boolean }>(`/ca/admin/api/tokens/${id}/revoke`, { tokenId: id, reason }),
 
+  /** Invalidate every active token in a user/group/organization scope. */
+  bulkRevokeTokens: (scope: 'user' | 'group' | 'organization', targetId: string, reason: string) =>
+    http.post<{ success: boolean; revokedCount: number }>('/ca/admin/api/tokens/revoke-bulk', {
+      scope,
+      targetId,
+      reason,
+    }),
+
   ocspStatus: () => http.get<Record<string, unknown>>('/ca/admin/api/ocsp/status'),
   crlStatus: () => http.get<Record<string, unknown>>('/ca/admin/api/crl/status'),
   generateCrl: () => http.post<Record<string, unknown>>('/ca/admin/api/crl/generate', {}),
 
   listUsers: (params?: { limit?: number; offset?: number; search?: string }) =>
     http.get<{ users: CaUser[]; pagination?: Record<string, number> }>(`/ca/admin/api/users${q(params)}`),
-  listGroups: () => http.get<{ groups: Array<Record<string, unknown>> }>('/ca/admin/api/groups'),
+  /** NOTE: the backend returns a bare array — normalize to { groups } here. */
+  listGroups: async (): Promise<{ groups: CaGroup[] }> => {
+    const data = await http.get<CaGroup[] | { groups: CaGroup[] }>('/ca/admin/api/groups');
+    return Array.isArray(data) ? { groups: data } : data;
+  },
   listRoles: () => http.get<{ roles: Array<Record<string, unknown>> }>('/ca/admin/api/roles'),
 
   getConfig: () => http.get<Record<string, unknown>>('/ca/admin/api/config'),

@@ -424,7 +424,8 @@ class CertificateService {
         const tokenService = require('./token');
         revokedTokenCount = await tokenService.revokeTokensByCertificateId(
           certificate.id,
-          'certificate_revoked'
+          'certificate_revoked',
+          { revokedBy: userId }
         );
 
         await AuditLog.log({

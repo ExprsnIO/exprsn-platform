@@ -87,14 +87,16 @@ module.exports = (sequelize) => {
       defaultValue: {
         allowUserRegistration: false,
         requireEmailVerification: true,
-        // Legacy flag retained for backward compatibility; the admin "Auth &
-        // Identity" UI binds the "Require 2FA" toggle here. NOTE: this is NOT
-        // yet enforced at login — see STATUS.md "Org 2FA policy enforcement".
+        // The admin "Auth & Identity" UI binds the "Require 2FA" toggle here.
+        // ENFORCED at login via services/auth/src/services/mfaPolicyService.js
+        // (STATUS.md #12): un-enrolled members past their grace window must set
+        // up 2FA before a bearer is issued.
         requireMfa: false,
-        // Structured 2FA / MFA policy configured from the admin UI. Persisted
-        // only for now (no login-path enforcement yet). `totp` and
-        // `backup_codes` are implemented end-to-end; `sms`, `email` and
-        // `webauthn` are config scaffolding for methods not yet built.
+        // Structured 2FA / MFA policy configured from the admin UI. `totp` and
+        // `backup_codes` are implemented + enforced end-to-end; `sms`, `email`
+        // and `webauthn` are config scaffolding for methods not yet built — a
+        // policy restricted to only those cannot be enforced (login is allowed
+        // through with a warning) until they ship.
         mfa: {
           allowedMethods: ['totp', 'backup_codes'],
           enrollmentGracePeriodDays: 7,

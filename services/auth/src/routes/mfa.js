@@ -13,6 +13,7 @@ const { asyncHandler, AppError, logger, strictLimiter, standardLimiter } = requi
 const { requireAuth } = require('../middleware/requireAuth');
 const { User } = require('../models');
 const { hashBackupCode } = require('../utils/mfaToken');
+const mfaPolicyService = require('../services/mfaPolicyService');
 const config = require('../config');
 
 /**
@@ -47,6 +48,19 @@ router.post('/setup', asyncHandler(async (req, res) => {
 
   if (user.mfaEnabled) {
     throw new AppError('MFA is already enabled', 400, 'MFA_ALREADY_ENABLED');
+  }
+
+  // Honour the org policy's allowed methods (STATUS.md #12b). These endpoints
+  // enrol TOTP (+ backup codes); if a requiring org restricts to a method that
+  // isn't TOTP, block setup with a clear message rather than silently enrolling
+  // a disallowed factor. Voluntary MFA (no org requirement) is unaffected.
+  const policy = await mfaPolicyService.resolveMfaPolicy(user);
+  if (policy.required && !policy.totpAllowed) {
+    throw new AppError(
+      'Your organization\'s 2FA policy requires a method that is not yet available. Contact your administrator.',
+      400,
+      'MFA_METHOD_NOT_ALLOWED'
+    );
   }
 
   // Generate secret

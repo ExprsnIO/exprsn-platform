@@ -25,15 +25,34 @@ export interface User {
 export interface LoginSuccess {
   user: User;
   token: string;
+  /** Soft org-policy nudge: enrolment required but still within the grace window. */
+  mfaEnrollmentRequired?: boolean;
+  allowedMethods?: string[];
+  mfaEnrollmentGraceEndsAt?: number;
 }
 export interface MfaChallenge {
   mfaRequired: true;
   mfaToken: string;
 }
-export type LoginResult = LoginSuccess | MfaChallenge;
+/**
+ * Hard org-policy gate: the user's organization requires 2FA and the enrolment
+ * grace window has elapsed. The passport session cookie IS established, but no
+ * bearer is issued until the user enrols (setup → verify → re-mint).
+ */
+export interface MfaEnrollmentRequired {
+  mfaEnrollmentRequired: true;
+  enforced: true;
+  allowedMethods: string[];
+  message?: string;
+}
+export type LoginResult = LoginSuccess | MfaChallenge | MfaEnrollmentRequired;
 
 export const isMfaChallenge = (r: LoginResult): r is MfaChallenge =>
   (r as MfaChallenge).mfaRequired === true;
+
+export const isMfaEnrollmentRequired = (r: LoginResult): r is MfaEnrollmentRequired =>
+  (r as MfaEnrollmentRequired).mfaEnrollmentRequired === true &&
+  (r as MfaEnrollmentRequired).enforced === true;
 
 export const authApi = {
   login: (email: string, password: string) =>

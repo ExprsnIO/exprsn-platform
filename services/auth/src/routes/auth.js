@@ -15,6 +15,7 @@ const { strictLimiter } = require('@exprsn/shared');
 const { User, Session } = require('../models');
 const tokenService = require('../services/tokenService');
 const sessionService = require('../services/sessionService');
+const mfaPolicyService = require('../services/mfaPolicyService');
 const { getEmailService } = require('../services/emailService');
 const { validatePasswordOrThrow } = require('../services/passwordService');
 const { issueMfaToken, verifyMfaToken, hashBackupCode } = require('../utils/mfaToken');
@@ -148,6 +149,40 @@ router.post('/login',
         });
       }
 
+      // Org 2FA policy enforcement for users who have NOT enrolled (STATUS.md #12).
+      // Resolve the most-restrictive policy across the user's orgs. If enrollment
+      // is required and the grace window has elapsed, HARD-gate: establish the
+      // passport session (so the client can run the setup wizard) but withhold the
+      // bearer until MFA is actually enabled. Within grace, issue the token but
+      // flag the pending requirement so the SPA can nudge. Fail OPEN on a
+      // resolution error (defense-in-depth control; a DB blip must not block all
+      // logins) — logged loudly.
+      let softEnrollment = null;
+      try {
+        const decision = await mfaPolicyService.evaluateForLogin(user);
+        if (decision.required && decision.enrollmentRequired) {
+          if (decision.graceExpired) {
+            return req.login(user, (loginErr) => {
+              if (loginErr) return next(loginErr);
+              if (req.session) req.session.mfaVerified = false;
+              logger.info('Login blocked pending MFA enrollment (org policy)', { userId: user.id, email: user.email });
+              return res.json({
+                mfaEnrollmentRequired: true,
+                enforced: true,
+                allowedMethods: decision.allowedMethods,
+                message: 'Your organization requires two-factor authentication. Set it up to continue.'
+              });
+            });
+          }
+          softEnrollment = {
+            allowedMethods: decision.allowedMethods,
+            graceEndsAt: decision.graceEndsAt
+          };
+        }
+      } catch (policyErr) {
+        logger.error('MFA policy resolution failed; allowing login', { userId: user.id, error: policyErr.message });
+      }
+
       // Log user in
       req.login(user, async (loginErr) => {
         try {
@@ -169,11 +204,19 @@ router.post('/login',
 
           const safeUser = user.toSafeObject();
           safeUser.roles = await tokenService.resolveUserRoles(user);
-          res.json({
+          const body = {
             message: 'Login successful',
             user: safeUser,
             token
-          });
+          };
+          if (softEnrollment) {
+            // Within the enrollment grace window — login succeeds, SPA can prompt.
+            body.mfaEnrollmentRequired = true;
+            body.enforced = false;
+            body.allowedMethods = softEnrollment.allowedMethods;
+            body.mfaEnrollmentGraceEndsAt = softEnrollment.graceEndsAt;
+          }
+          res.json(body);
         } catch (loginCbErr) {
           next(loginCbErr);
         }
@@ -442,6 +485,23 @@ async function handleSocialCallback(req, res) {
     return res.redirect(redirectUrl.toString());
   }
 
+  // Org 2FA enforcement for un-enrolled social logins (close the OAuth bypass of
+  // the /login gate, STATUS.md #12). The passport session is already established,
+  // so send the user to the SPA login page to complete enrolment (setup → verify
+  // → re-mint) before any bearer is issued. Fail open on resolution error.
+  try {
+    const decision = await mfaPolicyService.evaluateForLogin(req.user);
+    if (decision.required && decision.enrollmentRequired && decision.graceExpired) {
+      if (req.session) req.session.mfaVerified = false;
+      const enrollUrl = new URL('/login', frontendUrl);
+      enrollUrl.searchParams.set('enroll', 'mfa');
+      logger.info('Social login requires MFA enrollment (org policy)', { userId: req.user.id });
+      return res.redirect(enrollUrl.toString());
+    }
+  } catch (policyErr) {
+    logger.error('MFA policy resolution failed on social login; allowing', { userId: req.user.id, error: policyErr.message });
+  }
+
   // Generate CA token, hand out a one-time exchange code (not the token)
   const token = await tokenService.generateToken(req.user);
 
@@ -664,6 +724,16 @@ router.post('/token', asyncHandler(async (req, res) => {
   const user = await User.findByPk(req.user.id);
   if (!user) {
     throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+  }
+
+  // Close the enrollment bypass: a hard-gated login establishes the session but
+  // withholds the bearer, so re-mint must apply the same org-policy check — else
+  // an un-enrolled user could just call this to obtain a bearer (STATUS.md #12).
+  if (!user.mfaEnabled) {
+    const decision = await mfaPolicyService.evaluateForLogin(user);
+    if (decision.required && decision.enrollmentRequired && decision.graceExpired) {
+      throw new AppError('Your organization requires two-factor authentication. Set it up to continue.', 403, 'MFA_ENROLLMENT_REQUIRED');
+    }
   }
 
   const token = await tokenService.generateToken(user);

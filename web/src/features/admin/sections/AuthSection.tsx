@@ -298,9 +298,12 @@ function OrgSettingsForm({ org, onToast }: { org: Organization; onToast: (m: str
 
       <Card title="Two-factor authentication">
         <Stack spacing={2}>
-          <Alert severity="warning">
-            This policy is saved but <strong>not yet enforced at login</strong> (see STATUS.md). Members can
-            already enable 2FA from their own account security settings.
+          <Alert severity="info">
+            <strong>Enforced at login.</strong> When required, members who haven't set up 2FA are
+            prompted to enrol during sign-in (password, OAuth, and re-mint paths) once their grace
+            period elapses; a bearer is only issued after enrolment. Grace is measured from each
+            member's account-creation date. Only TOTP + backup codes are available today — a policy
+            restricted to other methods can't be enforced and is skipped.
           </Alert>
           <FormControlLabel
             control={<Switch checked={form.requireMfa} onChange={(e) => set('requireMfa', e.target.checked)} />}

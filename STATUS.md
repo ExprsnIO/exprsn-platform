@@ -621,22 +621,48 @@ publish/host action is gated on a validated CA bearer.
 - Wiring: `registerSockets(io)` mounts `SocketHandler` on the `/live` namespace
   (`services/live/src/index.js`). Surfaced during socket verification (#3).
 
-### 12. Org 2FA policy enforcement — NOT WIRED (UI-only as of 2026-06-22)
-The admin "Auth & Identity" → Organizations tab now has a **2FA policy** editor
-(`web/src/features/admin/sections/AuthSection.tsx` → `MfaPolicyDialog`) that
-persists, per org, `settings.requireMfa`, `settings.mfa.allowedMethods`,
+### 12. Org 2FA policy enforcement — ENFORCED 2026-07-07 (a+b done; c/d remain)
+The admin "Auth & Identity" → Organizations tab has a **2FA policy** editor
+(`web/src/features/admin/sections/AuthSection.tsx`) persisting per org
+`settings.requireMfa`, `settings.mfa.allowedMethods`,
 `settings.mfa.enrollmentGracePeriodDays`, and `settings.mfa.rememberDeviceDays`
-via `PATCH /auth/api/organizations/:id`. **These settings are saved but not yet
-enforced at login** — `services/auth/src/routes/auth.js` checks only the
-per-user `user.mfaEnabled`, never the org policy. Follow-ups to make the policy
-real: (a) on login, if the user's org has `requireMfa`, force 2FA enrollment
-(respecting the grace period) before issuing a token; (b) restrict the user MFA
-setup/validate paths to the org's `allowedMethods`; (c) implement the
-non-`totp`/`backup_codes` methods (`sms`/`email`/`webauthn`) — currently config
-scaffolding only, surfaced as "not yet available" in the UI; (d) honour
-`rememberDeviceDays` (trusted-device skip). The UI shows a warning banner saying
-the policy is not yet enforced. Model default updated in
-`services/auth/src/models/Organization.js`.
+via `PATCH /auth/api/organizations/:id`. The policy is now **enforced at login**.
+
+- **New `services/auth/src/services/mfaPolicyService.js`** resolves the
+  most-restrictive policy across every org a user is an active member of **or**
+  owns: required if ANY requires MFA; grace = min; `allowedMethods` = the
+  intersection; `totpAllowed` = whether an *enrollable* method (TOTP, the only
+  one built) is permitted. Grace is anchored on `user.createdAt` (no
+  policy-effective-date is persisted — documented; enabling the policy therefore
+  forces existing members to enrol on next login, the intended secure default).
+- **(a) Enrollment gate.** `POST /auth/api/auth/login` (`routes/auth.js`): for an
+  un-enrolled user whose policy requires MFA and whose grace has elapsed, it
+  establishes the passport session but **withholds the bearer**, returning
+  `{ mfaEnrollmentRequired:true, enforced:true, allowedMethods }`. Within grace
+  it issues the token with a soft `mfaEnrollmentRequired:false` flag. The
+  **re-mint** path (`POST /auth/api/auth/token`) applies the same check
+  (403 `MFA_ENROLLMENT_REQUIRED`) so the session can't be swapped for a bearer to
+  bypass it, and the **OAuth/social** callback redirects to `/login?enroll=mfa`.
+  Resolution failures **fail open** (logged) so a DB blip can't lock out all
+  logins. SPA: `LoginPage.tsx` gained an inline enrol step (setup QR + backup
+  codes → verify → re-mint → finish); reuses the existing account MFA endpoints.
+- **(b) Method restriction.** `POST /auth/api/mfa/setup` (`routes/mfa.js`) rejects
+  with `MFA_METHOD_NOT_ALLOWED` when a requiring org's policy disallows TOTP
+  (i.e. permits only unbuilt methods); voluntary MFA is unaffected. Because only
+  TOTP is built, this bites only on an unbuilt-method-only policy.
+- **Tests:** `services/auth/tests/mfaPolicy.test.js` (13, no DB) cover
+  resolution (most-restrictive, ownership path, method intersection,
+  unbuilt-only) and enrollment evaluation (hard-gate past grace, soft in-grace,
+  never-gate when unenforceable, enrolled short-circuit).
+  `services/auth/tests/mfaEnforcement.test.js` (6, live test Postgres via
+  supertest) drives the real `/login` + `/token` routes: un-affiliated normal
+  login, member hard-gate past grace (session but no bearer), member soft flag
+  in-grace, owner enforced, re-mint refused (403 `MFA_ENROLLMENT_REQUIRED`), and
+  inactive membership excluded. Both wired via the module's Jest suite.
+- **Remaining:** (c) implement `sms`/`email`/`webauthn` methods (still
+  scaffolding); (d) honour `rememberDeviceDays` (trusted-device skip of the
+  re-challenge — a UX relaxation, not an enforcement gap). Model default comment
+  updated in `services/auth/src/models/Organization.js`.
 
 ## Production readiness (release engineering) — NOT in the numbered follow-ups
 

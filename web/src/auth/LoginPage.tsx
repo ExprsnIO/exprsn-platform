@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
 import {
   Alert,
@@ -9,11 +9,12 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { authApi, isMfaChallenge, type LoginSuccess } from '@/api/auth';
+import { authApi, isMfaChallenge, isMfaEnrollmentRequired, type LoginSuccess } from '@/api/auth';
+import { accountApi, type MfaSetup } from '@/api/account';
 import { ApiError } from '@/lib/http';
 import { useAppStore } from '@/app/store';
 
-type Step = 'credentials' | 'mfa';
+type Step = 'credentials' | 'mfa' | 'enroll';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ export function LoginPage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Enforced org-policy enrolment
+  const [enrollMsg, setEnrollMsg] = useState<string | null>(null);
+  const [setup, setSetup] = useState<MfaSetup | null>(null);
 
   const finish = (res: LoginSuccess) => {
     setSession(res.user, res.token);
@@ -41,6 +45,34 @@ export function LoginPage() {
     return (err as Error).message || 'Something went wrong';
   };
 
+  // Enforced enrolment: the login response established a session but withheld the
+  // bearer. Kick off the TOTP setup wizard (session-cookie auth), then on verify
+  // re-mint the bearer and complete the login.
+  const beginEnrollment = async (message?: string) => {
+    setEnrollMsg(message || 'Your organization requires two-factor authentication.');
+    setStep('enroll');
+    setBusy(true);
+    setError(null);
+    try {
+      setSetup(await accountApi.mfaSetup());
+    } catch (err) {
+      setError(toMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Social-login enrolment: the OAuth callback established a session but
+  // redirected here with ?enroll=mfa instead of a bearer. Auto-start the wizard.
+  const enrollKicked = useRef(false);
+  useEffect(() => {
+    if (params.get('enroll') === 'mfa' && !enrollKicked.current) {
+      enrollKicked.current = true;
+      void beginEnrollment();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const submitCredentials = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -50,6 +82,8 @@ export function LoginPage() {
       if (isMfaChallenge(res)) {
         setMfaToken(res.mfaToken);
         setStep('mfa');
+      } else if (isMfaEnrollmentRequired(res)) {
+        await beginEnrollment(res.message);
       } else {
         finish(res);
       }
@@ -66,6 +100,22 @@ export function LoginPage() {
     setError(null);
     try {
       finish(await authApi.verifyMfa(mfaToken, code));
+    } catch (err) {
+      setError(toMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Verify the TOTP code to enable MFA, then re-mint the bearer to finish login.
+  const submitEnrollment = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await accountApi.mfaVerify(code);
+      const res = await authApi.remint();
+      finish(res);
     } catch (err) {
       setError(toMessage(err));
     } finally {
@@ -92,7 +142,7 @@ export function LoginPage() {
 
           <Stack spacing={3}>
 
-          {step === 'credentials' ? (
+          {step === 'credentials' && (
             <form onSubmit={submitCredentials}>
               <Stack spacing={2}>
                 <TextField
@@ -119,7 +169,9 @@ export function LoginPage() {
                 </Button>
               </Stack>
             </form>
-          ) : (
+          )}
+
+          {step === 'mfa' && (
             <form onSubmit={submitMfa}>
               <Stack spacing={2}>
                 <Typography variant="body2" color="text.secondary">
@@ -139,6 +191,56 @@ export function LoginPage() {
                   {busy ? 'Verifying…' : 'Verify'}
                 </Button>
                 <Button onClick={() => setStep('credentials')} disabled={busy} fullWidth>
+                  Back
+                </Button>
+              </Stack>
+            </form>
+          )}
+
+          {step === 'enroll' && (
+            <form onSubmit={submitEnrollment}>
+              <Stack spacing={2}>
+                <Alert severity="info">
+                  {enrollMsg} Set up an authenticator app to continue.
+                </Alert>
+                {setup ? (
+                  <>
+                    <Typography variant="body2" color="text.secondary">
+                      Scan this QR code with your authenticator app, then enter the 6-digit code it
+                      shows.
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                      <img src={setup.qrCode} alt="MFA QR code" width={180} height={180} />
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
+                      Can't scan? Secret: <code>{setup.secret}</code>
+                    </Typography>
+                    <Alert severity="warning">
+                      Save these one-time backup codes now — they are shown only once:
+                      <Box component="code" sx={{ display: 'block', mt: 1, fontSize: 13 }}>
+                        {setup.backupCodes.join('  ')}
+                      </Box>
+                    </Alert>
+                    <TextField
+                      label="Verification code"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      autoComplete="one-time-code"
+                      inputProps={{ inputMode: 'numeric' }}
+                      required
+                      autoFocus
+                      fullWidth
+                    />
+                    <Button type="submit" variant="contained" disabled={busy} fullWidth>
+                      {busy ? 'Enabling…' : 'Enable & continue'}
+                    </Button>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    {busy ? 'Preparing setup…' : 'Unable to start setup.'}
+                  </Typography>
+                )}
+                <Button onClick={() => { setStep('credentials'); setSetup(null); setCode(''); }} disabled={busy} fullWidth>
                   Back
                 </Button>
               </Stack>

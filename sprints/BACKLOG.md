@@ -566,7 +566,7 @@ are cross-referenced, not re-filed.)*
 must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)".)*
 
 ### BUG-001 — Authenticated SSRF via DID link / proof-of-control fetch
-- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `fa2cd3c`; qa verify pending. Pulled in 2026-07-07 on the day-one drain) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done (landed `fa2cd3c`; QA-verified 2026-07-07 — full caller-surface review, no bypasses; 55 tests green) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** `userDidService` / `proofOfControl` make outbound fetches to
@@ -586,7 +586,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   to jr-developer at BUILD (crisp acceptance).
 
 ### BUG-002 — atproto DoS guards (unbounded bodies, ws payload, cursor crash)
-- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `ff98502`; qa verify pending. Pulled in 2026-07-07 on the day-one drain) · **Priority:** P2 · **Size:** M
+- **Type:** bug · **Status:** done (landed `ff98502`; QA-verified 2026-07-07 — stream-level caps confirmed, both ws surfaces bounded, cursor guard pre-query; full atproto suite 92/92) · **Priority:** P2 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** Several unbounded/unsafe inputs on the atproto bridge.
@@ -883,7 +883,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   FEAT-010/FEAT-015/FEAT-012/FEAT-020 depend on this router's final auth posture.
 
 ### BUG-011 — `POST /auth/api/roles/check-service-access` trusts a body-supplied `userId` (same shape as BUG-005)
-- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `26a2afc`; qa verify pending. Groomed `backlog → ready → in-sprint` 2026-07-07 — bug, no C/B gate, sibling of done BUG-005; pulled with BUG-001/BUG-002 on the day-one drain) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done (landed `26a2afc`; QA-verified 2026-07-07 — 10/10 green; roles.js body-trusted-identity audit clean, no ungated paths remain) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** sibling of BUG-005 (permission-inspect info disclosure); found during BUG-005 implementation 2026-07-07
 - **Description:** In `services/auth/src/routes/roles.js` (~L576),

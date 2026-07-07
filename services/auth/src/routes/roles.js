@@ -613,6 +613,13 @@ router.post('/check-service-access', requireAuth, async (req, res, next) => {
   try {
     const { userId = req.user.id, serviceName, organizationId, applicationId } = req.body;
 
+    if (!(await canInspectPermissions(req, userId))) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: 'You do not have permission to check another user\'s service access'
+      });
+    }
+
     const result = await rbacService.checkServiceAccess(userId, serviceName, {
       organizationId,
       applicationId

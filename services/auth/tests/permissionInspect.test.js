@@ -1,9 +1,10 @@
 /**
- * Permission Inspect Tests (BUG-005)
+ * Permission Inspect Tests (BUG-005, BUG-011)
  *
- * GET /api/roles/users/:userId/permissions and POST /api/roles/check-permission
- * previously trusted the target userId (route param / body field) outright, so
- * any authenticated user could inspect another user's resolved permissions
+ * GET /api/roles/users/:userId/permissions, POST /api/roles/check-permission,
+ * and POST /api/roles/check-service-access previously trusted the target
+ * userId (route param / body field) outright, so any authenticated user
+ * could inspect another user's resolved permissions or service access
  * (info disclosure). These endpoints are now gated self-or-admin.
  */
 
@@ -148,6 +149,63 @@ describe('Permission inspection (self-or-admin)', () => {
       const res = await agent
         .post('/api/roles/check-permission')
         .send({ userId: target.id, permission: 'org:read' })
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+    });
+  });
+
+  describe('POST /api/roles/check-service-access', () => {
+    test('a user can check their own service access (userId defaults to self)', async () => {
+      const user = await createTestUser({
+        email: 'self-service@example.com',
+        password: await bcrypt.hash('Test123!@#', 12)
+      });
+      const agent = await login('self-service@example.com');
+
+      const res = await agent
+        .post('/api/roles/check-service-access')
+        .send({ serviceName: 'timeline' })
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      void user;
+    });
+
+    test('a non-admin cannot check another user\'s service access by passing userId in the body', async () => {
+      await createTestUser({
+        email: 'svc-checker@example.com',
+        password: await bcrypt.hash('Test123!@#', 12)
+      });
+      const target = await createTestUser({
+        email: 'svc-target@example.com',
+        password: await bcrypt.hash('Test123!@#', 12)
+      });
+      const agent = await login('svc-checker@example.com');
+
+      const res = await agent
+        .post('/api/roles/check-service-access')
+        .send({ userId: target.id, serviceName: 'timeline' })
+        .expect(403);
+
+      expect(res.body.error).toBe('FORBIDDEN');
+      expect(res.body.allowed).toBeUndefined();
+    });
+
+    test('a platform admin can check another user\'s service access', async () => {
+      await createTestUser({
+        email: 'tester@exprsn.io',
+        password: await bcrypt.hash('Test123!@#', 12)
+      });
+      const target = await createTestUser({
+        email: 'svc-target2@example.com',
+        password: await bcrypt.hash('Test123!@#', 12)
+      });
+      const agent = await login('tester@exprsn.io');
+
+      const res = await agent
+        .post('/api/roles/check-service-access')
+        .send({ userId: target.id, serviceName: 'timeline' })
         .expect(200);
 
       expect(res.body.success).toBe(true);

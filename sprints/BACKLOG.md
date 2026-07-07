@@ -586,7 +586,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   to jr-developer at BUILD (crisp acceptance).
 
 ### BUG-002 — atproto DoS guards (unbounded bodies, ws payload, cursor crash)
-- **Type:** bug · **Status:** in-progress → `active/sprint-2026-07.md` (pulled in 2026-07-07 — committed set drained day one, per the sprint's pre-authorized pull-in note) · **Priority:** P2 · **Size:** M
+- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `ff98502`; qa verify pending. Pulled in 2026-07-07 on the day-one drain) · **Priority:** P2 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** Several unbounded/unsafe inputs on the atproto bridge.

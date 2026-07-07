@@ -42,6 +42,55 @@ npm start              # https://localhost:8443  → GET /health
 
 ## Recently resolved
 
+### TODO.md burn-down (2026-07-02) — admin console + moderation + group calendar
+Implemented every open item in `TODO.md` (see its Done section for the checklist).
+Highlights:
+- **Admin tables** (`web/src/features/admin/ui.tsx` DataTable): opt-in column
+  picker (persisted per table in localStorage), per-column filter row,
+  header-click sorting, and row-click → inspector. Wired into the Organizations
+  / Users / Groups / Roles tabs.
+- **Org counts**: `GET /auth/api/organizations?include=counts` returns
+  `{ groups, users, violations }` per org (violations counted cross-schema from
+  `moderator.moderation_items`, best-effort).
+- **User inspector**: `GET /auth/api/users/:id/detail` (admin) aggregates
+  profile + groups + roles + org memberships + resolved permissions + sessions.
+- **Roles**: create-with-templates, role inspector w/ editable definition,
+  `GET /roles/:id/assignments`, role-to-group binding UI, permission catalog in
+  per-service accordions + `POST /roles/permissions` (admin-only).
+- **Directory actions wired**: admin create user (`POST /users`), CSV import
+  (`POST /users/import`, `POST /groups/import`), CSV export (`GET /users/export`).
+- **Timeline moderation config persisted + extended** (new `timeline.timeline_config`
+  table, LiveConfig pattern; `/timeline/api/config` now admin-gated — it was
+  previously unauthenticated): provider select (exprsn/external/both) and
+  approval mechanism (manual / lowcode workflow / lowcode app / webhook).
+  "Require Approval for New Posts" is now ENFORCED: held posts are forced
+  private with `metadata.approval`, the request is dispatched to the configured
+  mechanism, and decisions arrive via HMAC `POST /api/webhooks/approval` or
+  admin `POST /api/posts/:id/approval`. New env (fallback):
+  `TIMELINE_APPROVAL_WEBHOOK_SECRET`.
+- **Nexus**: fixed Config > Events 500 (`new Date()` into BIGINT `start_time`);
+  group create dialog gained templates + governance/category/tags/limit/website;
+  new group **Calendar** tab (month view, member contact list w/ .vcf export,
+  iCal/CalDAV/CardDAV sync URLs — the DAV endpoints already existed under
+  `/nexus/api/calendar`; full PROPFIND/REPORT verbs remain a future item).
+- **Pre-existing DAV bugs fixed** (found by runtime-verifying the calendar tab):
+  `icalService` used removed `$gte` string operators (Sequelize 5+) and fed
+  BIGINT epoch strings straight into `moment()`; `carddavService` crashed on
+  `new Date(joinedAt).toISOString()` for bigint-string `joinedAt`. Both group
+  iCal export and member vCards 500'd before; both verified working now.
+  (vCards show "Unknown User" server-side — the route doesn't wire a profile
+  service; the SPA contact list resolves names via `/users/profiles`.)
+- Deploy note: only NEW tables (`timeline.timeline_config`) — no new columns on
+  existing tables, so the sync-based `db:migrate` covers it everywhere.
+- Verified: `npm run lint` 0 errors; web build + vitest green; timeline (64) and
+  nexus unit (87) Jest suites green. RUNTIME-VERIFIED against the live gateway:
+  nexus-events config (was 500), timeline moderation config persistence
+  (survives restart), full approval loop (post held private → HMAC webhook
+  decision → visibility restored; bad signature 401), org `include=counts`
+  (camelCase-quoted cross-schema SQL), users CSV export (epoch-string dates),
+  `/users/:id/detail`, `/roles/:id/assignments`, `POST /roles/permissions`,
+  group iCal + vCard export.
+
 ### Low-code gap closure v2 (2026-07-02) — branch `feature/lowcode-gap-closure`, FLAG-GATED
 Closed the feature-gap review against modern low-code platforms (all tiers). Backend:
 single-record GET, bulk ops, CSV import/export, server-side aggregation (`/aggregate`),

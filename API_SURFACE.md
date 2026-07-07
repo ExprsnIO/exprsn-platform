@@ -59,10 +59,12 @@ under `/api` and `/admin`.
 | Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
 | POST | /ca/tickets/generate | — (uses `req.session.user.id`) | `type`, `maxUses` | — | Session | `type='login'`, `maxUses=1`, expires 5 min |
-| POST | /ca/api/tokens/generate | `certificateId`(uuid), `permissions`, `resource`{type,value} | `expiryType`, `expiresAt`, `maxUses`, `notBefore`, `data` | `resource.value`≤1000; `maxUses` 1–1,000,000; `expiresAt`/`notBefore`≥now | requireSession | perms default false; `expiryType='time'` |
-| POST | /ca/api/tokens/validate | one of `token` / `tokenId` | `requiredPermissions`, `resource`, `resourceValue` | `tokenId` uuid; resource ≤1000 | 100/15min + session OR service HMAC | — |
-| POST | /ca/api/tokens/revoke | `tokenId`(uuid) | `reason`(≤255) | `reason`≤255 | requireSession | `reason='User requested revocation'` |
-| GET | /ca/api/tokens | — | `status`, `limit` | — | requireSession | `limit=50` |
+| POST | /ca/api/tokens/generate | `certificateId`(uuid), `permissions`, `resource`{type,value} | `expiryType`, `expiresAt`, `maxUses`, `notBefore`, `groupId`(uuid), `organizationId`(uuid), `data` | `resource.value`≤1000; `maxUses` 1–1,000,000; `expiresAt`/`notBefore`≥now | requireSession | perms default false; `expiryType='time'`; scope groups must be active; non-admins must be members; org must be organizational_unit/department (spec v1.1) |
+| POST | /ca/api/tokens/validate | one of `token` / `tokenId` | `requiredPermissions`, `resource`, `resourceValue` | `tokenId` uuid; resource ≤1000 | 100/15min + session OR service HMAC | invalid if signing cert revoked/expired or a scope group is inactive |
+| POST | /ca/api/tokens/revoke | `tokenId`(uuid) | `reason`(≤255) | `reason`≤255 | requireSession — owner, system admin, or admin/owner of the token's group/org scope | `reason='User requested revocation'`; records `revokedBy`; resp includes `revokedReason`,`revokedBy` |
+| POST | /ca/api/tokens/revoke-bulk | `scope`∈user/group/organization, `targetId`(uuid) | `reason`(≤255) | — | requireSession — user scope: self or admin; group/org scope: that group's admin/owner or admin | resp `{success,revokedCount}`; records `revokedBy` |
+| GET | /ca/api/tokens | — | `status`, `limit`, `groupId`, `organizationId` | — | requireSession; scope filters need group/org admin (or system admin) | `limit=50`; rows include v1.1 fields (`version`,`maxUses`,`useCount`,`revokedBy`,`group`,`organization`,`certificate{status}`) |
+| GET | /ca/api/users/me/groups | — | — | — | requireSession | caller's CA directory groups with membership `role` (member/admin/owner) |
 | POST | /ca/api/tokens/:id/refresh | `expiresAt`(int≥now), `tokenId`(uuid) | — | `expiresAt`≥now | requireSession | — |
 | GET | /ca/api/tokens/:id/introspect | `id` | — | — | requireSession | — |
 | POST | /ca/api/certificates/generate-root | `commonName` | org/OU/country/state/locality/email, `keySize`, `validityYears`, `algorithm` | `commonName` 1–255; `country` len2; `keySize`∈2048/4096/8192; `validityYears` 1–30 | requireAdminSession | `keySize=4096`, `validityYears=10`, `algorithm='RSA-SHA256'` |
@@ -93,16 +95,17 @@ under `/api` and `/admin`.
 | POST | /ca/admin/api/certificates/issue | `type`, `commonName` | subject fields, `keySize`, `validityDays`, SAN | `commonName` 1–255; `keySize`∈2048/4096; `validityDays` 1–825 | requireAdmin + validate | `type='entity'`, `keySize=2048`, `validityDays=365` |
 | POST | /ca/admin/api/certificates/:id/revoke | `id` | `reason` | — | requireAdmin | cascades token revocation; resp `{success,revokedTokenCount}` |
 | GET | /ca/admin/api/certificates/:id/download | `id` | — | — | requireAdmin | — |
-| POST | /ca/admin/api/tokens/generate | `certificateId`, `resourceType`, `resourceValue` | `permissions`, `expiryType`, `expiryValue` | (schema/handler field mismatch — see note) | requireAdmin + validate | `permissions={read:true}`, `expiryType='time'`, `expiryValue=3600` |
+| POST | /ca/admin/api/tokens/generate | `certificateId`(uuid), `resourceType`∈url/did/cid, `resourceValue`(≤1000) | `permissions`, `expiryType`∈time/use/persistent, `expirySeconds`, `maxUses`, `notBefore`, `userId`(subject), `groupId`, `organizationId`, `data` | `maxUses` 1–1,000,000 (required for `use`) | requireAdmin + validate(adminGenerateTokenSchema) | `permissions={read:true}`, `expiryType='time'`, `expirySeconds=3600`; `userId` defaults to acting admin |
 | POST | /ca/admin/api/tokens/validate | `tokenId` | `resourceValue`, `requiredPermission` | — | requireAdmin | — |
-| POST | /ca/admin/api/tokens/:id/revoke | `id`; `tokenId`(uuid) | `reason`(≤255) | — | requireAdmin + validate | `reason='Revoked by administrator'` |
+| POST | /ca/admin/api/tokens/:id/revoke | `id`; `tokenId`(uuid) | `reason`(≤255) | — | requireAdmin + validate | `reason='Revoked by administrator'`; records `revokedBy` |
+| POST | /ca/admin/api/tokens/revoke-bulk | `scope`∈user/group/organization, `targetId`(uuid) | `reason`(≤255) | — | requireAdmin + validate | resp `{success,revokedCount}` |
 | GET | /ca/admin/api/ocsp/status | — | — | — | requireAdmin | — |
 | GET | /ca/admin/api/crl/status | — | — | — | requireAdmin | — |
 | POST | /ca/admin/api/crl/generate | — | — | — | requireAdmin | — |
 | GET | /ca/admin/api/config | — | — | — | requireAdmin | masked safe config |
 | POST | /ca/admin/api/config/update | `updates`(object) | — | whitelisted keys only (others→403) | requireAdmin | — |
 | GET | /ca/admin/api/certificates | — | `status`, `type`, `limit`, `offset` | — | requireAdmin | `limit=50`, `offset=0` |
-| GET | /ca/admin/api/tokens | — | `status`, `expiryType`, `limit`, `offset` | — | requireAdmin | `limit=50`, `offset=0` |
+| GET | /ca/admin/api/tokens | — | `status`, `expiryType`, `userId`, `certificateId`, `groupId`, `organizationId`, `limit`, `offset` | — | requireAdmin | `limit=50`, `offset=0`; rows include `user`, `certificate{status}`, `group`, `organization` |
 | POST | /ca/ocsp/ | raw DER OCSPRequest | — | raw body ≤10 KB | Public | — |
 | GET | /ca/ocsp/status | — | — | — | Public | — |
 | POST | /ca/ocsp/batch | `serialNumbers`(array≥1) | — | array ≥1 | Public | — |
@@ -125,7 +128,15 @@ under `/api` and `/admin`.
 | POST | /ca/acme/revoke-cert | JWS; `certificate`(base64url DER) | `reason`(code 0–10) | reason code in map | JWS (kid or jwk) | `reason='unspecified'` |
 | POST | /ca/acme/key-change | JWS (kid) | — | — | JWS (kid) | always 501 |
 
-> Note: `/ca/admin/api/tokens/generate` validates with a schema expecting `certificateId`/`permissions`/`resource`, but the handler reads `resourceType`/`resourceValue`/`expiryValue` — a schema/handler mismatch; `stripUnknown` would drop the handler's fields.
+> Note (resolved 2026-07-02): `/ca/admin/api/tokens/generate` previously had a schema/handler
+> field mismatch; it now validates with a dedicated `adminGenerateTokenSchema` matching the
+> handler's flat `resourceType`/`resourceValue`/`expirySeconds`/`maxUses` shape.
+>
+> Token spec v1.1 (2026-07-02): tokens carry optional `groupId`/`organizationId` scope
+> (CA directory groups; org = organizational_unit/department) and `revokedBy`. Invalidation
+> principals: token owner, system admin, or an admin/owner (`"UserGroups".role`) of the token's
+> group/org. Certificate revocation cascades to its tokens (`certificate_revoked`, `revokedBy`
+> recorded). Use-based tokens verify signatures against issuance values (`usesRemaining=maxUses`).
 
 ### Socket.IO events (namespace /ca)
 
@@ -200,6 +211,9 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | DELETE | /auth/api/sessions | — | — | — | Session | revokes all except current |
 | POST | /auth/api/sessions/refresh | — | — | — | Session | extends by session lifetime |
 | GET | /auth/api/users | — | `limit`, `offset`, `search` | `limit`≤200 | CA `read` **+ admin** | list; admin-only (exposes email/mfa); search matches email/displayName |
+| POST | /auth/api/users | `email` | `password`, `displayName`, `firstName`, `lastName`, `status`, `emailVerified` | email unique | CA `write` **+ admin** | 201; admin user creation (Directory action); random password when omitted |
+| POST | /auth/api/users/import | `users[]` (`email` per row) | per-row `displayName`, `firstName`, `lastName`, `status`, `password` | ≤500 rows; email format | CA `write` **+ admin** | bulk create; per-row outcomes { created / skipped / failed } |
+| GET | /auth/api/users/export | — | — | — | CA `read` **+ admin** | CSV download of the full user directory |
 | GET | /auth/api/users/directory | — | `limit`, `offset`, `search` | `limit`≤100 | CA `read` (any authed) | public people directory; **safe fields only** (id, displayName, avatarUrl, bio); active users; search=displayName only |
 | POST | /auth/api/users/profiles | `ids[]` | — | ids de-duped, capped 200 | CA `read` (any authed) | batch public profiles (id, displayName, avatarUrl, bio); active users only; resolves member/display names without N+1 |
 | GET | /auth/api/users/:id | `id` | — | — | CA `read`; own or admin | full record; own-or-admin |
@@ -207,8 +221,10 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | PUT | /auth/api/users/:id | `id` | `displayName`, `firstName`, `lastName`, `bio`, `avatarUrl` | — | CA `update`; own only | — |
 | DELETE | /auth/api/users/:id | `id` | — | — | CA `delete`; own only | status→inactive |
 | GET | /auth/api/users/:id/groups | `id` | — | — | CA `read`; own or admin | — |
+| GET | /auth/api/users/:id/detail | `id` | — | — | CA `read` **+ admin** | admin inspector aggregate: safe user + groups + roles + org memberships (member role/status) + resolved permissions + last 10 sessions |
 | GET | /auth/api/groups | — | `organizationId` | — | CA `read` | list; `organizationId` scopes to one org |
 | POST | /auth/api/groups | `name` | `description`, `permissions`, `parentId`, `organizationId` | — | CA `write` | 201; slug derived from name; `organizationId`→org-scoped |
+| POST | /auth/api/groups/import | `groups[]` (`name` per row) | per-row `description`, `organizationId`, `permissions`, `parentId` | ≤500 rows | CA `write` (router admin-gated) | bulk create; per-row outcomes { created / skipped / failed } |
 | GET | /auth/api/groups/:id | `id` | — | — | CA `read` | — |
 | PUT | /auth/api/groups/:id | `id` | `name`, `description`, `permissions` | — | CA `update` | — |
 | DELETE | /auth/api/groups/:id | `id` | — | — | CA `delete` | — |
@@ -231,7 +247,7 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | GET | /auth/api/saml/providers | — | — | — | Public (503 if disabled) | — |
 | GET | /auth/api/saml/status | — | — | — | Public | — |
 | POST | /auth/api/organizations | org fields (e.g. `name`) | — | — | Session | 201; ownerId=req.user.id |
-| GET | /auth/api/organizations | — | — | — | Session | user's orgs |
+| GET | /auth/api/organizations | — | `include=counts` | — | Session | user's orgs; `include=counts` adds `{ groups, users, violations }` per org (violations = members' moderation items rejected/flagged/escalated; best-effort cross-schema) |
 | GET | /auth/api/organizations/:id | `id` | `include_members`, `include_groups`, `include_applications` | — | Session; member or `org:read` | includes default false |
 | PATCH | /auth/api/organizations/:id | `id` | org fields | — | Session; owner/admin | — |
 | DELETE | /auth/api/organizations/:id | `id` | — | — | Session; owner | — |
@@ -257,6 +273,8 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | POST | /auth/api/roles/:id/assign-group | `id`, `groupId` | `organizationId`, `applicationId` | — | Session | 201 |
 | POST | /auth/api/roles/:id/revoke-group | `id`, `groupId` | `organizationId`, `applicationId` | — | Session | — |
 | GET | /auth/api/roles/permissions | — | `scope`, `service` | — | Session | order permissionString ASC |
+| POST | /auth/api/roles/permissions | `permissionString` or `resource`+`action` | `scope`, `service`, `description` | unique permissionString | Session; platform admin or `*` perm | 201; defines a catalog entry (never isSystem) |
+| GET | /auth/api/roles/:id/assignments | `id` | — | — | Session; org member if scoped | role's user assignments + group bindings with resolved user/group summaries |
 | GET | /auth/api/roles/users/:userId/permissions | `userId` | `organizationId`, `applicationId` | — | Session | — |
 | POST | /auth/api/roles/check-permission | `permission` | `userId`, `organizationId`, `applicationId`, `serviceName` | — | Session | `userId`=req.user.id |
 | POST | /auth/api/roles/check-service-access | `serviceName` | `userId`, `organizationId`, `applicationId` | — | Session | `userId`=req.user.id |
@@ -616,6 +634,7 @@ add permissions. `/api/config` and `/api/webhooks` have no token middleware. `/a
 | GET | /timeline/api/posts/:id/comments | `id` | page, limit, offset | limit 1–100 | read `/posts` | page1, limit20 |
 | GET | /timeline/api/posts/:id/thread, /quotes | `id`(uuid) | — | uuid | read `/posts` | — |
 | GET | /timeline/api/posts/:id/analytics | `id`(uuid) | — | uuid | read `/posts` | 403 unless owner |
+| POST | /timeline/api/posts/:id/approval | `id`(uuid), `decision` | `reason` | decision approved\|rejected | admin (`requireAdmin`) | manual decision for a post held by "Require Approval for New Posts"; approve restores requested visibility |
 | POST | /timeline/api/posts/:id/repost | `id`(uuid) | comment | uuid | write `/posts` | — |
 | DELETE | /timeline/api/posts/:id/repost | `id`(uuid) | — | uuid | read `/posts` | — |
 | POST/DELETE | /timeline/api/posts/:id/bookmark | `id`(uuid) | — | uuid | read `/posts` | — |
@@ -657,6 +676,7 @@ add permissions. `/api/config` and `/api/webhooks` have no token middleware. `/a
 | GET/POST | /timeline/api/config/:sectionId | `sectionId`∈timeline-settings/timeline-moderation | — | — | **none** | 404 unknown |
 | POST | /timeline/api/webhooks/bluesky | header `x-webhook-signature`; `event`, `data` | — | — | HMAC-SHA256 (`BLUESKY_WEBHOOK_SECRET`) | 503 if unset; 401 bad sig |
 | POST | /timeline/api/webhooks/moderator | `event`, `data` | — | — | **none (no signature check)** | — |
+| POST | /timeline/api/webhooks/approval | header `x-webhook-signature`; `postId`, `decision` | `reason`, `decidedBy` | decision approved\|rejected | HMAC-SHA256 (persisted `approvalSecret`, else `TIMELINE_APPROVAL_WEBHOOK_SECRET`) | decision callback for held posts; 503 when no secret configured |
 | GET | /timeline/health[/db,/redis,/ca,/herald,/elasticsearch,/queues,/ready,/live] | — | — | — | none | 503 if deps down |
 
 ### Socket.IO events (namespace /timeline)

@@ -11,6 +11,7 @@
  * - Multi-calendar support per user/group
  */
 
+const { Op } = require('sequelize');
 const { Event, EventAttendee, Group, GroupMembership } = require('../models');
 const icalService = require('./icalService');
 const logger = require('../utils/logger');
@@ -150,14 +151,14 @@ async function getEventsForSync(resourceType, resourceId, options = {}) {
 
       if (timeRange) {
         whereClause.startTime = {
-          $gte: timeRange.start,
-          $lte: timeRange.end
+          [Op.gte]: timeRange.start,
+          [Op.lte]: timeRange.end
         };
       }
 
       if (syncToken) {
         const syncTime = parseSyncToken(syncToken);
-        whereClause.updatedAt = { $gt: syncTime };
+        whereClause.updatedAt = { [Op.gt]: syncTime };
       }
 
       events = await Event.findAll({
@@ -180,12 +181,12 @@ async function getEventsForSync(resourceType, resourceId, options = {}) {
             status: ['published', 'cancelled'],
             ...(timeRange ? {
               startTime: {
-                $gte: timeRange.start,
-                $lte: timeRange.end
+                [Op.gte]: timeRange.start,
+                [Op.lte]: timeRange.end
               }
             } : {}),
             ...(syncToken ? {
-              updatedAt: { $gt: parseSyncToken(syncToken) }
+              updatedAt: { [Op.gt]: parseSyncToken(syncToken) }
             } : {})
           },
           include: [{
@@ -199,14 +200,14 @@ async function getEventsForSync(resourceType, resourceId, options = {}) {
       events = attendees.map(a => a.event).filter(Boolean);
     }
 
-    // Convert events to CalDAV format with ETags
-    return events.map(event => ({
+    // Convert events to CalDAV format with ETags, including the real iCal body
+    return Promise.all(events.map(async event => ({
       id: event.id,
       href: `/caldav/events/${event.id}.ics`,
       etag: generateETag(event),
       lastModified: event.updatedAt,
-      ical: null // Will be populated on demand
-    }));
+      ical: await icalService.generateEventICal(event.id)
+    })));
   } catch (error) {
     logger.error('Error getting events for sync:', error);
     throw error;
@@ -276,18 +277,6 @@ function generateColorFromId(id) {
   return `#${hash.substring(0, 6)}`;
 }
 
-/**
- * Validate CalDAV credentials (basic auth or token)
- * @param {string} authHeader - Authorization header
- * @param {string} userId - Expected user ID
- * @returns {boolean} Whether credentials are valid
- */
-function validateCalDAVCredentials(authHeader, userId) {
-  // This would integrate with the CA token system
-  // For now, placeholder implementation
-  return true;
-}
-
 module.exports = {
   getGroupCalendarUrl,
   getUserCalendarUrl,
@@ -297,6 +286,5 @@ module.exports = {
   generateETag,
   generateCTag,
   generateSyncToken,
-  parseSyncToken,
-  validateCalDAVCredentials
+  parseSyncToken
 };

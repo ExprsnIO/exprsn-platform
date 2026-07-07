@@ -19,6 +19,7 @@ docs/
   viewer.html             Markdown viewer (?doc=<id>, TOC sidebar)
   runbooks/
     secrets-and-rotation.md
+    calendar-contacts-subscriptions.md
   assets/
     docs.css              Shared stylesheet (incl. viewer/markdown styles)
     markdown.js           Vanilla-JS Markdown renderer (no dependencies)

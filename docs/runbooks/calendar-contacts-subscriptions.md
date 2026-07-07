@@ -31,10 +31,12 @@ always requires a token, and only lets a user fetch their own feed.
 ## Subscribing from a native app
 
 These are plain HTTPS URLs, so any "subscribe by URL" flow in a calendar or
-contacts app works. Where an app supports it, appending
-`?token=<bearer-token>` (or the app's own auth prompt) is the only way to
-reach non-public data — check the app's URL-subscription docs for how it wants
-credentials.
+contacts app works — **for publicly visible data only**. The endpoints accept a
+bearer token **only via the `Authorization` header** (query-string tokens like
+`?token=...` are NOT supported and are silently ignored), and native
+subscribe-by-URL flows cannot set that header. So member-restricted events and
+the per-user calendar are not reachable through a URL subscription today; that
+arrives with the app-password auth bridge (FEAT-004).
 
 ### macOS Calendar / Contacts
 

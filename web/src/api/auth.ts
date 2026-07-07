@@ -33,6 +33,8 @@ export interface LoginSuccess {
 export interface MfaChallenge {
   mfaRequired: true;
   mfaToken: string;
+  /** >0 when the org policy allows trusting this device to skip future prompts. */
+  rememberDeviceDays?: number;
 }
 /**
  * Hard org-policy gate: the user's organization requires 2FA and the enrolment
@@ -57,8 +59,8 @@ export const isMfaEnrollmentRequired = (r: LoginResult): r is MfaEnrollmentRequi
 export const authApi = {
   login: (email: string, password: string) =>
     http.post<LoginResult>('/auth/api/auth/login', { email, password }),
-  verifyMfa: (mfaToken: string, code: string) =>
-    http.post<LoginSuccess>('/auth/api/auth/mfa/verify', { mfaToken, code }),
+  verifyMfa: (mfaToken: string, code: string, rememberDevice = false) =>
+    http.post<LoginSuccess>('/auth/api/auth/mfa/verify', { mfaToken, code, rememberDevice }),
   /** Swap a one-time SSO/SAML callback code for the real bearer token. */
   exchange: (code: string) => http.post<{ token: string; user?: User }>('/auth/api/auth/exchange', { code }),
   /**

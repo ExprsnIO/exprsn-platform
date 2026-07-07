@@ -14,6 +14,7 @@ const { requireAuth } = require('../middleware/requireAuth');
 const { User } = require('../models');
 const { hashBackupCode } = require('../utils/mfaToken');
 const mfaPolicyService = require('../services/mfaPolicyService');
+const trustedDevice = require('../utils/trustedDevice');
 const config = require('../config');
 
 /**
@@ -246,6 +247,10 @@ router.post('/disable',
 
   // Remove MFA verification from session
   req.session.mfaVerified = false;
+
+  // Drop any trusted-device cookie on this device (the mfaSecret rotation already
+  // invalidates outstanding ones everywhere; this tidies up the current device).
+  trustedDevice.clearTrustedDeviceCookie(res);
 
   logger.info('MFA disabled', { userId: user.id });
 

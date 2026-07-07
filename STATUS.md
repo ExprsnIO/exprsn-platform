@@ -621,7 +621,7 @@ publish/host action is gated on a validated CA bearer.
 - Wiring: `registerSockets(io)` mounts `SocketHandler` on the `/live` namespace
   (`services/live/src/index.js`). Surfaced during socket verification (#3).
 
-### 12. Org 2FA policy enforcement — ENFORCED 2026-07-07 (a+b done; c/d remain)
+### 12. Org 2FA policy enforcement — RESOLVED 2026-07-07 (a+b+d done; c is a separate feature)
 The admin "Auth & Identity" → Organizations tab has a **2FA policy** editor
 (`web/src/features/admin/sections/AuthSection.tsx`) persisting per org
 `settings.requireMfa`, `settings.mfa.allowedMethods`,
@@ -650,6 +650,17 @@ via `PATCH /auth/api/organizations/:id`. The policy is now **enforced at login**
   with `MFA_METHOD_NOT_ALLOWED` when a requiring org's policy disallows TOTP
   (i.e. permits only unbuilt methods); voluntary MFA is unaffected. Because only
   TOTP is built, this bites only on an unbuilt-method-only policy.
+- **(d) Trusted-device skip.** `services/auth/src/utils/trustedDevice.js` issues a
+  signed, httpOnly, RS256 remember-me cookie (`exprsn_td`) when a user completes
+  the MFA challenge and opts in **and** the org policy sets `rememberDeviceDays>0`.
+  A later login on `POST /auth/api/auth/login` that presents a valid cookie skips
+  the second factor and issues the bearer directly (password still required). The
+  cookie is user-bound (`sub`), time-bound (`exp` = rememberDeviceDays, fixed not
+  sliding), and **auto-revoking**: it binds to a fingerprint of the user's current
+  `mfaSecret`, so disable→re-enrol rotates the secret and invalidates every
+  outstanding cookie with no server state; `POST /auth/api/mfa/disable` also
+  clears it. The challenge response advertises `rememberDeviceDays`; `LoginPage`
+  renders the opt-in checkbox only when >0 and passes `rememberDevice` to verify.
 - **Tests:** `services/auth/tests/mfaPolicy.test.js` (13, no DB) cover
   resolution (most-restrictive, ownership path, method intersection,
   unbuilt-only) and enrollment evaluation (hard-gate past grace, soft in-grace,
@@ -658,11 +669,17 @@ via `PATCH /auth/api/organizations/:id`. The policy is now **enforced at login**
   supertest) drives the real `/login` + `/token` routes: un-affiliated normal
   login, member hard-gate past grace (session but no bearer), member soft flag
   in-grace, owner enforced, re-mint refused (403 `MFA_ENROLLMENT_REQUIRED`), and
-  inactive membership excluded. Both wired via the module's Jest suite.
-- **Remaining:** (c) implement `sms`/`email`/`webauthn` methods (still
-  scaffolding); (d) honour `rememberDeviceDays` (trusted-device skip of the
-  re-challenge — a UX relaxation, not an enforcement gap). Model default comment
-  updated in `services/auth/src/models/Organization.js`.
+  inactive membership excluded. `services/auth/tests/trustedDevice.test.js` (8, no
+  DB) cover the cookie's sign/verify + tamper/expiry/rotation/user bindings, and
+  `services/auth/tests/mfaTrustedDevice.test.js` (4, live PG) drive the real
+  opt-in → cookie → skip flow end-to-end (incl. opt-out, policy-off, and
+  MFA-secret-rotation invalidation). All wired via the module's Jest suite.
+- **Not part of this item:** building the actual `sms`/`email`/`webauthn`
+  factors (original note (c)) is a **separate feature**, not an enforcement gap —
+  the policy already handles their absence (enforcement is skipped when only
+  unbuilt methods are permitted; the admin UI marks them "not yet available").
+  Track new-factor work on its own ticket. Model default comment updated in
+  `services/auth/src/models/Organization.js`.
 
 ## Production readiness (release engineering) — NOT in the numbered follow-ups
 

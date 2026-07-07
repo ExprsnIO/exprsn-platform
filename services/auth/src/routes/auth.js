@@ -19,6 +19,7 @@ const mfaPolicyService = require('../services/mfaPolicyService');
 const { getEmailService } = require('../services/emailService');
 const { validatePasswordOrThrow } = require('../services/passwordService');
 const { issueMfaToken, verifyMfaToken, hashBackupCode } = require('../utils/mfaToken');
+const trustedDevice = require('../utils/trustedDevice');
 const { createExchangeCode, consumeExchangeCode } = require('../utils/exchangeCodes');
 const {
   registerSchema,
@@ -141,11 +142,49 @@ router.post('/login',
       // real token. Return a short-lived MFA pending token instead - the client
       // must complete POST /api/auth/mfa/verify with a TOTP/backup code.
       if (user.mfaEnabled) {
+        // Resolve the org policy once: it tells us whether trusted-device skip is
+        // permitted (rememberDeviceDays) and lets the SPA render the opt-in.
+        let rememberDays = 0;
+        try {
+          const policy = await mfaPolicyService.resolveMfaPolicy(user);
+          rememberDays = policy.rememberDeviceDays > 0 ? policy.rememberDeviceDays : 0;
+        } catch (policyErr) {
+          logger.error('MFA policy resolution failed on login challenge', { userId: user.id, error: policyErr.message });
+        }
+
+        // Trusted-device skip (STATUS.md #12d): when the org still allows it and
+        // this device presents a valid remember-me cookie, skip the second factor
+        // and log in directly. The password was already verified above.
+        if (rememberDays > 0) {
+          const tdToken = trustedDevice.getTrustedDeviceToken(req);
+          if (tdToken && trustedDevice.verifyTrustedDeviceToken(tdToken, user)) {
+            logger.info('MFA challenge skipped via trusted device', { userId: user.id, email: user.email });
+            return req.login(user, async (loginErr) => {
+              try {
+                if (loginErr) return next(loginErr);
+                if (req.session) req.session.mfaVerified = true;
+                const token = await tokenService.generateToken(user);
+                try {
+                  await sessionService.recordSession(req, user, token);
+                } catch (sessionErr) {
+                  logger.error('Failed to record session on trusted-device login', { userId: user.id, error: sessionErr.message });
+                }
+                const safeUser = user.toSafeObject();
+                safeUser.roles = await tokenService.resolveUserRoles(user);
+                return res.json({ message: 'Login successful', user: safeUser, token });
+              } catch (cbErr) {
+                next(cbErr);
+              }
+            });
+          }
+        }
+
         logger.info('Login pending MFA verification', { userId: user.id, email: user.email });
 
         return res.json({
           mfaRequired: true,
-          mfaToken: issueMfaToken(user)
+          mfaToken: issueMfaToken(user),
+          rememberDeviceDays: rememberDays
         });
       }
 
@@ -235,7 +274,7 @@ router.post('/login',
 router.post('/mfa/verify',
   strictLimiter,
   asyncHandler(async (req, res, next) => {
-  const { mfaToken, code } = req.body;
+  const { mfaToken, code, rememberDevice } = req.body;
 
   validateRequired({ mfaToken, code }, ['mfaToken', 'code']);
 
@@ -297,6 +336,20 @@ router.post('/mfa/verify',
         await sessionService.recordSession(req, user, token);
       } catch (sessionErr) {
         logger.error('Failed to record session on MFA login', { userId: user.id, error: sessionErr.message });
+      }
+
+      // Trusted-device opt-in (STATUS.md #12d): if the user asked to remember this
+      // device and the org policy permits it, drop the signed remember-me cookie
+      // so future logins from here skip the challenge. Best-effort.
+      if (rememberDevice) {
+        try {
+          const policy = await mfaPolicyService.resolveMfaPolicy(user);
+          if (policy.rememberDeviceDays > 0) {
+            trustedDevice.setTrustedDeviceCookie(res, user, policy.rememberDeviceDays);
+          }
+        } catch (tdErr) {
+          logger.error('Failed to set trusted-device cookie', { userId: user.id, error: tdErr.message });
+        }
       }
 
       res.json({

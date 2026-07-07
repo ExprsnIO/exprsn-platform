@@ -4,6 +4,8 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
+  FormControlLabel,
   Link,
   Stack,
   TextField,
@@ -26,6 +28,8 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mfaToken, setMfaToken] = useState('');
+  const [rememberDeviceDays, setRememberDeviceDays] = useState(0);
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -81,6 +85,7 @@ export function LoginPage() {
       const res = await authApi.login(email, password);
       if (isMfaChallenge(res)) {
         setMfaToken(res.mfaToken);
+        setRememberDeviceDays(res.rememberDeviceDays ?? 0);
         setStep('mfa');
       } else if (isMfaEnrollmentRequired(res)) {
         await beginEnrollment(res.message);
@@ -99,7 +104,7 @@ export function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      finish(await authApi.verifyMfa(mfaToken, code));
+      finish(await authApi.verifyMfa(mfaToken, code, rememberDevice));
     } catch (err) {
       setError(toMessage(err));
     } finally {
@@ -187,6 +192,17 @@ export function LoginPage() {
                   autoFocus
                   fullWidth
                 />
+                {rememberDeviceDays > 0 && (
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={rememberDevice}
+                        onChange={(e) => setRememberDevice(e.target.checked)}
+                      />
+                    }
+                    label={`Trust this device for ${rememberDeviceDays} days (skip codes here)`}
+                  />
+                )}
                 <Button type="submit" variant="contained" disabled={busy} fullWidth>
                   {busy ? 'Verifying…' : 'Verify'}
                 </Button>

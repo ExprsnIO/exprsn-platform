@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn Platform — Guides &amp; Internals</title>
+<link rel="stylesheet" href="assets/docs.css">
+<script src="assets/manifest.js"></script>
+<script src="assets/markdown.js"></script>
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="viewer.html" class="active">Guides (MD)</a>
+  </nav>
+</header>
+<main class="viewer-main">
+  <div id="viewer-root">
+    <noscript><p class="note">This page renders Markdown documents in the browser and requires JavaScript.</p></noscript>
+  </div>
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var MANIFEST = window.EXPRSN_DOCS_MANIFEST;
+  var root = document.getElementById('viewer-root');
+
+  function el(tag, attrs, text) {
+    var node = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  /* ------------------------------------------------ doc index (no ?doc=) */
+
+  function renderIndex() {
+    document.title = 'Exprsn Platform — Guides & Internals';
+    root.appendChild(el('h1', null, 'Guides & internals (Markdown)'));
+    var intro = el('p', null,
+      'The platform’s Markdown documents — architecture, API surface, status, plans, and runbooks — rendered in the browser. Pick a document:');
+    root.appendChild(intro);
+    var cards = el('div', { 'class': 'cards' });
+    MANIFEST.markdown.forEach(function (doc) {
+      var card = el('div', { 'class': 'card' });
+      var h3 = el('h3');
+      h3.appendChild(el('a', { href: 'viewer.html?doc=' + encodeURIComponent(doc.id) }, doc.title));
+      card.appendChild(h3);
+      card.appendChild(el('p', { 'class': 'tag' }, doc.path));
+      card.appendChild(el('p', null, doc.description));
+      cards.appendChild(card);
+    });
+    root.appendChild(cards);
+  }
+
+  /* ------------------------------------------------ errors */
+
+  function renderError(title, lines) {
+    root.appendChild(el('h1', null, title));
+    var note = el('div', { 'class': 'note' });
+    lines.forEach(function (l) { note.appendChild(el('p', null, l)); });
+    root.appendChild(note);
+    var back = el('p');
+    back.appendChild(el('a', { href: 'viewer.html' }, '← All Markdown documents'));
+    root.appendChild(back);
+  }
+
+  /* ------------------------------------------------ fetching */
+
+  // `path` is repo-root-relative. Try candidates so the viewer works whether
+  // the static server root is the repo root (viewer at /docs/viewer.html) or
+  // docs/ itself (viewer at /viewer.html).
+  function candidatesFor(path) {
+    var list = ['../' + path];                       // server root = repo root
+    if (path.indexOf('docs/') === 0) list.push(path.slice(5)); // root = docs/
+    list.push(path);                                 // last-ditch
+    return list.filter(function (p, i) { return list.indexOf(p) === i; });
+  }
+
+  function fetchFirst(paths, i) {
+    if (i >= paths.length) return Promise.reject(new Error('all candidates failed'));
+    return fetch(paths[i], { cache: 'no-cache' }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.text();
+    }).catch(function () {
+      return fetchFirst(paths, i + 1);
+    });
+  }
+
+  /* ------------------------------------------------ doc view */
+
+  function renderDoc(doc) {
+    document.title = doc.title + ' — Exprsn Platform Docs';
+    fetchFirst(candidatesFor(doc.path), 0).then(function (text) {
+      var out = window.ExprsnMarkdown.render(text);
+
+      var layout = el('div', { 'class': 'viewer-layout' });
+
+      // TOC sidebar
+      var aside = el('aside', { 'class': 'doc-toc' });
+      aside.appendChild(el('p', { 'class': 'doc-toc-title' }, 'On this page'));
+      if (out.toc.length) {
+        var ul = el('ul');
+        out.toc.forEach(function (entry) {
+          var li = el('li', { 'class': 'toc-h' + entry.level });
+          li.appendChild(el('a', { href: '#' + entry.id }, entry.text));
+          ul.appendChild(li);
+        });
+        aside.appendChild(ul);
+      } else {
+        aside.appendChild(el('p', { 'class': 'doc-toc-empty' }, 'No sections'));
+      }
+      var backP = el('p', { 'class': 'doc-toc-back' });
+      backP.appendChild(el('a', { href: 'viewer.html' }, '← All documents'));
+      aside.appendChild(backP);
+
+      // Article
+      var article = el('article', { 'class': 'markdown-body' });
+      var meta = el('div', { 'class': 'doc-meta' });
+      meta.appendChild(el('span', { 'class': 'tag' }, doc.path));
+      article.appendChild(meta);
+      var body = el('div');
+      body.innerHTML = out.html; // generated by markdown.js; source was escaped
+      article.appendChild(body);
+
+      layout.appendChild(aside);
+      layout.appendChild(article);
+      root.appendChild(layout);
+
+      // honor an initial #fragment once content exists
+      if (location.hash) {
+        var target = document.getElementById(location.hash.slice(1));
+        if (target) target.scrollIntoView();
+      }
+    }).catch(function () {
+      var reasons = [
+        'Could not fetch "' + doc.path + '" (tried: ' + candidatesFor(doc.path).join(', ') + ').',
+        'Serve the site over HTTP — e.g. run "python3 -m http.server 8000" from the repo root and open http://localhost:8000/docs/viewer.html. Opening this page via file:// blocks fetch() with CORS errors in most browsers.',
+        'If you are serving from docs/ instead of the repo root, only docs/-local Markdown (the runbooks) is reachable; repo-root documents like ARCHITECTURE.md are outside the server root.'
+      ];
+      renderError(doc.title, reasons);
+    });
+  }
+
+  /* ------------------------------------------------ entry */
+
+  if (!MANIFEST || !window.ExprsnMarkdown) {
+    renderError('Viewer failed to load', [
+      'assets/manifest.js or assets/markdown.js did not load. Check that the docs/assets/ directory is being served alongside this page.'
+    ]);
+    return;
+  }
+
+  var id = new URLSearchParams(location.search).get('doc');
+  if (!id) {
+    renderIndex();
+    return;
+  }
+  var doc = null;
+  MANIFEST.markdown.forEach(function (d) { if (d.id === id) doc = d; });
+  if (!doc) {
+    renderError('Unknown document', [
+      'No Markdown document with id "' + id + '" exists in the manifest (assets/manifest.js).',
+      'Known ids: ' + MANIFEST.markdown.map(function (d) { return d.id; }).join(', ') + '.'
+    ]);
+    return;
+  }
+  renderDoc(doc);
+})();
+</script>
+</body>
+</html>

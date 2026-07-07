@@ -18,6 +18,7 @@
     <a href="database-model.html">DB Model</a>
     <a href="platform-model.html">Platform Model</a>
     <a href="glossary.html">Glossary</a>
+    <a href="viewer.html">Guides (MD)</a>
   </nav>
 </header>
 <main>
@@ -85,6 +86,38 @@
     <tr><td>Aggregate health</td><td><code>curl -k https://localhost:8443/health</code></td></tr>
   </tbody>
 </table>
+
+<h2 id="markdown-guides">Guides &amp; internals (Markdown)</h2>
+<p>The platform's living Markdown documents — architecture, API surface, status/punch list, sprint plans, and runbooks — rendered in the browser by the <a href="viewer.html">Markdown viewer</a>. The viewer fetches the files over HTTP, so serve this site rather than opening it via <code>file://</code> (see <code>docs/README.md</code>).</p>
+<div class="cards" id="md-cards">
+  <noscript><p class="note">JavaScript is required to list the Markdown documents here — or open the <a href="viewer.html">viewer</a> directly.</p></noscript>
+</div>
+<script src="assets/manifest.js"></script>
+<script>
+(function () {
+  var host = document.getElementById('md-cards');
+  var manifest = window.EXPRSN_DOCS_MANIFEST;
+  if (!host || !manifest) return;
+  manifest.markdown.forEach(function (doc) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    var h3 = document.createElement('h3');
+    var a = document.createElement('a');
+    a.href = 'viewer.html?doc=' + encodeURIComponent(doc.id);
+    a.textContent = doc.title;
+    h3.appendChild(a);
+    var tag = document.createElement('p');
+    tag.className = 'tag';
+    tag.textContent = doc.path;
+    var desc = document.createElement('p');
+    desc.textContent = doc.description;
+    card.appendChild(h3);
+    card.appendChild(tag);
+    card.appendChild(desc);
+    host.appendChild(card);
+  });
+})();
+</script>
 
 <h2>Reference</h2>
 <p>The <a href="database-model.html">database model</a> documents the <code>exprsn</code> database schema by schema, and the <a href="platform-model.html">platform model</a> visualizes the architecture and key flows as Mermaid diagrams. See the <a href="glossary.html">glossary</a> for definitions of platform terms — CA tokens, OCSP/CRL, fan-out, cache tiers, HMAC service tokens, the module contract, and more.</p>

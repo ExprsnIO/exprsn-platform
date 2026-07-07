@@ -566,7 +566,7 @@ are cross-referenced, not re-filed.)*
 must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)".)*
 
 ### BUG-001 — Authenticated SSRF via DID link / proof-of-control fetch
-- **Type:** bug · **Status:** in-progress → `active/sprint-2026-07.md` (pulled in 2026-07-07 — committed set drained day one, per the sprint's pre-authorized pull-in note) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `fa2cd3c`; qa verify pending. Pulled in 2026-07-07 on the day-one drain) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** `userDidService` / `proofOfControl` make outbound fetches to

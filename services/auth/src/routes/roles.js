@@ -12,6 +12,7 @@ const { Op } = require('sequelize');
 const rbacService = require('../services/rbacService');
 const organizationService = require('../services/organizationService');
 const { requireAuth } = require('../middleware/requireAuth');
+const { hasAdminRole } = require('../middleware/requireAdmin');
 const { isPlatformAdmin } = require('@exprsn/shared/utils/platformAdmin');
 
 /** Derive a URL-safe slug from a display name (slug is required + unique per org). */
@@ -37,6 +38,27 @@ async function canManageRole(req, role) {
   }
   const perm = await rbacService.checkPermission(req.user.id, '*');
   return Boolean(perm && perm.allowed);
+}
+
+/**
+ * Authorize a permission-inspection read (GET /users/:userId/permissions,
+ * POST /check-permission) for the current user.
+ *
+ * Previously these endpoints trusted the `userId` route param / body field
+ * outright — any authenticated user could pass another user's id and read
+ * their resolved permissions (info disclosure). Authorize as:
+ *   - the user inspecting their OWN permissions;
+ *   - platform admins (email allowlist) — may inspect anyone;
+ *   - a holder of a DB admin/system_admin role (or `admin:*` permission).
+ */
+async function canInspectPermissions(req, targetUserId) {
+  if (req.user && String(req.user.id) === String(targetUserId)) {
+    return true;
+  }
+  if (isPlatformAdmin(req.user && req.user.email)) {
+    return true;
+  }
+  return hasAdminRole(req.user && req.user.id);
 }
 
 /**
@@ -530,6 +552,13 @@ router.post('/:id/revoke-group', requireAuth, async (req, res, next) => {
  */
 router.get('/users/:userId/permissions', requireAuth, async (req, res, next) => {
   try {
+    if (!(await canInspectPermissions(req, req.params.userId))) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: 'You do not have permission to view this user\'s permissions'
+      });
+    }
+
     const { organizationId, applicationId } = req.query;
 
     const result = await rbacService.getUserPermissions(req.params.userId, {
@@ -553,6 +582,13 @@ router.get('/users/:userId/permissions', requireAuth, async (req, res, next) => 
 router.post('/check-permission', requireAuth, async (req, res, next) => {
   try {
     const { userId = req.user.id, permission, organizationId, applicationId, serviceName } = req.body;
+
+    if (!(await canInspectPermissions(req, userId))) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: 'You do not have permission to check another user\'s permission'
+      });
+    }
 
     const result = await rbacService.checkPermission(userId, permission, {
       organizationId,

@@ -566,8 +566,8 @@ are cross-referenced, not re-filed.)*
 must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)".)*
 
 ### BUG-001 — Authenticated SSRF via DID link / proof-of-control fetch
-- **Type:** bug · **Status:** ready · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-progress → `active/sprint-2026-07.md` (pulled in 2026-07-07 — committed set drained day one, per the sprint's pre-authorized pull-in note) · **Priority:** P2 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** `userDidService` / `proofOfControl` make outbound fetches to
   caller-influenced hosts without the SSRF guard. The unauthenticated path
@@ -586,8 +586,8 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   to jr-developer at BUILD (crisp acceptance).
 
 ### BUG-002 — atproto DoS guards (unbounded bodies, ws payload, cursor crash)
-- **Type:** bug · **Status:** ready · **Priority:** P2 · **Size:** M
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-progress → `active/sprint-2026-07.md` (pulled in 2026-07-07 — committed set drained day one, per the sprint's pre-authorized pull-in note) · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** Several unbounded/unsafe inputs on the atproto bridge.
 - **Acceptance criteria:**
@@ -883,8 +883,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   FEAT-010/FEAT-015/FEAT-012/FEAT-020 depend on this router's final auth posture.
 
 ### BUG-011 — `POST /auth/api/roles/check-service-access` trusts a body-supplied `userId` (same shape as BUG-005)
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-progress → `active/sprint-2026-07.md` (groomed `backlog → ready → in-sprint` 2026-07-07 — bug, no C/B gate, crisp AC, sibling of just-done BUG-005; pulled with BUG-001/BUG-002 on the day-one drain) · **Priority:** P2 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** sibling of BUG-005 (permission-inspect info disclosure); found during BUG-005 implementation 2026-07-07
 - **Description:** In `services/auth/src/routes/roles.js` (~L576),
   `POST /check-service-access` reads `userId = req.user.id` **defaulting from the
@@ -922,7 +922,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 ## Tasks
 
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)
-- **Type:** task · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P1 · **Size:** M
+- **Type:** task · **Status:** done (landed `430eaa0`; full flow PASS incl. the SP-6 revoked-bearer-401s check; CI job manual/non-blocking — no live stack on runners) · **Priority:** P1 · **Size:** M
 - **Owner-role:** qa-specialist · **Blocked-by:** — *(unblocked: `SP-6`/`#9` sessions is DONE)*
 - **Legacy:** SP-8 · #9 (frontend)
 - **Description:** React rendering has only ever been driven at the API level.

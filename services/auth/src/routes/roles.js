@@ -7,7 +7,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { Role, Permission, UserRole, GroupRole } = require('../models');
+const { Role, Permission, UserRole, GroupRole, User, Group } = require('../models');
+const { Op } = require('sequelize');
 const rbacService = require('../services/rbacService');
 const organizationService = require('../services/organizationService');
 const { requireAuth } = require('../middleware/requireAuth');
@@ -150,6 +151,120 @@ router.get('/permissions', requireAuth, async (req, res, next) => {
     res.json({
       success: true,
       permissions
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/permissions
+ * Create a permission catalog entry (platform admin / `*` holders only).
+ * Body: { permissionString } or { resource, action }, plus optional
+ * { scope, service, description }. Backs the expanded permission catalog UI.
+ *
+ * NOTE: declared before `/:id` for the same reason as GET /permissions.
+ */
+router.post('/permissions', requireAuth, async (req, res, next) => {
+  try {
+    if (!(await canManageRole(req, null))) {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: 'Only administrators can define permissions'
+      });
+    }
+
+    const { resource, action, scope, service, description } = req.body;
+    let permissionString = (req.body.permissionString || '').trim();
+    let res_ = resource, act = action;
+
+    if (permissionString && (!res_ || !act)) {
+      const parsed = Permission.parsePermissionString(permissionString);
+      res_ = parsed.resource;
+      act = parsed.action;
+    }
+    if (!permissionString && res_ && act) {
+      permissionString = `${res_}:${act}`;
+    }
+    if (!permissionString || !res_ || !act) {
+      return res.status(400).json({
+        error: 'BAD_REQUEST',
+        message: 'Provide permissionString ("resource:action") or resource + action'
+      });
+    }
+
+    const existing = await Permission.findOne({ where: { permissionString } });
+    if (existing) {
+      return res.status(409).json({ error: 'EXISTS', message: 'Permission already defined' });
+    }
+
+    const permission = await Permission.create({
+      resource: res_,
+      action: act,
+      permissionString,
+      scope: ['system', 'organization', 'application', 'service'].includes(scope) ? scope : 'application',
+      service: service || null,
+      description: description || null,
+      isSystem: false
+    });
+
+    res.status(201).json({ success: true, permission });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/roles/:id/assignments
+ * Who/what holds this role — user and group assignments with resolved
+ * names, so the admin role inspector can show the role's reach across
+ * orgs, users and groups.
+ */
+router.get('/:id/assignments', requireAuth, async (req, res, next) => {
+  try {
+    const role = await Role.findByPk(req.params.id);
+    if (!role) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Role not found' });
+    }
+    if (role.organizationId) {
+      const isMember = await organizationService.isMember(role.organizationId, req.user.id);
+      if (!isMember) {
+        return res.status(403).json({ error: 'FORBIDDEN', message: 'You do not have access to this role' });
+      }
+    }
+
+    const userRoles = await UserRole.findAll({ where: { roleId: role.id } });
+    const groupRoles = await GroupRole.findAll({ where: { roleId: role.id } });
+
+    const userIds = [...new Set(userRoles.map((ur) => ur.userId).filter(Boolean))];
+    const groupIds = [...new Set(groupRoles.map((gr) => gr.groupId).filter(Boolean))];
+
+    const users = userIds.length
+      ? await User.findAll({ where: { id: { [Op.in]: userIds } }, attributes: ['id', 'email', 'displayName', 'status'] })
+      : [];
+    const groups = groupIds.length
+      ? await Group.findAll({ where: { id: { [Op.in]: groupIds } }, attributes: ['id', 'name', 'organizationId'] })
+      : [];
+
+    const userById = Object.fromEntries(users.map((u) => [u.id, u]));
+    const groupById = Object.fromEntries(groups.map((g) => [g.id, g]));
+
+    res.json({
+      success: true,
+      role,
+      users: userRoles.map((ur) => ({
+        userId: ur.userId,
+        organizationId: ur.organizationId ?? null,
+        expiresAt: ur.expiresAt ?? null,
+        assignedBy: ur.assignedBy ?? null,
+        user: userById[ur.userId] ?? null
+      })),
+      groups: groupRoles.map((gr) => ({
+        groupId: gr.groupId,
+        organizationId: gr.organizationId ?? null,
+        assignedBy: gr.assignedBy ?? null,
+        group: groupById[gr.groupId] ?? null
+      }))
     });
   } catch (error) {
     next(error);

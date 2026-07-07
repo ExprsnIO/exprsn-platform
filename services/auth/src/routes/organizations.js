@@ -36,9 +36,54 @@ router.get('/', requireAuth, async (req, res, next) => {
   try {
     const orgs = await organizationService.getUserOrganizations(req.user.id);
 
+    // ?include=counts enriches each org with { groups, users, violations } so
+    // the admin table can sort on them. Groups/users come from the auth
+    // schema; violations are the org members' moderation items in a violating
+    // state (rejected/flagged/escalated) from the moderator schema — best
+    // effort, 0 when that schema isn't available.
+    const wantCounts = String(req.query.include || '').split(',').includes('counts');
+    if (!wantCounts || orgs.length === 0) {
+      return res.json({ success: true, organizations: orgs });
+    }
+
+    const { sequelize } = require('../models');
+    const ids = orgs.map((o) => o.id);
+    const countMap = {};
+    for (const id of ids) countMap[id] = { groups: 0, users: 0, violations: 0 };
+
+    // NB: auth-schema columns are camelCase (no global underscored) — quote
+    // them; the moderator schema maps to snake_case.
+    const [groupRows] = await sequelize.query(
+      'SELECT "organizationId" AS oid, COUNT(*)::int AS n FROM auth.groups WHERE "organizationId" IN (:ids) GROUP BY "organizationId"',
+      { replacements: { ids } }
+    );
+    for (const r of groupRows) if (countMap[r.oid]) countMap[r.oid].groups = r.n;
+
+    const [memberRows] = await sequelize.query(
+      'SELECT "organizationId" AS oid, COUNT(DISTINCT "userId")::int AS n FROM auth.organization_members WHERE "organizationId" IN (:ids) GROUP BY "organizationId"',
+      { replacements: { ids } }
+    );
+    for (const r of memberRows) if (countMap[r.oid]) countMap[r.oid].users = r.n;
+
+    try {
+      const [violationRows] = await sequelize.query(
+        `SELECT om."organizationId" AS oid, COUNT(*)::int AS n
+           FROM moderator.moderation_items mi
+           JOIN auth.organization_members om ON om."userId" = mi.user_id
+          WHERE om."organizationId" IN (:ids)
+            AND mi.status IN ('rejected', 'flagged', 'escalated')
+          GROUP BY om."organizationId"`,
+        { replacements: { ids } }
+      );
+      for (const r of violationRows) if (countMap[r.oid]) countMap[r.oid].violations = r.n;
+    } catch (_) { /* moderator schema unavailable — leave 0s */ }
+
     res.json({
       success: true,
-      organizations: orgs
+      organizations: orgs.map((o) => {
+        const json = o.toJSON ? o.toJSON() : o;
+        return { ...json, counts: countMap[json.id] };
+      })
     });
   } catch (error) {
     next(error);

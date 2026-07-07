@@ -6,9 +6,10 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 const { Op } = require('sequelize');
-const { asyncHandler, AppError, validateCAToken } = require('@exprsn/shared');
-const { User, Group, Role } = require('../models');
+const { asyncHandler, AppError, validateRequired, validateCAToken } = require('@exprsn/shared');
+const { User, Group, Role, Organization, Session } = require('../models');
 const { requireAdminAfterCA } = require('../middleware/requireAdmin');
 
 const router = express.Router();
@@ -78,6 +79,119 @@ router.get('/', requireAdminAfterCA, asyncHandler(async (req, res) => {
     users: rows,
     pagination: { limit, offset, total: count, hasMore: offset + rows.length < count }
   });
+}));
+
+/**
+ * POST /api/users
+ * Create a user (admin only) — backs the Directory "Create User" action.
+ * Body: { email, password?, displayName?, firstName?, lastName?, status?, emailVerified? }
+ * When no password is given a random one is set and the account must go
+ * through password reset before password login.
+ */
+router.post('/', validateCAToken({ requiredPermissions: ['write'] }), requireAdminAfterCA, asyncHandler(async (req, res) => {
+  const { email, password, displayName, firstName, lastName, status, emailVerified } = req.body || {};
+  validateRequired({ email }, ['email']);
+
+  const existing = await User.findOne({ where: { email } });
+  if (existing) {
+    throw new AppError('Email already registered', 409, 'USER_EXISTS');
+  }
+
+  const user = await User.create({
+    email,
+    passwordHash: password || crypto.randomBytes(24).toString('base64'), // hashed by beforeCreate hook
+    displayName: displayName || null,
+    firstName: firstName || null,
+    lastName: lastName || null,
+    status: ['active', 'inactive', 'suspended'].includes(status) ? status : 'active',
+    emailVerified: Boolean(emailVerified)
+  });
+
+  res.status(201).json({ message: 'User created', user: user.toSafeObject() });
+}));
+
+/**
+ * POST /api/users/import
+ * Bulk-create users (admin only) — backs the Directory "Import Users" action.
+ * Body: { users: [{ email, displayName?, firstName?, lastName?, status?, password? }] }
+ * Rows are processed independently; existing emails are reported as skipped.
+ */
+router.post('/import', validateCAToken({ requiredPermissions: ['write'] }), requireAdminAfterCA, asyncHandler(async (req, res) => {
+  const rows = Array.isArray(req.body?.users) ? req.body.users.slice(0, 500) : [];
+  if (rows.length === 0) {
+    throw new AppError('No users to import — body must be { users: [...] }', 400, 'EMPTY_IMPORT');
+  }
+
+  const results = { created: 0, skipped: 0, failed: 0, rows: [] };
+  for (const row of rows) {
+    const email = String(row?.email || '').trim().toLowerCase();
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      results.failed += 1;
+      results.rows.push({ email: row?.email ?? '', outcome: 'failed', reason: 'Invalid email' });
+      continue;
+    }
+    try {
+      const existing = await User.findOne({ where: { email } });
+      if (existing) {
+        results.skipped += 1;
+        results.rows.push({ email, outcome: 'skipped', reason: 'Already exists' });
+        continue;
+      }
+      await User.create({
+        email,
+        passwordHash: row.password || crypto.randomBytes(24).toString('base64'),
+        displayName: row.displayName || null,
+        firstName: row.firstName || null,
+        lastName: row.lastName || null,
+        status: ['active', 'inactive', 'suspended'].includes(row.status) ? row.status : 'active'
+      });
+      results.created += 1;
+      results.rows.push({ email, outcome: 'created' });
+    } catch (error) {
+      results.failed += 1;
+      results.rows.push({ email, outcome: 'failed', reason: error.message });
+    }
+  }
+
+  res.status(results.created > 0 ? 201 : 200).json(results);
+}));
+
+/**
+ * GET /api/users/export
+ * CSV export of the user directory (admin only) — backs "Export Users".
+ * Declared before `/:id` so the literal path is matched here.
+ */
+router.get('/export', requireAdminAfterCA, asyncHandler(async (req, res) => {
+  const users = await User.findAll({
+    order: [['createdAt', 'ASC']],
+    attributes: ['id', 'email', 'displayName', 'firstName', 'lastName', 'status', 'emailVerified', 'mfaEnabled', 'lastLoginAt', 'createdAt']
+  });
+
+  const esc = (v) => {
+    if (v == null) return '';
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  // Some rows carry epoch-ms values as strings (bigint columns) or otherwise
+  // non-parseable dates — coerce numerics and emit anything else raw rather
+  // than letting toISOString() throw on an Invalid Date.
+  const iso = (v) => {
+    if (!v) return '';
+    const n = typeof v === 'string' && /^\d{10,}$/.test(v) ? Number(v) : v;
+    const d = new Date(n);
+    return Number.isNaN(d.getTime()) ? String(v) : d.toISOString();
+  };
+  const header = 'id,email,displayName,firstName,lastName,status,emailVerified,mfaEnabled,lastLoginAt,createdAt';
+  const lines = users.map((u) => [
+    u.id, u.email, u.displayName, u.firstName, u.lastName, u.status,
+    u.emailVerified, u.mfaEnabled,
+    iso(u.lastLoginAt),
+    iso(u.createdAt)
+  ].map(esc).join(','));
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="users.csv"');
+  res.send([header, ...lines].join('\n'));
 }));
 
 /**
@@ -238,6 +352,64 @@ router.get('/:id/groups', asyncHandler(async (req, res) => {
   }
 
   res.json({ groups: user.groups });
+}));
+
+/**
+ * GET /api/users/:id/detail
+ * Full admin inspector for a user — profile plus everything that relates the
+ * user to the platform: groups, roles, organizations, resolved permissions,
+ * and recent sessions. Backs the admin Users tab row-click inspector.
+ */
+router.get('/:id/detail', requireAdminAfterCA, asyncHandler(async (req, res) => {
+  const user = await User.findByPk(req.params.id, {
+    include: [
+      { model: Group, as: 'groups', through: { attributes: [] } },
+      { model: Role, as: 'roles', through: { attributes: [] } },
+      { model: Organization, as: 'organizations', through: { attributes: ['role', 'status'] } }
+    ]
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+  }
+
+  const sessions = await Session.findAll({
+    where: { userId: user.id },
+    order: [['createdAt', 'DESC']],
+    limit: 10
+  }).catch(() => []);
+
+  // Resolved (role-derived) permissions; best-effort — the inspector still
+  // renders without them.
+  let permissions = null;
+  try {
+    const rbacService = require('../services/rbacService');
+    permissions = await rbacService.getUserPermissions(user.id, {});
+  } catch (_) { /* optional */ }
+
+  const safe = user.toSafeObject();
+  res.json({
+    user: safe,
+    groups: user.groups ?? [],
+    roles: user.roles ?? [],
+    organizations: (user.organizations ?? []).map((o) => ({
+      id: o.id,
+      name: o.name,
+      slug: o.slug,
+      status: o.status,
+      memberRole: o.OrganizationMember?.role ?? null,
+      memberStatus: o.OrganizationMember?.status ?? null
+    })),
+    permissions,
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      ipAddress: s.ipAddress,
+      userAgent: s.userAgent,
+      createdAt: s.createdAt,
+      lastActivityAt: s.lastActivityAt,
+      revokedAt: s.revokedAt ?? null
+    }))
+  });
 }));
 
 /**

@@ -5,11 +5,12 @@
  * API surface. Conventions match the rest of web/: TanStack Query for server
  * state, MUI for chrome, toMessage() for the gateway error envelope.
  */
-import { Fragment, isValidElement, ReactNode, useCallback, useEffect, useState } from 'react';
+import { Fragment, isValidElement, ReactNode, useCallback, useEffect, useMemo, useState, MouseEvent } from 'react';
 import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -17,7 +18,9 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  IconButton,
   Link,
+  Menu,
   MenuItem,
   Paper,
   Snackbar,
@@ -29,9 +32,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import ViewColumnIcon from '@mui/icons-material/ViewColumn';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { toMessage } from '@/lib/errors';
 
@@ -194,49 +201,260 @@ export interface Column<R> {
   render?: (row: R) => ReactNode;
   align?: 'left' | 'right' | 'center';
   mono?: boolean;
+  /** Value used for sorting; defaults to the raw row[key]. */
+  sortValue?: (row: R) => string | number | null | undefined;
+  /** Value the per-column filter matches against; defaults to String(row[key]). */
+  filterValue?: (row: R) => string;
+  /** Column cannot be hidden from the column picker (e.g. an actions column). */
+  locked?: boolean;
+  /** Start hidden until enabled from the column picker. */
+  defaultHidden?: boolean;
 }
 
+function rawCell<R>(row: R, key: string): unknown {
+  return (row as Record<string, unknown>)[key];
+}
+
+function sortComparable<R>(c: Column<R>, row: R): string | number | null {
+  const v = c.sortValue ? c.sortValue(row) : rawCell(row, c.key);
+  if (v == null || v === '') return null;
+  if (typeof v === 'number' || typeof v === 'boolean') return Number(v);
+  const s = String(v);
+  // Dates (ISO or parseable) sort chronologically.
+  if (ISO_DATE_RE.test(s)) {
+    const t = Date.parse(s);
+    if (!Number.isNaN(t)) return t;
+  }
+  const n = Number(s);
+  if (s.trim() !== '' && !Number.isNaN(n)) return n;
+  return s.toLowerCase();
+}
+
+function filterText<R>(c: Column<R>, row: R): string {
+  if (c.filterValue) return c.filterValue(row);
+  const v = rawCell(row, c.key);
+  if (v == null) return '';
+  return typeof v === 'object' ? JSON.stringify(v) : String(v);
+}
+
+const columnPrefsKey = (tableId: string) => `admin.table.${tableId}.hidden`;
+
+function loadHidden(tableId: string | undefined, columns: { key: string; defaultHidden?: boolean }[]): string[] {
+  const fallback = columns.filter((c) => c.defaultHidden).map((c) => c.key);
+  if (!tableId) return fallback;
+  try {
+    const stored = localStorage.getItem(columnPrefsKey(tableId));
+    if (stored) return JSON.parse(stored) as string[];
+  } catch {
+    /* ignore storage failures */
+  }
+  return fallback;
+}
+
+/**
+ * Column-driven table. Optional capabilities, all backward compatible:
+ *  - `tableId` — column picker (add/remove columns), persisted per table
+ *  - `sortable` — click headers to sort (uses `sortValue`, falls back to the raw cell)
+ *  - `filterable` — a per-column filter row, toggled from the toolbar
+ *  - `onRowClick` — row click opens the row (clicks on buttons/inputs are ignored)
+ */
 export function DataTable<R>({
   columns,
   rows,
   rowKey,
   empty = 'No records.',
+  tableId,
+  sortable = false,
+  filterable = false,
+  onRowClick,
+  initialSort,
 }: {
   columns: Column<R>[];
   rows: R[];
   rowKey: (row: R, i: number) => string;
   empty?: ReactNode;
+  tableId?: string;
+  sortable?: boolean;
+  filterable?: boolean;
+  onRowClick?: (row: R) => void;
+  initialSort?: { key: string; dir: 'asc' | 'desc' };
 }) {
-  if (!rows.length) return <Alert severity="info">{empty}</Alert>;
+  const [hidden, setHidden] = useState<string[]>(() => loadHidden(tableId, columns));
+  const [pickerAnchor, setPickerAnchor] = useState<HTMLElement | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(initialSort ?? null);
+
+  const toggleColumn = (key: string) => {
+    setHidden((cur) => {
+      const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key];
+      if (tableId) {
+        try { localStorage.setItem(columnPrefsKey(tableId), JSON.stringify(next)); } catch { /* ignore */ }
+      }
+      return next;
+    });
+  };
+
+  const visible = columns.filter((c) => c.locked || !hidden.includes(c.key));
+
+  const activeFilters = Object.entries(filters).filter(([, v]) => v.trim() !== '');
+  const processed = useMemo(() => {
+    let out = rows;
+    if (filterable && activeFilters.length) {
+      out = out.filter((row) =>
+        activeFilters.every(([key, needle]) => {
+          const col = columns.find((c) => c.key === key);
+          if (!col) return true;
+          return filterText(col, row).toLowerCase().includes(needle.trim().toLowerCase());
+        }),
+      );
+    }
+    if (sort) {
+      const col = columns.find((c) => c.key === sort.key);
+      if (col) {
+        const dir = sort.dir === 'asc' ? 1 : -1;
+        out = [...out].sort((a, b) => {
+          const av = sortComparable(col, a);
+          const bv = sortComparable(col, b);
+          if (av == null && bv == null) return 0;
+          if (av == null) return 1; // nullish always last
+          if (bv == null) return -1;
+          if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+          return String(av).localeCompare(String(bv)) * dir;
+        });
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, columns, sort, filterable, JSON.stringify(filters)]);
+
+  const hasToolbar = !!tableId || filterable;
+
+  if (!rows.length && !hasToolbar) return <Alert severity="info">{empty}</Alert>;
+
+  const handleRowClick = (e: MouseEvent<HTMLTableRowElement>, row: R) => {
+    if (!onRowClick) return;
+    // Ignore clicks that originate from interactive cell content.
+    const el = e.target as HTMLElement;
+    if (el.closest('button, a, input, textarea, select, [role="button"], [role="combobox"], .MuiSelect-select')) return;
+    onRowClick(row);
+  };
+
   return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            {columns.map((c) => (
-              <TableCell key={c.key} align={c.align}>
-                {c.header}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row, i) => (
-            <TableRow key={rowKey(row, i)} hover>
-              {columns.map((c) => (
-                <TableCell
-                  key={c.key}
-                  align={c.align}
-                  sx={c.mono ? { fontFamily: 'monospace', fontSize: 12 } : undefined}
-                >
-                  {c.render ? c.render(row) : display((row as Record<string, unknown>)[c.key])}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <Box>
+      {hasToolbar && (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end" sx={{ mb: 0.5 }}>
+          {filterable && (
+            <Tooltip title={filtersOpen ? 'Hide filters' : 'Filter columns'}>
+              <IconButton
+                size="small"
+                color={filtersOpen || activeFilters.length ? 'primary' : 'default'}
+                onClick={() => setFiltersOpen((o) => !o)}
+              >
+                <FilterListIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {tableId && (
+            <>
+              <Tooltip title="Add / remove columns">
+                <IconButton size="small" onClick={(e) => setPickerAnchor(e.currentTarget)}>
+                  <ViewColumnIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Menu anchorEl={pickerAnchor} open={!!pickerAnchor} onClose={() => setPickerAnchor(null)}>
+                {columns.filter((c) => !c.locked && c.header !== '').map((c) => (
+                  <MenuItem key={c.key} dense onClick={() => toggleColumn(c.key)}>
+                    <Checkbox size="small" checked={!hidden.includes(c.key)} sx={{ p: 0.5, mr: 1 }} />
+                    {typeof c.header === 'string' ? c.header : c.key}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </>
+          )}
+        </Stack>
+      )}
+
+      {!rows.length ? (
+        <Alert severity="info">{empty}</Alert>
+      ) : (
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                {visible.map((c) => (
+                  <TableCell key={c.key} align={c.align} sortDirection={sort?.key === c.key ? sort.dir : false}>
+                    {sortable && c.header !== '' ? (
+                      <TableSortLabel
+                        active={sort?.key === c.key}
+                        direction={sort?.key === c.key ? sort.dir : 'asc'}
+                        onClick={() =>
+                          setSort((cur) =>
+                            cur?.key === c.key
+                              ? cur.dir === 'asc' ? { key: c.key, dir: 'desc' } : null
+                              : { key: c.key, dir: 'asc' },
+                          )
+                        }
+                      >
+                        {c.header}
+                      </TableSortLabel>
+                    ) : (
+                      c.header
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+              {filterable && filtersOpen && (
+                <TableRow>
+                  {visible.map((c) => (
+                    <TableCell key={c.key} sx={{ py: 0.5 }}>
+                      {c.header !== '' && (
+                        <TextField
+                          size="small"
+                          variant="standard"
+                          placeholder="Filter…"
+                          value={filters[c.key] ?? ''}
+                          onChange={(e) => setFilters((f) => ({ ...f, [c.key]: e.target.value }))}
+                          fullWidth
+                        />
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              )}
+            </TableHead>
+            <TableBody>
+              {processed.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={visible.length} sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+                    No rows match the filters.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                processed.map((row, i) => (
+                  <TableRow
+                    key={rowKey(row, i)}
+                    hover
+                    onClick={(e) => handleRowClick(e, row)}
+                    sx={onRowClick ? { cursor: 'pointer' } : undefined}
+                  >
+                    {visible.map((c) => (
+                      <TableCell
+                        key={c.key}
+                        align={c.align}
+                        sx={c.mono ? { fontFamily: 'monospace', fontSize: 12 } : undefined}
+                      >
+                        {c.render ? c.render(row) : display(rawCell(row, c.key))}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Box>
   );
 }
 

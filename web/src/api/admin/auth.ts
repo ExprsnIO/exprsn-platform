@@ -57,6 +57,8 @@ export interface Organization {
   metadata?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
+  /** Present when listed with ?include=counts. */
+  counts?: OrgCounts;
   [k: string]: unknown;
 }
 export interface OrgMember {
@@ -125,6 +127,51 @@ export interface Session {
   [k: string]: unknown;
 }
 
+export interface OrgCounts {
+  groups: number;
+  users: number;
+  violations: number;
+}
+
+/** Aggregate returned by GET /users/:id/detail — the admin user inspector. */
+export interface UserDetail {
+  user: AuthUser;
+  groups: Group[];
+  roles: Role[];
+  organizations: Array<{
+    id: string;
+    name?: string;
+    slug?: string;
+    status?: string;
+    memberRole?: string | null;
+    memberStatus?: string | null;
+  }>;
+  permissions?: Record<string, unknown> | null;
+  sessions: Session[];
+}
+
+export interface ImportResult {
+  created: number;
+  skipped: number;
+  failed: number;
+  rows: Array<{ email?: string; name?: string; outcome: string; reason?: string }>;
+}
+
+export interface RoleAssignments {
+  role: Role;
+  users: Array<{
+    userId: string;
+    organizationId?: string | null;
+    expiresAt?: string | null;
+    user?: { id: string; email?: string; displayName?: string | null; status?: string } | null;
+  }>;
+  groups: Array<{
+    groupId: string;
+    organizationId?: string | null;
+    group?: { id: string; name?: string; organizationId?: string | null } | null;
+  }>;
+}
+
 function q(params?: Record<string, string | number | undefined>): string {
   if (!params) return '';
   const sp = new URLSearchParams();
@@ -145,16 +192,39 @@ export const authAdminApi = {
     http.get<{ users: AuthUser[]; pagination?: Record<string, number> }>(`/auth/api/users${q(params)}`),
   getUser: (id: string) => http.get<{ user?: User } & Record<string, unknown>>(`/auth/api/users/${id}`),
   getUserGroups: (id: string) => http.get<Record<string, unknown>>(`/auth/api/users/${id}/groups`),
+  getUserDetail: (id: string) => http.get<UserDetail>(`/auth/api/users/${id}/detail`),
+  createUser: (body: {
+    email: string;
+    password?: string;
+    displayName?: string;
+    firstName?: string;
+    lastName?: string;
+    status?: string;
+    emailVerified?: boolean;
+  }) => http.post<{ user: AuthUser }>('/auth/api/users', body),
+  importUsers: (users: Array<Record<string, unknown>>) =>
+    http.post<ImportResult>('/auth/api/users/import', { users }),
+  exportUsersCsv: () => http.get<string>('/auth/api/users/export'),
 
   // Groups.
   listGroups: (params?: { organizationId?: string }) =>
     http.get<{ groups: Group[] }>(`/auth/api/groups${q(params)}`),
-  createGroup: (body: { name: string; description?: string; organizationId?: string }) =>
-    http.post<{ group: Group }>('/auth/api/groups', body),
+  createGroup: (body: {
+    name: string;
+    description?: string;
+    organizationId?: string;
+    permissions?: Record<string, boolean>;
+    parentId?: string;
+  }) => http.post<{ group: Group }>('/auth/api/groups', body),
+  importGroups: (groups: Array<Record<string, unknown>>) =>
+    http.post<ImportResult>('/auth/api/groups/import', { groups }),
   deleteGroup: (id: string) => http.del<Record<string, unknown>>(`/auth/api/groups/${id}`),
 
   // Organizations.
-  listOrganizations: () => http.get<{ organizations?: Organization[]; data?: Organization[] }>('/auth/api/organizations'),
+  listOrganizations: (opts?: { includeCounts?: boolean }) =>
+    http.get<{ organizations?: Organization[]; data?: Organization[] }>(
+      `/auth/api/organizations${opts?.includeCounts ? '?include=counts' : ''}`,
+    ),
   getOrganization: (id: string) => http.get<{ organization: Organization }>(`/auth/api/organizations/${id}`),
   createOrganization: (body: Record<string, unknown>) => http.post<Record<string, unknown>>('/auth/api/organizations', body),
   updateOrganization: (id: string, body: Record<string, unknown>) =>
@@ -175,8 +245,21 @@ export const authAdminApi = {
   listRoles: (params?: { organizationId?: string; type?: string }) =>
     http.get<{ roles?: Role[]; data?: Role[] }>(`/auth/api/roles${q(params)}`),
   createRole: (body: Record<string, unknown>) => http.post<Record<string, unknown>>('/auth/api/roles', body),
+  getRole: (id: string) => http.get<{ role: Role }>(`/auth/api/roles/${id}`),
+  updateRole: (id: string, body: Record<string, unknown>) =>
+    http.patch<{ role?: Role }>(`/auth/api/roles/${id}`, body),
+  deleteRole: (id: string) => http.del<Record<string, unknown>>(`/auth/api/roles/${id}`),
+  getRoleAssignments: (id: string) => http.get<RoleAssignments>(`/auth/api/roles/${id}/assignments`),
   listPermissions: (params?: { scope?: string; service?: string }) =>
     http.get<{ permissions?: Permission[]; data?: Permission[] }>(`/auth/api/roles/permissions${q(params)}`),
+  createPermission: (body: {
+    permissionString?: string;
+    resource?: string;
+    action?: string;
+    scope?: string;
+    service?: string;
+    description?: string;
+  }) => http.post<{ permission: Permission }>('/auth/api/roles/permissions', body),
   assignRoleUser: (roleId: string, userId: string, organizationId?: string) =>
     http.post<Record<string, unknown>>(`/auth/api/roles/${roleId}/assign-user`, { userId, organizationId }),
   revokeRoleUser: (roleId: string, userId: string, organizationId?: string) =>

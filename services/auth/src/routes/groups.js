@@ -74,6 +74,55 @@ router.post('/', validateCAToken({ requiredPermissions: ['write'] }), asyncHandl
 }));
 
 /**
+ * POST /api/groups/import
+ * Bulk-create groups — backs the Directory "Import Groups" action (the whole
+ * router is already admin-gated at the mount).
+ * Body: { groups: [{ name, description?, organizationId?, permissions?, parentId? }] }
+ * Rows are processed independently; existing names (per scope) are skipped.
+ */
+router.post('/import', validateCAToken({ requiredPermissions: ['write'] }), asyncHandler(async (req, res) => {
+  const rows = Array.isArray(req.body?.groups) ? req.body.groups.slice(0, 500) : [];
+  if (rows.length === 0) {
+    throw new AppError('No groups to import — body must be { groups: [...] }', 400, 'EMPTY_IMPORT');
+  }
+
+  const results = { created: 0, skipped: 0, failed: 0, rows: [] };
+  for (const row of rows) {
+    const name = String(row?.name || '').trim();
+    if (!name) {
+      results.failed += 1;
+      results.rows.push({ name: row?.name ?? '', outcome: 'failed', reason: 'Missing name' });
+      continue;
+    }
+    try {
+      const organizationId = row.organizationId || null;
+      const existing = await Group.findOne({ where: { name, organizationId } });
+      if (existing) {
+        results.skipped += 1;
+        results.rows.push({ name, outcome: 'skipped', reason: 'Already exists' });
+        continue;
+      }
+      await Group.create({
+        name,
+        slug: slugify(name),
+        description: row.description || null,
+        permissions: row.permissions || {},
+        parentId: row.parentId || null,
+        organizationId,
+        type: organizationId ? 'organization' : 'custom'
+      });
+      results.created += 1;
+      results.rows.push({ name, outcome: 'created' });
+    } catch (error) {
+      results.failed += 1;
+      results.rows.push({ name, outcome: 'failed', reason: error.message });
+    }
+  }
+
+  res.status(results.created > 0 ? 201 : 200).json(results);
+}));
+
+/**
  * GET /api/groups/:id
  * Get group details
  */

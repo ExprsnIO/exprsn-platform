@@ -41,7 +41,7 @@ Columns: **Method | Path | Required Fields | Optional Fields | Min/Max | Auth | 
 - `live` `/live` and `moderator` `/moderation` Socket.IO namespaces have **no handshake token auth**
   (flagged `TODO(platform)`). The `ca` `/ca` namespace connects unauthenticated sockets too.
 - `vault` `/vault` namespace bypasses CA-token validation in non-production (any token → dev user).
-- `timeline`: `POST /api/webhooks/moderator` has **no signature check**; the bluesky webhook uses HMAC.
+- `timeline`: `POST /api/webhooks/moderator` requires HMAC `x-webhook-signature` (`MODERATOR_WEBHOOK_SECRET`), same as the bluesky webhook (fail-closed 503 if the secret is unset; BUG-006, 2026-07-07).
 - `filevault`: share-link GET endpoints are unauthenticated — access is by knowing the share-link UUID.
 
 ---
@@ -675,7 +675,7 @@ add permissions. `/api/config` and `/api/webhooks` have no token middleware. `/a
 | POST | /timeline/api/attachments/:id/share | `id`(uuid) | expiresAt, maxDownloads, password | uuid | read `/attachments` | uploader only |
 | GET/POST | /timeline/api/config/:sectionId | `sectionId`∈timeline-settings/timeline-moderation | — | — | **none** | 404 unknown |
 | POST | /timeline/api/webhooks/bluesky | header `x-webhook-signature`; `event`, `data` | — | — | HMAC-SHA256 (`BLUESKY_WEBHOOK_SECRET`) | 503 if unset; 401 bad sig |
-| POST | /timeline/api/webhooks/moderator | `event`, `data` | — | — | **none (no signature check)** | — |
+| POST | /timeline/api/webhooks/moderator | `event`, `data` | — | — | HMAC `x-webhook-signature` (`MODERATOR_WEBHOOK_SECRET`) | 503 if secret unset; 401 on bad/missing sig |
 | POST | /timeline/api/webhooks/approval | header `x-webhook-signature`; `postId`, `decision` | `reason`, `decidedBy` | decision approved\|rejected | HMAC-SHA256 (persisted `approvalSecret`, else `TIMELINE_APPROVAL_WEBHOOK_SECRET`) | decision callback for held posts; 503 when no secret configured |
 | GET | /timeline/health[/db,/redis,/ca,/herald,/elasticsearch,/queues,/ready,/live] | — | — | — | none | 503 if deps down |
 

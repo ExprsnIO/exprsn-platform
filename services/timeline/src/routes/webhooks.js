@@ -174,9 +174,15 @@ router.post('/bluesky',
 
 /**
  * POST /api/webhooks/moderator
- * Receive moderation decisions
+ * Receive moderation decisions from the moderator service.
+ *
+ * Authenticated via HMAC-SHA256 over the raw body (x-webhook-signature),
+ * keyed with MODERATOR_WEBHOOK_SECRET — the same mechanism as the /bluesky
+ * sibling. Fails closed: 503 when the secret is unconfigured, 401 without a
+ * valid signature.
  */
 router.post('/moderator',
+  requireWebhookSignature('MODERATOR_WEBHOOK_SECRET'),
   asyncHandler(async (req, res) => {
     const { event, data } = req.body;
 
@@ -184,32 +190,40 @@ router.post('/moderator',
 
     try {
       switch (event) {
-        case 'content.flagged':
-          // Handle flagged content
+        case 'content.flagged': {
+          // Handle flagged content. Merge into the post's existing metadata so
+          // an approval hold (metadata.approval) or other fields are preserved
+          // rather than clobbered by a full metadata replacement.
           if (data.postId) {
-            await Post.update({
-              metadata: {
-                moderationStatus: 'flagged',
-                moderationReasons: data.reasons
-              }
-            }, {
-              where: { id: data.postId }
-            });
+            const post = await Post.findByPk(data.postId);
+            if (post) {
+              await post.update({
+                metadata: {
+                  ...(post.metadata || {}),
+                  moderationStatus: 'flagged',
+                  moderationReasons: data.reasons
+                }
+              });
+            }
           }
           break;
+        }
 
-        case 'content.approved':
-          // Handle approved content
+        case 'content.approved': {
+          // Handle approved content (merge, see content.flagged above).
           if (data.postId) {
-            await Post.update({
-              metadata: {
-                moderationStatus: 'approved'
-              }
-            }, {
-              where: { id: data.postId }
-            });
+            const post = await Post.findByPk(data.postId);
+            if (post) {
+              await post.update({
+                metadata: {
+                  ...(post.metadata || {}),
+                  moderationStatus: 'approved'
+                }
+              });
+            }
           }
           break;
+        }
 
         default:
           logger.warn('Unknown moderator event', { event });

@@ -39,8 +39,17 @@ function validatePassword(password) {
   const errors = [];
   const minLength = config.security.passwordMinLength || 12;
 
+  // Null/undefined/empty input: fail closed without touching string methods
+  // (previously `password.toLowerCase()` below threw a TypeError on null).
+  if (!password || typeof password !== 'string') {
+    return {
+      valid: false,
+      errors: [`Password must be at least ${minLength} characters long`]
+    };
+  }
+
   // Check minimum length
-  if (!password || password.length < minLength) {
+  if (password.length < minLength) {
     errors.push(`Password must be at least ${minLength} characters long`);
   }
 

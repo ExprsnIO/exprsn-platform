@@ -122,7 +122,10 @@ async function createTestUser(overrides = {}) {
 }
 
 /**
- * Create test organization
+ * Create test organization.
+ *
+ * `Organization.ownerId` is NOT NULL — when the caller doesn't provide one,
+ * create a throwaway owner user so direct org creation keeps working.
  */
 async function createTestOrganization(overrides = {}) {
   const { v4: uuidv4 } = require('uuid');
@@ -130,15 +133,23 @@ async function createTestOrganization(overrides = {}) {
   const defaultOrg = {
     id: uuidv4(),
     name: `Test Org ${Date.now()}`,
-    slug: `test-org-${Date.now()}`,
+    slug: `test-org-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
     ...overrides
   };
+
+  if (!defaultOrg.ownerId) {
+    const owner = await createTestUser();
+    defaultOrg.ownerId = owner.id;
+  }
 
   return models.Organization.create(defaultOrg);
 }
 
 /**
- * Create test role
+ * Create test role.
+ *
+ * `Role.slug` is NOT NULL — default it from the name so tests can assert on
+ * the slug matching the role name they passed.
  */
 async function createTestRole(overrides = {}) {
   const { v4: uuidv4 } = require('uuid');
@@ -149,6 +160,10 @@ async function createTestRole(overrides = {}) {
     description: 'Test role',
     ...overrides
   };
+
+  if (!defaultRole.slug) {
+    defaultRole.slug = String(defaultRole.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  }
 
   return models.Role.create(defaultRole);
 }

@@ -14,6 +14,12 @@ const { Op } = require('sequelize');
  */
 async function createOrganization(data, ownerId) {
   try {
+    // Reject missing/blank name up front with a 400 (previously fell through
+    // to `data.name.toLowerCase()` and surfaced as a 500 TypeError).
+    if (!data || typeof data.name !== 'string' || !data.name.trim()) {
+      throw new AppError('Organization name is required', 400, 'VALIDATION_ERROR');
+    }
+
     // Generate slug if not provided
     if (!data.slug) {
       data.slug = data.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');

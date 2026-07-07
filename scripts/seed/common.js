@@ -11,12 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const { fork } = require('child_process');
 
-// Hard refusal: this seeder writes fake orgs/users/certs/tokens straight into
-// the configured DB. Never let it run against a production environment.
-if (process.env.NODE_ENV === 'production') {
-  console.error('[seed] Refusing to run: NODE_ENV=production. Seed scripts must never run against a production environment.');
-  process.exit(1);
-}
+// Hard refusal: seeders must never run against a production environment.
+require('./prod-guard');
 
 // Keep DB pools small: forked workers each open their own pool and Postgres
 // max_connections is 100. (10 workers * 4) + orchestrator stays well under.

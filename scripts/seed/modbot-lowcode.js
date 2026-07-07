@@ -34,6 +34,8 @@
 
 const path = require('path');
 
+require('./prod-guard');
+
 const ROOT = path.resolve(__dirname, '..', '..');
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'error';

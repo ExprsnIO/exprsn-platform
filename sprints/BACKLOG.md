@@ -600,7 +600,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
   pull in only if the sprint gains slack. Route to sr-developer at BUILD.
 
 ### BUG-003 — /live WebRTC relay to client-supplied `to` lacks shared-room check
-- **Type:** bug · **Status:** in-progress → `active/sprint-2026-07.md` · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `b682236`; qa verify pending) · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** SP-11 backlog
 - **Description:** `/live` signaling relays to a client-supplied `to` socket id

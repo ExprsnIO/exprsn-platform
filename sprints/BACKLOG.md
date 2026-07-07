@@ -1,0 +1,842 @@
+# Backlog — Exprsn Platform
+
+The intake queue. Every unscheduled feature, bug, task, and spike is exactly one
+entry here, filed with the fields from `templates/ticket.md`. Grouped by type.
+Ids are monotonic per type and never reused. Legacy ids (`SP-N`, `R1`–`R6`, `#N`)
+are cross-linked in parentheses.
+
+Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
+
+> **Gate reminder:** a `FEAT` cannot leave `backlog` until the
+> cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
+> product-manager grooms `backlog → ready` and commits `ready` tickets into the
+> active sprint (`active/sprint-2026-07.md`).
+
+---
+
+## Features
+
+### FEAT-001 — Full CalDAV/CardDAV DAV verbs for native OS account sync (parent epic)
+- **Type:** feature (epic) · **Status:** backlog · **Priority:** P3 · **Size:** XL
+- **Owner-role:** unassigned · **Blocked-by:** TASK-004 (real edge TLS — native-client DoD)
+- **Legacy:** STATUS "group Calendar tab" note (no numbered id)
+- **Decomposed into:** TASK-013 (Slice 0 · do now), FEAT-003 (Slice 1), FEAT-004 (Slice 2), FEAT-005 (Slice 3 · deferred)
+- **Cost/Benefit:** done — **build later / smaller slice.** As written (full two-way RFC-4791/6352 for calendar *and* contacts, verified on native clients) it's realistically **XL, not L**, and its "verified on a native client" AC is blocked on real edge TLS (`TASK-004` → no staging host this cycle). Read-only subscription **already works today** via the existing `.ics`/`.vcf` URLs. Ship **Slice 0** (document the subscription URLs + clean up the broken JSON "DAV" scaffolding) now; schedule the read-only DAV **sync-down account** (L) + **Basic app-password bridge** (M–L, architect+dba) post-staging. Full detail + evidence: `sprints/assessments/FEAT-001.md`.
+- **Description:** Nexus calendar/contacts sync is currently GET-based only
+  (`ics` / `vcf` / JSON under `/nexus/api/calendar`). Native OS accounts
+  (macOS/iOS Calendar & Contacts, Thunderbird, etc.) need full RFC-compliant
+  `PROPFIND` / `REPORT` verbs to sync as a real DAV account. The GET endpoints
+  and the SPA Calendar tab already exist; this is the protocol-verb layer.
+- **Acceptance criteria:**
+  - `PROPFIND` / `REPORT` implemented for CalDAV and CardDAV collections under
+    `/nexus/api/calendar`, RFC-conformant enough for a native macOS/iOS account
+    to add and two-way sync a group calendar + contacts.
+  - Auth model matches the existing calendar endpoints (no new open surface).
+  - Verified by adding the account on at least one native client.
+- **Notes:** Re-groomed 2026-07-07 after the cost-benefit-analyzer assessment
+  (`Cost/Benefit: done` above). Verdict **build later / smaller slice**: as written
+  (full two-way RFC-4791/6352 for calendar *and* contacts, verified on native
+  clients) it is realistically **XL** — and per README an XL **must be broken down
+  before it can reach `ready`**, so this stays a `backlog` **parent epic** and is
+  never promoted directly. Decomposed into **TASK-013** (Slice 0 — docs + scaffolding
+  cleanup, in-house, committed to Sprint 2026-07), **FEAT-003** (Slice 1 — read-only
+  DAV sync-down account), **FEAT-004** (Slice 2 — Basic-auth app-password bridge,
+  architect + dba sign-off), **FEAT-005** (Slice 3 — two-way write, deferred). The
+  epic's own DoD ("verified on a native client") is **unreachable until real edge TLS
+  exists** — Apple enforces SSL — i.e. blocked on `TASK-004` → a staging host that
+  does not exist this cycle. Buildable acceptance criteria live in the child slice
+  tickets; verify routes against `API_SURFACE.md` before build.
+
+- **Cost/Benefit assessment (cost-benefit-analyzer · 2026-07-07): build later / smaller slice.** Full detail + repo evidence: `sprints/assessments/FEAT-001.md`.
+  - **Cost — realistically XL, not L (so it must be sliced before `ready`).** *The hard plumbing already exists and is reused:* a WebDAV toolkit in `@exprsn/shared` (`shared/middleware/webdav.js`, `shared/utils/webdavLockManager.js`) routes non-standard verbs + emits `207 Multi-Status` through the gateway — proven live by FileVault (`services/filevault/src/routes/webdav.js`, API_SURFACE L527); Nexus already generates iCal/vCard (`icalService` + `ical-generator`) and has ~600 lines of data-shaping in `caldavService`/`carddavService`. *What drives the cost:* (1) CalDAV/CardDAV-specific discovery/REPORTs the generic toolkit doesn't cover — `.well-known/caldav`+`/carddav`, current-user-principal / home-set, `calendar-query`/`multiget` + `sync-collection`; (2) an **auth bridge** — native macOS/iOS/Thunderbird accounts use **HTTP Basic app-passwords**, but the calendar + FileVault DAV paths only accept **Bearer** CA tokens (`services/filevault/src/middleware/auth.js`), so the AC "match existing auth / no new open surface" **collides with** "native account" → an app-password store = new security surface (architect+dba); (3) two-way write needs an iCal **parser** (Nexus has only the write-only generator), and CardDAV contacts are *derived group members* → two-way CardDAV is N/A; (4) real incremental sync needs a persisted change-journal table (current token = `base64(Date.now())`, can't express deletions) → new nexus-schema table (dba; new table, so `db:migrate` sync creates it — no ALTER trap). The existing scaffolding is also **untested/partly broken** (Sequelize `$gte`/`$gt` operators that no-op, `ical:null` placeholder, `validateCalDAVCredentials` stubbed) — not creditable as done. **Also blocked on `TASK-004`:** Apple enforces SSL for native accounts, so "verified on a native client" can't be met until real edge TLS exists — itself blocked on a staging host this cycle.
+  - **Value — P3, unblocks nothing.** Read-only subscription **already works** via the existing GET `.ics`/`.vcf` URLs (macOS/iOS/Google/Thunderbird subscribe + auto-update) ≈ 80% of the value today. The delta is a writable *account* + contacts sync — small MVP audience; the platform's real gap-to-ship is release engineering, not calendar sync.
+  - **Recommended slice:** *(0, S — do now)* document the `.ics`/`.vcf` subscription URLs as the supported native-app path + fix/delete the broken JSON "DAV" scaffolding; *(1, L)* read-only DAV **sync-down account** — well-known + principal/home PROPFIND + query/multiget REPORT + persisted `sync-collection` token, reusing the shared toolkit; *(2, M–L, architect+dba)* **Basic-auth app-password bridge** (the real native-account enabler); *(3, defer/drop)* two-way CalDAV `PUT`/`DELETE` only. Start Slice 0 now (no TLS dependency); schedule 1+2 **post-staging** when TLS exists.
+  - **Handoffs:** **systems-architect** — app-password/Basic bridge = new auth surface + `.well-known`/principal gateway wiring (structural sign-off before Slice 1/2). **dba** — sync-token journal + app-password store are new tables (sync `db:migrate` creates new tables fine — confirm). **qa-specialist** — per-native-client (macOS/iOS/Thunderbird) verification is real, recurring effort.
+
+### FEAT-003 — Read-only DAV sync-down account (CalDAV/CardDAV Slice 1)
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** TASK-004 (real edge TLS — Apple enforces SSL for native accounts, so native-client verification is unreachable until staging TLS exists); native-client auth also needs FEAT-004 (Slice 2)
+- **Legacy:** FEAT-001 Slice 1 (parent epic) · see `sprints/assessments/FEAT-001.md`
+- **Cost/Benefit:** done — covered by the FEAT-001 assessment (`sprints/assessments/FEAT-001.md`): read-only DAV sync-down is a solid **L** on its own, reusing the `@exprsn/shared` WebDAV toolkit + FileVault as the live reference.
+- **Description:** First real cut of the DAV epic: a native account can *add and sync
+  down* a group calendar + contacts read-only (no inbound-write parsing). Reuses the
+  `@exprsn/shared` WebDAV toolkit (`shared/middleware/webdav.js`,
+  `shared/utils/webdavLockManager.js` — proven live by FileVault
+  `services/filevault/src/routes/webdav.js`, `API_SURFACE.md` L527) and Nexus's
+  existing iCal/vCard generation (`caldavService`/`carddavService`/`icalService`).
+- **Acceptance criteria:**
+  - `.well-known/caldav` + `.well-known/carddav` redirects served.
+  - `current-user-principal` / `calendar-home-set` / `addressbook-home-set` principal
+    discovery via `PROPFIND`, plus `supported-calendar-component-set`.
+  - `calendar-query` / `calendar-multiget` / `addressbook-query` /
+    `addressbook-multiget` REPORTs return correct `207 Multi-Status`.
+  - `sync-collection` (RFC 6578) REPORT backed by a **persisted sync-token** (not
+    `base64(Date.now())`) that can express deletions across calls.
+  - A native macOS/iOS account (via Slice 2 auth, over real TLS) adds the account and
+    syncs down calendar + contacts read-only; verified per-client by qa.
+- **Notes:** Re-filed 2026-07-07 from the FEAT-001 decomposition. **Out of Sprint
+  2026-07** — blocked on `TASK-004` (TLS), itself blocked on a staging host. The
+  persisted sync-token is a **new table in the `nexus` schema** → **dba** confirm
+  (new table, so sync `db:migrate` creates it — no ALTER-on-existing trap).
+  `.well-known` + principal routing touches gateway wiring → **systems-architect**
+  structural sign-off before build. Sequence after FEAT-004 for native-client auth.
+
+### FEAT-004 — Basic-auth app-password bridge for native DAV accounts (CalDAV/CardDAV Slice 2)
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** TASK-004 (real edge TLS); systems-architect + dba sign-off required before commit
+- **Legacy:** FEAT-001 Slice 2 (parent epic) · see `sprints/assessments/FEAT-001.md`
+- **Cost/Benefit:** done — covered by the FEAT-001 assessment (`sprints/assessments/FEAT-001.md`): the actual native-account enabler; **M–L**, security-sensitive, architect + dba gated.
+- **Description:** The real native-account enabler. macOS/iOS Calendar & Contacts and
+  Thunderbird add a DAV account with **HTTP Basic auth + an app-specific password over
+  TLS**, but the calendar + FileVault DAV paths only accept **Bearer CA tokens**
+  (`services/filevault/src/middleware/auth.js`). This bridges Basic → a CA token via
+  an **app-password store** — new security surface that must respect the platform's
+  security invariants.
+- **Acceptance criteria:**
+  - Native clients authenticate a DAV account via Basic app-password over TLS;
+    resolves to the correct principal with no new open/unauthenticated surface.
+  - App-passwords are per-user, revocable, hashed at rest; the change never weakens
+    the `DEV_BYPASS` / CORS-with-credentials / correlation-id-error invariants.
+  - Basic → CA-token bridge verified end-to-end against Slice 1 (FEAT-003) discovery
+    + REPORTs on at least one native client.
+- **Notes:** Re-filed 2026-07-07 from the FEAT-001 decomposition. **Out of Sprint
+  2026-07** — blocked on `TASK-004` (TLS → staging). **Requires systems-architect
+  sign-off** (new auth surface + `.well-known`/principal gateway wiring) **and dba
+  sign-off** (app-password store = new table; new table, so sync `db:migrate` creates
+  it — confirm) **before it can be marked `in-sprint`.** Size M–L; tighten once the
+  architect scopes the store.
+
+### FEAT-002 — ES-richer Post schema + search-by-hashtag *(deferred — see Deferred)*
+- Listed under **Deferred** below (ES is disabled at MVP). Id reserved here for
+  cross-reference.
+
+*(QA full-codebase audit — 2026-07-07. PM-intake candidates groomed from the audit;
+FEATs are filed `backlog` with `Cost/Benefit: pending` — the cost-benefit-analyzer
+has not yet assessed them, so they cannot leave `backlog`.)*
+
+### FEAT-006 — Build real MFA factors (SMS / email / WebAuthn)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** STATUS #12 (org 2FA policy enforcement — RESOLVED 2026-07-07; note (c),
+  "building the actual `sms`/`email`/`webauthn` factors … is a **separate feature**"
+  — STATUS.md L677–680 — is explicitly deferred to its own ticket)
+- **Cost/Benefit:** pending
+- **Description:** The org 2FA policy is enforced at login (STATUS #12, RESOLVED
+  2026-07-07): `settings.requireMfa`, enrollment grace, `settings.mfa.allowedMethods`,
+  and `rememberDeviceDays` all take effect. **But only `totp` + `backup_codes` are
+  actually built.** `sms`, `email`, and `webauthn` exist only as config scaffolding —
+  `mfaPolicyService` treats a policy that permits *only* those unbuilt methods as
+  unenforceable, `POST /auth/api/mfa/setup` rejects them with `MFA_METHOD_NOT_ALLOWED`,
+  and the admin UI (`web/src/features/admin/sections/AuthSection.tsx`) marks them
+  "not yet available". This builds real enroll + challenge flows for one or more of
+  those factors so a policy can genuinely require them.
+- **Acceptance criteria:**
+  - At least one new factor (SMS, email, or WebAuthn) has a real enroll + verify flow
+    wired into the account MFA endpoints (`POST /auth/api/mfa/setup` / `/verify`) and the
+    login challenge; routes verified against `API_SURFACE.md` before wiring.
+  - `mfaPolicyService.resolvePolicy` counts the new factor as an **enrollable** method
+    (a policy permitting only it becomes enforceable, not skipped), and the admin UI
+    drops the "not yet available" marker for the built factor(s).
+  - Org-policy `allowedMethods` still gates the factor at `setup` — permitted ⇒ no
+    `MFA_METHOD_NOT_ALLOWED`; disallowed ⇒ still rejected.
+  - Trusted-device (`exprsn_td`) skip and enrollment-grace behavior continue to hold for
+    the new factor(s); `mfaPolicy.test.js` / `mfaEnforcement.test.js` extended to cover it.
+  - No weakening of the security invariants (fail-closed `DEV_BYPASS`, CORS never
+    wildcard-with-credentials, correlation-id error handler, per-schema isolation).
+- **Notes:** FEAT — **Cost/Benefit gate applies: stays `backlog` with `Cost/Benefit:
+  pending` until the cost-benefit-analyzer assesses it** (not run this pass). Cost differs
+  sharply per factor — WebAuthn is largely self-contained, whereas SMS/email need an
+  external provider + per-message delivery cost + anti-abuse — so the analyzer should weigh
+  factor-by-factor and may recommend scoping to WebAuthn first; the ticket is then likely
+  **decomposable per factor**. Sized **L**. Touches `services/auth` MFA services/routes/
+  models + the admin SPA; a WebAuthn credential store or a phone-number column is a
+  **schema change** → flag **dba** (a *new* table is created by sync `db:migrate`, but a
+  *new column on an existing table* needs its migration `up()` run directly — the ALTER
+  gap). Route M–L build to sr-developer once groomed/assessed.
+
+### FEAT-007 — FileVault: real malware scanning (ClamAV) on the upload path
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** SP-11 security theme (upload-path hardening); no numbered STATUS id
+- **Cost/Benefit:** pending
+- **Description:** `services/filevault/src/utils/fileValidator.js` `scanFile(buffer)`
+  (L255) does **signature heuristics only** — it compares the first bytes against a short
+  list of executable magic-numbers — with an inline `// In production, integrate with
+  ClamAV or similar` (L257). Anything not matching those few signatures passes as clean,
+  so the group/share upload path has **no real malware scanning**. Integrate a real
+  scanner into `scanFile` so uploads are actually scanned before storage.
+- **Acceptance criteria:**
+  - `scanFile` submits the uploaded buffer/stream to a real scanner (self-hosted `clamd`
+    via a client, or a hosted scan API) and rejects on a positive detection with a clear,
+    correlation-id'd error; the existing signature heuristic stays as a cheap pre-filter or
+    is superseded.
+  - Scanner enablement/endpoint is config-driven (env) and **fail-closed when scanning is
+    enforced** — an upload is rejected, not silently accepted, if the scanner is
+    unreachable; the default posture is documented.
+  - An automated test blocks the EICAR test string and passes a benign file.
+  - Large-file path streams to the scanner without buffering unbounded; upload latency /
+    size limits documented.
+  - No new open/unauthenticated surface; upload routes verified against `API_SURFACE.md`.
+- **Notes:** FEAT — **Cost/Benefit gate applies: stays `backlog` / `Cost/Benefit: pending`
+  until the cost-benefit-analyzer assesses it** (not run this pass). Typed FEAT (not TASK)
+  **deliberately**: there is a genuine **build-vs-buy-vs-defer tradeoff with ongoing
+  operational cost** — self-hosted `clamd` (a new container, ~1GB RAM, signature-DB
+  updates) vs. a hosted scan API (per-scan cost) vs. tightening allowed file-types and
+  accepting the heuristic — which is exactly what the C/B gate exists to weigh.
+  **Security-relevant; recommended before any public upload exposure.** Standing up `clamd`
+  is infra relative to the single gateway → loop in **systems-architect** at grooming
+  (where the scanner runs); no schema change expected. If the analyzer finds it's pure
+  must-do hardening with no real alternative it may be re-typed TASK, but the gate stands
+  until assessed. Sized **M** for one scanner integration; route to sr-developer.
+
+---
+
+## Bugs
+
+*(Security-hardening items triaged out of the `SP-11` review — filed, not
+must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)".)*
+
+### BUG-001 — Authenticated SSRF via DID link / proof-of-control fetch
+- **Type:** bug · **Status:** ready · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** SP-11 backlog
+- **Description:** `userDidService` / `proofOfControl` make outbound fetches to
+  caller-influenced hosts without the SSRF guard. The unauthenticated path
+  (`/atproto/labels/verify`, H2) was already fixed via
+  `services/atproto/src/util/safeFetch.js`; the authenticated DID/proof fetches
+  still need to route through it.
+- **Acceptance criteria:**
+  - `userDidService` and `proofOfControl` outbound fetches go through `safeFetch`
+    (https-only; rejects private/loopback/link-local/ULA/reserved by IP literal
+    **and** DNS-resolved; `redirect:'manual'`; timeout; streamed size cap).
+  - Regression test covering a blocked internal target.
+- **Notes:** Groomed 2026-07-07 → `ready`. In-house, no infra; `safeFetch`
+  (`services/atproto/src/util/safeFetch.js`) already exists from the H2 fix, so this
+  is a contained re-route of the authenticated DID/proof paths. **Held (not committed)
+  this cycle for capacity** — P2 pull-in candidate if the sprint gains slack. Route
+  to jr-developer at BUILD (crisp acceptance).
+
+### BUG-002 — atproto DoS guards (unbounded bodies, ws payload, cursor crash)
+- **Type:** bug · **Status:** ready · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** SP-11 backlog
+- **Description:** Several unbounded/unsafe inputs on the atproto bridge.
+- **Acceptance criteria:**
+  - Bound `res.json()` reads in `pdsClient` / `appviewClient`.
+  - Set a `maxPayload` on the `ws` server in `labelConsumer`.
+  - Guard `subscribeLabels.js:52` `BigInt(cursor)` against a bad/non-numeric
+    cursor (no crash).
+- **Notes:** Groomed 2026-07-07 → `ready`. In-house, no infra; three independent
+  input-bound guards. **Held (not committed) this cycle for capacity** — P2, M-sized;
+  pull in only if the sprint gains slack. Route to sr-developer at BUILD.
+
+### BUG-003 — /live WebRTC relay to client-supplied `to` lacks shared-room check
+- **Type:** bug · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Legacy:** SP-11 backlog
+- **Description:** `/live` signaling relays to a client-supplied `to` socket id
+  without verifying both peers share a room (authenticated-only path, so lower
+  severity, but still a scoping gap on top of the `SP-7`/`#11` auth work).
+- **Acceptance criteria:**
+  - A relay to `to` is dropped unless the target shares the sender's room.
+  - Test covers cross-room relay rejection.
+- **Notes:** Committed to `active/sprint-2026-07.md` 2026-07-07 (sr-developer —
+  security-sensitive `/live` signaling). Handler-scope relay check inside the
+  existing `/live` namespace — judged **non-structural** (no `registry.js` /
+  namespace / `init()` change), so no architect sign-off gate. If implementation
+  turns out to need per-namespace auth-middleware or socket-wiring changes, escalate
+  to systems-architect before landing.
+
+### BUG-004 — Seed scripts ship a default password with no prod guard
+- **Type:** bug · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P2 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
+- **Legacy:** SP-11 backlog
+- **Description:** `scripts/seed/common.js` carries a committed default password
+  and has no `NODE_ENV==='production'` guard, so a seed run against prod would
+  create known-credential accounts.
+- **Acceptance criteria:**
+  - Committed default password removed (require an env/arg instead).
+  - Seed scripts refuse to run when `NODE_ENV==='production'`.
+- **Notes:** Committed to `active/sprint-2026-07.md` 2026-07-07 (jr-developer).
+  In-house, crisp acceptance — `scripts/seed/common.js` only; no schema/infra, no
+  architect/DBA gate.
+
+### BUG-005 — Permission-inspect endpoints leak another user's permissions
+- **Type:** bug · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P2 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
+- **Legacy:** SP-11 backlog
+- **Description:** In `auth/src/routes/roles.js`, `GET /users/:userId/permissions`
+  and `POST /check-permission` let any authenticated user inspect another user's
+  permissions (info disclosure).
+- **Acceptance criteria:**
+  - Both endpoints restricted to self-or-admin (reuse
+    `services/auth/src/middleware/requireAdmin.js` / self-scope check).
+  - Test: a non-admin cannot read another user's permissions.
+- **Notes:** Committed to `active/sprint-2026-07.md` 2026-07-07 (jr-developer).
+  In-house — reuse `services/auth/src/middleware/requireAdmin.js` + a self-scope
+  check; no schema/infra, no architect/DBA gate.
+
+*(QA full-codebase audit — 2026-07-07. Reproducible defects found on branch
+`feature/lowcode-gap-closure` @ `d4ef254`, verified against the live Docker
+`exprsn-postgres`/`exprsn-redis`. Priorities are QA recommendations pending PM
+grooming.)*
+
+### BUG-006 — `POST /timeline/api/webhooks/moderator` is unauthenticated and clobbers post `metadata`
+- **Type:** bug · **Status:** done · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** API_SURFACE.md security-flags note ("timeline: `POST /api/webhooks/moderator` has **no signature check**"); SP-11 security theme (unauthenticated write surface)
+- **Description:** In `services/timeline/src/routes/webhooks.js`, the `/moderator`
+  route (mounted at `/timeline/api/webhooks/moderator`) has **no** auth/signature
+  middleware, unlike its two siblings in the same file — `/bluesky` uses
+  `requireWebhookSignature('BLUESKY_WEBHOOK_SECRET')` and `/approval` verifies an
+  HMAC `x-webhook-signature`. Its handler does
+  `Post.update({ metadata: { moderationStatus, moderationReasons } }, { where: { id: data.postId } })`,
+  which **replaces the entire `metadata` JSON** of the target post. Any
+  unauthenticated caller who knows/guesses a post UUID can set a post's
+  moderation status to `flagged` (with attacker-supplied `moderationReasons`) or
+  `approved`, and in doing so **wipe existing `metadata`** — including the
+  `metadata.approval` hold state written by the "Require Approval for New Posts"
+  pipeline. This is an integrity/authz defect, not just a leak.
+- **Steps to reproduce:**
+  1. Boot the stack (`npm run infra:up`, `npm start`); note a real post id.
+  2. `curl -k -X POST https://localhost:8443/timeline/api/webhooks/moderator -H 'Content-Type: application/json' -d '{"event":"content.approved","data":{"postId":"<uuid>"}}'`
+     — **no** bearer, **no** `x-webhook-signature`.
+  3. Response is `200 {"success":true}`; the post's `metadata` is now
+     `{"moderationStatus":"approved"}` (any prior `metadata`, incl. an approval
+     hold, is gone).
+- **Expected vs actual:** *Expected* — the endpoint requires the same
+  service/HMAC auth as `/bluesky` and `/approval` (401 without it), and updates
+  moderation fields without destroying unrelated `metadata`. *Actual* — accepts
+  the write unauthenticated and overwrites the whole `metadata` object.
+- **Severity/priority:** P2 (unauthenticated state mutation; sibling routes are
+  already authed, so this is a clear oversight; requires knowing a post UUID, no
+  data leak — hence P2 not P0).
+- **Environment:** branch `feature/lowcode-gap-closure` @ `d4ef254`; DB `exprsn`
+  (Docker `exprsn-postgres`); gateway on :8443.
+- **Notes:** Product defect in `services/timeline/src/routes/webhooks.js` — hand
+  to the timeline developer (sr/jr). The `metadata`-overwrite half should be a
+  merge (`{ ...post.metadata, ... }`) regardless of the auth fix. Do **not** weaken
+  the sibling routes to "match"; add auth here. Documented in API_SURFACE.md but
+  never ticketed.
+- **Resolution (done · 2026-07-07 · commit `c8384af`):** `/timeline/api/webhooks/moderator`
+  is now gated by `requireWebhookSignature('MODERATOR_WEBHOOK_SECRET')` — 503 when the
+  secret is unset, 401 on a bad/missing signature — matching its `/bluesky` sibling, and
+  **both** metadata writes now merge (`{ ...post.metadata, ... }`) instead of clobbering,
+  so an existing `metadata.approval` hold is preserved. New regression suite
+  `services/timeline/tests/integration/webhooks.test.js` is 5/5 green and `API_SURFACE.md`
+  (L44) was updated. Verified by orchestrator re-run (5/5).
+
+### BUG-007 — CA `UserGroups` schema drift: model declares a `group_id` index the live table lacks (`db:check` red)
+- **Type:** bug · **Status:** done · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** token-spec v1.1 (`services/ca/migrations/20260702000001-token-spec-v1-1.js`, `services/ca/models/UserGroup.js`); CLAUDE.md "sync `db:migrate` creates tables but never ALTERs existing ones"; STATUS #1 (schema/migration alignment)
+- **Description:** `npm run db:check` (`scripts/check-drift.js`, the documented
+  read-only pre-deploy drift gate) exits **non-zero** with:
+  `✗ ca: MISSING INDEX UserGroups: group_id | ...`. `services/ca/models/UserGroup.js`
+  declares `indexes: [{ fields: ['group_id'] }, { fields: ['role'] }]`, but the live
+  `ca."UserGroups"` table has only `UserGroups_pkey (user_id, group_id)` and
+  `user_groups_role_idx (role)` — **no standalone `group_id` index**. The
+  token-spec v1.1 migration created `user_groups_role_idx` but never a `group_id`
+  index, and the table pre-existed (created by Sequelize's string-through
+  association), so sync-based `db:migrate` never added it either. (The token
+  columns `ca.tokens.{group_id,organization_id,revoked_by}` **are** present — the
+  migration `up()` was applied — so CA token routes do **not** 500; this is
+  index-only drift.)
+- **Steps to reproduce:**
+  1. Infra up (PG + Redis).
+  2. `npm run db:check` → exit code non-zero, report shows
+     `✗ ca: MISSING INDEX UserGroups`.
+  3. `\d ca."UserGroups"` confirms no index whose leading column is `group_id`.
+- **Expected vs actual:** *Expected* — model and live schema agree; `db:check`
+  clean (exit 0). *Actual* — model declares a `group_id` index absent from the DB;
+  drift gate red.
+- **Severity/priority:** P2 — reddens the documented pre-deploy drift gate
+  (`db:check` exits non-zero). Runtime impact is low (missing index → potential
+  seq-scan on group_id-only lookups against a membership table; no 500s), so a
+  downgrade to P3 is reasonable if the drift gate isn't release-blocking.
+- **Environment:** branch `feature/lowcode-gap-closure` @ `d4ef254`; DB `exprsn`
+  schema `ca` (Docker `exprsn-postgres`).
+- **Notes:** **Schema-correctness — dba to own the fix and verify.** Fix is either
+  (a) add the `group_id` index to the live table **and** the token-spec migration
+  (`addIndex(userGroups, ['group_id'])`) so fresh deploys match, or (b) drop
+  `{ fields: ['group_id'] }` from the model if the composite PK/FK is deemed
+  sufficient. QA does not patch product/schema code. Re-run `db:check` to confirm
+  clean after the fix.
+- **Resolution (done · 2026-07-07 · commit `b9cdc62`):** Two-part fix. (1) New
+  idempotent, schema-qualified migration
+  `services/ca/migrations/20260707000001-usergroups-group-id-index.js` adds the
+  `user_groups_group_id` index (applied to the live `ca` schema so fresh deploys match
+  the model). (2) `scripts/check-drift-one.js` was corrected to group composite uniques
+  by their shared Sequelize unique-name — the separate `user_id`/`group_id` single-column
+  expectations were a checker false-positive on the dual-primaryKey PK. `npm run db:check`
+  now exits 0 with all 10 modules reporting no drift. Verified by orchestrator (dba-owned
+  fix).
+
+### BUG-008 — moderator `rules.test.js` calls `ruleEngineService.applyCustomRules` which does not exist (stale test; fails `test:all`)
+- **Type:** bug · **Status:** done · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (sibling in spirit to TASK-002 / STATUS #9 auth-suite stabilization, but a **different** suite-family: moderator)
+- **Description:** `services/moderator/tests/integration/rules.test.js:198`
+  (`applyCustomRules › aggregates custom rule results`) calls
+  `ruleEngineService.applyCustomRules(...)`, but that method does not exist on the
+  service. `services/moderator/services/ruleEngineService.js` exposes
+  `evaluateRules` / `applyKeywordFilters` / `applyRegexFilters`; the custom-rule
+  aggregation lives as a **private** `_applyCustomRules` on `classification.js` and
+  `moderationService.js` (exercised — and passing — via `moderation.test.js`). The
+  test asserts against an API the service never provided → stale test.
+- **Steps to reproduce:**
+  1. `cd services/moderator && npx jest`
+  2. Result: `Test Suites: 1 failed, 3 passed`; `Tests: 1 failed, 48 passed`;
+     failure `TypeError: ruleEngineService.applyCustomRules is not a function`.
+- **Expected vs actual:** *Expected* — moderator suite green (so the `test:all`
+  moderator portion is green). *Actual* — 1 deterministic failure from a
+  test-only, non-existent-method reference.
+- **Severity/priority:** P3 — test-code defect; the underlying custom-rule feature
+  works and is covered elsewhere. Non-blocking (CI `test` job is non-blocking), but
+  it keeps the moderator suite red, which blocks moving that job toward blocking.
+- **Environment:** branch `feature/lowcode-gap-closure` @ `d4ef254`; Node
+  v24.16.0; live PG (`exprsn-postgres`); moderator uses `tests/integration/setup.js`.
+- **Notes:** Test defect (not product) — retarget the assertion at the real API
+  (`ruleEngineService.evaluateRules`, or the `_applyCustomRules` on
+  `classification`/`moderationService`) or remove the obsolete `describe` block.
+  Route to a developer at BUILD; QA does not patch tests it gates on.
+- **Resolution (done · 2026-07-07 · commit `cea4cde`):** Removed the obsolete
+  `applyCustomRules` describe block — it was pure duplication of the existing
+  `evaluateRules` aggregation test, and the underlying custom-rule feature stays covered
+  by `moderation.test.js`. Moderator suite is now 48/48 green. Verified.
+
+### BUG-009 — atproto `didExprsn.test.js` fails under the full suite ("Test environment has been torn down"); passes in isolation
+- **Type:** bug · **Status:** done · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** STATUS "atproto / Bluesky bridge" section (claims "full atproto Jest suite green"); atproto `cborg`/ESM notes
+- **Description:** Running the whole atproto suite
+  (`cd services/atproto && NODE_OPTIONS=--experimental-vm-modules npx jest`) fails
+  `tests/didExprsn.test.js` — all 4 tests error with `Test environment has been
+  torn down` at `dynImport (src/util/esm.js:25)` ← `keyManager.load()` ←
+  `generateKeypair (tests/didExprsn.test.js:15)`. The suite's async dynamic ESM
+  import (the `@atproto/crypto` / `@ipld/dag-cbor` loader) resolves **after** Jest
+  tears down the VM under `--experimental-vm-modules`. Run **in isolation**
+  (`npx jest tests/didExprsn.test.js`) the same 4 tests **pass** — so this is a
+  cross-suite teardown/ordering flake, not a product defect (did:exprsn works).
+- **Steps to reproduce:**
+  1. Full run: `cd services/atproto && NODE_OPTIONS=--experimental-vm-modules npx jest`
+     → `Test Suites: 1 failed, 9 passed`; `Tests: 4 failed, 71 passed`; failures all
+     `Test environment has been torn down`.
+  2. Isolated: `... npx jest tests/didExprsn.test.js` → `4 passed`.
+- **Expected vs actual:** *Expected* — deterministic green regardless of run
+  context (STATUS records the atproto suite as green). *Actual* — flaky: 4
+  didExprsn tests fail only in the full-suite run.
+- **Severity/priority:** P3 — flaky test infra; feature verified working in
+  isolation; atproto is **not** in `test:all`'s module list, so no CI-gate impact.
+- **Environment:** branch `feature/lowcode-gap-closure` @ `d4ef254`; Node v24.16.0;
+  atproto Jest with `--experimental-vm-modules`.
+- **Notes:** Test-stability defect — likely fixable by awaiting/caching the ESM
+  load in `beforeAll` (warm `keyManager.load()` before tests) or isolating the
+  suite (`testEnvironmentOptions`/separate project) so a peer suite's teardown
+  can't race the in-flight `import()`. Route to the atproto developer. Not a
+  security/behavior regression.
+- **Resolution (done · 2026-07-07 · commit `3e6c862`):** `services/atproto/src/util/esm.js`
+  now uses a direct `import()` instead of the `new Function`-based indirection that
+  detached the dynamic import from its referrer under `--experimental-vm-modules` (the
+  post-teardown race). The full atproto suite is now deterministically green (10 suites /
+  75 tests over 13+ runs). `labelSigner.test.js` was affected by the same root cause and
+  is fixed by the same one-liner. Verified by orchestrator (75/75).
+
+---
+
+## Tasks
+
+### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)
+- **Type:** task · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P1 · **Size:** M
+- **Owner-role:** qa-specialist · **Blocked-by:** — *(unblocked: `SP-6`/`#9` sessions is DONE)*
+- **Legacy:** SP-8 · #9 (frontend)
+- **Description:** React rendering has only ever been driven at the API level.
+  Stand up Playwright (or, minimum, a documented manual checklist) covering the
+  core account flow against a running stack (gateway + nginx-served SPA).
+- **Acceptance criteria:**
+  - Flow passes end-to-end: login → `/settings` → MFA enable wizard (QR renders;
+    a generated TOTP enables, then disables) → sessions list shows the active
+    session and revoke invalidates it.
+  - Sessions UI reflects `SP-6` (rows persist; a revoked session's bearer 401s).
+  - If automated, the run is wired into CI (`.github/workflows/ci.yml`).
+
+### TASK-002 — Stabilize the remaining auth Jest suites
+- **Type:** task · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Legacy:** #9 note (auth stabilization)
+- **Description:** Since `SP-6`/`#9`, `services/auth/tests/session.test.js` is green,
+  and the STATUS #12 MFA-policy suites (`mfaPolicy` / `mfaEnforcement` /
+  `trustedDevice` / `mfaTrustedDevice`) also pass. But **seven** suites still fail
+  with pre-existing, unrelated failures (error-field assertions, password-policy
+  expectations, structural drift): `auth`, `mfa`, `oauth2`, `organization`, `rbac`,
+  `saml`, `passwordService` — this is **STATUS #9's exact list** (STATUS.md L587); note
+  `auth.test.js` is the **seventh** (it was previously miscounted as six). They now at
+  least load. Get them green. **Current live counts (2026-07-07):** 7 suites failing /
+  6 passing, 171 tests failing / 106 passing.
+- **Acceptance criteria:**
+  - All seven suites pass under the documented harness (separate `exprsn_auth_test`
+    DB, `AUTH_DB_*` env, `maxWorkers:1`); `session.test.js` (and the STATUS #12
+    MFA-policy suites) stay green.
+  - `npm run test:all` auth portion is green.
+  - Note filed on whether the CI `test` job can move toward blocking once stable.
+
+### TASK-003 — Managed secret-store injection + set prod env
+- **Type:** task · **Status:** backlog · **Priority:** P0 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** staging host/target
+- **Legacy:** SP-3 remainder · R4
+- **Description:** Inject production secrets from a managed store (Compose secrets
+  or a cloud manager) instead of a disk `.env`, and set the prod env per
+  `docs/runbooks/secrets-and-rotation.md`. Runbook + `DEV_BYPASS`-inert proof
+  already done; this is the deploy-time wiring.
+- **Acceptance criteria:**
+  - Staging boots with **zero** secrets in the image/repo (no `.env` on disk).
+  - Prod checklist satisfied: `NODE_ENV=production`, `DB_SSL=true`, `DEV_BYPASS`
+    off, real `CORS_ORIGIN`, no `change_me`/empty placeholders.
+
+### TASK-004 — Provision real TLS at the nginx edge (:443) in staging
+- **Type:** task · **Status:** backlog · **Priority:** P0 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** staging host + domain
+- **Legacy:** SP-4 remainder · R2
+- **Description:** Terminate real (Let's Encrypt or managed) certs at the nginx
+  edge in staging; add HSTS. The "no `rejectUnauthorized:false` reachable in
+  prod" half is already done and locked by `shared/tests/httpAgent.test.js`.
+- **Acceptance criteria:**
+  - Staging served over a trusted cert; HSTS present; `80→443` redirect confirmed.
+  - With `NODE_ENV=production`, loopback service calls verify TLS (no
+    `rejectUnauthorized:false` path reachable).
+
+### TASK-005 — Observability alerting: scraper + paging + log shipping + tracker
+- **Type:** task · **Status:** backlog · **Priority:** P0 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** monitoring target
+- **Legacy:** SP-5 remainder · R3
+- **Description:** The code baseline is done — `GET /metrics` (`prom-client`) and
+  a `captureException` hook keyed by correlationId. This is the deploy-time
+  environment wiring.
+- **Acceptance criteria:**
+  - A Prometheus/Grafana (or hosted) scraper is pointed at `/metrics`.
+  - Alerts fire on `/health` degradation and on process crash (uptime monitor /
+    supervisor pages).
+  - Winston logs ship to durable storage.
+  - A thrown error surfaces in the tracker with its correlationId using a real
+    `SENTRY_DSN` (+ `@sentry/node` installed).
+
+### TASK-006 — Backup automation: cron + off-host shipping + secret-store password
+- **Type:** task · **Status:** backlog · **Priority:** P1 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** TASK-003 (for secret-store `DB_PASSWORD`)
+- **Legacy:** SP-10 remainder · R6
+- **Description:** Tooling is done and a restore was rehearsed
+  (`npm run db:backup` / `db:restore`, `scripts/backup/`). Wire the schedule and
+  off-host storage.
+- **Acceptance criteria:**
+  - Nightly cron runs `db:backup`; retention verified.
+  - `DB_PASSWORD` sourced from the secret store (TASK-003).
+  - Dumps shipped off-host; RPO/RTO reconfirmed in `scripts/backup/README.md`.
+
+### TASK-007 — Load / throughput pass (single instance)
+- **Type:** task · **Status:** backlog · **Priority:** P0 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** TASK-004, TASK-005
+- **Legacy:** SP-9 · R5
+- **Description:** Representative load against REST + Socket.IO + Bull on a single
+  gateway instance. Nothing has been exercised under concurrency yet.
+- **Acceptance criteria:**
+  - Documented run at target concurrency with no errors / no OOM under burst.
+  - PG/Redis headroom, socket fan-out, queue drain, and memory observed and
+    recorded.
+  - Bottlenecks filed as fresh tickets; single-instance MVP-load sign-off.
+
+### TASK-013 — Nexus calendar/contacts: document subscription URLs + clean up broken JSON "DAV" scaffolding
+- **Type:** task · **Status:** in-sprint → `active/sprint-2026-07.md` · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
+- **Legacy:** FEAT-001 Slice 0 (see `sprints/assessments/FEAT-001.md`) · STATUS "group Calendar tab" note
+- **Description:** The cost-benefit-analyzer's "do now" slice of the FEAT-001 DAV
+  epic. Two parts, both in-house with no TLS/staging dependency: (a) document the
+  existing GET `.ics`/`.vcf` subscription URLs under `/nexus/api/calendar`
+  (`groups/:groupId/ical`, `users/:userId/ical`, `events/:id/ical`, the `.vcf`
+  contacts export — `API_SURFACE.md` L459–462) as the *supported* native-app
+  read-only path; (b) fix-or-remove the broken JSON "DAV" scaffolding in
+  `services/nexus/src/services/caldavService.js` / `carddavService.js` so it stops
+  masquerading as working protocol support. The real DAV verbs are rebuilt properly in
+  FEAT-003 (Slice 1) on the `@exprsn/shared` WebDAV toolkit.
+- **Acceptance criteria:**
+  - The `.ics`/`.vcf` subscription URLs are documented (in-repo docs / the docs
+    viewer) as the supported way to subscribe a group calendar + contacts in
+    macOS/iOS/Google/Thunderbird, read-only and auto-updating.
+  - No bare Mongo-style operators (`$gte`/`$lte`/`$gt`) remain in the nexus Sequelize
+    where-clauses (`caldavService.js`, `carddavService.js`) — fixed to `Op.*` or the
+    dead code removed; a grep for `'$gte'`/`'$gt'`/`'$lte'` in those files is clean.
+  - `getEventsForSync` no longer returns the `ical: null // populated on demand`
+    placeholder (returns real data or the method/route is removed).
+  - The `validateCalDAVCredentials` unconditional `return true` stub is removed (no
+    silent always-allow left behind).
+  - No new open surface introduced; no schema change.
+- **Notes:** Committed to `active/sprint-2026-07.md` 2026-07-07 (jr-developer).
+  In-house, no TLS/staging dependency; no schema/queue change (no DBA gate) and no
+  module-structure/`registry.js` change (no architect gate) — the `$gte→Op.gte` fix is
+  query-correctness within existing code. Not a FEAT, so no C/B gate; provenance is
+  FEAT-001's assessment. sr-developer to review the where-clause fixes.
+
+*(QA full-codebase audit — 2026-07-07. PM-intake tasks groomed from the audit.)*
+
+### TASK-014 — Moderator: resolve real recipient emails for rejection notices (auth-service lookup)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (moderator email/notification pipeline)
+- **Description:** `services/moderator/services/emailService.js` `getUserEmail(userId)`
+  (L348) returns a hardcoded placeholder `user-${userId}@example.com` (L351,
+  `// For now, return a placeholder`). All eight rejection/notice emails this service
+  builds (call sites L222–L334) are therefore addressed to a fabricated address, so if
+  `EMAIL_PROVIDER=smtp` is enabled the emails never reach real users. Resolve the real
+  address via the auth service.
+- **Acceptance criteria:**
+  - `getUserEmail(userId)` resolves the user's real email via the auth service (an
+    inter-module call over `*_SERVICE_URL` with per-service HMAC, consistent with the
+    existing moderator→auth calls), with a safe skip/fallback (no send to a fabricated
+    `@example.com`) when the lookup fails.
+  - With `EMAIL_PROVIDER=smtp`, an integration/mocked test shows a rejection notice
+    addressed to the resolved real address; no `@example.com` placeholder remains in the
+    send path.
+  - Behavior unchanged when email is disabled (the default) — no new hard dependency at
+    boot.
+- **Notes:** TASK — **default-off today** (`EMAIL_PROVIDER=smtp` is not the default), so
+  low urgency → **P3**. In-house (reuses the gateway loopback + `SERVICE_TOKEN_SECRET`
+  HMAC pattern); no schema/queue change (no DBA gate) and no `registry.js`/wiring change
+  (no architect gate). **Risk to confirm at grooming:** verify an auth-service
+  email-lookup endpoint exists in `API_SURFACE.md`; if none does, scope grows to adding
+  one (loop **systems-architect**) and size may rise to M. Route to jr-developer.
+
+### TASK-015 — Live: persist generated timeline video to FileVault instead of local disk
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (Live timeline-video output; "Live admin & workers" memory)
+- **Description:** `services/live/src/services/timeline.js` (L365) has
+  `// TODO: Upload to file storage service` — the generated timeline video is written to
+  local disk and left there rather than uploaded to FileVault, so the output is not
+  durably stored (lost on container/host recycle; not served through the normal file
+  surface). Wire the generated file into FileVault and reference it from the timeline
+  record.
+- **Acceptance criteria:**
+  - The generated video is uploaded to FileVault via the existing filevault API
+    (inter-module HTTP with per-service HMAC), and the timeline record references the
+    stored file id/URL instead of a local path.
+  - The local temp file is removed after a successful upload; an upload failure is logged
+    and retried/handled (no silent loss).
+  - Filevault upload route + the timeline linkage verified against `API_SURFACE.md` before
+    wiring.
+- **Notes:** TASK, **P3** (durability/quality, not blocking). In-house — reuses the
+  filevault upload API + `SERVICE_TOKEN_SECRET` HMAC. If the timeline record needs a **new
+  column** to hold the file id/URL, that is an ALTER on an existing table → flag **dba**
+  (sync `db:migrate` will not ALTER; run the migration `up()` directly). Touches the Live
+  worker / ffmpeg-fanout path → route to sr-developer. Sized **M** (drops to S if it is a
+  straight upload+link with no schema change).
+
+### TASK-016 — Prune the 7 clean `worktree-agent-*` worktrees/branches (merged `898cd01`)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** TASK-018 (the 8th worktree holds uncommitted work that must be triaged/preserved before any prune)
+- **Legacy:** — (repo housekeeping)
+- **Description:** Eight `worktree-agent-*` git worktrees/branches exist. `898cd01` is
+  confirmed **merged into `main`**, and **7 of the 8** worktrees are clean at that commit —
+  those are safely prunable cruft. The **8th**, `agent-a76c91518dd128052`, is **NOT** cruft:
+  it holds **11 uncommitted changes** — a real in-progress nexus "phase-0 authz" feature
+  (see TASK-018) — and must **not** be force-removed.
+- **Acceptance criteria:**
+  - The **7 clean** `worktree-agent-*` worktrees (all at merged `898cd01`, no uncommitted
+    changes) are removed and their branches deleted.
+  - Worktree/branch `agent-a76c91518dd128052` is **left intact** until TASK-018 preserves-
+    or-discards its uncommitted work — no `--force` prune of it.
+  - `git worktree list` / `git branch` show only `agent-a76c91518dd128052` remaining among
+    `worktree-agent-*` (or none, if TASK-018 has since cleared it).
+- **Notes:** Housekeeping. **Corrected 2026-07-07** — originally slated to be filed `done`
+  ("orchestrator removing this session"), but on inspection the orchestrator did **not**
+  prune, because a blanket prune is unsafe: `agent-a76c91518dd128052` carries uncommitted
+  nexus phase-0-authz work (see TASK-018) — the QA "all stale cruft" claim was wrong for
+  that one. No existing housekeeping ticket covers worktree pruning (`TASK-011` is a
+  *deferred* dead-code batch, unrelated). PM ran **no** git command. Route the safe
+  7-worktree prune to jr-developer once TASK-018 has cleared the 8th.
+
+### TASK-017 — API_SURFACE.md: correct stale auth/moderator security-flags notes
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** SP-11 H1 (auth `/config` now `requireAdminBearer`); BUG-006 (timeline `/moderator` webhook line already corrected)
+- **Description:** Two stale entries in `API_SURFACE.md`'s security-flags section: (a) L26
+  still says auth `GET`/`POST /auth/api/config/:sectionId` have "**no auth** — public
+  read/write of config", but `services/auth/src/routes/config.js` now does
+  `router.use(requireAdminBearer)` (L17, per SP-11 H1) — the route is admin-gated; the
+  per-route table row (L281) likewise still shows "**none (public)**". (b) L30 says
+  "`moderator`: all REST routes are **unauthenticated** except `/api/notifications`", which
+  is now over-broad — the `rules` / `agents` / `wordlists` / `queues` / `workflows` routers
+  each `router.use(requireAdmin)` (verified by grep). (The timeline `/moderator` webhook
+  line, L44, was already corrected by BUG-006.)
+- **Acceptance criteria:**
+  - L26 and the L281 table row reflect that `/auth/api/config/:sectionId` is
+    `requireAdminBearer` (admin-gated), not public.
+  - L30's moderator note is narrowed to list which moderator routers **are**
+    `requireAdmin`-gated (`rules`/`agents`/`wordlists`/`queues`/`workflows`) vs. which
+    remain unauthenticated (cross-reference **SPIKE-001**).
+  - Documentation only — no product/code change; the doc matches the live wiring as
+    verified by grep.
+- **Notes:** TASK (doc-only), **P3** — doc drift, no code change. The genuinely
+  unauthenticated moderator routers (`moderation`/`review`/`reports`/`metrics`/`actions`/
+  `appeals`) are a **separate structural question** tracked in **SPIKE-001** (architect
+  review); this ticket only makes the doc accurate to the *current* wiring — it does not
+  assert those remaining routes are acceptable. **Coordinate with SPIKE-001**: if the
+  architect's gating decision lands first, reflect it in the moderator line. Route to
+  jr-developer.
+
+### TASK-018 — Triage + preserve-or-discard the orphaned nexus phase-0-authz work (worktree `agent-a76c91518dd128052`)
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** — *(routed to systems-architect for the land-or-discard call — touches nexus module structure + shared code)*
+- **Legacy:** — · relates to the "groups frontend expansion" direction (making nexus group-aware); **blocks TASK-016**
+- **Description:** The `worktree-agent-*` worktree `agent-a76c91518dd128052` holds **11
+  uncommitted changes** implementing an in-progress nexus **"phase-0 authz"** feature —
+  **NOT** cruft, and at risk of loss (it lives only in an untracked worktree). Modified:
+  `services/nexus/src/index.js`, `.../middleware/groupAuth.js`, `.../routes/config.js`,
+  `.../routes/groups.js`, `.../services/groupService.js`, `.../services/membershipService.js`,
+  and `shared/index.js`. New files: `services/nexus/src/middleware/platformAdmin.js`,
+  `services/nexus/src/routes/internal.js`,
+  `services/nexus/tests/integration/routes/phase0Authz.test.js`, and
+  `shared/middleware/requireGroupMembership.js`. This is exactly the "make a module
+  group-aware" backend work the groups-frontend-expansion plan flags as still needed.
+  **Preserve** it first (commit to a branch so it can't be lost), then **triage**: land it
+  (properly, behind review) or deliberately discard it.
+- **Acceptance criteria:**
+  - The uncommitted work in `agent-a76c91518dd128052` is **preserved to a named git branch**
+    (e.g. `feature/nexus-phase0-authz`) so no work is lost, **before** TASK-016 prunes it.
+  - A systems-architect review decides **land vs. discard**, grounded in the intended nexus
+    group-authz design + module contract; the decision is recorded on this ticket.
+  - **If land:** the shared-code changes (`shared/index.js`,
+    `shared/middleware/requireGroupMembership.js`) are mirrored into **both** shared copies
+    (`shared/` and `services/shared/`) per the two-copy rule, and follow-up build/verify
+    tickets are filed (new routes/middleware ⇒ architect sign-off; any schema/queue ⇒ dba).
+  - **If discard:** the branch is tagged/noted and the worktree released, unblocking
+    TASK-016.
+- **Notes:** **Routed to systems-architect** — orphaned *structural* work (new nexus
+  middleware `platformAdmin.js` + `routes/internal.js`, a new shared
+  `requireGroupMembership.js`, and a group-authz model), so whether/how to land it is an
+  architecture call, not a straight merge; it also touches **shared code** (two copies must
+  stay in sync) and adds a nexus integration test. **P2** — uncommitted, at-risk work that
+  should be preserved before any prune (it gates TASK-016's 8th worktree). Sized **S** for
+  the preserve-to-branch + triage decision; a full "land it" would be a separate, larger
+  build ticket filed from the architect's decision. PM ran **no** git command.
+
+---
+
+## Spikes
+
+File time-boxed research here (e.g. spinning `TASK-007` load findings into a
+scaling investigation) as `SPIKE-002`, `SPIKE-003`, … when a question needs
+bounded exploration before it can be a task.
+
+### SPIKE-001 — Architect review: should moderator's 6 unauthenticated REST routers be gated? (module surface / isolation)
+- **Type:** spike · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** — *(routed to systems-architect for review)*
+- **Legacy:** SP-11 security theme (unauthenticated read/write surface); API_SURFACE.md L30
+- **Description:** On branch `feature/lowcode-gap-closure`, moderator's `moderation` /
+  `review` / `reports` / `metrics` / `actions` / `appeals` routers
+  (`services/moderator/routes/*.js`) have **no** auth middleware at all — no
+  `router.use(requireAdmin)`, no bearer check (confirmed by grep) — unlike their siblings
+  `rules`/`agents`/`wordlists`/`queues`/`workflows`, which now carry `requireAdmin`. They
+  expose moderation state — reports, metrics, moderation **actions**, and user **appeals**
+  — to unauthenticated callers. Whether (and how) these should be gated is a
+  module-contract / per-schema-isolation question for the **systems-architect**, not a doc
+  edit — so this is a time-boxed review, not a pre-decided fix.
+- **Acceptance criteria (spike output):**
+  - A written recommendation, **per router** (`moderation`/`review`/`reports`/`metrics`/
+    `actions`/`appeals`), on the intended posture: public / bearer-authenticated /
+    `requireAdmin` / service-HMAC — grounded in the module contract + isolation invariants
+    and how each router is actually consumed (SPA vs. service vs. public).
+  - An explicit call on whether any router (e.g. the `actions`/`appeals` **write** paths)
+    is a **P0/P1** unauthenticated-mutation risk that should jump the queue, vs. read-only
+    info-disclosure (P2).
+  - A follow-up implementation ticket (BUG/TASK) filed **per the architect's decision**,
+    with the gating approach specified. This spike itself changes **no** code.
+- **Notes:** SPIKE (time-boxed research/decision) routed to **systems-architect**. **P2**
+  — a pre-public security-surface question in the SP-11 theme (peers `BUG-001`…`BUG-005`
+  are P2), and it may surface a higher-priority fix (hence the P0/P1 triage in the AC).
+  Do **not** auto-file a fix — the point is the architect decides *whether/how* to gate.
+  `TASK-017` (doc drift) narrows the API_SURFACE moderator line and should reflect this
+  spike's outcome once decided.
+
+---
+
+## Deferred
+
+Documented reason + revisit trigger for each. These stay out of active sprints
+until their trigger fires.
+
+### FEAT-002 — ES-richer Post schema + search-by-hashtag
+- **Type:** feature · **Status:** deferred · **Priority:** P3 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** #4 note
+- **Cost/Benefit:** pending *(deferred; assess when revisited)*
+- **Reason:** Elasticsearch is disabled at MVP; the ES index/search code already
+  assumes a richer Post schema (hashtags/mentions/engagement) than the minimal
+  Bluesky-integrated model has, so `indexPost` no-ops.
+- **Revisit trigger:** ES is enabled for a release, or search-by-hashtag /
+  engagement search is prioritized.
+- **Acceptance (when revisited):** Post schema extended for the index; hashtag
+  search returns data when `ELASTICSEARCH_ENABLED`.
+
+### FEAT-005 — Two-way CalDAV write (PUT/DELETE) (CalDAV/CardDAV Slice 3)
+- **Type:** feature · **Status:** deferred · **Priority:** P3 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-003 + FEAT-004 (needs the read-only account + native auth first); TASK-004 (TLS)
+- **Legacy:** FEAT-001 Slice 3 (parent epic) · see `sprints/assessments/FEAT-001.md`
+- **Cost/Benefit:** done — covered by the FEAT-001 assessment: analyst recommends
+  **defer / likely drop**. Needs an iCal **parser** (Nexus has only the write-only
+  generator) + write mapping into Event/attendee/RSVP/recurrence rows. **CardDAV
+  two-way is N/A** — "contacts" are derived group members, not user-writable cards, so
+  a vCard `PUT` has nowhere to land (dropped from scope).
+- **Reason:** Two-way write is the most expensive slice and delivers the least MVP
+  value; read-only subscription already covers ~80% of the need, and CardDAV two-way
+  is semantically N/A for this data model.
+- **Revisit trigger:** real, demonstrated user demand for writing group calendar
+  events back from a native client, *after* Slices 1–2 (FEAT-003/FEAT-004) ship
+  post-staging — otherwise drop.
+- **Acceptance (when revisited):** inbound `.ics` `PUT`/`DELETE` parsed and mapped to
+  Event/attendee/RSVP/recurrence rows with deletion sync; CardDAV write stays out of
+  scope.
+
+### TASK-008 — Move spark's @socket.io/redis-adapter ownership to the gateway
+- **Type:** task · **Status:** deferred · **Priority:** P2 · **Size:** M
+- **Legacy:** #3
+- **Reason:** The adapter only matters for socket fan-out across multiple gateway
+  instances; MVP is a single gateway instance. Spark currently applies it to the
+  gateway-owned root `io` in its `init()`.
+- **Revisit trigger:** before any horizontal scale-out.
+
+### TASK-009 — Replace inter-service HTTP hops with direct in-process calls
+- **Type:** task · **Status:** deferred · **Priority:** P2 · **Size:** L
+- **Legacy:** #6
+- **Reason:** Modules are in-process but still call each other via
+  `*_SERVICE_URL` loopback HTTP through the gateway. Works today; long-term
+  direction is direct calls.
+- **Revisit trigger:** post-MVP performance/simplification pass.
+
+### TASK-010 — Timeline → spark/prefetch outbound service auth
+- **Type:** task · **Status:** deferred · **Priority:** P2 · **Size:** M
+- **Legacy:** #7
+- **Reason:** The spark/prefetch HTTP clients in timeline are dormant scaffolding
+  (0 call sites beyond `checkHealth`); no live 401 path. Two prerequisites before
+  wiring them into post-create: spark's `/api/events/broadcast(-multi)` endpoints
+  don't exist yet, and prefetch's `requireSelfOrAdmin('userId')` gate needs a
+  service/admin bypass. (Timeline → moderator is already HMAC-authed.)
+- **Revisit trigger:** when wiring timeline realtime/cache into the post-create
+  flow.
+
+### TASK-011 — Cosmetic cleanup batch
+- **Type:** task · **Status:** deferred · **Priority:** P3 · **Size:** S
+- **Legacy:** #10
+- **Reason:** Harmless dead code: unused `ejs` deps in some `package.json`s, dead
+  `shared/public/`, empty CA routers (`routes/{ca,certificates,tokens,users,
+  groups,roles}.js`), and the 3 dead `rejectUnauthorized:false` in
+  `services/ca/services/setup.js` (removed setup wizard).
+- **Revisit trigger:** batch during a low-risk cleanup window.
+
+### TASK-012 — Defensive migration↔schema `searchPath`
+- **Type:** task · **Status:** deferred · **Priority:** P3 · **Size:** S
+- **Legacy:** #1
+- **Reason:** Verified clean today — every module's tables sit in their own
+  schema; only PostGIS system tables are in `public`. A raw `createTable` with an
+  **unqualified** name would land in `public`, so this is defensive for whoever
+  next authors a raw migration (add `searchPath` + `prependSearchPath`; for the
+  sequelize-cli `moderator`, also `migrationStorageTableSchema:'moderator'`).
+- **Revisit trigger:** when a module gains a raw migration.

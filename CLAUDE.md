@@ -93,7 +93,9 @@ Runtime prerequisites: Postgres and Redis must be up **before** `npm start` — 
 
 ## Architecture
 
-Read `ARCHITECTURE.md` (design) and `STATUS.md` (known follow-ups / punch list) before structural changes. `API_SURFACE.md` documents every module's HTTP/socket endpoints — consult it before adding or wiring routes (including from the SPA). `SPRINT.md` is the current sprint plan (sequenced, MVP-focused tickets) — check it before picking up work so you're aligned on ordering and acceptance criteria.
+Read `ARCHITECTURE.md` (design) and `STATUS.md` (known follow-ups / punch list) before structural changes. `API_SURFACE.md` documents every module's HTTP/socket endpoints — consult it before adding or wiring routes (including from the SPA).
+
+**Sprints & backlog live in `sprints/`** — this is the single, go-forward home for all sprint planning and backlog intake (features, bugs, tasks, spikes). Read `sprints/README.md` for the convention (ticket-ID scheme `TYPE-NNN`, statuses, lifecycle, and the per-role ownership); pick up work from `sprints/active/sprint-*.md`, file new items into `sprints/BACKLOG.md`, and **do not start work that isn't represented by a ticket there.** `SPRINT.md` (repo root) is the prior MVP release-readiness sprint (`SP-1`…`SP-11`, `R1`–`R6`), kept for reference and cross-linked from new tickets.
 
 ### Source of truth
 

@@ -38,6 +38,7 @@
     "web:dev": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build",
     "web:test": "npm --prefix web test",
+    "web:e2e": "npm --prefix web run e2e",
     "infra:pull": "docker compose --profile extras --profile optional pull",
     "infra:up": "docker compose up -d",
     "infra:up:all": "docker compose --profile extras --profile optional up -d",

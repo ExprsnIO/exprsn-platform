@@ -9,6 +9,12 @@ const { Post, List } = require('../models');
 const { Op } = require('sequelize');
 const config = require('../config');
 const logger = require('../utils/logger');
+const moderationConfig = require('../services/moderationConfig');
+const { requireToken, requireAdmin } = require('../middleware/auth');
+
+// Platform-config management is admin-only (same guard as /api/jobs). Without
+// this the section endpoints were reachable by any caller.
+router.use(requireToken(), requireAdmin());
 
 /**
  * GET /api/config/:sectionId
@@ -125,17 +131,41 @@ async function getTimelineSettings() {
 }
 
 async function getTimelineModeration() {
+  const m = await moderationConfig.getModeration();
+
   return {
     title: 'Timeline Moderation',
-    description: 'Configure content moderation for timeline posts',
+    description: 'Configure content moderation for timeline posts. Settings persist across restarts.',
     fields: [
-      { name: 'autoModeration', label: 'Auto-Moderation', type: 'checkbox', value: config.moderation?.enabled !== false },
-      { name: 'requireApproval', label: 'Require Approval for New Posts', type: 'checkbox', value: config.moderation?.requireApproval === true },
-      { name: 'contentFilters', label: 'Content Filters', type: 'checkbox', value: config.moderation?.contentFilters !== false },
-      { name: 'spamDetection', label: 'Spam Detection', type: 'checkbox', value: config.moderation?.spamDetection !== false },
-      { name: 'moderatorUrl', label: 'Moderator Service URL', type: 'text', value: process.env.MODERATOR_URL || 'http://localhost:3006' },
-      { name: 'flagThreshold', label: 'Auto-Flag Threshold', type: 'number', value: config.moderation?.flagThreshold || 3 },
-      { name: 'enableUserReporting', label: 'Enable User Reporting', type: 'checkbox', value: config.moderation?.userReporting !== false }
+      { name: 'autoModeration', label: 'Auto-Moderation', type: 'checkbox', value: m.autoModeration },
+      {
+        name: 'moderationProvider',
+        label: 'Moderation Provider',
+        type: 'select',
+        options: moderationConfig.MODERATION_PROVIDERS,
+        value: m.moderationProvider
+      },
+      { name: 'externalProviderUrl', label: 'External Service URL (e.g. Bluesky labeler)', type: 'text', value: m.externalProviderUrl },
+      { name: 'contentFilters', label: 'Content Filters', type: 'checkbox', value: m.contentFilters },
+      { name: 'spamDetection', label: 'Spam Detection', type: 'checkbox', value: m.spamDetection },
+      { name: 'moderatorUrl', label: 'Moderator Service URL', type: 'text', value: process.env.MODERATOR_SERVICE_URL || process.env.MODERATOR_URL || 'https://localhost:8443/moderator' },
+      { name: 'flagThreshold', label: 'Auto-Flag Threshold', type: 'number', value: m.flagThreshold },
+      { name: 'enableUserReporting', label: 'Enable User Reporting', type: 'checkbox', value: m.enableUserReporting },
+      { name: 'requireApproval', label: 'Require Approval for New Posts', type: 'checkbox', value: m.requireApproval },
+      {
+        name: 'approvalMechanism',
+        label: 'Approval Mechanism',
+        type: 'select',
+        options: moderationConfig.APPROVAL_MECHANISMS,
+        value: m.approvalMechanism
+      },
+      {
+        name: 'approvalTarget',
+        label: 'Approval Target (lowcode_workflow: "appKey/flowKey" · lowcode_app: appKey · webhook: URL)',
+        type: 'text',
+        value: m.approvalTarget
+      },
+      { name: 'approvalSecret', label: 'Approval Secret (hook token / HMAC key)', type: 'password', value: m.approvalSecret ? '••••••••' : '' }
     ]
   };
 }
@@ -165,26 +195,43 @@ async function updateTimelineSettings(configData) {
 }
 
 async function updateTimelineModeration(configData) {
-  logger.info('Timeline moderation updated:', configData);
+  // The editor round-trips the whole schema ({ fields: [...] }); accept either
+  // that shape or a flat key→value object.
+  const flat = Array.isArray(configData?.fields)
+    ? Object.fromEntries(configData.fields.map((f) => [f.name, f.value]))
+    : (configData || {});
 
-  // Update runtime configuration
-  config.moderation = config.moderation || {};
-
-  if (configData.autoModeration !== undefined) {
-    config.moderation.enabled = configData.autoModeration;
+  const patch = {};
+  for (const k of ['autoModeration', 'contentFilters', 'spamDetection', 'enableUserReporting', 'requireApproval']) {
+    if (flat[k] !== undefined) patch[k] = Boolean(flat[k]);
+  }
+  if (flat.moderationProvider !== undefined) patch.moderationProvider = String(flat.moderationProvider);
+  if (flat.externalProviderUrl !== undefined) patch.externalProviderUrl = String(flat.externalProviderUrl || '');
+  if (flat.flagThreshold !== undefined && flat.flagThreshold !== '') patch.flagThreshold = parseInt(flat.flagThreshold, 10) || 3;
+  if (flat.approvalMechanism !== undefined) patch.approvalMechanism = String(flat.approvalMechanism);
+  if (flat.approvalTarget !== undefined) patch.approvalTarget = String(flat.approvalTarget || '').trim();
+  // The GET masks the secret; only persist a real new value.
+  if (flat.approvalSecret !== undefined && flat.approvalSecret !== '' && !/^•+$/.test(String(flat.approvalSecret))) {
+    patch.approvalSecret = String(flat.approvalSecret);
   }
 
-  if (configData.requireApproval !== undefined) {
-    config.moderation.requireApproval = configData.requireApproval;
-  }
+  const saved = await moderationConfig.setSection('moderation', patch);
 
-  if (configData.flagThreshold) {
-    config.moderation.flagThreshold = parseInt(configData.flagThreshold);
-  }
+  // Mirror into the runtime config for legacy readers.
+  config.moderation = {
+    ...(config.moderation || {}),
+    enabled: saved.autoModeration,
+    requireApproval: saved.requireApproval,
+    flagThreshold: saved.flagThreshold,
+    contentFilters: saved.contentFilters,
+    spamDetection: saved.spamDetection,
+    userReporting: saved.enableUserReporting
+  };
 
+  logger.info('Timeline moderation updated');
   return {
     message: 'Timeline moderation updated successfully',
-    config: configData
+    config: { ...saved, approvalSecret: saved.approvalSecret ? '••••••••' : '' }
   };
 }
 

@@ -228,4 +228,63 @@ router.post('/moderator',
   })
 );
 
+/**
+ * POST /api/webhooks/approval
+ * Approval decision callback for held posts ("Require Approval for New
+ * Posts"). Called back by the configured approval mechanism — a lowcode
+ * flow's http_request action, or an external webhook consumer.
+ *
+ * Authenticated via HMAC-SHA256 over the raw body (x-webhook-signature),
+ * keyed with the PERSISTED moderation approvalSecret (falling back to
+ * TIMELINE_APPROVAL_WEBHOOK_SECRET). Fails closed when neither is set.
+ *
+ * Body: { postId, decision: 'approved' | 'rejected', reason?, decidedBy? }
+ */
+router.post('/approval', asyncHandler(async (req, res) => {
+  const moderationConfig = require('../services/moderationConfig');
+  const approvalService = require('../services/approvalService');
+
+  const policy = await moderationConfig.getModeration();
+  const secret = policy.approvalSecret || process.env.TIMELINE_APPROVAL_WEBHOOK_SECRET;
+
+  if (!secret) {
+    logger.error('Approval webhook rejected — no approval secret configured');
+    return res.status(503).json({
+      success: false,
+      error: 'WEBHOOK_NOT_CONFIGURED',
+      message: 'Approval webhook authentication is not configured on this server'
+    });
+  }
+
+  const signatureHeader = req.headers['x-webhook-signature'];
+  if (!signatureHeader || !req.rawBody) {
+    return res.status(401).json({ success: false, error: 'INVALID_SIGNATURE', message: 'Missing webhook signature' });
+  }
+
+  const provided = String(signatureHeader).replace(/^sha256=/i, '');
+  const expected = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+  const providedBuf = Buffer.from(provided, 'utf8');
+  const expectedBuf = Buffer.from(expected, 'utf8');
+  const valid = providedBuf.length === expectedBuf.length && crypto.timingSafeEqual(providedBuf, expectedBuf);
+  if (!valid) {
+    logger.warn('Approval webhook signature verification failed');
+    return res.status(401).json({ success: false, error: 'INVALID_SIGNATURE', message: 'Webhook signature verification failed' });
+  }
+
+  const { postId, decision, reason, decidedBy } = req.body || {};
+  if (!postId || !decision) {
+    return res.status(400).json({ success: false, error: 'BAD_REQUEST', message: 'postId and decision are required' });
+  }
+
+  try {
+    const post = await approvalService.applyDecision(postId, String(decision), {
+      decidedBy: decidedBy || 'webhook',
+      reason
+    });
+    res.json({ success: true, postId: post.id, status: post.metadata?.approval?.status });
+  } catch (error) {
+    res.status(error.status || 500).json({ success: false, error: 'APPROVAL_ERROR', message: error.message });
+  }
+}));
+
 module.exports = router;

@@ -43,6 +43,7 @@ const List = require('./List')(sequelize);
 const ListMember = require('./ListMember')(sequelize);
 const Trending = require('./Trending')(sequelize);
 const Attachment = require('./Attachment')(sequelize);
+const TimelineConfig = require('./TimelineConfig')(sequelize);
 
 /**
  * ═══════════════════════════════════════════════════════════
@@ -137,5 +138,6 @@ module.exports = {
   List,
   ListMember,
   Trending,
-  Attachment
+  Attachment,
+  TimelineConfig
 };

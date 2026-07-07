@@ -7,9 +7,10 @@
 
 const express = require('express');
 const { asyncHandler, AppError, validateRequired, validatePagination, requireGroupMembership } = require('@exprsn/shared');
-const { requireToken, requireWrite, requireUpdate, requireDelete } = require('../middleware/auth');
+const { requireToken, requireWrite, requireUpdate, requireDelete, requireAdmin } = require('../middleware/auth');
 const { validatePostCreation, validatePostUpdate, validateUUID } = require('../middleware/validation');
 const postService = require('../services/postService');
+const approvalService = require('../services/approvalService');
 const heraldService = require('../services/heraldService');
 const { Post, Like, Comment, Repost, Bookmark } = require('../models');
 const { broadcastNewPost, broadcastPostLike, broadcastPostComment } = require('../socket');
@@ -63,9 +64,24 @@ router.post('/',
       groupId: groupId || null
     });
 
+    // "Require Approval for New Posts": hold the post (forced private) and
+    // route the approval request to the configured mechanism (manual admin,
+    // lowcode workflow/app, or webhook). Policy read failures fall back to
+    // the default (no approval) rather than blocking posting.
+    let pendingApproval = false;
+    try {
+      const policy = await approvalService.getPolicy();
+      if (policy.requireApproval) {
+        await approvalService.holdForApproval(post, effectiveVisibility, policy.approvalMechanism);
+        approvalService.dispatchApprovalRequest(post).catch(() => {});
+        pendingApproval = true;
+      }
+    } catch (_) { /* fail open — treat as no approval required */ }
+
     // Broadcast via Socket.IO. Group posts are scoped to the group room;
-    // non-group posts keep the existing global behavior.
-    if (req.io) {
+    // non-group posts keep the existing global behavior. Held posts are not
+    // announced until approved.
+    if (req.io && !pendingApproval) {
       broadcastNewPost(req.io, post.toJSON());
     }
 
@@ -84,9 +100,38 @@ router.post('/',
 
     res.status(201).json({
       success: true,
-      message: 'Post created successfully',
+      message: pendingApproval ? 'Post created and held for approval' : 'Post created successfully',
+      pendingApproval,
       post
     });
+  })
+);
+
+/**
+ * POST /api/posts/:id/approval
+ * Manual approval decision for a held post (admin only).
+ * Body: { decision: 'approved' | 'rejected', reason? }
+ */
+router.post('/:id/approval',
+  validateUUID('id'),
+  requireAdmin(),
+  asyncHandler(async (req, res) => {
+    const { decision, reason } = req.body || {};
+    try {
+      const post = await approvalService.applyDecision(req.params.id, String(decision || ''), {
+        decidedBy: req.userId,
+        reason
+      });
+      if (req.io && post.visibility !== 'private') {
+        broadcastNewPost(req.io, post.toJSON());
+      }
+      res.json({ success: true, post });
+    } catch (error) {
+      if (error.status) {
+        throw new AppError(error.message, error.status, 'APPROVAL_ERROR');
+      }
+      throw error;
+    }
   })
 );
 

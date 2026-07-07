@@ -883,7 +883,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   FEAT-010/FEAT-015/FEAT-012/FEAT-020 depend on this router's final auth posture.
 
 ### BUG-011 — `POST /auth/api/roles/check-service-access` trusts a body-supplied `userId` (same shape as BUG-005)
-- **Type:** bug · **Status:** in-progress → `active/sprint-2026-07.md` (groomed `backlog → ready → in-sprint` 2026-07-07 — bug, no C/B gate, crisp AC, sibling of just-done BUG-005; pulled with BUG-001/BUG-002 on the day-one drain) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-review → `active/sprint-2026-07.md` (landed `26a2afc`; qa verify pending. Groomed `backlog → ready → in-sprint` 2026-07-07 — bug, no C/B gate, sibling of done BUG-005; pulled with BUG-001/BUG-002 on the day-one drain) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** sibling of BUG-005 (permission-inspect info disclosure); found during BUG-005 implementation 2026-07-07
 - **Description:** In `services/auth/src/routes/roles.js` (~L576),

@@ -1,0 +1,25 @@
+{
+  "name": "no-promises",
+  "description": "Hold for human review any reply that promises refunds, compensation, or guarantees beyond documented policy",
+  "enabled": true,
+  "scope": ["output"],
+  "channels": ["cs_chat", "cs_email"],
+  "action": "escalate",
+  "rules": [
+    {"type": "regex",
+     "pattern": "(?i)\\b(i|we)\\s+(personally\\s+)?(guarantee|promise)\\b",
+     "description": "explicit guarantee/promise language"},
+    {"type": "regex",
+     "pattern": "(?i)\\b(free\\s+(replacement|upgrade)|full\\s+compensation|double\\s+your\\s+money)\\b",
+     "description": "compensation offers not in policy"},
+    {"type": "llm_judge",
+     "prompt": "You review a customer-service reply. FAIL if it commits the company to refunds, compensation, discounts, legal outcomes, or delivery dates that go beyond a standard documented policy (a 30-day return policy with refund to the original payment method is documented and is PASS). Describing documented policy, apologizing, or offering to escalate is PASS.",
+     "fail_marker": "FAIL"}
+  ],
+  "tests": [
+    {"text": "I guarantee your parcel arrives tomorrow, or we double your money back.", "expect": "trigger"},
+    {"text": "We promise you a free replacement and a free upgrade for the trouble.", "expect": "trigger"},
+    {"text": "Per our 30-day return policy, you can return it for a refund to your original payment method.", "expect": "pass"},
+    {"text": "I'm sorry about the delay. Let me check the shipment status for you.", "expect": "pass"}
+  ]
+}

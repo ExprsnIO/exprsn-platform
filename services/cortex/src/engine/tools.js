@@ -173,7 +173,8 @@ function privateIp(ip) {
 // private ranges unless CORTEX_TOOL_ALLOW_PRIVATE_HOSTS (dev) is set.
 async function assertPublicHost(url) {
   if (config.cortex.toolAllowPrivateHosts) return;
-  const { hostname } = new URL(url);
+  // URL keeps IPv6 literals bracketed ([::1]); strip for isIP/lookup.
+  const hostname = new URL(url).hostname.replace(/^\[|\]$/g, '');
   let addrs;
   if (net.isIP(hostname)) {
     addrs = [hostname];

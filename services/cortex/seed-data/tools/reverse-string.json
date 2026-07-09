@@ -1,0 +1,44 @@
+{
+  "name": "reverse-string",
+  "description": "Reverses the input string and returns the result.",
+  "kind": "python",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "description": "The string to reverse"
+      }
+    }
+  },
+  "timeout": 10,
+  "code": "def run(args):\n    text = args['text']\n    return text[::-1]",
+  "tests": [
+    {
+      "args": {
+        "text": "hello"
+      },
+      "expect_contains": "olleh"
+    },
+    {
+      "args": {
+        "text": "12345"
+      },
+      "expect_contains": "54321"
+    },
+    {
+      "args": {
+        "text": ""
+      },
+      "expect_contains": ""
+    },
+    {
+      "args": {
+        "text": "a"
+      },
+      "expect_contains": "a"
+    }
+  ],
+  "enabled": true,
+  "built_from": "Reverse a string"
+}

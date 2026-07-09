@@ -1,0 +1,20 @@
+{
+  "name": "word-count",
+  "description": "Count the words, characters, and lines in a text. Returns a short summary string.",
+  "enabled": true,
+  "kind": "python",
+  "parameters": {
+    "type": "object",
+    "required": ["text"],
+    "properties": {
+      "text": {"type": "string", "description": "the text to measure"}
+    }
+  },
+  "code": "def run(args):\n    text = args['text']\n    words = len(text.split())\n    lines = len(text.splitlines()) or (1 if text else 0)\n    return f\"{words} words, {len(text)} characters, {lines} lines\"",
+  "timeout": 5,
+  "tests": [
+    {"args": {"text": "one two three"}, "expect_contains": "3 words"},
+    {"args": {"text": ""}, "expect_contains": "0 words"},
+    {"args": {}, "expect_error": true}
+  ]
+}

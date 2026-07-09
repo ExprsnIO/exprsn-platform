@@ -1,0 +1,51 @@
+{
+  "name": "legal-threats",
+  "description": "Escalate any customer message that threatens legal action.",
+  "enabled": true,
+  "scope": [
+    "input"
+  ],
+  "channels": [
+    "cs_chat",
+    "cs_email"
+  ],
+  "action": "escalate",
+  "rules": [
+    {
+      "type": "regex",
+      "pattern": "(?i)\\b(sue|suing|sued|lawsuit|legal action|lawyer|attorney|court|chargeback)s?\\b",
+      "description": "legal-action threat vocabulary"
+    }
+  ],
+  "tests": [
+    {
+      "text": "I am going to sue your company!",
+      "expect": "trigger"
+    },
+    {
+      "text": "I will involve my lawyers if this is not resolved.",
+      "expect": "trigger"
+    },
+    {
+      "text": "I will take this to court if necessary.",
+      "expect": "trigger"
+    },
+    {
+      "text": "I demand a chargeback for this transaction.",
+      "expect": "trigger"
+    },
+    {
+      "text": "I am very unhappy with your service.",
+      "expect": "pass"
+    },
+    {
+      "text": "I want a refund for my broken blender.",
+      "expect": "pass"
+    },
+    {
+      "text": "I will file a complaint with the better business bureau.",
+      "expect": "pass"
+    }
+  ],
+  "built_from": "Any customer message that threatens legal action (suing, lawyers, court, chargebacks) must be escalated to a human before the AI responds."
+}

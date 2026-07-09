@@ -275,7 +275,7 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   **Fixed during QA:** `docker/nginx/nginx.conf` module-prefix regex predated
   the cortex merge, so every `/cortex/*` SPA call hit the static server (405) —
   added `cortex` to the proxy location (commit on main).
-  **Filed during QA:** BUG-010 (seeded python tools enabled in an API-refused state).
+  **Filed during QA:** BUG-013 (seeded python tools enabled in an API-refused state).
 
 ### TASK-019 — Cortex: sandbox python custom-tool execution before production enablement
 - **Type:** task · **Status:** backlog · **Priority:** P1 · **Size:** M
@@ -867,7 +867,8 @@ grooming.)*
   75 tests over 13+ runs). `labelSigner.test.js` was affected by the same root cause and
   is fixed by the same one-liner. Verified by orchestrator (75/75).
 
-### BUG-010 — Cortex seeds leave python tools `enabled` in a state the API would refuse
+### BUG-013 — Cortex seeds leave python tools `enabled` in a state the API would refuse
+*(renumbered from BUG-010 at merge: the parallel QA branch filed a different BUG-010 first)*
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Found:** FEAT-022 QA click-through (2026-07-09), live gateway w/ `CORTEX_ENABLED=true`.
@@ -893,7 +894,8 @@ grooming.)*
   run is offered a python tool, and no tool shows `enabled` with a failing
   suite; `npm run seed:cortex` stays idempotent.
 
-### BUG-011 — `cortex` is not a valid `ai_provider` enum value, so an enforced cortex verdict cannot be stored
+### BUG-014 — `cortex` is not a valid `ai_provider` enum value, so an enforced cortex verdict cannot be stored
+*(renumbered from BUG-011 at merge — commits 4bb95dd/28fc965 reference the old id)*
 - **Type:** bug · **Status:** in-review · **Priority:** P1 · **Size:** S
 - **Owner-role:** dba · **Blocked-by:** — · **Relates:** FEAT-023
 - **Found:** live verification of FEAT-023 (2026-07-09), gateway with
@@ -951,9 +953,10 @@ grooming.)*
   flagged) and the persisted `moderation_items` row has `ai_provider = 'cortex'`
   — no more `MODERATION_FAILED`.
 
-### BUG-012 — `CORTEX_MODERATE` is a silent no-op: `llm_message` is not a valid `content_type`
+### BUG-015 — `CORTEX_MODERATE` is a silent no-op: `llm_message` is not a valid `content_type`
+*(renumbered from BUG-012 at merge — commit 4bb95dd references the old id)*
 - **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** dba (enum) + sr-developer (fail-open policy) · **Relates:** FEAT-021, BUG-011
+- **Owner-role:** dba (enum) + sr-developer (fail-open policy) · **Relates:** FEAT-021, BUG-014
 - **Found:** live verification of FEAT-023 (2026-07-09).
 - **Description:** Cortex's optional moderator cross-screen
   (`CORTEX_MODERATE=true` → `moderatorScreen()` in
@@ -973,7 +976,7 @@ grooming.)*
   -H 'Content-Type: application/json' -d '{"contentType":"llm_message","contentId":"x",
   "sourceService":"cortex","userId":"<uuid>","contentText":"hi"}'`
 - **Fix options:** (a) add `llm_message` to the `content_type` enum (migration —
-  pair with BUG-011's enum work); or (b) have `moderatorScreen()` send an existing
+  pair with BUG-014's enum work); or (b) have `moderatorScreen()` send an existing
   value such as `'message'` / `'text'`. (a) preserves the audit distinction between
   a user message and LLM output; (b) needs no migration.
 - **Also worth deciding:** whether `moderatorScreen` should keep failing open. It is

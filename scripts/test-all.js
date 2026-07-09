@@ -25,7 +25,7 @@ const fs = require('fs');
 // 'shared' is the @exprsn/shared package (reached via the services/shared
 // symlink); its suite is pure unit tests (e.g. the DEV_BYPASS fail-closed proof)
 // and needs no DB/Redis.
-const MODULES = ['shared', 'auth', 'nexus', 'timeline', 'moderator', 'spark', 'live', 'plugins', 'lowcode'];
+const MODULES = ['shared', 'auth', 'nexus', 'timeline', 'moderator', 'spark', 'live', 'plugins', 'lowcode', 'cortex'];
 
 const repoRoot = path.resolve(__dirname, '..');
 const results = [];

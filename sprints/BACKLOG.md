@@ -189,6 +189,45 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   must-do hardening with no real alternative it may be re-typed TASK, but the gate stands
   until assessed. Sized **M** for one scanner integration; route to sr-developer.
 
+### FEAT-021 — Cortex: local-LLM agents/guardrails module (port of the MacOS LLM engine)
+- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** L
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Legacy:** —
+- **Cost/Benefit:** done — engine already exists and is proven standalone (the
+  MacOS LLM Node service); the cost is a port to platform conventions, the benefit
+  is CA-gated local-LLM inference, agents, guardrails, skills, and tools available
+  to every module with zero cloud-API spend.
+- **Description:** Port the agents engine from the standalone MacOS LLM service
+  (agent tool-calling loop, guardrail engine with test-gated lifecycle, custom
+  tool/skill registries, task runner, human-review escalations, CS chat/email
+  flows) into a new `services/cortex/` module (prefix `/cortex`, schema `cortex`).
+  Inference stays on the llama.cpp router (OpenAI-compatible, CORTEX_LLM_BASE_URL,
+  default http://127.0.0.1:8080/v1). Storage moves from disk JSON to Sequelize in
+  the `cortex` schema. Ships behind `CORTEX_ENABLED` (default false) mirroring the
+  plugins convention: mounts inert, tables sync, health answers, everything else
+  503s. Every prompt/skill/tool/agent endpoint requires a CA bearer token
+  (`validateCAToken`); registry mutations and reviews are platform-admin gated.
+  Long-running tasks run on a Bull queue (`worker:cortex`); interactive chat is
+  in-process with an LLM concurrency semaphore.
+- **Acceptance criteria:**
+  - `npm run lint` clean; `npm run db:migrate` shows `✓ cortex`; `test:all` green.
+  - All `/cortex/api/v1/*` routes return 401 without a bearer token and 503 when
+    `CORTEX_ENABLED=false`; `/cortex/health` is public.
+  - Registry save/build/test/run/enable/disable/delete and the reviews queue
+    require platform admin; guardrail/tool enable remains test-gated.
+  - With a llama router up: a POSTed task completes through the Bull worker with
+    a guarded transcript; a cs/chat turn that trips an output guardrail creates a
+    pending review whose approval appends a `sent_after_review` message.
+  - Python tool execution is OFF by default (`CORTEX_PYTHON_TOOLS_ENABLED`);
+    HTTP tools reject loopback/private hosts by default.
+- **Notes:** Coexists with moderator: cortex owns local-LLM inference and
+  guardrails; moderator keeps cloud-provider moderation. Optional cross-screen via
+  `CORTEX_MODERATE` (fail-open call to `/moderator/api/moderate/content` with
+  service HMAC headers). Deliberate exclusions from the port: dataset/data-library
+  tools, SSE streaming (polling first; Socket.IO namespace is a follow-up), chat
+  attachments, MCP server. Follow-up ticket needed for python-tool sandboxing
+  before production enablement.
+
 ---
 
 ## Bugs

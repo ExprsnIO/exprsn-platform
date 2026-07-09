@@ -47,7 +47,7 @@ module.exports = (sequelize) => {
       defaultValue: 'active'
     },
     provider: {
-      type: DataTypes.ENUM('claude', 'openai', 'deepseek', 'local'),
+      type: DataTypes.ENUM('claude', 'openai', 'deepseek', 'local', 'cortex'),
       allowNull: false
     },
     model: {

@@ -307,6 +307,313 @@ has not yet assessed them, so they cannot leave `backlog`.)*
 - **Acceptance criteria:** a hostname whose DNS answer changes between check
   and connect cannot reach a private address; unit test with a stubbed lookup.
 
+### FEAT-023 — Cortex as an in-process LLM source for other modules (façade + moderator provider)
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** — · **Legacy:** cross-links TASK-009 (in-process calls)
+- **Implemented (2026-07-09):** client placed at `services/cortex/src/client.js`
+  (a cortex-owned façade), **not** `shared/utils/cortexClient.js` — per architect
+  sign-off `@exprsn/shared` stays a leaf. Moderator provider is shadow-capable and
+  `off` by default (`CORTEX_MODERATION_MODE=off|shadow|enforce`), fails **closed**,
+  and the loop guard bars cortex from direct selection *and* the fallback chain.
+  Tests: `services/cortex/tests/unit/client.test.js` (8 — incl. a proof the façade
+  never loads `engine/jobs.js`/models/queues, and that a disabled cortex never
+  requires the engine) + `services/moderator/tests/unit/cortexProvider.test.js` (19).
+- **Cost/Benefit:** done — **smaller slice / build later on the enforced half.** Build the shared `cortexClient` + moderator provider **in shadow/eval mode** now; do NOT make cortex a *selectable enforced* production moderation provider until a per-category accuracy benchmark vs the cloud providers clears a bar AND the provider is warm/resident + tight-timeout + fail-open-to-cloud (ideally moved off the synchronous publish path). Full assessment: `sprints/assessments/FEAT-023-024-cost-benefit.md`.
+- **C/B notes:** No schema/queue/worker → no dba gate. Shared client is low-risk, build now (lazy `agent.js` require; requiring it opens no DB/Redis, and `simpleChat`/`judge` bypass `prompt_logs`). Live run (qwen3-30b-a3b): quality good on 5 obvious cases (strict `JSON.parse` works), but warm latency ~2–3 s and **cold 53.6 s** on the synchronous `/api/moderate/content` path, semaphore concurrency 2 → publish throughput ceiling ~0.8/s and unbounded queueing under load, contending with interactive cortex. **architect:** (1) `cortexClient` placement — `shared/`→module layering inversion + two-copy-of-shared path divergence; (2) whether the cortex verdict can move off the inline `moderateContent` path (async/queued).
+- **Decisions (Rick, 2026-07-09):** in-process client (not loopback HTTP);
+  cortex is a **selectable** moderation provider alongside the cloud ones, not a
+  replacement; explicit loop guard required.
+- **Description:** Add `shared/utils/cortexClient.js` — a lazy, fail-soft
+  in-process client that other modules use to reach the local LLM. It binds to
+  cortex's **inference** layer (`services/cortex/src/engine/agent.js` →
+  `simpleChat` / `judge` / `chatCompletion`), **not** its flow layer
+  (`engine/jobs.js`). That distinction is load-bearing: `moderatorScreen()` — the
+  cortex→moderator call — lives only in `jobs.js`, so binding to `agent.js` makes
+  the moderator→cortex→moderator cycle **structurally impossible** rather than
+  merely guarded. `agent.js` requires only config + llama + cache (no models, no
+  Sequelize, no Bull), so it is safe to require even when cortex is dark.
+  Then register a `cortex` provider in moderator's `AIProviderFactory`
+  (`services/moderator/src/ai-providers/index.js`), gated on `CORTEX_ENABLED`,
+  selectable via `DEFAULT_AI_PROVIDER=cortex` or the per-request `aiProvider`
+  override. Add the defence-in-depth loop guard in `moderationService`: a request
+  carrying `sourceService === 'cortex'` (or `contentType === 'llm_message'`)
+  never selects the cortex provider.
+- **Acceptance criteria:**
+  - `cortexClient` throws/degrades cleanly (never throws into the caller's
+    request path) when `CORTEX_ENABLED=false` or the llama router is down;
+    requiring it never opens a DB/Redis connection.
+  - Moderator's factory exposes `cortex` only when the flag is on; existing cloud
+    providers and the fallback chain are unchanged when it's off.
+  - A moderation request with `sourceService: 'cortex'` never routes to the
+    cortex provider — unit test proves it (this is the cycle guard).
+  - Cortex's local-LLM verdict maps onto the same score shape the rule engine
+    consumes (`toxicity/nsfw/spam/violence/hateSpeech/sentiment` + risk), so
+    `ruleEngineService` conditions keep working untouched.
+  - `npm run lint` clean; moderator + shared suites green.
+- **Notes:** moderator has a second, legacy AI layer (`services/classification.js`
+  + `services/claudeAI.js`/`openAI.js`) that is NOT on the live verdict path, and
+  an `agentFramework` that is initialized but not wired into `moderateContent`.
+  This ticket touches only the live path (`AIProviderFactory`). The unused
+  `config.ai.local` block is the natural config home.
+- **Architect sign-off:** APPROVED-WITH-CHANGES (systems-architect, 2026-07-09) —
+  see ADR `docs/adr/0001-cortex-in-process-inference-facade.md`. Require-graph claim
+  verified: `engine/agent.js` transitively pulls in no models/Bull/moderator and
+  opens no DB/Redis at import, so the moderator->cortex->moderator cycle is
+  structurally impossible when consumers bind to `agent.js`. **Binding constraints:**
+  (1) do NOT place the client in `@exprsn/shared` (that inverts the leaf and creates
+  a shared->cortex->shared cycle) — cortex publishes a public façade at
+  `services/cortex/src/client.js`, consumed via relative require like
+  `plugins/pluginHost`; (2) the façade imports only `engine/agent.js`, never
+  `engine/jobs.js`/`../models`/`../queues`; (3) a **fail-closed** `CORTEX_ENABLED`
+  gate runs BEFORE lazy-requiring `agent.js` — flag off = no require, no router
+  traffic (today `chatComplete` hits the router regardless of the flag, so the guard
+  is mandatory, not cosmetic); (4) the moderator provider fails **CLOSED** on LLM
+  error/timeout (throw -> factory fallback; else verdict resolves to requiresReview),
+  never fail-open, retain the `sourceService`/`contentType` loop guard; (5) enforce a
+  short bounded provider timeout, cortex is NOT `DEFAULT_AI_PROVIDER` on the sync
+  publish path, ship shadow/async first pending qa p99 sign-off. No dba review needed
+  (no schema/queue topology change). Blocking constraints must be met before VERIFY.
+
+### FEAT-024 — Lowcode: cortex flow action + AI-backed field
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
+- **Implemented (2026-07-09):** `cortex` action added to `MODULE_ACTIONS`
+  (capability `call:cortex.complete`, clamped timeout, truncated output) — picked
+  up automatically by `knownActionTypes()`/`validateActions()`/`flowEngine`, and
+  fail-soft for free via `run()`'s existing catch. AI fields declared with
+  `aiPrompt` (+ optional `aiSystem`/`aiModel`), validated at design time in
+  `typeSystem` but resolved in the async write path (`entityService.applyAiFields`,
+  called from `validate()` so create *and* update get it). Prompts interpolate
+  sibling values via `{{field_key}}`. Non-obvious bug caught while building:
+  `validateRecord` skips AI fields, so an update's prior value never reached
+  `res.data` — a disabled cortex or a failed regeneration would have silently
+  **nulled the column**; prior values are now carried forward before any early
+  return. Tests: `services/lowcode/tests/cortexIntegration.test.js`.
+- **Not done (deliberate):** repointing `aiAssist.js` (cloud Anthropic) at cortex
+  — kept out to hold the slice small; see the C/B note. File as FEAT-028 if wanted.
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-023 (shared cortex client)
+- **Cost/Benefit:** done — **build now.** Low-risk, non-safety-critical, no schema/queue/infra cost; a clean zero-marginal-cost LLM primitive for lowcode. The `cortex` action is auto-discovered by the flow dispatcher and inherits the existing fail-soft `{ error }` contract; the AI field must compute in the async `createRecord`/`updateRecord` path (confirmed: `typeSystem.validateRecord` is sync/pure). Full assessment: `sprints/assessments/FEAT-023-024-cost-benefit.md`.
+- **C/B notes:** Smaller slice if capacity is tight — ship (a) the action + (c) the `aiAssist` cortex repoint (both ~S; (c) also drops the hard `CLAUDE_API_KEY` dependency for studio AI-assist) first, defer (b) the AI field (the M driver). Bound AI-field compute with the per-field timeout (in AC) and consider skipping it on bulk/import writes — inline it inherits the ~2–3 s warm / cold-start LLM latency behind the concurrency-2 semaphore. Sequence after FEAT-023's shared client.
+- **Description:** (a) Add a `cortex` action type to
+  `services/lowcode/src/services/moduleActions.js` (prompt in → text out),
+  capability-gated like the existing `send_spark`/`enqueue_job` actions, so it is
+  picked up for free by `knownActionTypes()`, `validateActions()`, and the
+  `flowEngine` dispatcher. Use the **synchronous** inference path via the shared
+  cortex client — cortex's agent *tasks* are Bull-async (202 + poll) and
+  `LcFlowRun` only captures synchronous step results, so a task-based action
+  would need a poll/callback bridge (out of scope; see FEAT-027).
+  (b) Add an AI-backed derived field. Constraint discovered during scoping:
+  `typeSystem.validateRecord` is **synchronous and pure**, so an AI field cannot
+  ride the existing `formula` path — it must be computed in the async write path
+  (`entityService.createRecord` / `updateRecord`).
+  (c) Optionally repoint `services/lowcode/src/services/aiAssist.js` (currently a
+  direct cloud Anthropic client) at cortex when `CORTEX_ENABLED`, keeping the
+  cloud path as fallback.
+- **Acceptance criteria:**
+  - A flow with a `cortex` action runs end-to-end and its output is recorded on
+    the `LcFlowRun` step; with cortex disabled the step records an error and the
+    flow does not throw into the emitting request (matches the existing
+    fail-soft `moduleActions` contract).
+  - The action is capability-gated; a flow without the capability is rejected at
+    design-time validation.
+  - An entity with an AI field populates it on create/update; a record write
+    never blocks indefinitely (LLM timeout surfaces as a field error).
+  - `npm run lint` clean; lowcode suite green.
+- **Architect sign-off:** APPROVED-WITH-CHANGES (systems-architect, 2026-07-09) —
+  see ADR `docs/adr/0001-cortex-in-process-inference-facade.md`. **Binding
+  constraints:** (1) consume the cortex public façade `services/cortex/src/client.js`
+  (relative require) — NOT a `@exprsn/shared` client; (2) inference path only
+  (`simpleChat`/`chatCompletion`), synchronous per the `LcFlowRun` step model; agent
+  *tasks* stay out of scope (FEAT-027); (3) both the `cortex` moduleAction and the
+  AI-backed field fail **SOFT** per the existing `moduleActions` contract — on LLM
+  disabled/down/timeout return `{ error }` / record a field error, never throw into
+  the emitting request and never block the write indefinitely; (4) the façade's
+  fail-closed `CORTEX_ENABLED` gate means "cortex disabled" surfaces to lowcode as a
+  clean error, not a router call. Stays blocked on FEAT-023 (façade must land first).
+
+### FEAT-025 — Nexus: cortex-backed descriptions + report triage *(not in the current slice)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-023
+- **Cost/Benefit:** pending
+- **Description:** Nexus has **zero** AI hooks today and does not call
+  `/moderator/api/moderate/content` (only case escalation/sync via
+  `MODERATOR_SERVICE_URL`). Candidate attach points found during scoping:
+  `groupService.createGroup/updateGroup` and `eventService.createEvent/updateEvent`
+  (generate or screen `description`), and `moderationService.flagContent` →
+  `calculateFlagPriority`/`shouldAutoEscalate` (currently keyword heuristics) for
+  LLM report triage.
+- **Notes:** Deselected from the first slice by Rick (2026-07-09). Also worth
+  fixing here: nexus→moderator still uses the legacy static bearer
+  (`NEXUS_SERVICE_TOKEN`) rather than the `deriveServiceToken` HMAC scheme.
+
+### FEAT-026 — Spark: AI on plaintext conversations only *(not in the current slice)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-023
+- **Cost/Benefit:** pending
+- **Decision (Rick, 2026-07-09):** **plaintext conversations only.** Server-side
+  cortex features act on non-encrypted messages; encrypted threads must surface
+  "AI unavailable — end-to-end encrypted" rather than decrypting anything.
+- **Description:** Spark is E2EE-capable per message: `Message.content` is
+  force-nulled when `encrypted` is true and only `encryptedContent` (ciphertext)
+  is stored, with encryption performed client-side in
+  `web/src/features/messages/send.ts` + `web/src/lib/crypto.ts`. The server
+  therefore **cannot** read encrypted bodies. There is precedent for degrading
+  this way: full-text search already indexes only plaintext `content`
+  (`searchService.indexMessage` / `messageWorker`), silently skipping E2EE
+  messages. Scope: smart-reply / thread-summarize on plaintext conversations;
+  encrypted conversations get a clear unavailable state.
+- **Notes:** Deselected from the first slice by Rick (2026-07-09). Do NOT route
+  decrypted plaintext to cortex without a separate explicit decision — cortex's
+  `prompt_logs` table would persist message bodies.
+
+### FEAT-029 — Router: multi-model residency (2+ resident) + a vision model
+- **Type:** feature · **Status:** in-review — **shipped as swap-first, NOT co-resident** · **Priority:** P1 · **Size:** S (was M)
+- **Resolution (2026-07-09):** Rick accepted both reviewers' recommendation against
+  co-residency. `MODELS_MAX` stays **1** and the brain's `ctx-size` stays **16384** —
+  no platform-wide context regression, no Metal-OOM exposure. The only change to the
+  external router is a new `[qwen2.5-vl-3b]` preset in
+  `/Volumes/Storage/MacOS LLM/models.ini` (model + `mmproj` + `ctx-size 4096`),
+  applied by hot reload (`GET /models?reload=1`) — **no restart required**.
+  Backup written alongside as `models.ini.bak-<epoch>`; rollback = delete the
+  section and reload. Verified: `qwen2.5-vl-3b` reports
+  `input_modalities: ["text","image"]`; a real completion returned the correct
+  answer (53.5 s cold incl. LRU swap, **1.18 s warm**). Files downloaded:
+  `Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf` (1.9 GB), `mmproj-…-f16.gguf` (1.2 GB),
+  `mmproj-…-Q8_0.gguf` (806 MB, fallback).
+  **Co-residency deferred**, not abandoned — revisit only if swap-thrash is measured
+  to hurt the synchronous text path (see C/B notes).
+- **Follow-up found during verification:** the router can return an unusable/empty
+  completion while a model is loading, so the FIRST image call after any text call
+  fails. The vision path must explicitly ensure the model is resident (`POST
+  /models/load`) or retry once, rather than assuming the router blocks. Tracked in
+  FEAT-030's acceptance criteria.
+- **Owner-role:** sr-developer · **Blocked-by:** — · **Cost/Benefit:** done — **build later / smaller slice (swap-first).** Ship the vision chain on `MODELS_MAX=1` swap, keep brain `ctx=16384`; co-residency trades a permanent brain-context halving + a catastrophic Metal-OOM tail (blast radius = the whole LLM layer) for marginally better warm image latency on a ~1.5 GB un-load-tested margin — not worth buying on unproven need since image work is async. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
+- **C/B notes:** Mechanical build is **S** (external router only, no in-repo change); the real cost is operational risk + a platform-wide `ctx 16384→8192` regression that halves context for every text feature (agent-task tool transcripts break first). FEAT-031 is async-via-Bull, so a 53.6 s cold **swap** is tolerable and removes ALL OOM risk; text load is sporadic/human-paced so swap-thrash is bounded and mostly absorbed by the image queue. **Decouple: drop FEAT-030/031's `blocked-by: FEAT-029`.** Measure swap-thrash under real mixed load first; pursue co-residency only if thrash is shown to hurt the sync text path AND a load test proves the margin holds (prefer `mmproj-Q8_0` for +0.5 GB). **architect:** platform-wide ctx regression on the external router.
+- **Scope note:** touches the **external** llama.cpp router project at
+  `/Volumes/Storage/MacOS LLM/` (models.ini, start-server.sh), NOT this repo.
+  Rick authorized editing it, downloading the model, and restarting the router
+  (2026-07-09).
+- **Description:** The router already supports `--models-max` with LRU eviction,
+  but `start-server.sh` pins `MODELS_MAX=1`. `models.ini` documents why: llama.cpp's
+  auto-fit only sees its own process's allocations, so "two big models resident =
+  Metal OOM," which poisons the Metal backend
+  (`kIOGPUCommandBufferCallbackErrorOutOfMemory`). Raise to 2 with an explicit,
+  measured memory budget rather than relying on auto-fit.
+- **Measured facts (2026-07-09, M2 Max):** 34.4 GB unified; Metal recommended
+  working set ≈ 25.8 GB. With only `qwen3-30b-a3b` resident at `ctx-size=16384`,
+  **wired = 22.9 GB, free = 0.1 GB, 5.5 GB already compressed** → real headroom
+  ≈ 2.9 GB. A 7B VLM (~6.1 GB) does NOT fit; the initial "23 GB fits in 32 GB"
+  estimate counted weights only and was wrong.
+- **Decision (Rick):** `Qwen2.5-VL-3B-Instruct-Q4_K_M` (1.93 GB) + `mmproj-f16`
+  (1.34 GB) ≈ 3.3 GB, and drop the brain's `ctx-size` 16384 → 8192 to free KV
+  cache. Target ≈ 24.3 GB against a ~25.8 GB ceiling.
+- **Acceptance criteria:**
+  - `GET /models` shows the vision model with `input_modalities: ["text","image"]`.
+  - Both brain and vision model report `status: loaded` simultaneously.
+  - A real image completion succeeds; no `kIOGPU…OutOfMemory` in the router log.
+  - Wired memory stays under the Metal recommended working set under load.
+  - Rollback documented (revert `MODELS_MAX`, restore `ctx-size`).
+- **Notes:** `mmproj-Q8_0` (0.84 GB) is downloaded as a fallback if f16 is too tight.
+- **Architect sign-off:** APPROVED-WITH-CHANGES (advisory — external router, outside
+  platform-repo authority) — 2026-07-09, ADR `docs/adr/0002-*.md`. I disagree with the
+  co-residency choice and recommend the alternative: `MODELS_MAX=1` + LRU swap + **batch** the
+  FEAT-031 async image queue, keeping the brain at `ctx-size=16384`. Rationale — image work is
+  async so the ~53s swap is invisible to users; co-residency has only ~1.5 GB margin (auto-fit
+  already mis-estimated once → hard Metal OOM that poisons the backend) AND halving brain ctx
+  degrades every long-context feature (12-step agent loop w/ 16000-char tool results; CS KB
+  inlining). That trades a hard-OOM risk + universal ctx regression for latency nobody waits on.
+  Rick decides. **If co-residency is kept**, binding: explicit measured memory budget (not
+  auto-fit), a wired-memory guard/alert vs the Metal working set, documented rollback, and
+  regression-test the agent/CS features at 8192 ctx before FEAT-030/031 depend on it; add queue
+  batching regardless.
+
+### FEAT-030 — Cortex: vision inference surface (image moderation + tagging)
+- **Type:** feature · **Status:** in-review — vision surface landed 2026-07-09
+  (describeImage + moderateImage engine, decode/EXIF/bomb guards, separate vision
+  pool + own timeout, cold-swap residency handling, no bytes near prompt_logs;
+  30 unit tests green). Enforcement consumption stays gated behind FEAT-031's
+  moderator-owned eval-harness slice per the C/B. · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-029 (drop — decouple, ship on `MODELS_MAX=1` swap) · **Cost/Benefit:** done — **build now (tagging) / gate (moderation), smaller slice.** `describeImage` (fail-soft, alt-text + tags) ships now, no eval gate; `moderateImage` builds behind a shadow/recall eval harness and may only **escalate** to human review, never auto-clear. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
+- **C/B notes:** Size **M**, split **S** (describeImage) + **M** (moderateImage + decode guards + eval). Corrections: **no `CORTEX_VISION_MODEL` config key exists** (`src/config/index.js` L95–105 has brain/judge only) — add one; **`sharp` is not declared in `services/cortex/package.json`** (resolves only via root hoist) — declare it. Decode is a real DoS surface: set `sharp` `limitInputPixels` (default ~268 MP is too high), byte cap, `sequentialRead`, `failOn`. Animated GIF/WebP: hard frame cap (3–5 sampled) — too few = safety gap, too many = semaphore stall + context blowup on the 3B model. Keep base64 image parts out of `prompt_logs`.
+- **Description:** Teach cortex to send images to the router. `lib/llama.js`'s
+  `chatComplete` already speaks the OpenAI chat schema, so vision is a content-part
+  array (`{type:'image_url', image_url:{url:'data:image/png;base64,…'}}`) against
+  the vision model. Add to the public façade (`services/cortex/src/client.js`, ADR
+  0001): `describeImage(buffer, {mime})` → tags/alt-text, and `moderateImage(buffer)`
+  → the same score shape the rule engine consumes. Normalize input with `sharp`
+  (already a dependency): decode PNG/JPEG/GIF/WebP/AVIF/TIFF, auto-orient, strip
+  EXIF, downscale to the model's expected max edge, and for **animated** GIF/WebP
+  sample N frames (sharp reads pages) rather than only frame 0.
+  Same invariants as the text path: `CORTEX_ENABLED` fails closed *before* the
+  lazy require; bounded timeout; binds to the inference layer, never `engine/jobs.js`.
+- **Acceptance criteria:**
+  - PNG, JPEG, GIF (incl. animated), WebP accepted; unsupported/corrupt input is a
+    clean typed error, never a crash.
+  - An oversized image is downscaled, not sent whole (guard prompt/context blowup).
+  - EXIF stripped before inference (no GPS/camera metadata reaches the model or logs).
+  - `moderateImage` fails CLOSED; `describeImage` fails SOFT.
+  - Decode is bounded (pixel-count / decompression-bomb guard).
+- **Architect sign-off:** APPROVED-WITH-CHANGES — 2026-07-09, ADR `docs/adr/0002-*.md`
+  (binding constraints 1-4, 7-vision-timeout). Required: (1) façade **owns** model selection —
+  `describeImage`/`moderateImage` take NO model arg, and preflight `CORTEX_VISION_MODEL` against
+  `GET /models` `architecture.input_modalities` (`image` required); unset/absent/text-only →
+  typed `CortexVisionUnavailableError` (moderateImage fails closed, describeImage soft); memoize
+  the check. (2) **Separate vision semaphore pool** in `lib/llama.js`
+  (`CORTEX_VISION_CONCURRENCY`, default 1) distinct from `CORTEX_LLM_CONCURRENCY` — async image
+  work must not occupy interactive text slots (current `withSlot` is a single global pool).
+  (3) Own generous timeout `CORTEX_VISION_TIMEOUT_MS` (~60s, not the 5s text budget); vision
+  barred from any synchronous request path. (4) Privacy is structural: route via
+  `lib/llama.chatComplete` (NOT `engine/jobs.js`, never `logPrompt` — verified `logPrompt` is
+  jobs-only, so bytes cannot reach `cortex.prompt_logs`); never log `messages`/`image_url`/data
+  URIs to Winston; no image bytes as a Redis value (hash-key + text-value only — verified safe).
+  EXIF: `.rotate()` then re-encode, NO `.withMetadata()`; `limitInputPixels`. Config keys land
+  in `src/config/index.js` + `.env.example`.
+
+### FEAT-031 — FileVault upload chokepoint: async image moderation + tagging
+- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** L
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-030 (its `moderateImage`-behind-eval slice) · **Cost/Benefit:** done — **build later / smaller slice.** Sound async-chokepoint design, correctly **L**; high leverage (one hook covers Nexus/Spark/Live/timeline). Gated: verdict may only **escalate** to moderator's review queue, never auto-clear, until vision recall clears the bar; tags/alt-text (fail-soft) can wire ahead of the verdict. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
+- **C/B notes:** **dba:** new Bull queue + worker process, and tags/alt-text/verdict persistence hits the **ALTER-on-existing-table trap** if columns are added to `Attachment`/FileVault tables (sync `db:migrate` won't ALTER → every query 500s) — prefer a new side-table. **architect:** FileVault→cortex + FileVault→moderator coupling, and the contract choice — moderator's cortex provider has **no `analyzeImage`** today (text-only), so either add it or call `cortex.moderateImage` direct and shape into the pipeline. **skip-encrypted** must hold for both `Attachment.encrypted` and FileVault-native encrypted objects (mirror FEAT-026). **qa:** verify upload-latency-unchanged + fail-open-on-cortex-down. **CSAM caveat:** a general 3B VLM is NOT a CSAM classifier — do not represent it as fulfilling a CSAM-detection obligation.
+- **Decisions (Rick, 2026-07-09):** one integration at the **FileVault upload
+  chokepoint** (covers Nexus, Spark, Live chat, timeline — they all store pointers
+  to FileVault) rather than five per-module hooks; **async via Bull**, never blocking
+  an upload; produce **both** a moderation verdict (fail closed) and tags/alt-text
+  (fail soft); **skip encrypted attachments** (`Attachment.encrypted` / FileVault
+  encrypted objects) exactly as FEAT-026 does for text.
+- **Description:** On image upload, enqueue a job; a worker fetches the object,
+  runs `cortex.moderateImage` + `cortex.describeImage`, persists tags/alt-text and
+  routes the verdict through moderator's pipeline (reusing its existing
+  `image_moderation` agent contract, `analyzeImage({imageUrl})`), so rules,
+  review queue, and audit trail are unchanged.
+- **Acceptance criteria:**
+  - Upload latency is unchanged (verified); moderation lands asynchronously.
+  - An encrypted object is never decoded or sent to the model.
+  - With cortex disabled/router down, uploads still succeed; the job records an error.
+  - A rejected image surfaces through moderator's existing verdict/review path.
+  - No image bytes are written to cortex's `prompt_logs`.
+- **Architect sign-off:** APPROVED-WITH-CHANGES — 2026-07-09, ADR `docs/adr/0002-*.md`
+  (binding constraints 5, 6, 7, 8). Required: (5) **verdict stays moderator-owned and
+  mode-gated** — the moderator `cortex` provider gains `analyzeImage` → `cortex.moderateImage`,
+  and image verdicts run through moderator's existing ruleEngine + review-queue + audit gated by
+  the SAME `CORTEX_MODERATION_MODE` (off|shadow|enforce), failing closed. **Rejected:** routing
+  image verdicts through `AIProviderFactory.analyzeContent` (text-shaped) or relying on the
+  currently-dead `ImageModerationAgent` wiring — wiring image moderation into the verdict
+  pipeline is a **moderator-owned sub-ticket of FEAT-031** (file it; moderator owner signs which
+  internal path carries verdict→queue→audit). Worker splits concerns: tags via
+  `cortex.describeImage` directly (soft); verdict via moderator (closed). (6) **Async worker
+  runs separately** from the gateway — add `worker:filevault-moderation` root alias + registry
+  entry; **dba co-signs** the Bull/Redis/DLQ mechanics. Image moderation IS idempotent, so unlike
+  `cortex-tasks` (`attempts:1`) use `attempts:3-5` + exponential backoff (delay 30s) to survive
+  router-down / 53s model-swap; DLQ + queue-depth alert; skip encrypted objects (FEAT-026).
+  (7) **Pending-visibility is an explicit acceptance criterion** (product-manager + Rick):
+  "upload latency unchanged" (write) ≠ "unmoderated content not visible" (read). Default
+  fail-closed-pending on sensitive surfaces; file record carries pending/failed moderation
+  state; verdict can retroactively hide/remove. (8) **Chokepoint scope stated honestly** — this
+  ticket covers **uploaded attachments** (posts/DMs/group files/comments, all funnel through
+  FileVault; verified via timeline `attachmentService` + spark `uploadService`). Named gaps to
+  file follow-ups: avatar-upload bytes (today `avatarUrl` is an external string ref, out of
+  scope), live thumbnails/recordings (disk + video, out of scope), atproto blobs (own pipeline).
+  Enqueue at FileVault `uploadService.isImage()` where the buffer + encryption flag are already
+  in hand. **Blocked-by:** FEAT-030 (correct).
+
 ---
 
 ## Bugs
@@ -585,6 +892,96 @@ grooming.)*
 - **Acceptance criteria:** with `CORTEX_PYTHON_TOOLS_ENABLED=false`, no agent
   run is offered a python tool, and no tool shows `enabled` with a failing
   suite; `npm run seed:cortex` stays idempotent.
+
+### BUG-011 — `cortex` is not a valid `ai_provider` enum value, so an enforced cortex verdict cannot be stored
+- **Type:** bug · **Status:** in-review · **Priority:** P1 · **Size:** S
+- **Owner-role:** dba · **Blocked-by:** — · **Relates:** FEAT-023
+- **Found:** live verification of FEAT-023 (2026-07-09), gateway with
+  `CORTEX_MODERATION_MODE=enforce DEFAULT_AI_PROVIDER=cortex`.
+- **Description:** With cortex enforced, the local-LLM call succeeds and returns
+  a well-formed verdict, but persisting the `ModerationItem` fails:
+  `invalid input value for enum moderator.enum_moderation_items_ai_provider:
+  "cortex"` → the route answers `500 MODERATION_FAILED`. The provider list is
+  pinned in four places and none of them knows about cortex:
+  - `services/moderator/models/ModerationCase.js:139` — `DataTypes.ENUM('claude','openai','deepseek','local')` (table `moderation_items`)
+  - `services/moderator/models/AIAgent.js:50` — same enum for `provider`
+  - `services/moderator/middleware/validation.js:71` — Joi `.valid('claude','openai','deepseek','local')`, so a per-request `aiProvider: 'cortex'` override is rejected at the edge too
+  - `services/moderator/database/schema.sql:90` — `CREATE TYPE ai_provider AS ENUM (...)`
+  Note the enum already carries a `'local'` value (and `config.ai.local` exists,
+  unused) — the decision is whether cortex persists as a new `'cortex'` label or
+  reuses `'local'`. A new label is preferable: `'local'` cannot distinguish which
+  local engine produced a verdict, which matters for the accuracy audit trail.
+- **Impact:** only reachable with `CORTEX_MODERATION_MODE=enforce`, which is not
+  the default and is gated on a benchmark anyway — so this does not affect the
+  shipped default (`off`) or `shadow` mode (shadow never persists a verdict).
+- **Acceptance criteria:** a Postgres enum migration adds `'cortex'` (note
+  `ALTER TYPE … ADD VALUE` cannot run inside a transaction on older PG, and the
+  sync-based `db:migrate` will not alter enums — see the `db:check` drift audit);
+  all four pin-points updated; `npm run db:check` reports no ENUM drift; an
+  enforced cortex verdict persists and `GET` returns `aiProvider: 'cortex'`.
+- **Resolution (2026-07-09, dba):** Decision — added a DISTINCT `'cortex'` enum
+  label (NOT a reuse of `'local'`): `config.ai.local` denotes local ML *model
+  files* (nsfw/toxicity/spam classifiers), a different engine than the Cortex
+  local LLM, and FEAT-023's enforcement gate needs a per-provider accuracy audit
+  trail — collapsing cortex into `local` would defeat it. Changed:
+  - `services/moderator/migrations/20260709000001-add-cortex-ai-provider.js` (new)
+    — idempotent `ALTER TYPE … ADD VALUE IF NOT EXISTS 'cortex'` over ALL provider
+    enum type names (`ai_provider` raw path + the sync-built
+    `enum_moderation_items_ai_provider` / `enum_ai_agents_provider`), schema-agnostic
+    via a `pg_type` loop; with a guarded, working `down` that rebuilds each enum
+    without `cortex` and refuses if any row still uses it. PG16 here, so
+    `ADD VALUE IF NOT EXISTS` is transaction-safe (verified).
+  - `models/ModerationCase.js`, `models/AIAgent.js`, `middleware/validation.js`,
+    `database/schema.sql` — all four pin-points now include `'cortex'`.
+  - `tests/unit/cortexProviderEnum.test.js` (new) — Joi accepts `cortex`/rejects
+    unknown; both model ENUMs include `cortex`. 4/4 green.
+- **Apply to live DB (operator command):** the model-sync `db:migrate` will NOT
+  alter an existing enum, and the live `exprsn` DB has no `SequelizeMeta` (it was
+  sync-built), so a full `sequelize-cli db:migrate` is unsafe (would recreate
+  existing tables, leaking into `public`). Run THIS migration's `up()` directly:
+  ```
+  cd services/moderator && \
+    DB_HOST=localhost DB_PORT=5432 DB_NAME=exprsn DB_USER=exprsn DB_PASSWORD=<pw> \
+    node -e 'const {Sequelize}=require("sequelize");const c=require("./config/database.js").development;const m=require("./migrations/20260709000001-add-cortex-ai-provider.js");(async()=>{const s=new Sequelize(c.database,c.username,c.password,{host:c.host,port:c.port,dialect:"postgres",logging:false});await m.up(s.getQueryInterface(),Sequelize);await s.close();})()'
+  ```
+  Applied to live `exprsn` on 2026-07-09. Both `moderator.enum_moderation_items_ai_provider`
+  and `moderator.enum_ai_agents_provider` now carry `cortex`; `npm run db:check`
+  exits 0 (no ENUM drift). End-to-end re-verified: enforce-mode POST of toxic text
+  to `/moderator/api/moderate/content` returns `200 success:true` (riskScore 92,
+  flagged) and the persisted `moderation_items` row has `ai_provider = 'cortex'`
+  — no more `MODERATION_FAILED`.
+
+### BUG-012 — `CORTEX_MODERATE` is a silent no-op: `llm_message` is not a valid `content_type`
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** dba (enum) + sr-developer (fail-open policy) · **Relates:** FEAT-021, BUG-011
+- **Found:** live verification of FEAT-023 (2026-07-09).
+- **Description:** Cortex's optional moderator cross-screen
+  (`CORTEX_MODERATE=true` → `moderatorScreen()` in
+  `services/cortex/src/engine/jobs.js:55`) posts
+  `contentType: 'llm_message'` to `/moderator/api/moderate/content`. But
+  `moderation_items.content_type` is an enum of
+  `text, image, video, audio, post, comment, message, profile, file` — there is no
+  `llm_message`. Moderator's very first step is a dedup
+  `ModerationItem.findOne({ where: { sourceService, contentType, contentId } })`,
+  and Sequelize casts that value to the enum, so Postgres throws
+  `invalid input value for enum … content_type: "llm_message"` **before** any
+  moderation happens. The route answers 500; cortex's `moderatorScreen` catches it,
+  logs `moderator screen unavailable (fail-open)`, and returns `null`.
+  Net effect: **the feature has never done anything.** It fails open on every call,
+  so no test or runtime signal ever surfaced it — only the warn line.
+  Reproduce: `curl -sk -X POST https://localhost:8443/moderator/api/moderate/content
+  -H 'Content-Type: application/json' -d '{"contentType":"llm_message","contentId":"x",
+  "sourceService":"cortex","userId":"<uuid>","contentText":"hi"}'`
+- **Fix options:** (a) add `llm_message` to the `content_type` enum (migration —
+  pair with BUG-011's enum work); or (b) have `moderatorScreen()` send an existing
+  value such as `'message'` / `'text'`. (a) preserves the audit distinction between
+  a user message and LLM output; (b) needs no migration.
+- **Also worth deciding:** whether `moderatorScreen` should keep failing open. It is
+  a documented deliberate choice, but a fail-open screen that is 100% failing is
+  indistinguishable from a working one — at minimum the warn should be loud/counted.
+- **Acceptance criteria:** with `CORTEX_MODERATE=true`, a cortex chat turn produces
+  a persisted `moderation_items` row (or a documented, asserted skip); a test covers
+  the round trip so a future enum drift cannot silently disable it again.
 
 ---
 

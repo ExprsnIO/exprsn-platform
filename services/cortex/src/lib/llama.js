@@ -37,22 +37,27 @@ async function routerFetch(url, init = {}, timeoutMs = 30000) {
   }
 }
 
-// ---------------------------------------------------------------- semaphore
+// ---------------------------------------------------------------- semaphores
 
-let inFlight = 0;
-const waiters = [];
+// One pool per workload (ADR 0002 §2). Text and vision must not share a pool:
+// `withSlot` serializes everything in its pool, so a backlog of async image
+// jobs on the text pool would starve interactive chat.
+const POOLS = {
+  text: { inFlight: 0, waiters: [], max: () => Math.max(1, config.cortex.llmConcurrency) },
+  vision: { inFlight: 0, waiters: [], max: () => Math.max(1, config.cortex.visionConcurrency) },
+};
 
-async function withSlot(fn) {
-  const max = Math.max(1, config.cortex.llmConcurrency);
-  if (inFlight >= max) {
-    await new Promise((resolve) => waiters.push(resolve));
+async function withSlot(fn, poolName = 'text') {
+  const pool = POOLS[poolName] || POOLS.text;
+  if (pool.inFlight >= pool.max()) {
+    await new Promise((resolve) => pool.waiters.push(resolve));
   }
-  inFlight++;
+  pool.inFlight++;
   try {
     return await fn();
   } finally {
-    inFlight--;
-    const next = waiters.shift();
+    pool.inFlight--;
+    const next = pool.waiters.shift();
     if (next) next();
   }
 }
@@ -94,7 +99,11 @@ async function routerHealth() {
 }
 
 // Non-streaming chat completion. `opts` merges into the request body.
-async function chatComplete(model, messages, opts = {}) {
+//
+// `pool` selects the concurrency pool ('text' | 'vision'); `timeoutMs` bounds the
+// transport. NOTE for vision callers: `messages` may embed base64 image data —
+// never log this argument, and never pass it to logPrompt (ADR 0002 §4).
+async function chatComplete(model, messages, opts = {}, { pool = 'text', timeoutMs = 600000 } = {}) {
   return withSlot(async () => {
     const res = await routerFetch(
       `${V1_BASE}/chat/completions`,
@@ -103,13 +112,27 @@ async function chatComplete(model, messages, opts = {}) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model, messages, ...opts }),
       },
-      600000,
+      timeoutMs,
     );
     if (!res.ok) {
+      // Deliberately does not echo the request body — it may contain image bytes.
       throw new Error(`chat(${model}) -> ${res.status}: ${await res.text()}`);
     }
     return res.json();
-  });
+  }, pool);
 }
 
-module.exports = { listModels, loadModel, unloadModel, routerHealth, chatComplete };
+// Does `modelId` exist on the router AND advertise image input?
+// llama.cpp reports vision capability only when an mmproj projector is loaded,
+// so a VL model configured without one shows up as text-only — exactly the
+// misconfiguration this guards against.
+async function modelSupportsImages(modelId) {
+  if (!modelId) return false;
+  const data = await listModels();
+  const entry = (data.data || []).find((m) => m.id === modelId);
+  if (!entry) return false;
+  const modalities = (entry.architecture && entry.architecture.input_modalities) || [];
+  return modalities.includes('image');
+}
+
+module.exports = { listModels, loadModel, unloadModel, routerHealth, chatComplete, modelSupportsImages };

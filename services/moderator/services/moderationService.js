@@ -62,15 +62,27 @@ class ModerationService {
         return this._formatModerationResult(existing);
       }
 
+      // Loop guard (FEAT-023, ADR 0001). Cortex screens its own LLM traffic by
+      // POSTing here with sourceService='cortex' / contentType='llm_message'.
+      // Barring the cortex provider for those requests keeps that one-way — a
+      // second line of defence behind the structural one (the cortex provider
+      // binds to cortex's inference layer, which never calls back into
+      // moderator). Applies to the fallback chain too, not just direct selection.
+      const cortexOriginated = sourceService === 'cortex' || contentType === 'llm_message';
+      const exclude = cortexOriginated ? ['cortex'] : [];
+
       // Analyze content with AI
-      const aiResult = await aiProviderFactory.analyzeContent(
-        {
-          text: contentText,
-          url: contentUrl,
-          type: contentType
-        },
-        aiProvider
-      );
+      const aiContent = {
+        text: contentText,
+        url: contentUrl,
+        type: contentType
+      };
+      const aiResult = await aiProviderFactory.analyzeContent(aiContent, aiProvider, { exclude });
+
+      // Shadow evaluation: score the same content with any observation-only
+      // provider and log the disagreement. Deliberately not awaited — it must
+      // never add latency to, or fail, the publish path.
+      this._runShadowEvaluation(aiContent, aiResult, exclude, contentId);
 
       // Calculate overall risk if not provided
       const overallRisk = aiResult.riskScore || riskCalculator.calculateOverallRisk({
@@ -197,6 +209,50 @@ class ModerationService {
     }
 
     return this._formatModerationResult(item);
+  }
+
+  /**
+   * Score content with observation-only providers (cortex in shadow mode) and
+   * log how their verdict compares to the enforced one. This is the evidence
+   * the enforcement decision needs: per-category deltas over real traffic.
+   *
+   * Fire-and-forget by contract — never awaited, never throws, never changes
+   * the verdict. It does consume an LLM slot (CORTEX_LLM_CONCURRENCY), so it
+   * is only active when CORTEX_MODERATION_MODE=shadow.
+   * @private
+   */
+  _runShadowEvaluation(aiContent, enforcedResult, exclude, contentId) {
+    const shadows = aiProviderFactory.getShadowProviders().filter((n) => !exclude.includes(n));
+    if (!shadows.length) return;
+
+    for (const name of shadows) {
+      Promise.resolve()
+        .then(async () => {
+          const started = Date.now();
+          const shadow = await aiProviderFactory.analyzeShadow(name, aiContent);
+          if (!shadow) return;
+          const delta = (a, b) => Math.round((a ?? 0) - (b ?? 0));
+          logger.info('Shadow moderation comparison', {
+            provider: name,
+            contentId,
+            enforcedProvider: enforcedResult.provider,
+            latencyMs: Date.now() - started,
+            enforcedRisk: enforcedResult.riskScore,
+            shadowRisk: shadow.riskScore,
+            deltas: {
+              risk: delta(shadow.riskScore, enforcedResult.riskScore),
+              toxicity: delta(shadow.toxicityScore, enforcedResult.toxicityScore),
+              nsfw: delta(shadow.nsfwScore, enforcedResult.nsfwScore),
+              spam: delta(shadow.spamScore, enforcedResult.spamScore),
+              violence: delta(shadow.violenceScore, enforcedResult.violenceScore),
+              hateSpeech: delta(shadow.hateSpeechScore, enforcedResult.hateSpeechScore)
+            }
+          });
+        })
+        .catch((error) => {
+          logger.warn('Shadow evaluation failed', { provider: name, error: error.message });
+        });
+    }
   }
 
   /**

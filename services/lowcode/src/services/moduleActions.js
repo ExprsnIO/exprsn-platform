@@ -22,8 +22,16 @@ const axios = require('axios');
 const { createLogger } = require('@exprsn/shared');
 const { deriveServiceToken } = require('@exprsn/shared/utils/serviceToken');
 const { getInternalHttpsAgent } = require('@exprsn/shared/utils/httpAgent');
+// Cortex's public in-process façade (ADR 0001). Safe to require unconditionally:
+// it pulls in only config, and hard-refuses when CORTEX_ENABLED is false.
+const cortexClient = require('../../../cortex/src/client');
 
 const logger = createLogger('exprsn-lowcode-modaction');
+
+// Flow steps run in the background, but a step must not wedge a run: bound the
+// local completion well under the router's 600s transport timeout.
+const CORTEX_ACTION_TIMEOUT_MS = parseInt(process.env.LOWCODE_CORTEX_TIMEOUT_MS, 10) || 15000;
+const CORTEX_MAX_OUTPUT = 4000; // matches http_request's body cap
 
 function base(envUrl, fallbackPath) {
   return process.env[envUrl] || `${process.env.PUBLIC_BASE_URL || 'https://localhost:8443'}${fallbackPath}`;
@@ -147,6 +155,36 @@ const MODULE_ACTIONS = {
       const data = await get(`${base('VAULT_SERVICE_URL', '/vault')}/api/config/${action.section || 'lowcode'}`, {}, ctx);
       const present = !!(data && (data[action.key] !== undefined || (data.config && data.config[action.key] !== undefined)));
       return { type: 'read_secret', key: action.key, present };
+    },
+  },
+  // Local-LLM completion (FEAT-024, ADR 0001). In-process via cortex's public
+  // façade — no HTTP hop, no cloud spend, content never leaves the host.
+  // Synchronous by design: cortex agent *tasks* are Bull-async (202 + poll) and
+  // LcFlowRun only records synchronous step results, so a task-backed action
+  // would need a poll/callback bridge (deferred — FEAT-027).
+  // Errors (cortex disabled, router down, timeout) propagate to run()'s catch,
+  // which records `{ error }` on the step — the flow never throws.
+  cortex: {
+    capability: 'call:cortex.complete',
+    async run(action) {
+      const prompt = String(action.prompt ?? '').trim();
+      if (!prompt) throw new Error('cortex action requires a non-empty `prompt`');
+      const timeoutMs = Math.min(Math.max(Number(action.timeoutMs) || CORTEX_ACTION_TIMEOUT_MS, 1000), 60000);
+      const text = await cortexClient.complete(
+        action.system || 'You are a helpful assistant. Answer concisely and factually.',
+        prompt,
+        {
+          model: action.model || null,
+          temperature: typeof action.temperature === 'number' ? action.temperature : 0.3,
+          timeoutMs,
+        },
+      );
+      const out = String(text ?? '');
+      return {
+        type: 'cortex',
+        text: out.length > CORTEX_MAX_OUTPUT ? `${out.slice(0, CORTEX_MAX_OUTPUT)}…` : out,
+        truncated: out.length > CORTEX_MAX_OUTPUT,
+      };
     },
   },
 };

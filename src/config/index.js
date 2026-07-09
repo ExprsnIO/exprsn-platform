@@ -99,6 +99,20 @@ const config = {
     dataDir: process.env.CORTEX_DATA_DIR || path.join(__dirname, '../../data/cortex'),
     taskConcurrency: num(process.env.CORTEX_TASK_CONCURRENCY, 1),
     llmConcurrency: num(process.env.CORTEX_LLM_CONCURRENCY, 2),
+    // Vision (FEAT-030, ADR 0002). A THIRD model role, not an overload of the
+    // brain: the router serves it separately and the façade preflights that it
+    // actually advertises `image` in its input_modalities. Unset = vision off.
+    visionModel: process.env.CORTEX_VISION_MODEL || null,
+    // Its own pool: `withSlot` serializes ALL completions, so a queue of async
+    // image jobs on the shared pool would starve interactive text chat.
+    visionConcurrency: num(process.env.CORTEX_VISION_CONCURRENCY, 1),
+    // Generous: vision runs only on the async worker, never a request path, and
+    // an LRU model swap alone costs ~53s (measured).
+    visionTimeoutMs: num(process.env.CORTEX_VISION_TIMEOUT_MS, 120000),
+    // Decode guards for untrusted uploads.
+    visionMaxEdge: num(process.env.CORTEX_VISION_MAX_EDGE, 1024),
+    visionMaxPixels: num(process.env.CORTEX_VISION_MAX_PIXELS, 50000000), // decompression bomb
+    visionMaxFrames: num(process.env.CORTEX_VISION_MAX_FRAMES, 3), // animated GIF/WebP sampling
     pythonToolsEnabled: bool(process.env.CORTEX_PYTHON_TOOLS_ENABLED, false),
     toolAllowPrivateHosts: bool(process.env.CORTEX_TOOL_ALLOW_PRIVATE_HOSTS, false),
     moderate: bool(process.env.CORTEX_MODERATE, false),

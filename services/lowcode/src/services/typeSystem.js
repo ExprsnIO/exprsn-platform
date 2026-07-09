@@ -43,7 +43,27 @@ function validateFieldDef(field) {
     if (!parsed.ok) errors.push(`field "${field.key}" has an invalid formula: ${parsed.error}`);
     if (['reference', 'file'].includes(field.type)) errors.push(`field "${field.key}" cannot be computed (type ${field.type})`);
   }
+  // An AI field is derived like a formula field, but by a local-LLM completion
+  // (FEAT-024). It cannot be resolved here: validateRecord is synchronous and
+  // pure by contract, so the value is filled in the async write path
+  // (entityService.applyAiFields) after the plain fields validate.
+  if (field.aiPrompt !== undefined) {
+    if (typeof field.aiPrompt !== 'string' || !field.aiPrompt.trim()) {
+      errors.push(`field "${field.key}" has an empty aiPrompt`);
+    }
+    if (!['string', 'text'].includes(field.type)) {
+      errors.push(`ai field "${field.key}" must be type string or text (got ${field.type})`);
+    }
+    if (field.formula !== undefined) {
+      errors.push(`field "${field.key}" cannot have both a formula and an aiPrompt`);
+    }
+  }
   return errors;
+}
+
+/** A field whose value is produced by a local-LLM completion on write. */
+function isAiField(field) {
+  return Boolean(field && field.aiPrompt !== undefined);
 }
 
 /** Allowed enum values for a field, merging inline + resolved lookup. */
@@ -135,6 +155,10 @@ function validateRecord(fields, data, lookups = {}) {
     // Computed fields ignore input entirely — they're derived after the plain
     // fields validate so a formula can reference sibling values.
     if (field.formula !== undefined) { computed.push(field); continue; }
+    // AI fields are derived too, but asynchronously (see isAiField). Skip them
+    // here — including their `required` check, which would otherwise reject
+    // every write before the value could be produced.
+    if (isAiField(field)) continue;
     const res = validateValue(field, (data || {})[field.key], lookups);
     if (!res.ok) errors.push(res.error);
     else if (res.value !== null && res.value !== undefined) out[field.key] = res.value;
@@ -155,5 +179,5 @@ function validateRecord(fields, data, lookups = {}) {
 
 module.exports = {
   FIELD_TYPES, FIELD_ROLES, AGGREGATIONS,
-  validateFieldDef, validateValue, validateRecord, enumValuesFor,
+  validateFieldDef, validateValue, validateRecord, enumValuesFor, isAiField,
 };

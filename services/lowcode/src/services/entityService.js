@@ -12,6 +12,7 @@
  */
 
 const { Op } = require('sequelize');
+const { createLogger } = require('@exprsn/shared');
 const { LcApp, LcLookup, LcEntity, LcRecord, LcForm, LcFlow, LcFlowRun, LcView } = require('../models');
 const typeSystem = require('./typeSystem');
 const lookupProviders = require('./lookupProviders');
@@ -20,6 +21,15 @@ const recordStore = require('./recordStore');
 // Shared infra from the plugins module (decisions ledger §Lowcode↔Plugin).
 const pluginHost = require('../../../plugins/src/services/pluginHost');
 const stateMachine = require('../../../plugins/src/services/stateMachine');
+// Cortex's public in-process façade (ADR 0001) — powers AI-backed fields.
+const cortexClient = require('../../../cortex/src/client');
+
+const logger = createLogger('exprsn-lowcode-entity');
+
+// A record write must never wedge on the LLM; the local router serialises
+// completions behind CORTEX_LLM_CONCURRENCY.
+const AI_FIELD_TIMEOUT_MS = parseInt(process.env.LOWCODE_AI_FIELD_TIMEOUT_MS, 10) || 15000;
+const AI_FIELD_MAX_CHARS = 4000;
 
 /**
  * Resolve lookup lists usable by an app's entities → { key: values[] }.
@@ -68,10 +78,64 @@ async function checkUnique(entity, data, excludeId) {
   return errors;
 }
 
-async function validate(entity, data, excludeId) {
+/**
+ * Resolve AI-backed fields (FEAT-024) — the async counterpart to formula
+ * fields. `typeSystem.validateRecord` is synchronous and pure, so it skips
+ * these; they are filled here, after the plain fields validate, so a prompt can
+ * interpolate sibling values via `{{field_key}}`.
+ *
+ * FAIL-SOFT by contract (ADR 0001 §Point 6): a disabled cortex, a downed llama
+ * router, or a timeout must never block a record write. The field is left unset
+ * and the failure is logged — it does not surface as a validation error.
+ * Mutates `data` in place.
+ */
+async function applyAiFields(entity, data, previous = {}) {
+  const aiFields = (entity.fields || []).filter(typeSystem.isAiField);
+  if (!aiFields.length) return;
+
+  // validateRecord skips AI fields, so their prior values are absent from
+  // `data`. Carry them forward FIRST: a disabled cortex or a failed
+  // regeneration must leave the stored value intact, never null it out.
+  for (const field of aiFields) {
+    if (data[field.key] === undefined && previous[field.key] !== undefined) {
+      data[field.key] = previous[field.key];
+    }
+  }
+
+  if (!cortexClient.isEnabled()) {
+    logger.debug('Skipping AI fields: cortex disabled', { entityId: entity.id });
+    return;
+  }
+
+  for (const field of aiFields) {
+    const prompt = String(field.aiPrompt).replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, key) => {
+      const v = data[key] !== undefined ? data[key] : previous[key];
+      return v === undefined || v === null ? '' : String(v);
+    });
+    try {
+      const text = await cortexClient.complete(
+        field.aiSystem || 'You are a helpful assistant. Respond with only the requested value, no preamble.',
+        prompt,
+        { model: field.aiModel || null, timeoutMs: AI_FIELD_TIMEOUT_MS },
+      );
+      const value = String(text ?? '').trim().slice(0, AI_FIELD_MAX_CHARS);
+      if (value) data[field.key] = value;
+    } catch (err) {
+      // Never block the write; the column simply stays as it was.
+      logger.warn('AI field could not be generated', {
+        entityId: entity.id, field: field.key, code: err.code, error: err.message,
+      });
+    }
+  }
+}
+
+async function validate(entity, data, excludeId, previous = {}) {
   const lookups = await resolveLookups(entity.appId);
   const res = typeSystem.validateRecord(entity.fields, data, lookups);
   if (!res.valid) return res;
+  // After the plain fields validate (so prompts can reference them) and before
+  // uniqueness/reference checks see the final row.
+  await applyAiFields(entity, res.data, previous);
   const uniqErrors = await checkUnique(entity, res.data, excludeId);
   if (uniqErrors.length) return { valid: false, errors: uniqErrors, data: res.data };
   const refErrors = await checkReferences(entity, res.data);
@@ -114,7 +178,9 @@ async function createRecord(entity, data, { ownerId, userId, scopeType, scopeId,
 
 async function updateRecord(record, entity, data, { userId, authorization } = {}) {
   const merged = { ...record.data, ...data };
-  const res = await validate(entity, merged, record.id);
+  // `record.data` is the previous row: an AI prompt can interpolate fields that
+  // this update didn't touch, and a regeneration failure leaves the old value.
+  const res = await validate(entity, merged, record.id, record.data || {});
   if (!res.valid) { const e = new Error(res.errors.join('; ')); e.status = 400; e.details = res.errors; throw e; }
   record.data = res.data;
   await record.save();
@@ -192,4 +258,4 @@ async function transitionRecord(record, entity, event, ctx = {}) {
   return record;
 }
 
-module.exports = { resolveLookups, checkReferences, validate, createRecord, updateRecord, deleteRecord, transitionRecord, exportEntity, truncateEntity, deleteEntity, deleteApp };
+module.exports = { resolveLookups, checkReferences, validate, applyAiFields, createRecord, updateRecord, deleteRecord, transitionRecord, exportEntity, truncateEntity, deleteEntity, deleteApp };

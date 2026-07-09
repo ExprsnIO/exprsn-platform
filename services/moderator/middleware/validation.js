@@ -68,7 +68,7 @@ const moderateContentSchema = Joi.object({
   contentMetadata: Joi.object()
     .default({}),
   aiProvider: Joi.string()
-    .valid('claude', 'openai', 'deepseek', 'local')
+    .valid('claude', 'openai', 'deepseek', 'local', 'cortex')
     .optional()
 }).or('contentText', 'contentUrl');
 

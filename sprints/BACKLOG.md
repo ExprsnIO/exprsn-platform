@@ -229,7 +229,7 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   before production enablement.
 
 ### FEAT-022 — Cortex frontend: chat, agent tasks, CS flows + admin registries in the SPA
-- **Type:** feature · **Status:** in-review (implemented + merged; tsc/vitest/web:build green — QA click-through against a live CORTEX_ENABLED gateway pending) · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** done (merged `d83572d`; QA click-through passed 2026-07-09 against a live `CORTEX_ENABLED=true` gateway + llama router + `worker:cortex` — see Verification below) · **Priority:** P1 · **Size:** L
 - **Owner-role:** sr-developer · **Blocked-by:** FEAT-021 (merged)
 - **Cost/Benefit:** user-directed (Rick, 2026-07-09) — FEAT-021 ships a full REST
   surface with zero UI; without a frontend the module is unusable outside curl.
@@ -259,6 +259,23 @@ has not yet assessed them, so they cannot leave `backlog`.)*
     an escape hatch); enable actions surface failing test results.
 - **Notes:** No SSE/socket yet on the backend — task/review views poll. A
   `/cortex` Socket.IO namespace is a possible follow-up alongside the backend one.
+- **Verification (live click-through, 2026-07-09):** Playwright drove both
+  surfaces end-to-end against real local inference (qwen3-30b-a3b).
+  User: assistant chat turn returned a real answer; agent task went
+  `queued → done` through `worker:cortex` with a transcript showing guardrail-
+  screened `write_file`/`read_file`; a CS chat legal threat escalated to
+  `held for review`; CS email drafted to the outbox; outbox detail dialog OK.
+  Admin: overview/registries/reviews/prompt-log all render; guardrail Test
+  report 7/7; structured guardrail + tool + skill editors confirm the
+  no-JSON-only-modals rule (JSON is a secondary toggle); tool Run dialog builds
+  typed inputs per parameter and surfaces the python gate inline; approving the
+  pending review persisted `status=approved` + note + resolver. Console errors:
+  0 unexpected (the single 400 is the python-tool gate, rendered inline).
+  Dark mode verified via the real theme toggle on both surfaces.
+  **Fixed during QA:** `docker/nginx/nginx.conf` module-prefix regex predated
+  the cortex merge, so every `/cortex/*` SPA call hit the static server (405) —
+  added `cortex` to the proxy location (commit on main).
+  **Filed during QA:** BUG-010 (seeded python tools enabled in an API-refused state).
 
 ### TASK-019 — Cortex: sandbox python custom-tool execution before production enablement
 - **Type:** task · **Status:** backlog · **Priority:** P1 · **Size:** M
@@ -542,6 +559,32 @@ grooming.)*
   post-teardown race). The full atproto suite is now deterministically green (10 suites /
   75 tests over 13+ runs). `labelSigner.test.js` was affected by the same root cause and
   is fixed by the same one-liner. Verified by orchestrator (75/75).
+
+### BUG-010 — Cortex seeds leave python tools `enabled` in a state the API would refuse
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
+- **Found:** FEAT-022 QA click-through (2026-07-09), live gateway w/ `CORTEX_ENABLED=true`.
+- **Description:** `scripts/seed/cortex-defaults.js` writes `reverse-string` and
+  `word-count` (both `kind: python`) with `enabled = true` straight through
+  `registry.save()`, which bypasses the test gate. But `POST
+  /cortex/api/v1/tools/:name/enable` runs the suite first, and with
+  `CORTEX_PYTHON_TOOLS_ENABLED=false` (the default) every python test errors —
+  so the API answers **400** for exactly the state the seeder just persisted
+  (verified live: `enable word-count -> HTTP 400`). Two visible consequences:
+  (1) `ToolRegistry.agentTools()` offers `word_count` / `reverse_string`
+  schemas to every agent run, and each call comes back
+  `error: PermissionError: python tools are disabled…`, burning a tool-call
+  iteration; (2) the admin Tools tab shows an **enabled** tool whose Test report
+  is `0 passed / 4 failed`, which reads as broken.
+  The seeder header comment documents the seed-enabled choice deliberately, so
+  this is a design wart to decide on, not an accident.
+- **Options:** (a) seed python tools `enabled: false` (they can be enabled once
+  the flag + sandbox land — see TASK-019); (b) have `agentTools()` skip
+  python-kind tools when `pythonToolsEnabled` is false; (c) both. (b) is the
+  behavior fix; (a) is the honest-state fix.
+- **Acceptance criteria:** with `CORTEX_PYTHON_TOOLS_ENABLED=false`, no agent
+  run is offered a python tool, and no tool shows `enabled` with a failing
+  suite; `npm run seed:cortex` stays idempotent.
 
 ---
 

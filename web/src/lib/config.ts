@@ -21,6 +21,7 @@ export const config = {
     'prefetch',
     'moderator',
     'live',
+    'cortex',
   ] as const,
 } as const;
 

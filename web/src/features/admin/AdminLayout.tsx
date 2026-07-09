@@ -19,6 +19,7 @@ import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutline
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
@@ -46,6 +47,7 @@ const SECTIONS: AdminItem[] = [
   { label: 'Files (FileVault)', to: '/admin/filevault', icon: FolderOutlinedIcon },
   { label: 'Plugins', to: '/admin/plugins', icon: ExtensionOutlinedIcon },
   { label: 'Low-Code', to: '/admin/lowcode', icon: AccountTreeOutlinedIcon },
+  { label: 'AI (Cortex)', to: '/admin/cortex', icon: SmartToyOutlinedIcon },
 ];
 
 function initials(name: string): string {

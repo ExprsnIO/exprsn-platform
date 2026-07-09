@@ -229,7 +229,7 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   before production enablement.
 
 ### FEAT-022 — Cortex frontend: chat, agent tasks, CS flows + admin registries in the SPA
-- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** in-review (implemented + merged; tsc/vitest/web:build green — QA click-through against a live CORTEX_ENABLED gateway pending) · **Priority:** P1 · **Size:** L
 - **Owner-role:** sr-developer · **Blocked-by:** FEAT-021 (merged)
 - **Cost/Benefit:** user-directed (Rick, 2026-07-09) — FEAT-021 ships a full REST
   surface with zero UI; without a frontend the module is unusable outside curl.

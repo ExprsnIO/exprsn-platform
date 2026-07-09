@@ -8,7 +8,9 @@
  * suite passes; skills are prompt packs with no gate. `build` drafts a spec
  * from a plain-English description and always saves it disabled.
  */
-import { http } from '@/lib/http';
+import { http, ApiError, type ApiErrorBody } from '@/lib/http';
+import { config } from '@/lib/config';
+import { tokenStore } from '@/lib/token';
 import type {
   GuardrailSpec,
   GuardrailTestReport,
@@ -17,6 +19,63 @@ import type {
   ToolTestReport,
   TurnGuardrails,
 } from '@/api/cortex';
+
+/**
+ * ApiError subclass that keeps the WHOLE parsed error body.
+ *
+ * The cortex registry endpoints return actionable payloads alongside `error`:
+ * enable/save 400s carry the failing test report ({ error, tests }) and build
+ * 422s carry the validator findings ({ error, problems, draft }). The generic
+ * ApiError constructor in lib/http drops those extra fields, so the mutations
+ * below that need them go through `postKeepBody` and throw this instead.
+ */
+export class CortexApiError extends ApiError {
+  readonly body: Record<string, unknown>;
+
+  constructor(status: number, body: Record<string, unknown>) {
+    super(status, body as ApiErrorBody);
+    this.name = 'CortexApiError';
+    this.body = body;
+  }
+}
+
+/**
+ * Same request shape as lib/http's `post`, but failures throw CortexApiError
+ * with the full body preserved. Used only for save/build/enable, whose error
+ * bodies the UI must render (test reports, builder problems).
+ */
+async function postKeepBody<T>(path: string, body: unknown): Promise<T> {
+  const headers = new Headers({ 'Content-Type': 'application/json' });
+  const token = tokenStore.get();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const res = await fetch(`${config.apiBase}${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body ?? {}),
+    credentials: 'include',
+  });
+  const isJson = res.headers.get('content-type')?.includes('application/json');
+  const data = isJson ? await res.json().catch(() => ({})) : { error: String(await res.text()) };
+  if (!res.ok) throw new CortexApiError(res.status, data as Record<string, unknown>);
+  return data as T;
+}
+
+/** Failing/empty test report attached to an enable/save 400, if any. */
+export function testReportFromError(e: unknown): GuardrailTestReport | ToolTestReport | null {
+  if (!(e instanceof CortexApiError)) return null;
+  const t = e.body.tests as { results?: unknown } | undefined;
+  return t && Array.isArray(t.results) ? (t as GuardrailTestReport | ToolTestReport) : null;
+}
+
+/** Builder problem list attached to a build 422, if any. */
+export function buildProblemsFromError(e: unknown): BuildProblem | null {
+  if (!(e instanceof CortexApiError) || e.status !== 422 || !Array.isArray(e.body.problems)) return null;
+  return {
+    error: String(e.body.error ?? 'builder produced an invalid spec'),
+    problems: (e.body.problems as unknown[]).map(String),
+    draft: e.body.draft,
+  };
+}
 
 function q(params?: Record<string, string | number | undefined>): string {
   if (!params) return '';
@@ -104,16 +163,17 @@ export const cortexAdminApi = {
   prompts: (params?: { channel?: string; session?: string; q?: string; limit?: number; offset?: number }) =>
     http.get<{ rows: PromptLogRow[]; total: number }>(`/cortex/api/v1/prompts${q(params)}`),
 
-  // -- guardrail registry
+  // -- guardrail registry (save/build/enable keep their error bodies — the 400
+  //    test report and 422 problem list are rendered by the admin UI)
   guardrail: (name: string) => http.get<GuardrailSpec>(`/cortex/api/v1/guardrails/${encodeURIComponent(name)}`),
   saveGuardrail: (spec: GuardrailSpec) =>
-    http.post<{ saved: string; enabled: boolean }>('/cortex/api/v1/guardrails', spec),
+    postKeepBody<{ saved: string; enabled: boolean }>('/cortex/api/v1/guardrails', spec),
   buildGuardrail: (description: string, opts?: { name?: string; action?: string }) =>
-    http.post<GuardrailBuildResult>('/cortex/api/v1/guardrails/build', { description, ...opts }),
+    postKeepBody<GuardrailBuildResult>('/cortex/api/v1/guardrails/build', { description, ...opts }),
   testGuardrail: (name: string) =>
     http.post<GuardrailTestReport>(`/cortex/api/v1/guardrails/${encodeURIComponent(name)}/test`, {}),
   enableGuardrail: (name: string) =>
-    http.post<{ enabled: string; tests: GuardrailTestReport }>(`/cortex/api/v1/guardrails/${encodeURIComponent(name)}/enable`, {}),
+    postKeepBody<{ enabled: string; tests: GuardrailTestReport }>(`/cortex/api/v1/guardrails/${encodeURIComponent(name)}/enable`, {}),
   disableGuardrail: (name: string) =>
     http.post<{ disabled: string }>(`/cortex/api/v1/guardrails/${encodeURIComponent(name)}/disable`, {}),
   deleteGuardrail: (name: string) =>
@@ -121,15 +181,15 @@ export const cortexAdminApi = {
 
   // -- tool registry (run executes tool code — python kind needs CORTEX_PYTHON_TOOLS_ENABLED)
   tool: (name: string) => http.get<ToolSpec>(`/cortex/api/v1/tools/${encodeURIComponent(name)}`),
-  saveTool: (spec: ToolSpec) => http.post<{ saved: string; enabled: boolean }>('/cortex/api/v1/tools', spec),
+  saveTool: (spec: ToolSpec) => postKeepBody<{ saved: string; enabled: boolean }>('/cortex/api/v1/tools', spec),
   buildTool: (description: string, opts?: { name?: string; kind?: string }) =>
-    http.post<ToolBuildResult>('/cortex/api/v1/tools/build', { description, ...opts }),
+    postKeepBody<ToolBuildResult>('/cortex/api/v1/tools/build', { description, ...opts }),
   testTool: (name: string) =>
     http.post<ToolTestReport>(`/cortex/api/v1/tools/${encodeURIComponent(name)}/test`, {}),
   runTool: (name: string, args: Record<string, unknown>) =>
     http.post<{ result: string }>(`/cortex/api/v1/tools/${encodeURIComponent(name)}/run`, { args }),
   enableTool: (name: string) =>
-    http.post<{ enabled: string }>(`/cortex/api/v1/tools/${encodeURIComponent(name)}/enable`, {}),
+    postKeepBody<{ enabled: string }>(`/cortex/api/v1/tools/${encodeURIComponent(name)}/enable`, {}),
   disableTool: (name: string) =>
     http.post<{ disabled: string }>(`/cortex/api/v1/tools/${encodeURIComponent(name)}/disable`, {}),
   deleteTool: (name: string) => http.del<{ deleted: string }>(`/cortex/api/v1/tools/${encodeURIComponent(name)}`),
@@ -138,7 +198,7 @@ export const cortexAdminApi = {
   skill: (name: string) => http.get<SkillSpec>(`/cortex/api/v1/skills/${encodeURIComponent(name)}`),
   saveSkill: (spec: SkillSpec) => http.post<{ saved: string; enabled: boolean }>('/cortex/api/v1/skills', spec),
   buildSkill: (description: string, opts?: { name?: string }) =>
-    http.post<SkillBuildResult>('/cortex/api/v1/skills/build', { description, ...opts }),
+    postKeepBody<SkillBuildResult>('/cortex/api/v1/skills/build', { description, ...opts }),
   enableSkill: (name: string) =>
     http.post<{ enabled: string }>(`/cortex/api/v1/skills/${encodeURIComponent(name)}/enable`, {}),
   disableSkill: (name: string) =>

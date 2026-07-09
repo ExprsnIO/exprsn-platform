@@ -40,8 +40,41 @@ runs on an **external OpenAI-compatible llama.cpp router**
   guardrails; moderator keeps cloud-provider content moderation. With
   `CORTEX_MODERATE=true`, cortex additionally screens content through
   `/moderator/api/moderate/content` (service-HMAC headers, fail-open) and the
-  strongest verdict wins. Making moderator consume cortex as a local AI
-  provider is a possible future integration, not wired today.
+  strongest verdict wins.
+
+### Cortex as an in-process LLM source (FEAT-023/024, ADR 0001)
+
+`services/cortex/src/client.js` is cortex's **public in-process façade** — the
+only supported way another module reaches the local LLM. Consumers require it
+relatively (as they already do for `plugins/src/services/pluginHost`); it is
+deliberately *not* in `@exprsn/shared`, which stays a leaf (cortex depends on
+shared, so hosting the client there would invert the dependency).
+
+Two invariants make it safe:
+
+- It binds to cortex's **inference** layer (`engine/agent.js`) and never to its
+  **flow** layer (`engine/jobs.js`). `moderatorScreen()` — the cortex→moderator
+  call — lives only in `jobs.js`, so a `moderator → cortex → moderator` cycle is
+  **structurally impossible**, not merely guarded. `engine/agent.js` pulls in no
+  Sequelize models, no Bull, and opens no DB/Redis connection at require time.
+- The `CORTEX_ENABLED` gate is evaluated **before** the lazy require and fails
+  closed. (Neither `engine/agent.js` nor `lib/llama.js` checks the flag itself,
+  so calling them directly while cortex is dark would still reach the router.)
+
+Callers own their failure policy, because the correct one differs:
+
+| Consumer | On LLM failure | Why |
+|---|---|---|
+| moderator (`ai-providers/cortex.js`) | **fail CLOSED** — throw, so the factory falls back to a cloud provider | the provider *is* the verdict; a synthetic "safe" score ships unmoderated content |
+| lowcode (`cortex` flow action, AI fields) | **fail SOFT** — record `{ error }` / keep the prior field value | matches the existing `moduleActions` contract; an LLM hiccup must not block a record write |
+
+Moderator's participation is gated by `CORTEX_MODERATION_MODE`
+(`off` | `shadow` | `enforce`, default `off`). A local completion costs ~2-3s
+warm and ~54s cold, serialized behind `CORTEX_LLM_CONCURRENCY` (default 2), and
+`/api/moderate/content` sits on the synchronous publish path — so `shadow` (score
+and log, never enforce) is the intended first step, and a `sourceService:
+'cortex'` request never selects the cortex provider (loop guard, applied to the
+fallback chain too).
 - Highest-risk surfaces are separately gated: python custom-tool execution
   (`CORTEX_PYTHON_TOOLS_ENABLED`, default false — arbitrary code execution;
   needs real sandboxing before production) and private-network HTTP tool

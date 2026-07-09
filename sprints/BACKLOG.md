@@ -307,6 +307,164 @@ has not yet assessed them, so they cannot leave `backlog`.)*
 - **Acceptance criteria:** a hostname whose DNS answer changes between check
   and connect cannot reach a private address; unit test with a stubbed lookup.
 
+### FEAT-023 — Cortex as an in-process LLM source for other modules (façade + moderator provider)
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** — · **Legacy:** cross-links TASK-009 (in-process calls)
+- **Implemented (2026-07-09):** client placed at `services/cortex/src/client.js`
+  (a cortex-owned façade), **not** `shared/utils/cortexClient.js` — per architect
+  sign-off `@exprsn/shared` stays a leaf. Moderator provider is shadow-capable and
+  `off` by default (`CORTEX_MODERATION_MODE=off|shadow|enforce`), fails **closed**,
+  and the loop guard bars cortex from direct selection *and* the fallback chain.
+  Tests: `services/cortex/tests/unit/client.test.js` (8 — incl. a proof the façade
+  never loads `engine/jobs.js`/models/queues, and that a disabled cortex never
+  requires the engine) + `services/moderator/tests/unit/cortexProvider.test.js` (19).
+- **Cost/Benefit:** done — **smaller slice / build later on the enforced half.** Build the shared `cortexClient` + moderator provider **in shadow/eval mode** now; do NOT make cortex a *selectable enforced* production moderation provider until a per-category accuracy benchmark vs the cloud providers clears a bar AND the provider is warm/resident + tight-timeout + fail-open-to-cloud (ideally moved off the synchronous publish path). Full assessment: `sprints/assessments/FEAT-023-024-cost-benefit.md`.
+- **C/B notes:** No schema/queue/worker → no dba gate. Shared client is low-risk, build now (lazy `agent.js` require; requiring it opens no DB/Redis, and `simpleChat`/`judge` bypass `prompt_logs`). Live run (qwen3-30b-a3b): quality good on 5 obvious cases (strict `JSON.parse` works), but warm latency ~2–3 s and **cold 53.6 s** on the synchronous `/api/moderate/content` path, semaphore concurrency 2 → publish throughput ceiling ~0.8/s and unbounded queueing under load, contending with interactive cortex. **architect:** (1) `cortexClient` placement — `shared/`→module layering inversion + two-copy-of-shared path divergence; (2) whether the cortex verdict can move off the inline `moderateContent` path (async/queued).
+- **Decisions (Rick, 2026-07-09):** in-process client (not loopback HTTP);
+  cortex is a **selectable** moderation provider alongside the cloud ones, not a
+  replacement; explicit loop guard required.
+- **Description:** Add `shared/utils/cortexClient.js` — a lazy, fail-soft
+  in-process client that other modules use to reach the local LLM. It binds to
+  cortex's **inference** layer (`services/cortex/src/engine/agent.js` →
+  `simpleChat` / `judge` / `chatCompletion`), **not** its flow layer
+  (`engine/jobs.js`). That distinction is load-bearing: `moderatorScreen()` — the
+  cortex→moderator call — lives only in `jobs.js`, so binding to `agent.js` makes
+  the moderator→cortex→moderator cycle **structurally impossible** rather than
+  merely guarded. `agent.js` requires only config + llama + cache (no models, no
+  Sequelize, no Bull), so it is safe to require even when cortex is dark.
+  Then register a `cortex` provider in moderator's `AIProviderFactory`
+  (`services/moderator/src/ai-providers/index.js`), gated on `CORTEX_ENABLED`,
+  selectable via `DEFAULT_AI_PROVIDER=cortex` or the per-request `aiProvider`
+  override. Add the defence-in-depth loop guard in `moderationService`: a request
+  carrying `sourceService === 'cortex'` (or `contentType === 'llm_message'`)
+  never selects the cortex provider.
+- **Acceptance criteria:**
+  - `cortexClient` throws/degrades cleanly (never throws into the caller's
+    request path) when `CORTEX_ENABLED=false` or the llama router is down;
+    requiring it never opens a DB/Redis connection.
+  - Moderator's factory exposes `cortex` only when the flag is on; existing cloud
+    providers and the fallback chain are unchanged when it's off.
+  - A moderation request with `sourceService: 'cortex'` never routes to the
+    cortex provider — unit test proves it (this is the cycle guard).
+  - Cortex's local-LLM verdict maps onto the same score shape the rule engine
+    consumes (`toxicity/nsfw/spam/violence/hateSpeech/sentiment` + risk), so
+    `ruleEngineService` conditions keep working untouched.
+  - `npm run lint` clean; moderator + shared suites green.
+- **Notes:** moderator has a second, legacy AI layer (`services/classification.js`
+  + `services/claudeAI.js`/`openAI.js`) that is NOT on the live verdict path, and
+  an `agentFramework` that is initialized but not wired into `moderateContent`.
+  This ticket touches only the live path (`AIProviderFactory`). The unused
+  `config.ai.local` block is the natural config home.
+- **Architect sign-off:** APPROVED-WITH-CHANGES (systems-architect, 2026-07-09) —
+  see ADR `docs/adr/0001-cortex-in-process-inference-facade.md`. Require-graph claim
+  verified: `engine/agent.js` transitively pulls in no models/Bull/moderator and
+  opens no DB/Redis at import, so the moderator->cortex->moderator cycle is
+  structurally impossible when consumers bind to `agent.js`. **Binding constraints:**
+  (1) do NOT place the client in `@exprsn/shared` (that inverts the leaf and creates
+  a shared->cortex->shared cycle) — cortex publishes a public façade at
+  `services/cortex/src/client.js`, consumed via relative require like
+  `plugins/pluginHost`; (2) the façade imports only `engine/agent.js`, never
+  `engine/jobs.js`/`../models`/`../queues`; (3) a **fail-closed** `CORTEX_ENABLED`
+  gate runs BEFORE lazy-requiring `agent.js` — flag off = no require, no router
+  traffic (today `chatComplete` hits the router regardless of the flag, so the guard
+  is mandatory, not cosmetic); (4) the moderator provider fails **CLOSED** on LLM
+  error/timeout (throw -> factory fallback; else verdict resolves to requiresReview),
+  never fail-open, retain the `sourceService`/`contentType` loop guard; (5) enforce a
+  short bounded provider timeout, cortex is NOT `DEFAULT_AI_PROVIDER` on the sync
+  publish path, ship shadow/async first pending qa p99 sign-off. No dba review needed
+  (no schema/queue topology change). Blocking constraints must be met before VERIFY.
+
+### FEAT-024 — Lowcode: cortex flow action + AI-backed field
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
+- **Implemented (2026-07-09):** `cortex` action added to `MODULE_ACTIONS`
+  (capability `call:cortex.complete`, clamped timeout, truncated output) — picked
+  up automatically by `knownActionTypes()`/`validateActions()`/`flowEngine`, and
+  fail-soft for free via `run()`'s existing catch. AI fields declared with
+  `aiPrompt` (+ optional `aiSystem`/`aiModel`), validated at design time in
+  `typeSystem` but resolved in the async write path (`entityService.applyAiFields`,
+  called from `validate()` so create *and* update get it). Prompts interpolate
+  sibling values via `{{field_key}}`. Non-obvious bug caught while building:
+  `validateRecord` skips AI fields, so an update's prior value never reached
+  `res.data` — a disabled cortex or a failed regeneration would have silently
+  **nulled the column**; prior values are now carried forward before any early
+  return. Tests: `services/lowcode/tests/cortexIntegration.test.js`.
+- **Not done (deliberate):** repointing `aiAssist.js` (cloud Anthropic) at cortex
+  — kept out to hold the slice small; see the C/B note. File as FEAT-028 if wanted.
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-023 (shared cortex client)
+- **Cost/Benefit:** done — **build now.** Low-risk, non-safety-critical, no schema/queue/infra cost; a clean zero-marginal-cost LLM primitive for lowcode. The `cortex` action is auto-discovered by the flow dispatcher and inherits the existing fail-soft `{ error }` contract; the AI field must compute in the async `createRecord`/`updateRecord` path (confirmed: `typeSystem.validateRecord` is sync/pure). Full assessment: `sprints/assessments/FEAT-023-024-cost-benefit.md`.
+- **C/B notes:** Smaller slice if capacity is tight — ship (a) the action + (c) the `aiAssist` cortex repoint (both ~S; (c) also drops the hard `CLAUDE_API_KEY` dependency for studio AI-assist) first, defer (b) the AI field (the M driver). Bound AI-field compute with the per-field timeout (in AC) and consider skipping it on bulk/import writes — inline it inherits the ~2–3 s warm / cold-start LLM latency behind the concurrency-2 semaphore. Sequence after FEAT-023's shared client.
+- **Description:** (a) Add a `cortex` action type to
+  `services/lowcode/src/services/moduleActions.js` (prompt in → text out),
+  capability-gated like the existing `send_spark`/`enqueue_job` actions, so it is
+  picked up for free by `knownActionTypes()`, `validateActions()`, and the
+  `flowEngine` dispatcher. Use the **synchronous** inference path via the shared
+  cortex client — cortex's agent *tasks* are Bull-async (202 + poll) and
+  `LcFlowRun` only captures synchronous step results, so a task-based action
+  would need a poll/callback bridge (out of scope; see FEAT-027).
+  (b) Add an AI-backed derived field. Constraint discovered during scoping:
+  `typeSystem.validateRecord` is **synchronous and pure**, so an AI field cannot
+  ride the existing `formula` path — it must be computed in the async write path
+  (`entityService.createRecord` / `updateRecord`).
+  (c) Optionally repoint `services/lowcode/src/services/aiAssist.js` (currently a
+  direct cloud Anthropic client) at cortex when `CORTEX_ENABLED`, keeping the
+  cloud path as fallback.
+- **Acceptance criteria:**
+  - A flow with a `cortex` action runs end-to-end and its output is recorded on
+    the `LcFlowRun` step; with cortex disabled the step records an error and the
+    flow does not throw into the emitting request (matches the existing
+    fail-soft `moduleActions` contract).
+  - The action is capability-gated; a flow without the capability is rejected at
+    design-time validation.
+  - An entity with an AI field populates it on create/update; a record write
+    never blocks indefinitely (LLM timeout surfaces as a field error).
+  - `npm run lint` clean; lowcode suite green.
+- **Architect sign-off:** APPROVED-WITH-CHANGES (systems-architect, 2026-07-09) —
+  see ADR `docs/adr/0001-cortex-in-process-inference-facade.md`. **Binding
+  constraints:** (1) consume the cortex public façade `services/cortex/src/client.js`
+  (relative require) — NOT a `@exprsn/shared` client; (2) inference path only
+  (`simpleChat`/`chatCompletion`), synchronous per the `LcFlowRun` step model; agent
+  *tasks* stay out of scope (FEAT-027); (3) both the `cortex` moduleAction and the
+  AI-backed field fail **SOFT** per the existing `moduleActions` contract — on LLM
+  disabled/down/timeout return `{ error }` / record a field error, never throw into
+  the emitting request and never block the write indefinitely; (4) the façade's
+  fail-closed `CORTEX_ENABLED` gate means "cortex disabled" surfaces to lowcode as a
+  clean error, not a router call. Stays blocked on FEAT-023 (façade must land first).
+
+### FEAT-025 — Nexus: cortex-backed descriptions + report triage *(not in the current slice)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-023
+- **Cost/Benefit:** pending
+- **Description:** Nexus has **zero** AI hooks today and does not call
+  `/moderator/api/moderate/content` (only case escalation/sync via
+  `MODERATOR_SERVICE_URL`). Candidate attach points found during scoping:
+  `groupService.createGroup/updateGroup` and `eventService.createEvent/updateEvent`
+  (generate or screen `description`), and `moderationService.flagContent` →
+  `calculateFlagPriority`/`shouldAutoEscalate` (currently keyword heuristics) for
+  LLM report triage.
+- **Notes:** Deselected from the first slice by Rick (2026-07-09). Also worth
+  fixing here: nexus→moderator still uses the legacy static bearer
+  (`NEXUS_SERVICE_TOKEN`) rather than the `deriveServiceToken` HMAC scheme.
+
+### FEAT-026 — Spark: AI on plaintext conversations only *(not in the current slice)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-023
+- **Cost/Benefit:** pending
+- **Decision (Rick, 2026-07-09):** **plaintext conversations only.** Server-side
+  cortex features act on non-encrypted messages; encrypted threads must surface
+  "AI unavailable — end-to-end encrypted" rather than decrypting anything.
+- **Description:** Spark is E2EE-capable per message: `Message.content` is
+  force-nulled when `encrypted` is true and only `encryptedContent` (ciphertext)
+  is stored, with encryption performed client-side in
+  `web/src/features/messages/send.ts` + `web/src/lib/crypto.ts`. The server
+  therefore **cannot** read encrypted bodies. There is precedent for degrading
+  this way: full-text search already indexes only plaintext `content`
+  (`searchService.indexMessage` / `messageWorker`), silently skipping E2EE
+  messages. Scope: smart-reply / thread-summarize on plaintext conversations;
+  encrypted conversations get a clear unavailable state.
+- **Notes:** Deselected from the first slice by Rick (2026-07-09). Do NOT route
+  decrypted plaintext to cortex without a separate explicit decision — cortex's
+  `prompt_logs` table would persist message bodies.
+
 ---
 
 ## Bugs

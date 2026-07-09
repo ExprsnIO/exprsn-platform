@@ -35,6 +35,7 @@ const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'];
 const MAX_RESULT = 16000; // chars returned to the model
 const DEFAULT_TIMEOUT = 10; // seconds
 const MAX_TIMEOUT = 120;
+const MAX_REDIRECTS = 5;
 
 const PLACEHOLDER = /\{(\w+)\}/g;
 const NAME_RE = /^[\w-]{1,64}$/;
@@ -333,11 +334,7 @@ class ToolRegistry {
 
   async runHttp(spec, args) {
     const reqT = spec.request;
-    const url = substitute(reqT.url, args, true);
-    if (!/^https?:\/\//.test(url)) {
-      throw namedError('ValueError', 'substituted URL lost its http(s) scheme');
-    }
-    await assertPublicHost(url);
+    let url = substitute(reqT.url, args, true);
     const headers = {};
     for (const [k, v] of Object.entries(reqT.headers || {})) {
       headers[k] = substitute(v, args);
@@ -351,24 +348,54 @@ class ToolRegistry {
     } else if (typeof body === 'string') {
       data = substitute(body, args);
     }
-    const method = reqT.method || 'GET';
+    let method = reqT.method || 'GET';
     const timeout = (spec.timeout ?? DEFAULT_TIMEOUT) || DEFAULT_TIMEOUT;
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), timeout * 1000);
     try {
-      const res = await fetch(url, {
-        method,
-        headers,
-        // fetch forbids bodies on GET/HEAD; those combinations are nonsensical
-        // for a request template anyway.
-        body: data != null && !['GET', 'HEAD'].includes(method) ? data : undefined,
-        signal: ctl.signal,
-      });
-      if (res.status >= 400) {
-        const payload = await readCapped(res, 2000);
-        throw namedError('RuntimeError', `HTTP ${res.status}: ${payload.slice(0, 500)}`);
+      // Redirects are followed manually so EVERY hop passes the public-host
+      // check — with fetch's default follow, a public host could 302 to a
+      // loopback/private address and bypass the SSRF guard.
+      for (let hop = 0; ; hop++) {
+        if (!/^https?:\/\//.test(url)) {
+          throw namedError('ValueError',
+            hop === 0 ? 'substituted URL lost its http(s) scheme'
+                      : `redirect left http(s): ${url.slice(0, 100)}`);
+        }
+        await assertPublicHost(url);
+        const res = await fetch(url, {
+          method,
+          headers,
+          // fetch forbids bodies on GET/HEAD; those combinations are nonsensical
+          // for a request template anyway.
+          body: data != null && !['GET', 'HEAD'].includes(method) ? data : undefined,
+          signal: ctl.signal,
+          redirect: 'manual',
+        });
+        if ([301, 302, 303, 307, 308].includes(res.status)) {
+          const loc = res.headers.get('location');
+          try {
+            await res.body?.cancel();
+          } catch { /* already released */ }
+          if (!loc) {
+            throw namedError('RuntimeError', `HTTP ${res.status}: redirect with no Location`);
+          }
+          if (hop >= MAX_REDIRECTS) {
+            throw namedError('RuntimeError', `too many redirects (>${MAX_REDIRECTS})`);
+          }
+          url = new URL(loc, url).toString();
+          if (res.status === 303 || (res.status !== 307 && res.status !== 308 && method !== 'GET' && method !== 'HEAD')) {
+            method = 'GET';
+            data = null;
+          }
+          continue;
+        }
+        if (res.status >= 400) {
+          const payload = await readCapped(res, 2000);
+          throw namedError('RuntimeError', `HTTP ${res.status}: ${payload.slice(0, 500)}`);
+        }
+        return (await readCapped(res, 4 * MAX_RESULT)).slice(0, MAX_RESULT);
       }
-      return (await readCapped(res, 4 * MAX_RESULT)).slice(0, MAX_RESULT);
     } finally {
       clearTimeout(t);
     }

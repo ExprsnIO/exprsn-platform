@@ -242,6 +242,58 @@ describe('http tool SSRF guard', () => {
   });
 });
 
+describe('http tool redirect handling', () => {
+  const realFetch = global.fetch;
+  afterEach(() => { global.fetch = realFetch; });
+
+  // Literal public IPs keep assertPublicHost on its no-DNS path (net.isIP),
+  // so these tests never touch the network.
+  const spec = (url = 'https://8.8.8.8/a') => ({
+    name: 'r', description: 'd', kind: 'http', timeout: 5,
+    parameters: { type: 'object', properties: {} },
+    request: { method: 'GET', url },
+  });
+  const redirectRes = (location) => ({
+    status: 302,
+    headers: { get: (k) => (k.toLowerCase() === 'location' ? location : null) },
+    body: null,
+  });
+  const okRes = (text) => ({
+    status: 200,
+    headers: { get: () => null },
+    body: (async function* () { yield Buffer.from(text); })(),
+  });
+
+  test('redirect to a private address is rejected', async () => {
+    global.fetch = async () => redirectRes('http://127.0.0.1:8443/internal');
+    const reg = new tl.ToolRegistry();
+    await expect(reg.run(spec(), {})).rejects.toThrow(/private\/loopback/);
+  });
+
+  test('redirect to a non-http scheme is rejected', async () => {
+    global.fetch = async () => redirectRes('file:///etc/passwd');
+    const reg = new tl.ToolRegistry();
+    await expect(reg.run(spec(), {})).rejects.toThrow(/redirect left http\(s\)/);
+  });
+
+  test('redirect loops stop after the hop cap', async () => {
+    global.fetch = async () => redirectRes('https://8.8.8.8/again');
+    const reg = new tl.ToolRegistry();
+    await expect(reg.run(spec(), {})).rejects.toThrow(/too many redirects/);
+  });
+
+  test('public-host redirects are followed and every hop is re-checked', async () => {
+    const seen = [];
+    global.fetch = async (url) => {
+      seen.push(String(url));
+      return seen.length === 1 ? redirectRes('https://8.8.4.4/b') : okRes('landed');
+    };
+    const reg = new tl.ToolRegistry();
+    await expect(reg.run(spec(), {})).resolves.toBe('landed');
+    expect(seen).toEqual(['https://8.8.8.8/a', 'https://8.8.4.4/b']);
+  });
+});
+
 // ---------------------------------------------------------------- skills
 
 describe('skill validateSpec', () => {

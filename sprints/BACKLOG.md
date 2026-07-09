@@ -466,8 +466,28 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   `prompt_logs` table would persist message bodies.
 
 ### FEAT-029 — Router: multi-model residency (2+ resident) + a vision model
-- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** M
-- **Owner-role:** sr-developer · **Blocked-by:** — · **Cost/Benefit:** pending
+- **Type:** feature · **Status:** in-review — **shipped as swap-first, NOT co-resident** · **Priority:** P1 · **Size:** S (was M)
+- **Resolution (2026-07-09):** Rick accepted both reviewers' recommendation against
+  co-residency. `MODELS_MAX` stays **1** and the brain's `ctx-size` stays **16384** —
+  no platform-wide context regression, no Metal-OOM exposure. The only change to the
+  external router is a new `[qwen2.5-vl-3b]` preset in
+  `/Volumes/Storage/MacOS LLM/models.ini` (model + `mmproj` + `ctx-size 4096`),
+  applied by hot reload (`GET /models?reload=1`) — **no restart required**.
+  Backup written alongside as `models.ini.bak-<epoch>`; rollback = delete the
+  section and reload. Verified: `qwen2.5-vl-3b` reports
+  `input_modalities: ["text","image"]`; a real completion returned the correct
+  answer (53.5 s cold incl. LRU swap, **1.18 s warm**). Files downloaded:
+  `Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf` (1.9 GB), `mmproj-…-f16.gguf` (1.2 GB),
+  `mmproj-…-Q8_0.gguf` (806 MB, fallback).
+  **Co-residency deferred**, not abandoned — revisit only if swap-thrash is measured
+  to hurt the synchronous text path (see C/B notes).
+- **Follow-up found during verification:** the router can return an unusable/empty
+  completion while a model is loading, so the FIRST image call after any text call
+  fails. The vision path must explicitly ensure the model is resident (`POST
+  /models/load`) or retry once, rather than assuming the router blocks. Tracked in
+  FEAT-030's acceptance criteria.
+- **Owner-role:** sr-developer · **Blocked-by:** — · **Cost/Benefit:** done — **build later / smaller slice (swap-first).** Ship the vision chain on `MODELS_MAX=1` swap, keep brain `ctx=16384`; co-residency trades a permanent brain-context halving + a catastrophic Metal-OOM tail (blast radius = the whole LLM layer) for marginally better warm image latency on a ~1.5 GB un-load-tested margin — not worth buying on unproven need since image work is async. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
+- **C/B notes:** Mechanical build is **S** (external router only, no in-repo change); the real cost is operational risk + a platform-wide `ctx 16384→8192` regression that halves context for every text feature (agent-task tool transcripts break first). FEAT-031 is async-via-Bull, so a 53.6 s cold **swap** is tolerable and removes ALL OOM risk; text load is sporadic/human-paced so swap-thrash is bounded and mostly absorbed by the image queue. **Decouple: drop FEAT-030/031's `blocked-by: FEAT-029`.** Measure swap-thrash under real mixed load first; pursue co-residency only if thrash is shown to hurt the sync text path AND a load test proves the margin holds (prefer `mmproj-Q8_0` for +0.5 GB). **architect:** platform-wide ctx regression on the external router.
 - **Scope note:** touches the **external** llama.cpp router project at
   `/Volumes/Storage/MacOS LLM/` (models.ini, start-server.sh), NOT this repo.
   Rick authorized editing it, downloading the model, and restarting the router
@@ -493,10 +513,23 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   - Wired memory stays under the Metal recommended working set under load.
   - Rollback documented (revert `MODELS_MAX`, restore `ctx-size`).
 - **Notes:** `mmproj-Q8_0` (0.84 GB) is downloaded as a fallback if f16 is too tight.
+- **Architect sign-off:** APPROVED-WITH-CHANGES (advisory — external router, outside
+  platform-repo authority) — 2026-07-09, ADR `docs/adr/0002-*.md`. I disagree with the
+  co-residency choice and recommend the alternative: `MODELS_MAX=1` + LRU swap + **batch** the
+  FEAT-031 async image queue, keeping the brain at `ctx-size=16384`. Rationale — image work is
+  async so the ~53s swap is invisible to users; co-residency has only ~1.5 GB margin (auto-fit
+  already mis-estimated once → hard Metal OOM that poisons the backend) AND halving brain ctx
+  degrades every long-context feature (12-step agent loop w/ 16000-char tool results; CS KB
+  inlining). That trades a hard-OOM risk + universal ctx regression for latency nobody waits on.
+  Rick decides. **If co-residency is kept**, binding: explicit measured memory budget (not
+  auto-fit), a wired-memory guard/alert vs the Metal working set, documented rollback, and
+  regression-test the agent/CS features at 8192 ctx before FEAT-030/031 depend on it; add queue
+  batching regardless.
 
 ### FEAT-030 — Cortex: vision inference surface (image moderation + tagging)
 - **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** M
-- **Owner-role:** sr-developer · **Blocked-by:** FEAT-029 · **Cost/Benefit:** pending
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-029 (drop — decouple, ship on `MODELS_MAX=1` swap) · **Cost/Benefit:** done — **build now (tagging) / gate (moderation), smaller slice.** `describeImage` (fail-soft, alt-text + tags) ships now, no eval gate; `moderateImage` builds behind a shadow/recall eval harness and may only **escalate** to human review, never auto-clear. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
+- **C/B notes:** Size **M**, split **S** (describeImage) + **M** (moderateImage + decode guards + eval). Corrections: **no `CORTEX_VISION_MODEL` config key exists** (`src/config/index.js` L95–105 has brain/judge only) — add one; **`sharp` is not declared in `services/cortex/package.json`** (resolves only via root hoist) — declare it. Decode is a real DoS surface: set `sharp` `limitInputPixels` (default ~268 MP is too high), byte cap, `sequentialRead`, `failOn`. Animated GIF/WebP: hard frame cap (3–5 sampled) — too few = safety gap, too many = semaphore stall + context blowup on the 3B model. Keep base64 image parts out of `prompt_logs`.
 - **Description:** Teach cortex to send images to the router. `lib/llama.js`'s
   `chatComplete` already speaks the OpenAI chat schema, so vision is a content-part
   array (`{type:'image_url', image_url:{url:'data:image/png;base64,…'}}`) against
@@ -515,10 +548,26 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   - EXIF stripped before inference (no GPS/camera metadata reaches the model or logs).
   - `moderateImage` fails CLOSED; `describeImage` fails SOFT.
   - Decode is bounded (pixel-count / decompression-bomb guard).
+- **Architect sign-off:** APPROVED-WITH-CHANGES — 2026-07-09, ADR `docs/adr/0002-*.md`
+  (binding constraints 1-4, 7-vision-timeout). Required: (1) façade **owns** model selection —
+  `describeImage`/`moderateImage` take NO model arg, and preflight `CORTEX_VISION_MODEL` against
+  `GET /models` `architecture.input_modalities` (`image` required); unset/absent/text-only →
+  typed `CortexVisionUnavailableError` (moderateImage fails closed, describeImage soft); memoize
+  the check. (2) **Separate vision semaphore pool** in `lib/llama.js`
+  (`CORTEX_VISION_CONCURRENCY`, default 1) distinct from `CORTEX_LLM_CONCURRENCY` — async image
+  work must not occupy interactive text slots (current `withSlot` is a single global pool).
+  (3) Own generous timeout `CORTEX_VISION_TIMEOUT_MS` (~60s, not the 5s text budget); vision
+  barred from any synchronous request path. (4) Privacy is structural: route via
+  `lib/llama.chatComplete` (NOT `engine/jobs.js`, never `logPrompt` — verified `logPrompt` is
+  jobs-only, so bytes cannot reach `cortex.prompt_logs`); never log `messages`/`image_url`/data
+  URIs to Winston; no image bytes as a Redis value (hash-key + text-value only — verified safe).
+  EXIF: `.rotate()` then re-encode, NO `.withMetadata()`; `limitInputPixels`. Config keys land
+  in `src/config/index.js` + `.env.example`.
 
 ### FEAT-031 — FileVault upload chokepoint: async image moderation + tagging
 - **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** L
-- **Owner-role:** sr-developer · **Blocked-by:** FEAT-030 · **Cost/Benefit:** pending
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-030 (its `moderateImage`-behind-eval slice) · **Cost/Benefit:** done — **build later / smaller slice.** Sound async-chokepoint design, correctly **L**; high leverage (one hook covers Nexus/Spark/Live/timeline). Gated: verdict may only **escalate** to moderator's review queue, never auto-clear, until vision recall clears the bar; tags/alt-text (fail-soft) can wire ahead of the verdict. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
+- **C/B notes:** **dba:** new Bull queue + worker process, and tags/alt-text/verdict persistence hits the **ALTER-on-existing-table trap** if columns are added to `Attachment`/FileVault tables (sync `db:migrate` won't ALTER → every query 500s) — prefer a new side-table. **architect:** FileVault→cortex + FileVault→moderator coupling, and the contract choice — moderator's cortex provider has **no `analyzeImage`** today (text-only), so either add it or call `cortex.moderateImage` direct and shape into the pipeline. **skip-encrypted** must hold for both `Attachment.encrypted` and FileVault-native encrypted objects (mirror FEAT-026). **qa:** verify upload-latency-unchanged + fail-open-on-cortex-down. **CSAM caveat:** a general 3B VLM is NOT a CSAM classifier — do not represent it as fulfilling a CSAM-detection obligation.
 - **Decisions (Rick, 2026-07-09):** one integration at the **FileVault upload
   chokepoint** (covers Nexus, Spark, Live chat, timeline — they all store pointers
   to FileVault) rather than five per-module hooks; **async via Bull**, never blocking
@@ -536,6 +585,30 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   - With cortex disabled/router down, uploads still succeed; the job records an error.
   - A rejected image surfaces through moderator's existing verdict/review path.
   - No image bytes are written to cortex's `prompt_logs`.
+- **Architect sign-off:** APPROVED-WITH-CHANGES — 2026-07-09, ADR `docs/adr/0002-*.md`
+  (binding constraints 5, 6, 7, 8). Required: (5) **verdict stays moderator-owned and
+  mode-gated** — the moderator `cortex` provider gains `analyzeImage` → `cortex.moderateImage`,
+  and image verdicts run through moderator's existing ruleEngine + review-queue + audit gated by
+  the SAME `CORTEX_MODERATION_MODE` (off|shadow|enforce), failing closed. **Rejected:** routing
+  image verdicts through `AIProviderFactory.analyzeContent` (text-shaped) or relying on the
+  currently-dead `ImageModerationAgent` wiring — wiring image moderation into the verdict
+  pipeline is a **moderator-owned sub-ticket of FEAT-031** (file it; moderator owner signs which
+  internal path carries verdict→queue→audit). Worker splits concerns: tags via
+  `cortex.describeImage` directly (soft); verdict via moderator (closed). (6) **Async worker
+  runs separately** from the gateway — add `worker:filevault-moderation` root alias + registry
+  entry; **dba co-signs** the Bull/Redis/DLQ mechanics. Image moderation IS idempotent, so unlike
+  `cortex-tasks` (`attempts:1`) use `attempts:3-5` + exponential backoff (delay 30s) to survive
+  router-down / 53s model-swap; DLQ + queue-depth alert; skip encrypted objects (FEAT-026).
+  (7) **Pending-visibility is an explicit acceptance criterion** (product-manager + Rick):
+  "upload latency unchanged" (write) ≠ "unmoderated content not visible" (read). Default
+  fail-closed-pending on sensitive surfaces; file record carries pending/failed moderation
+  state; verdict can retroactively hide/remove. (8) **Chokepoint scope stated honestly** — this
+  ticket covers **uploaded attachments** (posts/DMs/group files/comments, all funnel through
+  FileVault; verified via timeline `attachmentService` + spark `uploadService`). Named gaps to
+  file follow-ups: avatar-upload bytes (today `avatarUrl` is an external string ref, out of
+  scope), live thumbnails/recordings (disk + video, out of scope), atproto blobs (own pipeline).
+  Enqueue at FileVault `uploadService.isImage()` where the buffer + encryption flag are already
+  in hand. **Blocked-by:** FEAT-030 (correct).
 
 ---
 

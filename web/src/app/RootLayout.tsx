@@ -11,6 +11,7 @@ import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import LiveTvOutlinedIcon from '@mui/icons-material/LiveTvOutlined';
 import VideoCameraFrontOutlinedIcon from '@mui/icons-material/VideoCameraFrontOutlined';
 import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import CorporateFareOutlinedIcon from '@mui/icons-material/CorporateFareOutlined';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
@@ -50,6 +51,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
       { label: 'Live', to: '/streams', icon: LiveTvOutlinedIcon },
       { label: 'Rooms', to: '/rooms', icon: VideoCameraFrontOutlinedIcon },
       { label: 'Apps', to: '/apps', icon: AppsOutlinedIcon },
+      { label: 'AI (Cortex)', to: '/cortex', icon: SmartToyOutlinedIcon },
       { label: 'Organizations', to: '/orgs', icon: CorporateFareOutlinedIcon },
     ],
   },

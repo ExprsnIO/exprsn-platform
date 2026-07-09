@@ -527,7 +527,11 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   batching regardless.
 
 ### FEAT-030 — Cortex: vision inference surface (image moderation + tagging)
-- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** in-review — vision surface landed 2026-07-09
+  (describeImage + moderateImage engine, decode/EXIF/bomb guards, separate vision
+  pool + own timeout, cold-swap residency handling, no bytes near prompt_logs;
+  30 unit tests green). Enforcement consumption stays gated behind FEAT-031's
+  moderator-owned eval-harness slice per the C/B. · **Priority:** P1 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** FEAT-029 (drop — decouple, ship on `MODELS_MAX=1` swap) · **Cost/Benefit:** done — **build now (tagging) / gate (moderation), smaller slice.** `describeImage` (fail-soft, alt-text + tags) ships now, no eval gate; `moderateImage` builds behind a shadow/recall eval harness and may only **escalate** to human review, never auto-clear. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
 - **C/B notes:** Size **M**, split **S** (describeImage) + **M** (moderateImage + decode guards + eval). Corrections: **no `CORTEX_VISION_MODEL` config key exists** (`src/config/index.js` L95–105 has brain/judge only) — add one; **`sharp` is not declared in `services/cortex/package.json`** (resolves only via root hoist) — declare it. Decode is a real DoS surface: set `sharp` `limitInputPixels` (default ~268 MP is too high), byte cap, `sequentialRead`, `failOn`. Animated GIF/WebP: hard frame cap (3–5 sampled) — too few = safety gap, too many = semaphore stall + context blowup on the 3B model. Keep base64 image parts out of `prompt_logs`.
 - **Description:** Teach cortex to send images to the router. `lib/llama.js`'s

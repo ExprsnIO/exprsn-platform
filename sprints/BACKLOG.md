@@ -744,6 +744,65 @@ grooming.)*
   run is offered a python tool, and no tool shows `enabled` with a failing
   suite; `npm run seed:cortex` stays idempotent.
 
+### BUG-011 — `cortex` is not a valid `ai_provider` enum value, so an enforced cortex verdict cannot be stored
+- **Type:** bug · **Status:** in-progress · **Priority:** P1 · **Size:** S
+- **Owner-role:** dba · **Blocked-by:** — · **Relates:** FEAT-023
+- **Found:** live verification of FEAT-023 (2026-07-09), gateway with
+  `CORTEX_MODERATION_MODE=enforce DEFAULT_AI_PROVIDER=cortex`.
+- **Description:** With cortex enforced, the local-LLM call succeeds and returns
+  a well-formed verdict, but persisting the `ModerationItem` fails:
+  `invalid input value for enum moderator.enum_moderation_items_ai_provider:
+  "cortex"` → the route answers `500 MODERATION_FAILED`. The provider list is
+  pinned in four places and none of them knows about cortex:
+  - `services/moderator/models/ModerationCase.js:139` — `DataTypes.ENUM('claude','openai','deepseek','local')` (table `moderation_items`)
+  - `services/moderator/models/AIAgent.js:50` — same enum for `provider`
+  - `services/moderator/middleware/validation.js:71` — Joi `.valid('claude','openai','deepseek','local')`, so a per-request `aiProvider: 'cortex'` override is rejected at the edge too
+  - `services/moderator/database/schema.sql:90` — `CREATE TYPE ai_provider AS ENUM (...)`
+  Note the enum already carries a `'local'` value (and `config.ai.local` exists,
+  unused) — the decision is whether cortex persists as a new `'cortex'` label or
+  reuses `'local'`. A new label is preferable: `'local'` cannot distinguish which
+  local engine produced a verdict, which matters for the accuracy audit trail.
+- **Impact:** only reachable with `CORTEX_MODERATION_MODE=enforce`, which is not
+  the default and is gated on a benchmark anyway — so this does not affect the
+  shipped default (`off`) or `shadow` mode (shadow never persists a verdict).
+- **Acceptance criteria:** a Postgres enum migration adds `'cortex'` (note
+  `ALTER TYPE … ADD VALUE` cannot run inside a transaction on older PG, and the
+  sync-based `db:migrate` will not alter enums — see the `db:check` drift audit);
+  all four pin-points updated; `npm run db:check` reports no ENUM drift; an
+  enforced cortex verdict persists and `GET` returns `aiProvider: 'cortex'`.
+
+### BUG-012 — `CORTEX_MODERATE` is a silent no-op: `llm_message` is not a valid `content_type`
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** dba (enum) + sr-developer (fail-open policy) · **Relates:** FEAT-021, BUG-011
+- **Found:** live verification of FEAT-023 (2026-07-09).
+- **Description:** Cortex's optional moderator cross-screen
+  (`CORTEX_MODERATE=true` → `moderatorScreen()` in
+  `services/cortex/src/engine/jobs.js:55`) posts
+  `contentType: 'llm_message'` to `/moderator/api/moderate/content`. But
+  `moderation_items.content_type` is an enum of
+  `text, image, video, audio, post, comment, message, profile, file` — there is no
+  `llm_message`. Moderator's very first step is a dedup
+  `ModerationItem.findOne({ where: { sourceService, contentType, contentId } })`,
+  and Sequelize casts that value to the enum, so Postgres throws
+  `invalid input value for enum … content_type: "llm_message"` **before** any
+  moderation happens. The route answers 500; cortex's `moderatorScreen` catches it,
+  logs `moderator screen unavailable (fail-open)`, and returns `null`.
+  Net effect: **the feature has never done anything.** It fails open on every call,
+  so no test or runtime signal ever surfaced it — only the warn line.
+  Reproduce: `curl -sk -X POST https://localhost:8443/moderator/api/moderate/content
+  -H 'Content-Type: application/json' -d '{"contentType":"llm_message","contentId":"x",
+  "sourceService":"cortex","userId":"<uuid>","contentText":"hi"}'`
+- **Fix options:** (a) add `llm_message` to the `content_type` enum (migration —
+  pair with BUG-011's enum work); or (b) have `moderatorScreen()` send an existing
+  value such as `'message'` / `'text'`. (a) preserves the audit distinction between
+  a user message and LLM output; (b) needs no migration.
+- **Also worth deciding:** whether `moderatorScreen` should keep failing open. It is
+  a documented deliberate choice, but a fail-open screen that is 100% failing is
+  indistinguishable from a working one — at minimum the warn should be loud/counted.
+- **Acceptance criteria:** with `CORTEX_MODERATE=true`, a cortex chat turn produces
+  a persisted `moderation_items` row (or a documented, asserted skip); a test covers
+  the round trip so a future enum drift cannot silently disable it again.
+
 ---
 
 ## Tasks

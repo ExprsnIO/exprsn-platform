@@ -15,6 +15,7 @@ const CLIENT = '../../../cortex/src/client';
 jest.mock('../../../cortex/src/client', () => ({
   isEnabled: jest.fn(() => true),
   complete: jest.fn(),
+  moderateImage: jest.fn(),
   health: jest.fn(async () => ({ enabled: true, up: true, brain: 'test-brain' })),
 }), { virtual: false });
 
@@ -93,6 +94,47 @@ describe('CortexProvider.analyzeContent', () => {
     expect(cortexClient.complete).toHaveBeenCalledWith(
       expect.any(String), expect.any(String), expect.objectContaining({ timeoutMs: 1234 }),
     );
+  });
+});
+
+describe('CortexProvider.analyzeImage (fails closed)', () => {
+  const IMG_VERDICT = {
+    provider: 'cortex', model: 'test-vl', riskScore: 88, nsfwScore: 91,
+    violenceScore: 2, hateSpeechScore: 0, selfHarmScore: 0,
+    toxicityScore: 0, spamScore: 0, sentimentScore: 50, flags: ['nsfw'], explanation: 'x',
+  };
+
+  test('delegates to the cortex vision surface and returns the rule-engine shape', async () => {
+    cortexClient.moderateImage.mockResolvedValue(IMG_VERDICT);
+    const r = await new CortexProvider().analyzeImage({ buffer: Buffer.from([1, 2, 3]) });
+    expect(r.provider).toBe('cortex');
+    expect(r.riskScore).toBe(88);
+    expect(r.nsfwScore).toBe(91);
+    expect(cortexClient.moderateImage).toHaveBeenCalledWith(expect.any(Buffer));
+  });
+
+  // Cloud providers take an imageUrl and fetch it themselves. Accepting a URL
+  // here would turn moderator into a server-side fetcher — an SSRF primitive.
+  test('refuses a URL / non-buffer input rather than fetching it', async () => {
+    const p = new CortexProvider();
+    await expect(p.analyzeImage({ imageUrl: 'http://169.254.169.254/latest/meta-data/' }))
+      .rejects.toThrow(/requires an image buffer/);
+    await expect(p.analyzeImage({ buffer: Buffer.alloc(0) })).rejects.toThrow(/requires an image buffer/);
+    expect(cortexClient.moderateImage).not.toHaveBeenCalled();
+  });
+
+  test('THROWS when vision is unavailable (never returns a clean image verdict)', async () => {
+    cortexClient.moderateImage.mockRejectedValue(
+      Object.assign(new Error('no vision model configured'), { code: 'VISION_UNAVAILABLE' }));
+    await expect(new CortexProvider().analyzeImage({ buffer: Buffer.from([1]) }))
+      .rejects.toThrow(/no vision model configured/);
+  });
+
+  test('THROWS on an undecodable image rather than passing it', async () => {
+    cortexClient.moderateImage.mockRejectedValue(
+      Object.assign(new Error('cannot decode image'), { code: 'UNSUPPORTED_IMAGE' }));
+    await expect(new CortexProvider().analyzeImage({ buffer: Buffer.from([1]) }))
+      .rejects.toThrow(/cannot decode/);
   });
 });
 

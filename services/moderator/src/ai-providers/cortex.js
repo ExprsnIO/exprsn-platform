@@ -166,6 +166,48 @@ Respond with ONLY a valid JSON object:
     };
   }
 
+  /**
+   * Image moderation verdict via the local vision model (FEAT-030/031).
+   *
+   * Takes raw BYTES, not a URL. The cloud providers accept `imageUrl` because
+   * they fetch it themselves from their own infrastructure; doing that here
+   * would make moderator a server-side URL fetcher — an SSRF primitive reachable
+   * from whatever supplies the moderation request. The caller (the FileVault
+   * worker) already holds the object bytes.
+   *
+   * FAILS CLOSED, like analyzeContent: any error throws so the caller escalates
+   * to human review rather than treating the image as clean.
+   *
+   * @param {{ buffer: Buffer }} options
+   */
+  async analyzeImage(options = {}) {
+    const { buffer } = options;
+    if (!Buffer.isBuffer(buffer) || !buffer.length) {
+      throw new Error('Cortex provider error: analyzeImage requires an image buffer');
+    }
+
+    const started = Date.now();
+    let result;
+    try {
+      result = await cortex.moderateImage(buffer);
+    } catch (error) {
+      logger.error('Cortex image moderation unavailable', {
+        code: error.code,
+        error: error.message,
+        ms: Date.now() - started,
+      });
+      throw new Error(`Cortex provider error: ${error.message}`);
+    }
+
+    logger.info('Cortex image moderation completed', {
+      model: result.model,
+      riskScore: result.riskScore,
+      ms: Date.now() - started,
+    });
+    // Already the shape ruleEngineService consumes (see engine/vision.js).
+    return result;
+  }
+
   async healthCheck() {
     const h = await cortex.health();
     if (!h.enabled) return { available: false, error: 'CORTEX_ENABLED is false' };

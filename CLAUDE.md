@@ -123,10 +123,10 @@ Module routes are reached at `<prefix>/<internal-route>`, e.g. `/spark/api/conve
 
 One Postgres database (`exprsn`) with **one schema per module** (set via Sequelize `define.schema`). One shared Redis. Two migration paths: `db:migrate` (`scripts/migrate-sync.js`) syncs models into each schema (the default), while `db:migrate:raw` (`scripts/migrate-modules.js`) replays each module's existing migration files in-place with `DB_SCHEMA`/`DB_NAME` injected via env (moderator uses sequelize-cli; others use their own `scripts/migrate*.js`). Known gap (STATUS.md #1): raw migrations with unqualified table names can land in `public` instead of the module schema — schema-qualify or set a `searchPath` when touching migrations.
 
-### Shared code — two copies
+### Shared code — one copy, two import styles
 
 - `shared/` — the `@exprsn/shared` package (root dependency `file:./shared`): auth/token middleware, role validation, error handling, rate limiting, audit logging, etc.
-- `services/shared/` — a **copy** of the same package, reached by modules using relative requires (`require('../shared/...')`). Both import styles are live in the codebase; if you change shared code, keep both copies in sync (or migrate the relative requires to `@exprsn/shared`).
+- `services/shared/` — a **symlink** to `../shared` (git mode `120000`), so modules using relative requires (`require('../shared/...')`) and modules using `@exprsn/shared` resolve to the *same files*. There is nothing to keep in sync — edit `shared/` and both import styles see it. (This doc previously described them as two copies; that was never true.)
 
 ### Inter-module calls
 

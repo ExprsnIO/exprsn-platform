@@ -190,7 +190,7 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   until assessed. Sized **M** for one scanner integration; route to sr-developer.
 
 ### FEAT-021 — Cortex: local-LLM agents/guardrails module (port of the MacOS LLM engine)
-- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** L
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** —
 - **Cost/Benefit:** done — engine already exists and is proven standalone (the

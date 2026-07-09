@@ -18,6 +18,34 @@ The original services now run **in-process as domain modules** behind a gateway.
 | prefetch | `/prefetch` | `prefetch` | — | exprsn-prefetch (cache) |
 | moderator | `/moderator` | `moderator` | `/moderation`, `/notifications` | exprsn-moderator |
 | live | `/live` | `live` | `/live` | exprsn-live (streaming) |
+| cortex | `/cortex` | `cortex` | — | MacOS LLM agents engine (local-LLM agents/guardrails; flag-gated `CORTEX_ENABLED`) |
+
+### Cortex module (FEAT-021)
+
+Cortex is the platform's local-LLM engine: an agent tool-calling loop,
+guardrail engine (deterministic rules + LLM judge, test-gated lifecycle),
+custom tool/skill registries, long-running agent tasks, and guarded
+customer-service chat/email flows with human-review escalations. Inference
+runs on an **external OpenAI-compatible llama.cpp router**
+(`CORTEX_LLM_BASE_URL`, default `http://127.0.0.1:8080/v1`) — no cloud APIs.
+
+- Ships behind `CORTEX_ENABLED` (default false): mounts inert, tables sync,
+  `/cortex/health` answers, everything else 503s.
+- **Every `/cortex/api/v1` route requires a CA bearer token**; registry
+  mutations, the review queue, and the prompt log are platform-admin gated.
+- Long-running tasks run on Bull queue `cortex-tasks` in a separate worker
+  (`npm run worker:cortex`); interactive chat is in-process behind an LLM
+  concurrency semaphore.
+- **Relationship to moderator:** cortex owns local-LLM inference and its own
+  guardrails; moderator keeps cloud-provider content moderation. With
+  `CORTEX_MODERATE=true`, cortex additionally screens content through
+  `/moderator/api/moderate/content` (service-HMAC headers, fail-open) and the
+  strongest verdict wins. Making moderator consume cortex as a local AI
+  provider is a possible future integration, not wired today.
+- Highest-risk surfaces are separately gated: python custom-tool execution
+  (`CORTEX_PYTHON_TOOLS_ENABLED`, default false — arbitrary code execution;
+  needs real sandboxing before production) and private-network HTTP tool
+  targets (`CORTEX_TOOL_ALLOW_PRIVATE_HOSTS`, default false — SSRF guard).
 
 ## Topology
 

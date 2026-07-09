@@ -42,6 +42,22 @@ npm start              # https://localhost:8443  → GET /health
 
 ## Recently resolved
 
+### Cortex module landed, RUNTIME-VERIFIED (2026-07-09) — FEAT-021
+New `services/cortex/` module: local-LLM agents/guardrails/skills/tools ported
+from the standalone MacOS LLM service (see `ARCHITECTURE.md` → Cortex module,
+`API_SURFACE.md` → Cortex). Flag-gated `CORTEX_ENABLED` (default false, loads
+inert); every `/cortex/api/v1` route CA-token gated, registry mutations and
+reviews platform-admin gated. Verified live against PG+Redis and a llama.cpp
+router on :8080: `db:migrate` ✓ cortex (9 tables), seeded defaults
+(`seed:cortex`), 79 Jest tests green (incl. 503/401 wiring for every route),
+token round-trip (401 no-token / 200 admin / 403 non-admin mutation), an agent
+task run end-to-end through the Bull worker (`worker:cortex`) with a
+guardrail-screened transcript + workspace file, and a cs/chat legal-threat
+escalation → pending review → admin approve (409 on re-approve). Known
+deferrals: python-tool sandboxing before production enablement (flag default
+off), Socket.IO task-progress namespace (polling for now), dataset tools /
+attachments / MCP not ported.
+
 ### TODO.md burn-down (2026-07-02) — admin console + moderation + group calendar
 Implemented every open item in `TODO.md` (see its Done section for the checklist).
 Highlights:

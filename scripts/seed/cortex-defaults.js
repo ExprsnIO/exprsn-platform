@@ -80,6 +80,9 @@ async function main() {
     process.exit(1);
   }
   console.log('\nCortex defaults seeded.');
+  // @exprsn/shared leaves a keep-alive handle open at require time; exit
+  // explicitly so the one-shot seeder doesn't hang the calling shell.
+  process.exit(0);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

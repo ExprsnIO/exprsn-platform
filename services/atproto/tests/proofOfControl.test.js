@@ -5,16 +5,18 @@ const TOKEN = 'exprsn-verify-abc123';
 
 describe('proofOfControl', () => {
   test('checkWellKnown passes when the did:web host serves the token', async () => {
+    // IP literal (not a hostname) so this stays hermetic — safeFetch's SSRF guard
+    // (BUG-001) resolves hostnames via real DNS, and this suite runs offline.
     const fetchImpl = async (url) => {
-      expect(url).toBe('https://example.com/.well-known/atproto-did-challenge.txt');
+      expect(url).toBe('https://8.8.8.8/.well-known/atproto-did-challenge.txt');
       return { ok: true, status: 200, text: async () => `${TOKEN}\n` };
     };
-    expect(await proof.checkWellKnown('did:web:example.com', TOKEN, { fetchImpl })).toBe(true);
+    expect(await proof.checkWellKnown('did:web:8.8.8.8', TOKEN, { fetchImpl })).toBe(true);
   });
 
   test('checkWellKnown decodes the port and fails on missing token', async () => {
     const fetchImpl = async () => ({ ok: true, status: 200, text: async () => 'nope' });
-    expect(await proof.checkWellKnown('did:web:example.com%3A8443', TOKEN, { fetchImpl })).toBe(false);
+    expect(await proof.checkWellKnown('did:web:8.8.8.8%3A8443', TOKEN, { fetchImpl })).toBe(false);
   });
 
   test('verify falls back to the profile description for did:plc', async () => {

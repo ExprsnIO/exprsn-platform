@@ -3,3 +3,8 @@ dist
 dist-ssr
 *.local
 .DS_Store
+
+# Playwright E2E (TASK-001)
+/test-results/
+/playwright-report/
+/playwright/.cache/

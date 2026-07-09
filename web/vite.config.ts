@@ -47,5 +47,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // Playwright E2E specs (web/e2e, TASK-001) run via `npm run e2e`, never vitest.
+    exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
   },
 });

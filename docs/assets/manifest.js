@@ -95,6 +95,12 @@
         title: 'Runbook: Secrets & Rotation',
         description: 'How production secrets are sourced, what must be set before a deploy, and how to rotate each secret.',
         path: 'docs/runbooks/secrets-and-rotation.md'
+      },
+      {
+        id: 'runbook-calendar-contacts-subscriptions',
+        title: 'Runbook: Calendar & Contacts Subscriptions',
+        description: 'How to subscribe a Nexus group calendar and contacts in macOS/iOS/Google Calendar/Thunderbird via the read-only .ics/.vcf URLs.',
+        path: 'docs/runbooks/calendar-contacts-subscriptions.md'
       }
     ],
 

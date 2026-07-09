@@ -11,6 +11,7 @@
  * - Group member contacts
  */
 
+const { Op } = require('sequelize');
 const { GroupMembership, Group } = require('../models');
 const logger = require('../utils/logger');
 const crypto = require('crypto');
@@ -178,7 +179,7 @@ async function getMembersForSync(groupId, syncToken, options = {}) {
     const memberships = await GroupMembership.findAll({
       where: {
         groupId,
-        updatedAt: { $gt: syncTime }
+        updatedAt: { [Op.gt]: syncTime }
       },
       order: [['updatedAt', 'ASC']]
     });

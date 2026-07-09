@@ -1,410 +1,231 @@
 /**
  * ═══════════════════════════════════════════════════════════
  * SAML SSO Tests
- * Test SAML 2.0 authentication flows, metadata, and providers
+ *
+ * The SAML implementation is CONFIG-driven (src/config/saml.js: env-configured
+ * IdPs, passport-saml strategies) — there is no SAMLProvider DB model. In the
+ * test environment SAML is disabled (SAML_ENABLED !== 'true'), so the HTTP
+ * surface must fail closed with 503 SAML_DISABLED, and /status reports
+ * enabled:false. Service-level behavior (attribute mapping, JIT provisioning)
+ * is tested directly against SamlService.
  * ═══════════════════════════════════════════════════════════
  */
 
 const request = require('supertest');
-const app = require('../src/index');
-const { User, Organization, SAMLProvider } = require('../src/models');
-const samlService = require('../src/services/samlService');
-const { createTestUser, createTestOrganization, cleanupTestData } = require('./helpers/testDatabase');
+const app = require('../src/app');
+const samlConfig = require('../src/config/saml');
+const { SamlService } = require('../src/services/samlService');
+const {
+  setupTestDatabase,
+  teardownTestDatabase,
+  clearDatabase,
+  createTestUser,
+  getModels
+} = require('./helpers/testDatabase');
 
-describe('SAML SSO Integration', () => {
-  let testUser;
-  let testOrg;
-  let samlProvider;
-
+describe('SAML SSO', () => {
   beforeAll(async () => {
-    testUser = await createTestUser();
-    testOrg = await createTestOrganization(testUser.id);
+    await setupTestDatabase();
   });
 
   afterAll(async () => {
-    await cleanupTestData();
+    await teardownTestDatabase();
   });
 
   beforeEach(async () => {
-    // Create test SAML provider
-    samlProvider = await SAMLProvider.create({
-      organizationId: testOrg.id,
-      name: 'Test IdP',
-      entityId: 'https://test-idp.example.com',
-      ssoUrl: 'https://test-idp.example.com/sso',
-      sloUrl: 'https://test-idp.example.com/slo',
-      certificate: 'TEST_CERT_DATA',
-      active: true,
-      attributeMapping: {
-        email: 'urn:oid:0.9.2342.19200300.100.1.3',
-        firstName: 'urn:oid:2.5.4.42',
-        lastName: 'urn:oid:2.5.4.4'
-      }
+    await clearDatabase();
+  });
+
+  describe('Disabled configuration (test environment)', () => {
+    test('config reports SAML disabled', () => {
+      expect(samlConfig.enabled).toBe(false);
     });
-  });
 
-  afterEach(async () => {
-    if (samlProvider) {
-      await samlProvider.destroy();
-    }
-  });
+    test('validateConfig is valid (trivially) when disabled', () => {
+      const result = samlConfig.validateConfig();
+      expect(result.valid).toBe(true);
+    });
 
-  describe('SAML Metadata Generation', () => {
-    it('should generate valid SP metadata XML', async () => {
+    test('GET /api/saml/metadata fails closed with 503 SAML_DISABLED', async () => {
       const response = await request(app)
         .get('/api/saml/metadata')
-        .expect(200);
-
-      expect(response.headers['content-type']).toContain('application/xml');
-      expect(response.text).toContain('<EntityDescriptor');
-      expect(response.text).toContain('entityID=');
-      expect(response.text).toContain('<SPSSODescriptor');
-      expect(response.text).toContain('<AssertionConsumerService');
-      expect(response.text).toContain('<SingleLogoutService');
+        .expect(503);
+      expect(response.body.error).toBe('SAML_DISABLED');
     });
 
-    it('should include correct ACS URL in metadata', async () => {
+    test('GET /api/saml/login fails closed with 503 SAML_DISABLED', async () => {
       const response = await request(app)
-        .get('/api/saml/metadata')
-        .expect(200);
-
-      expect(response.text).toContain('Location="http://');
-      expect(response.text).toContain('/api/saml/callback"');
+        .get('/api/saml/login')
+        .expect(503);
+      expect(response.body.error).toBe('SAML_DISABLED');
     });
 
-    it('should include X.509 certificate in metadata', async () => {
-      const response = await request(app)
-        .get('/api/saml/metadata')
-        .expect(200);
-
-      expect(response.text).toContain('<X509Certificate>');
-      expect(response.text).toContain('</X509Certificate>');
-    });
-
-    it('should support SAML 2.0 protocol binding', async () => {
-      const response = await request(app)
-        .get('/api/saml/metadata')
-        .expect(200);
-
-      expect(response.text).toContain('urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST');
-      expect(response.text).toContain('urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect');
-    });
-  });
-
-  describe('SAML Provider Management', () => {
-    it('should list configured SAML providers', async () => {
-      const response = await request(app)
-        .get('/api/saml/providers')
-        .expect(200);
-
-      expect(response.body.providers).toBeInstanceOf(Array);
-      expect(response.body.providers.length).toBeGreaterThan(0);
-      expect(response.body.providers[0]).toHaveProperty('name');
-      expect(response.body.providers[0]).toHaveProperty('entityId');
-    });
-
-    it('should filter active providers only', async () => {
-      // Deactivate provider
-      await samlProvider.update({ active: false });
-
-      const response = await request(app)
-        .get('/api/saml/providers?active=true')
-        .expect(200);
-
-      expect(response.body.providers).toBeInstanceOf(Array);
-      expect(response.body.providers.length).toBe(0);
-    });
-
-    it('should return provider configuration without sensitive data', async () => {
-      const response = await request(app)
-        .get('/api/saml/providers')
-        .expect(200);
-
-      const provider = response.body.providers[0];
-      expect(provider).not.toHaveProperty('certificate');
-      expect(provider).not.toHaveProperty('privateKey');
-    });
-  });
-
-  describe('SAML Authentication Initiation', () => {
-    it('should initiate SAML login flow', async () => {
-      const response = await request(app)
-        .get(`/api/saml/login?providerId=${samlProvider.id}`)
-        .expect(302);
-
-      expect(response.headers.location).toBeDefined();
-      expect(response.headers.location).toContain(samlProvider.ssoUrl);
-    });
-
-    it('should include SAMLRequest in redirect URL', async () => {
-      const response = await request(app)
-        .get(`/api/saml/login?providerId=${samlProvider.id}`)
-        .expect(302);
-
-      expect(response.headers.location).toContain('SAMLRequest=');
-    });
-
-    it('should reject login with invalid provider ID', async () => {
-      const response = await request(app)
-        .get('/api/saml/login?providerId=invalid-uuid')
-        .expect(404);
-
-      expect(response.body.error).toBe('PROVIDER_NOT_FOUND');
-    });
-
-    it('should reject login with inactive provider', async () => {
-      await samlProvider.update({ active: false });
-
-      const response = await request(app)
-        .get(`/api/saml/login?providerId=${samlProvider.id}`)
-        .expect(403);
-
-      expect(response.body.error).toBe('PROVIDER_INACTIVE');
-    });
-  });
-
-  describe('SAML Response Validation', () => {
-    it('should validate SAML response signature', async () => {
-      const invalidResponse = '<samlp:Response>invalid</samlp:Response>';
-
-      const result = await samlService.validateSAMLResponse(invalidResponse, samlProvider);
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('should validate response issuer matches provider', async () => {
-      const mockResponse = {
-        issuer: 'https://wrong-idp.example.com',
-        assertions: []
-      };
-
-      const result = await samlService.validateSAMLResponse(mockResponse, samlProvider);
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('issuer');
-    });
-
-    it('should validate assertion expiration', async () => {
-      const expiredAssertion = {
-        issuer: samlProvider.entityId,
-        notBefore: new Date(Date.now() - 3600000).toISOString(),
-        notOnOrAfter: new Date(Date.now() - 1800000).toISOString(),
-        attributes: {}
-      };
-
-      const result = await samlService.validateSAMLResponse({ assertions: [expiredAssertion] }, samlProvider);
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('expired');
-    });
-
-    it('should validate audience restriction', async () => {
-      const mockAssertion = {
-        audience: 'https://wrong-sp.example.com',
-        attributes: {}
-      };
-
-      const result = await samlService.validateSAMLResponse({ assertions: [mockAssertion] }, samlProvider);
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('audience');
-    });
-  });
-
-  describe('SAML Assertion Consumer Service (ACS)', () => {
-    it('should accept valid SAML response at callback endpoint', async () => {
-      // Mock valid SAML response (simplified)
-      const validSAMLResponse = Buffer.from('<samlp:Response></samlp:Response>').toString('base64');
-
+    test('POST /api/saml/callback fails closed with 503 SAML_DISABLED', async () => {
       const response = await request(app)
         .post('/api/saml/callback')
-        .send({ SAMLResponse: validSAMLResponse })
-        .expect(302);
-
-      // Should redirect after processing
-      expect(response.headers.location).toBeDefined();
+        .send({ SAMLResponse: Buffer.from('<samlp:Response/>').toString('base64') })
+        .expect(503);
+      expect(response.body.error).toBe('SAML_DISABLED');
     });
 
-    it('should reject callback without SAMLResponse', async () => {
+    test('GET /api/saml/logout fails closed with 503 SAML_DISABLED', async () => {
       const response = await request(app)
-        .post('/api/saml/callback')
+        .get('/api/saml/logout')
+        .expect(503);
+      expect(response.body.error).toBe('SAML_DISABLED');
+    });
+
+    test('POST /api/saml/logout/callback fails closed with 503 SAML_DISABLED', async () => {
+      const response = await request(app)
+        .post('/api/saml/logout/callback')
         .send({})
-        .expect(400);
-
-      expect(response.body.error).toBe('MISSING_SAML_RESPONSE');
+        .expect(503);
+      expect(response.body.error).toBe('SAML_DISABLED');
     });
 
-    it('should reject malformed SAMLResponse', async () => {
+    test('GET /api/saml/providers fails closed with 503 SAML_DISABLED', async () => {
       const response = await request(app)
-        .post('/api/saml/callback')
-        .send({ SAMLResponse: 'not-base64' })
-        .expect(400);
+        .get('/api/saml/providers')
+        .expect(503);
+      expect(response.body.error).toBe('SAML_DISABLED');
+    });
 
-      expect(response.body.error).toBe('INVALID_SAML_RESPONSE');
+    test('GET /api/saml/status reports disabled without leaking config', async () => {
+      const response = await request(app)
+        .get('/api/saml/status')
+        .expect(200);
+
+      expect(response.body).toEqual({
+        enabled: false,
+        configured: false,
+        providers: []
+      });
     });
   });
 
-  describe('Just-in-Time (JIT) User Provisioning', () => {
-    it('should create new user from SAML attributes', async () => {
-      const samlAttributes = {
-        email: 'newuser@example.com',
-        firstName: 'John',
-        lastName: 'Doe'
+  describe('SamlService strategy management', () => {
+    test('getStrategy throws before initialize()', () => {
+      const service = new SamlService();
+      expect(() => service.getStrategy()).toThrow('SAML service not initialized');
+    });
+
+    test('initialize() is a no-op while SAML is disabled', async () => {
+      const service = new SamlService();
+      await service.initialize();
+      expect(service.initialized).toBe(false);
+      expect(service.strategies.size).toBe(0);
+    });
+
+    test('getIdentityProviders returns [] with no IdPs configured', () => {
+      const service = new SamlService();
+      expect(service.getIdentityProviders()).toEqual([]);
+    });
+  });
+
+  describe('SAML attribute mapping', () => {
+    const service = new SamlService();
+
+    test('maps profile attributes using the configured attribute mapping', () => {
+      const profile = {
+        nameID: 'user@example.com',
+        sessionIndex: 'sess-1',
+        issuer: 'https://idp.example.com',
+        attributes: {
+          [samlConfig.attributeMapping.firstName]: 'Alice',
+          [samlConfig.attributeMapping.lastName]: 'Wonder',
+          [samlConfig.attributeMapping.displayName]: 'Alice Wonder'
+        }
       };
 
-      const user = await samlService.findOrCreateUser(samlAttributes, samlProvider);
+      const mapped = service.mapSAMLAttributes(profile);
+
+      expect(mapped.email).toBe('user@example.com'); // nameID wins
+      expect(mapped.firstName).toBe('Alice');
+      expect(mapped.lastName).toBe('Wonder');
+      expect(mapped.displayName).toBe('Alice Wonder');
+      expect(mapped.samlNameId).toBe('user@example.com');
+      expect(mapped.samlSessionIndex).toBe('sess-1');
+      expect(mapped.samlIssuer).toBe('https://idp.example.com');
+    });
+
+    test('falls back to nameID for displayName when unmapped', () => {
+      const profile = { nameID: 'minimal@example.com', attributes: {} };
+      const mapped = service.mapSAMLAttributes(profile);
+      expect(mapped.displayName).toBe('minimal@example.com');
+      expect(mapped.firstName).toBeUndefined();
+    });
+
+    test('getAttributeValue handles single, array, and multiple modes', () => {
+      const attrs = { groups: ['a', 'b'], single: 'x' };
+      expect(service.getAttributeValue(attrs, 'single')).toBe('x');
+      expect(service.getAttributeValue(attrs, 'groups')).toBe('a');
+      expect(service.getAttributeValue(attrs, 'groups', true)).toEqual(['a', 'b']);
+      expect(service.getAttributeValue(attrs, 'missing', true)).toEqual([]);
+      expect(service.getAttributeValue(attrs, 'missing')).toBeUndefined();
+      expect(service.getAttributeValue(null, 'anything')).toBeUndefined();
+    });
+  });
+
+  describe('Just-in-Time (JIT) user provisioning', () => {
+    const service = new SamlService();
+
+    test('creates a new user from SAML attributes (auto-provision default on)', async () => {
+      const user = await service.findOrCreateUser({
+        email: 'newuser@example.com',
+        displayName: 'John Doe',
+        samlNameId: 'newuser@example.com',
+        samlSessionIndex: 'sess-jit'
+      }, 'default');
 
       expect(user).toBeDefined();
       expect(user.email).toBe('newuser@example.com');
-      expect(user.displayName).toContain('John');
-      expect(user.displayName).toContain('Doe');
+      expect(user.displayName).toBe('John Doe');
+      // SAML_REQUIRE_EMAIL_VERIFICATION is unset → SAML email is trusted
+      expect(user.emailVerified).toBe(true);
+
+      const models = getModels();
+      const dbUser = await models.User.findOne({ where: { email: 'newuser@example.com' } });
+      expect(dbUser).toBeTruthy();
     });
 
-    it('should find existing user by email', async () => {
-      const existingUser = await User.create({
-        email: 'existing@example.com',
-        passwordHash: 'hash',
-        emailVerified: true
-      });
+    test('finds an existing user by email instead of duplicating', async () => {
+      const existingUser = await createTestUser({ email: 'existing@example.com' });
 
-      const samlAttributes = {
+      const user = await service.findOrCreateUser({
         email: 'existing@example.com',
-        firstName: 'Jane',
-        lastName: 'Smith'
-      };
-
-      const user = await samlService.findOrCreateUser(samlAttributes, samlProvider);
+        displayName: 'Jane Smith'
+      }, 'default');
 
       expect(user.id).toBe(existingUser.id);
       expect(user.email).toBe('existing@example.com');
 
-      await existingUser.destroy();
+      const models = getModels();
+      const count = await models.User.count({ where: { email: 'existing@example.com' } });
+      expect(count).toBe(1);
     });
 
-    it('should map SAML attributes to user fields', async () => {
-      const samlAttributes = {
-        [samlProvider.attributeMapping.email]: 'test@example.com',
-        [samlProvider.attributeMapping.firstName]: 'Alice',
-        [samlProvider.attributeMapping.lastName]: 'Wonder'
-      };
+    test('updates lastLoginAt on repeat SAML login', async () => {
+      const existingUser = await createTestUser({ email: 'repeat@example.com' });
+      expect(existingUser.lastLoginAt).toBeNull();
 
-      const mapped = samlService.mapSAMLAttributes(samlAttributes, samlProvider);
-
-      expect(mapped.email).toBe('test@example.com');
-      expect(mapped.firstName).toBe('Alice');
-      expect(mapped.lastName).toBe('Wonder');
+      const user = await service.findOrCreateUser({ email: 'repeat@example.com' }, 'default');
+      expect(user.lastLoginAt).toBeTruthy();
     });
 
-    it('should handle missing optional attributes', async () => {
-      const samlAttributes = {
+    test('handles missing optional attributes', async () => {
+      const user = await service.findOrCreateUser({
         email: 'minimal@example.com'
-        // No firstName or lastName
-      };
-
-      const user = await samlService.findOrCreateUser(samlAttributes, samlProvider);
+        // no displayName / names
+      }, 'default');
 
       expect(user).toBeDefined();
       expect(user.email).toBe('minimal@example.com');
-      expect(user.displayName).toBe('minimal@example.com');
-    });
-  });
-
-  describe('SAML Single Logout (SLO)', () => {
-    it('should initiate SAML logout', async () => {
-      const response = await request(app)
-        .get(`/api/saml/logout?providerId=${samlProvider.id}`)
-        .expect(302);
-
-      expect(response.headers.location).toBeDefined();
-      expect(response.headers.location).toContain(samlProvider.sloUrl);
     });
 
-    it('should include LogoutRequest in SLO redirect', async () => {
-      const response = await request(app)
-        .get(`/api/saml/logout?providerId=${samlProvider.id}`)
-        .expect(302);
-
-      expect(response.headers.location).toContain('SAMLRequest=');
-    });
-
-    it('should handle SLO callback', async () => {
-      const logoutResponse = Buffer.from('<samlp:LogoutResponse></samlp:LogoutResponse>').toString('base64');
-
-      const response = await request(app)
-        .post('/api/saml/logout/callback')
-        .send({ SAMLResponse: logoutResponse })
-        .expect(302);
-
-      expect(response.headers.location).toBeDefined();
-    });
-
-    it('should clear user session on SLO', async () => {
-      // This would require session setup - simplified test
-      const logoutResponse = Buffer.from('<samlp:LogoutResponse></samlp:LogoutResponse>').toString('base64');
-
-      await request(app)
-        .post('/api/saml/logout/callback')
-        .send({ SAMLResponse: logoutResponse })
-        .expect(302);
-
-      // Session should be cleared (verification would require session testing)
-    });
-  });
-
-  describe('SAML Error Handling', () => {
-    it('should handle IdP error responses', async () => {
-      const errorResponse = '<samlp:Response><samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Responder"/></samlp:Status></samlp:Response>';
-      const encoded = Buffer.from(errorResponse).toString('base64');
-
-      const response = await request(app)
-        .post('/api/saml/callback')
-        .send({ SAMLResponse: encoded })
-        .expect(401);
-
-      expect(response.body.error).toBeDefined();
-    });
-
-    it('should handle missing required SAML attributes', async () => {
-      const samlAttributes = {
-        // Missing email
-        firstName: 'Test',
-        lastName: 'User'
-      };
-
+    test('rejects attributes without an email', async () => {
       await expect(
-        samlService.findOrCreateUser(samlAttributes, samlProvider)
-      ).rejects.toThrow();
-    });
-
-    it('should handle certificate validation errors', async () => {
-      const invalidProvider = { ...samlProvider.toJSON(), certificate: 'INVALID' };
-
-      const result = await samlService.validateSAMLResponse('<samlp:Response></samlp:Response>', invalidProvider);
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain('certificate');
-    });
-  });
-
-  describe('SAML Service Status', () => {
-    it('should return SAML service status', async () => {
-      const response = await request(app)
-        .get('/api/saml/status')
-        .expect(200);
-
-      expect(response.body).toHaveProperty('enabled');
-      expect(response.body).toHaveProperty('providers');
-      expect(typeof response.body.enabled).toBe('boolean');
-      expect(typeof response.body.providers).toBe('number');
-    });
-
-    it('should include certificate expiration info', async () => {
-      const response = await request(app)
-        .get('/api/saml/status')
-        .expect(200);
-
-      expect(response.body).toHaveProperty('certificateExpiry');
+        service.findOrCreateUser({ firstName: 'Test', lastName: 'User' }, 'default')
+      ).rejects.toThrow('Email is required');
     });
   });
 });

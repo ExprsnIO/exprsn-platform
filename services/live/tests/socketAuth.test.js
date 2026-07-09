@@ -60,13 +60,26 @@ function createMockSocket({ authenticated = false, userId = null } = {}) {
 
 describe('live socket auth (SP-7 / STATUS #11)', () => {
   let io;
+  let handler;
 
   beforeEach(() => {
     jest.clearAllMocks();
     io = createMockIo();
-    // eslint-disable-next-line no-new -- constructor wires use()/on() onto the mock io
-    new SocketHandler(io);
+    handler = new SocketHandler(io);
   });
+
+  /**
+   * Seed the in-memory room state so `socket` and `peerId` are tracked
+   * participants of the same room — the precondition the BUG-003 shared-room
+   * relay guard enforces on every signaling forward.
+   */
+  function seedSharedRoom(socket, peerId, roomId = 'room-1') {
+    handler.connections.get(socket.id).roomId = roomId;
+    handler.roomParticipants.set(roomId, new Map([
+      [socket.id, { userId: socket.userId }],
+      [peerId, { userId: 'peer-user' }]
+    ]));
+  }
 
   describe('optional-auth handshake', () => {
     it('stamps identity from a valid CA bearer', async () => {
@@ -140,9 +153,10 @@ describe('live socket auth (SP-7 / STATUS #11)', () => {
         expect(socket.to).not.toHaveBeenCalled();
       });
 
-      it(`forwards "${event}" from an authenticated socket`, () => {
+      it(`forwards "${event}" from an authenticated socket sharing a room with the target`, () => {
         const socket = createMockSocket({ authenticated: true, userId: 'u1' });
         io._connect(socket);
+        seedSharedRoom(socket, 'peer-1');
 
         socket._handlers[event]({ to: 'peer-1', signal: { x: 1 }, offer: { x: 1 }, answer: { x: 1 }, candidate: { x: 1 } });
 

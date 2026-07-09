@@ -11,6 +11,9 @@ const fs = require('fs');
 const path = require('path');
 const { fork } = require('child_process');
 
+// Hard refusal: seeders must never run against a production environment.
+require('./prod-guard');
+
 // Keep DB pools small: forked workers each open their own pool and Postgres
 // max_connections is 100. (10 workers * 4) + orchestrator stays well under.
 process.env.DB_POOL_MAX = process.env.DB_POOL_MAX || '4';
@@ -40,9 +43,26 @@ const config = {
   tokensPerUser: intEnv('TOKENS_PER_USER', 100),
   concurrency: intEnv('CONCURRENCY', Math.max(2, Math.min(10, (os.cpus().length || 4) - 2))),
   entityTypes: ['client', 'server', 'code_signing'],
-  password: process.env.SEED_PASSWORD || 'SeedPassw0rd!23',
   emailDomain: 'seed.test',
 };
+
+// No default password is shipped. Lazy getter so scripts that never touch
+// config.password (reset.js, verify.js) don't need SEED_PASSWORD set, but
+// anything that does (seed-main.js) fails fast, before it touches the DB,
+// with a clear message.
+Object.defineProperty(config, 'password', {
+  enumerable: true,
+  get() {
+    const pw = process.env.SEED_PASSWORD;
+    if (!pw) {
+      throw new Error(
+        "SEED_PASSWORD is required (no default password is shipped). Set it, e.g.: "
+        + "SEED_PASSWORD='<choose-a-dev-password>' node scripts/seed/seed-main.js"
+      );
+    }
+    return pw;
+  },
+});
 
 const SCRATCH = process.env.SEED_SCRATCH || path.join(os.tmpdir(), 'exprsn-seed-work');
 const MANIFEST = path.join(SCRATCH, 'manifest.json');

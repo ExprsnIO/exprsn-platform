@@ -113,6 +113,40 @@ class SocketHandler {
   }
 
   /**
+   * Shared-room guard for WebRTC relays (BUG-003): a client-supplied `to`
+   * socket id is only a valid relay target when BOTH the sender and the target
+   * are tracked participants of the same room. `join-room` is the only path
+   * into `roomParticipants` and it is identity-gated, so this stops an authed
+   * socket from spraying signaling at arbitrary sockets on the namespace
+   * (peers in other rooms, anonymous stream viewers, etc.).
+   * Emits an error to the caller and returns false when the relay must drop.
+   */
+  canRelayTo(socket, to, event) {
+    const conn = this.connections.get(socket.id);
+    const roomId = conn ? conn.roomId : null;
+    const participants = roomId ? this.roomParticipants.get(roomId) : null;
+
+    if (
+      !to || typeof to !== 'string' ||
+      !participants || !participants.has(socket.id) || !participants.has(to)
+    ) {
+      logger.warn('Dropped relay to socket outside sender room', {
+        socketId: socket.id,
+        to,
+        roomId,
+        event
+      });
+      socket.emit('error', {
+        event,
+        code: 'NOT_IN_SHARED_ROOM',
+        message: 'Relay target is not a participant of your room'
+      });
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * Setup Socket.IO event handlers
    */
   setupHandlers() {
@@ -497,10 +531,17 @@ class SocketHandler {
     // All WebRTC signaling carries publish/peer media negotiation, so every
     // event requires a validated identity. Pure stream viewers use HLS over HTTP
     // and never emit these — gating them does not affect viewer latency.
+    //
+    // On top of the identity gate, every relay to a client-supplied `to` socket
+    // id is scoped by canRelayTo(): sender and target must both be participants
+    // of the same room, or the relay is dropped (BUG-003).
 
     // Generic signal (for compatibility)
-    socket.on('signal', ({ to, signal }) => {
+    socket.on('signal', ({ to, signal } = {}) => {
       if (!this.requireAuthed(socket, 'signal')) {
+        return;
+      }
+      if (!this.canRelayTo(socket, to, 'signal')) {
         return;
       }
       logger.debug('Forwarding signal', {
@@ -516,8 +557,11 @@ class SocketHandler {
     });
 
     // WebRTC offer
-    socket.on('offer', ({ to, offer }) => {
+    socket.on('offer', ({ to, offer } = {}) => {
       if (!this.requireAuthed(socket, 'offer')) {
+        return;
+      }
+      if (!this.canRelayTo(socket, to, 'offer')) {
         return;
       }
       logger.debug('Forwarding offer', {
@@ -532,8 +576,11 @@ class SocketHandler {
     });
 
     // WebRTC answer
-    socket.on('answer', ({ to, answer }) => {
+    socket.on('answer', ({ to, answer } = {}) => {
       if (!this.requireAuthed(socket, 'answer')) {
+        return;
+      }
+      if (!this.canRelayTo(socket, to, 'answer')) {
         return;
       }
       logger.debug('Forwarding answer', {
@@ -548,8 +595,11 @@ class SocketHandler {
     });
 
     // ICE candidate
-    socket.on('ice-candidate', ({ to, candidate }) => {
+    socket.on('ice-candidate', ({ to, candidate } = {}) => {
       if (!this.requireAuthed(socket, 'ice-candidate')) {
+        return;
+      }
+      if (!this.canRelayTo(socket, to, 'ice-candidate')) {
         return;
       }
       logger.debug('Forwarding ICE candidate', {

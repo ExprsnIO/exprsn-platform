@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch: # enables the manual, non-blocking Web E2E job (TASK-001)
 
 jobs:
   # ── Required gate: lint the backend ────────────────────────────────────────
@@ -98,3 +99,32 @@ jobs:
           PGPASSWORD=exprsn psql -h localhost -U exprsn -d exprsn \
             -c "CREATE DATABASE exprsn_auth_test;" || echo "exprsn_auth_test may already exist"
       - run: npm run test:all
+
+  # ── Optional (manual only): frontend E2E — login → MFA → sessions revoke ───
+  # TASK-001. Playwright drives the real SPA against a live gateway (register +
+  # login + MFA setup/verify + session revoke through :8443). GitHub's default
+  # runners have NO live Exprsn stack — the gateway boots only against real
+  # Postgres/Redis/nginx and self-signed TLS — so this CANNOT run on push/PR and
+  # is deliberately NOT a gate. It is `workflow_dispatch` only, as executable
+  # documentation of the harness; run it locally (`npm run web:e2e`) with the
+  # gateway up. When a full compose-based stack is stood up in CI, drop the
+  # `if:` guard to let it run. Kept off the required lint/web-build gates.
+  e2e-web:
+    name: Web E2E (manual, non-blocking)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm run web:install
+      - run: npx --prefix web playwright install --with-deps chromium
+      # Requires a running gateway on https://localhost:8443 + the SPA dev server
+      # (playwright.config.ts auto-starts Vite). No live stack here → the job is
+      # gated off by the `if:` above; this step documents the invocation.
+      - run: npm run web:e2e
+        env:
+          E2E_GATEWAY_ORIGIN: https://localhost:8443

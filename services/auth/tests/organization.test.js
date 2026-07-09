@@ -18,6 +18,21 @@ const {
   getModels
 } = require('./helpers/testDatabase');
 
+/**
+ * Owner/admin API checks are MEMBERSHIP-based (organizationService.isOwnerOrAdmin
+ * looks for an active OrganizationMember row with role owner/admin — the
+ * createOrganization flow always creates one). Orgs created directly in tests
+ * must add that row for the owner to act via the API.
+ */
+async function addOwnerMembership(org, owner) {
+  return getModels().OrganizationMember.create({
+    organizationId: org.id,
+    userId: owner.id,
+    role: 'owner',
+    status: 'active'
+  });
+}
+
 describe('Organizations', () => {
   let models;
   let agent;
@@ -114,7 +129,7 @@ describe('Organizations', () => {
         })
         .expect(400);
 
-      expect(response.body.error).toBeTruthy();
+      expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     test('should reject duplicate slug', async () => {
@@ -143,9 +158,9 @@ describe('Organizations', () => {
           name: 'Second Org',
           slug: 'same-slug'
         })
-        .expect(409);
+        .expect(400);
 
-      expect(response.body.error).toContain('exists');
+      expect(response.body.error).toBe('SLUG_EXISTS');
     });
   });
 
@@ -164,6 +179,7 @@ describe('Organizations', () => {
         name: 'Member Test Org',
         ownerId: owner.id
       });
+      await addOwnerMembership(org, owner);
 
       await agent
         .post('/api/auth/login')
@@ -202,6 +218,7 @@ describe('Organizations', () => {
       const org = await createTestOrganization({
         ownerId: owner.id
       });
+      await addOwnerMembership(org, owner);
 
       // Add member
       await models.OrganizationMember.create({
@@ -220,14 +237,21 @@ describe('Organizations', () => {
 
       expect(response.body.success).toBe(true);
 
-      // Verify membership removed
+      // Removal DEACTIVATES the membership row (status: 'inactive'), it does
+      // not hard-delete it — so re-adding can reactivate the same row.
       const membership = await models.OrganizationMember.findOne({
         where: {
           organizationId: org.id,
           userId: member.id
         }
       });
-      expect(membership).toBeNull();
+      expect(membership).toBeTruthy();
+      expect(membership.status).toBe('inactive');
+
+      const activeMembership = await models.OrganizationMember.findOne({
+        where: { organizationId: org.id, userId: member.id, status: 'active' }
+      });
+      expect(activeMembership).toBeNull();
     });
 
     test('should update member role', async () => {
@@ -243,6 +267,7 @@ describe('Organizations', () => {
       const org = await createTestOrganization({
         ownerId: owner.id
       });
+      await addOwnerMembership(org, owner);
 
       await models.OrganizationMember.create({
         organizationId: org.id,
@@ -283,6 +308,7 @@ describe('Organizations', () => {
       const org = await createTestOrganization({
         ownerId: owner.id
       });
+      await addOwnerMembership(org, owner);
 
       await models.OrganizationMember.create({
         organizationId: org.id,
@@ -304,9 +330,11 @@ describe('Organizations', () => {
         .get(`/api/organizations/${org.id}/members`)
         .expect(200);
 
-      expect(response.body.members).toHaveLength(2);
+      // owner + the two added members
+      expect(response.body.members).toHaveLength(3);
       expect(response.body.members.some(m => m.userId === member1.id)).toBe(true);
       expect(response.body.members.some(m => m.userId === member2.id)).toBe(true);
+      expect(response.body.members.some(m => m.userId === owner.id && m.role === 'owner')).toBe(true);
     });
 
     test('should prevent non-members from viewing members', async () => {
@@ -361,7 +389,7 @@ describe('Organizations', () => {
       expect(result.allowed).toBe(true);
     });
 
-    test('should inherit global permissions', async () => {
+    test('global roles apply without org context but NOT inside an org scope', async () => {
       const user = await createTestUser();
       const org = await createTestOrganization();
       const globalRole = await createTestRole({
@@ -369,15 +397,20 @@ describe('Organizations', () => {
         permissions: ['*']
       });
 
-      await user.addRole(globalRole);
+      await user.addRole(globalRole); // global-scope assignment (no organizationId)
 
-      const result = await rbacService.checkPermission(
+      // Unscoped check: the global wildcard role grants access
+      const globalResult = await rbacService.checkPermission(user.id, 'org:any:permission');
+      expect(globalResult.allowed).toBe(true);
+
+      // Org-scoped checks filter role assignments by organizationId, so a
+      // purely global assignment is not visible inside an org scope.
+      const orgScoped = await rbacService.checkPermission(
         user.id,
         'org:any:permission',
         { organizationId: org.id }
       );
-
-      expect(result.allowed).toBe(true);
+      expect(orgScoped.allowed).toBe(false);
     });
 
     test('should override with org-specific permissions', async () => {
@@ -491,6 +524,7 @@ describe('Organizations', () => {
         name: 'Original Name',
         ownerId: owner.id
       });
+      await addOwnerMembership(org, owner);
 
       await agent
         .post('/api/auth/login')
@@ -583,6 +617,9 @@ describe('Organizations', () => {
         name: 'Org 1',
         ownerId: user.id
       });
+      // getUserOrganizations resolves via MEMBERSHIP rows, so the owned org
+      // needs its owner-membership row too (createOrganization adds it).
+      await addOwnerMembership(org1, user);
 
       const org2 = await createTestOrganization({
         name: 'Org 2'
@@ -643,6 +680,12 @@ describe('Organizations', () => {
         role: 'member'
       });
 
+      // isOwnerOrAdmin is membership-based: without the owner-membership row
+      // (which createOrganization normally adds) even the ownerId is denied.
+      const bareOwnerCheck = await organizationService.isOwnerOrAdmin(org.id, owner.id);
+      expect(bareOwnerCheck).toBe(false);
+
+      await addOwnerMembership(org, owner);
       const ownerCheck = await organizationService.isOwnerOrAdmin(org.id, owner.id);
       expect(ownerCheck).toBe(true);
 

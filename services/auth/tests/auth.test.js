@@ -1,6 +1,13 @@
 /**
  * Authentication Tests
- * Tests for user registration, login, email verification, and password management
+ * Tests for user registration, login, email verification, and password
+ * management — aligned with current behavior:
+ *  - Joi schemas run first (VALIDATION_ERROR) and reset/change flows REQUIRE
+ *    confirmPassword; the full password policy (min 12, no sequential runs,
+ *    no common words) then returns WEAK_PASSWORD.
+ *  - The CA bearer is the in-process token id (stateful fake in tests/setup).
+ *  - Email sending goes through getEmailService(); its mock is re-primed per
+ *    test because jest resetMocks wipes factory implementations.
  */
 
 const request = require('supertest');
@@ -14,11 +21,16 @@ const {
   createTestUser,
   getModels
 } = require('./helpers/testDatabase');
-const emailService = require('../src/services/emailService');
-const tokenService = require('../src/services/tokenService');
+const emailServiceModule = require('../src/services/emailService');
+
+// Passes BOTH the Joi register pattern and the passwordService policy
+// (>=12 chars, upper/lower/digit/special, no abc/123 runs, no common words).
+const STRONG_PW = 'Xk9!mQ2@vB7$Lp4z';
+const STRONG_PW_2 = 'Wm4$tR8!nK3@Jd6y';
 
 describe('Authentication', () => {
   let models;
+  let emailMock;
 
   beforeAll(async () => {
     const db = await setupTestDatabase();
@@ -32,13 +44,26 @@ describe('Authentication', () => {
   beforeEach(async () => {
     await clearDatabase();
     jest.clearAllMocks();
+
+    // jest.config resetMocks:true wipes the setup.js mockResolvedValue before
+    // every test — re-prime the email service mock so routes get jest.fn()s.
+    emailMock = {
+      sendEmail: jest.fn().mockResolvedValue(true),
+      sendVerificationEmail: jest.fn().mockResolvedValue(true),
+      sendWelcomeEmail: jest.fn().mockResolvedValue(true),
+      sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
+      sendPasswordChangedEmail: jest.fn().mockResolvedValue(true),
+      sendSecurityAlertEmail: jest.fn().mockResolvedValue(true),
+      sendMFADisabledEmail: jest.fn().mockResolvedValue(true)
+    };
+    emailServiceModule.getEmailService.mockResolvedValue(emailMock);
   });
 
   describe('POST /api/auth/register', () => {
     test('should register new user with valid credentials', async () => {
       const userData = {
         email: 'newuser@example.com',
-        password: 'Test123!@#Strong',
+        password: STRONG_PW,
         displayName: 'New User'
       };
 
@@ -61,46 +86,53 @@ describe('Authentication', () => {
       expect(user.emailVerificationToken).toBeTruthy();
 
       // Verify emails were sent
-      expect(emailService.sendVerificationEmail).toHaveBeenCalledWith(
+      expect(emailMock.sendVerificationEmail).toHaveBeenCalledWith(
         expect.objectContaining({ email: userData.email }),
         expect.any(String)
       );
-      expect(emailService.sendWelcomeEmail).toHaveBeenCalled();
-
-      // Verify CA token was generated
-      expect(tokenService.generateServiceToken).toHaveBeenCalled();
+      expect(emailMock.sendWelcomeEmail).toHaveBeenCalled();
     });
 
-    test('should reject registration with weak password', async () => {
-      const userData = {
-        email: 'test@example.com',
-        password: 'weak',
-        displayName: 'Test User'
-      };
-
+    test('should reject a password failing the Joi schema with VALIDATION_ERROR', async () => {
       const response = await request(app)
         .post('/api/auth/register')
-        .send(userData)
+        .send({
+          email: 'test@example.com',
+          password: 'weak',
+          displayName: 'Test User'
+        })
+        .expect(400);
+
+      expect(response.body.error).toBe('VALIDATION_ERROR');
+      expect(response.body.details).toEqual(
+        expect.arrayContaining([expect.objectContaining({ field: 'password' })])
+      );
+    });
+
+    test('should reject a policy-weak password with WEAK_PASSWORD', async () => {
+      // Passes the Joi pattern but violates the policy (common word + 123 run)
+      const response = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email: 'test@example.com',
+          password: 'Password123!',
+          displayName: 'Test User'
+        })
         .expect(400);
 
       expect(response.body.error).toBe('WEAK_PASSWORD');
-      expect(response.body.message).toContain('at least');
     });
 
     test('should reject registration with existing email', async () => {
-      const existingUser = await createTestUser({
-        email: 'existing@example.com'
-      });
-
-      const userData = {
-        email: 'existing@example.com',
-        password: 'Test123!@#Strong',
-        displayName: 'Test User'
-      };
+      await createTestUser({ email: 'existing@example.com' });
 
       const response = await request(app)
         .post('/api/auth/register')
-        .send(userData)
+        .send({
+          email: 'existing@example.com',
+          password: STRONG_PW,
+          displayName: 'Test User'
+        })
         .expect(409);
 
       expect(response.body.error).toBe('USER_EXISTS');
@@ -109,7 +141,7 @@ describe('Authentication', () => {
     test('should generate email verification token on registration', async () => {
       const userData = {
         email: 'verify@example.com',
-        password: 'Test123!@#Strong'
+        password: STRONG_PW
       };
 
       await request(app)
@@ -123,25 +155,23 @@ describe('Authentication', () => {
       expect(user.emailVerified).toBe(false);
     });
 
-    test('should return CA token on successful registration', async () => {
-      const userData = {
-        email: 'token@example.com',
-        password: 'Test123!@#Strong'
-      };
-
+    test('should return a CA bearer token on successful registration', async () => {
       const response = await request(app)
         .post('/api/auth/register')
-        .send(userData)
+        .send({
+          email: 'token@example.com',
+          password: STRONG_PW
+        })
         .expect(201);
 
       expect(response.body.token).toBeTruthy();
-      expect(response.body.token).toBe('mock-ca-token-12345');
+      expect(typeof response.body.token).toBe('string');
     });
   });
 
   describe('POST /api/auth/login', () => {
     test('should login with valid credentials', async () => {
-      const user = await createTestUser({
+      await createTestUser({
         email: 'login@example.com',
         password: await bcrypt.hash('Test123!@#', 12),
         emailVerified: true
@@ -178,7 +208,7 @@ describe('Authentication', () => {
       expect(response.body.error).toBe('AUTH_FAILED');
     });
 
-    test('should return CA token on successful login', async () => {
+    test('should return a CA bearer token on successful login', async () => {
       await createTestUser({
         email: 'token@example.com',
         password: await bcrypt.hash('Test123!@#', 12)
@@ -193,15 +223,15 @@ describe('Authentication', () => {
         .expect(200);
 
       expect(response.body.token).toBeTruthy();
-      expect(tokenService.generateServiceToken).toHaveBeenCalled();
+      expect(typeof response.body.token).toBe('string');
     });
 
-    test('should handle MFA requirement if enabled', async () => {
-      const user = await createTestUser({
+    test('should withhold token and challenge for MFA when enabled', async () => {
+      await createTestUser({
         email: 'mfa@example.com',
         password: await bcrypt.hash('Test123!@#', 12),
         mfaEnabled: true,
-        mfaSecret: 'test-secret'
+        mfaSecret: 'JBSWY3DPEHPK3PXP'
       });
 
       const response = await request(app)
@@ -209,10 +239,12 @@ describe('Authentication', () => {
         .send({
           email: 'mfa@example.com',
           password: 'Test123!@#'
-        });
+        })
+        .expect(200);
 
-      // Should succeed but require MFA verification
-      expect(response.status).toBe(200);
+      expect(response.body.mfaRequired).toBe(true);
+      expect(response.body.mfaToken).toBeTruthy();
+      expect(response.body.token).toBeUndefined();
     });
 
     test('should reject login with non-existent email', async () => {
@@ -244,24 +276,32 @@ describe('Authentication', () => {
 
       expect(response.body.message).toContain('verified');
 
-      // Verify in database
       await user.reload();
       expect(user.emailVerified).toBe(true);
       expect(user.emailVerificationToken).toBeNull();
     });
 
-    test('should reject invalid verification token', async () => {
+    test('should reject an unknown (well-formed) verification token', async () => {
       await createTestUser({
         email: 'test@example.com',
-        emailVerificationToken: 'valid-token'
+        emailVerificationToken: crypto.randomBytes(32).toString('hex')
       });
 
       const response = await request(app)
         .post('/api/auth/verify-email')
-        .send({ token: 'invalid-token' })
+        .send({ token: crypto.randomBytes(32).toString('hex') })
         .expect(400);
 
       expect(response.body.error).toBe('INVALID_TOKEN');
+    });
+
+    test('should reject a malformed verification token at the schema', async () => {
+      const response = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ token: 'not-a-hex-token' })
+        .expect(400);
+
+      expect(response.body.error).toBe('VALIDATION_ERROR');
     });
   });
 
@@ -280,10 +320,9 @@ describe('Authentication', () => {
 
       expect(response.body.message).toContain('verification');
 
-      // Verify new token was generated
       await user.reload();
       expect(user.emailVerificationToken).not.toBe('old-token');
-      expect(emailService.sendVerificationEmail).toHaveBeenCalled();
+      expect(emailMock.sendVerificationEmail).toHaveBeenCalled();
     });
 
     test('should prevent resending if already verified', async () => {
@@ -298,7 +337,7 @@ describe('Authentication', () => {
         .expect(200);
 
       expect(response.body.message).toContain('already verified');
-      expect(emailService.sendVerificationEmail).not.toHaveBeenCalled();
+      expect(emailMock.sendVerificationEmail).not.toHaveBeenCalled();
     });
 
     test('should not reveal if email does not exist', async () => {
@@ -308,7 +347,7 @@ describe('Authentication', () => {
         .expect(200);
 
       expect(response.body.message).toBeTruthy();
-      expect(emailService.sendVerificationEmail).not.toHaveBeenCalled();
+      expect(emailMock.sendVerificationEmail).not.toHaveBeenCalled();
     });
   });
 
@@ -325,14 +364,11 @@ describe('Authentication', () => {
 
       expect(response.body.message).toContain('password reset');
 
-      // Verify reset token was generated
       await user.reload();
       expect(user.resetPasswordToken).toBeTruthy();
       expect(user.resetPasswordExpires).toBeTruthy();
-      expect(new Date(user.resetPasswordExpires)).toBeInstanceOf(Date);
 
-      // Verify email was sent
-      expect(emailService.sendPasswordResetEmail).toHaveBeenCalled();
+      expect(emailMock.sendPasswordResetEmail).toHaveBeenCalled();
     });
 
     test('should not reveal if email does not exist', async () => {
@@ -342,10 +378,10 @@ describe('Authentication', () => {
         .expect(200);
 
       expect(response.body.message).toContain('password reset');
-      expect(emailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+      expect(emailMock.sendPasswordResetEmail).not.toHaveBeenCalled();
     });
 
-    test('should generate reset token with expiration', async () => {
+    test('should generate reset token with ~1h expiration', async () => {
       const user = await createTestUser({
         email: 'expire@example.com'
       });
@@ -359,11 +395,11 @@ describe('Authentication', () => {
       expect(user.resetPasswordToken).toHaveLength(64);
       expect(user.resetPasswordExpires).toBeTruthy();
 
-      // Should expire in approximately 1 hour
-      const expiryTime = new Date(user.resetPasswordExpires).getTime();
+      // resetPasswordExpires is a BIGINT (epoch ms) — may come back as string
+      const expiryTime = Number(user.resetPasswordExpires);
       const now = Date.now();
       const oneHour = 60 * 60 * 1000;
-      expect(expiryTime - now).toBeGreaterThan(oneHour - 60000); // Allow 1 min tolerance
+      expect(expiryTime - now).toBeGreaterThan(oneHour - 60000);
       expect(expiryTime - now).toBeLessThan(oneHour + 60000);
     });
   });
@@ -374,26 +410,25 @@ describe('Authentication', () => {
       const user = await createTestUser({
         email: 'reset@example.com',
         resetPasswordToken: resetToken,
-        resetPasswordExpires: Date.now() + 3600000 // 1 hour from now
+        resetPasswordExpires: Date.now() + 3600000
       });
 
       const response = await request(app)
         .post('/api/auth/reset-password')
         .send({
           token: resetToken,
-          password: 'NewPassword123!@#'
+          password: STRONG_PW,
+          confirmPassword: STRONG_PW
         })
         .expect(200);
 
       expect(response.body.message).toContain('reset successful');
 
-      // Verify password was changed and token cleared
       await user.reload();
       expect(user.resetPasswordToken).toBeNull();
       expect(user.resetPasswordExpires).toBeNull();
 
-      // Verify new password works
-      const isValid = await bcrypt.compare('NewPassword123!@#', user.passwordHash);
+      const isValid = await bcrypt.compare(STRONG_PW, user.passwordHash);
       expect(isValid).toBe(true);
     });
 
@@ -402,21 +437,42 @@ describe('Authentication', () => {
       await createTestUser({
         email: 'expired@example.com',
         resetPasswordToken: resetToken,
-        resetPasswordExpires: Date.now() - 1000 // Expired 1 second ago
+        resetPasswordExpires: Date.now() - 1000
       });
 
       const response = await request(app)
         .post('/api/auth/reset-password')
         .send({
           token: resetToken,
-          password: 'NewPassword123!@#'
+          password: STRONG_PW,
+          confirmPassword: STRONG_PW
         })
         .expect(400);
 
       expect(response.body.error).toBe('INVALID_TOKEN');
     });
 
-    test('should reject weak new password', async () => {
+    test('should require a matching confirmPassword', async () => {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      await createTestUser({
+        email: 'confirm@example.com',
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: Date.now() + 3600000
+      });
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: resetToken,
+          password: STRONG_PW
+          // no confirmPassword
+        })
+        .expect(400);
+
+      expect(response.body.error).toBe('VALIDATION_ERROR');
+    });
+
+    test('should reject a policy-weak new password with WEAK_PASSWORD', async () => {
       const resetToken = crypto.randomBytes(32).toString('hex');
       await createTestUser({
         email: 'reset@example.com',
@@ -428,7 +484,8 @@ describe('Authentication', () => {
         .post('/api/auth/reset-password')
         .send({
           token: resetToken,
-          password: 'weak'
+          password: 'Password123!', // Joi-ok, policy-weak
+          confirmPassword: 'Password123!'
         })
         .expect(400);
 
@@ -443,32 +500,31 @@ describe('Authentication', () => {
         password: await bcrypt.hash('OldPassword123!', 12)
       });
 
-      // Login first to get session
       const agent = request.agent(app);
       await agent
         .post('/api/auth/login')
         .send({
           email: 'change@example.com',
           password: 'OldPassword123!'
-        });
+        })
+        .expect(200);
 
       const response = await agent
         .post('/api/auth/change-password')
         .send({
           currentPassword: 'OldPassword123!',
-          newPassword: 'NewPassword123!@#'
+          newPassword: STRONG_PW,
+          confirmPassword: STRONG_PW
         })
         .expect(200);
 
       expect(response.body.message).toContain('changed successfully');
 
-      // Verify password was changed
       await user.reload();
-      const isValid = await bcrypt.compare('NewPassword123!@#', user.passwordHash);
+      const isValid = await bcrypt.compare(STRONG_PW, user.passwordHash);
       expect(isValid).toBe(true);
 
-      // Verify security alert email was sent
-      expect(emailService.sendSecurityAlertEmail).toHaveBeenCalled();
+      expect(emailMock.sendSecurityAlertEmail).toHaveBeenCalled();
     });
 
     test('should verify current password before changing', async () => {
@@ -483,21 +539,24 @@ describe('Authentication', () => {
         .send({
           email: 'verify@example.com',
           password: 'CurrentPassword123!'
-        });
+        })
+        .expect(200);
 
       const response = await agent
         .post('/api/auth/change-password')
         .send({
           currentPassword: 'WrongPassword123!',
-          newPassword: 'NewPassword123!@#'
+          newPassword: STRONG_PW,
+          confirmPassword: STRONG_PW
         })
         .expect(401);
 
       expect(response.body.error).toBe('INVALID_PASSWORD');
     });
 
-    test('should reject if new password same as current', async () => {
-      const password = 'SamePassword123!@#';
+    test('should reject if new password equals the current one (schema-level)', async () => {
+      // The Joi schema marks newPassword invalid when it equals currentPassword
+      const password = STRONG_PW;
       await createTestUser({
         email: 'same@example.com',
         password: await bcrypt.hash(password, 12)
@@ -506,20 +565,19 @@ describe('Authentication', () => {
       const agent = request.agent(app);
       await agent
         .post('/api/auth/login')
-        .send({
-          email: 'same@example.com',
-          password
-        });
+        .send({ email: 'same@example.com', password })
+        .expect(200);
 
       const response = await agent
         .post('/api/auth/change-password')
         .send({
           currentPassword: password,
-          newPassword: password
+          newPassword: password,
+          confirmPassword: password
         })
         .expect(400);
 
-      expect(response.body.error).toBe('SAME_PASSWORD');
+      expect(response.body.error).toBe('VALIDATION_ERROR');
     });
 
     test('should send security alert email after change', async () => {
@@ -534,17 +592,19 @@ describe('Authentication', () => {
         .send({
           email: 'alert@example.com',
           password: 'OldPassword123!'
-        });
+        })
+        .expect(200);
 
       await agent
         .post('/api/auth/change-password')
         .send({
           currentPassword: 'OldPassword123!',
-          newPassword: 'NewPassword123!@#'
+          newPassword: STRONG_PW_2,
+          confirmPassword: STRONG_PW_2
         })
         .expect(200);
 
-      expect(emailService.sendSecurityAlertEmail).toHaveBeenCalledWith(
+      expect(emailMock.sendSecurityAlertEmail).toHaveBeenCalledWith(
         expect.any(Object),
         expect.objectContaining({
           type: 'Password Changed'
@@ -566,7 +626,8 @@ describe('Authentication', () => {
         .send({
           email: 'logout@example.com',
           password: 'Test123!@#'
-        });
+        })
+        .expect(200);
 
       const response = await agent
         .post('/api/auth/logout')
@@ -574,7 +635,6 @@ describe('Authentication', () => {
 
       expect(response.body.message).toContain('Logout successful');
 
-      // Verify subsequent requests are not authenticated
       await agent
         .get('/api/auth/me')
         .expect(401);
@@ -603,7 +663,8 @@ describe('Authentication', () => {
         .send({
           email: 'me@example.com',
           password: 'Test123!@#'
-        });
+        })
+        .expect(200);
 
       const response = await agent
         .get('/api/auth/me')

@@ -285,16 +285,18 @@ class SamlService {
     if (user) {
       // Update user if configured
       if (samlConfig.options.updateOnLogin) {
+        // NOTE: User.lastLoginAt is a BIGINT (epoch ms) — a Date object here
+        // fails with "invalid input syntax for type bigint".
         await user.update({
           displayName: attributes.displayName || user.displayName,
           samlNameId: attributes.samlNameId,
           samlSessionIndex: attributes.samlSessionIndex,
-          lastLoginAt: new Date()
+          lastLoginAt: Date.now()
         });
         logger.info('User updated from SAML', { userId: user.id, email: user.email });
       } else {
         // Just update last login
-        await user.update({ lastLoginAt: new Date() });
+        await user.update({ lastLoginAt: Date.now() });
       }
 
       return user;
@@ -313,7 +315,7 @@ class SamlService {
       samlNameId: attributes.samlNameId,
       samlSessionIndex: attributes.samlSessionIndex,
       organizationId: attributes.organizationId || samlConfig.options.defaultOrganizationId,
-      lastLoginAt: new Date()
+      lastLoginAt: Date.now()
     });
 
     logger.info('User auto-provisioned from SAML', {

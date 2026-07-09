@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@emotion/react": "^11.13.3",
@@ -35,6 +37,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.1",
     "@types/react": "^18.3.11",
@@ -46,6 +49,7 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.12",
     "jsdom": "^25.0.1",
+    "otplib": "^13.4.1",
     "playwright-core": "^1.61.1",
     "prettier": "^3.3.3",
     "typescript": "^5.6.2",

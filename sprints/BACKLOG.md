@@ -745,7 +745,7 @@ grooming.)*
   suite; `npm run seed:cortex` stays idempotent.
 
 ### BUG-011 — `cortex` is not a valid `ai_provider` enum value, so an enforced cortex verdict cannot be stored
-- **Type:** bug · **Status:** in-progress · **Priority:** P1 · **Size:** S
+- **Type:** bug · **Status:** in-review · **Priority:** P1 · **Size:** S
 - **Owner-role:** dba · **Blocked-by:** — · **Relates:** FEAT-023
 - **Found:** live verification of FEAT-023 (2026-07-09), gateway with
   `CORTEX_MODERATION_MODE=enforce DEFAULT_AI_PROVIDER=cortex`.
@@ -770,6 +770,37 @@ grooming.)*
   sync-based `db:migrate` will not alter enums — see the `db:check` drift audit);
   all four pin-points updated; `npm run db:check` reports no ENUM drift; an
   enforced cortex verdict persists and `GET` returns `aiProvider: 'cortex'`.
+- **Resolution (2026-07-09, dba):** Decision — added a DISTINCT `'cortex'` enum
+  label (NOT a reuse of `'local'`): `config.ai.local` denotes local ML *model
+  files* (nsfw/toxicity/spam classifiers), a different engine than the Cortex
+  local LLM, and FEAT-023's enforcement gate needs a per-provider accuracy audit
+  trail — collapsing cortex into `local` would defeat it. Changed:
+  - `services/moderator/migrations/20260709000001-add-cortex-ai-provider.js` (new)
+    — idempotent `ALTER TYPE … ADD VALUE IF NOT EXISTS 'cortex'` over ALL provider
+    enum type names (`ai_provider` raw path + the sync-built
+    `enum_moderation_items_ai_provider` / `enum_ai_agents_provider`), schema-agnostic
+    via a `pg_type` loop; with a guarded, working `down` that rebuilds each enum
+    without `cortex` and refuses if any row still uses it. PG16 here, so
+    `ADD VALUE IF NOT EXISTS` is transaction-safe (verified).
+  - `models/ModerationCase.js`, `models/AIAgent.js`, `middleware/validation.js`,
+    `database/schema.sql` — all four pin-points now include `'cortex'`.
+  - `tests/unit/cortexProviderEnum.test.js` (new) — Joi accepts `cortex`/rejects
+    unknown; both model ENUMs include `cortex`. 4/4 green.
+- **Apply to live DB (operator command):** the model-sync `db:migrate` will NOT
+  alter an existing enum, and the live `exprsn` DB has no `SequelizeMeta` (it was
+  sync-built), so a full `sequelize-cli db:migrate` is unsafe (would recreate
+  existing tables, leaking into `public`). Run THIS migration's `up()` directly:
+  ```
+  cd services/moderator && \
+    DB_HOST=localhost DB_PORT=5432 DB_NAME=exprsn DB_USER=exprsn DB_PASSWORD=<pw> \
+    node -e 'const {Sequelize}=require("sequelize");const c=require("./config/database.js").development;const m=require("./migrations/20260709000001-add-cortex-ai-provider.js");(async()=>{const s=new Sequelize(c.database,c.username,c.password,{host:c.host,port:c.port,dialect:"postgres",logging:false});await m.up(s.getQueryInterface(),Sequelize);await s.close();})()'
+  ```
+  Applied to live `exprsn` on 2026-07-09. Both `moderator.enum_moderation_items_ai_provider`
+  and `moderator.enum_ai_agents_provider` now carry `cortex`; `npm run db:check`
+  exits 0 (no ENUM drift). End-to-end re-verified: enforce-mode POST of toxic text
+  to `/moderator/api/moderate/content` returns `200 success:true` (riskScore 92,
+  flagged) and the persisted `moderation_items` row has `ai_provider = 'cortex'`
+  — no more `MODERATION_FAILED`.
 
 ### BUG-012 — `CORTEX_MODERATE` is a silent no-op: `llm_message` is not a valid `content_type`
 - **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S

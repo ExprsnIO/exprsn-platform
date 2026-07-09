@@ -91,7 +91,8 @@ CREATE TYPE ai_provider AS ENUM (
   'claude',
   'openai',
   'deepseek',
-  'local'
+  'local',
+  'cortex'
 );
 
 -- User action types

@@ -136,7 +136,7 @@ module.exports = (sequelize) => {
 
     // AI provider used
     aiProvider: {
-      type: DataTypes.ENUM('claude', 'openai', 'deepseek', 'local'),
+      type: DataTypes.ENUM('claude', 'openai', 'deepseek', 'local', 'cortex'),
       field: 'ai_provider'
     },
     aiModel: {

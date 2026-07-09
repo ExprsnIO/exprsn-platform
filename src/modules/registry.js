@@ -40,6 +40,9 @@ const MODULES = [
   // LOWCODE_ENABLED, default false) and load inert until enabled.
   { name: 'plugins',   prefix: '/plugins',   schema: 'plugins',   entry: '../../services/plugins/src/index.js',     socketNs: null },
   { name: 'lowcode',   prefix: '/lowcode',   schema: 'lowcode',   entry: '../../services/lowcode/src/index.js',      socketNs: null },
+  // Local-LLM agents/guardrails engine — ships behind CORTEX_ENABLED (default
+  // false) and loads inert until enabled (FEAT-021).
+  { name: 'cortex',    prefix: '/cortex',    schema: 'cortex',    entry: '../../services/cortex/src/index.js',       socketNs: null },
 ];
 
 module.exports = { MODULES };

@@ -87,6 +87,22 @@ const config = {
     pluginsEnabled: bool(process.env.PLUGINS_ENABLED, false),
     pluginsScriptEnabled: bool(process.env.PLUGINS_SCRIPT_ENABLED, false),
     lowcodeEnabled: bool(process.env.LOWCODE_ENABLED, false),
+    cortexEnabled: bool(process.env.CORTEX_ENABLED, false),
+  },
+
+  // Cortex — local-LLM agents/guardrails module (FEAT-021). Inference runs on
+  // an external OpenAI-compatible llama.cpp router; nothing here is a cloud API.
+  cortex: {
+    llmBaseUrl: process.env.CORTEX_LLM_BASE_URL || 'http://127.0.0.1:8080/v1',
+    brainModel: process.env.CORTEX_BRAIN_MODEL || 'qwen3-30b-a3b',
+    judgeModel: process.env.CORTEX_JUDGE_MODEL || process.env.CORTEX_BRAIN_MODEL || 'qwen3-30b-a3b',
+    dataDir: process.env.CORTEX_DATA_DIR || path.join(__dirname, '../../data/cortex'),
+    taskConcurrency: num(process.env.CORTEX_TASK_CONCURRENCY, 1),
+    llmConcurrency: num(process.env.CORTEX_LLM_CONCURRENCY, 2),
+    pythonToolsEnabled: bool(process.env.CORTEX_PYTHON_TOOLS_ENABLED, false),
+    toolAllowPrivateHosts: bool(process.env.CORTEX_TOOL_ALLOW_PRIVATE_HOSTS, false),
+    moderate: bool(process.env.CORTEX_MODERATE, false),
+    cacheTtl: num(process.env.CORTEX_CACHE_TTL, 3600),
   },
 };
 

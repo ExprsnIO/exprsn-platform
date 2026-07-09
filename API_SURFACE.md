@@ -947,3 +947,54 @@ not in the gateway. Provision identity with `npm run atproto:provision`.
 
 
 
+
+## Cortex module (prefix /cortex) — local-LLM agents / guardrails (FEAT-021)
+
+Flag-gated: with `CORTEX_ENABLED=false` (default) every route below except
+`/cortex/health` answers `503 CORTEX_DISABLED`. When enabled, **every
+`/cortex/api/v1` route requires a CA bearer token** (`validateCAToken`); rows
+marked *admin* additionally require a platform admin
+(`isPlatformAdmin(req.tokenData.email)`, `PLATFORM_ADMIN_EMAILS`). Non-admin
+callers see only their own tasks/sessions/outbox rows (scoped by the token's
+`userId`). Registry enable stays test-gated in the engine regardless of caller.
+
+### REST endpoints
+
+| Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
+|---|---|---|---|---|---|---|
+| GET | /cortex/health | — | — | — | none | reports enabled flag, router/cache/queue state |
+| GET | /cortex/api/v1/models | — | — | — | CA read | 502 if llama router unreachable |
+| POST | /cortex/api/v1/tasks | `goal` | model, tools, skills | — | CA write | 202 `{id,status:queued}`; runs via Bull worker |
+| GET | /cortex/api/v1/tasks[/:id] | — | — | limit 200 | CA read | own tasks; admin sees all; `:id` has transcript |
+| POST | /cortex/api/v1/chat | `message` | session_id, model, skills | — | CA write | assistant turn; `attachments` → 400 (not ported) |
+| GET | /cortex/api/v1/chat[/:id] | — | — | limit 100 | CA read | own sessions; admin all |
+| POST | /cortex/api/v1/cs/chat | `message` | session_id | — | CA write | guarded customer chat turn |
+| GET | /cortex/api/v1/cs/chat[/:id] | — | — | limit 100 | CA read | own sessions; admin all |
+| POST | /cortex/api/v1/cs/email | `from`, `subject`, `body` | — | — | CA write | drafts reply → outbox (sent/pending_review/blocked) |
+| GET | /cortex/api/v1/outbox[/:id] | — | — | limit 200 | CA read | own entries; admin all |
+| GET | /cortex/api/v1/reviews | — | — | — | CA read + admin | pending human reviews (holds blocked drafts) |
+| POST | /cortex/api/v1/reviews/:id | `action`(approve\|reject) | note | — | CA write + admin | 409 if already resolved; approve releases content |
+| GET | /cortex/api/v1/guardrails[/:name] | — | — | — | CA read | list is brief; `:name` full spec |
+| POST | /cortex/api/v1/guardrails | spec | — | — | CA write + admin | save-as-enabled requires passing tests |
+| POST | /cortex/api/v1/guardrails/build | `description` | name, action | — | CA write + admin | LLM-drafted, always saved disabled |
+| POST | /cortex/api/v1/guardrails/:name/test,/enable,/disable | — | — | — | CA write + admin | enable requires full test-suite pass |
+| DELETE | /cortex/api/v1/guardrails/:name | — | — | — | CA write + admin | — |
+| GET | /cortex/api/v1/tools[/:name] | — | — | — | CA read | — |
+| POST | /cortex/api/v1/tools[,/build,/:name/test,/run,/enable,/disable] | varies | — | — | CA write + admin | `run` executes tool code; python kind needs `CORTEX_PYTHON_TOOLS_ENABLED` |
+| DELETE | /cortex/api/v1/tools/:name | — | — | — | CA write + admin | — |
+| GET | /cortex/api/v1/skills[/:name] | — | — | — | CA read | — |
+| POST | /cortex/api/v1/skills[,/build,/:name/enable,/disable] | varies | — | — | CA write + admin | skills are prompt packs (no test gate) |
+| DELETE | /cortex/api/v1/skills/:name | — | — | — | CA write + admin | — |
+| GET | /cortex/api/v1/prompts | — | channel, session, q, limit, offset | limit ≤500 | CA read + admin | prompt/response telemetry query |
+
+### Things to note
+- Inference: external OpenAI-compatible llama.cpp router (`CORTEX_LLM_BASE_URL`);
+  transport failures surface as `503 LLM_UNAVAILABLE` on interactive routes and
+  fail the task on the worker path.
+- Every agent tool call is guardrail-screened (`scope: tool_call`) before it
+  executes; escalated/blocked outputs are never written to the Redis chat cache.
+- HTTP tools reject targets resolving to loopback/private ranges unless
+  `CORTEX_TOOL_ALLOW_PRIVATE_HOSTS=true` (SSRF guard); python tools are
+  hard-gated by `CORTEX_PYTHON_TOOLS_ENABLED` (default false).
+- Deliberate exclusions from the source-engine port: dataset/data-library tools,
+  chat attachments, SSE streaming (poll `GET /tasks/:id`), MCP server.

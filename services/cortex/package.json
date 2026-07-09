@@ -1,0 +1,14 @@
+{
+  "name": "@exprsn/cortex",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Exprsn cortex module — local-LLM agents, guardrails, skills, and tools behind CA-token auth (llama.cpp router inference).",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "pii-leak",
+  "description": "Block outgoing text containing payment card or social security numbers",
+  "enabled": true,
+  "scope": [
+    "output"
+  ],
+  "action": "block",
+  "rules": [
+    {
+      "type": "regex",
+      "pattern": "\\b(?:\\d[ -]?){15}\\d\\b|\\b\\d{4}[ -]\\d{4}[ -]\\d{4}[ -]\\d{4}\\b",
+      "description": "payment card number"
+    },
+    {
+      "type": "regex",
+      "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+      "description": "US social security number"
+    }
+  ],
+  "tests": [
+    {
+      "text": "Your card 4242 4242 4242 4242 was charged.",
+      "expect": "trigger"
+    },
+    {
+      "text": "We have your SSN as 123-45-6789.",
+      "expect": "trigger"
+    },
+    {
+      "text": "Your order #482913 shipped and arrives June 3.",
+      "expect": "pass"
+    },
+    {
+      "text": "Call us at 555-012-3456 during business hours.",
+      "expect": "pass"
+    }
+  ]
+}

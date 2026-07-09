@@ -228,6 +228,68 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   attachments, MCP server. Follow-up ticket needed for python-tool sandboxing
   before production enablement.
 
+### FEAT-022 — Cortex frontend: chat, agent tasks, CS flows + admin registries in the SPA
+- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** L
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-021 (merged)
+- **Cost/Benefit:** user-directed (Rick, 2026-07-09) — FEAT-021 ships a full REST
+  surface with zero UI; without a frontend the module is unusable outside curl.
+  Cost is UI-only (no backend changes); benefit is making every ported feature
+  operable.
+- **Description:** Build the `web/` SPA surfaces for the cortex module.
+  User-facing (`/cortex` route, workspace nav): assistant chat with session
+  list/history, model picker (`GET /models`), skill picker, and guardrail-status
+  rendering on replies (`sent` / `blocked_*` / `escalated_*`); agent tasks —
+  create (goal/model/tools/skills), list, and a detail view polling
+  `GET /tasks/:id` (react-query `refetchInterval`) that renders the transcript
+  (assistant turns, tool calls, guardrail hits); CS chat + CS email demo panels
+  and the outbox list/detail. Admin (`/admin/cortex` section, tabs): overview
+  (health/router/queue), guardrails / tools / skills registry managers with
+  structured builder+editor dialogs (no JSON-only modals), test/run/enable/
+  disable/delete lifecycle actions, review queue (approve/reject with note,
+  409 handling), and prompt-log browser with channel/session/text filters.
+  API thunks in `src/api/cortex.ts` + `src/api/admin/cortex.ts`.
+- **Acceptance criteria:**
+  - All routes/nav entries render with 0 console errors; `npm run web:build` and
+    `npm run web:test` green.
+  - Non-admin users never see admin-only tabs/actions; admin gating mirrors
+    `RequireAdmin` and the backend 403s.
+  - When cortex is disabled (`503 CORTEX_DISABLED`) the pages show a clear
+    "module disabled" state instead of raw errors.
+  - Registry dialogs are structured forms bound to live spec data (JSON only as
+    an escape hatch); enable actions surface failing test results.
+- **Notes:** No SSE/socket yet on the backend — task/review views poll. A
+  `/cortex` Socket.IO namespace is a possible follow-up alongside the backend one.
+
+### TASK-019 — Cortex: sandbox python custom-tool execution before production enablement
+- **Type:** task · **Status:** backlog · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Description:** `services/cortex/src/engine/tools.js` runs python tools via
+  `python3 -I -c` subprocess — arbitrary code execution on the host with no
+  filesystem/network isolation. Currently triple-gated (CORTEX_PYTHON_TOOLS_ENABLED
+  default false, admin-only save/run/enable, test-gated, guardrail-screened per
+  call) but the FEAT-021 posture requires real sandboxing (container, seccomp,
+  or a jailed runner with rlimits + no-net) before the flag is ever turned on in
+  production. Filed from the FEAT-021 PR notes.
+- **Acceptance criteria:** python tool execution cannot read/write outside a
+  per-call scratch dir, cannot open sockets, and is cpu/mem/time-limited;
+  existing tool tests still pass.
+
+### TASK-020 — Cortex: pin resolved IPs in the http-tool SSRF guard (DNS rebinding)
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Description:** `assertPublicHost` resolves the target host, checks the
+  addresses, then `fetch` re-resolves independently — a short-TTL DNS name can
+  pass the check and rebind to a private address for the actual request
+  (classic TOCTOU). Redirect hops are already re-checked (FEAT-021 review fix);
+  closing rebinding needs the checked IP pinned into the connection (undici
+  Agent `connect.lookup` override or dispatching to the literal IP with a Host
+  header). Low urgency: tool save/enable is platform-admin-only and private
+  ranges are rejected by default, but it should land before http tools are
+  exposed beyond admins. Also consider extending `privateIPv4` to the special
+  ranges it misses (192.0.0.0/24, 198.18.0.0/15, 224.0.0.0/4, 240.0.0.0/4).
+- **Acceptance criteria:** a hostname whose DNS answer changes between check
+  and connect cannot reach a private address; unit test with a stubbed lookup.
+
 ---
 
 ## Bugs

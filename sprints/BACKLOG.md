@@ -465,6 +465,78 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   decrypted plaintext to cortex without a separate explicit decision — cortex's
   `prompt_logs` table would persist message bodies.
 
+### FEAT-029 — Router: multi-model residency (2+ resident) + a vision model
+- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** — · **Cost/Benefit:** pending
+- **Scope note:** touches the **external** llama.cpp router project at
+  `/Volumes/Storage/MacOS LLM/` (models.ini, start-server.sh), NOT this repo.
+  Rick authorized editing it, downloading the model, and restarting the router
+  (2026-07-09).
+- **Description:** The router already supports `--models-max` with LRU eviction,
+  but `start-server.sh` pins `MODELS_MAX=1`. `models.ini` documents why: llama.cpp's
+  auto-fit only sees its own process's allocations, so "two big models resident =
+  Metal OOM," which poisons the Metal backend
+  (`kIOGPUCommandBufferCallbackErrorOutOfMemory`). Raise to 2 with an explicit,
+  measured memory budget rather than relying on auto-fit.
+- **Measured facts (2026-07-09, M2 Max):** 34.4 GB unified; Metal recommended
+  working set ≈ 25.8 GB. With only `qwen3-30b-a3b` resident at `ctx-size=16384`,
+  **wired = 22.9 GB, free = 0.1 GB, 5.5 GB already compressed** → real headroom
+  ≈ 2.9 GB. A 7B VLM (~6.1 GB) does NOT fit; the initial "23 GB fits in 32 GB"
+  estimate counted weights only and was wrong.
+- **Decision (Rick):** `Qwen2.5-VL-3B-Instruct-Q4_K_M` (1.93 GB) + `mmproj-f16`
+  (1.34 GB) ≈ 3.3 GB, and drop the brain's `ctx-size` 16384 → 8192 to free KV
+  cache. Target ≈ 24.3 GB against a ~25.8 GB ceiling.
+- **Acceptance criteria:**
+  - `GET /models` shows the vision model with `input_modalities: ["text","image"]`.
+  - Both brain and vision model report `status: loaded` simultaneously.
+  - A real image completion succeeds; no `kIOGPU…OutOfMemory` in the router log.
+  - Wired memory stays under the Metal recommended working set under load.
+  - Rollback documented (revert `MODELS_MAX`, restore `ctx-size`).
+- **Notes:** `mmproj-Q8_0` (0.84 GB) is downloaded as a fallback if f16 is too tight.
+
+### FEAT-030 — Cortex: vision inference surface (image moderation + tagging)
+- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-029 · **Cost/Benefit:** pending
+- **Description:** Teach cortex to send images to the router. `lib/llama.js`'s
+  `chatComplete` already speaks the OpenAI chat schema, so vision is a content-part
+  array (`{type:'image_url', image_url:{url:'data:image/png;base64,…'}}`) against
+  the vision model. Add to the public façade (`services/cortex/src/client.js`, ADR
+  0001): `describeImage(buffer, {mime})` → tags/alt-text, and `moderateImage(buffer)`
+  → the same score shape the rule engine consumes. Normalize input with `sharp`
+  (already a dependency): decode PNG/JPEG/GIF/WebP/AVIF/TIFF, auto-orient, strip
+  EXIF, downscale to the model's expected max edge, and for **animated** GIF/WebP
+  sample N frames (sharp reads pages) rather than only frame 0.
+  Same invariants as the text path: `CORTEX_ENABLED` fails closed *before* the
+  lazy require; bounded timeout; binds to the inference layer, never `engine/jobs.js`.
+- **Acceptance criteria:**
+  - PNG, JPEG, GIF (incl. animated), WebP accepted; unsupported/corrupt input is a
+    clean typed error, never a crash.
+  - An oversized image is downscaled, not sent whole (guard prompt/context blowup).
+  - EXIF stripped before inference (no GPS/camera metadata reaches the model or logs).
+  - `moderateImage` fails CLOSED; `describeImage` fails SOFT.
+  - Decode is bounded (pixel-count / decompression-bomb guard).
+
+### FEAT-031 — FileVault upload chokepoint: async image moderation + tagging
+- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** L
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-030 · **Cost/Benefit:** pending
+- **Decisions (Rick, 2026-07-09):** one integration at the **FileVault upload
+  chokepoint** (covers Nexus, Spark, Live chat, timeline — they all store pointers
+  to FileVault) rather than five per-module hooks; **async via Bull**, never blocking
+  an upload; produce **both** a moderation verdict (fail closed) and tags/alt-text
+  (fail soft); **skip encrypted attachments** (`Attachment.encrypted` / FileVault
+  encrypted objects) exactly as FEAT-026 does for text.
+- **Description:** On image upload, enqueue a job; a worker fetches the object,
+  runs `cortex.moderateImage` + `cortex.describeImage`, persists tags/alt-text and
+  routes the verdict through moderator's pipeline (reusing its existing
+  `image_moderation` agent contract, `analyzeImage({imageUrl})`), so rules,
+  review queue, and audit trail are unchanged.
+- **Acceptance criteria:**
+  - Upload latency is unchanged (verified); moderation lands asynchronously.
+  - An encrypted object is never decoded or sent to the model.
+  - With cortex disabled/router down, uploads still succeed; the job records an error.
+  - A rejected image surfaces through moderator's existing verdict/review path.
+  - No image bytes are written to cortex's `prompt_logs`.
+
 ---
 
 ## Bugs

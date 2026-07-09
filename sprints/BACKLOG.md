@@ -854,9 +854,26 @@ are cross-referenced, not re-filed.)*
   to hurt the synchronous text path (see C/B notes).
 - **Follow-up found during verification:** the router can return an unusable/empty
   completion while a model is loading, so the FIRST image call after any text call
-  fails. The vision path must explicitly ensure the model is resident (`POST
-  /models/load`) or retry once, rather than assuming the router blocks. Tracked in
-  FEAT-030's acceptance criteria.
+  fails. Fixed in FEAT-030 (`ensureVisionResident`), which also handles the
+  async-load and concurrent-load-refused cases.
+- **⚠ MEASURED SWAP COST INVALIDATES THE SWAP-FIRST PREMISE (2026-07-09):** both
+  reviewers argued a swap is invisible "because image work is async." That holds in
+  ONE direction only. Measured on this machine at `MODELS_MAX=1`:
+  - load vision (2 GB), evicting brain: **67 s**
+  - load brain (17 GB), evicting vision: **401 s (6.7 min)**
+  The swap *back* to text is paid by the **next interactive chat request**, which is
+  synchronous, and the cortex text client's default timeout is 5 s — so after any
+  image job, assistant chat fails for ~7 minutes. The asymmetry is memory pressure:
+  the brain alone wires 22.9 GB of a ~25.8 GB Metal ceiling, so re-loading it is a
+  disk read under compressor pressure. (Its very first cold load, on an otherwise
+  idle machine, was only 52 s.)
+- **Proposed resolution (under measurement):** run the vision model with
+  `n-gpu-layers = 0` (CPU-only). It then consumes **no Metal/VRAM budget**, so it can
+  be co-resident with the GPU-resident brain at `MODELS_MAX=2` with no OOM risk and,
+  critically, **no swapping in either direction**. Slower per-image inference is
+  acceptable because FEAT-031 makes all image work async. Neither the original
+  co-residency nor the swap-first option contemplated splitting the two models
+  across GPU and CPU.
 - **Owner-role:** sr-developer · **Blocked-by:** — · **Cost/Benefit:** done — **build later / smaller slice (swap-first).** Ship the vision chain on `MODELS_MAX=1` swap, keep brain `ctx=16384`; co-residency trades a permanent brain-context halving + a catastrophic Metal-OOM tail (blast radius = the whole LLM layer) for marginally better warm image latency on a ~1.5 GB un-load-tested margin — not worth buying on unproven need since image work is async. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
 - **C/B notes:** Mechanical build is **S** (external router only, no in-repo change); the real cost is operational risk + a platform-wide `ctx 16384→8192` regression that halves context for every text feature (agent-task tool transcripts break first). FEAT-031 is async-via-Bull, so a 53.6 s cold **swap** is tolerable and removes ALL OOM risk; text load is sporadic/human-paced so swap-thrash is bounded and mostly absorbed by the image queue. **Decouple: drop FEAT-030/031's `blocked-by: FEAT-029`.** Measure swap-thrash under real mixed load first; pursue co-residency only if thrash is shown to hurt the sync text path AND a load test proves the margin holds (prefer `mmproj-Q8_0` for +0.5 GB). **architect:** platform-wide ctx regression on the external router.
 - **Scope note:** touches the **external** llama.cpp router project at

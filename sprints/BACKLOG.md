@@ -867,12 +867,28 @@ are cross-referenced, not re-filed.)*
   the brain alone wires 22.9 GB of a ~25.8 GB Metal ceiling, so re-loading it is a
   disk read under compressor pressure. (Its very first cold load, on an otherwise
   idle machine, was only 52 s.)
-- **Proposed resolution (under measurement):** run the vision model with
-  `n-gpu-layers = 0` (CPU-only). It then consumes **no Metal/VRAM budget**, so it can
-  be co-resident with the GPU-resident brain at `MODELS_MAX=2` with no OOM risk and,
-  critically, **no swapping in either direction**. Slower per-image inference is
-  acceptable because FEAT-031 makes all image work async. Neither the original
-  co-residency nor the swap-first option contemplated splitting the two models
+- **RESOLUTION — CPU-only vision, MEASURED AND CONFIRMED (2026-07-09):** run the
+  vision model with `n-gpu-layers = 0`. It then consumes **no Metal/VRAM budget**, so
+  it co-resides with the GPU-resident brain with no OOM risk and **no swapping in
+  either direction**. Measured in CPU mode: first load **53.5 s** (one-time),
+  image inference **2.97 s cold / 0.25 s warm** — well inside the async budget.
+  Note the router spawns a **separate `llama-server` child process per model**, so a
+  CPU-only child genuinely allocates nothing on the GPU. `n-gpu-layers = 0` is now
+  set on the `[qwen2.5-vl-3b]` preset with the rationale inline.
+- **⚠ BLOCKED on one operator action.** `MODELS_MAX` is still effectively **1**: the
+  router is launchd-managed (`~/Library/LaunchAgents/com.macosllm.router.plist`,
+  `KeepAlive=true`) and the plist hardcodes `--models-max 1`, so killing/restarting
+  the router respawns it with 1 and the vision model still LRU-evicts the brain
+  (eviction is count-based — CPU-mode alone does not prevent it). `start-server.sh`'s
+  default was updated to 2 (with rationale), which covers non-launchd runs.
+  Regenerating the plist requires installing launchd login items, which the agent is
+  not permitted to do unprompted. **Operator command:**
+  `MODELS_MAX=2 "/Volumes/Storage/MacOS LLM/start-server.sh" autostart`
+  Backups written: `models.ini.bak-<epoch>`, `start-server.sh.bak-<epoch>`,
+  `/tmp/com.macosllm.router.plist.bak`. Rollback = restore and re-run `autostart`.
+  Until this runs, image jobs still evict the text brain (401 s to swap back).
+  Neither the original co-residency nor the swap-first option contemplated splitting
+  the two models
   across GPU and CPU.
 - **Owner-role:** sr-developer · **Blocked-by:** — · **Cost/Benefit:** done — **build later / smaller slice (swap-first).** Ship the vision chain on `MODELS_MAX=1` swap, keep brain `ctx=16384`; co-residency trades a permanent brain-context halving + a catastrophic Metal-OOM tail (blast radius = the whole LLM layer) for marginally better warm image latency on a ~1.5 GB un-load-tested margin — not worth buying on unproven need since image work is async. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
 - **C/B notes:** Mechanical build is **S** (external router only, no in-repo change); the real cost is operational risk + a platform-wide `ctx 16384→8192` regression that halves context for every text feature (agent-task tool transcripts break first). FEAT-031 is async-via-Bull, so a 53.6 s cold **swap** is tolerable and removes ALL OOM risk; text load is sporadic/human-paced so swap-thrash is bounded and mostly absorbed by the image queue. **Decouple: drop FEAT-030/031's `blocked-by: FEAT-029`.** Measure swap-thrash under real mixed load first; pursue co-residency only if thrash is shown to hurt the sync text path AND a load test proves the margin holds (prefer `mmproj-Q8_0` for +0.5 GB). **architect:** platform-wide ctx regression on the external router.

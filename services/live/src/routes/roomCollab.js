@@ -9,12 +9,19 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const router = express.Router();
-const { Room, RoomInvite, RoomJoinRequest, RoomFile, Recording } = require('../models');
+const { Room, RoomInvite, RoomJoinRequest, RoomFile, Recording, Participant } = require('../models');
 const { requireAuth } = require('../middleware/auth');
 const liveQueue = require('../services/liveQueue');
 const liveConfig = require('../services/liveConfig');
 const logger = require('../utils/logger');
+// In-process FileVault façade (same pattern as room.js → plugins/pluginHost).
+// BUG-024: room-collab uploads flow through FileVault so they inherit the whole
+// FEAT-031 image-moderation chokepoint (moderation row, hold-until-verdict,
+// encrypted/non-image skip, escalation) instead of hitting local disk unchecked.
+const fileService = require('../../../filevault/src/services/fileService');
 
+// Retained only for (a) recording output paths and (b) reading any pre-existing
+// legacy `ephemeral` rows still on disk. New uploads never write here.
 const UPLOAD_DIR = path.join(process.cwd(), 'data', 'room-files');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
@@ -28,6 +35,29 @@ function isHost(room, userId) { return String(room.host_id) === String(userId); 
 function requireHost(req, res, next) {
   if (!isHost(req.room, req.user.id)) return res.status(403).json({ error: 'FORBIDDEN', message: 'Host only' });
   next();
+}
+
+/**
+ * Room-scoped access control for room files. A member is the host, an active
+ * participant, an invitee (pending/accepted), or an approved join-requester —
+ * the same signals the join flow honors. Non-members are denied so room files
+ * are never enumerable or fetchable outside the room. Must run after loadRoom.
+ */
+async function requireRoomMember(req, res, next) {
+  try {
+    const uid = req.user.id;
+    if (isHost(req.room, uid)) return next();
+    const [participant, invite, joinReq] = await Promise.all([
+      Participant.findOne({ where: { room_id: req.room.id, user_id: uid } }),
+      RoomInvite.findOne({ where: { room_id: req.room.id, invitee_id: uid, status: ['pending', 'accepted'] } }),
+      RoomJoinRequest.findOne({ where: { room_id: req.room.id, user_id: uid, status: 'approved' } })
+    ]);
+    if (participant || invite || joinReq) return next();
+    return res.status(403).json({ error: 'NOT_A_MEMBER', message: 'Room membership required' });
+  } catch (e) {
+    logger.error('room membership check failed', { error: e.message });
+    return res.status(500).json({ error: 'MEMBERSHIP_CHECK_FAILED' });
+  }
 }
 
 // ── invites ─────────────────────────────────────────────────────────────────
@@ -69,44 +99,115 @@ router.post('/:id/join-requests/:reqId/:decision(approve|deny)', requireAuth, lo
   res.json({ success: true, request });
 });
 
-// ── room files (vault share + ephemeral upload) ──────────────────────────────
-router.get('/:id/files', requireAuth, loadRoom, async (req, res) => {
-  const files = await RoomFile.findAll({ where: { room_id: req.room.id }, order: [['created_at', 'DESC']] });
-  res.json({ success: true, files });
-});
-router.post('/:id/files/share', requireAuth, loadRoom, async (req, res) => {
+// ── room files (all FileVault-backed via `vault` refs + legacy `ephemeral`) ───
+router.get('/:id/files', requireAuth, loadRoom, requireRoomMember, async (req, res) => {
   try {
-    const { fileId, name, mimetype, size } = req.body;
-    if (!fileId || !name) return res.status(400).json({ error: 'FILE_REQUIRED' });
+    const files = await RoomFile.findAll({ where: { room_id: req.room.id }, order: [['created_at', 'DESC']] });
+    // FEAT-031: a held image must not be enumerable to a non-uploader. Every
+    // FileVault-backed row (`vault`) is filtered through the moderation gate;
+    // legacy `ephemeral` disk rows have no FileVault moderation state and are
+    // left as-is (pre-existing rows only — no new ones are created).
+    const vaultIds = files.filter((f) => f.kind === 'vault' && f.file_id).map((f) => String(f.file_id));
+    const servable = await fileService.servableFileIds(vaultIds, req.user.id);
+    const visible = files.filter((f) => {
+      if (f.kind === 'vault' && f.file_id) return servable.has(String(f.file_id));
+      return true;
+    });
+    res.json({ success: true, files: visible });
+  } catch (e) {
+    logger.error('room file list failed', { error: e.message });
+    res.status(500).json({ error: 'LIST_FAILED', message: e.message });
+  }
+});
+router.post('/:id/files/share', requireAuth, loadRoom, requireRoomMember, async (req, res) => {
+  try {
+    const { fileId, name } = req.body;
+    if (!fileId) return res.status(400).json({ error: 'FILE_REQUIRED' });
+
+    // BUG-026: the sharer MUST be able to access the file they are sharing in.
+    // Without this, an attacker could share a victim's private FileVault file by
+    // UUID into a room they control, then download it via the member-download
+    // route (which deliberately skips the ownership check, trusting that the
+    // share was legitimate). getFile() enforces the private-visibility owner
+    // check AND the moderation gate and throws if the caller can't access it.
+    // Metadata comes from the VERIFIED file, never the request body (no spoofing).
+    let vaultFile;
+    try {
+      vaultFile = await fileService.getFile(fileId, req.user.id);
+    } catch (e) {
+      // Same 404 whether the file is missing or the caller isn't allowed to see
+      // it — never confirm existence of a file the caller can't access.
+      return res.status(404).json({ error: 'FILE_NOT_FOUND' });
+    }
+
     const file = await RoomFile.create({
       room_id: req.room.id, user_id: req.user.id, kind: 'vault',
-      file_id: fileId, name, mimetype: mimetype || null, size: size || null
+      file_id: vaultFile.id, name: name || vaultFile.name,
+      mimetype: vaultFile.mimetype || null, size: vaultFile.size || null
     });
     res.status(201).json({ success: true, file });
   } catch (e) { res.status(500).json({ error: 'SHARE_FAILED', message: e.message }); }
 });
-router.post('/:id/files/upload', requireAuth, loadRoom, upload.single('file'), async (req, res) => {
+// BUG-024: uploads no longer touch local disk. The bytes go through FileVault's
+// moderated upload — creating the moderation row in the upload transaction,
+// enqueuing the Bull vision pass, and inheriting hold-until-verdict visibility,
+// encrypted-skip, non-image-skip, and human escalation for free. We store a
+// `vault` RoomFile row pointing at the FileVault file id; the download route
+// serves it back through FileVault, gated by moderation status.
+router.post('/:id/files/upload', requireAuth, loadRoom, requireRoomMember, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'NO_FILE' });
-    const dir = path.join(UPLOAD_DIR, req.room.id);
-    fs.mkdirSync(dir, { recursive: true });
-    const key = `${Date.now()}-${req.file.originalname}`.replace(/[^\w.\-]+/g, '_');
-    fs.writeFileSync(path.join(dir, key), req.file.buffer);
+    // A live room is not a nexus group, so use the personal uploadFile() with
+    // room-scoped path/metadata for attribution. Moderation wiring is identical
+    // on both paths.
+    const vaultFile = await fileService.uploadFile({
+      userId: req.user.id,
+      buffer: req.file.buffer,
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      path: `/live-rooms/${req.room.id}/${req.file.originalname}`,
+      metadata: { source: 'live-room', roomId: String(req.room.id) }
+    });
     const file = await RoomFile.create({
-      room_id: req.room.id, user_id: req.user.id, kind: 'ephemeral',
-      storage_key: key, name: req.file.originalname, mimetype: req.file.mimetype, size: req.file.size
+      room_id: req.room.id, user_id: req.user.id, kind: 'vault',
+      file_id: vaultFile.id, name: req.file.originalname,
+      mimetype: req.file.mimetype, size: req.file.size
     });
     res.status(201).json({ success: true, file });
   } catch (e) { logger.error('room upload failed', { error: e.message }); res.status(500).json({ error: 'UPLOAD_FAILED', message: e.message }); }
 });
-router.get('/:id/files/:fileId/download', requireAuth, loadRoom, async (req, res) => {
+router.get('/:id/files/:fileId/download', requireAuth, loadRoom, requireRoomMember, async (req, res) => {
   const file = await RoomFile.findOne({ where: { id: req.params.fileId, room_id: req.room.id } });
-  if (!file || file.kind !== 'ephemeral') return res.status(404).json({ error: 'NOT_FOUND' });
-  const p = path.join(UPLOAD_DIR, req.room.id, file.storage_key);
-  if (!fs.existsSync(p)) return res.status(404).json({ error: 'GONE' });
-  res.setHeader('Content-Type', file.mimetype || 'application/octet-stream');
-  res.setHeader('Content-Disposition', `inline; filename="${file.name}"`);
-  fs.createReadStream(p).pipe(res);
+  if (!file) return res.status(404).json({ error: 'NOT_FOUND' });
+
+  // FileVault-backed rows: stream via FileVault. Room membership authorizes the
+  // requester (verified above); the FEAT-031 gate still applies to them as a
+  // non-uploader, so a held (pending/rejected) image 404s exactly like a
+  // missing file and is never served.
+  if (file.kind === 'vault' && file.file_id) {
+    try {
+      const { stream, file: vaultFile } = await fileService.downloadFileStreamForMember(file.file_id, req.user.id);
+      res.setHeader('Content-Type', (vaultFile && vaultFile.mimetype) || file.mimetype || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${file.name}"`);
+      return stream.pipe(res);
+    } catch (e) {
+      if (e.message === 'FILE_NOT_FOUND') return res.status(404).json({ error: 'NOT_FOUND' });
+      logger.error('room file download failed', { error: e.message });
+      return res.status(500).json({ error: 'DOWNLOAD_FAILED' });
+    }
+  }
+
+  // Legacy `ephemeral` rows written before BUG-024 still stream from disk. No
+  // new rows of this kind are created.
+  if (file.kind === 'ephemeral' && file.storage_key) {
+    const p = path.join(UPLOAD_DIR, req.room.id, file.storage_key);
+    if (!fs.existsSync(p)) return res.status(404).json({ error: 'GONE' });
+    res.setHeader('Content-Type', file.mimetype || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${file.name}"`);
+    return fs.createReadStream(p).pipe(res);
+  }
+
+  return res.status(404).json({ error: 'NOT_FOUND' });
 });
 router.delete('/:id/files/:fileId', requireAuth, loadRoom, async (req, res) => {
   const file = await RoomFile.findOne({ where: { id: req.params.fileId, room_id: req.room.id } });

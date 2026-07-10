@@ -132,8 +132,17 @@ PasswordReset.belongsTo(User, { foreignKey: 'initiatedBy', as: 'initiator' });
 User.hasMany(PasswordReset, { foreignKey: 'initiatedBy', as: 'initiatedResets' });
 
 // CrlCounter <-> Certificate (issuing CA)
-CrlCounter.belongsTo(Certificate, { foreignKey: 'issuerId', as: 'issuer' });
-Certificate.hasOne(CrlCounter, { foreignKey: 'issuerId', as: 'crlCounter' });
+// BUG-025: a crl_counter is a strict dependent of its issuing certificate; it
+// dies with the issuer. Explicit CASCADE (was the hasOne default, now stated) +
+// live migration 20260710000001 to match.
+CrlCounter.belongsTo(Certificate, {
+  foreignKey: { name: 'issuerId', allowNull: false }, as: 'issuer',
+  onDelete: 'CASCADE', onUpdate: 'CASCADE',
+});
+Certificate.hasOne(CrlCounter, {
+  foreignKey: { name: 'issuerId', allowNull: false }, as: 'crlCounter',
+  onDelete: 'CASCADE', onUpdate: 'CASCADE',
+});
 
 // AcmeAccount <-> AcmeOrder (One-to-Many)
 AcmeAccount.hasMany(AcmeOrder, { foreignKey: 'accountId', as: 'orders', onDelete: 'CASCADE' });

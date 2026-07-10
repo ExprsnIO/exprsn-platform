@@ -62,8 +62,12 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Thumbnail.associate = (models) => {
+    // BUG-025: align model to live DB — thumbnails.file_id is ON DELETE CASCADE
+    // (a thumbnail is a dependent of its file and dies with it).
     Thumbnail.belongsTo(models.File, {
-      foreignKey: 'file_id',
+      foreignKey: { name: 'file_id', allowNull: false },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
       as: 'file'
     });
   };

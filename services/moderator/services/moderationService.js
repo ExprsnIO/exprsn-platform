@@ -35,8 +35,17 @@ class ModerationService {
       contentUrl,
       contentMetadata = {},
       aiProvider = null,
-      // Optional: a verdict the caller already computed, in the same score shape
-      // the providers return. When present, no AI provider is invoked.
+      // A verdict the caller already computed, in the same score shape the
+      // providers return. When present, no AI provider is invoked.
+      //
+      // ⚠ IN-PROCESS CALLERS ONLY (today: the FileVault image worker).
+      // `POST /api/moderate/content` is UNAUTHENTICATED (SPIKE-001 / BUG-010)
+      // and protects this by destructuring an explicit field allowlist that
+      // omits `precomputedResult`. If that handler is ever changed to forward
+      // `req.body` wholesale, any anonymous caller could launder content as
+      // clean (`riskScore: 0`) or grief an upload into the review queue
+      // (`riskScore: 100`). `tests/unit/verdictInjection.test.js` fails if the
+      // allowlist is removed — do not delete that test.
       precomputedResult = null
     } = params;
 

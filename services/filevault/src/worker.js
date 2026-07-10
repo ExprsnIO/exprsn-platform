@@ -50,6 +50,12 @@ async function processFile(fileId) {
     return { status: record.status, alreadyResolved: true };
   }
 
+  // Pin the exact bytes we are about to judge. Inference takes seconds, and a
+  // concurrent updateFile()/restoreVersion() can swap the file's content in that
+  // window — writing this verdict afterwards would approve the NEW bytes on the
+  // strength of the OLD ones. The early-return guard above cannot catch it: it
+  // runs before the evaluation, not after.
+  const judgedHash = file.contentHash;
   const buffer = await storage.retrieve(file.storageKey, file.storageBackend);
 
   let patch;
@@ -70,6 +76,19 @@ async function processFile(fileId) {
       return { status: 'failed', reason: 'unsupported_image' };
     }
     throw err; // let Bull retry with backoff
+  }
+
+  // Compare-and-set on the content hash: if the bytes changed while we were
+  // judging them, this verdict describes content that is no longer served.
+  // Discard it and leave the row `pending` — the write path already queued a
+  // fresh job for the new bytes, and `pending` keeps the file hidden meanwhile.
+  const current = await File.findByPk(fileId, { attributes: ['id', 'contentHash'] });
+  if (!current || current.contentHash !== judgedHash) {
+    logger.warn('file bytes changed during moderation; discarding stale verdict', {
+      fileId, judgedHash, currentHash: current && current.contentHash,
+    });
+    await record.update({ attempts: record.attempts + 1 });
+    return { status: 'superseded' };
   }
 
   await record.update({ ...patch, attempts: record.attempts + 1 });

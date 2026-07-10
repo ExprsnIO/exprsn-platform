@@ -855,6 +855,26 @@ are cross-referenced, not re-filed.)*
   `imageModerationService.establishModerationState()`, which all four call. Any
   future path that writes bytes must call it rather than reinvent it.
 
+### BUG-022 — FileVault worker could write a stale verdict onto replaced bytes (TOCTOU)
+- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Relates:** FEAT-031, BUG-018, BUG-021
+- **Found:** self-audit while reasoning about the BUG-018/021 reset race.
+- **Description:** Image inference takes seconds. The worker read the file row,
+  fetched its bytes, evaluated, then wrote the verdict. If `updateFile()` or
+  `restoreVersion()` replaced the file's bytes during that window, the worker
+  wrote a verdict computed from the **old** bytes onto the **new** content —
+  silently re-approving content nothing ever looked at. The worker's
+  `approved`/`rejected` early-return does not catch this: it runs *before* the
+  evaluation, not after.
+- **Fix:** compare-and-set on `contentHash`. The worker pins the hash of the bytes
+  it judged, re-reads the row after inference, and discards the verdict if the
+  content changed (or the file was deleted), leaving the row `pending` — the write
+  path has already queued a fresh job, and `pending` keeps the file hidden
+  meanwhile. Returns `{ status: 'superseded' }`.
+- **Tests:** `services/filevault/tests/unit/workerRace.test.js` proves the stale
+  approval is never written, that an unchanged file still gets its verdict, and
+  that a file deleted mid-evaluation is handled.
+
 ### BUG-020 — Share-link metadata endpoint discloses a held image's existence and filename
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** FEAT-031 · **Found:** QA verification 2026-07-10 (observed, not filed)

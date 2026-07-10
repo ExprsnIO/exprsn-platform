@@ -43,6 +43,7 @@ jest.mock('../src/services/liveConfig', () => ({ getSection: jest.fn() }));
 // FileVault façade — the whole point of BUG-024.
 const mockFileService = {
   uploadFile: jest.fn(),
+  getFile: jest.fn(),
   downloadFileStreamForMember: jest.fn(),
   servableFileIds: jest.fn(),
 };
@@ -119,6 +120,75 @@ describe('POST /:id/files/upload — routes through FileVault', () => {
       .post(`/api/rooms/${ROOM_ID}/files/upload`)
       .attach('file', Buffer.from('x'), 'pic.png');
     expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /:id/files/share — must verify the sharer can access the file (BUG-026)', () => {
+  test('sharing a file you can access creates a vault row with the VERIFIED metadata', async () => {
+    asMember();
+    mockFileService.getFile.mockResolvedValue({
+      id: 'vault-file-9', name: 'real.pdf', mimetype: 'application/pdf', size: 4242,
+    });
+    mockModels.RoomFile.create.mockImplementation(async (v) => ({ id: 'rf-9', ...v }));
+
+    const res = await request(app)
+      .post(`/api/rooms/${ROOM_ID}/files/share`)
+      // body tries to spoof name/mimetype/size — must be ignored in favour of the verified file
+      .send({ fileId: 'vault-file-9', name: 'display', mimetype: 'image/png', size: 1 })
+      .set('x-test-user', MEMBER);
+
+    expect(res.status).toBe(201);
+    // access was verified on behalf of THIS member
+    expect(mockFileService.getFile).toHaveBeenCalledWith('vault-file-9', MEMBER);
+    const created = mockModels.RoomFile.create.mock.calls[0][0];
+    expect(created.file_id).toBe('vault-file-9');
+    expect(created.mimetype).toBe('application/pdf'); // verified, not the spoofed image/png
+    expect(created.size).toBe(4242); // verified, not the spoofed 1
+  });
+
+  // THE VULNERABILITY: an attacker shares a victim's private file UUID into their
+  // own room, then downloads it. getFile() throwing must block the share.
+  test('sharing a file you CANNOT access is 404 and creates no row', async () => {
+    asMember();
+    mockFileService.getFile.mockRejectedValue(new Error('INSUFFICIENT_PERMISSIONS'));
+
+    const res = await request(app)
+      .post(`/api/rooms/${ROOM_ID}/files/share`)
+      .send({ fileId: 'victims-private-uuid', name: 'x' })
+      .set('x-test-user', MEMBER);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('FILE_NOT_FOUND');
+    expect(mockModels.RoomFile.create).not.toHaveBeenCalled();
+  });
+
+  test('a missing file is the same 404 — no existence oracle', async () => {
+    asMember();
+    mockFileService.getFile.mockRejectedValue(new Error('FILE_NOT_FOUND'));
+    const res = await request(app)
+      .post(`/api/rooms/${ROOM_ID}/files/share`)
+      .send({ fileId: 'does-not-exist', name: 'x' })
+      .set('x-test-user', MEMBER);
+    expect(res.status).toBe(404);
+  });
+
+  test('a non-member cannot share at all (403, access never checked)', async () => {
+    asNonMember();
+    const res = await request(app)
+      .post(`/api/rooms/${ROOM_ID}/files/share`)
+      .send({ fileId: 'vault-file-9', name: 'x' })
+      .set('x-test-user', NON_MEMBER);
+    expect(res.status).toBe(403);
+    expect(mockFileService.getFile).not.toHaveBeenCalled();
+  });
+
+  test('missing fileId is a 400', async () => {
+    asMember();
+    const res = await request(app)
+      .post(`/api/rooms/${ROOM_ID}/files/share`)
+      .send({ name: 'x' })
+      .set('x-test-user', MEMBER);
+    expect(res.status).toBe(400);
   });
 });
 

@@ -121,11 +121,29 @@ router.get('/:id/files', requireAuth, loadRoom, requireRoomMember, async (req, r
 });
 router.post('/:id/files/share', requireAuth, loadRoom, requireRoomMember, async (req, res) => {
   try {
-    const { fileId, name, mimetype, size } = req.body;
-    if (!fileId || !name) return res.status(400).json({ error: 'FILE_REQUIRED' });
+    const { fileId, name } = req.body;
+    if (!fileId) return res.status(400).json({ error: 'FILE_REQUIRED' });
+
+    // BUG-026: the sharer MUST be able to access the file they are sharing in.
+    // Without this, an attacker could share a victim's private FileVault file by
+    // UUID into a room they control, then download it via the member-download
+    // route (which deliberately skips the ownership check, trusting that the
+    // share was legitimate). getFile() enforces the private-visibility owner
+    // check AND the moderation gate and throws if the caller can't access it.
+    // Metadata comes from the VERIFIED file, never the request body (no spoofing).
+    let vaultFile;
+    try {
+      vaultFile = await fileService.getFile(fileId, req.user.id);
+    } catch (e) {
+      // Same 404 whether the file is missing or the caller isn't allowed to see
+      // it — never confirm existence of a file the caller can't access.
+      return res.status(404).json({ error: 'FILE_NOT_FOUND' });
+    }
+
     const file = await RoomFile.create({
       room_id: req.room.id, user_id: req.user.id, kind: 'vault',
-      file_id: fileId, name, mimetype: mimetype || null, size: size || null
+      file_id: vaultFile.id, name: name || vaultFile.name,
+      mimetype: vaultFile.mimetype || null, size: vaultFile.size || null
     });
     res.status(201).json({ success: true, file });
   } catch (e) { res.status(500).json({ error: 'SHARE_FAILED', message: e.message }); }

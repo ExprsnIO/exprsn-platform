@@ -754,7 +754,7 @@ are cross-referenced, not re-filed.)*
   whichever ticket introduces tag filtering.
 
 ### BUG-017 — FileVault group-file uploads bypass image moderation entirely (served unmoderated)
-- **Type:** bug · **Status:** backlog · **Priority:** P1 · **Size:** M
+- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 (`733c842`): `uploadGroupFile()` now creates the moderation row inside the upload transaction and enqueues after commit, identically to the personal-upload path.· **Priority:** P1 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — · **Relates:** FEAT-031 (verifying) · **Found:** QA live verification 2026-07-10 (branch `main`, commit b56166e)
 - **Description:** `fileService.uploadGroupFile()` (the `POST /filevault/api/groups/:groupId/files/upload`
@@ -783,7 +783,7 @@ are cross-referenced, not re-filed.)*
   wiring) and a live repro against Postgres.
 
 ### BUG-018 — FileVault new-version upload (updateFile / editor save) is never re-moderated — approve-then-swap bypass
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 (`733c842`): `updateFile()` resets the row to `pending` (hidden) inside the transaction and re-queues via `requeueImageModeration()`, which removes the stale Bull job first (a plain re-add is a silent no-op — BUG-016).· **Priority:** P2 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — · **Relates:** FEAT-031 (verifying), BUG-016 · **Found:** QA live verification 2026-07-10
 - **Description:** `fileService.updateFile()` (`PUT /filevault/api/files/:fileId`, the Monaco editor
@@ -805,7 +805,7 @@ are cross-referenced, not re-filed.)*
   `FileModeration`/`enqueueImageModeration` call.
 
 ### BUG-019 — Flagged image does not reliably reach moderator's human review queue (verdict routed through the text pipeline)
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 (`733c842`): `moderateContent()` accepts a `precomputedResult`, so the image's own scores (not its alt-text) drive rules, `requiresManualReview`, the review queue, and the audit trail. Regression test: alt-text "two people" + nsfw 96 → riskScore 93, requiresReview true. Text path untouched. **Wants systems-architect confirmation** that the precomputed-verdict seam satisfies ADR 0002 constraint 5.· **Priority:** P2 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — · **Relates:** FEAT-031 (verifying), FEAT-030, ADR 0002 constraint 5 · **Found:** QA verification 2026-07-10
 - **Description:** The FileVault moderation worker's `escalate()` (`services/filevault/src/worker.js`)
@@ -836,6 +836,22 @@ are cross-referenced, not re-filed.)*
   `services/moderator/services/moderationService.js` `moderateContent` (risk from `analyzeContent`, review
   gated by `requiresReview`, lines ~80-143). Provider `analyzeImage` present at
   `services/moderator/src/ai-providers/cortex.js` but unused by this path.
+
+### BUG-020 — Share-link metadata endpoint discloses a held image's existence and filename
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** sr-developer · **Relates:** FEAT-031 · **Found:** QA verification 2026-07-10 (observed, not filed)
+- **Description:** `GET /filevault/api/share/:shareLinkId` returns a file's name,
+  size, and mimetype without consulting its moderation state. Only the
+  `/download` variants are gated. So a share-link holder learns that a held
+  (`pending`/`rejected`/`failed`) image exists and what it is called, even though
+  the bytes and thumbnail are correctly withheld and every other serve path 404s
+  it like a missing file.
+- **Severity:** low — disclosure is limited to a capability holder (they must
+  already possess the share link + token), and no image content leaks. It is
+  nonetheless inconsistent with the "held images are not enumerable" property the
+  rest of the chokepoint enforces.
+- **Acceptance criteria:** the metadata endpoint 404s for a held image exactly as
+  the download path does; a test covers it.
 
 ### FEAT-023 — Cortex as an in-process LLM source for other modules (façade + moderator provider)
 - **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
@@ -1145,7 +1161,7 @@ are cross-referenced, not re-filed.)*
   in `src/config/index.js` + `.env.example`.
 
 ### FEAT-031 — FileVault upload chokepoint: async image moderation + tagging
-- **Type:** feature · **Status:** in-progress — QA FAIL 2026-07-10 (bounced from in-review).
+- **Type:** feature · **Status:** in-review — QA-found BUG-017/018/019 all FIXED 2026-07-10 (`733c842`); awaiting QA re-verification. Also fixed pre-merge: DBA-found FK cascade/NOT NULL (`1d58480`). Remaining before `done`: QA re-run, systems-architect confirmation of the `precomputedResult` seam (ADR 0002 constraint 5), and TASK-023 (recall corpus) before any verdict drives automation.
   Core user-upload path is solid, but the chokepoint has holes on in-scope paths. · **Priority:** P1 · **Size:** L
 - **QA verification (2026-07-10, branch `main` commit b56166e; real DB `exprsn`/schema `filevault`,
   resident `qwen2.5-vl-3b`):** filevault imageModeration Jest 19/19; live worker E2E on the real DB +

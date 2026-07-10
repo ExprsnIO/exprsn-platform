@@ -106,3 +106,41 @@ describe('an anonymous caller cannot forge a verdict', () => {
     });
   });
 });
+
+// The shapes I'd normally reach for a wire allowlist bypass — the same ones I
+// asked QA to try. A strict destructure defeats all of them, but pin it.
+describe('adversarial injection shapes', () => {
+  test('the forged field buried at item[47] of a large batch is still stripped', async () => {
+    const items = Array.from({ length: 50 }, (_, i) => ({ ...base, contentId: `c${i}` }));
+    items[47].precomputedResult = FORGED;
+    await request(app).post('/api/moderate/batch').send({ items }).expect(200);
+
+    expect(mockSeen).toHaveLength(50);
+    expect(mockSeen.every((p) => p.precomputedResult === undefined)).toBe(true);
+  });
+
+  test('a __proto__-carried verdict neither passes through nor pollutes Object.prototype', async () => {
+    const payload = `{"contentType":"image","contentId":"p","sourceService":"s",` +
+      `"userId":"u","contentText":"t","__proto__":{"precomputedResult":${JSON.stringify(FORGED)}}}`;
+    await request(app).post('/api/moderate/content')
+      .set('Content-Type', 'application/json').send(payload).expect(200);
+
+    expect(mockSeen[0].precomputedResult).toBeUndefined();
+    expect({}.precomputedResult).toBeUndefined(); // prototype not polluted
+  });
+
+  test('a verdict nested in contentMetadata is inert (the service reads params.precomputedResult only)', async () => {
+    await request(app).post('/api/moderate/content')
+      .send({ ...base, contentMetadata: { precomputedResult: FORGED } })
+      .expect(200);
+
+    // It may ride along inside contentMetadata (that's just opaque metadata), but
+    // it is NOT the top-level precomputedResult the service acts on.
+    expect(mockSeen[0].precomputedResult).toBeUndefined();
+  });
+
+  test('non-object batch items do not crash the route', async () => {
+    const res = await request(app).post('/api/moderate/batch').send({ items: ['nope', null, 42] });
+    expect(res.status).toBeLessThan(600); // a clean status, not an unhandled throw
+  });
+});

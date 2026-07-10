@@ -9,7 +9,6 @@
     { "match": "fk:ca.rate_limits.target_id",          "reason": "permanent — polymorphic reference (model declares belongsTo User and belongsTo Group on the same target_id with constraints:false); no single FK is possible.", "ticket": null },
     { "match": "fk:ca.password_resets.user_id",        "reason": "permanent — cross-schema reference, no in-DB FK possible. user_id is a platform/auth user id; ca.users is vestigial/empty.", "ticket": null },
     { "match": "fk:ca.password_resets.initiated_by",   "reason": "permanent — cross-schema reference, no in-DB FK possible. initiated_by is a platform/auth user id; ca.users is vestigial/empty.", "ticket": null },
-    { "match": "fk:ca.crl_counters.issuer_id",         "reason": "FLAGGED for live migration (do NOT downgrade the model). Model intends CASCADE, live is NO ACTION. The model's CASCADE is correct — a crl_counter is a strict dependent of its issuing CA certificate (RFC 5280 monotonic per-issuer counter) and should die with it. Recommend a live migration to bring the FK to ON DELETE CASCADE rather than weakening the model to NO ACTION. Kept allowlisted until that migration lands.", "ticket": "BUG-025" },
     { "match": "fk:timeline.attachments.entity_id",    "reason": "BY DESIGN: entity_id is a polymorphic reference (targets multiple entity types); no single FK is possible.", "ticket": null }
   ]
 }

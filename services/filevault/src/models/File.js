@@ -130,12 +130,19 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: 'directory_id',
       as: 'directory'
     });
+    // BUG-025: file_id NOT NULL + ON DELETE CASCADE (see migration
+    // 20260710000002). Sequelize's hasMany default was SET NULL, which forced
+    // the column nullable and would orphan versions/share-links on a hard delete.
     File.hasMany(models.FileVersion, {
-      foreignKey: 'file_id',
+      foreignKey: { name: 'file_id', allowNull: false },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
       as: 'versions'
     });
     File.hasMany(models.ShareLink, {
-      foreignKey: 'file_id',
+      foreignKey: { name: 'file_id', allowNull: false },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
       as: 'shareLinks'
     });
   };

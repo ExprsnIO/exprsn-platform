@@ -77,7 +77,9 @@ module.exports = (sequelize, DataTypes) => {
 
   FileVersion.associate = function(models) {
     FileVersion.belongsTo(models.File, {
-      foreignKey: 'file_id',
+      foreignKey: { name: 'file_id', allowNull: false },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
       as: 'file'
     });
   };

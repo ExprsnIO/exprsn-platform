@@ -85,7 +85,9 @@ module.exports = (sequelize, DataTypes) => {
 
   ShareLink.associate = function(models) {
     ShareLink.belongsTo(models.File, {
-      foreignKey: 'file_id',
+      foreignKey: { name: 'file_id', allowNull: false },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
       as: 'file'
     });
   };

@@ -753,9 +753,11 @@ are cross-referenced, not re-filed.)*
 - **Description:** With the enhanced `db:check`, 17 pre-existing divergences are now
   visible and allowlisted in `scripts/drift-allow.json`. Each needs a decision:
   fix the schema, fix the model, or accept-and-document. The set:
-  - **filevault `file_versions.file_id`, `share_links.file_id`** — model NOT NULL,
-    live nullable. Exactly the FileModeration bug class. Needs an ALTER-to-NOT-NULL
-    migration after confirming no null rows exist. **Highest priority of this set.**
+  - **filevault `file_versions.file_id`, `share_links.file_id`** — ✅ **FIXED
+    2026-07-10** (`20260710000002-fix-fileversion-sharelink-fk-cascade.js`): both
+    now NOT NULL + ON DELETE CASCADE (0 null rows; applied; idempotent; models +
+    associations updated so a fresh sync matches). Removed from the allowlist —
+    they now pass `db:check` genuinely, not by exception.
   - **filevault `thumbnails.file_id`, `downloads.file_id`; moderator
     `user_actions.related_report_id`; auth `organization_members.{userId,organizationId}`;
     ca `crl_counters.issuer_id`** — onDelete mismatches (model vs live). Decide which

@@ -678,6 +678,33 @@ are cross-referenced, not re-filed.)*
 - **Acceptance criteria:** a hostname whose DNS answer changes between check
   and connect cannot reach a private address; unit test with a stubbed lookup.
 
+### TASK-023 — Vision moderation: supply a labeled corpus and run the recall gate
+- **Type:** task · **Status:** blocked (needs a corpus decision from Rick) · **Priority:** P1 · **Size:** M
+- **Owner-role:** qa-specialist + Rick · **Blocked-by:** — · **Relates:** FEAT-030, FEAT-031
+- **Description:** Both reviewers made enabling the `moderateImage` verdict
+  conditional on a per-category accuracy benchmark. The harness now exists:
+  `scripts/eval/vision-recall.js <corpus-dir>`. It reports recall, false
+  negatives, precision, false-positive rate (i.e. human-review load), and
+  per-category recall; it exits non-zero unless every category clears the bar
+  (`VISION_EVAL_MIN_RECALL`, default 0.9) with at least 20 unsafe and 20 benign
+  cases. Verified: on a benign-only corpus it correctly reports recall as
+  **UNMEASURED** and FAILS, rather than claiming 100% accuracy — that
+  "we tested nothing and it passed" outcome is precisely what the gate prevents.
+- **What is blocked:** the harness has no corpus, and one cannot be synthesized.
+  Measuring the false-negative rate of an NSFW/violence classifier requires real
+  labeled unsafe imagery. That is a sourcing/handling/legal decision for Rick —
+  options include an existing internal moderation-review set (already-flagged
+  user content), a licensed academic benchmark, or a vendor-supplied test set.
+  **Until a corpus is run, `CORTEX_MODERATION_MODE` must stay `off`/`shadow` and
+  the image verdict must stay escalate-only.**
+- **Acceptance criteria:** a corpus of ≥20 unsafe (spread across nsfw / violence
+  / hate_symbol / self_harm) and ≥20 benign images; `vision-recall.js` exits 0;
+  the report is attached to this ticket; the false-positive rate is reviewed for
+  the human-review load it implies before any threshold is lowered.
+- **Explicit non-goal:** a general-purpose 3B VLM is **not** a CSAM classifier
+  and must not be represented as satisfying any CSAM-detection obligation,
+  whatever this harness reports.
+
 ### FEAT-023 — Cortex as an in-process LLM source for other modules (façade + moderator provider)
 - **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** — · **Legacy:** cross-links TASK-009 (in-process calls)

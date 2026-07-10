@@ -130,6 +130,41 @@ function imageRiskThreshold() {
   return Number.isFinite(n) ? n : 70;
 }
 
+/**
+ * THE invariant, in one place: whenever a file's bytes are created or replaced,
+ * its moderation state must be (re)established before those bytes can be served
+ * to anyone else.
+ *
+ * This exists because the invariant was originally open-coded at the upload site
+ * and then quietly violated by every *other* path that writes bytes — group
+ * upload (BUG-017), new version (BUG-018), and version restore. Four call sites,
+ * three bugs. Any future path that writes bytes must call this instead of
+ * reinventing it.
+ *
+ * `mode: 'create'` for a brand-new file, `'reset'` when replacing the bytes of an
+ * existing one (which clears the stale verdict — an old verdict does not
+ * describe the new bytes).
+ *
+ * Must be called INSIDE the caller's transaction. Returns the state so the caller
+ * knows whether to enqueue after commit.
+ */
+async function establishModerationState(FileModeration, file, { transaction, mode = 'create' }) {
+  const state = initialState({ mimetype: file.mimetype, metadata: file.metadata || {} });
+  if (mode === 'create') {
+    await FileModeration.create({ fileId: file.id, ...state }, { transaction });
+  } else {
+    await FileModeration.upsert(
+      {
+        fileId: file.id, ...state,
+        riskScore: null, verdict: null, moderationItemId: null,
+        altText: null, aiTags: [], textInImage: null, lastError: null, attempts: 0,
+      },
+      { transaction },
+    );
+  }
+  return state;
+}
+
 module.exports = {
   featureEnabled,
   isModeratableImage,
@@ -137,6 +172,7 @@ module.exports = {
   isServableToOthers,
   canServe,
   initialState,
+  establishModerationState,
   shouldQueue,
   evaluate,
   imageRiskThreshold,

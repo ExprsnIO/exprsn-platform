@@ -4,10 +4,12 @@
  * ═══════════════════════════════════════════════════════════════════════
  */
 
-const { File, FileVersion, sequelize } = require('../models');
+const { File, FileVersion, FileModeration, sequelize } = require('../models');
 const storage = require('../storage');
 const { calculateTextDiff, isTextFile } = require('../utils/diff');
 const logger = require('../utils/logger');
+const imageModeration = require('./imageModerationService');
+const { requeueImageModeration } = require('../queues/imageModeration');
 
 /**
  * Get all versions of a file
@@ -103,8 +105,22 @@ async function restoreVersion(fileId, versionNumber, userId) {
       currentVersion: newVersionNumber
     }, { transaction });
 
+    // FEAT-031: restoring repoints `storageKey` at DIFFERENT bytes while leaving
+    // the verdict untouched. Approve v2, restore v1, and content that was never
+    // cleared (or was rejected) serves under an `approved` status. Versions are
+    // not individually moderated, so the only safe move is to re-moderate the
+    // file's new current bytes: reset to `pending` (hidden) inside the
+    // transaction, re-queue after commit.
+    const modState = await imageModeration.establishModerationState(
+      FileModeration, file, { transaction, mode: 'reset' });
+
     await transaction.commit();
     logger.info(`File restored to version ${versionNumber}: ${fileId}`);
+
+    if (modState.status === 'pending') {
+      // Remove the stale job first — a plain re-add is a silent no-op (BUG-016).
+      await requeueImageModeration(file.id);
+    }
 
     return file;
   } catch (error) {

@@ -77,8 +77,8 @@ async function uploadFile({ userId, buffer, filename, path, directoryId, tags, m
     // so an image can never exist without a visibility state. Images start
     // `pending` (hidden from other users) and are cleared asynchronously; other
     // objects are `skipped` (servable) immediately.
-    const modState = imageModeration.initialState({ mimetype, metadata: metadata || {} });
-    await FileModeration.create({ fileId: file.id, ...modState }, { transaction });
+    const modState = await imageModeration.establishModerationState(
+      FileModeration, { id: file.id, mimetype, metadata }, { transaction, mode: 'create' });
 
     await transaction.commit();
     logger.info(`File created: ${file.id}`);
@@ -246,15 +246,8 @@ async function updateFile(fileId, userId, buffer, changeDescription) {
     // describes this file. Without this, "upload benign → get approved → save a
     // new version" serves unmoderated content under an approved status. Reset to
     // `pending` (i.e. hidden from others) inside the transaction, then re-queue.
-    const modState = imageModeration.initialState({
-      mimetype: file.mimetype,
-      metadata: file.metadata || {}
-    });
-    await FileModeration.upsert(
-      { fileId: file.id, ...modState, riskScore: null, verdict: null, moderationItemId: null,
-        altText: null, aiTags: [], textInImage: null, lastError: null, attempts: 0 },
-      { transaction }
-    );
+    const modState = await imageModeration.establishModerationState(
+      FileModeration, file, { transaction, mode: 'reset' });
 
     await transaction.commit();
     logger.info(`File updated to version ${newVersion}: ${file.id}`);
@@ -446,8 +439,8 @@ async function uploadGroupFile({ groupId, userId, buffer, filename, path, direct
     // This path created no moderation row at all, so every group image was served
     // unmoderated to the whole group — the chokepoint's largest hole, and exactly
     // the content most visible to other people.
-    const modState = imageModeration.initialState({ mimetype, metadata: metadata || {} });
-    await FileModeration.create({ fileId: file.id, ...modState }, { transaction });
+    const modState = await imageModeration.establishModerationState(
+      FileModeration, { id: file.id, mimetype, metadata }, { transaction, mode: 'create' });
 
     await transaction.commit();
     logger.info(`Group file created: ${file.id} (group ${groupId})`);

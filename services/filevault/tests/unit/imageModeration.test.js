@@ -96,6 +96,55 @@ describe('fail-closed visibility', () => {
   });
 });
 
+// ---------------------------------------------------------------- the invariant
+//
+// Four call sites write file bytes (upload, group upload, new version, restore)
+// and three of them originally forgot to establish moderation state — BUG-017,
+// BUG-018, and the restore path. The invariant now lives in ONE helper; these
+// tests pin its two modes.
+
+describe('establishModerationState (the single invariant)', () => {
+  const fakeModel = () => ({ create: jest.fn(), upsert: jest.fn() });
+  const tx = Symbol('transaction');
+
+  test('create: a new image starts pending (hidden) inside the caller transaction', async () => {
+    const M = fakeModel();
+    const state = await svc.establishModerationState(M, img(), { transaction: tx, mode: 'create' });
+    expect(state.status).toBe('pending');
+    expect(M.create).toHaveBeenCalledWith(
+      expect.objectContaining({ fileId: 'f1', status: 'pending' }), { transaction: tx });
+    expect(M.upsert).not.toHaveBeenCalled();
+  });
+
+  test('create: a non-image is skipped and immediately servable', async () => {
+    const M = fakeModel();
+    const state = await svc.establishModerationState(
+      M, img({ mimetype: 'application/pdf' }), { transaction: tx, mode: 'create' });
+    expect(state).toEqual({ status: 'skipped', reason: 'not_an_image' });
+  });
+
+  // Replacing bytes must not leave the OLD verdict describing the NEW content.
+  test('reset: clears the stale verdict and re-hides the image', async () => {
+    const M = fakeModel();
+    const state = await svc.establishModerationState(M, img(), { transaction: tx, mode: 'reset' });
+    expect(state.status).toBe('pending');
+    const [row] = M.upsert.mock.calls[0];
+    expect(row).toMatchObject({
+      fileId: 'f1', status: 'pending',
+      riskScore: null, verdict: null, moderationItemId: null,
+      altText: null, aiTags: [], attempts: 0,
+    });
+    expect(M.create).not.toHaveBeenCalled();
+  });
+
+  test('reset: an encrypted object stays skipped rather than being re-queued', async () => {
+    const M = fakeModel();
+    const state = await svc.establishModerationState(
+      M, img({ metadata: { encrypted: true } }), { transaction: tx, mode: 'reset' });
+    expect(state).toEqual({ status: 'skipped', reason: 'encrypted' });
+  });
+});
+
 // ---------------------------------------------------------------- evaluate
 
 describe('evaluate()', () => {

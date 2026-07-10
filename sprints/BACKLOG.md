@@ -837,6 +837,24 @@ are cross-referenced, not re-filed.)*
   gated by `requiresReview`, lines ~80-143). Provider `analyzeImage` present at
   `services/moderator/src/ai-providers/cortex.js` but unused by this path.
 
+### BUG-021 — FileVault `restoreVersion()` serves un-revalidated bytes under the current verdict
+- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Relates:** FEAT-031, BUG-017, BUG-018
+- **Found:** self-audit after BUG-017 — I enumerated every path that writes file
+  bytes instead of assuming the one I had wired was the only one.
+- **Description:** `versionService.restoreVersion()` repoints `file.storageKey`
+  at an older version's bytes while leaving the moderation verdict untouched.
+  Versions are not individually moderated, so: approve v2, restore v1, and the
+  served bytes are content that was never cleared (or was rejected) — under an
+  `approved` status. Same shape as BUG-018, different call site.
+- **Fix:** restore resets the row to `pending` (hidden) inside its transaction and
+  re-queues via `requeueImageModeration()` after commit.
+- **Root cause worth recording:** the "bytes changed ⇒ re-establish moderation
+  state" invariant was open-coded at the upload site, so every other byte-writing
+  path silently violated it — 4 call sites, 3 bugs. It now lives in one helper,
+  `imageModerationService.establishModerationState()`, which all four call. Any
+  future path that writes bytes must call it rather than reinvent it.
+
 ### BUG-020 — Share-link metadata endpoint discloses a held image's existence and filename
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** FEAT-031 · **Found:** QA verification 2026-07-10 (observed, not filed)

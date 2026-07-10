@@ -34,7 +34,10 @@ class ModerationService {
       contentText,
       contentUrl,
       contentMetadata = {},
-      aiProvider = null
+      aiProvider = null,
+      // Optional: a verdict the caller already computed, in the same score shape
+      // the providers return. When present, no AI provider is invoked.
+      precomputedResult = null
     } = params;
 
     logger.info('Starting content moderation', {
@@ -77,12 +80,27 @@ class ModerationService {
         url: contentUrl,
         type: contentType
       };
-      const aiResult = await aiProviderFactory.analyzeContent(aiContent, aiProvider, { exclude });
+
+      // A caller that has ALREADY produced a verdict (FEAT-031: the FileVault
+      // worker scores images with the cortex vision model) passes it in, and the
+      // text analyzer is skipped entirely. Without this, an image verdict was
+      // laundered through `analyzeContent` on its alt-text — so the image's own
+      // nsfw/violence scores never reached `requiresManualReview`, and a flagged
+      // image was held but never queued for a human (BUG-019).
+      //
+      // Everything downstream — custom rules, review-queue routing, audit —
+      // then operates on the real scores, which is the point of routing image
+      // verdicts through moderator at all.
+      const aiResult = precomputedResult
+        || await aiProviderFactory.analyzeContent(aiContent, aiProvider, { exclude });
 
       // Shadow evaluation: score the same content with any observation-only
       // provider and log the disagreement. Deliberately not awaited — it must
-      // never add latency to, or fail, the publish path.
-      this._runShadowEvaluation(aiContent, aiResult, exclude, contentId);
+      // never add latency to, or fail, the publish path. Skipped for a
+      // precomputed verdict: there is nothing to compare a shadow against.
+      if (!precomputedResult) {
+        this._runShadowEvaluation(aiContent, aiResult, exclude, contentId);
+      }
 
       // Calculate overall risk if not provided
       const overallRisk = aiResult.riskScore || riskCalculator.calculateOverallRisk({

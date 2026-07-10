@@ -11,7 +11,7 @@ const { calculateSHA256, generateStorageKey } = require('../utils/hash');
 const logger = require('../utils/logger');
 const config = require('../config');
 const imageModeration = require('./imageModerationService');
-const { enqueueImageModeration } = require('../queues/imageModeration');
+const { enqueueImageModeration, requeueImageModeration } = require('../queues/imageModeration');
 
 /**
  * Upload a new file
@@ -242,8 +242,28 @@ async function updateFile(fileId, userId, buffer, changeDescription) {
       currentVersion: newVersion
     }, { transaction });
 
+    // FEAT-031 / BUG-018: the bytes just changed, so the old verdict no longer
+    // describes this file. Without this, "upload benign → get approved → save a
+    // new version" serves unmoderated content under an approved status. Reset to
+    // `pending` (i.e. hidden from others) inside the transaction, then re-queue.
+    const modState = imageModeration.initialState({
+      mimetype: file.mimetype,
+      metadata: file.metadata || {}
+    });
+    await FileModeration.upsert(
+      { fileId: file.id, ...modState, riskScore: null, verdict: null, moderationItemId: null,
+        altText: null, aiTags: [], textInImage: null, lastError: null, attempts: 0 },
+      { transaction }
+    );
+
     await transaction.commit();
     logger.info(`File updated to version ${newVersion}: ${file.id}`);
+
+    if (modState.status === 'pending') {
+      // Must REMOVE the stale job first — a plain re-add is a silent no-op while
+      // the completed job's key survives in Redis (BUG-016).
+      await requeueImageModeration(file.id);
+    }
 
     return file;
   } catch (error) {
@@ -422,8 +442,19 @@ async function uploadGroupFile({ groupId, userId, buffer, filename, path, direct
       metadata: metadata || {}
     }, { transaction });
 
+    // FEAT-031 / BUG-017: group uploads are moderated exactly like personal ones.
+    // This path created no moderation row at all, so every group image was served
+    // unmoderated to the whole group — the chokepoint's largest hole, and exactly
+    // the content most visible to other people.
+    const modState = imageModeration.initialState({ mimetype, metadata: metadata || {} });
+    await FileModeration.create({ fileId: file.id, ...modState }, { transaction });
+
     await transaction.commit();
     logger.info(`Group file created: ${file.id} (group ${groupId})`);
+
+    if (modState.status === 'pending') {
+      await enqueueImageModeration(file.id);
+    }
 
     return file;
   } catch (error) {

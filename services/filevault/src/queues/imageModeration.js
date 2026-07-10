@@ -77,6 +77,31 @@ async function enqueueImageModeration(fileId) {
   }
 }
 
+/**
+ * Enqueue a RE-moderation (new version of an existing file).
+ *
+ * `add()` with an existing jobId is a silent no-op in Bull while that job's key
+ * still exists in Redis — completed jobs linger for an hour, failed ones a day
+ * (see BUG-016). A plain re-enqueue would therefore do nothing for any recently
+ * moderated file, which is precisely the case that matters here: approve an
+ * image, then swap its bytes. Remove the stale job first.
+ */
+async function requeueImageModeration(fileId) {
+  try {
+    initQueues();
+    const jobId = `file:${fileId}`;
+    const existing = await queues.imageModeration.getJob(jobId);
+    if (existing) await existing.remove().catch(() => {});
+    await queues.imageModeration.add('moderate-image', { fileId }, { jobId });
+    return true;
+  } catch (err) {
+    logger.error('could not re-enqueue image moderation; file stays pending', {
+      fileId, error: err.message,
+    });
+    return false;
+  }
+}
+
 async function closeQueues() {
   if (queues.imageModeration) {
     await queues.imageModeration.close();
@@ -98,4 +123,7 @@ async function queueStats() {
   }
 }
 
-module.exports = { QUEUE_NAME, initQueues, closeQueues, queueStats, enqueueImageModeration, queues };
+module.exports = {
+  QUEUE_NAME, initQueues, closeQueues, queueStats,
+  enqueueImageModeration, requeueImageModeration, queues,
+};

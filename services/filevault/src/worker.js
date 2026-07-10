@@ -88,10 +88,18 @@ async function processFile(fileId) {
 }
 
 /**
- * Route a flagged image into moderator's existing pipeline. `contentType:
- * 'image'` is a valid `moderation_items.content_type` enum value (verified);
- * passing an invalid one would throw inside moderator's dedup query — the exact
- * silent-failure shape of BUG-012 — so this is asserted, not assumed.
+ * Route a flagged image into moderator's existing pipeline — its rules, review
+ * queue, and audit trail — rather than re-implementing any of that here.
+ *
+ * The image verdict is passed as `precomputedResult`, so moderator scores the
+ * IMAGE, not a text analysis of its alt-text. That distinction is the whole bug
+ * in BUG-019: routing through the text analyzer meant the image's own
+ * nsfw/violence scores never reached `requiresManualReview`, so a flagged image
+ * was held from view but never actually reached a human.
+ *
+ * `contentType: 'image'` is a valid `moderation_items.content_type` enum value
+ * (verified against the live DB); an invalid one throws inside moderator's dedup
+ * query — the silent-failure shape of BUG-015 — so this is asserted, not assumed.
  */
 async function escalate(file, patch) {
   // Required late: pulls in moderator's models. Keeping it out of module scope
@@ -104,10 +112,9 @@ async function escalate(file, patch) {
     sourceService: 'filevault',
     userId: file.userId,
     contentText: [patch.altText, patch.textInImage].filter(Boolean).join('\n') || 'image',
+    precomputedResult: patch.verdict, // the real image scores
     contentMetadata: {
       mimetype: file.mimetype,
-      imageVerdict: patch.verdict,
-      riskScore: patch.riskScore,
       escalatedBy: 'cortex-vision',
     },
   });

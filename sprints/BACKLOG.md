@@ -753,6 +753,90 @@ are cross-referenced, not re-filed.)*
   not a query that runs today. Add `USING GIN (ai_tags)` in the migration of
   whichever ticket introduces tag filtering.
 
+### BUG-017 — FileVault group-file uploads bypass image moderation entirely (served unmoderated)
+- **Type:** bug · **Status:** backlog · **Priority:** P1 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Relates:** FEAT-031 (verifying) · **Found:** QA live verification 2026-07-10 (branch `main`, commit b56166e)
+- **Description:** `fileService.uploadGroupFile()` (the `POST /filevault/api/groups/:groupId/files/upload`
+  path — group galleries/files) does **not** create a `FileModeration` row and does **not** enqueue an
+  image-moderation job, unlike `uploadFile()`. Because `imageModerationService.isServableToOthers(null)`
+  returns `true` ("no record ⇒ predates FEAT-031 / not tracked"), every group-owned image is served to
+  all other group members immediately with **no verdict ever run**. This defeats the FEAT-031 chokepoint
+  for group content, which ADR 0002 §8 and the FEAT-031 decisions explicitly name in scope ("covers
+  Nexus, Spark, Live chat, timeline — they all store pointers to FileVault"; group files funnel through
+  `uploadGroupFile`). Fail-closed-pending visibility is simply not applied to group uploads.
+- **Steps to reproduce (live, real DB `exprsn`/schema `filevault`, FILEVAULT_IMAGE_MODERATION=true):**
+  1. `fileService.uploadGroupFile({ groupId, userId, buffer:<png>, mimetype:'image/png', ... })`.
+  2. `FileModeration.findOne({ where:{ fileId } })` → **null** (no row created).
+  3. `fileService.getFile(fileId, <a-different-user>)` → returns the file (served).
+  - Control: the same image via `uploadFile()` yields `FileModeration.status='pending'` and
+    `getFile(fileId, <other-user>)` throws `FILE_NOT_FOUND` (correctly hidden), owner sees own.
+- **Expected vs actual:** Expected — a group image starts `pending` (hidden from non-uploaders) and is
+  cleared asynchronously, exactly like a user upload. Actual — no moderation row, no queue job, image
+  visible to all members with no verdict.
+- **Severity:** P1 (recommendation) — a whole in-scope upload class silently skips the safety chokepoint.
+- **Notes:** Fix mirrors `uploadFile()`: create the `FileModeration` row inside the same transaction
+  (`initialState({ mimetype, metadata })`) and `enqueueImageModeration(file.id)` after commit when
+  `status==='pending'`. Also confirm the group serve paths (`GET /filevault/api/groups/:groupId/files`
+  listing + the generic `/files/:id/download`) honour the verdict once rows exist. QA verified via
+  `services/filevault/src/services/fileService.js` `uploadGroupFile` (lines ~374-434, no moderation
+  wiring) and a live repro against Postgres.
+
+### BUG-018 — FileVault new-version upload (updateFile / editor save) is never re-moderated — approve-then-swap bypass
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Relates:** FEAT-031 (verifying), BUG-016 · **Found:** QA live verification 2026-07-10
+- **Description:** `fileService.updateFile()` (`PUT /filevault/api/files/:fileId`, the Monaco editor
+  save and any new-version upload) writes brand-new content bytes and bumps `currentVersion`, but does
+  **not** reset `FileModeration` to `pending`, create a version-scoped moderation record, or enqueue a
+  job. The moderation row keeps whatever state v1 had. So a user can upload a benign image (→ `approved`,
+  servable), then `PUT` a disallowed image as v2, and the object stays `approved` and is served to
+  everyone from the new bytes. The chokepoint covers first upload only, not subsequent content changes.
+- **Steps to reproduce:** Upload image A (benign) → wait for `approved`. `PUT /api/files/:id` with image
+  B (disallowed). `GET /api/files/:id/download` (as another user) serves image B; `FileModeration.status`
+  is still `approved`, no new job was enqueued.
+- **Expected vs actual:** Expected — a content-changing new version re-enters moderation (`pending`,
+  hidden from others until re-cleared). Actual — moderation state is stale; new bytes served unmoderated.
+- **Severity:** P2 (recommendation) — requires the uploader to deliberately swap, but the served content
+  is fully unmoderated and visible to others. Distinct from BUG-016 (that is the jobId dedup blocking a
+  *deliberate* re-moderation of the *same* bytes; this is a *new-content* version never triggering
+  moderation at all). Fix must also coordinate with BUG-016's jobId/generation concern.
+- **Notes:** `services/filevault/src/services/fileService.js` `updateFile` (lines ~198-254) has no
+  `FileModeration`/`enqueueImageModeration` call.
+
+### BUG-019 — Flagged image does not reliably reach moderator's human review queue (verdict routed through the text pipeline)
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Relates:** FEAT-031 (verifying), FEAT-030, ADR 0002 constraint 5 · **Found:** QA verification 2026-07-10
+- **Description:** The FileVault moderation worker's `escalate()` (`services/filevault/src/worker.js`)
+  routes a flagged image's verdict into moderator via `moderationService.moderateContent({ contentType:
+  'image', contentText: <altText||'image'>, contentMetadata:{ imageVerdict } })`. Inside `moderateContent`,
+  the disposition is computed by `AIProviderFactory.analyzeContent()` run on the **text** (`contentText`
+  — the alt-text, or the literal string `'image'` when tagging failed), NOT on the image verdict. The
+  image's real `riskScore`/`nsfwScore` sit only in `contentMetadata.imageVerdict` and never drive
+  `overallRisk`, `requiresReview`, or `action`. A high-risk NSFW image with a benign alt-text is therefore
+  recorded as low-risk and is **not** added to the review queue (`requiresReview=false`). This is exactly
+  the path ADR 0002 constraint 5 **Rejected** ("routing image verdicts through
+  `AIProviderFactory.analyzeContent` (text-shaped)"); the intended path — the moderator `cortex` provider's
+  `analyzeImage` gated by `CORTEX_MODERATION_MODE` — exists but is never called by the worker.
+- **Impact:** The image DOES stay hidden in FileVault (`FileModeration.status='rejected'`, fail-safe for
+  content — no unmoderated bytes are served), so this is not a content-leak. But FEAT-031's acceptance
+  bullet "a rejected image surfaces through moderator's existing verdict/review path" is not met: a human
+  reviewer keying off risk/the review queue never sees it, moderator's audit records it as clean/low-risk,
+  and a false-positive hold can never be human-cleared (the object is stuck hidden forever).
+- **Steps to reproduce:** Run the worker on an image the VL model flags (`riskScore ≥ threshold`) whose
+  alt-text is benign. `FileModeration` → `rejected` (hidden, correct). In moderator, the created
+  `moderation_items` row for `contentType='image'` carries the low text-derived risk and no
+  `review_queue` entry; the true image risk lives only in `content_metadata.imageVerdict`.
+- **Severity:** P2 (recommendation). **Structural** — loop in systems-architect + the moderator owner
+  per ADR 0002 constraint 5 (the "moderator-owned sub-ticket of FEAT-031" that was to wire `analyzeImage`
+  → verdict → review-queue → audit under `CORTEX_MODERATION_MODE`). QA verified behaviour; the sign-off
+  on the internal path is the architect's/moderator owner's.
+- **Notes:** `services/filevault/src/worker.js` `escalate()` (lines ~96-118) →
+  `services/moderator/services/moderationService.js` `moderateContent` (risk from `analyzeContent`, review
+  gated by `requiresReview`, lines ~80-143). Provider `analyzeImage` present at
+  `services/moderator/src/ai-providers/cortex.js` but unused by this path.
+
 ### FEAT-023 — Cortex as an in-process LLM source for other modules (façade + moderator provider)
 - **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** — · **Legacy:** cross-links TASK-009 (in-process calls)
@@ -1006,11 +1090,24 @@ are cross-referenced, not re-filed.)*
   batching regardless.
 
 ### FEAT-030 — Cortex: vision inference surface (image moderation + tagging)
-- **Type:** feature · **Status:** in-review — vision surface landed 2026-07-09
-  (describeImage + moderateImage engine, decode/EXIF/bomb guards, separate vision
-  pool + own timeout, cold-swap residency handling, no bytes near prompt_logs;
-  30 unit tests green). Enforcement consumption stays gated behind FEAT-031's
-  moderator-owned eval-harness slice per the C/B. · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** done — QA PASS 2026-07-10 (branch `main`, commit b56166e).
+  Every acceptance bullet verified live against the resident `qwen2.5-vl-3b` model + real DB/Redis
+  (not just unit suites). Vision surface landed 2026-07-09 (describeImage + moderateImage engine,
+  decode/EXIF/bomb guards, separate vision pool + own timeout, cold-swap residency handling, no
+  bytes near prompt_logs). Enforcement consumption stays gated behind FEAT-031's moderator-owned
+  eval-harness slice per the C/B. · **Priority:** P1 · **Size:** M
+- **QA verification (2026-07-10):** cortex Jest 124/124, filevault imageModeration 19/19, moderator
+  cortexProvider 23/23; `npm run lint` clean (0 errors). Live/adversarial: PNG/JPEG/WebP + genuine
+  4-frame animated GIF all decode; corrupt/empty/SVG → typed `UNSUPPORTED_IMAGE` (no crash); 4000×3000
+  downscaled to 1024×768 (not sent whole); decompression-bomb guard fires (`Input image exceeds pixel
+  limit`); EXIF/GPS present on input, **absent** on the re-encoded frame and not in the verdict meta;
+  `moderateImage` throws on undecodable bytes (fails CLOSED), `describeImage` fails soft; live
+  `prompt_logs` stayed at 9 rows after real image inference, no base64/data-URI/vision rows, no
+  `cortex*` Redis keys (privacy invariant holds). **Probe — animated-GIF bypass:** normalize samples
+  frames [0,2,3] of a 4-frame GIF (includes the last frame); the model's description of a
+  green→green→green→red GIF referenced the later (red/black) frame, so frame sampling is NOT bypassed.
+  **Probe — tagging silent-outage:** `describeImage` now returns non-empty tags live (the 2026-07-09
+  malformed-JSON regression is fixed by the temp-0.1→0.7 resample retry). No FEAT-030-specific defects.
 - **Owner-role:** sr-developer · **Blocked-by:** FEAT-029 (drop — decouple, ship on `MODELS_MAX=1` swap) · **Cost/Benefit:** done — **build now (tagging) / gate (moderation), smaller slice.** `describeImage` (fail-soft, alt-text + tags) ships now, no eval gate; `moderateImage` builds behind a shadow/recall eval harness and may only **escalate** to human review, never auto-clear. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
 - **C/B notes:** Size **M**, split **S** (describeImage) + **M** (moderateImage + decode guards + eval). Corrections: **no `CORTEX_VISION_MODEL` config key exists** (`src/config/index.js` L95–105 has brain/judge only) — add one; **`sharp` is not declared in `services/cortex/package.json`** (resolves only via root hoist) — declare it. Decode is a real DoS surface: set `sharp` `limitInputPixels` (default ~268 MP is too high), byte cap, `sequentialRead`, `failOn`. Animated GIF/WebP: hard frame cap (3–5 sampled) — too few = safety gap, too many = semaphore stall + context blowup on the 3B model. Keep base64 image parts out of `prompt_logs`.
 - **Description:** Teach cortex to send images to the router. `lib/llama.js`'s
@@ -1048,7 +1145,29 @@ are cross-referenced, not re-filed.)*
   in `src/config/index.js` + `.env.example`.
 
 ### FEAT-031 — FileVault upload chokepoint: async image moderation + tagging
-- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** in-progress — QA FAIL 2026-07-10 (bounced from in-review).
+  Core user-upload path is solid, but the chokepoint has holes on in-scope paths. · **Priority:** P1 · **Size:** L
+- **QA verification (2026-07-10, branch `main` commit b56166e; real DB `exprsn`/schema `filevault`,
+  resident `qwen2.5-vl-3b`):** filevault imageModeration Jest 19/19; live worker E2E on the real DB +
+  model — benign→`approved` with populated tags/altText and NO pixel data in the verdict; corrupt
+  bytes→`failed` (UNSUPPORTED_IMAGE is permanent, NOT retried); router-down→stays `pending` (hidden) and
+  throws `VISION_UNAVAILABLE` for Bull retry; `prompt_logs` unchanged (no image bytes). Gating matrix +
+  live `getFile`: `pending`/`rejected`/`failed` hidden from other users AND anonymous (share) callers,
+  uploader sees own, held → `FILE_NOT_FOUND` (same as missing, no oracle); share-link and thumbnail
+  serve paths both re-assert the verdict. Encrypted (`metadata.encrypted/e2ee/encryption`) and non-images
+  → `skipped` WITHOUT decode; `FILEVAULT_IMAGE_MODERATION=false` → `skipped`/servable (distinct from the
+  cortex-unavailable `pending`/hidden state). Upload path enqueues after commit with `jobId file:<id>`
+  (idempotent double-enqueue) — no inference on the write path.
+  **FAILED acceptance bullets → bounce:**
+  - "A `pending`/`rejected`/`failed` image is NOT served to other users…": **FAILS for group-owned
+    images** — `uploadGroupFile()` creates no `FileModeration` row and never enqueues, so group images
+    are served unmoderated to all members (live repro). → **BUG-017 (P1)**. Also new versions
+    (`updateFile`/editor save) are never re-moderated (approve-then-swap) → **BUG-018 (P2)**.
+  - "A rejected image surfaces through moderator's existing verdict/review path": **FAILS** — the
+    worker's `escalate()` routes the verdict through the text pipeline (`analyzeContent` on the alt-text),
+    the approach ADR 0002 constraint 5 Rejected; a flagged image is held (fail-safe) but does not reach
+    the human review queue. → **BUG-019 (P2)**, structural — needs systems-architect + moderator owner.
+  - Filed defects: BUG-017, BUG-018, BUG-019 (see Bugs above). BUG-016 (jobId re-moderation no-op) still open.
 - **Implemented (2026-07-10, commit `90586f8`):** side table `file_moderation`
   (NOT columns on `files` — the sync-based `db:migrate` creates new tables but
   will not ALTER existing ones; table syncs clean, `db:check` no drift). Bull

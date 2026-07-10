@@ -116,6 +116,14 @@ router.get('/:shareLinkId',
   asyncHandler(async (req, res) => {
     const shareLink = await shareService.getShareLink(req.params.shareLinkId, req.query.token);
 
+    // FEAT-031 / BUG-020: a held image must not be enumerable. The download
+    // variants already gate on moderation state; this metadata view leaked the
+    // file's name/size/mimetype for a held image, disclosing its existence to a
+    // share-link holder. 404 it exactly like the download path does.
+    if (shareLink.file && shareLink.file.id) {
+      await assertShareableImage(shareLink.file.id);
+    }
+
     res.json({
       success: true,
       file: shareLink.file

@@ -946,7 +946,7 @@ are cross-referenced, not re-filed.)*
 - **Severity:** P3 (recommendation) — bounded to authenticated room members; requires the PM/architect scope call above. Cleanest fix routes room uploads through FileVault (`fileService.uploadGroupFile`-style) rather than a private disk store, which also gets them dedup/quota/versioning for free.
 
 ### BUG-020 — Share-link metadata endpoint discloses a held image's existence and filename
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P3 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** FEAT-031 · **Found:** QA verification 2026-07-10 (observed, not filed)
 - **Description:** `GET /filevault/api/share/:shareLinkId` returns a file's name,
   size, and mimetype without consulting its moderation state. Only the

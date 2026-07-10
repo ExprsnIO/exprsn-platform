@@ -62,8 +62,12 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Download.associate = (models) => {
+    // BUG-025: align model to live DB — downloads.file_id is ON DELETE CASCADE
+    // (download records are dependents of their file and die with it).
     Download.belongsTo(models.File, {
-      foreignKey: 'file_id',
+      foreignKey: { name: 'file_id', allowNull: false },
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
       as: 'file'
     });
   };

@@ -748,7 +748,7 @@ are cross-referenced, not re-filed.)*
   updated. Backlog of the 17 tracked as BUG-025.
 
 ### BUG-025 — Triage the 17 pre-existing nullability/FK divergences surfaced by TASK-024
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Type:** bug · **Status:** in-review — DONE 2026-07-10: all 17 divergences resolved. 2 nullability + 5 onDelete-align (`9ec7787`) + crl_counters CASCADE migration where the MODEL was right (`15a7d5d`). Allowlist trimmed 17→9, and the 9 remaining are ALL permanent by-design (ca cross-schema user refs — verified `ca.users` empty, ids resolve to auth.users; + polymorphic FKs). Every fix verified by removing its allowlist entry and confirming db:check stays green. Gate exit 0 · **Priority:** P2 · **Size:** M
 - **Owner-role:** dba · **Relates:** TASK-024, FEAT-031 · **Found:** TASK-024 (2026-07-10)
 - **Description:** With the enhanced `db:check`, 17 pre-existing divergences are now
   visible and allowlisted in `scripts/drift-allow.json`. Each needs a decision:
@@ -976,7 +976,7 @@ are cross-referenced, not re-filed.)*
   on moderator's ingest routes must still land.
 
 ### BUG-024 — Live room-collab file uploads bypass image moderation (served to room members from local disk)
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 (`c19874b`): room-collab uploads now go through FileVault `uploadFile` (room-scoped path/metadata), inheriting the FEAT-031 chokepoint; downloads via `downloadFileStreamForMember` (room membership authorizes access, moderation gate still applies to non-uploaders); listing hides held images from non-uploaders. Added `requireRoomMember` middleware (host/participant/invite/join-request) to upload/download/list/share — a security TIGHTENING (previously any authed user could act), tested. Old disk-write path retired; ephemeral read left dormant. live 59/59, filevault 43/43. **Also fixed a pre-existing bug it exposed** (`e23d2a8`): the module `.gitignore` `storage/` rule was excluding the storage-layer SOURCE from git — a fresh clone could not load filevault · **Priority:** P3 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — · **Relates:** FEAT-031 (ADR 0002 constraint 8 named out-of-scope "live … disk" gap) · **Found:** QA "fifth byte-writing path" audit during FEAT-031 re-verification 2026-07-10
 - **Description:** `POST /live/api/rooms/:id/files/upload` (`services/live/src/routes/roomCollab.js`, `kind:'ephemeral'`) writes the raw uploaded bytes straight to local disk (`fs.writeFileSync(path.join(UPLOAD_DIR, roomId, key), req.file.buffer)`) and `GET /live/api/rooms/:id/files/:fileId/download` streams them (`fs.createReadStream(...).pipe(res)`) to **any** authenticated room member. multer accepts any type up to 100 MB, so a user can share an arbitrary image into a live room and it is served to all other participants with **zero moderation** — the exact risk class FEAT-031's chokepoint addresses, but via a storage subsystem that never touches FileVault (so `establishModerationState`/`FileModeration`/the vision worker never run on it). This is NOT a FileVault byte-writing path (all four of those — upload, group upload, updateFile, restoreVersion — do call `establishModerationState`; `routes/files.js` create/upload, `webdav.js` PUT, and `groups.js` all funnel through them, and spark/timeline push bytes to FileVault via the moderated `/api/files/upload`). It is a **separate parallel path**.

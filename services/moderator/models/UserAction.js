@@ -129,8 +129,12 @@ module.exports = (sequelize) => {
 
   // Class methods
   UserAction.associate = function(models) {
+    // BUG-025: align model to live DB — related_report_id is ON DELETE SET NULL
+    // (the FK column is nullable, so a deleted report just detaches the action).
     UserAction.belongsTo(models.Report, {
       foreignKey: 'relatedReportId',
+      onDelete: 'SET NULL',
+      onUpdate: 'CASCADE',
       as: 'report'
     });
 

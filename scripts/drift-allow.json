@@ -1,20 +1,15 @@
 {
-  "_doc": "Documented, ACCEPTED schema divergences. db:check prints every nullability/FK finding but only fails on findings NOT listed here. Each entry is a decision, not a hiding place: give a real reason and a ticket, and work it off. A green db:check means 'no drift except these known items', never 'schema matches the models'. Match key = `<kind>:<schema>.<table>.<column-or-fk>`. Added by TASK-024.",
+  "_doc": "Documented, ACCEPTED schema divergences. db:check prints every nullability/FK finding but only fails on findings NOT listed here. Each entry is a decision, not a hiding place: give a real reason and a ticket, and work it off. A green db:check means 'no drift except these known items', never 'schema matches the models'. Match key = `<kind>:<schema>.<table>.<column-or-fk>`. Added by TASK-024; Group-A onDelete mismatches resolved by aligning models to live in BUG-025.",
   "allow": [
-    { "match": "fk:ca.profiles.user_id",              "reason": "pre-existing; ca user_id references auth.users cross-schema — no in-DB FK. Triage.", "ticket": "BUG-025" },
-    { "match": "fk:ca.certificates.user_id",           "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
-    { "match": "fk:ca.tokens.user_id",                 "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
-    { "match": "fk:ca.tickets.user_id",                "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
-    { "match": "fk:ca.audit_logs.user_id",             "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
-    { "match": "fk:ca.rate_limits.target_id",          "reason": "pre-existing; target_id is polymorphic/unconstrained. Triage.", "ticket": "BUG-025" },
-    { "match": "fk:ca.password_resets.user_id",        "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
-    { "match": "fk:ca.password_resets.initiated_by",   "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
-    { "match": "fk:ca.crl_counters.issuer_id",         "reason": "pre-existing onDelete mismatch (model CASCADE, live NO ACTION). Triage.", "ticket": "BUG-025" },
-    { "match": "fk:auth.organization_members.userId",         "reason": "pre-existing onDelete mismatch (model NO ACTION, live CASCADE). Triage.", "ticket": "BUG-025" },
-    { "match": "fk:auth.organization_members.organizationId", "reason": "pre-existing onDelete mismatch (model NO ACTION, live CASCADE). Triage.", "ticket": "BUG-025" },
-    { "match": "fk:filevault.thumbnails.file_id",      "reason": "pre-existing onDelete mismatch (model NO ACTION, live CASCADE). Triage.", "ticket": "BUG-025" },
-    { "match": "fk:filevault.downloads.file_id",       "reason": "pre-existing onDelete mismatch (model NO ACTION, live CASCADE). Triage.", "ticket": "BUG-025" },
-    { "match": "fk:timeline.attachments.entity_id",    "reason": "BY DESIGN: entity_id is a polymorphic reference (targets multiple entity types); no single FK is possible.", "ticket": null },
-    { "match": "fk:moderator.user_actions.related_report_id", "reason": "pre-existing onDelete mismatch (model NO ACTION, live SET NULL). Triage.", "ticket": "BUG-025" }
+    { "match": "fk:ca.profiles.user_id",              "reason": "permanent — cross-schema reference, no in-DB FK possible. user_id holds a platform/auth user id (auth.users); ca.users is vestigial/empty (0 rows), so an in-DB FK to ca.users would reject every insert and a cross-schema FK to auth.users would violate per-schema isolation.", "ticket": null },
+    { "match": "fk:ca.certificates.user_id",           "reason": "permanent — cross-schema reference, no in-DB FK possible. Verified: all live certificates.user_id resolve to auth.users, none to ca.users (empty). FK to ca.users would break inserts; cross-schema FK to auth.users breaks isolation.", "ticket": null },
+    { "match": "fk:ca.tokens.user_id",                 "reason": "permanent — cross-schema reference, no in-DB FK possible. Verified: live tokens.user_id resolve to auth.users, not ca.users (empty). Same reasoning as ca.certificates.user_id.", "ticket": null },
+    { "match": "fk:ca.tickets.user_id",                "reason": "permanent — cross-schema reference, no in-DB FK possible. user_id is a platform/auth user id; ca.users is vestigial/empty.", "ticket": null },
+    { "match": "fk:ca.audit_logs.user_id",             "reason": "permanent — cross-schema reference, no in-DB FK possible. user_id is a platform/auth user id; ca.users is vestigial/empty.", "ticket": null },
+    { "match": "fk:ca.rate_limits.target_id",          "reason": "permanent — polymorphic reference (model declares belongsTo User and belongsTo Group on the same target_id with constraints:false); no single FK is possible.", "ticket": null },
+    { "match": "fk:ca.password_resets.user_id",        "reason": "permanent — cross-schema reference, no in-DB FK possible. user_id is a platform/auth user id; ca.users is vestigial/empty.", "ticket": null },
+    { "match": "fk:ca.password_resets.initiated_by",   "reason": "permanent — cross-schema reference, no in-DB FK possible. initiated_by is a platform/auth user id; ca.users is vestigial/empty.", "ticket": null },
+    { "match": "fk:ca.crl_counters.issuer_id",         "reason": "FLAGGED for live migration (do NOT downgrade the model). Model intends CASCADE, live is NO ACTION. The model's CASCADE is correct — a crl_counter is a strict dependent of its issuing CA certificate (RFC 5280 monotonic per-issuer counter) and should die with it. Recommend a live migration to bring the FK to ON DELETE CASCADE rather than weakening the model to NO ACTION. Kept allowlisted until that migration lands.", "ticket": "BUG-025" },
+    { "match": "fk:timeline.attachments.entity_id",    "reason": "BY DESIGN: entity_id is a polymorphic reference (targets multiple entity types); no single FK is possible.", "ticket": null }
   ]
 }

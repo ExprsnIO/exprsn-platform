@@ -108,8 +108,10 @@ User.belongsToMany(Organization, {
 
 // Direct join-row associations so the membership row can eager-load its user /
 // organization (organizationService.getMembers includes { as: 'user' }).
-OrganizationMember.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-OrganizationMember.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization' });
+// BUG-025: align model to live DB — organization_members.userId / organizationId
+// are ON DELETE CASCADE (a membership row dies with its user or organization).
+OrganizationMember.belongsTo(User, { foreignKey: 'userId', as: 'user', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+OrganizationMember.belongsTo(Organization, { foreignKey: 'organizationId', as: 'organization', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
 // OAuth2Token relationships
 User.hasMany(OAuth2Token, {

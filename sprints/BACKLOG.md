@@ -747,6 +747,24 @@ are cross-referenced, not re-filed.)*
   but only FAILS on non-allowlisted ones — proven both directions. STATUS.md
   updated. Backlog of the 17 tracked as BUG-025.
 
+### BUG-027 — Room-shared file keeps serving to a room after the owner flips it to private (durable-share residual)
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** product-manager + sr-developer · **Relates:** BUG-024, BUG-026 · **Found:** QA re-verify of BUG-026 (2026-07-10)
+- **Description:** A file legitimately shared into a live room while `public`/`shared`
+  (or owned by the sharer) keeps being served to that room's members even if the
+  owner later flips its visibility to `private`. `downloadFileStreamForMember`
+  re-checks the moderation gate on every fetch but NOT visibility — by design, so
+  the legitimate "owner shares their OWN private file into a room" flow keeps
+  working (re-checking visibility would break it).
+- **Severity:** low. Access was legitimately granted at share time; this is the
+  "you can't unsend an already-delivered message" property, not a fresh disclosure
+  (the sharer had access when they shared). But an owner may reasonably expect a
+  later private-flip to revoke room access.
+- **Decision needed (PM/architect):** is durable room-share acceptable, or should a
+  visibility-flip revoke room access? If the latter, `downloadFileStreamForMember`
+  would need a per-share access model (who shared it, were they the owner) rather
+  than a blanket ownership-skip. Not a merge blocker for BUG-024/026.
+
 ### BUG-025 — Triage the 17 pre-existing nullability/FK divergences surfaced by TASK-024
 - **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (branch `feat/cortex-followups`, HEAD `04d350d`, live DB `exprsn`). `npm run db:check` exits 0 with exactly the 9 allowlisted findings printed (all `ticket:null`, permanent by-design: 8 ca cross-schema user/target refs + timeline polymorphic `entity_id`). Genuineness spot-checks against the live DB, not the allowlist: `ca.crl_counters_issuer_id_fkey` confdeltype=`c` (ON DELETE CASCADE, model-was-right migration `20260710000001` applied); `filevault.thumbnails_file_id_fkey` confdeltype=`c` (absent from allowlist, passes genuinely). Cross-schema claim proven: `ca.users` = 0 rows; all 10210 `ca.certificates.user_id` and all 341998 `ca.tokens.user_id` resolve to `auth.users` — so an in-DB FK to `ca.users` would reject every insert and a cross-schema FK breaks per-schema isolation → allowlist reasoning is real. `filevault`/`auth`/`moderator` etc. report no drift, i.e. the aligned models match live. · **Priority:** P2 · **Size:** M
 - **Owner-role:** dba · **Relates:** TASK-024, FEAT-031 · **Found:** TASK-024 (2026-07-10)
@@ -976,7 +994,7 @@ are cross-referenced, not re-filed.)*
   on moderator's ingest routes must still land.
 
 ### BUG-024 — Live room-collab file uploads bypass image moderation (served to room members from local disk)
-- **Type:** bug · **Status:** in-review — reroute FIXED (`c19874b`); the P1 it introduced (BUG-026) FIXED (`d05779f`); awaiting QA re-verification
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (branch `feat/cortex-followups`, HEAD `f51a226`). Reroute + membership tightening verified (uploads → FileVault `uploadFile` moderation chokepoint; `downloadFileStreamForMember`/`servableFileIds` hold pending/rejected from non-uploaders, uploader sees own; `requireRoomMember` denies non-members 403, locks out no legitimate member — socket `join-room` also requires a `Participant` row so all signals align). The P1 it introduced (BUG-026) is now fixed and re-verified (see BUG-026). Storage-source `.gitignore` fix genuine (`git ls-files services/filevault/src/storage/` tracks index.js + backends/{disk,s3,ipfs}.js; runtime `/storage/` still ignored). live 64/64, filevault-unit 43/43, lint 0 errors. One low-severity residual noted to PM (revocation-consistency: a file legitimately shared into a room while `public`/`shared` keeps serving to that room's members if the source is later flipped to `private`, because member-download re-checks moderation but not visibility — inherent to the "durable room share" design; not a merge blocker).
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — · **Relates:** FEAT-031 (ADR 0002 constraint 8 named out-of-scope "live … disk" gap) · **Found:** QA "fifth byte-writing path" audit during FEAT-031 re-verification 2026-07-10
 - **Description:** `POST /live/api/rooms/:id/files/upload` (`services/live/src/routes/roomCollab.js`, `kind:'ephemeral'`) writes the raw uploaded bytes straight to local disk (`fs.writeFileSync(path.join(UPLOAD_DIR, roomId, key), req.file.buffer)`) and `GET /live/api/rooms/:id/files/:fileId/download` streams them (`fs.createReadStream(...).pipe(res)`) to **any** authenticated room member. multer accepts any type up to 100 MB, so a user can share an arbitrary image into a live room and it is served to all other participants with **zero moderation** — the exact risk class FEAT-031's chokepoint addresses, but via a storage subsystem that never touches FileVault (so `establishModerationState`/`FileModeration`/the vision worker never run on it). This is NOT a FileVault byte-writing path (all four of those — upload, group upload, updateFile, restoreVersion — do call `establishModerationState`; `routes/files.js` create/upload, `webdav.js` PUT, and `groups.js` all funnel through them, and spark/timeline push bytes to FileVault via the moderated `/api/files/upload`). It is a **separate parallel path**.
@@ -986,7 +1004,7 @@ are cross-referenced, not re-filed.)*
 - **Severity:** P3 (recommendation) — bounded to authenticated room members; requires the PM/architect scope call above. Cleanest fix routes room uploads through FileVault (`fileService.uploadGroupFile`-style) rather than a private disk store, which also gets them dedup/quota/versioning for free.
 
 ### BUG-026 — SECURITY: room `files/share` + new member-download serves any user's private FileVault file (ACL bypass, defeats revocation) — introduced by BUG-024
-- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 (`d05779f`): /share now calls getFile(fileId, req.user.id) before creating the vault row, so you can only share a file you can access; metadata taken from the verified file, not the body; same 404 missing-vs-forbidden. Verified share+upload are the only RoomFile.create sites, so the download's ownership-skip is now safe. 5 new share tests incl. the exact attack · **Priority:** P1 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (branch `feat/cortex-followups`, HEAD `f51a226`, fix `d05779f`). Original attack re-run against the real router (mocked fileService): a member sharing a victim's PRIVATE file uuid → `getFile` throws → **404, no RoomFile row created** (nothing for the download path to fetch); a missing file returns the same 404 (no existence oracle). Legit owner-share → 201 with metadata pulled from the VERIFIED file (spoofed body `mimetype`/`size` ignored — got `image/png`/42, not the body's values). Bypass hunt clean: repo-wide there are exactly two `RoomFile.create` sites (`/upload` owner-created, `/share` now gated) and **no** `RoomFile.update`/`upsert`/`bulkCreate`/socket path that plants or mutates a `vault` `file_id` — so `downloadFileStreamForMember` skipping the owner check is sound. shared/public case acceptable: FileVault's own model (`thumbnails.js:80`, `getFile`, `versionService`) treats `shared` == `public` == any-authenticated-user-readable with no per-recipient ACL, so re-sharing one discloses nothing new. live 64/64 (5 new share tests incl. the exact attack). · **Priority:** P1 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — · **Relates:** BUG-024 (introduced it), FEAT-031 · **Found:** QA adversarial verification of the BUG-024/025 batch, branch `feat/cortex-followups`, HEAD `04d350d`, 2026-07-10 (live DB `exprsn`)
 - **Description:** BUG-024 rerouted room-collab uploads through FileVault and, to serve

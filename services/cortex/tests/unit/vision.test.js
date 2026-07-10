@@ -200,9 +200,34 @@ describe('moderateImage (fails closed)', () => {
     await expect(vision.moderateImage(await png())).rejects.toThrow(/missing scores/);
   });
 
-  test('THROWS on an unparseable verdict', async () => {
+  // A 3B VL model emits invalid JSON intermittently (observed live:
+  // `{"alt_text":"…","text_in_image:"}` — truncated key). One retry removes an
+  // avoidable coin flip; it does NOT weaken the verdict.
+  test('retries ONCE when the model returns malformed JSON', async () => {
+    llama.chatComplete
+      .mockResolvedValueOnce({ choices: [{ message: { content: '{"nsfw_score":1,"bad_key:"}' } }] })
+      .mockResolvedValueOnce(reply(VERDICT));
+    const r = await vision.moderateImage(await png());
+    expect(r.riskScore).toBe(4);
+    expect(llama.chatComplete).toHaveBeenCalledTimes(2);
+  });
+
+  // At temperature 0.1 the model is near-deterministic: an identical retry
+  // reproduces the identical bad output, so the retry must resample hotter.
+  test('the retry raises temperature so it can escape a deterministic failure', async () => {
+    llama.chatComplete
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'not json' } }] })
+      .mockResolvedValueOnce(reply(VERDICT));
+    await vision.moderateImage(await png());
+    const t1 = llama.chatComplete.mock.calls[0][2].temperature;
+    const t2 = llama.chatComplete.mock.calls[1][2].temperature;
+    expect(t2).toBeGreaterThan(t1);
+  });
+
+  test('THROWS on an unparseable verdict — after the retry, never salvaged', async () => {
     llama.chatComplete.mockResolvedValue({ choices: [{ message: { content: 'I cannot help.' } }] });
     await expect(vision.moderateImage(await png())).rejects.toThrow(/no parseable JSON/);
+    expect(llama.chatComplete).toHaveBeenCalledTimes(2); // tried twice, then gave up
   });
 
   test('clamps out-of-range scores instead of passing them through', async () => {
@@ -307,7 +332,16 @@ describe('describeImage', () => {
     expect(r.tags).toEqual(['green', 'square']); // deduped + lowercased
   });
 
-  test('throws on an unparseable description (caller decides to fail soft)', async () => {
+  test('a malformed description is retried, so tags are not silently lost', async () => {
+    llama.chatComplete
+      .mockResolvedValueOnce({ choices: [{ message: { content: '{"alt_text":"x","text_in_image:"}' } }] })
+      .mockResolvedValueOnce(reply({ alt_text: 'A cat.', tags: ['cat'], text_in_image: '' }));
+    const r = await vision.describeImage(await solid(1, 1, 1).png().toBuffer());
+    expect(r.altText).toBe('A cat.');
+    expect(r.tags).toEqual(['cat']);
+  });
+
+  test('throws on a persistently unparseable description (caller decides to fail soft)', async () => {
     llama.chatComplete.mockResolvedValue({ choices: [{ message: { content: 'sorry' } }] });
     await expect(vision.describeImage(await solid(1, 1, 1).png().toBuffer())).rejects.toThrow(/no parseable JSON/);
   });

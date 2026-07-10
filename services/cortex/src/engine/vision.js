@@ -16,9 +16,13 @@
  * ═══════════════════════════════════════════════════════════
  */
 
+const { createLogger } = require('@exprsn/shared');
 const config = require('../config');
 const { chatComplete, modelSupportsImages, listModels, loadModel } = require('../lib/llama');
 const { normalize, toDataUri } = require('../lib/image');
+
+// Never log the messages array, a data: URI, or an image buffer (ADR 0002 §4).
+const logger = createLogger('exprsn-cortex-vision');
 
 const MODERATION_SYSTEM =
   'You are an image moderation AI. You analyze images for safety issues and ' +
@@ -43,10 +47,15 @@ a human reviews anything you flag.
 Respond with ONLY this JSON object:
 {"nsfw_score":<0-100>,"violence_score":<0-100>,"hate_symbol_score":<0-100>,"self_harm_score":<0-100>,"overall_risk_score":<0-100>,"flags":[<short strings>],"explanation":"<one sentence>"}`;
 
+// `text_in_image` was dropped from the schema: the 3B model deterministically
+// emitted a truncated key for it (`…,"text_in_image:"}`), which is invalid JSON,
+// so EVERY caption failed and fail-soft silently dropped all tags. OCR is not
+// worth a prompt the model cannot satisfy — reinstate it only with a model that
+// demonstrably emits it.
 const CAPTION_PROMPT = `Describe this image.
 
 Respond with ONLY this JSON object:
-{"alt_text":"<one factual sentence for a screen reader>","tags":[<3-8 short lowercase labels>],"text_in_image":"<any legible text, or empty string>"}`;
+{"alt_text":"<one factual sentence for a screen reader>","tags":[<3-8 short lowercase labels>]}`;
 
 const NUMERIC = [
   'nsfw_score',
@@ -183,7 +192,38 @@ function parseJsonObject(raw) {
   }
 }
 
-async function complete(model, frames, system, prompt, maxTokens) {
+/**
+ * Ask for a JSON object, once, and retry a single time if the model returns
+ * something unparseable.
+ *
+ * A 3B VL model emits invalid JSON intermittently — observed live:
+ * `{"alt_text":"…","tags":[…],"text_in_image:"}` (truncated key, no value) on a
+ * prompt that had just parsed cleanly. Without a retry, `describeImage`'s
+ * fail-soft policy would silently drop tags on a fraction of every upload, and a
+ * `moderateImage` verdict would escalate a perfectly benign image to a human.
+ *
+ * The retry does NOT weaken the verdict: a second failure still throws, and a
+ * malformed verdict is never salvaged into scores. It only removes an avoidable
+ * coin flip. Warm inference is ~250ms, so the cost is negligible.
+ */
+async function completeJson(model, frames, system, prompt, maxTokens, what) {
+  // The retry MUST differ from the first attempt. At temperature 0.1 the model is
+  // near-deterministic, so re-sending the identical request reproduces the
+  // identical malformed output — a retry that cannot possibly succeed. Raising
+  // the temperature lets the second sample escape a bad completion.
+  const temperatures = [0.1, 0.7];
+  for (let attempt = 0; attempt < temperatures.length; attempt++) {
+    const raw = await complete(model, frames, system, prompt, maxTokens, temperatures[attempt]);
+    const parsed = parseJsonObject(raw);
+    if (parsed) return parsed;
+    logger.warn('vision model returned unparseable JSON', {
+      what, attempt: attempt + 1, temperature: temperatures[attempt],
+    });
+  }
+  throw new Error(`vision model returned no parseable JSON ${what}`);
+}
+
+async function complete(model, frames, system, prompt, maxTokens, temperature = 0.1) {
   await ensureVisionResident(model);
   const content = [{ type: 'text', text: prompt }];
   for (const frame of frames) {
@@ -192,7 +232,7 @@ async function complete(model, frames, system, prompt, maxTokens) {
   const data = await chatComplete(
     model,
     [{ role: 'system', content: system }, { role: 'user', content }],
-    { temperature: 0.1, max_tokens: maxTokens },
+    { temperature, max_tokens: maxTokens },
     { pool: 'vision', timeoutMs: config.cortex.visionTimeoutMs },
   );
   const choice = (data.choices || [])[0];
@@ -218,10 +258,7 @@ async function complete(model, frames, system, prompt, maxTokens) {
 async function moderateImage(buffer) {
   const model = await assertVisionCapable();
   const { frames, meta } = await normalize(buffer);
-  const raw = await complete(model, frames, MODERATION_SYSTEM, MODERATION_PROMPT, 400);
-
-  const parsed = parseJsonObject(raw);
-  if (!parsed) throw new Error('vision model returned no parseable JSON verdict');
+  const parsed = await completeJson(model, frames, MODERATION_SYSTEM, MODERATION_PROMPT, 400, 'verdict');
 
   // A missing score is NOT 0 ("safe") — refuse the response instead of
   // silently fabricating a clean verdict.
@@ -253,10 +290,7 @@ async function moderateImage(buffer) {
 async function describeImage(buffer) {
   const model = await assertVisionCapable();
   const { frames, meta } = await normalize(buffer);
-  const raw = await complete(model, frames, CAPTION_SYSTEM, CAPTION_PROMPT, 300);
-
-  const parsed = parseJsonObject(raw);
-  if (!parsed) throw new Error('vision model returned no parseable JSON description');
+  const parsed = await completeJson(model, frames, CAPTION_SYSTEM, CAPTION_PROMPT, 300, 'description');
 
   const tags = Array.isArray(parsed.tags)
     ? [...new Set(parsed.tags.map((t) => String(t).trim().toLowerCase()).filter(Boolean))].slice(0, 8)
@@ -265,6 +299,8 @@ async function describeImage(buffer) {
     model,
     altText: String(parsed.alt_text || '').trim(),
     tags,
+    // Kept in the shape for callers, but no longer requested from the model —
+    // it is `''` unless a future model reliably returns `text_in_image`.
     textInImage: String(parsed.text_in_image || '').trim(),
     imageMeta: meta,
   };

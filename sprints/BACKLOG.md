@@ -747,7 +747,7 @@ are cross-referenced, not re-filed.)*
   fixed.
 
 ### TASK-025 — FileVault: reconcile images stuck `pending` with no queue job
-- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Type:** task · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** FEAT-031 · **Found:** DBA review (2026-07-10)
 - **Description:** The moderation job is enqueued after the upload transaction
   commits, deliberately and best-effort. If the process dies between commit and

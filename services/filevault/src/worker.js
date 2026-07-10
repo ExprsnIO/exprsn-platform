@@ -12,15 +12,21 @@
  */
 
 require('dotenv').config();
+const { Op } = require('sequelize');
 const { createLogger } = require('@exprsn/shared');
 const models = require('./models');
 const storage = require('./storage');
 const imageModeration = require('./services/imageModerationService');
-const { initQueues, closeQueues, queues } = require('./queues/imageModeration');
+const {
+  initQueues, closeQueues, queues, enqueueImageModeration,
+} = require('./queues/imageModeration');
 
 const logger = createLogger('filevault-moderation-worker');
 
 const { File, FileModeration } = models;
+
+// Held across start/shutdown so the reconciliation interval is cleared cleanly.
+let reconcileTimer = null;
 
 // A permanent client error: the bytes are not a decodable image. Retrying will
 // never change that, so fail the job immediately instead of burning 4 attempts
@@ -143,6 +149,44 @@ async function escalate(file, patch) {
   }
 }
 
+/**
+ * Reconcile images stuck in `pending` with no queue job (TASK-025).
+ *
+ * The moderation job is enqueued best-effort AFTER the upload transaction
+ * commits. If the process dies between commit and enqueue, or Redis is down at
+ * that instant, the row is `pending` (hidden) with no job that will ever clear
+ * it — fail-closed, but permanently. This sweep finds such rows and re-queues.
+ *
+ * Only rows older than a grace window are considered, so a row whose enqueue is
+ * simply in flight is not double-queued (and `jobId: file:<id>` dedups anyway).
+ * Never throws into the caller — a sweep failure must not take down the worker.
+ */
+async function reconcileStuckPending() {
+  const graceMs = Number(process.env.FILEVAULT_MODERATION_RECONCILE_GRACE_MS) || 5 * 60 * 1000;
+  const cutoff = new Date(Date.now() - graceMs);
+  let requeued = 0;
+  try {
+    const stuck = await FileModeration.findAll({
+      where: { status: 'pending', updatedAt: { [Op.lt]: cutoff } },
+      attributes: ['fileId'],
+      limit: 500,
+    });
+    for (const row of stuck) {
+      // Skip rows that already have a live (waiting/active/delayed) job.
+      const existing = await queues.imageModeration.getJob(`file:${row.fileId}`);
+      if (existing) {
+        const state = await existing.getState().catch(() => null);
+        if (['waiting', 'active', 'delayed'].includes(state)) continue;
+      }
+      if (await enqueueImageModeration(row.fileId)) requeued += 1;
+    }
+    if (requeued) logger.warn('reconciled stuck pending images', { requeued, of: stuck.length });
+  } catch (err) {
+    logger.error('stuck-pending reconciliation failed', { error: err.message });
+  }
+  return requeued;
+}
+
 async function startWorker() {
   try {
     logger.info('Starting FileVault image-moderation worker');
@@ -156,10 +200,19 @@ async function startWorker() {
       return processFile(fileId);
     });
 
+    // Periodic self-heal for rows orphaned in `pending` (TASK-025). Runs on an
+    // interval, unref'd so it never keeps the process alive on its own, and once
+    // shortly after boot to catch anything stranded by the last crash.
+    const reconcileEveryMs = Number(process.env.FILEVAULT_MODERATION_RECONCILE_INTERVAL_MS) || 5 * 60 * 1000;
+    reconcileTimer = setInterval(reconcileStuckPending, reconcileEveryMs);
+    reconcileTimer.unref();
+    setTimeout(reconcileStuckPending, 15000).unref();
+
     logger.info('FileVault image-moderation worker started', {
       concurrency,
       featureEnabled: imageModeration.featureEnabled(),
       riskThreshold: imageModeration.imageRiskThreshold(),
+      reconcileEveryMs,
     });
   } catch (error) {
     logger.error('Failed to start worker', { error: error.message, stack: error.stack });
@@ -170,6 +223,7 @@ async function startWorker() {
 async function shutdown(signal) {
   logger.info(`${signal} received, shutting down gracefully`);
   try {
+    if (reconcileTimer) clearInterval(reconcileTimer);
     await closeQueues();
     await models.sequelize.close();
     process.exit(0);
@@ -186,4 +240,4 @@ if (require.main === module) {
   startWorker();
 }
 
-module.exports = { startWorker, processFile, escalate };
+module.exports = { startWorker, processFile, escalate, reconcileStuckPending };

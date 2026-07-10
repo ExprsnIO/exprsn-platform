@@ -193,6 +193,72 @@ async function downloadFileStream(fileId, userId, versionNumber = null) {
 }
 
 /**
+ * Download a file for a requester whose right to access is established by an
+ * EXTERNAL container membership (e.g. a live room), NOT by FileVault ownership.
+ *
+ * This mirrors the share.js pattern (assertShareableImage + owner-id nuance) but
+ * consolidates it inside FileVault so there is one moderation code path:
+ *  - The caller has ALREADY verified the requester may access this file's
+ *    container (room membership); so we do NOT apply getFile()'s private-
+ *    visibility owner check (a non-uploader member is legitimately authorized).
+ *  - The FEAT-031 moderation gate STILL applies to that member as a non-uploader:
+ *    a held (pending/rejected) image is not served to anyone but its uploader.
+ *
+ * Deliberately throws the same FILE_NOT_FOUND as a missing file so a held image
+ * is not enumerable.
+ *
+ * @param {string} fileId    - FileVault file id
+ * @param {string} requesterId - the user asking to read the bytes
+ */
+async function downloadFileStreamForMember(fileId, requesterId) {
+  const file = await File.findOne({
+    where: { id: fileId, isDeleted: false },
+    include: [{ model: FileModeration, as: 'moderation' }]
+  });
+
+  if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // FEAT-031 fail-closed gate. canServe() lets the uploader see their own held
+  // image, but any other member waits for a verdict — identical error to a
+  // missing file so a held image can't be probed for existence.
+  if (!imageModeration.canServe(file, file.moderation, requesterId)) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  const buffer = await storage.retrieve(file.storageKey, file.storageBackend);
+  return { stream: Readable.from(buffer), file };
+}
+
+/**
+ * Given a set of FileVault file ids, return the subset that may be served to
+ * `requesterId` under the FEAT-031 gate. Used by container listings (e.g. a live
+ * room's file list) so a held image is not enumerable to a non-uploader.
+ *
+ * @param {string[]} fileIds
+ * @param {string} requesterId
+ * @returns {Promise<Set<string>>} servable file ids (as strings)
+ */
+async function servableFileIds(fileIds, requesterId) {
+  const ids = (fileIds || []).map((id) => String(id)).filter(Boolean);
+  if (ids.length === 0) return new Set();
+
+  const files = await File.findAll({
+    where: { id: ids, isDeleted: false },
+    include: [{ model: FileModeration, as: 'moderation' }]
+  });
+
+  const servable = new Set();
+  for (const file of files) {
+    if (imageModeration.canServe(file, file.moderation, requesterId)) {
+      servable.add(String(file.id));
+    }
+  }
+  return servable;
+}
+
+/**
  * Update file (creates new version)
  */
 async function updateFile(fileId, userId, buffer, changeDescription) {
@@ -544,6 +610,8 @@ module.exports = {
   getFile,
   downloadFile,
   downloadFileStream,
+  downloadFileStreamForMember,
+  servableFileIds,
   updateFile,
   renameFile,
   deleteFile,

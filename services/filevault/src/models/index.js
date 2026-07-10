@@ -32,6 +32,7 @@ const FileBlob = require('./FileBlob')(sequelize, Sequelize.DataTypes);
 const Thumbnail = require('./Thumbnail')(sequelize, Sequelize.DataTypes);
 const Download = require('./Download')(sequelize, Sequelize.DataTypes);
 const StorageQuota = require('./StorageQuota')(sequelize, Sequelize.DataTypes);
+const FileModeration = require('./FileModeration')(sequelize, Sequelize.DataTypes);
 
 // Define models object
 const models = {
@@ -43,6 +44,7 @@ const models = {
   Thumbnail,
   Download,
   StorageQuota,
+  FileModeration,
   sequelize,
   Sequelize
 };

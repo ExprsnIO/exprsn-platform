@@ -5,11 +5,13 @@
  */
 
 const { Readable } = require('stream');
-const { File, FileVersion, Directory, sequelize } = require('../models');
+const { File, FileVersion, Directory, FileModeration, sequelize } = require('../models');
 const storage = require('../storage');
 const { calculateSHA256, generateStorageKey } = require('../utils/hash');
 const logger = require('../utils/logger');
 const config = require('../config');
+const imageModeration = require('./imageModerationService');
+const { enqueueImageModeration } = require('../queues/imageModeration');
 
 /**
  * Upload a new file
@@ -71,8 +73,22 @@ async function uploadFile({ userId, buffer, filename, path, directoryId, tags, m
       metadata: metadata || {}
     }, { transaction });
 
+    // FEAT-031: every uploaded object gets a moderation row IN THIS TRANSACTION,
+    // so an image can never exist without a visibility state. Images start
+    // `pending` (hidden from other users) and are cleared asynchronously; other
+    // objects are `skipped` (servable) immediately.
+    const modState = imageModeration.initialState({ mimetype, metadata: metadata || {} });
+    await FileModeration.create({ fileId: file.id, ...modState }, { transaction });
+
     await transaction.commit();
     logger.info(`File created: ${file.id}`);
+
+    // Enqueue AFTER commit — a worker must never see a row the transaction has
+    // not yet made visible. Best-effort: a Redis outage leaves the image
+    // `pending` (hidden), which is the fail-closed posture, not a failed upload.
+    if (modState.status === 'pending') {
+      await enqueueImageModeration(file.id);
+    }
 
     return file;
   } catch (error) {
@@ -90,7 +106,8 @@ async function getFile(fileId, userId) {
     where: { id: fileId, isDeleted: false },
     include: [
       { model: Directory, as: 'directory' },
-      { model: FileVersion, as: 'versions', limit: 10, order: [['version', 'DESC']] }
+      { model: FileVersion, as: 'versions', limit: 10, order: [['version', 'DESC']] },
+      { model: FileModeration, as: 'moderation' }
     ]
   });
 
@@ -101,6 +118,14 @@ async function getFile(fileId, userId) {
   // Check access (basic ownership check - extend with permissions)
   if (file.visibility === 'private' && file.userId !== userId) {
     throw new Error('INSUFFICIENT_PERMISSIONS');
+  }
+
+  // FEAT-031 fail-closed visibility: an image awaiting (or failing) moderation
+  // is served only to its uploader. `userId` is undefined on anonymous paths
+  // (share links), which correctly makes them "other users". Deliberately the
+  // same error as a missing file — a held image must not be enumerable.
+  if (!imageModeration.canServe(file, file.moderation, userId)) {
+    throw new Error('FILE_NOT_FOUND');
   }
 
   return file;

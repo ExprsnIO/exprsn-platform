@@ -8,6 +8,27 @@ const express = require('express');
 const router = express.Router();
 const shareService = require('../services/shareService');
 const fileService = require('../services/fileService');
+const { FileModeration } = require('../models');
+const imageModeration = require('../services/imageModerationService');
+
+/**
+ * FEAT-031 fail-closed visibility for the anonymous share paths.
+ *
+ * These routes intentionally pass the file OWNER's id into `downloadFileStream`
+ * so `getFile`'s private-visibility check passes for a shared private file — but
+ * that also makes the visitor look like the uploader, whose moderation exemption
+ * must NOT apply. So the moderation state is asserted here, separately.
+ *
+ * A held image 404s exactly like a missing one: it must not be enumerable.
+ */
+async function assertShareableImage(fileId) {
+  const moderation = await FileModeration.findOne({ where: { fileId } });
+  if (!imageModeration.isServableToOthers(moderation)) {
+    const err = new Error('FILE_NOT_FOUND');
+    err.statusCode = 404;
+    throw err;
+  }
+}
 const {
   authenticate,
   validateUUID,
@@ -75,6 +96,8 @@ router.get('/file/:fileId/download',
   asyncHandler(async (req, res) => {
     const file = await shareService.accessFileByToken(req.params.fileId, req.query.token);
 
+    await assertShareableImage(file.id); // FEAT-031 — see the note below
+
     const { stream } = await fileService.downloadFileStream(file.id, file.userId);
     res.setHeader('Content-Type', file.mimetype);
     res.setHeader('Content-Length', file.size);
@@ -109,7 +132,14 @@ router.get('/:shareLinkId/download',
   asyncHandler(async (req, res) => {
     const file = await shareService.accessSharedFile(req.params.shareLinkId, req.query.token);
 
-    // Get file stream without requiring authentication
+    // FEAT-031: a share link authorizes access, but the visitor is NOT the
+    // uploader, so a held image must not be served. This is checked explicitly
+    // rather than by passing a null userId below, because `getFile` uses that
+    // same id for its private-visibility check — nulling it would break share
+    // links for private files.
+    await assertShareableImage(file.id);
+
+    // Get file stream without requiring authentication.
     const { stream } = await fileService.downloadFileStream(file.id, file.userId);
 
     res.setHeader('Content-Type', file.mimetype);

@@ -19,7 +19,8 @@ const express = require('express');
 const router = express.Router();
 const { resolveMembership } = require('@exprsn/shared/middleware/groupMembership');
 const thumbnailService = require('../services/thumbnailService');
-const { File } = require('../models');
+const { File, FileModeration } = require('../models');
+const imageModeration = require('../services/imageModerationService');
 const {
   authenticate,
   validateUUID,
@@ -41,10 +42,18 @@ router.get('/:fileId',
     const size = VALID_SIZES.includes(req.query.size) ? req.query.size : 'medium';
 
     const file = await File.findOne({
-      where: { id: req.params.fileId, isDeleted: false }
+      where: { id: req.params.fileId, isDeleted: false },
+      include: [{ model: FileModeration, as: 'moderation' }]
     });
 
     if (!file) {
+      return res.status(404).json({ error: 'FILE_NOT_FOUND', message: 'File not found' });
+    }
+
+    // FEAT-031: this route queries File directly rather than going through
+    // fileService.getFile, so it needs its own fail-closed visibility check —
+    // a thumbnail of a held image is still the image.
+    if (!imageModeration.canServe(file, file.moderation, req.userId)) {
       return res.status(404).json({ error: 'FILE_NOT_FOUND', message: 'File not found' });
     }
 

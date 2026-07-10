@@ -139,8 +139,30 @@ describe('adversarial injection shapes', () => {
     expect(mockSeen[0].precomputedResult).toBeUndefined();
   });
 
-  test('non-object batch items do not crash the route', async () => {
-    const res = await request(app).post('/api/moderate/batch').send({ items: ['nope', null, 42] });
-    expect(res.status).toBeLessThan(600); // a clean status, not an unhandled throw
+  // Regression: a `null`/non-object item used to throw inside the destructure
+  // and 500 the WHOLE batch (one malformed item denies service to all 100). And
+  // the FIRST version of this test asserted `status < 600` — which a 500
+  // satisfies, so it passed on the bug. Assert the real contract instead.
+  test('a malformed batch item is a clean 400, never a 500', async () => {
+    const res = await request(app).post('/api/moderate/batch')
+      .send({ items: [{ ...base, contentId: 'good' }, null, 'nope', 42] });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_REQUEST');
+    // nothing was moderated — the batch was rejected wholesale
+    expect(mockSeen).toHaveLength(0);
+  });
+
+  test('a batch item missing required fields is rejected, not moderated as garbage', async () => {
+    const res = await request(app).post('/api/moderate/batch')
+      .send({ items: [{ ...base }, { contentText: 'orphan with no ids' }] });
+    expect(res.status).toBe(400);
+    expect(mockSeen).toHaveLength(0);
+  });
+
+  test('a fully valid batch still processes every item', async () => {
+    await request(app).post('/api/moderate/batch')
+      .send({ items: [{ ...base, contentId: 'a' }, { ...base, contentId: 'b' }] })
+      .expect(200);
+    expect(mockSeen).toHaveLength(2);
   });
 });

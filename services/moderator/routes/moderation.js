@@ -20,11 +20,15 @@ const logger = require('../src/utils/logger');
  * able to POST `precomputedResult: { riskScore: 0 }` to launder content as clean
  * (or `{ riskScore: 100 }` to grief someone). Strip everything else here.
  */
-function sanitizeModerationInput(body = {}) {
+function sanitizeModerationInput(body) {
+  // Guard non-objects (a null / string / number batch item): destructuring null
+  // throws, which would 500 the WHOLE batch on one malformed item. Coerce to {}
+  // so the downstream required-field validation rejects it cleanly instead.
+  const src = (body && typeof body === 'object') ? body : {};
   const {
     contentType, contentId, sourceService, userId,
     contentText, contentUrl, contentMetadata, aiProvider,
-  } = body;
+  } = src;
   return {
     contentType, contentId, sourceService, userId,
     contentText, contentUrl, contentMetadata, aiProvider,
@@ -145,8 +149,23 @@ router.post('/batch', async (req, res) => {
 
     // Allowlist each item — never pass a wire-supplied object straight through:
     // that would let a caller inject `precomputedResult` and forge a verdict.
+    const sanitized = items.map(sanitizeModerationInput);
+
+    // Reject a malformed batch as a client error rather than moderating garbage
+    // (all-undefined fields). One bad item fails the request; it must not crash
+    // it (see sanitizeModerationInput) and must not process the rest as valid.
+    const badIndex = sanitized.findIndex(
+      (it) => !it.contentType || !it.contentId || !it.sourceService || !it.userId
+    );
+    if (badIndex !== -1) {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST',
+        message: `items[${badIndex}] is missing required fields (contentType, contentId, sourceService, userId)`
+      });
+    }
+
     const results = await Promise.all(
-      items.map(item => moderationService.moderateContent(sanitizeModerationInput(item)))
+      sanitized.map(item => moderationService.moderateContent(item))
     );
 
     res.json({

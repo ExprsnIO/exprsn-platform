@@ -779,7 +779,7 @@ are cross-referenced, not re-filed.)*
   whichever ticket introduces tag filtering.
 
 ### BUG-017 — FileVault group-file uploads bypass image moderation entirely (served unmoderated)
-- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 (`733c842`): `uploadGroupFile()` now creates the moderation row inside the upload transaction and enqueues after commit, identically to the personal-upload path.· **Priority:** P1 · **Size:** M
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (HEAD `22629ae`). Live E2E, real `filevault` schema, `FILEVAULT_IMAGE_MODERATION=true`: `uploadGroupFile()` → `FileModeration.status='pending'`; `getFile(other group member)` → `FILE_NOT_FOUND` (hidden); `getFile(uploader)` → SERVED. Unit `imageModeration.test.js` (establishModerationState create). `db:check` filevault no drift; lint clean. Fix `733c842`.· **Priority:** P1 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — · **Relates:** FEAT-031 (verifying) · **Found:** QA live verification 2026-07-10 (branch `main`, commit b56166e)
 - **Description:** `fileService.uploadGroupFile()` (the `POST /filevault/api/groups/:groupId/files/upload`
@@ -808,7 +808,7 @@ are cross-referenced, not re-filed.)*
   wiring) and a live repro against Postgres.
 
 ### BUG-018 — FileVault new-version upload (updateFile / editor save) is never re-moderated — approve-then-swap bypass
-- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 (`733c842`): `updateFile()` resets the row to `pending` (hidden) inside the transaction and re-queues via `requeueImageModeration()`, which removes the stale Bull job first (a plain re-add is a silent no-op — BUG-016).· **Priority:** P2 · **Size:** M
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (HEAD `22629ae`). Live E2E: approve a group image → `updateFile()` with new bytes → `FileModeration.status` flips back to `pending`, `currentVersion=2`, `getFile(other)` → `FILE_NOT_FOUND` (SERVED before the update, hidden after). `requeueImageModeration()` removes the stale job before re-adding (BUG-016). Unit `imageModeration.test.js` reset-clears-verdict. Fix `733c842`.· **Priority:** P2 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — · **Relates:** FEAT-031 (verifying), BUG-016 · **Found:** QA live verification 2026-07-10
 - **Description:** `fileService.updateFile()` (`PUT /filevault/api/files/:fileId`, the Monaco editor
@@ -830,7 +830,7 @@ are cross-referenced, not re-filed.)*
   `FileModeration`/`enqueueImageModeration` call.
 
 ### BUG-019 — Flagged image does not reliably reach moderator's human review queue (verdict routed through the text pipeline)
-- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 (`733c842`): `moderateContent()` accepts a `precomputedResult`, so the image's own scores (not its alt-text) drive rules, `requiresManualReview`, the review queue, and the audit trail. Regression test: alt-text "two people" + nsfw 96 → riskScore 93, requiresReview true. Text path untouched. **Wants systems-architect confirmation** that the precomputed-verdict seam satisfies ADR 0002 constraint 5.· **Priority:** P2 · **Size:** M
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (HEAD `22629ae`). Live E2E against the real `moderator` schema, driving `moderateContent()` exactly as `worker.escalate()` does (benign alt-text "two people" + `precomputedResult` nsfw 96 / riskScore 93): persisted `moderation_items` row → `riskScore=93`, `riskLevel=critical`, `nsfwScore=96`, `aiProvider=cortex`, `aiModel=qwen2.5-vl-3b`, `requiresReview=true`, `status=flagged`; AND a `review_queue` row (priority 93, escalated, pending). Text analyzer NOT invoked; unchanged text path preserved. Units `precomputedVerdict.test.js` + `verdictInjection.test.js`. **NOTE: the precomputedResult seam's structural sign-off (ADR 0002 constraint 5) is systems-architect's, not QA's** — behavior verified here. Fix `733c842`.· **Priority:** P2 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — · **Relates:** FEAT-031 (verifying), FEAT-030, ADR 0002 constraint 5 · **Found:** QA verification 2026-07-10
 - **Description:** The FileVault moderation worker's `escalate()` (`services/filevault/src/worker.js`)
@@ -863,7 +863,7 @@ are cross-referenced, not re-filed.)*
   `services/moderator/src/ai-providers/cortex.js` but unused by this path.
 
 ### BUG-021 — FileVault `restoreVersion()` serves un-revalidated bytes under the current verdict
-- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (HEAD `22629ae`). Live E2E: approve v2 → `restoreVersion(fileId, 1)` → `FileModeration.status` back to `pending`, `currentVersion=3`, `getFile(other)` → `FILE_NOT_FOUND` (SERVED before restore, hidden after). Encrypted-object control: an encrypted image `update` stays `skipped` (servable), NOT wrongly re-queued/hidden (unit `imageModeration.test.js` + live control). Fix `043656b` (centralized `establishModerationState`). · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** FEAT-031, BUG-017, BUG-018
 - **Found:** self-audit after BUG-017 — I enumerated every path that writes file
   bytes instead of assuming the one I had wired was the only one.
@@ -881,7 +881,7 @@ are cross-referenced, not re-filed.)*
   future path that writes bytes must call it rather than reinvent it.
 
 ### BUG-022 — FileVault worker could write a stale verdict onto replaced bytes (TOCTOU)
-- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (HEAD `22629ae`). Verified the compare-and-set on `contentHash`: `services/filevault/tests/unit/workerRace.test.js` (3/3) proves a stale `approved` is never written when the hash changed mid-evaluation (returns `{status:'superseded'}`, row stays `pending`), a file deleted mid-evaluation is handled, and an unchanged file still gets its verdict. Code review of `worker.js`: the `approved`/`rejected` early-return runs BEFORE evaluate (cannot catch the race); the post-evaluate hash re-read does. This answers the reset/re-queue race for BUG-018/021. Fix `8c5104d`. · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** FEAT-031, BUG-018, BUG-021
 - **Found:** self-audit while reasoning about the BUG-018/021 reset race.
 - **Description:** Image inference takes seconds. The worker read the file row,
@@ -901,7 +901,8 @@ are cross-referenced, not re-filed.)*
   that a file deleted mid-evaluation is handled.
 
 ### BUG-023 — SECURITY: unauthenticated verdict forgery via `POST /api/moderate/batch` (introduced by FEAT-031)
-- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P0 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (HEAD `22629ae`). Both routes now apply the strict `sanitizeModerationInput()` allowlist (confirmed at HEAD, lines 66 & 149). `verdictInjection.test.js` (4/4) attacks both real handlers via supertest. QA additionally drove the actual `routes/moderation.js` handlers with adversarial shapes (all inert): top-level `precomputedResult` stripped; nested inside `contentMetadata` inert (the service destructures `precomputedResult` from top-level params only); prototype-pollution keys deliver no verdict and do not pollute `Object.prototype`; sparse `/batch` array where only `items[47]` carries the field → stripped; a string item → no verdict. Robustness note: a `null` item in `/batch` throws (destructure of null) → HTTP 500 for the whole batch — nothing is laundered, but see robustness note below. Live gateway curl probe was blocked by an environment safety classifier, so the equivalent proof is the route-handler-level supertest. Fix `8c5104d` (swept in under BUG-022's commit msg). · **Priority:** P0 · **Size:** S
+- **QA robustness observation (minor, not a security defect, not filed):** `/batch` with a `null` (or non-object) item returns HTTP 500 for the entire batch because `sanitizeModerationInput(null)` destructures `null` (default param only guards `undefined`). No verdict is forged; worst case is a self-inflicted 500. Trivial to harden (skip/validate non-object items) when `/batch` gets its `requireService` gate under BUG-010; recorded here rather than as a separate ticket.
 - **Owner-role:** sr-developer · **Found:** systems-architect review of the `precomputedResult` seam
 - **Relates:** BUG-019 (introduced it), BUG-010 / SPIKE-001 (unauthenticated moderator ingest routes)
 - **Description:** BUG-019's fix added a `precomputedResult` parameter to
@@ -933,6 +934,16 @@ are cross-referenced, not re-filed.)*
   not have caught this.
 - **Not a substitute for BUG-010:** this is defense-in-depth. Durable service-auth
   on moderator's ingest routes must still land.
+
+### BUG-024 — Live room-collab file uploads bypass image moderation (served to room members from local disk)
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Relates:** FEAT-031 (ADR 0002 constraint 8 named out-of-scope "live … disk" gap) · **Found:** QA "fifth byte-writing path" audit during FEAT-031 re-verification 2026-07-10
+- **Description:** `POST /live/api/rooms/:id/files/upload` (`services/live/src/routes/roomCollab.js`, `kind:'ephemeral'`) writes the raw uploaded bytes straight to local disk (`fs.writeFileSync(path.join(UPLOAD_DIR, roomId, key), req.file.buffer)`) and `GET /live/api/rooms/:id/files/:fileId/download` streams them (`fs.createReadStream(...).pipe(res)`) to **any** authenticated room member. multer accepts any type up to 100 MB, so a user can share an arbitrary image into a live room and it is served to all other participants with **zero moderation** — the exact risk class FEAT-031's chokepoint addresses, but via a storage subsystem that never touches FileVault (so `establishModerationState`/`FileModeration`/the vision worker never run on it). This is NOT a FileVault byte-writing path (all four of those — upload, group upload, updateFile, restoreVersion — do call `establishModerationState`; `routes/files.js` create/upload, `webdav.js` PUT, and `groups.js` all funnel through them, and spark/timeline push bytes to FileVault via the moderated `/api/files/upload`). It is a **separate parallel path**.
+- **Scope note:** FEAT-031 ADR 0002 constraint 8 explicitly names "live thumbnails/recordings (disk + video, out of scope)". Room-collab *arbitrary user file sharing* is arguably broader than "thumbnails/recordings", so filing it concretely rather than leaving it as an ADR footnote. **Does NOT fail FEAT-031** (which is scoped to the FileVault chokepoint); whether live-disk shares should be moderated is a PM/architect scope decision.
+- **Steps to reproduce:** As room member A, `POST /live/api/rooms/:id/files/upload` with an image. As member B, `GET /live/api/rooms/:id/files/:fileId/download` → the image is served in full, no moderation row, no verdict.
+- **Expected vs actual:** Expected (if in scope) — room-shared images enter the same async chokepoint (hidden-pending until cleared). Actual — served immediately, unmoderated.
+- **Severity:** P3 (recommendation) — bounded to authenticated room members; requires the PM/architect scope call above. Cleanest fix routes room uploads through FileVault (`fileService.uploadGroupFile`-style) rather than a private disk store, which also gets them dedup/quota/versioning for free.
 
 ### BUG-020 — Share-link metadata endpoint discloses a held image's existence and filename
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
@@ -1258,8 +1269,8 @@ are cross-referenced, not re-filed.)*
   in `src/config/index.js` + `.env.example`.
 
 ### FEAT-031 — FileVault upload chokepoint: async image moderation + tagging
-- **Type:** feature · **Status:** in-review — QA-found BUG-017/018/019 all FIXED 2026-07-10 (`733c842`); awaiting QA re-verification. Also fixed pre-merge: DBA-found FK cascade/NOT NULL (`1d58480`). Remaining before `done`: QA re-run, systems-architect confirmation of the `precomputedResult` seam (ADR 0002 constraint 5), and TASK-023 (recall corpus) before any verdict drives automation.
-  Core user-upload path is solid, but the chokepoint has holes on in-scope paths. · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** in-review — **QA RE-VERIFICATION COMPLETE 2026-07-10 (HEAD `22629ae`): PASS on all acceptance criteria.** Every previously-failed bullet now verified live: BUG-017 (group upload hidden-pending), BUG-018 (new version re-hidden), BUG-021 (restore re-hidden), BUG-019 (flagged image → `moderation_items` with the IMAGE's scores + `review_queue` row, `aiProvider=cortex`) — all → `done`. Plus the two dev-found follow-ons BUG-022 (worker TOCTOU) + BUG-023 (P0 verdict-forgery on `/batch`) verified → `done`. `db:check` no drift (all modules); touched files lint clean; filevault unit 26/26, cortex 124/124, moderator `precomputedVerdict`+`verdictInjection` green. **QA gate is satisfied.** Ticket stays `in-review` pending the two remaining NON-QA gates the ticket names: (1) systems-architect confirmation that the `precomputedResult` seam satisfies ADR 0002 constraint 5 (structural sign-off, not QA's to give — architect already reviewed the seam and surfaced BUG-023), and (2) TASK-023 (vision recall corpus) before any verdict drives *automation* (verdict is escalate-only today, so this gates future automation). Also fixed pre-merge: DBA-found FK cascade/NOT NULL (`1d58480`). Named out-of-scope live-disk gap tracked as BUG-024.
+  Core user-upload path is solid; the in-scope chokepoint holes are now closed and re-verified. · **Priority:** P1 · **Size:** L
 - **QA verification (2026-07-10, branch `main` commit b56166e; real DB `exprsn`/schema `filevault`,
   resident `qwen2.5-vl-3b`):** filevault imageModeration Jest 19/19; live worker E2E on the real DB +
   model — benign→`approved` with populated tags/altText and NO pixel data in the verdict; corrupt

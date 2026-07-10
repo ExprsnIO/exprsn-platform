@@ -705,6 +705,54 @@ are cross-referenced, not re-filed.)*
   and must not be represented as satisfying any CSAM-detection obligation,
   whatever this harness reports.
 
+### TASK-024 — `db:check` is blind to nullability and FK `onDelete` (drift gate gap)
+- **Type:** task · **Status:** backlog · **Priority:** P1 · **Size:** M
+- **Owner-role:** dba · **Found:** DBA review of FEAT-031 (2026-07-10)
+- **Description:** `scripts/check-drift.js` compares missing tables/columns, ENUM
+  values, and indexes — but **not** column nullability and **not** foreign-key
+  `onDelete`/`onUpdate` behavior. That is not academic: `FileModeration` declared
+  `file_id` as `allowNull: false`, while Sequelize's `hasOne` default
+  (`ON DELETE SET NULL`) silently forced the live column **nullable** and would
+  have orphaned moderation rows on a hard file delete. `db:check` reported
+  "no drift" throughout. Any model in the repo could carry the same divergence
+  today and the gate would not say so.
+- **Acceptance criteria:** `db:check` flags a nullability mismatch and an FK
+  `onDelete` mismatch; run it across all modules and file whatever it surfaces
+  (expect other pre-existing divergences). Note the limitation in STATUS.md until
+  fixed.
+
+### TASK-025 — FileVault: reconcile images stuck `pending` with no queue job
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Relates:** FEAT-031 · **Found:** DBA review (2026-07-10)
+- **Description:** The moderation job is enqueued after the upload transaction
+  commits, deliberately and best-effort. If the process dies between commit and
+  enqueue, or Redis is down at that moment, the row stays `pending` forever —
+  permanently hidden, with no job that will ever clear it. This is **fail-closed
+  (safe)**, but it is an ops/data-quality hole with no recovery sweep.
+- **Acceptance criteria:** a periodic reconciler re-enqueues rows that are
+  `pending` beyond N minutes with no waiting/active Bull job; it is idempotent and
+  cannot resurrect a resolved verdict.
+
+### BUG-016 — FileVault: `jobId: file:<id>` will silently no-op a future re-moderation
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** sr-developer · **Relates:** FEAT-031 · **Found:** DBA review (2026-07-10)
+- **Description:** The queue dedups on `jobId: file:<id>`, which is correct for
+  its purpose (collapsing duplicate enqueues of one upload). But Bull treats
+  `add()` with an existing jobId as a no-op while that job's key survives in
+  Redis — completed jobs are retained 1h, failed ones 24h. So the moment a
+  "re-moderate this image" action exists (model upgrade, human overturn), it will
+  do **nothing** for any file moderated in the last hour, with no error. Filed now
+  so nobody loses an afternoon to it later.
+- **Fix when re-moderation lands:** `queue.removeJobs('file:<id>')` before
+  re-adding, or add a generation suffix (`file:<id>:<gen>`).
+- **Also (from the same review):** `evaluate()`'s patch overwrites
+  `verdict`/`provider`/`model`/`riskScore` in place, so a prior *clean* verdict is
+  lost locally on re-run. The escalate hook already persists flagged verdicts to
+  moderator; a re-moderation path must persist the prior verdict before overwrite.
+- **Note:** `ai_tags` (`text[]`) has no GIN index. Deliberate — tag filtering is
+  not a query that runs today. Add `USING GIN (ai_tags)` in the migration of
+  whichever ticket introduces tag filtering.
+
 ### FEAT-023 — Cortex as an in-process LLM source for other modules (façade + moderator provider)
 - **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** — · **Legacy:** cross-links TASK-009 (in-process calls)

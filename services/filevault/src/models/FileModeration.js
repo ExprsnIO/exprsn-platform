@@ -127,10 +127,20 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   FileModeration.associate = function (models) {
-    FileModeration.belongsTo(models.File, { foreignKey: 'file_id', as: 'file' });
+    // A moderation row is strictly DEPENDENT on its file (1:1, file_id NOT NULL).
+    // onDelete CASCADE — not Sequelize's hasOne default of SET NULL — so a purge
+    // of the file takes its moderation row with it. SET NULL would (a) force
+    // file_id nullable, contradicting the model's allowNull:false, and (b) leave
+    // orphan rows pointing at nothing. CASCADE keeps NOT NULL and the 1:1
+    // invariant intact. See migration 20260710000001.
+    FileModeration.belongsTo(models.File, {
+      foreignKey: 'file_id', as: 'file', onDelete: 'CASCADE', onUpdate: 'CASCADE',
+    });
     // The reverse side lives here too: `File` is a plain model file that knows
     // nothing about moderation, and every serve path eager-loads `moderation`.
-    models.File.hasOne(FileModeration, { foreignKey: 'file_id', as: 'moderation' });
+    models.File.hasOne(FileModeration, {
+      foreignKey: 'file_id', as: 'moderation', onDelete: 'CASCADE', onUpdate: 'CASCADE',
+    });
   };
 
   return FileModeration;

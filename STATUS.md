@@ -40,6 +40,21 @@ npm run db:migrate     # migrate-sync.js — sync each module's models into its 
 npm start              # https://localhost:8443  → GET /health
 ```
 
+## Known limitation of the drift gate (found 2026-07-10, TASK-024)
+
+`npm run db:check` compares missing tables/columns, ENUM values, and indexes — it
+does **not** compare column **nullability** or foreign-key **`onDelete`/`onUpdate`**
+behavior. A model can therefore disagree with the live schema on both while the
+gate reports "no drift."
+
+This is not theoretical. `FileModeration.file_id` was declared `allowNull: false`,
+but Sequelize's `hasOne` default (`ON DELETE SET NULL`) silently made the live
+column nullable and would have orphaned moderation rows on a hard file delete;
+`db:check` was green the whole time. Fixed for that table by
+`services/filevault/migrations/20260710000001-fix-file-moderation-fk-cascade.js`.
+**Other models may carry the same divergence today.** Until TASK-024 lands, treat a
+green `db:check` as "no *missing* schema," not "schema matches the models."
+
 ## Recently resolved
 
 ### Cortex module landed, RUNTIME-VERIFIED (2026-07-09) — FEAT-021

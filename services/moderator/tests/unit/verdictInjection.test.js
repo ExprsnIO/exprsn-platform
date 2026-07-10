@@ -1,83 +1,108 @@
 'use strict';
 
 /**
- * Verdict-injection guard.
+ * Verdict-injection guard — BUG-023.
  *
  * `moderateContent({ precomputedResult })` lets an IN-PROCESS caller (the
- * FileVault worker) supply an already-computed image verdict, skipping the AI
- * provider. That is safe only because `POST /moderator/api/moderate/content`
- * destructures an explicit field allowlist and never forwards it.
+ * FileVault image worker) supply an already-computed verdict, skipping the AI
+ * analyzer entirely. `POST /moderator/api/moderate/{content,batch}` is
+ * UNAUTHENTICATED (SPIKE-001 / BUG-010).
  *
- * That route is UNAUTHENTICATED (SPIKE-001 / BUG-010). If someone ever "tidies"
- * the handler into `moderateContent(req.body)`, any anonymous caller could post
- * `precomputedResult: { riskScore: 0 }` to launder content as clean, or
- * `{ riskScore: 100 }` to grief another user's upload into the review queue.
+ * `/batch` originally forwarded each wire-supplied item object wholesale, so an
+ * anonymous caller could forge a verdict:
  *
- * This test exists to make that refactor fail loudly.
+ *   POST /api/moderate/batch
+ *   { "items": [{ ..., "precomputedResult": { "riskScore": 0 } }] }
+ *
+ * and have it persist verbatim. Worse, `moderateContent` dedups on
+ * (sourceService, contentType, contentId), so a forged verdict is STICKY — it
+ * pre-empts the real moderation that would have happened later. Either launder
+ * content as clean (riskScore 0) or grief a target into the review queue
+ * (riskScore 100).
+ *
+ * These tests attack the actual route handlers. They must not be softened into
+ * source-code greps: the earlier version of this file only asserted that
+ * `/content` didn't mention the field, and missed `/batch` entirely.
  */
 
 process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
 
-const fs = require('fs');
-const path = require('path');
+const mockSeen = [];
+jest.mock('../../services/moderationService', () => ({
+  moderateContent: jest.fn(async (params) => {
+    mockSeen.push(params);
+    return { moderationId: 'm1', status: 'approved' };
+  }),
+}));
+jest.mock('../../src/utils/logger', () => ({
+  info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(),
+}));
 
-describe('POST /api/moderate/content cannot inject a verdict', () => {
-  const routeSrc = fs.readFileSync(
-    path.join(__dirname, '../../routes/moderation.js'), 'utf8');
+const express = require('express');
+const request = require('supertest');
+const router = require('../../routes/moderation');
 
-  test('the route never references precomputedResult', () => {
-    expect(routeSrc).not.toMatch(/precomputedResult/);
+const app = express();
+app.use(express.json());
+app.use('/api/moderate', router);
+
+const FORGED = { riskScore: 0, nsfwScore: 0, provider: 'cortex', flags: [] };
+const base = {
+  contentType: 'image',
+  contentId: 'victim-file',
+  sourceService: 'filevault',
+  userId: '11111111-1111-4111-8111-111111111111',
+  contentText: 'anything',
+};
+
+beforeEach(() => { mockSeen.length = 0; });
+
+describe('an anonymous caller cannot forge a verdict', () => {
+  test('POST /content strips precomputedResult', async () => {
+    await request(app).post('/api/moderate/content')
+      .send({ ...base, precomputedResult: FORGED })
+      .expect(200);
+
+    expect(mockSeen).toHaveLength(1);
+    expect(mockSeen[0].precomputedResult).toBeUndefined();
   });
 
-  // The allowlist is the actual protection: an explicit destructure of req.body
-  // into named fields, none of which is precomputedResult.
-  test('the route destructures an explicit field allowlist, never spreads req.body', () => {
-    expect(routeSrc).toMatch(/const\s*\{[\s\S]*?\}\s*=\s*req\.body/);
-    // A spread of the body into the service call is the dangerous shape.
-    expect(routeSrc).not.toMatch(/moderateContent\(\s*(\.\.\.)?req\.body/);
-    expect(routeSrc).not.toMatch(/moderateContent\(\s*\{\s*\.\.\.req\.body/);
+  // The hole the first pass missed: /batch forwarded each item object wholesale.
+  test('POST /batch strips precomputedResult from EVERY item', async () => {
+    await request(app).post('/api/moderate/batch')
+      .send({ items: [
+        { ...base, contentId: 'a' },
+        { ...base, contentId: 'b', precomputedResult: FORGED },
+        { ...base, contentId: 'c', precomputedResult: { riskScore: 100 } },
+      ] })
+      .expect(200);
+
+    expect(mockSeen).toHaveLength(3);
+    for (const params of mockSeen) {
+      expect(params.precomputedResult).toBeUndefined();
+    }
   });
-});
 
-describe('moderateContent honours a precomputed verdict only when given one', () => {
-  const mockCreated = [];
-  jest.mock('../../src/ai-providers', () => ({
-    analyzeContent: jest.fn().mockResolvedValue({
-      provider: 'deepseek', riskScore: 1, toxicityScore: 0, nsfwScore: 0,
-      spamScore: 0, violenceScore: 0, hateSpeechScore: 0, sentimentScore: 50, flags: [],
-    }),
-    getShadowProviders: jest.fn().mockReturnValue([]),
-    analyzeShadow: jest.fn(),
-  }));
-  jest.mock('../../src/utils/logger', () => ({
-    info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(),
-  }));
-  jest.mock('../../models/sequelize-index', () => ({
-    ModerationCase: {
-      findOne: jest.fn().mockResolvedValue(null),
-      create: jest.fn(async (v) => { mockCreated.push(v); return { id: 'mi-1', ...v, get: () => v }; }),
-    },
-    ReviewQueue: { create: jest.fn() },
-    ModerationAction: { create: jest.fn() },
-  }));
-  jest.mock('../../services/ruleEngineService', () => ({
-    evaluateRules: jest.fn().mockResolvedValue(null),
-  }));
+  test('no unexpected wire field reaches the service (strict allowlist, not a denylist)', async () => {
+    await request(app).post('/api/moderate/content')
+      .send({ ...base, precomputedResult: FORGED, someFutureVerdictField: FORGED, __proto__: {} })
+      .expect(200);
 
-  const moderationService = require('../../services/moderationService');
+    const allowed = [
+      'contentType', 'contentId', 'sourceService', 'userId',
+      'contentText', 'contentUrl', 'contentMetadata', 'aiProvider',
+    ];
+    expect(Object.keys(mockSeen[0]).sort()).toEqual(allowed.sort());
+  });
 
-  beforeEach(() => { mockCreated.length = 0; });
+  test('the legitimate fields still get through', async () => {
+    await request(app).post('/api/moderate/content')
+      .send({ ...base, aiProvider: 'deepseek', contentMetadata: { k: 1 } })
+      .expect(200);
 
-  // An undefined precomputedResult must fall back to the analyzer, not to a
-  // permissive default. (`|| await analyzeContent(...)` — a falsy verdict object
-  // would also fall through, which is the safe direction.)
-  test('an absent verdict falls back to the analyzer, not to "clean"', async () => {
-    await moderationService.moderateContent({
-      contentType: 'text', contentId: 'c1', sourceService: 'qa',
-      userId: '11111111-1111-4111-8111-111111111111', contentText: 'hi',
-      precomputedResult: undefined,
+    expect(mockSeen[0]).toMatchObject({
+      contentType: 'image', contentId: 'victim-file', aiProvider: 'deepseek',
+      contentMetadata: { k: 1 },
     });
-    expect(require('../../src/ai-providers').analyzeContent).toHaveBeenCalled();
-    expect(mockCreated[0].aiProvider).toBe('deepseek');
   });
 });

@@ -232,6 +232,88 @@ a gate. **I disagree with the co-residency choice and recommend the alternative 
 7. **FEAT-029 is external.** It changes no repo file under my sign-off; my ruling there is
    advisory and Rick owns the infra call.
 
+## Addendum — 2026-07-10: `precomputedResult` verdict seam (BUG-019 review)
+
+Reviewing the BUG-019 fix (FileVault image escalation scored the alt-text through the
+text analyzer, so a pornographic image captioned "two people" never reached human review).
+The implementer added an optional `precomputedResult` param to
+`moderationService.moderateContent()`: when present the AI analyzer is skipped and moderator
+reasons about the caller's already-computed score object. The FileVault worker's `escalate()`
+passes the cortex vision verdict there.
+
+Three rulings:
+
+1. **The seam satisfies constraint 5 (accepted, with a noted deviation).** Constraint 5's intent
+   is: (a) do NOT push image verdicts through the text-shaped `analyzeContent`, and (b) keep the
+   verdict moderator-owned — rules, review-queue routing, audit, `requiresManualReview` all run on
+   the real image scores. `precomputedResult` meets both: `analyzeContent` is bypassed, and every
+   downstream stage (`_applyCustomRules`, `requiresManualReview`, `_addToReviewQueue`, `_logAction`,
+   the persisted `ModerationItem`, queue/workflow routing) operates on the image scores.
+   **Deviation from the letter of §4:** §4 envisioned the moderator `cortex` provider gaining
+   `analyzeImage` and moderator calling it (keeping provider selection + `CORTEX_MODERATION_MODE`
+   inside moderator). The shipped design instead has cortex score the image in the *FileVault worker*
+   (via the façade) and moderator merely consume the verdict. This is an acceptable seam for the
+   escalate-only path and is arguably better decoupled (moderator does not grow a bytes-in image
+   entry point), but it moves provider selection and mode-gating OUT of moderator — see ruling 2.
+   Handing moderator the raw BYTES would re-satisfy §4 literally but is a larger change and is NOT
+   required to close BUG-019; if a synchronous or non-FileVault image-verdict caller ever appears,
+   that path MUST go through a moderator-owned `analyzeImage` (new sub-ticket), not a second
+   `precomputedResult` caller.
+
+2. **Gating hole — real, and it is a scope/ownership seam, not a weakened invariant.** With this
+   design the FileVault worker calls `cortex.moderateImage()` through the façade directly, bypassing
+   `AIProviderFactory`, so image verdicts run under `FILEVAULT_IMAGE_MODERATION`, NOT
+   `CORTEX_MODERATION_MODE`. §4 said "the same `CORTEX_MODERATION_MODE` gate governs IMAGE verdicts"
+   — that no longer literally holds. This does not weaken a security invariant (image moderation is
+   still fail-closed, escalate-only, and behind its own explicit flag), but it IS an operator-surprise
+   surface: someone who sets `CORTEX_MODERATION_MODE=off` expecting "cortex does no moderation" will
+   still find cortex scoring images if `FILEVAULT_IMAGE_MODERATION=true`. **Ruling:** acceptable for
+   MVP because image moderation is escalate-only (it can raise for human review, never auto-clear and
+   never auto-delete — a false image verdict cannot launder content, only add a queue item), and the
+   two flags are independently documented. **But:** (a) the two-flag relationship MUST be documented
+   where operators set them (`.env.example` + ARCHITECTURE.md) so `CORTEX_MODERATION_MODE=off` is not
+   read as "no cortex moderation of any kind"; and (b) **image shadow mode is now unreachable** — the
+   worker path has no shadow/enforce distinction, so the enforce-accuracy benchmark (Consequence 6,
+   qa-specialist) has no shadow data to compare against for images. File a follow-up TASK to either
+   thread `CORTEX_MODERATION_MODE` (or an explicit `FILEVAULT_IMAGE_MODERATION=shadow|enforce`) into
+   the worker so image verdicts can run observe-only before they gate visibility. Until then, image
+   moderation is enforce-only-or-off with no shadow rung; that is a knowingly-accepted gap, not a
+   silent one.
+
+3. **Abuse surface — a REAL vulnerability was present and is now fixed.** `moderateContent()` is
+   reachable from `POST /moderator/api/moderate/content` AND `POST /moderator/api/moderate/batch`,
+   both UNAUTHENTICATED (SPIKE-001/BUG-010). The `/content` route was already defensively coded — it
+   destructures a fixed field allowlist and never forwarded `precomputedResult`. **But the `/batch`
+   route passed each `item` object WHOLESALE** (`items.map(item => moderateContent(item))`), so an
+   unauthenticated attacker could `POST /moderator/api/moderate/batch` with
+   `items: [{ contentType, contentId, sourceService, userId, precomputedResult: { riskScore: 0 } }]`
+   and forge a verdict: `precomputedResult` skips the analyzer, so the attacker's scores are persisted
+   verbatim as a `ModerationItem`. Because `moderateContent` dedups on
+   `(sourceService, contentType, contentId)` and returns the existing row, the forged verdict is
+   **sticky** — it pre-empts the real later moderation of that content. Impact: launder arbitrary
+   content as clean (`riskScore: 0` → approved) or grief a target (`riskScore: 100` → rejected/
+   escalated) for any not-yet-moderated `(service, type, id)`. **This was a live, network-reachable
+   forge-the-verdict vulnerability introduced with the `precomputedResult` param.** **Fixed** in
+   `services/moderator/routes/moderation.js`: a `sanitizeModerationInput()` allowlist now strips
+   `precomputedResult` (and anything else off-list) at BOTH the `/content` and `/batch` route
+   boundaries. `precomputedResult` is thereby an **in-process-only** parameter — the FileVault worker
+   reaches `moderateContent` by direct `require`, never over HTTP, so the fix does not affect it
+   (regression suite `tests/unit/precomputedVerdict.test.js` still green, 4/4). This does not resolve
+   the underlying "these routes are unauthenticated" issue (BUG-010) — service-auth on the moderator
+   ingest routes remains the correct durable fix and should still land; the allowlist is the correct
+   defense-in-depth regardless of auth.
+
+**On `establishModerationState()` (context item, not one of the three questions):** centralizing the
+"bytes changed ⇒ re-establish moderation state" invariant into one function that all four write paths
+(initial upload, group upload, new version, version restore) call is at the RIGHT layer — it lives in
+`imageModerationService` alongside `initialState`/`shouldQueue`, is transaction-aware
+(`{ transaction }`), and models create-vs-reset explicitly (reset clears the stale verdict, which is
+correct — an old verdict does not describe new bytes). This is the standard fix for a
+"same invariant open-coded at N sites, violated at N-1 of them" bug. One VERIFY note for qa/dba: the
+function assumes callers invoke it INSIDE their transaction and enqueue AFTER commit — a caller that
+enqueues before commit could race the worker to bytes that are not yet visible; confirm all four sites
+enqueue post-commit.
+
 ## Required changes (binding, in priority order)
 
 1. **Façade owns the model; preflight capability.** `describeImage`/`moderateImage` take no

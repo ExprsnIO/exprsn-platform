@@ -705,6 +705,31 @@ are cross-referenced, not re-filed.)*
   and must not be represented as satisfying any CSAM-detection obligation,
   whatever this harness reports.
 
+### TASK-026 — Image moderation has no shadow rung; document the two-flag relationship
+- **Type:** task · **Status:** backlog · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Relates:** FEAT-031, TASK-023 (recall corpus), ADR 0002
+- **Found:** systems-architect review (2026-07-10), required follow-up to his ruling.
+- **Description:** Two gaps opened by the `precomputedResult` seam:
+  1. **Image moderation is enforce-only-or-off.** The FileVault worker calls
+     `cortex.moderateImage()` through the façade, bypassing `AIProviderFactory`,
+     so `CORTEX_MODERATION_MODE=shadow` has **no effect on images** — there is no
+     shadow rung at all. That means TASK-023's accuracy benchmark can never gather
+     shadow data for images, which is exactly the evidence the enforce decision
+     needs. Thread a shadow/enforce distinction into the worker (either honour
+     `CORTEX_MODERATION_MODE`, or add `FILEVAULT_IMAGE_MODERATION=shadow|enforce`).
+  2. **Two flags, silently unrelated.** `FILEVAULT_IMAGE_MODERATION` governs image
+     verdicts; `CORTEX_MODERATION_MODE` governs text ones. An operator setting
+     `CORTEX_MODERATION_MODE=off` will reasonably read that as "no cortex
+     moderation of any kind" and be wrong. Document the relationship in
+     `.env.example` and `ARCHITECTURE.md`.
+- **Architect's ruling (recorded):** `FILEVAULT_IMAGE_MODERATION` **is** the correct
+  governing flag for the escalate-only worker path — the deviation from ADR 0002 §4
+  is accepted because a false image verdict can only add a human-review item, never
+  auto-clear or auto-delete. The gaps above are knowingly-accepted, not silent.
+- **Acceptance criteria:** image verdicts can run in a shadow mode that scores and
+  logs without holding the image; the flag relationship is documented in both
+  places; TASK-023's harness can consume image shadow data.
+
 ### TASK-024 — `db:check` is blind to nullability and FK `onDelete` (drift gate gap)
 - **Type:** task · **Status:** backlog · **Priority:** P1 · **Size:** M
 - **Owner-role:** dba · **Found:** DBA review of FEAT-031 (2026-07-10)
@@ -874,6 +899,40 @@ are cross-referenced, not re-filed.)*
 - **Tests:** `services/filevault/tests/unit/workerRace.test.js` proves the stale
   approval is never written, that an unchanged file still gets its verdict, and
   that a file deleted mid-evaluation is handled.
+
+### BUG-023 — SECURITY: unauthenticated verdict forgery via `POST /api/moderate/batch` (introduced by FEAT-031)
+- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P0 · **Size:** S
+- **Owner-role:** sr-developer · **Found:** systems-architect review of the `precomputedResult` seam
+- **Relates:** BUG-019 (introduced it), BUG-010 / SPIKE-001 (unauthenticated moderator ingest routes)
+- **Description:** BUG-019's fix added a `precomputedResult` parameter to
+  `moderationService.moderateContent()`. When present it **skips the AI analyzer**
+  and persists the caller's scores verbatim. `/api/moderate/content` was safe (it
+  destructures a fixed field allowlist), but **`/api/moderate/batch` forwarded each
+  wire-supplied item object wholesale** (`items.map(item => moderateContent(item))`).
+  Both routes are **unauthenticated**. So an anonymous caller could POST
+  `items: [{ …, precomputedResult: { riskScore: 0 } }]` and forge a verdict.
+  Worse, `moderateContent` dedups on `(sourceService, contentType, contentId)` and
+  returns the existing row, so a forged verdict is **sticky** — it pre-empts the
+  real moderation that would otherwise run later. Impact: launder any
+  not-yet-moderated content as clean, or grief a target's upload into the review
+  queue with `riskScore: 100`.
+- **How it was missed:** I checked `/content`, found its allowlist, and declared
+  "no live vulnerability" without enumerating the other routes that reach
+  `moderateContent`. The same failure mode as BUG-017 (one upload path checked,
+  a second ignored). The architect enumerated them.
+- **Fix:** `sanitizeModerationInput()` — a strict allowlist (not a denylist) —
+  applied at **both** route boundaries. `precomputedResult` is now reachable only
+  by in-process callers; the FileVault worker calls `moderateContent` via direct
+  `require`, never HTTP, so it is unaffected.
+- **⚠ Landed in commit `8c5104d`, whose message describes only BUG-022** — the fix
+  was swept in by a `git add -A`. Recorded here so it is discoverable.
+- **Tests:** `services/moderator/tests/unit/verdictInjection.test.js` attacks both
+  real route handlers via supertest (forged verdict on `/content`, on every item
+  of `/batch`, an unknown future field, and a legitimate-fields-still-pass case).
+  The earlier version of that file only grepped the source of `/content` and would
+  not have caught this.
+- **Not a substitute for BUG-010:** this is defense-in-depth. Durable service-auth
+  on moderator's ingest routes must still land.
 
 ### BUG-020 — Share-link metadata endpoint discloses a held image's existence and filename
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S

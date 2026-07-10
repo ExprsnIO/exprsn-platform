@@ -75,6 +75,24 @@ warm and ~54s cold, serialized behind `CORTEX_LLM_CONCURRENCY` (default 2), and
 and log, never enforce) is the intended first step, and a `sourceService:
 'cortex'` request never selects the cortex provider (loop guard, applied to the
 fallback chain too).
+
+**`CORTEX_MODERATION_MODE` governs TEXT verdicts only.** Image verdicts
+(FEAT-031) are produced by the FileVault worker, which calls the cortex façade
+directly and therefore bypasses `AIProviderFactory` and its mode gate; they are
+governed by `FILEVAULT_IMAGE_MODERATION` instead. An operator who sets
+`CORTEX_MODERATION_MODE=off` will still get cortex scoring their images. This
+deviation from ADR 0002 §4 is accepted (see its addendum): the worker path is
+escalate-only, so a wrong image verdict can only add a human-review item, never
+auto-clear or auto-delete. Consequences: image moderation has **no shadow rung**
+today (TASK-026), which is also why TASK-023's accuracy benchmark cannot yet
+gather image shadow data. A synchronous or non-FileVault image-verdict caller
+must go through a moderator-owned `analyzeImage`, not a second
+`precomputedResult` caller.
+
+`moderateContent()`'s `precomputedResult` parameter is **in-process only**. Both
+unauthenticated ingest routes (`/api/moderate/content` and `/batch`) strip it via
+a strict allowlist — `/batch` forwarded wire items wholesale and was a live
+verdict-forgery hole (BUG-023).
 - Highest-risk surfaces are separately gated: python custom-tool execution
   (`CORTEX_PYTHON_TOOLS_ENABLED`, default false — arbitrary code execution;
   needs real sandboxing before production) and private-network HTTP tool

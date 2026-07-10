@@ -27,7 +27,10 @@ jest.mock('../../src/ai-providers', () => ({
     model: 'mock-1',
     explanation: 'looks fine',
     rawResponse: {}
-  })
+  }),
+  // FEAT-023: moderateContent fans out shadow evaluations after the enforced
+  // verdict; none are configured in these tests.
+  getShadowProviders: jest.fn().mockReturnValue([])
 }));
 
 jest.mock('../../services/heraldClient', () => ({

@@ -11,8 +11,12 @@ package-lock.json
 logs/
 *.log
 
-# Storage
-storage/
+# Storage (runtime blob dirs at the MODULE ROOT only — anchored with a leading
+# slash so it does NOT swallow src/storage/, which is the storage-backend SOURCE.
+# The unanchored `storage/` matched src/storage/ at any depth and silently kept
+# the entire storage layer out of git — a fresh clone could not load filevault.)
+/storage/
+/uploads/
 uploads/
 
 # Build output

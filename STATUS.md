@@ -40,20 +40,30 @@ npm run db:migrate     # migrate-sync.js — sync each module's models into its 
 npm start              # https://localhost:8443  → GET /health
 ```
 
-## Known limitation of the drift gate (found 2026-07-10, TASK-024)
+## Drift gate now covers nullability + FK actions (TASK-024, done 2026-07-10)
 
-`npm run db:check` compares missing tables/columns, ENUM values, and indexes — it
-does **not** compare column **nullability** or foreign-key **`onDelete`/`onUpdate`**
-behavior. A model can therefore disagree with the live schema on both while the
-gate reports "no drift."
+`npm run db:check` used to compare only missing tables/columns, ENUM values, and
+indexes — **not** column nullability or foreign-key `onDelete`/`onUpdate`. That
+blind spot is why `FileModeration.file_id` (declared `allowNull: false`, but
+Sequelize's `hasOne` default made the live column nullable and would have orphaned
+rows on a hard delete) passed the gate green the whole time.
 
-This is not theoretical. `FileModeration.file_id` was declared `allowNull: false`,
-but Sequelize's `hasOne` default (`ON DELETE SET NULL`) silently made the live
-column nullable and would have orphaned moderation rows on a hard file delete;
-`db:check` was green the whole time. Fixed for that table by
-`services/filevault/migrations/20260710000001-fix-file-moderation-fk-cascade.js`.
-**Other models may carry the same divergence today.** Until TASK-024 lands, treat a
-green `db:check` as "no *missing* schema," not "schema matches the models."
+The check now also compares **column nullability** and **FK `onDelete`/`onUpdate`**
+(aggregating the two-sided association defaults so a `belongsTo` NO ACTION isn't
+falsely flagged against a `hasOne`/`hasMany` CASCADE). Running it surfaced **17
+pre-existing divergences** across ca / auth / filevault / timeline / moderator —
+divergences the gate had never shown.
+
+Those are recorded in `scripts/drift-allow.json` (a documented allowlist: each
+entry has a reason and a ticket). `db:check` **prints every** nullability/FK
+finding but only **fails** on findings NOT in the allowlist — so new drift of
+these classes now breaks the gate, while the pre-existing backlog is tracked
+(BUG-025) rather than silently ignored. A green `db:check` now means "no drift
+except the tracked allowlist," and the allowlist is visible in every run.
+
+The FileModeration case itself is fully fixed
+(`services/filevault/migrations/20260710000001-fix-file-moderation-fk-cascade.js`)
+and is NOT allowlisted — it now genuinely passes.
 
 ## Recently resolved
 

@@ -731,8 +731,44 @@ are cross-referenced, not re-filed.)*
   places; TASK-023's harness can consume image shadow data.
 
 ### TASK-024 — `db:check` is blind to nullability and FK `onDelete` (drift gate gap)
-- **Type:** task · **Status:** backlog · **Priority:** P1 · **Size:** M
+- **Type:** task · **Status:** in-review — DONE 2026-07-10 · **Priority:** P1 · **Size:** M
 - **Owner-role:** dba · **Found:** DBA review of FEAT-031 (2026-07-10)
+- **Resolution:** `check-drift-one.js` now compares column **nullability** and FK
+  **`onDelete`/`onUpdate`**. Two subtleties handled so the check is trustworthy
+  rather than noisy: (1) a `hasOne`/`belongsTo` FK yields TWO attributes for one
+  column (explicit + association-injected) — nullability is aggregated per column
+  so the injected nullable duplicate doesn't false-positive; (2) `belongsTo` and
+  `hasOne`/`hasMany` carry different default `onDelete` on a non-null FK
+  (NO ACTION vs CASCADE), so the effective action is taken from the
+  constraint-owning side, else every CASCADE FK would be flagged. Verified: the
+  fixed `FileModeration.file_id` produces NO finding. Running across all modules
+  surfaced 17 pre-existing divergences → `scripts/drift-allow.json` (documented
+  allowlist; each entry has a reason + ticket). `db:check` PRINTS every finding
+  but only FAILS on non-allowlisted ones — proven both directions. STATUS.md
+  updated. Backlog of the 17 tracked as BUG-025.
+
+### BUG-025 — Triage the 17 pre-existing nullability/FK divergences surfaced by TASK-024
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** dba · **Relates:** TASK-024, FEAT-031 · **Found:** TASK-024 (2026-07-10)
+- **Description:** With the enhanced `db:check`, 17 pre-existing divergences are now
+  visible and allowlisted in `scripts/drift-allow.json`. Each needs a decision:
+  fix the schema, fix the model, or accept-and-document. The set:
+  - **filevault `file_versions.file_id`, `share_links.file_id`** — model NOT NULL,
+    live nullable. Exactly the FileModeration bug class. Needs an ALTER-to-NOT-NULL
+    migration after confirming no null rows exist. **Highest priority of this set.**
+  - **filevault `thumbnails.file_id`, `downloads.file_id`; moderator
+    `user_actions.related_report_id`; auth `organization_members.{userId,organizationId}`;
+    ca `crl_counters.issuer_id`** — onDelete mismatches (model vs live). Decide which
+    is correct and align the other.
+  - **ca `*.user_id` / `target_id` (8), timeline `attachments.entity_id`** — no live
+    FK constraint. Likely intentional (cross-schema user refs; polymorphic
+    `entity_id`). Confirm and, if intentional, drop the `references` from the model
+    or keep the allowlist entry permanently. `entity_id` is already marked BY DESIGN.
+- **Acceptance criteria:** each of the 17 is resolved (migration) or its allowlist
+  entry carries a permanent-by-design reason; the allowlist shrinks accordingly.
+- **How to work it:** `npm run db:check` prints all of them; remove an entry from
+  `scripts/drift-allow.json` to make the gate fail on it while you fix it.
+
 - **Description:** `scripts/check-drift.js` compares missing tables/columns, ENUM
   values, and indexes — but **not** column nullability and **not** foreign-key
   `onDelete`/`onUpdate` behavior. That is not academic: `FileModeration` declared

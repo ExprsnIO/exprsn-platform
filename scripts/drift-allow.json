@@ -1,0 +1,22 @@
+{
+  "_doc": "Documented, ACCEPTED schema divergences. db:check prints every nullability/FK finding but only fails on findings NOT listed here. Each entry is a decision, not a hiding place: give a real reason and a ticket, and work it off. A green db:check means 'no drift except these known items', never 'schema matches the models'. Match key = `<kind>:<schema>.<table>.<column-or-fk>`. Added by TASK-024.",
+  "allow": [
+    { "match": "fk:ca.profiles.user_id",              "reason": "pre-existing; ca user_id references auth.users cross-schema — no in-DB FK. Triage.", "ticket": "BUG-025" },
+    { "match": "fk:ca.certificates.user_id",           "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
+    { "match": "fk:ca.tokens.user_id",                 "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
+    { "match": "fk:ca.tickets.user_id",                "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
+    { "match": "fk:ca.audit_logs.user_id",             "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
+    { "match": "fk:ca.rate_limits.target_id",          "reason": "pre-existing; target_id is polymorphic/unconstrained. Triage.", "ticket": "BUG-025" },
+    { "match": "fk:ca.password_resets.user_id",        "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
+    { "match": "fk:ca.password_resets.initiated_by",   "reason": "pre-existing; cross-schema user ref, no in-DB FK. Triage.", "ticket": "BUG-025" },
+    { "match": "fk:ca.crl_counters.issuer_id",         "reason": "pre-existing onDelete mismatch (model CASCADE, live NO ACTION). Triage.", "ticket": "BUG-025" },
+    { "match": "fk:auth.organization_members.userId",         "reason": "pre-existing onDelete mismatch (model NO ACTION, live CASCADE). Triage.", "ticket": "BUG-025" },
+    { "match": "fk:auth.organization_members.organizationId", "reason": "pre-existing onDelete mismatch (model NO ACTION, live CASCADE). Triage.", "ticket": "BUG-025" },
+    { "match": "nullability:filevault.file_versions.file_id", "reason": "pre-existing: model NOT NULL, live nullable (same class as the fixed FileModeration bug). Needs a NOT NULL migration after a null-row check.", "ticket": "BUG-025" },
+    { "match": "nullability:filevault.share_links.file_id",   "reason": "pre-existing: model NOT NULL, live nullable. Needs a NOT NULL migration after a null-row check.", "ticket": "BUG-025" },
+    { "match": "fk:filevault.thumbnails.file_id",      "reason": "pre-existing onDelete mismatch (model NO ACTION, live CASCADE). Triage.", "ticket": "BUG-025" },
+    { "match": "fk:filevault.downloads.file_id",       "reason": "pre-existing onDelete mismatch (model NO ACTION, live CASCADE). Triage.", "ticket": "BUG-025" },
+    { "match": "fk:timeline.attachments.entity_id",    "reason": "BY DESIGN: entity_id is a polymorphic reference (targets multiple entity types); no single FK is possible.", "ticket": null },
+    { "match": "fk:moderator.user_actions.related_report_id", "reason": "pre-existing onDelete mismatch (model NO ACTION, live SET NULL). Triage.", "ticket": "BUG-025" }
+  ]
+}

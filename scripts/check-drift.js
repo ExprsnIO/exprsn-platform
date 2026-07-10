@@ -6,8 +6,9 @@
  * For each module it spawns scripts/check-drift-one.js with the same env the
  * sync migrator uses, loads that module's real Sequelize models, and compares
  * them against the LIVE database — reporting missing tables (incl. tables that
- * leaked into `public`), missing columns, ENUM value drift, and missing indexes
- * (precise column-set match). Read-only: it never alters the database.
+ * leaked into `public`), missing columns, ENUM value drift, missing indexes
+ * (precise column-set match), column NULLABILITY drift, and foreign-key
+ * ON DELETE / ON UPDATE drift (TASK-024). Read-only: it never alters the database.
  *
  * Exit code is non-zero when any drift or load error is found, so it can gate
  * CI / a pre-deploy step. Requires Postgres (and Redis, since several modules
@@ -66,6 +67,15 @@ function runOne(schema, rel) {
   }
 }
 
+// Documented, accepted divergences (TASK-024). Nullability/FK findings listed
+// here are printed as "(known)" and do NOT fail the gate; anything else does.
+// A green db:check means "no drift except these tracked items", not "clean".
+let ALLOW = new Set();
+try {
+  const raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'drift-allow.json'), 'utf8'));
+  ALLOW = new Set((raw.allow || []).map((a) => a.match));
+} catch { /* no allowlist -> everything is strict */ }
+
 const reports = [];
 for (const [schema, rel] of Object.entries(MODELS)) {
   process.stderr.write(`checking ${schema}...\n`);
@@ -80,19 +90,32 @@ for (const r of reports) {
     console.log(`✗ ${r.schema}: LOAD ERROR — ${r.error}`);
     continue;
   }
+  // Each issue: { text, allowed }. Allowed issues print but don't fail the gate.
   const issues = [];
-  if (r.missingTables.length) issues.push(`MISSING TABLES: ${r.missingTables.join(', ')}`);
-  if (r.inPublicNotSchema.length) issues.push(`IN public NOT ${r.schema}: ${r.inPublicNotSchema.join(', ')}`);
-  for (const d of r.columnDrift) issues.push(`MISSING COLUMNS ${d.table}: ${d.missingColumns.join(', ')}`);
-  for (const en of (r.enumDrift || [])) issues.push(`ENUM DRIFT ${en.table}.${en.column}: model adds [${en.missingValues.join(', ')}] — live has [${en.liveValues.join(', ')}]`);
-  for (const g of r.indexGaps) issues.push(`MISSING INDEX ${g.table}: ${g.missingIndexes.join(' | ')}`);
+  const hard = (text) => issues.push({ text, allowed: false });
+  const gated = (match, text) => issues.push({ text, allowed: ALLOW.has(match) });
 
+  if (r.missingTables.length) hard(`MISSING TABLES: ${r.missingTables.join(', ')}`);
+  if (r.inPublicNotSchema.length) hard(`IN public NOT ${r.schema}: ${r.inPublicNotSchema.join(', ')}`);
+  for (const d of r.columnDrift) hard(`MISSING COLUMNS ${d.table}: ${d.missingColumns.join(', ')}`);
+  for (const en of (r.enumDrift || [])) hard(`ENUM DRIFT ${en.table}.${en.column}: model adds [${en.missingValues.join(', ')}] — live has [${en.liveValues.join(', ')}]`);
+  for (const g of r.indexGaps) hard(`MISSING INDEX ${g.table}: ${g.missingIndexes.join(' | ')}`);
+  for (const n of (r.nullabilityDrift || [])) {
+    gated(`nullability:${r.schema}.${n.table}.${n.column}`, `NULLABILITY ${n.table}.${n.column}: model ${n.model}, live ${n.live}`);
+  }
+  for (const f of (r.fkDrift || [])) {
+    const detail = f.liveOnDelete ? ` (model ${f.modelOnDelete}, live ${f.liveOnDelete})`
+      : f.liveOnUpdate ? ` (model ${f.modelOnUpdate}, live ${f.liveOnUpdate})` : '';
+    gated(`fk:${r.schema}.${f.fk}`, `FK ${f.fk}: ${f.issue}${detail}`);
+  }
+
+  const failing = issues.filter((i) => !i.allowed);
   if (issues.length === 0) {
     console.log(`✓ ${r.schema}: ${r.models.length} models, no drift`);
   } else {
-    problems += 1;
-    console.log(`✗ ${r.schema}: ${r.models.length} models`);
-    for (const i of issues) console.log(`    - ${i}`);
+    if (failing.length) problems += 1;
+    console.log(`${failing.length ? '✗' : '•'} ${r.schema}: ${r.models.length} models`);
+    for (const i of issues) console.log(`    - ${i.text}${i.allowed ? '  (known — allowlisted)' : ''}`);
   }
 }
 console.log(`\n${problems === 0 ? 'No drift found.' : `${problems} module(s) with findings.`}`);

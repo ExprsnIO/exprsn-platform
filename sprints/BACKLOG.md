@@ -973,7 +973,38 @@ are cross-referenced, not re-filed.)*
   in `src/config/index.js` + `.env.example`.
 
 ### FEAT-031 — FileVault upload chokepoint: async image moderation + tagging
-- **Type:** feature · **Status:** in-progress · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Implemented (2026-07-10, commit `90586f8`):** side table `file_moderation`
+  (NOT columns on `files` — the sync-based `db:migrate` creates new tables but
+  will not ALTER existing ones; table syncs clean, `db:check` no drift). Bull
+  queue `filevault-image-moderation` + `npm run worker:filevault-moderation`.
+  The moderation row is created **inside the upload transaction** so an image can
+  never exist without a visibility state; the job is enqueued **after commit**.
+  Verdict fails CLOSED, tags/alt-text fail SOFT. Escalate-only: a flagged image is
+  held and routed to moderator's review queue, never auto-deleted. Encrypted
+  objects and non-images are skipped explicitly — ciphertext never reaches the
+  decoder. Retries `attempts:4` + exponential backoff (image moderation IS
+  idempotent, unlike cortex agent tasks); `UNSUPPORTED_IMAGE` fails immediately
+  rather than burning retries. 19 unit tests; lint 0 errors.
+- **Design correction made during implementation:** "feature off" and "cortex
+  unavailable" must NOT collapse to the same state. Feature off ⇒ `skipped`
+  (servable, platform behaves as before). Feature on but cortex/router down ⇒
+  `pending` (hidden). Collapsing them would either hide every image on a
+  deployment that never wanted moderation, or silently serve unmoderated images on
+  one that did. Hence `FILEVAULT_IMAGE_MODERATION` is separate from `CORTEX_ENABLED`.
+- **Two serve-path bypasses found and closed:**
+  1. `routes/share.js` passed the file OWNER's id into `downloadFileStream` (to
+     satisfy `getFile`'s private-visibility check), which would have granted every
+     anonymous share-link visitor the *uploader's* moderation exemption. Gated
+     explicitly rather than nulling the id — nulling breaks share links for
+     private files.
+  2. `routes/thumbnails.js` queries `File` directly, bypassing `getFile`. A
+     thumbnail of a held image is still the image; it now has its own check.
+  Held images 404 exactly like missing ones (not enumerable).
+- **Still open:** dba review of the side table + queue topology; QA
+  upload-latency-unchanged verification; the `moderateImage` shadow/recall eval
+  gate before any verdict drives automation (per C/B, verdict is escalate-only
+  regardless).
 - **Owner-role:** sr-developer · **Blocked-by:** FEAT-030 (its `moderateImage`-behind-eval slice) · **Cost/Benefit:** done — **build later / smaller slice.** Sound async-chokepoint design, correctly **L**; high leverage (one hook covers Nexus/Spark/Live/timeline). Gated: verdict may only **escalate** to moderator's review queue, never auto-clear, until vision recall clears the bar; tags/alt-text (fail-soft) can wire ahead of the verdict. Full assessment: `sprints/assessments/FEAT-029-030-031-cost-benefit.md`.
 - **C/B notes:** **dba:** new Bull queue + worker process, and tags/alt-text/verdict persistence hits the **ALTER-on-existing-table trap** if columns are added to `Attachment`/FileVault tables (sync `db:migrate` won't ALTER → every query 500s) — prefer a new side-table. **architect:** FileVault→cortex + FileVault→moderator coupling, and the contract choice — moderator's cortex provider has **no `analyzeImage`** today (text-only), so either add it or call `cortex.moderateImage` direct and shape into the pipeline. **skip-encrypted** must hold for both `Attachment.encrypted` and FileVault-native encrypted objects (mirror FEAT-026). **qa:** verify upload-latency-unchanged + fail-open-on-cortex-down. **CSAM caveat:** a general 3B VLM is NOT a CSAM classifier — do not represent it as fulfilling a CSAM-detection obligation.
 - **Decisions (Rick, 2026-07-09):** one integration at the **FileVault upload

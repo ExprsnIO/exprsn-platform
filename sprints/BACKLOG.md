@@ -679,7 +679,7 @@ are cross-referenced, not re-filed.)*
   and connect cannot reach a private address; unit test with a stubbed lookup.
 
 ### TASK-023 — Vision moderation: supply a labeled corpus and run the recall gate
-- **Type:** task · **Status:** blocked (needs a corpus decision from Rick) · **Priority:** P1 · **Size:** M
+- **Type:** task · **Status:** deferred (Rick, 2026-07-10 — no unsafe-image corpus to source; harness stays built and honest, verdicts escalate-only)· **Priority:** P1 · **Size:** M
 - **Owner-role:** qa-specialist + Rick · **Blocked-by:** — · **Relates:** FEAT-030, FEAT-031
 - **Description:** Both reviewers made enabling the `moderateImage` verdict
   conditional on a per-category accuracy benchmark. The harness now exists:

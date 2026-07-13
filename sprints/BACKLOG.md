@@ -3551,9 +3551,28 @@ FEAT.)*
   likely outcome), this file is unambiguously dead and goes. Trivial (S); jr-developer candidate once
   unblocked. Cross-link BUG-028 for the full evidence trail.
 
-### TASK-031 — API_SURFACE.md omits two whole modules and one whole router
-- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** M
-- **Owner-role:** unassigned · **Blocked-by:** —
+### TASK-031 — API_SURFACE.md omits two whole modules and one whole router — **DONE**
+- **Type:** task · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
+
+> **DONE 2026-07-13.** Added, each verified 1:1 against the route files:
+> **plugins 24/24 endpoints**, **lowcode 52/52**, **live `roomCollab.js` 14/14** (which was
+> 100% undocumented), plus the two missing `/live` socket chat events
+> (`stream-chat-message`, `chat-history`). Header corrected from "the ten consolidated
+> modules" to **fourteen**, with the 2026-07-13 source-read date recorded.
+>
+> **Two of this ticket's own claims were wrong, and are corrected here:**
+> - **The "~10 missing timeline endpoints" claim was false.** They are all already
+>   documented — the doc groups them onto shared rows (e.g.
+>   `GET /timeline/api/timeline/explore, /trending, /bookmarks, /likes`), and the audit
+>   that filed this ticket did not parse the grouped rows. **No timeline change was needed.**
+> - **The claimed-missing `live` `config` / simulcast `health`+`metrics` / `streams/:id/stop`
+>   rows already existed too.** Only `roomCollab` was genuinely absent from `live`.
+>
+> Net: the real gap was **90 endpoints across three routers**, not the wider set the ticket
+> asserted. The doc's existing security annotations were preserved (it correctly flagged the
+> BUG-029 mount order). Lowcode's section records that it is the **one module that already
+> enforces org/group scope** — cross-linked to `sprints/assessments/FEAT-059.md`.
 - **Legacy:** cross-links TASK-017 (different scope — do not merge)
 - **Description:** `API_SURFACE.md` is the documented contract consulted before wiring any route
   (per CLAUDE.md), and it has drifted structurally — not just in detail:

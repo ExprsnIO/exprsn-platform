@@ -1,9 +1,11 @@
 # Exprsn Platform — API & Socket.IO Surface
 
-Reference inventory of every RESTful endpoint and Socket.IO event across the ten
-consolidated modules. Generated from a source read of `services/<name>/` on
-2026-06-16. All paths are shown **from the gateway root** (`https://localhost:8443`),
-i.e. gateway prefix + router mount + in-router path.
+Reference inventory of every RESTful endpoint and Socket.IO event across the
+**fourteen** modules in `src/modules/registry.js` — the ten originally consolidated
+services plus `atproto`, `plugins`, `lowcode`, and `cortex`. Generated from a source
+read of `services/<name>/` on 2026-06-16; **plugins, lowcode and live/roomCollab added
+from a source read on 2026-07-13 (TASK-031)**. All paths are shown **from the gateway
+root** (`https://localhost:8443`), i.e. gateway prefix + router mount + in-router path.
 
 Columns: **Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults**.
 "—" means none. Where a route has no auth middleware it is marked `none` (public).
@@ -868,6 +870,35 @@ instead of personal owner.
 | GET | /live/api/groups/:groupId/streams | `groupId` | status, visibility, limit, offset | limit 1–100 | requireAuth + group member | list a group's streams |
 | GET/POST | /live/api/config/:sectionId | `sectionId`∈live-rooms/live-recordings/live-settings | — | POST only live-settings | none | 404 unknown |
 
+### Room collaboration (`routes/roomCollab.js`, also mounted at `/api/rooms`)
+
+Invites, join-requests, in-room file sharing, and recording control. Middleware chain:
+`requireAuth` → `loadRoom` (resolves `:id`) → `requireHost` (room host only) or
+`requireRoomMember` (any joined participant). Note this router is mounted at the **same**
+prefix as `rooms.js`; the two together make up `/live/api/rooms/*`.
+
+**Security note:** the file-sharing routes are the subject of BUG-024 (uploads bypassed
+moderation — fixed), BUG-026 (`files/share` did not verify the *sharer* could access the
+file — fixed), and BUG-027 (a shared file kept serving after the owner flipped it private —
+**still open**). FEAT-061 replaces this router's ad-hoc sharing with unified capability tokens.
+
+| Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
+|---|---|---|---|---|---|---|
+| POST | /live/api/rooms/:id/invites | `id`(UUID), invitee | — | — | requireAuth + host | creates RoomInvite |
+| GET | /live/api/rooms/:id/invites | `id`(UUID) | — | — | requireAuth + host | lists RoomInvite |
+| DELETE | /live/api/rooms/:id/invites/:inviteId | `id`, `inviteId` | — | — | requireAuth + host | revokes invite |
+| POST | /live/api/rooms/:id/join-requests | `id`(UUID) | — | — | requireAuth | creates RoomJoinRequest |
+| GET | /live/api/rooms/:id/join-requests | `id`(UUID) | — | — | requireAuth + host | lists pending requests |
+| POST | /live/api/rooms/:id/join-requests/:reqId/:decision | `id`, `reqId`, `decision` | — | `decision`∈`approve`\|`deny` (route-level regex) | requireAuth + host | — |
+| GET | /live/api/rooms/:id/files | `id`(UUID) | — | — | requireAuth + room member | lists RoomFile |
+| POST | /live/api/rooms/:id/files/share | `id`(UUID), `fileId` | — | — | requireAuth + room member | shares an existing FileVault file into the room; **verifies the sharer can access it (BUG-026)** |
+| POST | /live/api/rooms/:id/files/upload | `id`(UUID), multipart `file` | — | `upload.single('file')` | requireAuth + room member | uploads to FileVault; **routed through image moderation (BUG-024)** |
+| GET | /live/api/rooms/:id/files/:fileId/download | `id`, `fileId` | — | — | requireAuth + room member | streams bytes |
+| DELETE | /live/api/rooms/:id/files/:fileId | `id`, `fileId` | — | — | requireAuth (sharer or host) | unshares |
+| POST | /live/api/rooms/:id/recording/start | `id`(UUID) | — | — | requireAuth + host | enqueues the ffmpeg recording worker |
+| POST | /live/api/rooms/:id/recording/stop | `id`(UUID) | — | — | requireAuth + host | — |
+| GET | /live/api/rooms/:id/recordings | `id`(UUID) | — | — | requireAuth | lists room recordings |
+
 ### Socket.IO events (namespace /live)
 
 **No handshake token auth** (TODO(platform)); identity from a `Participant` DB row matched by `socket_id`.
@@ -875,8 +906,10 @@ Payloads are plain objects (no Joi). `to`/`from` are peer socket ids.
 
 | Event | Direction | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
-| join-stream | client→server | `streamId` | — | — | none | emits viewer-count-updated/viewer-joined |
+| join-stream | client→server | `streamId` | — | — | none | emits viewer-count-updated/viewer-joined; also emits `chat-history` to the joining socket |
 | leave-stream | client→server | `streamId` | — | — | none | — |
+| stream-chat-message | client→server | `streamId`, `message` | displayName | — | **authed only** — anonymous viewers may read chat but **posting requires auth** (`requireAuth​ed`) | broadcasts to the stream room |
+| chat-history | server→client | `streamId`, `messages[]` | — | — | — | sent on join-stream; ephemeral (single-gateway) |
 | join-room | client→server | `roomId` | — | — | none (needs Participant row) | emits participant-joined, existing-participants |
 | update-participant-state | client→server | `roomId`, `state` | state.audioEnabled, state.videoEnabled | — | none | emits participant-state-changed |
 | leave-room | client→server | `roomId` | — | — | none | — |
@@ -1011,3 +1044,126 @@ callers see only their own tasks/sessions/outbox rows (scoped by the token's
   hard-gated by `CORTEX_PYTHON_TOOLS_ENABLED` (default false).
 - Deliberate exclusions from the source-engine port: dataset/data-library tools,
   chat attachments, SSE streaming (poll `GET /tasks/:id`), MCP server.
+
+
+## Plugins module (prefix /plugins) — extensibility hook bus (flag-gated)
+
+Ships behind `PLUGINS_ENABLED` (default **false**) and loads **inert** until enabled — every
+route below 404s/503s when the flag is off. Manifest-driven hook bus with three delivery
+kinds (declarative / webhook / sandboxed-script).
+
+Auth helpers (`src/middleware/auth.js`):
+- **requireAdmin** — CA bearer whose token email is a platform admin (same predicate as the
+  rest of the platform; see TASK-030 on de-duplicating it).
+- **requireUser** — CA bearer → `req.userId` (user-scope installs).
+- **authenticatePlugin** — authenticates an *inbound plugin callback*; resolves `req.plugin`.
+- **requirePluginCapability(cap)** — checks the granted capability set on `req.plugin`.
+
+| Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
+|---|---|---|---|---|---|---|
+| GET | /plugins/health | — | — | — | none | — |
+| GET | /plugins/api/plugins | — | — | — | none | catalog list |
+| GET | /plugins/api/plugins/:key | `key` | — | — | none | 404 if unknown |
+| POST | /plugins/api/plugins/validate | manifest body | — | — | requireAdmin | validates without installing |
+| POST | /plugins/api/plugins | manifest body | — | — | requireAdmin | registers a plugin |
+| DELETE | /plugins/api/plugins/:key | `key` | — | — | requireAdmin | — |
+| GET | /plugins/api/installations | — | filters | — | requireAdmin | — |
+| POST | /plugins/api/installations | `pluginKey` | scope | — | requireUser | user-scope install |
+| GET | /plugins/api/installations/:id/transitions | `id` | — | — | requireAdmin | legal next states |
+| POST | /plugins/api/installations/:id/transition | `id`, `to` | — | must be legal per `INSTALL_MACHINE` | requireAdmin | — |
+| POST | /plugins/api/installations/:id/enable | `id` | — | — | requireAdmin | alias for transition `enable` |
+| POST | /plugins/api/installations/:id/disable | `id` | — | — | requireAdmin | alias for transition `disable` |
+| DELETE | /plugins/api/installations/:id | `id` | — | — | requireAdmin | alias for transition `uninstall` |
+| GET | /plugins/api/endpoints | — | — | — | requireAdmin | registered hook endpoints |
+| POST | /plugins/api/endpoints | endpoint body | — | — | requireAdmin | — |
+| PATCH | /plugins/api/endpoints/:id | `id` | — | — | requireAdmin | — |
+| DELETE | /plugins/api/endpoints/:id | `id` | — | — | requireAdmin | — |
+| GET | /plugins/api/deliveries | — | filters | — | requireAdmin | hook delivery log |
+| GET | /plugins/api/surfaces | — | — | — | requireUser | UI surfaces the user's installs contribute |
+| GET | /plugins/api/registry/capabilities | — | — | — | none | static capability list |
+| GET | /plugins/api/registry/events | — | — | — | none | static event + module-surface list |
+| GET | /plugins/api/registry/lifecycle | — | — | — | none | the install state machine |
+| POST | /plugins/api/callback/:installationId/notify | `installationId` | — | — | authenticatePlugin + capability `emit:notifications` | plugin → platform notification |
+| POST | /plugins/api/callback/:installationId/flag | `installationId` | — | — | authenticatePlugin + capability `emit:moderator.flag` | plugin → moderator flag |
+
+
+## Lowcode module (prefix /lowcode) — typed entities / forms / flows (flag-gated)
+
+Ships behind `LOWCODE_ENABLED` (default **false**) and loads **inert** until enabled. Shares
+the plugins module's capability/event registry (`services/lowcode/src/routes/design.js` imports
+`plugins/src/capabilities` + `events`).
+
+**Authorization — the one module that already enforces org/group scope.** `design.js` applies
+`requireDesignIdentity` at the router, then authorizes **every** read/mutation against the target
+scope via `src/services/scopeAuthority.js` (`assertScope` / `assertApp`, applied 31×): platform
+admins are superusers; org/group admins act within their org/group; users within their own scope.
+An app-tied resource inherits its app's scope; a platform-global resource (`appId=null`) requires
+platform admin. `records.js` applies `requireUser`. Contrast the other thirteen modules, which
+validate a CA token but perform **no org/group scope check** — see `sprints/assessments/FEAT-059.md`.
+
+### Design-time API (`/lowcode/api/design`)
+
+| Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
+|---|---|---|---|---|---|---|
+| GET | /lowcode/api/design/apps | — | — | — | scoped | — |
+| POST | /lowcode/api/design/apps | `key`, `name` | — | — | scoped | — |
+| GET | /lowcode/api/design/apps/:id | `id` | — | — | scoped | — |
+| PATCH | /lowcode/api/design/apps/:id | `id` | — | — | scoped (app admin) | — |
+| DELETE | /lowcode/api/design/apps/:id | `id` | — | — | scoped (app admin) | cascade delete |
+| GET | /lowcode/api/design/apps/:id/export | `id` | — | — | scoped | app bundle |
+| POST | /lowcode/api/design/apps/import | bundle body | — | — | scoped | **untrusted input** — must not smuggle a script action past the sandbox (TASK-021) |
+| GET | /lowcode/api/design/lookup-providers | — | — | — | scoped | static provider list |
+| GET | /lowcode/api/design/lookups | — | — | — | scoped | — |
+| POST | /lowcode/api/design/lookups | `key` | source | — | scoped | source=static |
+| GET | /lowcode/api/design/lookups/:id | `id` | — | — | scoped | — |
+| GET | /lowcode/api/design/lookups/:id/resolved | `id` | — | — | scoped | resolves via provider |
+| PUT | /lowcode/api/design/lookups/:id | `id` | — | — | scoped | — |
+| DELETE | /lowcode/api/design/lookups/:id | `id` | — | — | scoped | — |
+| GET | /lowcode/api/design/entities | — | — | — | scoped | — |
+| POST | /lowcode/api/design/entities | `key`, fields | — | — | scoped | — |
+| GET | /lowcode/api/design/entities/:id | `id` | — | — | scoped | — |
+| PUT | /lowcode/api/design/entities/:id | `id` | — | — | scoped | — |
+| POST | /lowcode/api/design/entities/:id/export | `id` | — | — | scoped | — |
+| POST | /lowcode/api/design/entities/:id/truncate | `id` | — | — | scoped (app admin) | **destructive** — drops all records |
+| DELETE | /lowcode/api/design/entities/:id | `id` | — | — | scoped (app admin) | cascade delete |
+| GET | /lowcode/api/design/forms | — | — | — | scoped | — |
+| POST | /lowcode/api/design/forms | `key`, `entityId` | — | — | scoped | — |
+| GET | /lowcode/api/design/forms/:id | `id` | — | — | scoped | — |
+| PUT | /lowcode/api/design/forms/:id | `id` | — | — | scoped | — |
+| DELETE | /lowcode/api/design/forms/:id | `id` | — | — | scoped | — |
+| GET | /lowcode/api/design/flows | — | — | — | scoped | — |
+| POST | /lowcode/api/design/flows | `key` | trigger, steps | — | scoped | — |
+| GET | /lowcode/api/design/flows/:id | `id` | — | — | scoped | — |
+| PATCH | /lowcode/api/design/flows/:id | `id` | — | — | scoped | reschedules on trigger change |
+| POST | /lowcode/api/design/flows/:id/execute | `id` | context | — | scoped | manual run |
+| GET | /lowcode/api/design/flows/:id/runs | `id` | — | — | scoped | run history |
+| DELETE | /lowcode/api/design/flows/:id | `id` | — | — | scoped | unschedules |
+| POST | /lowcode/api/design/ai/generate | prompt body | — | — | scoped | AI-assisted app/entity scaffolding |
+| GET | /lowcode/api/design/catalog | — | — | — | scoped | module actions/triggers available to flows |
+
+### Record runtime (`/lowcode/api/data`) — `requireUser`
+
+| Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
+|---|---|---|---|---|---|---|
+| GET | /lowcode/api/data/:entityKey/records | `entityKey` | filter, sort, page, limit | server-side filter/sort/paginate | requireUser | — |
+| GET | /lowcode/api/data/:entityKey/aggregate | `entityKey` | groupBy, fn | — | requireUser | — |
+| GET | /lowcode/api/data/:entityKey/records/export | `entityKey` | filter | — | requireUser | CSV |
+| GET | /lowcode/api/data/:entityKey/records/:id | `entityKey`, `id` | — | — | requireUser | — |
+| POST | /lowcode/api/data/:entityKey/records | `entityKey` | — | — | requireUser | 201 |
+| POST | /lowcode/api/data/:entityKey/records/import | `entityKey` | CSV body | — | requireUser | bulk import |
+| POST | /lowcode/api/data/:entityKey/records/bulk | `entityKey` | ops[] | — | requireUser | bulk mutate |
+| PUT | /lowcode/api/data/:entityKey/records/:id | `entityKey`, `id` | — | — | requireUser | — |
+| POST | /lowcode/api/data/:entityKey/records/:id/transition | `entityKey`, `id`, `to` | — | — | requireUser | state-machine transition |
+| DELETE | /lowcode/api/data/:entityKey/records/:id | `entityKey`, `id` | — | — | requireUser | — |
+| GET | /lowcode/api/data/:entityKey/views | `entityKey` | — | — | requireUser | saved views (incl. kanban) |
+| POST | /lowcode/api/data/:entityKey/views | `entityKey`, `name` | — | — | requireUser | — |
+| PUT | /lowcode/api/data/:entityKey/views/:id | `entityKey`, `id` | — | — | requireUser | — |
+| DELETE | /lowcode/api/data/:entityKey/views/:id | `entityKey`, `id` | — | — | requireUser | — |
+
+### Hooks & public forms (`/lowcode/api/hooks`)
+
+| Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
+|---|---|---|---|---|---|---|
+| POST | /lowcode/api/hooks/flows/:appKey/:flowKey | `appKey`, `flowKey` | payload | — | **webhook trigger** (no session) | fires a flow from an external caller |
+| GET | /lowcode/api/hooks/forms/:slug | `slug` | — | — | **public** | renders a public form definition |
+| POST | /lowcode/api/hooks/forms/:slug/submit | `slug` | form fields | — | **public** | **unauthenticated write surface** — public form submission |

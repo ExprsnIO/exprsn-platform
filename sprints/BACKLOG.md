@@ -1722,7 +1722,17 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (audit of `/Volumes/Storage/exprsn-bluesky`, 2026-07-13)
 - **Decomposed into:** FEAT-037 (identity+sessions), FEAT-038 (repo), FEAT-039 (blobs), FEAT-040 (outbound firehose), FEAT-041 (app-view)
-- **Cost/Benefit:** pending
+- **Cost/Benefit:** done — **BUILD LATER / SMALLER SLICE. Do NOT port `exprsn-bluesky`.**
+  **The epic's premise was false: `exprsn-bluesky` is not a real PDS — it is a PDS-shaped mock.** Its
+  `generateCID()` is `sha256(JSON.stringify(value))` with the string `"baf"` glued on
+  (`services/repositoryService.js:308-314`, and its own comment admits it); there is **no Merkle Search
+  Tree and no signed commits anywhere in it**; and the `@atproto/*` SDK packages are **declared in its
+  package.json but imported nowhere**. It would not federate — a relay cannot verify commits that do not
+  exist. **Porting it yields a convincing-looking PDS that no relay will accept, and the failure is
+  invisible until you try to federate.** Ship the **bridge slice (M)** instead — link an external
+  `did:plc` account and cross-post via the *already-existing* `services/atproto/src/identity/pdsClient.js`
+  and `UserDid.didPlc` — which captures most of the realistic value at a fraction of the cost. Defer the
+  full PDS behind FEAT-060 and behind evidence of demand. Full detail: `sprints/assessments/FEAT-036.md`.
 - **Description:** `services/atproto` is today an **ingest + labeler only** module
   (`API_SURFACE.md` atproto section): it consumes the Bluesky firehose, runs content
   through the moderator pipeline, serves `com.atproto.label.queryLabels` /
@@ -1795,10 +1805,17 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   - Every `createRecord`/`putRecord` passes through `moderateContent` before it is
     published to the outbound firehose.
   - `db:check` reports no drift after the new tables land.
-- **Notes:** **Largest slice — likely needs its own decomposition at grooming.** MST +
-  CID storage is the core of a PDS and has no existing platform analogue. **dba sign-off**
-  on the new tables. Cross-link the lexicon artifacts already at
-  `services/atproto/config/lexicons/`.
+- **Notes:** **CORRECTED 2026-07-13 (`sprints/assessments/FEAT-036.md` §2) — re-sized XL → L.**
+  This ticket previously said MST/CID storage "has no existing platform analogue", implying a
+  hand-roll. **Do not hand-roll it.** `@atproto/repo` is the official SDK and already does MST +
+  signed commits + CAR export. The platform **already ships the primitives and already uses them
+  for real**: `@atproto/crypto`, `@ipld/dag-cbor`, `@ipld/car`, and `multiformats` are all in the
+  root `package.json` and drive the working label signer
+  (`services/atproto/src/labeler/labelSigner.js`). So this slice is "wire `@atproto/repo` to a
+  Postgres blockstore" (**L**), not "invent a Merkle search tree" (XL, very high risk).
+  **Do NOT copy `exprsn-bluesky`'s `repositoryService.js` — that file IS the mock** (fake CIDs,
+  no MST, SDK declared-but-unused). **dba sign-off** on the new tables. Cross-link the lexicon
+  artifacts already at `services/atproto/config/lexicons/`.
 
 ### FEAT-039 — PDS Slice 3: blobs, backed by FileVault
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
@@ -1850,6 +1867,33 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 - **Notes:** Lowest-priority slice — the platform already has its own SPA for these
   views; this is purely for third-party AT-Proto client compatibility. Legitimately
   **droppable** if cost/benefit says so.
+
+### FEAT-069 — AT-Proto bridge account: link an external `did:plc` and cross-post (PDS alternative)
+- **Type:** feature · **Status:** ready · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** supersedes FEAT-036 for this cycle (`sprints/assessments/FEAT-036.md` §4)
+- **Cost/Benefit:** done — **BUILD THIS INSTEAD OF FEAT-036.** ~90% cheaper and captures most of the
+  realistic user-visible value. **Both halves already exist in the tree:**
+  `services/atproto/src/identity/pdsClient.js` is a working XRPC client that already does
+  `createSession` and record-publish **against someone else's PDS**, and
+  `services/atproto/models/UserDid.js` already stores `didPlc` / `didWeb` (+ verified + proof) — linking
+  a user to an *external* AT-Proto identity is already modelled. No MST, no blockstore, no firehose, no
+  federated-content liability.
+- **Description:** Let an Exprsn user **link their existing Bluesky / `did:plc` account** and cross-post
+  Exprsn content to **their own** PDS — rather than Exprsn *being* a PDS. Users get federated presence;
+  the platform does not host a repo, run an outbound firehose, or become publicly accountable for
+  content it publishes to the network.
+- **Acceptance criteria:**
+  - A user links an external `did:plc` account (proof-of-control verified — reuse the existing
+    `src/identity/proofOfControl.js`).
+  - A post published on Exprsn can be cross-posted to the linked account's PDS.
+  - Unlinking revokes the stored credential; a revoked CA token also stops cross-posting.
+  - Cross-posted content still passes `moderateContent` before it leaves the platform.
+- **Notes:** The credential for the external PDS is a **stored third-party secret** — it must live in
+  **Vault**, not in an atproto table, and must never appear in logs or run history. Cross-link FEAT-060
+  (scoped tokens) and FEAT-055 (the same secret-handling constraint). If real demand for
+  platform-*hosted* AT-Proto identities appears after this ships, revisit FEAT-036 — with this as the
+  evidence that anyone wants it.
 
 ### FEAT-042 — Herald: full notification delivery channels (parent epic)
 - **Type:** feature (epic) · **Status:** backlog · **Priority:** P2 · **Size:** L

@@ -2812,10 +2812,40 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 
 ---
 
-### BUG-028 — Moderator lost 4 workflow HTTP endpoints in consolidation
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
-- **Owner-role:** unassigned · **Blocked-by:** —
+### BUG-028 — Moderator lost 4 workflow HTTP endpoints in consolidation — **INVALID / won't-fix**
+- **Type:** bug · **Status:** done (won't-fix — not a defect) · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — (original-vs-platform audit, 2026-07-13)
+
+> **CLOSED 2026-07-13 as INVALID.** The audit that filed this compared route *lists* and concluded
+> the four endpoints were dropped. They were — **deliberately, and correctly.** All four were
+> **proxies to the standalone `exprsn-workflow` service** (`WORKFLOW_SERVICE_URL`,
+> `http://localhost:3017`), which is **not part of the platform** — it is one of the
+> never-consolidated services. The original's `routes/workflows.js` imported
+> `../services/workflowIntegration` (an **axios client**) as `workflowService`; every one of the four
+> handlers was a thin pass-through to it.
+>
+> The platform **replaced that proxy with an in-process Bull engine** (`services/workflowEngine.js`)
+> and rewired the router accordingly — its own header says so: *"backed by the local workflowEngine
+> (durable Bull runtime). Replaces the former external Workflow-service proxy."* Each endpoint has a
+> live in-process replacement:
+>
+> | original (proxy) | platform replacement |
+> |---|---|
+> | `POST /moderate/auto` | `workflowEngine.triggerForContent()`, called in-process from `services/moderator/services/moderationService.js:206` |
+> | `POST /trigger/:id` | `POST /:id/execute` — same `executeWorkflow(id, data)` call |
+> | `POST /callback` | **obsolete** — it was the async callback *from* the external service; no external service, no caller |
+> | `POST /setup-defaults` | `scripts/seed/moderation-demo.js` seeds workflows into `moderator_config` (category `workflows`) |
+> | `GET /executions/:executionId` | `GET /executions/:id` — benign rename (already noted below) |
+>
+> **Restoring them would have been actively harmful:** it would re-add HTTP proxies to a service on
+> port 3017 that does not exist and is configured nowhere (`WORKFLOW_SERVICE_URL` appears in no
+> `.env`, `.env.example`, or compose file) — and an unauthenticated `POST /moderate/auto` would have
+> re-created **BUG-023** (unauthenticated verdict forgery) almost exactly. The platform's router is
+> `requireAdmin` for the whole surface; the original's was not.
+>
+> **Net: the consolidation lost nothing here. There is now no known functional regression anywhere in
+> the port.** The one real residue is the orphaned axios client left behind — filed as **TASK-033**.
 - **Description:** **The only real functional regression found in the entire consolidation.**
   Four JSON endpoints exist in `/Volumes/Storage/exprsn-moderator/routes/workflows.js` and are
   absent from `services/moderator/routes/workflows.js`. A grep of the whole module confirms they
@@ -3396,6 +3426,28 @@ FEAT.)*
   single-source the predicate. Sized **S**; jr-developer candidate.
 
 ---
+
+### TASK-033 — Delete the orphaned `workflowIntegration.js` axios client (dead proxy to :3017)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-051 grooming (confirm the engine-consolidation decision first)
+- **Legacy:** BUG-028 (closed invalid — this is its only real residue)
+- **Description:** `services/moderator/services/workflowIntegration.js` is an **axios client to
+  `WORKFLOW_SERVICE_URL` (`http://localhost:3017`)** — the standalone `exprsn-workflow` service, which
+  is **not part of the platform**. It is now **orphaned**: nothing in `services/`, `src/`, or
+  `scripts/` requires it, and `WORKFLOW_SERVICE_URL` is set in no `.env`, `.env.example`, or compose
+  file. Its job was taken over by the in-process `services/workflowEngine.js` (durable Bull runtime).
+  It is a **landmine**: it looks like live integration, so a future change could wire it up and get
+  silent failures against a service that will never answer.
+- **Acceptance criteria:**
+  - `workflowIntegration.js` is deleted, or explicitly retained with a recorded reason.
+  - The stale comment in `scripts/seed/moderation-demo.js` (lines ~15–16) that still references
+    `workflowIntegration.listActiveWorkflows` as a "local fallback" is corrected — it describes a code
+    path that is no longer reachable.
+  - `npm run lint` and the moderator suite are unaffected.
+- **Notes:** **Sequence after FEAT-051's engine-consolidation decision** — that epic must first settle
+  whether workflow lives in moderator or lowcode. If the answer is "one engine, in-process" (the
+  likely outcome), this file is unambiguously dead and goes. Trivial (S); jr-developer candidate once
+  unblocked. Cross-link BUG-028 for the full evidence trail.
 
 ### TASK-031 — API_SURFACE.md omits two whole modules and one whole router
 - **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** M

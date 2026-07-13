@@ -24,23 +24,34 @@
 
 const { validateCAToken } = require('@exprsn/shared');
 const { isPlatformAdmin } = require('@exprsn/shared/utils/platformAdmin');
-const { User, Role } = require('../models');
+const { Role, UserRole } = require('../models');
 
-/** True if the user holds a DB admin/system_admin role or an `admin:*` permission. */
+/**
+ * True if the user holds a PLATFORM-level admin/system_admin role or `admin:*`.
+ *
+ * SECURITY: platform-admin is conferred ONLY by a GLOBAL-scoped role binding
+ * (`UserRole.scope='global'`, `organizationId=null`). An ORG-scoped role — even
+ * one literally named `admin` (`scope='organization'`, as the provisioning
+ * engine grants org-owner/org-admin) — must NEVER promote its holder to platform
+ * super-admin; otherwise any org admin could bypass every cross-tenant guard.
+ */
 async function hasAdminRole(userId) {
   if (!userId) {
     return false;
   }
 
-  const user = await User.findByPk(userId, {
-    include: [{ model: Role, as: 'roles', through: { attributes: [] } }]
+  const globalBindings = await UserRole.findAll({
+    where: { userId, scope: 'global', organizationId: null },
+    attributes: ['roleId']
   });
-
-  if (!user || !Array.isArray(user.roles)) {
+  if (!globalBindings.length) {
     return false;
   }
 
-  return user.roles.some((role) =>
+  const roles = await Role.findAll({
+    where: { id: globalBindings.map((b) => b.roleId) }
+  });
+  return roles.some((role) =>
     role.name === 'admin' ||
     role.name === 'system_admin' ||
     (Array.isArray(role.permissions) && role.permissions.includes('admin:*'))

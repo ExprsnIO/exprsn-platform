@@ -11,11 +11,13 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const speakeasy = require('speakeasy');
 const { asyncHandler, AppError, logger, validateRequired } = require('@exprsn/shared');
-const { strictLimiter } = require('@exprsn/shared');
+const { strictLimiter, relaxedLimiter } = require('@exprsn/shared');
 const { User, Session } = require('../models');
 const tokenService = require('../services/tokenService');
 const sessionService = require('../services/sessionService');
 const mfaPolicyService = require('../services/mfaPolicyService');
+const inviteService = require('../services/inviteService');
+const signupPolicyService = require('../services/signupPolicyService');
 const { getEmailService } = require('../services/emailService');
 const { validatePasswordOrThrow } = require('../services/passwordService');
 const { issueMfaToken, verifyMfaToken, hashBackupCode } = require('../utils/mfaToken');
@@ -27,6 +29,8 @@ const {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  acceptInviteSchema,
+  signupSchema,
   verifyEmailSchema,
   resendVerificationSchema,
   validate
@@ -513,6 +517,188 @@ router.post('/reset-password',
 }));
 
 /**
+ * POST /api/auth/accept-invite
+ * Accept a single-use invite / activation token (public, token-gated,
+ * rate-limited). Sets the password, activates the account, and returns a
+ * session so the SPA drops the user straight into the app — the same terminal
+ * move as register(). This is the ONLY new unauthenticated surface in FEAT-034.
+ *
+ * Expired / revoked / used / unknown tokens are all rejected with the same
+ * INVALID_TOKEN error (non-enumerating). Body: { token, password, displayName? }.
+ */
+router.post('/accept-invite',
+  strictLimiter,
+  validate(acceptInviteSchema),
+  asyncHandler(async (req, res) => {
+  const { token, password, displayName } = req.body;
+
+  const { user } = await inviteService.acceptInvite({ token, password, displayName });
+
+  logger.info('Invitation accepted', { userId: user.id, email: user.email });
+
+  // Mint the CA token exactly as register() does.
+  const authToken = await tokenService.generateToken(user);
+
+  // Persist a session row for the bearer (best-effort — never fail accept on it).
+  try {
+    await sessionService.recordSession(req, user, authToken);
+  } catch (sessionErr) {
+    logger.error('Failed to record session on invite accept', { userId: user.id, error: sessionErr.message });
+  }
+
+  res.json({
+    message: 'Invitation accepted',
+    user: user.toSafeObject(),
+    token: authToken
+  });
+}));
+
+/**
+ * GET /api/auth/signup-policy
+ * Public, rate-limited read of the platform-level signup policy. The SPA reads
+ * this to hide/disable the public-signup entry point (fail-closed on the client
+ * too). No auth; lives under /auth/api/auth/ so the SPA's 401-whitelist covers it.
+ */
+router.get('/signup-policy',
+  relaxedLimiter,
+  asyncHandler(async (req, res) => {
+  const policy = await signupPolicyService.getSignupPolicy();
+  res.json(policy);
+}));
+
+/**
+ * POST /api/auth/signup
+ * Public org signup (FEAT-033). Composes the SAME provisioning engine as the
+ * admin /organizations/provision route — there is exactly one provisioning code
+ * path. Handler order is load-bearing (fail-closed + verify-before-provision):
+ *
+ *   1. Resolve the platform signup policy.
+ *   2. Fail-closed gate: if !allowUserRegistration → 403 BEFORE any write.
+ *   3. Register the owner user (NOT email-verified).
+ *   4. If requireEmailVerification → stash the org intent on user.metadata,
+ *      send the verification email, return 202. Provisioning runs LATER, on the
+ *      verify-email path (idempotency makes a double-verify safe). Do NOT session.
+ *   5. Else provision now via the engine and return 201 { user, token, organization }.
+ *
+ * The engine input is built from an explicit allowlist — the raw client body is
+ * NEVER spread into the engine (mass-assignment guard; the engine's
+ * buildOrgPayload is the final guard).
+ */
+router.post('/signup',
+  strictLimiter,
+  validate(signupSchema),
+  asyncHandler(async (req, res) => {
+  const { email, password, displayName, org } = req.body;
+
+  // 1. Resolve the platform-level policy (fail-closed source of truth).
+  const policy = await signupPolicyService.getSignupPolicy();
+
+  // 2. Fail-closed gate — BEFORE any write (no user row on a disabled platform).
+  if (!policy.allowUserRegistration) {
+    throw new AppError('Registration is disabled', 403, 'REGISTRATION_DISABLED');
+  }
+
+  // Full password policy (length, character classes, common/sequential patterns).
+  validatePasswordOrThrow(password);
+
+  const existingUser = await User.findOne({ where: { email } });
+  if (existingUser) {
+    throw new AppError('Email already registered', 409, 'USER_EXISTS');
+  }
+
+  // Explicit allowlist of the org intent — never forward the raw body downstream.
+  const orgIntent = {
+    name: org.name,
+    type: org.type,
+    slug: org.slug || undefined,
+    description: org.description || undefined
+  };
+
+  // 3. Register the owner. Do NOT set emailVerified. When verification is
+  //    required, persist the pending org intent so verify-email can provision it.
+  const user = await User.create({
+    email,
+    passwordHash: password, // hashed by beforeCreate hook
+    displayName,
+    emailVerificationToken: crypto.randomBytes(32).toString('hex'),
+    metadata: policy.requireEmailVerification ? { pendingOrg: orgIntent } : {}
+  });
+
+  logger.info('User signed up', { userId: user.id, email: user.email });
+
+  // 4. Verify-before-provision: stop here, do NOT provision, do NOT session.
+  if (policy.requireEmailVerification) {
+    try {
+      const emailService = await getEmailService();
+      await emailService.sendVerificationEmail(user, user.emailVerificationToken);
+    } catch (error) {
+      logger.error('Failed to send verification email on signup', { userId: user.id, error: error.message });
+    }
+    return res.status(202).json({
+      message: 'Verify your email to finish setting up your organization',
+      user: user.toSafeObject()
+    });
+  }
+
+  // 5. Provision now via the shared engine (lazy-required — no eager cycle).
+  const engine = require('../../../../src/provisioning/engine');
+  const { normalizeSlug } = require('../../../../src/provisioning/templates');
+  const displaySlug = normalizeSlug(orgIntent.slug || orgIntent.name || '');
+  // Owner-SCOPED idempotency key: two different users signing up the same org
+  // name must NOT collide on the ledger (the engine short-circuits a 'completed'
+  // run by key and would otherwise hand user B user A's org). Same user + same
+  // slug stays idempotent. Distinct owners → distinct runs → the second hits the
+  // unique-slug constraint in S1 and fails cleanly rather than hijacking.
+  const idempotencyKey = `${displaySlug}:${user.id}`;
+
+  const result = await engine.provisionOrganization({
+    idempotencyKey,
+    type: orgIntent.type,
+    organization: {
+      name: orgIntent.name,
+      slug: orgIntent.slug,
+      description: orgIntent.description
+    },
+    owner: { userId: user.id, email: user.email },
+    actor: { userId: user.id, isAdmin: false }
+  });
+
+  if (result.status !== 'completed') {
+    // Provisioning failed/compensated. The engine ADOPTED the pre-created user
+    // (ownerUserCreated=false), so its compensation did NOT delete it — remove
+    // the orphan here so the email is freed for a retry (no permanent 409).
+    try {
+      await user.destroy({ force: true });
+    } catch (cleanupErr) {
+      logger.error('Failed to clean up user after signup provisioning failure', { userId: user.id, error: cleanupErr.message });
+    }
+    return res.status(500).json({ success: false, message: 'Organization provisioning failed', ...result });
+  }
+
+  // 6. Mint the bearer + persist a session (best-effort — never fail on it).
+  const token = await tokenService.generateToken(user);
+  try {
+    await sessionService.recordSession(req, user, token);
+  } catch (sessionErr) {
+    logger.error('Failed to record session on signup', { userId: user.id, error: sessionErr.message });
+  }
+
+  // 7. LoginSuccess-shaped body ({ user, token }) so the SPA wizard reuses finish().
+  res.status(201).json({
+    message: 'Organization created',
+    user: user.toSafeObject(),
+    token,
+    organization: {
+      id: result.organizationId,
+      name: orgIntent.name,
+      slug: displaySlug,
+      type: orgIntent.type
+    },
+    provisioning: result
+  });
+}));
+
+/**
  * Shared handler for social (Google/GitHub) OAuth callbacks.
  *
  * - MFA enabled: never issue the real token - redirect with a short-lived
@@ -596,6 +782,7 @@ router.get('/github/callback',
  * Verify email address with token
  */
 router.post('/verify-email',
+  strictLimiter,
   validate(verifyEmailSchema),
   asyncHandler(async (req, res) => {
   const { token } = req.body;
@@ -617,7 +804,62 @@ router.post('/verify-email',
 
   logger.info('Email verified', { userId: user.id, email: user.email });
 
-  res.json({ message: 'Email verified successfully' });
+  // FEAT-033 verify-before-provision completion: a public-signup user carries
+  // its org intent on user.metadata.pendingOrg. Provision it now via the SAME
+  // engine (idempotency makes a double-verify safe), then clear the intent.
+  let organization = null;
+  let provisioning = null;
+  const pendingOrg = user.metadata && user.metadata.pendingOrg;
+  if (pendingOrg && pendingOrg.name && pendingOrg.type) {
+    try {
+      const engine = require('../../../../src/provisioning/engine');
+      const { normalizeSlug } = require('../../../../src/provisioning/templates');
+      const displaySlug = normalizeSlug(pendingOrg.slug || pendingOrg.name || '');
+      // Owner-scoped key (see /signup) — never let one user's completed run be
+      // returned to another.
+      const idempotencyKey = `${displaySlug}:${user.id}`;
+
+      const result = await engine.provisionOrganization({
+        idempotencyKey,
+        type: pendingOrg.type,
+        organization: {
+          name: pendingOrg.name,
+          slug: pendingOrg.slug,
+          description: pendingOrg.description
+        },
+        owner: { userId: user.id, email: user.email },
+        actor: { userId: user.id, isAdmin: false }
+      });
+      provisioning = result;
+
+      if (result.status === 'completed') {
+        organization = {
+          id: result.organizationId,
+          name: pendingOrg.name,
+          slug: displaySlug,
+          type: pendingOrg.type
+        };
+        // Clear the pending intent so a re-verify is a plain no-op (idempotency
+        // also guards). Reassign metadata + mark changed so Sequelize persists it.
+        const md = { ...(user.metadata || {}) };
+        delete md.pendingOrg;
+        user.metadata = md;
+        user.changed('metadata', true);
+        await user.save();
+      }
+    } catch (err) {
+      // Never fail verification on a provisioning error — the user IS verified.
+      // pendingOrg is intentionally retained so the now-signed-in owner can finish
+      // creating the org via the /orgs self-serve flow (POST /provision-self), which
+      // composes the SAME engine under the same owner-scoped key (idempotent).
+      logger.error('Post-verification org provisioning failed; org intent retained for /orgs self-serve completion', { userId: user.id, error: err.message });
+    }
+  }
+
+  res.json({
+    message: 'Email verified successfully',
+    ...(organization ? { organization, provisioning } : {})
+  });
 }));
 
 /**

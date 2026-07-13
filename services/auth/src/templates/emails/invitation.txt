@@ -1,0 +1,17 @@
+You're invited
+
+Hi {{displayName}},
+
+{{inviterName}} invited you to join {{orgName}} as {{role}} on {{appName}}. Visit this link to accept the invitation and set your password:
+
+{{acceptUrl}}
+
+IMPORTANT: This invitation will expire in {{expiryHours}} hours for security reasons.
+
+If you weren't expecting this invitation, you can safely ignore this email.
+
+---
+Need help? Contact us at support@exprsn.io
+{{appName}}: {{appUrl}}
+
+This is an automated message. Please do not reply to this email.

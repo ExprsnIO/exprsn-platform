@@ -136,6 +136,46 @@ The gateway (`src/gateway.js`) mounts every module under its prefix and wires th
 shared Socket.IO server. The bootstrap (`src/index.js`) loads modules, runs their
 `init()`, then starts the one HTTPS server.
 
+## Org provisioning engine (saga) — `src/provisioning/` (FEAT-032 / ADR-0003)
+
+A composition-layer orchestrator that provisions an organization end-to-end across
+auth + CA + nexus + spark in one request-scoped, resumable call. It lives at
+`src/provisioning/` (alongside `gateway.js`/`index.js`), **not** inside a domain
+module and with **no mounted routes** of its own. It owns no domain data except its
+idempotency ledger (`auth.provisioning_runs`). There is exactly **one provisioning
+code path** — `engine.provisionOrganization(...)` — composed in-process by three
+auth-module fronts that differ only in auth mode + owner resolution (FEAT-033):
+`POST /auth/api/organizations/provision` (admin: CA token + `requireAdminAfterCA`),
+`POST /auth/api/organizations/provision-self` (session, owner = caller), and
+`POST /auth/api/auth/signup` (public, gated fail-closed by the platform org's
+`settings.allowUserRegistration`; verify-before-provision when
+`requireEmailVerification`). Each builds the engine input from an explicit field
+allowlist (never a raw body spread) — the engine's `buildOrgPayload` is the final
+mass-assignment guard.
+
+- **Invocation:** lazy, in-process `require` of each module's *published service
+  façade* (`organizationService`, `ca/services/{certificate,token,platformSigning,directory}`,
+  `nexus groupService`, `spark groupChannelService`) — never HMAC-HTTP, never another
+  module's `models`. Requires are lazy (inside the step methods) so module load order
+  is unaffected and no eager cycle forms (ADR-0001's rail, extended by ADR-0003).
+- **Saga (compensating, not transactional):** three separate Sequelize instances can't
+  share a transaction, so the engine is an ordered saga — S1 (auth: org+owner+RBAC),
+  S2 (CA directory group), S3 (linkage) each in their module's **local** transaction;
+  S4 (per-org intermediate CA under the single platform root), S5 (owner entity cert +
+  org-scoped token via the member hook), S7 (nexus group), S8 (spark channels) are
+  non-transactional with explicit compensation. The `auth.provisioning_runs` ledger
+  gives idempotency (resume-forward from `cursor`, short-circuit if `completed`); on
+  unrecoverable failure it drives **LIFO** compensation over completed steps and parks
+  the run in `compensation_failed` on residual. **Certificate compensation is revoke,
+  never delete.**
+- **CA topology:** one platform root (asserted, never minted) → one intermediate per org
+  → per-member entity certs. The auth org links to its CA directory group via nullable
+  `auth.organizations.ca_group_id` (no cross-schema FK).
+- **One member-credentialing path:** `auth.memberProvisioningService.provisionMemberCredentials(orgId,
+  userId, role)` issues a member's cert + org-scoped token (and fixes `addMember`'s
+  always-`org-member` bug). The owner is the org's first member through this hook; FEAT-035
+  import calls the same hook, so auth never requires up into `src/`.
+
 ## Shared Redis allocation
 
 All modules share one Redis instance. Logical DBs and key namespaces are

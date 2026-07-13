@@ -191,7 +191,19 @@ module.exports = (sequelize) => {
   };
 
   User.prototype.toSafeObject = function() {
-    const { passwordHash, mfaSecret, mfaBackupCodes, resetPasswordToken, ...safeUser } = this.toJSON();
+    const {
+      passwordHash, mfaSecret, mfaBackupCodes, resetPasswordToken,
+      emailVerificationToken, metadata, ...safeUser
+    } = this.toJSON();
+    // emailVerificationToken must NEVER reach an HTTP caller — it may only leave
+    // the system via the verification email (email-ownership proof). Strip
+    // server-internal metadata keys (e.g. pendingOrg) but preserve the rest.
+    if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+      const { pendingOrg, ...safeMeta } = metadata;
+      safeUser.metadata = safeMeta;
+    } else if (metadata !== undefined) {
+      safeUser.metadata = metadata;
+    }
     return safeUser;
   };
 

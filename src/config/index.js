@@ -10,6 +10,12 @@ const bool = (v, d) => (v === undefined ? d : String(v).toLowerCase() === 'true'
 const config = {
   env: process.env.NODE_ENV || 'development',
 
+  // Public org-signup governance (FEAT-033). The org whose
+  // settings.allowUserRegistration / requireEmailVerification govern anonymous
+  // org signup. Defaults to 'platform'; signupPolicyService falls back to the
+  // earliest-created org when this slug isn't found. Policy resolves fail-closed.
+  platformOrgSlug: process.env.PLATFORM_ORG_SLUG || 'platform',
+
   // Single exposed HTTPS edge.
   http: {
     host: process.env.HOST || '0.0.0.0',

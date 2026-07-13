@@ -264,6 +264,13 @@ export function LoginPage() {
           )}
 
             <Typography variant="body2" align="center" color="text.secondary">
+              New here?{' '}
+              <Link component={RouterLink} to="/signup">
+                Create an organization
+              </Link>
+            </Typography>
+
+            <Typography variant="body2" align="center" color="text.secondary">
               Single sign-on?{' '}
               <Link component={RouterLink} to="/sso/callback">
                 SSO

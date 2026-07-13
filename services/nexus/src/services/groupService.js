@@ -32,24 +32,52 @@ async function generateMembershipSignature(userId, groupId, timestamp) {
 }
 
 /**
- * Create a new group
+ * Create a new group.
+ *
+ * @param {string} userId - creator user id (owner)
+ * @param {Object} data - group attributes (name, description, visibility, …)
+ * @param {Object} [options]
+ * @param {string} [options.slug] - a DETERMINISTIC slug (e.g. derived from an org
+ *   id) that makes creation idempotent: FEAT-032 / ADR-0003 S7 passes
+ *   `org-<orgId>` so a re-run reuses the existing group instead of minting a
+ *   duplicate. When an active/soft-deleted group already exists for this slug it
+ *   is returned as-is (no second Group/membership/roles). When omitted the
+ *   historical auto-slug generation (collision-suffixed) is used — fully
+ *   backward-compatible with the two-arg callers.
+ * @returns {Promise<Group>}
  */
-async function createGroup(userId, data) {
+async function createGroup(userId, data, options = {}) {
   try {
-    // Generate unique slug
-    let slug = generateSlug(data.name);
-    let slugExists = await Group.findOne({ where: { slug } });
-    let attempts = 0;
+    let slug;
 
-    while (slugExists && attempts < 10) {
-      const suffix = crypto.randomBytes(3).toString('hex');
-      slug = generateSlug(data.name, suffix);
-      slugExists = await Group.findOne({ where: { slug } });
-      attempts++;
-    }
+    if (options.slug) {
+      // Deterministic slug → idempotent by construction (S7 dedup). Reuse an
+      // existing group for this slug rather than erroring on the unique index.
+      slug = options.slug;
+      const existing = await Group.findOne({ where: { slug } });
+      if (existing) {
+        logger.info('Group create is idempotent — reusing existing group', {
+          groupId: existing.id,
+          slug
+        });
+        return existing;
+      }
+    } else {
+      // Generate unique slug (auto, collision-suffixed).
+      slug = generateSlug(data.name);
+      let slugExists = await Group.findOne({ where: { slug } });
+      let attempts = 0;
 
-    if (slugExists) {
-      throw new Error('Unable to generate unique slug');
+      while (slugExists && attempts < 10) {
+        const suffix = crypto.randomBytes(3).toString('hex');
+        slug = generateSlug(data.name, suffix);
+        slugExists = await Group.findOne({ where: { slug } });
+        attempts++;
+      }
+
+      if (slugExists) {
+        throw new Error('Unable to generate unique slug');
+      }
     }
 
     // Create group
@@ -283,6 +311,40 @@ async function deleteGroup(groupId, userId, options = {}) {
 }
 
 /**
+ * HARD-delete a group and its dependents (memberships + default roles), for
+ * FEAT-032 / ADR-0003 S7 compensation — when a later saga step fails the
+ * provisioned Nexus group must leave no orphan. Unlike `deleteGroup` (a soft
+ * `isActive=false` toggle used by the product UI), this fully removes the rows
+ * so a re-provision with the same deterministic slug starts clean. Idempotent:
+ * a missing group is a no-op. Best-effort cache invalidation.
+ *
+ * @param {string} groupId
+ * @returns {Promise<void>}
+ */
+async function deleteGroupCascade(groupId) {
+  try {
+    await GroupMembership.destroy({ where: { groupId } });
+    await GroupRole.destroy({ where: { groupId } });
+    await Group.destroy({ where: { id: groupId } });
+
+    try {
+      await redis.del(`group:${groupId}:full`);
+      await redis.del(`group:${groupId}:info`);
+    } catch (cacheError) {
+      logger.warn('Group cache invalidation failed during cascade delete', {
+        groupId,
+        error: cacheError.message
+      });
+    }
+
+    logger.info('Group cascade-deleted (provisioning compensation)', { groupId });
+  } catch (error) {
+    logger.error('Error cascade-deleting group:', error);
+    throw error;
+  }
+}
+
+/**
  * List groups with filters and pagination
  */
 async function listGroups(filters = {}, pagination = {}) {
@@ -373,5 +435,6 @@ module.exports = {
   getGroup,
   updateGroup,
   deleteGroup,
+  deleteGroupCascade,
   listGroups
 };

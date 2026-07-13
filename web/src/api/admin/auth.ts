@@ -133,6 +133,20 @@ export interface OrgCounts {
   violations: number;
 }
 
+/** Result envelope from the provisioning engine (admin/self-serve/public). */
+export interface ProvisionResult {
+  success: boolean;
+  status: 'completed' | 'failed' | 'compensation_failed' | string;
+  organizationId?: string;
+  caGroupId?: string;
+  intermediateCertId?: string;
+  ownerUserId?: string;
+  ownerCertId?: string;
+  ownerTokenId?: string;
+  error?: string;
+  [k: string]: unknown;
+}
+
 /** Aggregate returned by GET /users/:id/detail — the admin user inspector. */
 export interface UserDetail {
   user: AuthUser;
@@ -150,11 +164,50 @@ export interface UserDetail {
   sessions: Session[];
 }
 
+/**
+ * One line of an import report. The base fields (`email`/`name`/`outcome`/
+ * `reason`) are shared by the users and groups paths; the remaining fields are
+ * the additive FEAT-035 slice-A superset emitted only by the users import
+ * (`outcome ∈ created|invited|skipped|failed`).
+ */
+export interface ImportResultRow {
+  email?: string;
+  name?: string;
+  outcome: string;
+  reason?: string;
+  /** 1-based source row number (users path). */
+  row?: number;
+  /** Org membership role granted for this row (users path). */
+  orgRole?: string | null;
+  /** Resolved auth RBAC group slug, or null when not found (non-fatal). */
+  authGroup?: string | null;
+  /** Echoed nexus group (assignment deferred behind a server flag). */
+  nexusGroup?: string | null;
+  /** True when member credentials were provisioned for this row. */
+  credentialsIssued?: boolean;
+}
+
 export interface ImportResult {
   created: number;
   skipped: number;
   failed: number;
-  rows: Array<{ email?: string; name?: string; outcome: string; reason?: string }>;
+  /** Users import, invite mode — count of activation invites created. */
+  invited?: number;
+  /** Target org the users import ran against, echoed back. */
+  organizationId?: string | null;
+  rows: ImportResultRow[];
+}
+
+/** Options for the multipart users import (FEAT-035 slice-A). */
+export interface ImportUsersOptions {
+  /** Target org; members are added here with `defaultRole`. */
+  organizationId?: string;
+  /** Role applied to rows lacking a `role` column (owner is rejected). */
+  defaultRole?: string;
+  /** `create` sets passwords; `invite` creates inactive accounts + emails activation. */
+  mode?: 'create' | 'invite';
+  /** Provision member cert/token on creation (create mode + target org only). */
+  provisionCredentials?: boolean;
 }
 
 export interface RoleAssignments {
@@ -204,6 +257,20 @@ export const authAdminApi = {
   }) => http.post<{ user: AuthUser }>('/auth/api/users', body),
   importUsers: (users: Array<Record<string, unknown>>) =>
     http.post<ImportResult>('/auth/api/users/import', { users }),
+  /**
+   * Multipart users import (FEAT-035 slice-A): streams a raw CSV `File` to the
+   * server (parsed + row-capped server-side) with structured options. Uses the
+   * FormData rawBody mechanism so the browser sets the multipart boundary.
+   */
+  importUsersFile: (file: File, opts?: ImportUsersOptions) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (opts?.organizationId) form.append('organizationId', opts.organizationId);
+    if (opts?.defaultRole) form.append('defaultRole', opts.defaultRole);
+    if (opts?.mode) form.append('mode', opts.mode);
+    if (opts?.provisionCredentials) form.append('provisionCredentials', 'true');
+    return http.post<ImportResult>('/auth/api/users/import', undefined, { rawBody: form });
+  },
   exportUsersCsv: () => http.get<string>('/auth/api/users/export'),
 
   // Groups.
@@ -227,6 +294,18 @@ export const authAdminApi = {
     ),
   getOrganization: (id: string) => http.get<{ organization: Organization }>(`/auth/api/organizations/${id}`),
   createOrganization: (body: Record<string, unknown>) => http.post<Record<string, unknown>>('/auth/api/organizations', body),
+  /**
+   * Provision a full organization via the shared engine (FEAT-032/033): CA
+   * directory group + per-org intermediate CA, RBAC groups, owner cert/token,
+   * and (enterprise/team) Nexus group + Spark channels — atomic-or-compensated.
+   * 201 → `status:'completed'`; a failed run returns 500 carrying `{status,error,ids}`.
+   */
+  provisionOrganization: (body: {
+    type: OrgType;
+    organization: { name: string; slug?: string; description?: string; email?: string; website?: string };
+    owner: { email: string; displayName?: string; password?: string };
+    idempotencyKey?: string;
+  }) => http.post<ProvisionResult>('/auth/api/organizations/provision', body),
   updateOrganization: (id: string, body: Record<string, unknown>) =>
     http.patch<{ organization?: Organization }>(`/auth/api/organizations/${id}`, body),
   listOrgMembers: (id: string) => http.get<{ members?: OrgMember[]; data?: OrgMember[] }>(`/auth/api/organizations/${id}/members`),

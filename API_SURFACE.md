@@ -20,6 +20,11 @@ Columns: **Method | Path | Required Fields | Optional Fields | Min/Max | Auth | 
 - Joi/express-validator schemas generally run with `stripUnknown: true` — unknown body fields are
   silently dropped.
 - Global body limit is 10 MB unless a route overrides it.
+- **Org provisioning** (`POST /auth/api/organizations/provision`) runs the in-process saga engine
+  (`src/provisioning/`, ADR-0003) and is **admin-only** (CA token + `requireAdminAfterCA`). The engine
+  owns **no** routes of its own — it is composed in-process by auth routes. FEAT-035 user-import
+  (future) invokes the same auth-owned `provisionMemberCredentials` hook (the single member-credentialing
+  path). The engine composes other modules via lazy in-process façade requires (never HMAC-HTTP).
 
 ### Security flags worth noting
 
@@ -192,6 +197,9 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | POST | /auth/api/auth/logout | — | — | — | Session | — |
 | POST | /auth/api/auth/forgot-password | `email` | — | email valid | Public (strict) | reset token 1h; token returned only in dev |
 | POST | /auth/api/auth/reset-password | `token`, `password`, `confirmPassword` | — | token 64 hex; password 8–128+pattern | Public (strict) | — |
+| POST | /auth/api/auth/accept-invite | `token`, `password` | `displayName` | password 8–128+pattern; token ≤512 | Public (strict), token-gated | single-use invite; activates user + returns `{user,token}`; expired/revoked/used/unknown all → INVALID_TOKEN (non-enumerating) |
+| GET | /auth/api/auth/signup-policy | — | — | — | Public (relaxed) | platform signup policy `{allowUserRegistration, requireEmailVerification}`, resolved fail-closed from the platform org's settings |
+| POST | /auth/api/auth/signup | `email`, `password`, `org.name`, `org.type` (`enterprise\|team\|personal`) | `displayName`, `org.slug`, `org.description` | email ≤255; password 8–128+pattern; org.name 1–200; org.slug regex ≤100; org.description ≤1000 | Public (strict) | Fail-closed gate on `allowUserRegistration` (403 `REGISTRATION_DISABLED` before any write). Composes the SAME provisioning engine as `/organizations/provision`. If `requireEmailVerification` → 202 (user unverified, org intent stashed on `metadata.pendingOrg`, provisioned on verify-email); else 201 `{user, token, organization}`. Client body allowlisted — no mass-assignment |
 | GET | /auth/api/auth/google[/callback] | — | — | — | Public / Passport | scope profile,email |
 | GET | /auth/api/auth/github[/callback] | — | — | — | Public / Passport | scope user:email |
 | POST | /auth/api/auth/verify-email | `token` | — | token 64 hex | Public | — |
@@ -212,8 +220,11 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | POST | /auth/api/sessions/refresh | — | — | — | Session | extends by session lifetime |
 | GET | /auth/api/users | — | `limit`, `offset`, `search` | `limit`≤200 | CA `read` **+ admin** | list; admin-only (exposes email/mfa); search matches email/displayName |
 | POST | /auth/api/users | `email` | `password`, `displayName`, `firstName`, `lastName`, `status`, `emailVerified` | email unique | CA `write` **+ admin** | 201; admin user creation (Directory action); random password when omitted |
-| POST | /auth/api/users/import | `users[]` (`email` per row) | per-row `displayName`, `firstName`, `lastName`, `status`, `password` | ≤500 rows; email format | CA `write` **+ admin** | bulk create; per-row outcomes { created / skipped / failed } |
+| POST | /auth/api/users/import | **multipart** `file` (CSV) | `organizationId`, `defaultRole`, `mode` (`create`\|`invite`), `provisionCredentials`, `allowOwner`; CSV cols per row: `display_name`, `first_name`, `last_name`, `status`, `password`, `role`, `auth_group`, `nexus_group` | 8MB byte-ceiling; ≤2000 rows (`IMPORT_TOO_LARGE` 413); email format; org-aware authz | CA `write` **+ admin** | streamed CSV bulk import; org-aware (platform admin: any org+role; org admin: own org only, role ≤ own rank, else 403 `ORG_FORBIDDEN`); **owner rows rejected** for org admins, platform-admin-only behind `allowOwner` and never mutates `Organization.ownerId`; report `{ created, skipped, failed, invited, organizationId, rows[{ row, email, outcome, reason, orgRole, authGroup, nexusGroup, credentialsIssued }] }`; `mode=invite`+`provisionCredentials`+`nexus_group` are gated seams |
 | GET | /auth/api/users/export | — | — | — | CA `read` **+ admin** | CSV download of the full user directory |
+| POST | /auth/api/users/invites | `email` | `organizationId`, `role`, `kind` | — | CA `write` **+ admin** | 201; creates + emails invite/activation link; `role=member`, `kind=invite`, 72h TTL; single-use, sha256-hashed at rest, superseded on re-invite; dev-echoes `token` |
+| GET | /auth/api/users/invites | — | `organizationId`, `email`, `status`, `kind`, `limit`, `offset` | `limit`≤200 | CA `read` **+ admin** | list; never returns tokenHash; `limit=50` |
+| DELETE | /auth/api/users/invites/:id | `id` | — | — | CA `write` **+ admin** | revoke pending invite; idempotent (no-op if accepted/revoked/expired) |
 | GET | /auth/api/users/directory | — | `limit`, `offset`, `search` | `limit`≤100 | CA `read` (any authed) | public people directory; **safe fields only** (id, displayName, avatarUrl, bio); active users; search=displayName only |
 | POST | /auth/api/users/profiles | `ids[]` | — | ids de-duped, capped 200 | CA `read` (any authed) | batch public profiles (id, displayName, avatarUrl, bio); active users only; resolves member/display names without N+1 |
 | GET | /auth/api/users/:id | `id` | — | — | CA `read`; own or admin | full record; own-or-admin |
@@ -247,6 +258,8 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | GET | /auth/api/saml/providers | — | — | — | Public (503 if disabled) | — |
 | GET | /auth/api/saml/status | — | — | — | Public | — |
 | POST | /auth/api/organizations | org fields (e.g. `name`) | — | — | Session | 201; ownerId=req.user.id |
+| POST | /auth/api/organizations/provision | `type` (`enterprise\|team\|personal`), `organization.name`, `owner.email` | `idempotencyKey`, `organization.slug\|description\|email\|website`, `owner.displayName\|password\|emailVerified` | write | CA token + `requireAdminAfterCA` (admin only) | Runs the in-process org-provisioning saga (`src/provisioning/`): org+owner+RBAC groups, CA directory group + per-org intermediate CA, owner entity cert + org-scoped token, auth↔CA linkage, and (enterprise/team) Nexus group + spark channels. Template selects plan/settings/cert-depth/token-scope (client body is allowlisted — no mass-assignment). `idempotencyKey` defaults to the normalized slug. 201 on `completed`; 500 with `{status,error,ids}` on `failed`/`compensation_failed` |
+| POST | /auth/api/organizations/provision-self | `type` (`enterprise\|team\|personal`), `name` | `idempotencyKey`, `slug`, `description`, `email`, `website` | — | Session (`requireAuth`) | Self-serve variant of `/provision`: the SAME engine, owner = `req.user` (`actor.isAdmin=false`). Org fields allowlisted (no mass-assignment). 201 on `completed`; 500 with `{status,error,ids}` on failure |
 | GET | /auth/api/organizations | — | `include=counts` | — | Session | user's orgs; `include=counts` adds `{ groups, users, violations }` per org (violations = members' moderation items rejected/flagged/escalated; best-effort cross-schema) |
 | GET | /auth/api/organizations/:id | `id` | `include_members`, `include_groups`, `include_applications` | — | Session; member or `org:read` | includes default false |
 | PATCH | /auth/api/organizations/:id | `id` | org fields | — | Session; owner/admin | — |

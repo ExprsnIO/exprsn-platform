@@ -69,6 +69,21 @@ async function ensureGroupChannels(groupId, createdBy) {
 }
 
 /**
+ * Delete every group-bound conversation for a nexus group (both channels).
+ * FEAT-032 / ADR-0003 S8 compensation — when a later saga step fails, the spark
+ * channels bound to the rolled-back nexus group must be removed so no orphan
+ * Conversation rows remain. Idempotent (a group with no channels is a no-op).
+ * @param {string} groupId - nexus group id
+ * @returns {Promise<number>} number of conversations deleted
+ */
+async function deleteGroupChannels(groupId) {
+  if (!groupId) {
+    return 0;
+  }
+  return await Conversation.destroy({ where: { groupId } });
+}
+
+/**
  * Ensure a group member has an (active) Participant row for a conversation,
  * keeping its role roughly in sync with their nexus role. This is "sync on
  * access". A full join/leave webhook sync from nexus is a future follow-up;
@@ -155,6 +170,7 @@ module.exports = {
   mapNexusRoleToParticipantRole,
   canWriteChannel,
   ensureGroupChannels,
+  deleteGroupChannels,
   ensureParticipant,
   authorizeConversationAccess
 };

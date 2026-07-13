@@ -123,6 +123,19 @@ module.exports = (sequelize) => {
     metadata: {
       type: DataTypes.JSON,
       defaultValue: {}
+    },
+
+    // FEAT-032 / ADR-0003 (Decision 5): link to the org's CA directory group
+    // (ca.groups id, type organizational_unit). Plain UUID — NO cross-schema FK
+    // (ca.groups is a different module's schema; the id spaces bridge only by
+    // convention). NULL for orgs not provisioned through the engine. The
+    // ca_group_id column exists only after migration 20260710000001's up() is
+    // run directly (sync db:migrate will NOT ALTER this existing table) —
+    // `npm run db:check` must be clean or every organizations query 500s.
+    caGroupId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'ca_group_id'
     }
   }, {
     tableName: 'organizations',
@@ -131,7 +144,8 @@ module.exports = (sequelize) => {
     indexes: [
       { fields: ['slug'], unique: true },
       { fields: ['ownerId'] },
-      { fields: ['status'] }
+      { fields: ['status'] },
+      { fields: ['ca_group_id'], name: 'organizations_ca_group_id_idx' }
     ]
   });
 

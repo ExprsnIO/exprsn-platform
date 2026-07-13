@@ -18,7 +18,7 @@ const models = require('./models');
 const storage = require('./storage');
 const imageModeration = require('./services/imageModerationService');
 const {
-  initQueues, closeQueues, queues, enqueueImageModeration,
+  initQueues, closeQueues, queues, requeueImageModeration,
 } = require('./queues/imageModeration');
 
 const logger = createLogger('filevault-moderation-worker');
@@ -178,7 +178,10 @@ async function reconcileStuckPending() {
         const state = await existing.getState().catch(() => null);
         if (['waiting', 'active', 'delayed'].includes(state)) continue;
       }
-      if (await enqueueImageModeration(row.fileId)) requeued += 1;
+      // Use requeue (remove-then-add): a lingering TERMINAL job key (completed/
+      // failed) would make a plain add() a silent no-op (BUG-016), so a row stuck
+      // pending under a stale terminal key could never be re-enqueued.
+      if (await requeueImageModeration(row.fileId)) requeued += 1;
     }
     if (requeued) logger.warn('reconciled stuck pending images', { requeued, of: stuck.length });
   } catch (err) {

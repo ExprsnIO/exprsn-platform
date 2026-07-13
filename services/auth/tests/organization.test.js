@@ -547,6 +547,50 @@ describe('Organizations', () => {
       expect(org.description).toBe('Updated description');
     });
 
+    test('should NOT mass-assign privileged fields via update', async () => {
+      const owner = await createTestUser({
+        email: 'owner@example.com',
+        password: await bcrypt.hash('Test123!@#', 12)
+      });
+
+      const org = await createTestOrganization({
+        name: 'Locked Org',
+        ownerId: owner.id,
+        plan: 'free',
+        status: 'active'
+      });
+      await addOwnerMembership(org, owner);
+
+      const otherUser = await createTestUser({ email: 'other@example.com' });
+      const forgedCaGroupId = '00000000-0000-0000-0000-0000000000ff';
+
+      await agent
+        .post('/api/auth/login')
+        .send({ email: 'owner@example.com', password: 'Test123!@#' });
+
+      // A single PATCH that mixes one allowed field (name) with several
+      // privileged ones (identity linkage, billing plan, lifecycle, ownership).
+      await agent
+        .patch(`/api/organizations/${org.id}`)
+        .send({
+          name: 'Renamed Org',
+          caGroupId: forgedCaGroupId,
+          plan: 'enterprise',
+          status: 'suspended',
+          ownerId: otherUser.id
+        })
+        .expect(200);
+
+      await org.reload();
+      // Allowed field applied.
+      expect(org.name).toBe('Renamed Org');
+      // Every privileged field stripped server-side (allow-list).
+      expect(org.caGroupId).toBeNull();
+      expect(org.plan).toBe('free');
+      expect(org.status).toBe('active');
+      expect(org.ownerId).toBe(owner.id);
+    });
+
     test('should delete organization', async () => {
       const owner = await createTestUser({
         email: 'owner@example.com',

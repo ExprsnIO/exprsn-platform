@@ -1717,6 +1717,623 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 
 ---
 
+### FEAT-036 — Full AT-Proto Personal Data Server (PDS) (parent epic)
+- **Type:** feature (epic) · **Status:** backlog · **Priority:** P2 · **Size:** XL
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (audit of `/Volumes/Storage/exprsn-bluesky`, 2026-07-13)
+- **Decomposed into:** FEAT-037 (identity+sessions), FEAT-038 (repo), FEAT-039 (blobs), FEAT-040 (outbound firehose), FEAT-041 (app-view)
+- **Cost/Benefit:** pending
+- **Description:** `services/atproto` is today an **ingest + labeler only** module
+  (`API_SURFACE.md` atproto section): it consumes the Bluesky firehose, runs content
+  through the moderator pipeline, serves `com.atproto.label.queryLabels` /
+  `subscribeLabels`, and mints `did:exprsn` identities. It is **not a PDS** — there is
+  no `com.atproto.server.createSession`, no repo/record writes, no blob store, and no
+  outbound `subscribeRepos`. The original `/Volumes/Storage/exprsn-bluesky` implements
+  a full PDS (30+ XRPC endpoints, repo/CID storage, blobs, firehose, app-view routers).
+  This epic closes that gap so Exprsn users are first-class AT-Proto accounts that
+  federate, rather than only being *labelled by* the network.
+- **Acceptance criteria:**
+  - An external AT-Proto client can create a session against Exprsn, write a record,
+    upload a blob, and read its own repo back.
+  - A third-party relay can subscribe to our outbound `com.atproto.sync.subscribeRepos`
+    and observe our commits.
+  - All existing labeler/ingest behaviour still passes.
+  - **Tokenization (FEAT-059):** every PDS surface authorizes against a **scoped CA token**
+    (FEAT-060) — no AT-Proto endpoint accepts a client-supplied identity, and a revoked CA
+    token immediately kills the AT-Proto session, repo access, and blob access. Any
+    externally-shareable blob/record URL is issued as a **capability token** (FEAT-061),
+    never as an unguessable-but-permanent URL.
+- **Notes:** **XL — never promote directly; build the slices.** Reuse what already
+  exists rather than porting wholesale: the origin-root `rootApp` mount
+  (`src/gateway.js:114`) already serves `/.well-known/*` and `/xrpc/*`, and
+  `services/atproto/src/xrpc/subscribeLabels.js` already runs a raw-WS server through
+  the gateway upgrade path — the outbound firehose (FEAT-040) should follow that same
+  pattern, not introduce a second WS stack. **Architect sign-off required**: a PDS makes
+  the platform an origin of federated content, which is a new security + moderation
+  surface. **Every repo write and blob upload is new UGC ingress and MUST route through
+  `moderateContent`** — see FEAT-009 / TASK-019; do not land a slice that bypasses it.
+  **Tokenization is a hard constraint here, not a nice-to-have:** a PDS introduces a
+  *federated* auth surface (AT-Proto's own JWTs) that could easily become a second,
+  parallel identity system sitting beside CA tokens. It must not. See FEAT-059/060/061 —
+  FEAT-037 owns the bridge, and the epic is not done if a PDS session can outlive a CA
+  token revocation.
+
+### FEAT-037 — PDS Slice 1: identity + sessions (`com.atproto.server.*`)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-036 (parent epic — architect sign-off)
+- **Legacy:** FEAT-036 Slice 1
+- **Cost/Benefit:** pending
+- **Description:** Implement `com.atproto.server.createSession` / `refreshSession` /
+  `deleteSession` / `describeServer` / `createAccount`, bridged onto the existing
+  auth + CA token stack rather than a parallel credential store.
+- **Acceptance criteria:**
+  - An AT-Proto client authenticates and receives access/refresh JWTs that map to a
+    real Exprsn user.
+  - Session revocation goes through the existing CA token revocation path (a revoked
+    CA token invalidates the AT-Proto session).
+  - `did:exprsn` identities from the existing `userDids` surface resolve for these accounts.
+  - **Tokenization (FEAT-060):** the AT-Proto JWT is a *derived, scoped* credential — it
+    carries the CA token's org/group scope and cannot exceed it. A **bulk revoke** kills
+    every derived AT-Proto session (verified by test).
+- **Notes:** The hard call is **credential bridging** — AT-Proto expects its own JWTs;
+  the platform's source of truth is CA tokens. Do not fork a second session store; extend
+  `services/auth/src/services/sessionService.js`. **This slice is the tokenization
+  linchpin for the whole PDS epic (FEAT-059/060):** get the derivation right here and every
+  downstream slice inherits scope + revocation for free; get it wrong and the PDS becomes a
+  parallel identity system that outlives CA revocation. Architect + security review.
+
+### FEAT-038 — PDS Slice 2: repo / records (`com.atproto.repo.*`)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** XL
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-037
+- **Legacy:** FEAT-036 Slice 2
+- **Cost/Benefit:** pending
+- **Description:** Content-addressed repo storage — `createRecord`, `putRecord`,
+  `deleteRecord`, `getRecord`, `listRecords`, `applyWrites`, with a Merkle Search Tree
+  + signed commits, backed by the `atproto` Postgres schema.
+- **Acceptance criteria:**
+  - Records round-trip by CID; the repo's MST root advances and commits are signed.
+  - Every `createRecord`/`putRecord` passes through `moderateContent` before it is
+    published to the outbound firehose.
+  - `db:check` reports no drift after the new tables land.
+- **Notes:** **Largest slice — likely needs its own decomposition at grooming.** MST +
+  CID storage is the core of a PDS and has no existing platform analogue. **dba sign-off**
+  on the new tables. Cross-link the lexicon artifacts already at
+  `services/atproto/config/lexicons/`.
+
+### FEAT-039 — PDS Slice 3: blobs, backed by FileVault
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-038
+- **Legacy:** FEAT-036 Slice 3
+- **Cost/Benefit:** pending
+- **Description:** `com.atproto.repo.uploadBlob` / `getBlob`, storing bytes in
+  **FileVault** rather than standing up a second object store.
+- **Acceptance criteria:**
+  - Blob upload returns a CID; `getBlob` serves the same bytes.
+  - Blobs are persisted through FileVault's existing storage layer (no new bucket/driver).
+  - Image blobs are moderated on the FileVault async image path (FEAT-031) — a blob that
+    fails moderation is not served.
+  - **Tokenization (FEAT-061):** blob reads authorize against a scoped CA token or a
+    **capability token** from the unified share mechanism — **a CID is not a credential.**
+    Knowing a CID must not by itself grant read access to a non-public blob, and revoking
+    the capability immediately stops serving it.
+- **Notes:** This is the slice where "reuse, don't rebuild" pays most —
+  `services/filevault` already has storage, thumbnails, and an image-moderation queue.
+  **The CID-as-capability trap is the security risk here:** content-addressed stores tempt
+  you into "unguessable hash = access control", which is exactly the durable-share residual
+  failure already filed as BUG-027. Blob access must go through FEAT-061's tokens.
+
+### FEAT-040 — PDS Slice 4: outbound firehose (`com.atproto.sync.subscribeRepos`)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-038
+- **Legacy:** FEAT-036 Slice 4
+- **Cost/Benefit:** pending
+- **Description:** Publish our commits to the network — a raw-WS `subscribeRepos`
+  endpoint with a replayable cursor/sequence log, so relays can consume Exprsn.
+- **Acceptance criteria:**
+  - A relay (or `websocat`) subscribes and receives commit frames as records are written.
+  - A cursor replays missed events after a disconnect.
+  - Only moderation-cleared records are emitted.
+- **Notes:** Follow the existing `subscribeLabels.js` WS-through-gateway pattern.
+  **Single-gateway assumption holds for MVP** (per the MVP scope decision) — a
+  multi-instance firehose needs a shared sequence source; note it, don't build it.
+
+### FEAT-041 — PDS Slice 5: app-view surface (actor / feed / graph / notification)
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-038
+- **Legacy:** FEAT-036 Slice 5
+- **Cost/Benefit:** pending
+- **Description:** `app.bsky.actor.*`, `feed.*`, `graph.*`, `notification.*` read APIs,
+  projected from the platform's own timeline/nexus data.
+- **Acceptance criteria:**
+  - A Bluesky-compatible client can view a profile, a feed, and a follow graph served
+    by Exprsn.
+- **Notes:** Lowest-priority slice — the platform already has its own SPA for these
+  views; this is purely for third-party AT-Proto client compatibility. Legitimately
+  **droppable** if cost/benefit says so.
+
+### FEAT-042 — Herald: full notification delivery channels (parent epic)
+- **Type:** feature (epic) · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** STATUS.md "Herald → moderator" note
+- **Decomposed into:** FEAT-043 (push), FEAT-044 (SMS), FEAT-045 (preferences), FEAT-046 (templates)
+- **Cost/Benefit:** pending
+- **Description:** STATUS.md already records that **no standalone Herald service exists**
+  and that timeline's `HERALD_SERVICE_URL` points at `/moderator`. **In-app** notifications
+  are genuinely covered — `services/moderator/src/routes/notifications.js`, the
+  `/notifications` Socket.IO namespace, Redis-persisted history/unread state. What is
+  entirely absent is **out-of-app delivery**: a grep for `fcm|apns|web-push|firebase-admin`
+  across the platform returns nothing outside auth's trusted-device code. There is also no
+  user-facing notification-preferences store and no template store. Result: a user who is
+  not looking at the tab is never reached.
+- **Acceptance criteria:**
+  - A notification generated by the existing moderator fan-in can be delivered via push
+    and SMS, subject to per-user preferences, rendered from a template.
+  - Existing in-app/bell behaviour is unchanged.
+- **Notes:** Scope is **delivery channels on top of the existing fan-in**, not a rewrite —
+  do not resurrect a standalone Herald service; extend `services/moderator`.
+
+### FEAT-043 — Herald Slice: push notifications (FCM / APNs / web-push) + device tokens
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-042
+- **Legacy:** FEAT-042 Slice 1
+- **Cost/Benefit:** pending
+- **Description:** Device-token registration + push dispatch for iOS (APNs), Android (FCM),
+  and browser (web-push), driven off the existing notification fan-in.
+- **Acceptance criteria:**
+  - A device registers a token, and a DM/like/comment/follow event delivers a push to it.
+  - Tokens are revoked on logout and on CA token revocation.
+  - Push failures are retried and dead-lettered, not silently dropped.
+- **Notes:** **Requires third-party credentials** (APNs cert, FCM key, VAPID pair) → touches
+  R4 (secrets management). Delivery should ride the existing Bull/RabbitMQ infrastructure.
+  `auth`'s trusted-device code is the nearest existing concept — check before adding a table.
+
+### FEAT-044 — Herald Slice: SMS delivery
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-042
+- **Legacy:** FEAT-042 Slice 2
+- **Cost/Benefit:** pending
+- **Description:** SMS as a notification channel via a provider (Twilio or equivalent).
+- **Acceptance criteria:**
+  - A notification routed to SMS is delivered to a verified phone number.
+  - Unverified numbers are never texted; opt-out is honoured.
+- **Notes:** **Overlaps FEAT-006 (real MFA factors — SMS/email/WebAuthn), which also needs an
+  SMS provider.** Land **one** SMS provider abstraction shared by both, not two. Whichever
+  ticket is scheduled first should own the provider; the other consumes it. Cross-link before build.
+
+### FEAT-045 — Herald Slice: per-user notification preferences
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-042
+- **Legacy:** FEAT-042 Slice 3
+- **Cost/Benefit:** pending
+- **Description:** Per-user, per-event-type, per-channel preferences (in-app / push / SMS /
+  email), with sane defaults and a quiet-hours setting.
+- **Acceptance criteria:**
+  - A user can disable a channel for an event type and stops receiving it on that channel.
+  - Defaults apply to users who have never set a preference.
+  - Every delivery path consults preferences before dispatch (no channel bypasses it).
+- **Notes:** This is the ticket that makes push/SMS **safe to enable** — schedule it with or
+  before FEAT-043/044, not after. SPA surface required (Account Settings).
+
+### FEAT-046 — Herald Slice: notification template store
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-042
+- **Legacy:** FEAT-042 Slice 4
+- **Cost/Benefit:** pending
+- **Description:** Editable, versioned templates per event-type × channel, replacing
+  hard-coded notification strings.
+- **Acceptance criteria:**
+  - An admin edits a template and the next notification renders from it.
+  - Templates are variable-interpolated safely (no injection into email/SMS bodies).
+- **Notes:** Cross-link TASK-014 (moderator recipient-email lookup) — the email channel
+  already half-exists in `moderator/services/emailService.js`.
+
+### FEAT-047 — Gallery: albums, contributors, video transcode on FileVault (parent epic)
+- **Type:** feature (epic) · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (audit of `/Volumes/Storage/exprsn-gallery`, 2026-07-13)
+- **Decomposed into:** FEAT-048 (albums), FEAT-049 (contributors), FEAT-050 (video transcode)
+- **Cost/Benefit:** pending
+- **Description:** FileVault already absorbed most of `exprsn-gallery`: it has
+  `thumbnails` (whose route header literally reads *"Thumbnail Routes (Phase 3 — Galleries
+  + shared files)"*), `share`, `webdav`, `search`, `storage`, plus a Monaco editor and
+  multi-type previews. Three things did **not** come across: an **Album/collection** model
+  with CRUD, **contributors** (multi-user album collaboration), and **video transcode**
+  (`videoService.js`).
+- **Acceptance criteria:**
+  - A user creates an album, adds media, invites a contributor, and the contributor can add
+    media subject to permissions.
+  - An uploaded video is transcoded to web-playable renditions and streams in the SPA.
+  - **Tokenization (FEAT-059):** album and media access is authorized by a **scoped CA token**
+    (FEAT-060), and every externally-shared album/media link is a **capability token**
+    (FEAT-061) — revocable, expiring, scoped to that album + action. No bespoke gallery
+    share mechanism.
+- **Notes:** Build **on FileVault**, do not resurrect a gallery module. All album media is UGC
+  → must route through the existing image/video moderation path (FEAT-031, FEAT-016).
+  **Sharing is the whole risk surface of this epic.** The original `exprsn-gallery` billed
+  itself as *"Versioned and **Tokenized** Media Galleries"* — that tokenization is exactly
+  FEAT-061, and gallery is its third consumer alongside FileVault and Live. Do **not** ship
+  album sharing before FEAT-061, or this epic will reproduce BUG-020/BUG-026/BUG-027 in a
+  fourth module.
+
+### FEAT-048 — Gallery Slice: album / collection model + CRUD
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-047
+- **Legacy:** FEAT-047 Slice 1
+- **Cost/Benefit:** pending
+- **Description:** An `Album` model in the `filevault` schema + CRUD routes + SPA surface;
+  ordered membership of files in albums.
+- **Acceptance criteria:**
+  - Album CRUD works; a file can belong to multiple albums; ordering persists.
+  - Album visibility respects the existing FileVault ACL — no new bypass (cf. BUG-026).
+  - **Tokenization (FEAT-060):** album routes authorize against the scoped CA token; a user
+    cannot read or mutate an album outside their org/group scope (covered by a cross-org test).
+  - Adding a file to an album **cannot widen that file's visibility** — an album is not a
+    privilege-escalation path around the file's own ACL.
+  - `db:check` clean after the new tables.
+- **Notes:** **dba sign-off** on the new tables. New tables are safe under sync `db:migrate`;
+  the ALTER trap only bites if an existing table gains a column.
+
+### FEAT-049 — Gallery Slice: contributors + collaborator permissions
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-048
+- **Legacy:** FEAT-047 Slice 2
+- **Cost/Benefit:** pending
+- **Description:** Invite users to an album with a role (viewer / contributor / owner) and
+  enforce it on every album and file operation.
+- **Acceptance criteria:**
+  - A viewer cannot add or delete media; a contributor can add but not delete others' media.
+  - Permission checks are enforced **server-side on every route**, not just hidden in the UI.
+  - **Tokenization (FEAT-060/061):** a contributor invite is issued as a scoped, revocable
+    **capability token** — revoking it immediately removes access, including to media the
+    contributor could previously see (the BUG-027 durable-share residual must not recur).
+  - A contributor cannot share album media onward beyond their own access level (BUG-026's
+    "the sharer must be able to access what they share" check).
+- **Notes:** **Security-relevant.** The room-collab ACL bugs (BUG-024, BUG-026, BUG-027) are the
+  cautionary prior art — the same "sharer must be able to access what they share" check applies.
+  Reuse `services/live/src/routes/roomCollab.js`'s invite/request model rather than inventing a
+  third one — and once FEAT-061 lands, both should be sharing **one** capability-token mechanism,
+  not two lookalikes.
+
+### FEAT-050 — Gallery Slice: video transcode pipeline
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-047
+- **Legacy:** FEAT-047 Slice 3
+- **Cost/Benefit:** pending
+- **Description:** Transcode uploaded video into web-playable renditions + poster frames,
+  asynchronously.
+- **Acceptance criteria:**
+  - An uploaded video produces renditions + a poster and plays in the SPA.
+  - Transcode runs off the request path; failures are visible, not silent.
+- **Notes:** **Reuse the existing ffmpeg worker** — `worker:live` already runs an ffmpeg
+  RabbitMQ fanout/recording pipeline. Cross-link **TASK-015** (Live → FileVault video
+  persistence), which is the same plumbing from the other end; these two should probably be
+  built together. Video frame-sampling for moderation is FEAT-016 — do not duplicate.
+
+### FEAT-051 — Workflow: approvals, retention, audit, import/export, FileVault+Vault actions (parent epic)
+- **Type:** feature (epic) · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (audit of `/Volumes/Storage/exprsn-workflow`, 2026-07-13)
+- **Decomposed into:** FEAT-052 (approvals), FEAT-053 (retention+audit), FEAT-054 (import/export), FEAT-055 (filevault/vault actions)
+- **Cost/Benefit:** pending
+- **Description:** Workflow execution already exists, but **split across two modules**:
+  `services/moderator` (`workflowEngine.js`, `queueRegistry.js`, `routes/workflows.js`,
+  `WorkflowExecution` model, + the reactflow canvas editor) and `services/lowcode`
+  (`flowEngine`, `flowScheduler`, `flowActions`, `/flows/:id/runs`). Missing vs
+  `exprsn-workflow`: **approvals, retention policies, an audit trail, and import/export**.
+  Rick additionally wants **FileVault/Vault integration** so flows can read/write files and
+  secrets.
+- **Acceptance criteria:**
+  - A workflow can pause on a human approval step and resume on approve/reject.
+  - Executions are retained per policy and audited.
+  - A workflow can be exported and re-imported into another environment.
+  - A flow can read/write a FileVault file and read a Vault secret.
+  - **Tokenization (FEAT-059/060):** a workflow step executes under a **scoped token derived
+    from the invoking principal**, never under ambient engine authority. A flow cannot touch
+    any resource its invoker could not touch directly, and a revoked token halts in-flight runs.
+- **Notes:** **First decide where workflow lives.** Two engines is the real problem here —
+  moderator's and lowcode's. **Architect sign-off on the consolidation question before any
+  slice is built**, otherwise every feature below gets built twice. Note BUG-028 (four
+  workflow HTTP endpoints lost in consolidation) touches the same file.
+  **Tokenization is the sharpest risk in this epic: a workflow engine is a confused-deputy
+  factory.** It runs *later*, *asynchronously*, and *on behalf of someone else* — so an engine
+  that executes with its own ambient authority silently becomes a way for any flow author to
+  reach every module. Every step must carry a scoped, revocable token derived from the invoker
+  (FEAT-060). This is the same hazard as FEAT-058 (lowcode RBAC) and must be solved once, not
+  twice — another reason to settle the one-engine question first.
+
+### FEAT-052 — Workflow Slice: human approval steps
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-051 (engine-consolidation decision)
+- **Legacy:** FEAT-051 Slice 1
+- **Cost/Benefit:** pending
+- **Description:** An approval step type that suspends a run, notifies approvers, and resumes
+  on decision, with delegation and timeout.
+- **Acceptance criteria:**
+  - A run halts at an approval step and resumes only on an authorised approve/reject.
+  - Approvers are notified (via the moderator notification fan-in).
+  - A timed-out approval takes the configured default path.
+- **Notes:** Depends on durable run state — lowcode's flow-engine-v2 `runs` table is the
+  natural home. Approver authz must reuse the platform-admin/org-role predicate (TASK-030).
+
+### FEAT-053 — Workflow Slice: retention policy + audit trail
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-051
+- **Legacy:** FEAT-051 Slice 2
+- **Cost/Benefit:** pending
+- **Description:** Configurable retention for execution history + an immutable audit trail of
+  who changed/ran/approved what.
+- **Acceptance criteria:**
+  - Executions older than the policy are pruned by a scheduled job; the audit trail is not pruned.
+  - Every workflow mutation and approval decision is attributable to a principal.
+- **Notes:** **dba sign-off** — unbounded `WorkflowExecution` growth is the actual motivation.
+  Cross-link `nexus`'s `AdminAudit` model as the existing audit pattern.
+
+### FEAT-054 — Workflow Slice: import / export + template library
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-051
+- **Legacy:** FEAT-051 Slice 3
+- **Cost/Benefit:** pending
+- **Description:** Export a workflow (+ its queues/rules) to a portable bundle and import it
+  elsewhere; a starter template library.
+- **Acceptance criteria:**
+  - A workflow exported from one environment imports and runs in another.
+  - Import validates and refuses a malformed/untrusted bundle.
+  - **Tokenization (FEAT-059):** an exported bundle **carries no credentials** — no CA tokens,
+    no capability tokens, no Vault secret values, no provider keys. Secret-bearing steps export
+    as *references* that must be re-bound on import.
+  - An imported workflow runs under the **importer's** scope, never under the exporter's.
+- **Notes:** **Reuse the lowcode app-bundle format** (already built in the lowcode gap-closure
+  work) rather than inventing a second bundle spec. Import is an **untrusted-input surface** —
+  it must not be able to smuggle a script action past the sandbox (cf. TASK-021).
+  **Export is a credential-exfiltration surface and import is a privilege-escalation surface** —
+  a bundle that serializes a live token turns "export a workflow" into "email someone your
+  access", and a bundle that replays the exporter's scope turns import into escalation. Both
+  criteria above are load-bearing; QA should attempt exactly these two attacks.
+
+### FEAT-055 — Workflow Slice: FileVault + Vault flow actions
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-051
+- **Legacy:** FEAT-051 Slice 4 (Rick's explicit ask)
+- **Cost/Benefit:** pending
+- **Description:** First-class flow actions to read/write **FileVault** files and read
+  **Vault** secrets from inside a workflow/flow.
+- **Acceptance criteria:**
+  - A flow writes a file to FileVault and a later step reads it back.
+  - A flow resolves a Vault secret **without** the secret value being persisted into run
+    history, logs, or the audit trail.
+  - Actions run as a scoped principal — a flow cannot read a secret its owner cannot read.
+  - **Tokenization (FEAT-060):** the FileVault/Vault action authorizes with a **scoped CA token
+    derived from the invoking user**, not a service-wide credential. Revoking that user's token
+    denies the action mid-run.
+  - A file written by a flow inherits a correct ACL — it is not world-readable by default, and
+    any share link it produces is a FEAT-061 capability token.
+- **Notes:** **Security-critical.** The secret-leakage-into-run-history risk is the whole
+  ticket — a naive implementation logs the secret. Extend `services/lowcode`'s
+  `moduleActions.js` (the existing action-catalog seam); this slice is effectively the first
+  concrete instance of FEAT-057 **and the reference implementation for FEAT-060's scoped-token
+  dispatch** — whatever pattern lands here is what every other module action will copy, so it is
+  worth over-investing in getting the token derivation right. Architect + security review.
+
+### FEAT-056 — Lowcode integrates with every platform module (parent epic)
+- **Type:** feature (epic) · **Status:** backlog · **Priority:** P2 · **Size:** XL
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** lowcode 7-pass roadmap (passes 3–7)
+- **Decomposed into:** FEAT-057 (module action/trigger catalog), FEAT-058 (org/group RBAC)
+- **Cost/Benefit:** pending
+- **Description:** Rick's ask: lowcode should integrate with **all** services. Today
+  `services/lowcode/src/services/moduleActions.js` wires a subset. The goal is that every
+  module in `src/modules/registry.js` (ca, auth, spark, nexus, filevault, vault, timeline,
+  prefetch, moderator, live, atproto, plugins, cortex) exposes **actions** (do a thing) and
+  **triggers** (react to a thing) that lowcode flows can compose — making lowcode the
+  automation fabric across the platform rather than an island.
+- **Acceptance criteria:**
+  - Every registry module exposes at least its core actions + triggers to the flow builder.
+  - A flow composing ≥3 different modules runs end-to-end.
+  - Actions execute as a **scoped principal** and cannot escalate past the invoking user.
+- **Notes:** **XL.** This is the existing lowcode roadmap's passes 3–7, now with an explicit
+  "all modules" bar. The **authz model is the hard part, not the plumbing** — see FEAT-058;
+  do not ship the catalog without it. Ships behind `LOWCODE_ENABLED`.
+
+### FEAT-057 — Lowcode Slice: module action + trigger catalog across all modules
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-056, FEAT-058 (RBAC must land first or alongside)
+- **Legacy:** FEAT-056 Slice 1
+- **Cost/Benefit:** pending
+- **Description:** A declarative action/trigger registry — each module contributes its verbs;
+  the flow builder discovers them; the engine dispatches them **in-process**.
+- **Acceptance criteria:**
+  - Each registry module contributes a documented action/trigger set.
+  - The flow builder lists them without hard-coding module names.
+  - Dispatch is in-process (no HTTP hop back through the gateway — cf. STATUS #6 / TASK-009).
+- **Notes:** Extend `moduleActions.js`; do not fork it. FEAT-055 (FileVault/Vault actions) is
+  the first real instance and should be treated as the reference implementation.
+
+### FEAT-058 — Lowcode Slice: org / group RBAC
+- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-056
+- **Legacy:** FEAT-056 Slice 2 · lowcode roadmap pass on org/group RBAC
+- **Cost/Benefit:** pending
+- **Description:** Org- and group-scoped authorization inside lowcode: who may design, run, and
+  see the data of an app/entity/flow.
+- **Acceptance criteria:**
+  - A user cannot design, run, or read records of an app outside their org/group scope.
+  - A flow action executes with the **invoking user's** scope, not the flow author's ambient
+    authority (no confused-deputy).
+  - Verified by a test that attempts cross-org access and is denied.
+- **Notes:** **Priority P1 and the real gate on FEAT-056/057** — an action catalog that can call
+  every module *without* RBAC is a privilege-escalation engine. Build this first or in lockstep.
+  Reuse the CA scoped-token work (FEAT-060) rather than a lowcode-local ACL. Architect sign-off.
+
+### FEAT-059 — Tokenization across all platform features (parent epic)
+- **Type:** feature (epic) · **Status:** backlog · **Priority:** P1 · **Size:** XL
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** token spec v1.1 (group/org scoping, `revokedBy`, bulk revoke)
+- **Decomposed into:** FEAT-060 (CA scoped-token enforcement everywhere), FEAT-061 (capability / share-link tokens)
+- **Cost/Benefit:** pending
+- **Description:** Rick's ask, in **both** senses (confirmed 2026-07-13): (a) **CA scoped tokens**
+  — the token-spec v1.1 model (org/group scoping, `revokedBy`, multi-principal invalidation, bulk
+  revoke) is implemented in CA but is **not uniformly enforced by every module**; (b)
+  **capability / share-link tokens** — revocable, expiring, least-privilege links for content,
+  which today are ad-hoc per module (filevault share, live room share, gallery) and have already
+  produced three ACL bugs.
+- **Acceptance criteria:**
+  - Every module authorizes against a scoped CA token; no module trusts client-supplied identity.
+  - Every share/capability link in the platform is revocable and expiring, issued by one shared
+    mechanism.
+- **Notes:** **P1 — this is a security-posture epic, not a feature.** Its prior art is a list of
+  bugs: BUG-011 (`check-service-access` trusted a body `userId`), BUG-020 (share-link metadata
+  disclosure), BUG-026 (room `files/share` ACL bypass), BUG-027 (durable-share residual). Those
+  keep recurring **because** each module rolled its own sharing. Architect sign-off.
+
+### FEAT-060 — Tokenization Slice: CA scoped-token enforcement across every module
+- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-059
+- **Legacy:** FEAT-059 Slice 1 · token spec v1.1
+- **Cost/Benefit:** pending
+- **Description:** Audit every module's auth middleware and make org/group token scoping
+  uniformly enforced — including the modules that currently only check "is this token valid?"
+  and not "is it scoped to *this* org/group/resource?".
+  **Also covers the *derived*-credential surfaces**, which are the easy ones to miss: AT-Proto
+  PDS sessions (FEAT-037), lowcode/workflow action dispatch (FEAT-055/057/058), and any future
+  module that mints its own token. A derived credential must inherit — and may never exceed —
+  the scope of the CA token it came from.
+- **Acceptance criteria:**
+  - Every module rejects a token whose org/group scope does not cover the requested resource.
+  - A bulk revoke immediately invalidates access across **all** modules (verified per module),
+    **including derived credentials** (PDS sessions, in-flight workflow runs).
+  - A cross-org access attempt is denied in every module, covered by tests.
+  - No module executes an action under ambient/service authority on a user's behalf — every
+    deferred or asynchronous execution carries a scoped token derived from its invoker
+    (the confused-deputy rule; see FEAT-051, FEAT-058).
+- **Notes:** Start by **inventorying** which modules enforce scope today — the answer is not
+  uniform. Cross-link SPIKE-001 (moderator's 6 unauthenticated routers) and BUG-010; those are
+  symptoms of the same gap. Dedupe the platform-admin predicate first (TASK-030).
+
+### FEAT-061 — Tokenization Slice: unified capability / share-link tokens
+- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-059
+- **Legacy:** FEAT-059 Slice 2
+- **Cost/Benefit:** pending
+- **Description:** One shared capability-token mechanism for **all** content sharing — FileVault
+  file/directory shares, Live room shares, Gallery albums (FEAT-047/049), and **AT-Proto PDS
+  blobs and records (FEAT-039)** — replacing the per-module implementations. Tokens are scoped to
+  a resource + action, expiring, revocable, and auditable.
+  **Known consumers (keep this list current):** filevault shares · live room shares · gallery
+  albums + contributor invites (FEAT-048/049) · PDS blob/record reads (FEAT-039) · files written
+  by workflow actions (FEAT-055). Each is a module that would otherwise roll its own share link —
+  which is precisely how BUG-020/024/026/027 happened.
+- **Acceptance criteria:**
+  - A share link grants exactly the resource + action it names, and nothing else.
+  - Revoking a share link immediately stops serving the resource (**including the durable-share
+    residual case in BUG-027**).
+  - Flipping a resource to private invalidates outstanding links to it.
+  - A share token leaks no metadata about resources it does not grant (BUG-020).
+  - The sharer's own access is verified at share time (BUG-026).
+- **Notes:** The four acceptance criteria above are **literally the four share bugs already filed**
+  — this slice is the structural fix that stops a fifth. BUG-027 stays open until this lands, or is
+  fixed locally first and re-verified here. Architect sign-off.
+
+### FEAT-062 — Administrative settings for the new features (parent epic)
+- **Type:** feature (epic) · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** the feature epics it configures
+- **Legacy:** — (Rick, 2026-07-13: scoped to the new features only)
+- **Decomposed into:** FEAT-063 (PDS), FEAT-064 (herald), FEAT-065 (gallery), FEAT-066 (workflow), FEAT-067 (lowcode)
+- **Cost/Benefit:** pending
+- **Description:** Build the admin surfaces for the features added in this intake. **Scope was
+  explicitly limited by Rick to these new features** — this is *not* an all-14-module admin sweep.
+  Each module already exposes `/api/config`; this epic is the persisted-config + SPA admin surface
+  on top, following the existing Live/Cortex admin pattern.
+- **Acceptance criteria:**
+  - Each new feature has an admin section whose settings **persist and are enforced at runtime**
+    (not cosmetic).
+  - Admin access is gated by the platform-admin predicate.
+- **Notes:** **Must obey the "no JSON-only modals" rule** — structured forms bound to live data;
+  JSON only as an escape hatch. Follow `services/live`'s persisted-and-enforced `LiveConfig`
+  pattern (a config that is stored but not enforced is worse than none). Each slice is blocked by
+  its parent feature epic — there is nothing to configure until the feature exists.
+
+### FEAT-063 — Admin Slice: AT-Proto / PDS settings
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-062, FEAT-036
+- **Legacy:** FEAT-062 Slice 1
+- **Cost/Benefit:** pending
+- **Description:** Admin surface for PDS: federation on/off, relay endpoints, blob size/type
+  limits, account-creation policy, invite requirements, moderation coupling.
+- **Acceptance criteria:** settings persist and are enforced (a blob over the configured limit is
+  rejected; federation off stops outbound firehose emission).
+- **Notes:** Extends the existing `/admin` SPA. Cross-link the atproto external-labelers surface.
+
+### FEAT-064 — Admin Slice: Herald / notification settings
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-062, FEAT-042
+- **Legacy:** FEAT-062 Slice 2
+- **Cost/Benefit:** pending
+- **Description:** Admin surface for notification channels: provider credentials/health, per-channel
+  enable, rate limits, default preferences, template management (FEAT-046), delivery/failure metrics.
+- **Acceptance criteria:** disabling a channel stops delivery on it; provider health is visible;
+  defaults apply to new users.
+- **Notes:** Provider credentials are **secrets** — surface health/status, never echo the secret back
+  to the client (R4).
+
+### FEAT-065 — Admin Slice: Gallery settings
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-062, FEAT-047
+- **Legacy:** FEAT-062 Slice 3
+- **Cost/Benefit:** pending
+- **Description:** Admin surface for galleries: album limits, allowed media types, transcode profiles,
+  contributor policy, share/expiry defaults.
+- **Acceptance criteria:** settings persist and are enforced on the upload/share paths.
+- **Notes:** Share/expiry defaults must be sourced from the unified capability-token mechanism (FEAT-061).
+
+### FEAT-066 — Admin Slice: Workflow settings
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-062, FEAT-051
+- **Legacy:** FEAT-062 Slice 4
+- **Cost/Benefit:** pending
+- **Description:** Admin surface for workflow: retention policy, approval defaults/timeouts, queue
+  topology, execution concurrency limits, import/export governance.
+- **Acceptance criteria:** retention policy is enforced by the pruning job; concurrency limits are
+  honoured by the engine.
+- **Notes:** Extends the existing moderator admin (queue/workflow builders already have canvas editors).
+
+### FEAT-067 — Admin Slice: Lowcode settings
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-062, FEAT-056
+- **Legacy:** FEAT-062 Slice 5
+- **Cost/Benefit:** pending
+- **Description:** Admin surface for lowcode: which modules' actions are exposed, per-org enablement,
+  script-sandbox policy, flow concurrency/rate limits, RBAC role mapping.
+- **Acceptance criteria:** disabling a module's actions removes them from the builder **and** blocks
+  them at dispatch (UI-only removal is not sufficient).
+- **Notes:** The "blocks at dispatch" criterion is the point — a hidden-but-callable action is a
+  security bug. Cross-link TASK-021 (python sandbox).
+
+### FEAT-068 — Payments: gateway integration (Stripe / PayPal / Authorize.Net)
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** XL
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (audit of `/Volumes/Storage/exprsn-payments`, 2026-07-13)
+- **Cost/Benefit:** pending
+- **Description:** **The platform's most half-built gap.** `services/auth` **already ships** the
+  billing *schema* — `create-subscriptions`, `create-invoices`, `create-usage-records` migrations
+  plus `UsageRecord` and `FeatureFlag` models — and carries a **dead, never-mounted
+  `services/auth/routes/billing.js`** (10 endpoints). What does not exist anywhere in the platform is
+  any payment-gateway integration: a grep for `stripe|paypal|authorize\.net|chargeback` returns
+  nothing outside those migrations. **The platform can model a subscription but cannot charge a
+  card.** `/Volumes/Storage/exprsn-payments` implements transactions, subscriptions, invoices,
+  customers, payment methods, chargebacks, and webhooks across three gateways.
+- **Acceptance criteria:**
+  - A customer can add a payment method and be charged for a subscription.
+  - Gateway webhooks reconcile invoice/subscription state idempotently.
+  - Card data is **never** stored on the platform (gateway tokenization only; PCI scope minimised).
+- **Notes:** **XL — must be decomposed before `ready`.** Filed at Rick's direction (2026-07-13);
+  `atlas` (geospatial) and `pulse` (analytics/BI) were the other zero-coverage gaps found in the
+  same audit and were **deliberately not filed**. The dead `billing.js` is the natural revival seam —
+  **hold TASK-032 from deleting it** until this is groomed. Note this ticket's "tokenization" is
+  **card tokenization**, which Rick explicitly scoped **out** of FEAT-059 — they are unrelated.
+  Architect + dba sign-off; needs a real merchant account, so it is deploy-blocked regardless.
+
+---
+
 ## Bugs
 
 *(Security-hardening items triaged out of the `SP-11` review — filed, not
@@ -2195,6 +2812,80 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 
 ---
 
+### BUG-028 — Moderator lost 4 workflow HTTP endpoints in consolidation
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (original-vs-platform audit, 2026-07-13)
+- **Description:** **The only real functional regression found in the entire consolidation.**
+  Four JSON endpoints exist in `/Volumes/Storage/exprsn-moderator/routes/workflows.js` and are
+  absent from `services/moderator/routes/workflows.js`. A grep of the whole module confirms they
+  were **not relocated** — they were dropped:
+
+  | endpoint | original line | purpose |
+  |---|---|---|
+  | `POST /moderate/auto` | 293 | auto-moderation entrypoint |
+  | `POST /callback`      | 237 | async workflow callback |
+  | `POST /trigger/:id`   | 183 | trigger a workflow by id |
+  | `POST /setup-defaults`| 267 | seed default workflows |
+
+  These are **JSON API routes, not views** (`res.render` count in the original file is 0), so they
+  are not covered by the deliberate view-stripping. `POST /moderate/auto` and `POST /callback` are
+  the consequential two. Separately, `GET /executions/:executionId` was **renamed** to
+  `GET /executions/:id` — that one is a benign rename, not a loss.
+- **Acceptance criteria:**
+  - The four endpoints exist and are functional against the platform's workflow engine.
+  - Each is authenticated (do **not** restore them as unauthenticated surfaces — cf. BUG-010,
+    BUG-023, SPIKE-001).
+  - `POST /callback` verifies its caller (HMAC or equivalent); it must not be a forgery surface.
+  - API_SURFACE.md documents them.
+- **Notes:** **Do not straight-copy the handler bodies.** The platform's `workflowEngine.js` and
+  `queueRegistry.js` are platform-*only* additions that did not exist in the original, so the
+  original handlers call an engine that no longer has the same shape — these need **rewiring**.
+  BUG-023 (unauthenticated verdict forgery via `POST /api/moderate/batch`) is the cautionary
+  precedent for restoring a `/moderate/*` route without auth. Touches the same file as FEAT-051.
+
+### BUG-029 — `oidc` router is mounted bare and shadows three `oauth2` endpoints
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (audit, 2026-07-13; API_SURFACE.md already flags the mount order)
+- **Description:** **Security-relevant: two live implementations of token introspection and
+  revocation, one of which is unreachable.** `services/auth/src/index.js:184` mounts `oidcRoutes`
+  **bare — with no path prefix** — *before* `app.use('/api/oauth2', oauth2Routes)`. But
+  `services/auth/src/routes/oidc.js` declares fully-qualified paths:
+
+  ```
+  oidc.js:35   GET  /api/oauth2/userinfo
+  oidc.js:68   POST /api/oauth2/introspect
+  oidc.js:115  POST /api/oauth2/revoke
+  ```
+
+  which collide exactly with `oauth2.js`:
+
+  ```
+  oauth2.js:340  GET  /userinfo     (→ /api/oauth2/userinfo)
+  oauth2.js:372  POST /introspect   (→ /api/oauth2/introspect)
+  oauth2.js:305  POST /revoke       (→ /api/oauth2/revoke)
+  ```
+
+  Express resolves first-match, and oidc is mounted first — so **`oauth2.js`'s `userinfo`,
+  `introspect`, and `revoke` handlers are dead code that can never execute.** The two
+  implementations are not identical, so the effective behaviour of token introspection *and token
+  revocation* is whichever oidc.js does, which may not be what the oauth2 flow expects.
+- **Acceptance criteria:**
+  - Exactly **one** implementation serves each of `/api/oauth2/userinfo`, `/introspect`, `/revoke`;
+    the other is deleted (not merely unmounted).
+  - A deliberate, documented decision is recorded on **which** implementation is correct — in
+    particular that **revocation** semantics are the intended ones.
+  - A test asserts that revoking a token via `/api/oauth2/revoke` actually invalidates it.
+  - Mount order in `src/index.js` no longer relies on a bare-mounted router with absolute paths.
+- **Notes:** **Inherited, not a consolidation regression** — the original has the same bare mount at
+  `/Volumes/Storage/exprsn-auth/src/index.js:132`. But it is live today. Small fix, but **verify
+  which handler is actually serving before deleting either** — the dead one may be the one the
+  tests were written against. Cross-link BUG-012 (oauth2 `client_credentials` 500s), which is in the
+  same router and may share a root cause.
+
+---
+
 ## Tasks
 
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)
@@ -2657,6 +3348,52 @@ FEAT.)*
     org-scoped-admin-no-bypass regression test still passes.
 - **Notes:** Trivial (XS-class) dedupe hygiene — no behavior change intended, just
   single-source the predicate. Sized **S**; jr-developer candidate.
+
+---
+
+### TASK-031 — API_SURFACE.md omits two whole modules and one whole router
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** cross-links TASK-017 (different scope — do not merge)
+- **Description:** `API_SURFACE.md` is the documented contract consulted before wiring any route
+  (per CLAUDE.md), and it has drifted structurally — not just in detail:
+  - **`plugins` has no section at all** (~24 endpoints undocumented).
+  - **`lowcode` has no section at all** (~52 endpoints undocumented).
+  - The **entire `live/roomCollab.js` router** (~14 endpoints — invites, join-requests, file
+    share/upload/download/delete, recording start/stop) is undocumented despite being mounted at
+    `/live/api/rooms`.
+  - Its header still reads *"the ten consolidated modules … generated from a source read on
+    2026-06-16"* — there are now **14** modules.
+  - Spot-check also found ~10 undocumented `timeline` endpoints (repost/bookmark/quotes/trending)
+    and several `live` ones (`config` router, simulcast health/metrics, `POST /api/streams/:id/stop`).
+- **Acceptance criteria:**
+  - `plugins` and `lowcode` have full sections; `live/roomCollab` is documented.
+  - The header reflects 14 modules and a current source-read date.
+  - A spot-check of any 3 modules' route files against the doc finds no missing endpoints.
+- **Notes:** **TASK-017 is scoped only to "stale auth/moderator *security-flags notes*"** — it does
+  **not** cover whole-module omission. Cross-link, do not duplicate or close one with the other. The
+  doc's existing security annotations are accurate and valuable (it correctly flags the BUG-029 mount
+  order) — this is staleness, not wrongness. Consider a generator to stop the drift recurring.
+
+### TASK-032 — Delete-or-revive the dead auth route directories
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-068 grooming (for `billing.js` only)
+- **Legacy:** STATUS #10 (cosmetic/dead code); distinct from TASK-020
+- **Description:** Two dead route surfaces in auth:
+  - **`services/auth/routes/`** (6 files, ~36 endpoints: `auth`, `billing`, `mfa`, `sessions`, `sso`,
+    `webhooks`) is referenced **nowhere** — `services/auth/index.js` merely re-exports `src/index.js`.
+  - **`services/auth/src/routes/ldap.js`** (12 endpoints) is `require`-able but **never mounted**.
+  Both are **inherited, not lost in consolidation** — the original `exprsn-auth` never mounted them
+  either (verified against its `src/index.js`). So this is cruft cleanup, **not** recovering a feature.
+- **Acceptance criteria:**
+  - Each dead file is either deleted or deliberately mounted with a recorded reason.
+  - `npm run lint` and `npm run test:all` unaffected.
+- **Notes:** **Two carve-outs.** (1) **`billing.js` — do not delete yet**: it is the natural revival
+  seam for FEAT-068 (payments), where the billing *schema* already exists in auth's migrations. Hold
+  it until FEAT-068 is groomed. (2) **`ldap.js`** — decide whether LDAP is a wanted capability
+  (`exprsn-crm` had LDAP sync) before deleting 12 working endpoints; if wanted, it is a FEAT, not a
+  delete. `sso.js` is plausibly superseded by the live `saml.js` + `oauth2.js` + `oidc.js` — confirm
+  before deleting. Distinct from **TASK-020** (dead rbac *middleware*).
 
 ---
 

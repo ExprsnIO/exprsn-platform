@@ -2844,9 +2844,36 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   BUG-023 (unauthenticated verdict forgery via `POST /api/moderate/batch`) is the cautionary
   precedent for restoring a `/moderate/*` route without auth. Touches the same file as FEAT-051.
 
+### BUG-030 — `POST /api/oauth2/introspect` requires no client authentication (token oracle)
+- **Type:** bug · **Status:** in-review · **Priority:** P1 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Legacy:** — (found while fixing BUG-029, 2026-07-13)
+- **Description:** **RFC 7662 §2.1 requires authorization on the introspection endpoint.** Ours had
+  none — no route middleware, no router middleware, no global middleware (verified). Any
+  unauthenticated caller could POST a token value and receive `active`, `scope`, `username`
+  (the user's **email**), `sub`, and `client_id`. That is a **token oracle**: it confirms whether a
+  stolen or guessed token is live and discloses whose it is. **Both** the oidc and oauth2
+  implementations had the hole, so it was not caused by the BUG-029 shadowing — fixing the
+  shadowing alone would have left it open.
+- **Acceptance criteria:**
+  - Introspection requires client authentication (Basic or `client_id`/`client_secret`), returning
+    `401 invalid_client` otherwise. ✅
+  - A client may introspect only **its own** tokens; another client's token reads as
+    `{active: false}` rather than 403, so the endpoint never confirms a token it will not describe. ✅
+  - Revoked/expired tokens read as inactive. ✅
+  - Regression tests cover all three. ✅
+- **Notes:** **FIXED 2026-07-13** in `services/auth/src/routes/oauth2.js` — reuses the existing
+  `oauth2Service.authenticateClientRequest()` that both `/revoke` implementations already used, so
+  the change is small and the mechanism is proven. **Breaking for any client that introspected
+  without credentials.** Two existing tests asserted the vulnerable behaviour (they introspected
+  with no client auth and expected 200) and were updated. Also fixed a latent 500 found in the same
+  handler: the `token_type_hint=refresh_token` branch read `accessTokenExpiresAt`, which
+  `getRefreshToken()` does not return — that path threw. (`iat` was likewise always `NaN`, as no
+  getter returns `createdAt`; it is now omitted rather than emitted as null.) 33/33 oauth2 tests green.
+
 ### BUG-029 — `oidc` router is mounted bare and shadows three `oauth2` endpoints
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — (audit, 2026-07-13; API_SURFACE.md already flags the mount order)
 - **Description:** **Security-relevant: two live implementations of token introspection and
   revocation, one of which is unreachable.** `services/auth/src/index.js:184` mounts `oidcRoutes`
@@ -2879,10 +2906,29 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - A test asserts that revoking a token via `/api/oauth2/revoke` actually invalidates it.
   - Mount order in `src/index.js` no longer relies on a bare-mounted router with absolute paths.
 - **Notes:** **Inherited, not a consolidation regression** — the original has the same bare mount at
-  `/Volumes/Storage/exprsn-auth/src/index.js:132`. But it is live today. Small fix, but **verify
-  which handler is actually serving before deleting either** — the dead one may be the one the
-  tests were written against. Cross-link BUG-012 (oauth2 `client_credentials` 500s), which is in the
-  same router and may share a root cause.
+  `/Volumes/Storage/exprsn-auth/src/index.js:132`. Cross-link BUG-012 (oauth2 `client_credentials`
+  500s), same router.
+
+  **FIXED 2026-07-13.** **Correction to this ticket's original framing:** it warned that "the wrong
+  implementation may be winning." On reading both, that was **not** the case — the *better* one was
+  winning in all three, so there was **no live behavioural defect**:
+  - `revoke` — the two implementations were **functionally identical** and both already hardened
+    (client auth + scoped to the client's own tokens + RFC 7009 always-200). Revocation was never broken.
+  - `introspect` — the serving (oidc) one was *superior*: it honoured `token_type_hint=refresh_token`.
+  - `userinfo` — the serving (oidc) one routed through `oidcService`, the OIDC-correct path.
+
+  So the real defect was **dead code + mount-order fragility**: reorder those two `app.use` lines and
+  behaviour silently degrades to the inferior handlers, with nothing to catch it.
+
+  **Fix:** oidc's three handlers moved into `oauth2.js` (replacing its inferior versions); `oidc.js`
+  now declares **only** its two `/.well-known/*` discovery routes, which is the one legitimate reason
+  for a bare mount. `/api/oauth2/*` is now owned by exactly one router, mounted at a real prefix, with
+  no absolute paths and no order dependency. Endpoint URLs are unchanged. A comment in both files and
+  in `src/index.js` records the constraint so it cannot silently regress.
+
+  **Reading the serving code turned up the genuinely dangerous thing, filed as BUG-030:** introspection
+  required **no client authentication at all** — a token oracle. Fixed in the same change. This is why
+  the ticket said to read both before deleting either.
 
 ---
 

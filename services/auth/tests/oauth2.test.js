@@ -393,12 +393,100 @@ describe('OAuth2 and OIDC', () => {
 
       const response = await request(app)
         .post('/api/oauth2/introspect')
-        .send({ token: token.accessToken })
+        .send({
+          token: token.accessToken,
+          client_id: client.clientId,
+          client_secret: 'test-secret'
+        })
         .expect(200);
 
       expect(response.body).toHaveProperty('active', true);
       expect(response.body).toHaveProperty('scope');
       expect(response.body).toHaveProperty('client_id', client.clientId);
+    });
+
+    test('should reject introspection without client authentication (BUG-030)', async () => {
+      const user = await createTestUser();
+      const client = await createTestOAuth2Client();
+
+      const token = await models.OAuth2Token.create({
+        accessToken: 'oracle-token',
+        clientId: client.id,
+        userId: user.id,
+        accessTokenExpiresAt: new Date(Date.now() + 3600000),
+        scope: ['read']
+      });
+
+      // Unauthenticated, this endpoint was a token oracle: anyone could confirm a
+      // token's validity and read its scope/subject. RFC 7662 §2.1 requires auth.
+      const response = await request(app)
+        .post('/api/oauth2/introspect')
+        .send({ token: token.accessToken })
+        .expect(401);
+
+      expect(response.body.error).toBe('invalid_client');
+      expect(response.body).not.toHaveProperty('active');
+    });
+
+    test('should not let a client introspect another client\'s token (BUG-030)', async () => {
+      const user = await createTestUser();
+      const owner = await createTestOAuth2Client({ clientId: 'owner-client' });
+      const snooper = await createTestOAuth2Client({
+        clientId: 'snooper-client',
+        clientSecret: 'snooper-secret'
+      });
+
+      const token = await models.OAuth2Token.create({
+        accessToken: 'someone-elses-token',
+        clientId: owner.id,
+        userId: user.id,
+        accessTokenExpiresAt: new Date(Date.now() + 3600000),
+        scope: ['read']
+      });
+
+      // Reads as inactive rather than 403 — never confirm a token we won't describe.
+      const response = await request(app)
+        .post('/api/oauth2/introspect')
+        .send({
+          token: token.accessToken,
+          client_id: snooper.clientId,
+          client_secret: 'snooper-secret'
+        })
+        .expect(200);
+
+      expect(response.body).toEqual({ active: false });
+    });
+
+    test('should introspect a refresh token via token_type_hint', async () => {
+      const user = await createTestUser();
+      const client = await createTestOAuth2Client();
+
+      const token = await models.OAuth2Token.create({
+        accessToken: 'hint-access-token',
+        refreshToken: 'hint-refresh-token',
+        clientId: client.id,
+        userId: user.id,
+        accessTokenExpiresAt: new Date(Date.now() + 3600000),
+        refreshTokenExpiresAt: new Date(Date.now() + 86400000),
+        scope: ['read']
+      });
+
+      // Regression: the refresh-token branch read `accessTokenExpiresAt`, which the
+      // refresh-token getter does not return — so this path threw a 500.
+      const response = await request(app)
+        .post('/api/oauth2/introspect')
+        .send({
+          token: token.refreshToken,
+          token_type_hint: 'refresh_token',
+          client_id: client.clientId,
+          client_secret: 'test-secret'
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('active', true);
+      expect(response.body).toHaveProperty('client_id', client.clientId);
+      expect(typeof response.body.exp).toBe('number');
+      expect(Number.isNaN(response.body.exp)).toBe(false);
     });
 
     test('should revoke token (RFC 7009) with client authentication', async () => {
@@ -471,10 +559,58 @@ describe('OAuth2 and OIDC', () => {
 
       const response = await request(app)
         .post('/api/oauth2/introspect')
-        .send({ token: token.accessToken })
+        .send({
+          token: token.accessToken,
+          client_id: client.clientId,
+          client_secret: 'test-secret'
+        })
         .expect(200);
 
       expect(response.body).toHaveProperty('active', false);
+    });
+
+    test('a revoked token actually stops introspecting as active (BUG-029)', async () => {
+      const user = await createTestUser();
+      const client = await createTestOAuth2Client({
+        clientId: 'roundtrip-client',
+        clientSecret: 'roundtrip-secret'
+      });
+
+      const token = await models.OAuth2Token.create({
+        accessToken: 'roundtrip-access-token',
+        refreshToken: 'roundtrip-refresh-token',
+        clientId: client.id,
+        userId: user.id,
+        accessTokenExpiresAt: new Date(Date.now() + 3600000),
+        refreshTokenExpiresAt: new Date(Date.now() + 86400000),
+        scope: ['read']
+      });
+
+      const creds = {
+        client_id: client.clientId,
+        client_secret: 'roundtrip-secret'
+      };
+
+      const before = await request(app)
+        .post('/api/oauth2/introspect')
+        .send({ token: token.accessToken, ...creds })
+        .expect(200);
+
+      expect(before.body.active).toBe(true);
+
+      await request(app)
+        .post('/api/oauth2/revoke')
+        .send({ token: token.accessToken, ...creds })
+        .expect(200);
+
+      // The point of the ticket: revocation must be observable through the
+      // endpoint that reports validity, not just as a column in the DB.
+      const after = await request(app)
+        .post('/api/oauth2/introspect')
+        .send({ token: token.accessToken, ...creds })
+        .expect(200);
+
+      expect(after.body).toEqual({ active: false });
     });
   });
 

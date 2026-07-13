@@ -247,9 +247,9 @@ the shared `userinfo`/`introspect`/`revoke` paths. No Socket.IO (registry `socke
 | GET | /auth/api/oauth2/authorize | `client_id`, `response_type`, `redirect_uri` (PKCE for public) | `state`, `scope`, `code_challenge`, `code_challenge_method` | method=`S256` | Session | — |
 | POST | /auth/api/oauth2/authorize | consent form fields; PKCE | `state`, `code_challenge`, `code_challenge_method` | method=`S256` | Session | — |
 | POST | /auth/api/oauth2/token | `grant_type`, `code`/`refresh_token`; `code_verifier` if PKCE | client creds | — | OAuth2 client auth | token_type `Bearer` |
-| POST | /auth/api/oauth2/revoke | `token` | — | — | OAuth2 client auth | always 200 |
-| GET | /auth/api/oauth2/userinfo | Bearer access token | — | — | Bearer (OIDC) | (shadows oauth2.js) |
-| POST | /auth/api/oauth2/introspect | `token` | `token_type_hint` | — | Public | `{active:false}` if missing |
+| POST | /auth/api/oauth2/revoke | `token` | — | — | OAuth2 client auth | always 200; scoped to the client's own tokens |
+| GET | /auth/api/oauth2/userinfo | Bearer access token | — | — | Bearer (OIDC) | claims resolved by `oidcService` from granted scopes |
+| POST | /auth/api/oauth2/introspect | `token` | `token_type_hint` | — | **OAuth2 client auth** | client may introspect only its OWN tokens; others read `{active:false}` |
 | GET | /auth/api/saml/metadata | — | `idp` | — | Public (503 if disabled) | `idp='default'`; XML |
 | GET | /auth/api/saml/login | — | `idp`, `redirect`, `additionalParams` | — | Public (503 if disabled) | `idp='default'`, `redirect='/'` |
 | POST | /auth/api/saml/callback | `SAMLResponse` | — | — | Public ACS | MFA→mfaToken else exchange code |

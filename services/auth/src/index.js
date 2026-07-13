@@ -180,7 +180,10 @@ app.use((req, res, next) => {
 // Health check (always public)
 app.use('/health', healthRoutes);
 
-// OIDC well-known endpoints (JSON discovery + token introspection/revocation)
+// OIDC discovery documents only. Mounted bare because OpenID Discovery requires
+// them at the well-known root; the router therefore declares absolute paths and
+// must never declare an `/api/...` one — it would shadow the prefixed routers
+// mounted below (BUG-029). userinfo/introspect/revoke live in oauth2Routes.
 app.use(oidcRoutes);
 
 // API routes

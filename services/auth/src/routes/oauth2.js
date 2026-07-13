@@ -9,6 +9,7 @@ const express = require('express');
 const OAuth2Server = require('oauth2-server');
 const { asyncHandler, AppError, logger } = require('@exprsn/shared');
 const oauth2Service = require('../services/oauth2Service');
+const oidcService = require('../services/oidcService');
 const config = require('../config');
 
 const router = express.Router();
@@ -335,65 +336,84 @@ router.post('/revoke', asyncHandler(async (req, res) => {
 
 /**
  * GET /api/oauth2/userinfo
- * OAuth2 UserInfo endpoint (for OpenID Connect compatibility)
+ * OIDC UserInfo endpoint. Claims are resolved by oidcService from the scopes
+ * granted to the presented access token.
  */
 router.get('/userinfo', asyncHandler(async (req, res) => {
-  const request = new OAuth2Server.Request(req);
-  const response = new OAuth2Server.Response(res);
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      error: 'invalid_token',
+      error_description: 'No access token provided'
+    });
+  }
 
   try {
-    const token = await oauth2Server.authenticate(request, response);
-
-    const user = token.user;
-
-    res.json({
-      sub: user.id,
-      email: user.email,
-      email_verified: user.emailVerified || false,
-      name: user.displayName,
-      given_name: user.firstName,
-      family_name: user.lastName,
-      picture: user.avatarUrl
-    });
+    const userInfo = await oidcService.getUserInfo(authHeader.substring(7));
+    res.json(userInfo);
   } catch (error) {
-    logger.error('UserInfo error', { error: error.message });
+    if (error.message === 'INVALID_TOKEN') {
+      return res.status(401).json({
+        error: 'invalid_token',
+        error_description: 'The access token is invalid or expired'
+      });
+    }
 
-    res.status(error.code || 401).json({
-      error: error.name || 'invalid_token',
-      error_description: error.message
-    });
+    throw error;
   }
 }));
 
 /**
  * POST /api/oauth2/introspect
- * OAuth2 token introspection endpoint
+ * Token introspection endpoint (RFC 7662)
+ *
+ * RFC 7662 §2.1 requires authorization on this endpoint: unauthenticated, it is
+ * a token oracle that lets anyone test a token's validity and read its scope and
+ * subject. Clients authenticate as they do for /revoke, and may introspect only
+ * their OWN tokens — another client's token reads as `active: false` rather than
+ * 403, so the endpoint never confirms the existence of a token it will not
+ * describe.
  */
 router.post('/introspect', asyncHandler(async (req, res) => {
-  const { token } = req.body;
+  const client = await oauth2Service.authenticateClientRequest(req);
+
+  if (!client) {
+    res.set('WWW-Authenticate', 'Basic realm="oauth2/introspect"');
+    return res.status(401).json({
+      error: 'invalid_client',
+      error_description: 'Client authentication failed'
+    });
+  }
+
+  const { token, token_type_hint: tokenTypeHint } = req.body;
 
   if (!token) {
     return res.json({ active: false });
   }
 
-  try {
-    const tokenData = await oauth2Service.getAccessToken(token);
+  const tokenData = tokenTypeHint === 'refresh_token'
+    ? await oauth2Service.getRefreshToken(token)
+    : await oauth2Service.getAccessToken(token);
 
-    if (!tokenData) {
-      return res.json({ active: false });
-    }
-
-    res.json({
-      active: true,
-      scope: tokenData.scope?.join(' '),
-      client_id: tokenData.client.clientId,
-      sub: tokenData.user.id,
-      exp: Math.floor(tokenData.accessTokenExpiresAt.getTime() / 1000)
-    });
-  } catch (error) {
-    logger.error('Introspection error', { error: error.message });
-    res.json({ active: false });
+  // Unknown, expired, revoked — or issued to a different client.
+  if (!tokenData || tokenData.client.id !== client.id) {
+    return res.json({ active: false });
   }
+
+  // Each getter returns only its own expiry column.
+  const expiresAt = tokenData.accessTokenExpiresAt || tokenData.refreshTokenExpiresAt;
+
+  res.json({
+    active: true,
+    scope: Array.isArray(tokenData.scope) ? tokenData.scope.join(' ') : tokenData.scope,
+    client_id: tokenData.client.clientId,
+    username: tokenData.user.email,
+    token_type: 'Bearer',
+    exp: Math.floor(expiresAt.getTime() / 1000),
+    sub: tokenData.user.id,
+    aud: tokenData.client.clientId
+  });
 }));
 
 module.exports = router;

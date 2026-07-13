@@ -12,23 +12,29 @@ const router = express.Router();
 // public.reports and doesn't exist under the consolidated schema-per-module DB.
 const { Report } = require('../models/sequelize-index');
 const logger = require('../src/utils/logger');
+const requireUser = require('../src/middleware/requireUser');
+const requireAdmin = require('../src/middleware/requireAdmin');
 
 /**
  * POST /api/reports
- * Submit a content report
+ * Submit a content report (any authenticated user). The reporter identity is
+ * bound to the validated token (req.userId) — a client-supplied `reportedBy`
+ * in the body is ignored (BUG-010 / SPIKE-001).
  */
-router.post('/', async (req, res) => {
+router.post('/', requireUser, async (req, res) => {
   try {
     const {
       contentType,
       contentId,
       sourceService,
-      reportedBy,
       reason,
       details
     } = req.body;
 
-    if (!contentType || !contentId || !sourceService || !reportedBy || !reason) {
+    // Actor is the authenticated caller, never a body field.
+    const reportedBy = req.userId;
+
+    if (!contentType || !contentId || !sourceService || !reason) {
       return res.status(400).json({
         error: 'INVALID_REQUEST',
         message: 'Missing required fields'
@@ -68,7 +74,7 @@ router.post('/', async (req, res) => {
  * Uses the raw-pg Report model (same as the other handlers here); rows are
  * mapped to camelCase to match the admin console / rest of the API surface.
  */
-router.get('/', async (req, res) => {
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const { status } = req.query;
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
@@ -108,7 +114,7 @@ router.get('/', async (req, res) => {
  * GET /api/reports/:id
  * Get report details
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -138,17 +144,14 @@ router.get('/:id', async (req, res) => {
  * PUT /api/reports/:id/resolve
  * Resolve a report
  */
-router.put('/:id/resolve', async (req, res) => {
+router.put('/:id/resolve', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { resolvedBy, resolutionNotes, actionTaken } = req.body;
+    const { resolutionNotes, actionTaken } = req.body;
 
-    if (!resolvedBy) {
-      return res.status(400).json({
-        error: 'INVALID_REQUEST',
-        message: 'resolvedBy is required'
-      });
-    }
+    // Resolver identity is the authenticated admin (requireAdmin sets req.userId),
+    // never a client-supplied body field (BUG-010 audit-integrity fix).
+    const resolvedBy = req.userId;
 
     const report = await Report.findByPk(id);
 

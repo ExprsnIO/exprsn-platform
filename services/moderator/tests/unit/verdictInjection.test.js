@@ -5,11 +5,15 @@
  *
  * `moderateContent({ precomputedResult })` lets an IN-PROCESS caller (the
  * FileVault image worker) supply an already-computed verdict, skipping the AI
- * analyzer entirely. `POST /moderator/api/moderate/{content,batch}` is
- * UNAUTHENTICATED (SPIKE-001 / BUG-010).
+ * analyzer entirely. `POST /moderator/api/moderate/{content,batch}` is now
+ * requireService-gated (HMAC service token — BUG-010 / SPIKE-001), so these
+ * tests present a valid service token. The strict field allowlist below is the
+ * SECOND line of defense (defense-in-depth): a valid-but-legacy/misconfigured
+ * or compromised service token that passes the gate still must not be able to
+ * forge a verdict.
  *
- * `/batch` originally forwarded each wire-supplied item object wholesale, so an
- * anonymous caller could forge a verdict:
+ * `/batch` originally forwarded each wire-supplied item object wholesale, so a
+ * caller that reached the handler could forge a verdict:
  *
  *   POST /api/moderate/batch
  *   { "items": [{ ..., "precomputedResult": { "riskScore": 0 } }] }
@@ -27,6 +31,15 @@
 
 process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
 
+// A valid (non-placeholder, >=32 char) service secret so deriveServiceToken /
+// verifyServiceToken agree on the HMAC in this process — the moderate routes
+// are requireService-gated (BUG-010). Must be set BEFORE the shared token util
+// (required transitively via routes/moderation) reads it.
+process.env.SERVICE_TOKEN_SECRET =
+  process.env.SERVICE_TOKEN_SECRET ||
+  'a0b1c2d3e4f5061728394a5b6c7d8e9f00112233445566778899aabbccddeeff';
+process.env.SERVICE_ID = 'platform';
+
 const mockSeen = [];
 jest.mock('../../services/moderationService', () => ({
   moderateContent: jest.fn(async (params) => {
@@ -40,10 +53,21 @@ jest.mock('../../src/utils/logger', () => ({
 
 const express = require('express');
 const request = require('supertest');
+const { deriveServiceToken } = require('@exprsn/shared/utils/serviceToken');
 const router = require('../../routes/moderation');
+
+const SERVICE_TOKEN = deriveServiceToken('platform');
 
 const app = express();
 app.use(express.json());
+// Present a valid service token on every request: this suite exercises the
+// allowlist (defense-in-depth), not the requireService gate itself — the gate
+// is covered by tests/integration/authGating.test.js.
+app.use((req, _res, next) => {
+  req.headers['x-service-id'] = 'platform';
+  req.headers['x-service-token'] = SERVICE_TOKEN;
+  next();
+});
 app.use('/api/moderate', router);
 
 const FORGED = { riskScore: 0, nsfwScore: 0, provider: 'cortex', flags: [] };
@@ -57,7 +81,7 @@ const base = {
 
 beforeEach(() => { mockSeen.length = 0; });
 
-describe('an anonymous caller cannot forge a verdict', () => {
+describe('a service caller that reaches the handler cannot forge a verdict', () => {
   test('POST /content strips precomputedResult', async () => {
     await request(app).post('/api/moderate/content')
       .send({ ...base, precomputedResult: FORGED })

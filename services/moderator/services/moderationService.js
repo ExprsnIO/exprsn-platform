@@ -39,13 +39,16 @@ class ModerationService {
       // providers return. When present, no AI provider is invoked.
       //
       // ⚠ IN-PROCESS CALLERS ONLY (today: the FileVault image worker).
-      // `POST /api/moderate/content` is UNAUTHENTICATED (SPIKE-001 / BUG-010)
-      // and protects this by destructuring an explicit field allowlist that
-      // omits `precomputedResult`. If that handler is ever changed to forward
-      // `req.body` wholesale, any anonymous caller could launder content as
-      // clean (`riskScore: 0`) or grief an upload into the review queue
-      // (`riskScore: 100`). `tests/unit/verdictInjection.test.js` fails if the
-      // allowlist is removed — do not delete that test.
+      // `POST /api/moderate/content` is now requireService-gated (HMAC service
+      // token — BUG-010 / routes/moderation.js), but it still protects this by
+      // destructuring an explicit field allowlist that omits `precomputedResult`
+      // as defense-in-depth: a compromised/legacy/misconfigured service token
+      // that reaches the handler must not be able to launder content as clean
+      // (`riskScore: 0`) or grief an upload into the review queue
+      // (`riskScore: 100`). If that handler is ever changed to forward
+      // `req.body` wholesale, that second line of defense is lost.
+      // `tests/unit/verdictInjection.test.js` fails if the allowlist is
+      // removed — do not delete that test.
       precomputedResult = null
     } = params;
 

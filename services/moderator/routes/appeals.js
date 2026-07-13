@@ -9,12 +9,16 @@ const express = require('express');
 const router = express.Router();
 const appealService = require('../services/appealService');
 const logger = require('../src/utils/logger');
+const requireUser = require('../src/middleware/requireUser');
+const requireAdmin = require('../src/middleware/requireAdmin');
 
 /**
  * POST /api/appeals
- * Submit new appeal
+ * Submit new appeal (any authenticated user). The appellant is bound to the
+ * validated token (req.userId); a client-supplied body `userId` is ignored
+ * (BUG-010 / SPIKE-001).
  */
-router.post('/', async (req, res) => {
+router.post('/', requireUser, async (req, res) => {
   try {
     const {
       moderationItemId,
@@ -38,7 +42,8 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const userId = req.user?.id || req.body.userId; // Get from auth or request
+    // Appellant is the authenticated caller, never a body field.
+    const userId = req.userId;
 
     const appeal = await appealService.submitAppeal(userId, {
       moderationItemId,
@@ -64,7 +69,7 @@ router.post('/', async (req, res) => {
  * GET /api/appeals
  * List appeals (with filters)
  */
-router.get('/', async (req, res) => {
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const {
       status,
@@ -111,7 +116,7 @@ router.get('/', async (req, res) => {
  * GET /api/appeals/:id
  * Get specific appeal
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -134,7 +139,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/appeals/:id/review
  * Review appeal (approve or deny)
  */
-router.post('/:id/review', async (req, res) => {
+router.post('/:id/review', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { decision, notes } = req.body;
@@ -154,7 +159,8 @@ router.post('/:id/review', async (req, res) => {
       });
     }
 
-    const reviewerId = req.user?.id || req.body.reviewerId; // Get from auth or request
+    // Reviewer is the authenticated admin, never a body field.
+    const reviewerId = req.userId;
 
     const appeal = await appealService.reviewAppeal(id, reviewerId, decision, notes);
 
@@ -175,7 +181,7 @@ router.post('/:id/review', async (req, res) => {
  * GET /api/appeals/stats
  * Get appeal statistics
  */
-router.get('/stats/summary', async (req, res) => {
+router.get('/stats/summary', requireAdmin, async (req, res) => {
   try {
     const stats = await appealService.getAppealStats();
 
@@ -196,7 +202,7 @@ router.get('/stats/summary', async (req, res) => {
  * GET /api/appeals/case/:moderationItemId
  * Get appeal history for moderation case
  */
-router.get('/case/:moderationItemId', async (req, res) => {
+router.get('/case/:moderationItemId', requireAdmin, async (req, res) => {
   try {
     const { moderationItemId } = req.params;
 

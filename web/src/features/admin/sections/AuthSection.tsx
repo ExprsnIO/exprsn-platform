@@ -45,32 +45,111 @@ import {
   type Session,
 } from '@/api/admin/auth';
 import { formatDate } from '@/features/files/util';
+import { useAppStore } from '@/app/store';
 import { Card, ConfigSectionEditor, DataTable, DataView, PermBadges, QueryState, SectionHeader, StatCard, StatusChip, useToast } from '../ui';
+
+/** Provisioning templates keyed on org type — helper copy for the type picker. */
+const ORG_TEMPLATE_HELP: Record<OrgType, string> = {
+  enterprise: 'Full org: per-org intermediate CA, RBAC groups, owner cert/token, Nexus group and Spark channels.',
+  team: 'Collaborative workspace with RBAC groups and channels, minus the enterprise CA overhead.',
+  personal: 'Lightweight personal workspace for a single owner.',
+};
+
+function slugifyOrg(s: string): string {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100);
+}
 
 /* ---------------------------------------------------------- organizations */
 
+/**
+ * Provision a full organization through the shared engine (FEAT-032/033) — the
+ * same code path as public signup and self-serve, differing only in auth (admin
+ * CA token) and owner (chosen here; defaults to the acting admin). A structured
+ * form, never a name-only stub: name, slug, type/template, description, and the
+ * owner's email (an existing user is adopted, otherwise created).
+ */
 function CreateOrgDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: (m: string) => void }) {
   const qc = useQueryClient();
+  const myEmail = useAppStore((s) => s.user?.email) ?? '';
   const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [type, setType] = useState<OrgType>('team');
+  const [description, setDescription] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setName(''); setSlug(''); setSlugTouched(false); setType('team'); setDescription('');
+      setOwnerEmail(myEmail);
+    }
+  }, [open, myEmail]);
+
+  const slugValue = slugTouched ? slug : slugifyOrg(name);
+  const slugValid = slugValue === '' || /^[a-z0-9-]+$/.test(slugValue);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail);
+  const canSubmit = !!name.trim() && slugValid && emailValid;
+
   const mut = useMutation({
-    mutationFn: () => authAdminApi.createOrganization({ name }),
-    onSuccess: () => {
+    mutationFn: () => authAdminApi.provisionOrganization({
+      type,
+      organization: {
+        name: name.trim(),
+        slug: slugValue || undefined,
+        description: description.trim() || undefined,
+      },
+      owner: { email: ownerEmail.trim() },
+    }),
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['auth', 'orgs'] });
-      onDone('Organization created');
+      onDone(res.status === 'completed' ? 'Organization provisioned' : `Provisioning ${res.status}`);
       onClose();
-      setName('');
     },
     onError: (e) => onDone((e as Error).message),
   });
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Create organization</DialogTitle>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Provision organization</DialogTitle>
       <DialogContent>
-        <TextField autoFocus fullWidth label="Name" value={name} onChange={(e) => setName(e.target.value)} sx={{ mt: 1 }} />
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField autoFocus required fullWidth label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <TextField
+            fullWidth
+            label="Slug"
+            value={slugValue}
+            onChange={(e) => { setSlugTouched(true); setSlug(e.target.value); }}
+            error={!!slugValue && !slugValid}
+            helperText={!!slugValue && !slugValid ? 'Lowercase letters, numbers and hyphens only.' : 'Used in URLs; leave as suggested or customize. Must be unique.'}
+          />
+          <TextField
+            select
+            fullWidth
+            label="Type / template"
+            value={type}
+            onChange={(e) => setType(e.target.value as OrgType)}
+            helperText={ORG_TEMPLATE_HELP[type]}
+          >
+            {ORG_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+          </TextField>
+          <TextField fullWidth label="Description" value={description} onChange={(e) => setDescription(e.target.value)} multiline minRows={2} />
+          <TextField
+            required
+            fullWidth
+            type="email"
+            label="Owner email"
+            value={ownerEmail}
+            onChange={(e) => setOwnerEmail(e.target.value)}
+            error={!!ownerEmail && !emailValid}
+            helperText={!!ownerEmail && !emailValid ? 'Enter a valid email address.' : 'Defaults to you. An existing user is made owner; otherwise a new owner account is created.'}
+          />
+        </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={!name || mut.isPending} onClick={() => mut.mutate()}>Create</Button>
+        <Button variant="contained" disabled={!canSubmit || mut.isPending} onClick={() => mut.mutate()}>
+          {mut.isPending ? 'Provisioning…' : 'Provision'}
+        </Button>
       </DialogActions>
     </Dialog>
   );
@@ -759,7 +838,7 @@ function OrganizationsTab({ onToast }: { onToast: (m: string) => void }) {
   return (
     <Stack spacing={2}>
       <Stack direction="row" justifyContent="flex-end">
-        <Button variant="contained" onClick={() => setOpen(true)}>New organization</Button>
+        <Button variant="contained" onClick={() => setOpen(true)}>Provision organization</Button>
       </Stack>
       <QueryState query={query} empty="You belong to no organizations.">
         {(d) => (
@@ -1968,9 +2047,18 @@ function CreateUserDialog({ open, onClose, onDone }: { open: boolean; onClose: (
   );
 }
 
+/** Roles an admin can pre-select as the default for un-roled import rows. */
+const IMPORT_DEFAULT_ROLES = ['guest', 'member', 'admin', 'owner'];
+
 /**
- * CSV import dialog for users or groups. Paste CSV or pick a file; rows are
- * previewed, submitted as JSON, and per-row outcomes are reported back.
+ * CSV import dialog.
+ *
+ * Users path (FEAT-035 slice-A): a raw CSV `File` is streamed to the server —
+ * which parses, row-caps, and enforces the org-aware authz boundary — alongside
+ * structured options (target org, default role, invite vs. create, credential
+ * provisioning). No client-side parsing/preview: the server owns the report.
+ *
+ * Groups path (unchanged): paste/pick CSV, parse client-side, submit as JSON.
  */
 function ImportDialog({
   kind,
@@ -1984,61 +2072,171 @@ function ImportDialog({
   onDone: (m: string) => void;
 }) {
   const qc = useQueryClient();
+  const isUsers = kind === 'users';
+
+  // Groups path: client-parsed CSV text.
   const [text, setText] = useState('');
+  // Users path: raw file + structured options.
+  const [file, setFile] = useState<File | null>(null);
+  const [organizationId, setOrganizationId] = useState('');
+  const [defaultRole, setDefaultRole] = useState('member');
+  const [mode, setMode] = useState<'create' | 'invite'>('create');
+  const [provisionCredentials, setProvisionCredentials] = useState(false);
+
   const [result, setResult] = useState<ImportResult | null>(null);
-  const rows = parseCsv(text);
-  const expected = kind === 'users' ? 'email,displayName,firstName,lastName,status' : 'name,description,organizationId';
+  const rows = isUsers ? [] : parseCsv(text);
+  const groupExpected = 'name,description,organizationId';
+
+  const orgs = useQuery({
+    queryKey: ['auth', 'orgs'],
+    queryFn: () => authAdminApi.listOrganizations(),
+    enabled: open && isUsers,
+  });
 
   useEffect(() => {
-    if (!open) { setText(''); setResult(null); }
+    if (!open) {
+      setText(''); setFile(null); setOrganizationId(''); setDefaultRole('member');
+      setMode('create'); setProvisionCredentials(false); setResult(null);
+    }
   }, [open]);
 
-  const pickFile = (file: File | null) => {
-    if (!file) return;
-    file.text().then(setText).catch(() => onDone('Could not read file'));
+  const pickGroupsFile = (f: File | null) => {
+    if (!f) return;
+    f.text().then(setText).catch(() => onDone('Could not read file'));
   };
 
+  // Credentials only apply on the create path with a target org (server rejects
+  // otherwise); keep the outbound flag consistent with that constraint.
+  const credsEnabled = isUsers && mode === 'create' && !!organizationId;
+
   const mut = useMutation({
-    mutationFn: () => (kind === 'users' ? authAdminApi.importUsers(rows) : authAdminApi.importGroups(rows)),
+    mutationFn: () => {
+      if (isUsers) {
+        if (!file) throw new Error('Choose a CSV file first');
+        return authAdminApi.importUsersFile(file, {
+          organizationId: organizationId || undefined,
+          defaultRole,
+          mode,
+          provisionCredentials: credsEnabled && provisionCredentials,
+        });
+      }
+      return authAdminApi.importGroups(rows);
+    },
     onSuccess: (r) => {
       setResult(r);
-      qc.invalidateQueries({ queryKey: ['auth', kind === 'users' ? 'users' : 'groups'] });
-      onDone(`Import finished — ${r.created} created, ${r.skipped} skipped, ${r.failed} failed`);
+      qc.invalidateQueries({ queryKey: ['auth', isUsers ? 'users' : 'groups'] });
+      const parts = [`${r.created} created`];
+      if (r.invited != null) parts.push(`${r.invited} invited`);
+      parts.push(`${r.skipped} skipped`, `${r.failed} failed`);
+      onDone(`Import finished — ${parts.join(', ')}`);
     },
     onError: (e) => onDone((e as Error).message),
   });
+
+  const canSubmit = isUsers ? !!file : rows.length > 0;
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Import {kind}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <Alert severity="info">
-            CSV with a header row. Expected columns: <code>{expected}</code>
-            {kind === 'users' ? ' (email is required).' : ' (name is required).'}
-          </Alert>
-          <Button component="label" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
-            Choose CSV file…
-            <input hidden type="file" accept=".csv,text/csv" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
-          </Button>
-          <TextField
-            label="CSV content"
-            multiline
-            minRows={6}
-            maxRows={16}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
-            placeholder={`${expected}\n…`}
-          />
-          {rows.length > 0 && !result && <Alert severity="success">{rows.length} row(s) parsed and ready to import.</Alert>}
+          {isUsers ? (
+            <>
+              <Alert severity="info">
+                Upload a CSV with a header row. Recognized columns:{' '}
+                <code>email, display_name, first_name, last_name, status, password, role, auth_group, nexus_group</code>{' '}
+                (email is required). The file is parsed on the server — up to 2,000 rows and 8&nbsp;MB.
+              </Alert>
+              <Button component="label" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
+                {file ? 'Choose a different file…' : 'Choose CSV file…'}
+                <input
+                  hidden
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null); }}
+                />
+              </Button>
+              {file && !result && (
+                <Alert severity="success">{file.name} ({Math.ceil(file.size / 1024)} KB) ready to import.</Alert>
+              )}
+
+              <TextField
+                select
+                fullWidth
+                label="Target organization"
+                value={organizationId}
+                onChange={(e) => setOrganizationId(e.target.value)}
+                helperText="Members are added here with the role below. Required to provision credentials; platform admins may leave it empty."
+              >
+                <MenuItem value="">Platform (no organization)</MenuItem>
+                {(orgs.data?.organizations ?? orgs.data?.data ?? []).map((o) => (
+                  <MenuItem key={o.id} value={o.id}>{o.name}</MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                fullWidth
+                label="Default role"
+                value={defaultRole}
+                onChange={(e) => setDefaultRole(e.target.value)}
+                helperText="Applied to rows without a role column. 'owner' is reserved — rejected unless you are a platform admin."
+              >
+                {IMPORT_DEFAULT_ROLES.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+              </TextField>
+
+              <FormControlLabel
+                control={<Switch checked={mode === 'invite'} onChange={(e) => setMode(e.target.checked ? 'invite' : 'create')} />}
+                label="Invite mode — create inactive accounts and email an activation link (no password set)"
+              />
+              <FormControlLabel
+                control={(
+                  <Switch
+                    checked={credsEnabled && provisionCredentials}
+                    disabled={!credsEnabled}
+                    onChange={(e) => setProvisionCredentials(e.target.checked)}
+                  />
+                )}
+                label="Provision member credentials (certificate/token) on creation — requires an organization, create mode only"
+              />
+            </>
+          ) : (
+            <>
+              <Alert severity="info">
+                CSV with a header row. Expected columns: <code>{groupExpected}</code> (name is required).
+              </Alert>
+              <Button component="label" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
+                Choose CSV file…
+                <input hidden type="file" accept=".csv,text/csv" onChange={(e) => pickGroupsFile(e.target.files?.[0] ?? null)} />
+              </Button>
+              <TextField
+                label="CSV content"
+                multiline
+                minRows={6}
+                maxRows={16}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
+                placeholder={`${groupExpected}\n…`}
+              />
+              {rows.length > 0 && !result && <Alert severity="success">{rows.length} row(s) parsed and ready to import.</Alert>}
+            </>
+          )}
+
           {result && (
             <DataTable
               rows={result.rows}
               rowKey={(r, i) => `${r.email ?? r.name ?? i}-${i}`}
-              columns={[
-                { key: 'subject', header: kind === 'users' ? 'Email' : 'Name', render: (r) => r.email ?? r.name ?? '—' },
-                { key: 'outcome', header: 'Outcome', render: (r) => <StatusChip status={r.outcome === 'created' ? 'completed' : r.outcome} /> },
+              columns={isUsers ? [
+                { key: 'row', header: '#', align: 'right', render: (r) => r.row ?? '—' },
+                { key: 'email', header: 'Email', render: (r) => r.email ?? '—' },
+                { key: 'outcome', header: 'Outcome', render: (r) => <StatusChip status={r.outcome} /> },
+                { key: 'orgRole', header: 'Org role', render: (r) => r.orgRole ?? '—' },
+                { key: 'credentials', header: 'Credentials', render: (r) => (r.credentialsIssued ? 'Issued' : '—') },
+                { key: 'reason', header: 'Reason', render: (r) => r.reason ?? '—' },
+              ] : [
+                { key: 'subject', header: 'Name', render: (r) => r.name ?? r.email ?? '—' },
+                { key: 'outcome', header: 'Outcome', render: (r) => <StatusChip status={r.outcome} /> },
                 { key: 'reason', header: 'Reason', render: (r) => r.reason ?? '—' },
               ]}
             />
@@ -2048,8 +2246,8 @@ function ImportDialog({
       <DialogActions>
         <Button onClick={onClose}>{result ? 'Close' : 'Cancel'}</Button>
         {!result && (
-          <Button variant="contained" disabled={rows.length === 0 || mut.isPending} onClick={() => mut.mutate()}>
-            Import {rows.length > 0 ? `${rows.length} row(s)` : ''}
+          <Button variant="contained" disabled={!canSubmit || mut.isPending} onClick={() => mut.mutate()}>
+            {isUsers ? 'Import users' : `Import ${rows.length > 0 ? `${rows.length} row(s)` : ''}`}
           </Button>
         )}
       </DialogActions>

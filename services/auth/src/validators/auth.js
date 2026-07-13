@@ -153,6 +153,128 @@ const changePasswordSchema = Joi.object({
 });
 
 /**
+ * Accept invite / activation schema (FEAT-034)
+ * The token is an opaque base64url string (not the 64-hex reset token), so it is
+ * validated only for presence/length here; resolveInvite does the real check.
+ */
+const acceptInviteSchema = Joi.object({
+  token: Joi.string()
+    .required()
+    .max(512)
+    .messages({
+      'any.required': 'Invitation token is required'
+    }),
+  password: Joi.string()
+    .min(8)
+    .max(128)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .required()
+    .messages({
+      'string.min': 'Password must be at least 8 characters',
+      'string.max': 'Password must not exceed 128 characters',
+      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+      'any.required': 'Password is required'
+    }),
+  displayName: Joi.string()
+    .min(1)
+    .max(100)
+    .trim()
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Display name must not exceed 100 characters'
+    })
+});
+
+/**
+ * Public org-signup schema (FEAT-033)
+ * Registers the owner AND carries the org intent (name/type + optional
+ * slug/description). `stripUnknown` on the validate() middleware drops any extra
+ * top-level field (e.g. a client-sent `plan`) BEFORE the handler — a first layer
+ * of the mass-assignment guard; the handler then allowlists, and the engine's
+ * buildOrgPayload is the final guard.
+ */
+const signupSchema = Joi.object({
+  email: Joi.string()
+    .email()
+    .required()
+    .lowercase()
+    .trim()
+    .max(255)
+    .messages({
+      'string.email': 'Please provide a valid email address',
+      'string.max': 'Email must not exceed 255 characters',
+      'any.required': 'Email is required'
+    }),
+  password: Joi.string()
+    .min(8)
+    .max(128)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .required()
+    .messages({
+      'string.min': 'Password must be at least 8 characters',
+      'string.max': 'Password must not exceed 128 characters',
+      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)',
+      'any.required': 'Password is required'
+    }),
+  displayName: Joi.string()
+    .min(1)
+    .max(100)
+    .trim()
+    .optional()
+    .allow('')
+    .messages({
+      'string.min': 'Display name cannot be empty if provided',
+      'string.max': 'Display name must not exceed 100 characters'
+    }),
+  org: Joi.object({
+    name: Joi.string()
+      .min(1)
+      .max(200)
+      .trim()
+      .required()
+      .messages({
+        'string.min': 'Organization name cannot be empty',
+        'string.max': 'Organization name must not exceed 200 characters',
+        'any.required': 'Organization name is required'
+      }),
+    // Public self-service signup is restricted to team/personal. 'enterprise'
+    // (unlimited members, 5yr CA, plan=enterprise) is NOT self-provisionable
+    // without a billing/entitlement gate — it is admin-provisioned only.
+    type: Joi.string()
+      .valid('team', 'personal')
+      .required()
+      .messages({
+        'any.only': 'Organization type must be team or personal',
+        'any.required': 'Organization type is required'
+      }),
+    slug: Joi.string()
+      .max(100)
+      .trim()
+      .lowercase()
+      .pattern(/^[a-z0-9-]+$/)
+      .optional()
+      .allow('')
+      .messages({
+        'string.pattern.base': 'Slug may contain only lowercase letters, numbers, and hyphens',
+        'string.max': 'Slug must not exceed 100 characters'
+      }),
+    description: Joi.string()
+      .max(1000)
+      .trim()
+      .optional()
+      .allow('')
+      .messages({
+        'string.max': 'Description must not exceed 1000 characters'
+      })
+  })
+    .required()
+    .messages({
+      'any.required': 'Organization details are required'
+    })
+});
+
+/**
  * Email verification token schema
  */
 const verifyEmailSchema = Joi.object({
@@ -188,6 +310,8 @@ module.exports = {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  acceptInviteSchema,
+  signupSchema,
   verifyEmailSchema,
   resendVerificationSchema
 };

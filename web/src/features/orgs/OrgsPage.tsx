@@ -3,7 +3,7 @@
  * belong to, and for those you administer (owner/admin) lets you manage members
  * and org-scoped low-code apps. All mutations are authorized server-side.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Stack, Box, Paper, Typography, Button, List, ListItemButton, ListItemText, Chip,
   CircularProgress, Alert, Divider, Tabs, Tab,
@@ -14,32 +14,88 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/app/store';
-import { organizationsApi, canAdminOrg, orgRole, type Organization, type OrgRole } from '@/api/organizations';
+import { organizationsApi, canAdminOrg, orgRole, type Organization, type OrgRole, type OrgTemplate } from '@/api/organizations';
 import { toMessage } from '@/lib/errors';
 import ScopedAppsPanel from '@/features/apps/ScopedAppsPanel';
 
 const ASSIGNABLE_ROLES: OrgRole[] = ['admin', 'member', 'guest'];
 
-function CreateOrgDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (o: Organization) => void }) {
+/** Provisioning templates keyed on org type — helper copy for the type picker. */
+const ORG_TEMPLATES: Array<{ key: OrgTemplate; label: string; help: string }> = [
+  { key: 'enterprise', label: 'Enterprise', help: 'Per-org CA, RBAC groups, a Nexus group and Spark channels.' },
+  { key: 'team', label: 'Team', help: 'Collaborative workspace with groups and channels.' },
+  { key: 'personal', label: 'Personal', help: 'Lightweight personal workspace.' },
+];
+
+function slugifyOrg(s: string): string {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100);
+}
+
+/**
+ * Create an organization for yourself. Converged onto the shared provisioning
+ * engine (provision-self) — one provisioning code path across admin, self-serve
+ * and public signup — so a template (type) must be chosen, not just a name.
+ */
+function CreateOrgDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (orgId: string | undefined) => void }) {
   const [name, setName] = useState('');
+  const [type, setType] = useState<OrgTemplate>('team');
+  const [slug, setSlug] = useState('');
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) { setName(''); setType('team'); setSlug(''); setSlugTouched(false); setDescription(''); setError(null); }
+  }, [open]);
+
+  const slugValue = slugTouched ? slug : slugifyOrg(name);
+  const slugValid = slugValue === '' || /^[a-z0-9-]+$/.test(slugValue);
+  const selected = ORG_TEMPLATES.find((t) => t.key === type)!;
+
   const create = useMutation({
-    mutationFn: () => organizationsApi.createOrg({ name: name.trim() }),
-    onSuccess: (res) => onCreated(res.organization),
+    mutationFn: () => organizationsApi.provisionSelf({
+      name: name.trim(),
+      type,
+      slug: slugValue || undefined,
+      description: description.trim() || undefined,
+    }),
+    onSuccess: (res) => onCreated(res.organizationId),
     onError: (e) => setError(toMessage(e)),
   });
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>New organization</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField label="Name" fullWidth value={name} onChange={(e) => setName(e.target.value)} />
+          <TextField
+            select
+            label="Type / template"
+            fullWidth
+            value={type}
+            onChange={(e) => setType(e.target.value as OrgTemplate)}
+            helperText={selected.help}
+          >
+            {ORG_TEMPLATES.map((t) => <MenuItem key={t.key} value={t.key}>{t.label}</MenuItem>)}
+          </TextField>
+          <TextField
+            label="Slug"
+            fullWidth
+            value={slugValue}
+            onChange={(e) => { setSlugTouched(true); setSlug(e.target.value); }}
+            error={!!slugValue && !slugValid}
+            helperText={!!slugValue && !slugValid ? 'Lowercase letters, numbers and hyphens only.' : 'Used in URLs; leave as suggested or customize.'}
+          />
+          <TextField label="Description" fullWidth multiline minRows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button color="inherit" onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={create.isPending || !name.trim()} onClick={() => { setError(null); create.mutate(); }}>Create</Button>
+        <Button variant="contained" disabled={create.isPending || !name.trim() || !slugValid} onClick={() => { setError(null); create.mutate(); }}>
+          {create.isPending ? 'Creating…' : 'Create'}
+        </Button>
       </DialogActions>
     </Dialog>
   );
@@ -174,7 +230,7 @@ export function OrgsPage() {
         </Stack>
       )}
 
-      <CreateOrgDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={(o) => { setCreateOpen(false); setSelectedId(o.id); qc.invalidateQueries({ queryKey: ['orgs'] }); }} />
+      <CreateOrgDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={(orgId) => { setCreateOpen(false); if (orgId) setSelectedId(orgId); qc.invalidateQueries({ queryKey: ['orgs'] }); }} />
     </Stack>
   );
 }

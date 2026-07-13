@@ -1472,6 +1472,249 @@ are cross-referenced, not re-filed.)*
   Enqueue at FileVault `uploadService.isImage()` where the buffer + encryption flag are already
   in hand. **Blocked-by:** FEAT-030 (correct).
 
+*(Org signup/onboarding + user-import intake — 2026-07-10. Approved by Rick, scope
+clarified via Q&A: BOTH entry points (public self-service wizard + admin-driven
+provisioning), full provisioning (per-org intermediate CA + CA directory group +
+owner account/roles/cert/org-scoped token + default RBAC group + Nexus group with
+spark binding + per-member cert/token), full import upgrade (org-aware, invite
+emails, server-side CSV, group-assignment columns), per-org-type provisioning
+templates. Grounded in a code audit run today — file/line cites in each ticket.
+FEATs filed `backlog` with `Cost/Benefit: pending`; the cost-benefit-analyzer runs
+immediately after this filing — per the gate none can leave `backlog` until its
+assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
+(wizard/admin entry points) and ← **FEAT-035** (import member provisioning);
+**FEAT-034** (invite flow) ← **FEAT-035** (import invite emails).)*
+
+### FEAT-032 — Organization provisioning engine + per-type templates (backend core)
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Owner-role:** sr-developer · **Blocked-by:** — *(systems-architect + dba sign-off required before commit — cross-module auth↔CA↔nexus writes + an ALTER on the existing auth `organizations` table)*
+- **Legacy:** — (productizes the batch seed path `scripts/seed/seed-main.js`; Rick approval 2026-07-10)
+- **Landed (sr-developer · 2026-07-11 · branch `feat/org-signup-provisioning`):** Provisioning engine shipped — `src/provisioning/engine.js` (saga S0–S9 with compensation) + `src/provisioning/templates.js` (per-type map) + `src/provisioning/ledger.js`, a new auth `ProvisioningRun` ledger, a CA directory service (`services/ca/services/directory.js`), and the `memberProvisioningService.provisionMemberCredentials` member-add hook (consumed by FEAT-034/035). **Slice 2 folded in:** nexus social group + spark channels (S7/S8) shipped in the same pass behind a per-template `nexus.create` flag (enterprise/team on) with compensation — decomposition completed in one pass, so **no separate slice-2 ticket is needed**. **ADR-0003** written (`docs/adr/0003-...`). **Migrations applied to `exprsn`:** `organizations.ca_group_id` ALTER (run directly per the sync-migrate trap) + `provisioning_runs` table; `db:check` clean. **Adversarial review (5 lenses) → fixed:** (crit) resume-after-compensation ledger corruption; (high) revoked-cert reuse in the member hook; (high) sibling `POST /organizations` mass-assignment; (med) migration index-guard. Two items **accepted as documented deviations in ADR-0003** — the engine open-codes some auth-model writes via a downward lazy require (acyclic; → TASK-027) and the template token `resourceValue '/'` is bounded by org scope. **Verification:** 37 provisioning tests green (happy×3, S1–S7 rollback matrix, compensation-fails, idempotency incl. retry-after-compensation, preflight aborts, linkage-token, mass-assignment, member hook). **Cross-cutting (whole branch):** full auth suites 103/103 (userImport + invite + signup-policy + equivalence + organization + session), provisioning 37/37, `web:build` green, `db:check` clean (auth 17 models, no drift), `lint` 0 errors. Follow-up filed: **TASK-027** (façade cleanup — ADR-0003 RC-1/RC-5 accepted deviation). Now **in-review** awaiting the human QA/merge gate (qa-specialist moves in-review→done).
+- **Cost/Benefit:** done — **proceed, decomposed: engine core (slice 1, L) now; nexus group + spark channel binding as slice 2.** As written this is **XL** (the ticket's own note predicts it) — per README an XL must be broken down before `ready`. The CA primitives and `scripts/seed/seed-main.js` prove every step of the chain, but the orchestration is a request-scoped rewrite, not a lift: the seed is batch/manifest-resume with forked cert/token workers, has no rollback, and mints a **root CA per org** where this ticket wants per-org intermediates under the platform root. The nexus+spark piece is verified net-new coupling (nexus `Group` has no spark-binding field — only generic `metadata`). Backbone of FEAT-033/035 — sequence first in the chain.
+- **Cost/Benefit assessment (cost-benefit-analyzer · 2026-07-10): proceed — decompose; build slice 1 first.**
+  - **Cost — XL as written; L once decomposed.** Genuinely reusable (verified): entity-cert issuance (`certificateService.createEntityCertificate`, `services/ca/services/certificate.js:263`), root/intermediate issuance (`services/ca/api.js:455,488,562`), org-scoped token issuance with `organizational_unit`/`department` scoping (`services/ca/services/token.js:32,84-111`), and `organizationService.createOrganization`. Rewrite, not reuse: the request-scoped orchestration itself — `seed-main.js` is batch/manifest/fork-worker, idempotent by resume (not by transaction), and its root-per-org topology differs from the intermediate-under-platform-root this ticket specifies. The hard design cost is **transactionality across auth ↔ CA ↔ nexus**: each module owns its own Sequelize instance/schema, so no single wrapping transaction exists as wired — this is a saga with documented compensation + an idempotency key, and that (plus invocation style, in-process vs `SERVICE_TOKEN_SECRET` HMAC HTTP) is the real content of the required architect ADR. Data cost: the linkage column on the **existing** auth `organizations` table is an ALTER (run the migration `up()` directly, `db:check` after — the documented sync-migrate trap); any template table is new and safe under sync. Hardcoded template map keyed on the existing `enterprise/team/personal` ENUM is cheap; admin editability correctly deferred.
+  - **Complexity/risk.** Partial-failure orphans (org row commits, CA issuance fails) are the top failure mode — the AC's tested rollback/compensation is the right mitigation, and QA effort there is real (the non-blocking `test:all` suite is not coverage). New cross-module coupling auth↔CA↔nexus (↔spark in slice 2). Per-org RSA keygen is CPU-noticeable but fine at in-house scale. No new unauthenticated surface (admin/service-HMAC callers only, per AC) — good.
+  - **Infra/ops & maintenance.** No new process or queue. Key-material growth (one intermediate key per org) must follow existing CA storage practice. The engine becomes a long-lived chokepoint consumed by FEAT-033 and FEAT-035 — maintenance concentrates here, which is the point (exactly one provisioning path), but regressions blast-radius across signup and import.
+  - **Value — HIGH.** The only end-to-end provisioning today is a seed script; this productizes it and closes the real auth-Organizations ↔ `ca.groups` split that token-spec v1.1 org scoping already depends on. Hard prerequisite of both approved entry points (FEAT-033) and import provisioning (FEAT-035) — highest-leverage ticket in the chain.
+  - **Cheaper alt / smaller slice.** Cheaper alt — lazy linkage (create the CA group/intermediate on first org-scoped token issuance; no engine): **rejected** — spreads provisioning logic across paths, provides no member hook, and doesn't deliver the approved full-provisioning requirement. Smaller slice — **slice 1 (L):** org row + owner membership/roles, CA `organizational_unit` group, per-org intermediate under the platform root, persisted auth-org↔CA-group linkage, owner entity cert + org-scoped token, default auth RBAC group(s), member-add hook, hardcoded template map. **Slice 2 (M):** nexus social group + spark channel binding — drags a 4th module in and needs a place to persist the binding (nexus `Group` has only `metadata` JSONB today); file it as its own ticket at grooming.
+  - **Verdict — build now (slice 1), decomposed.** Confirming the ticket's own XL suspicion: split before `ready`. Sequence first; FEAT-034 can run in parallel.
+  - **Handoffs — systems-architect:** ADR must cover invocation style **and** the compensation/saga strategy **and** the intermediate-vs-root topology delta from the seed precedent. **dba:** `organizations` ALTER (direct `up()` + `db:check`), template table, and review of compensation deletes. **sr-developer** implements; **qa-specialist:** partial-failure/rollback matrix is the core of the test plan.
+  - **Caveat — capacity.** The 2026-08 sr track already carries BUG-010 + FEAT-010 with FEAT-011 next-to-pull; this chain (032 → 033/034 → 035) is 3–4 weeks of mostly-sr work — do not pull it wholesale into the current sprint.
+- **Description:** Today `POST /api/organizations`
+  (`services/auth/src/routes/organizations.js:18`) creates only the org row +
+  owner membership + org-owner role via `organizationService.createOrganization`.
+  CA has a **separate, disconnected** org notion — `ca.groups` rows of type
+  `organizational_unit`/`department`, used by token-spec v1.1 org scoping
+  (`services/ca/services/token.js:32,84-111`) — and auth Organizations are not
+  linked to it. Certificates are per-user only; root/intermediate/entity issuance
+  exists (`services/ca/api.js:455,488,562`;
+  `certificateService.createEntityCertificate`,
+  `services/ca/services/certificate.js:263`). The ONLY end-to-end provisioning
+  today is the batch seed script `scripts/seed/seed-main.js` (root CA per org,
+  intermediate per org, entity cert per user, tokens per user via
+  `cert-worker.js`/`token-worker.js`) — this ticket productizes that as a
+  one-shot, transactional **provisioning engine**: org row; CA directory group
+  (`organizational_unit`) + per-org intermediate CA under the platform root;
+  owner/admin account with org-owner/org-admin roles + entity certificate +
+  org-scoped CA token; default auth RBAC group(s); a Nexus social group with
+  spark channel binding; and a persisted auth-org↔CA-group linkage (e.g. the CA
+  group id stored on the auth `Organization`) — created here for the first time.
+  Plus **per-org-type provisioning templates** keyed on the existing `type` enum
+  `enterprise/team/personal` (`services/auth/src/models/Organization.js`),
+  controlling which groups/policies/cert depth/limits get provisioned —
+  hardcoded to start, admin-editable later. Also a **member-add hook**: every
+  member added (or imported) gets an entity cert + org-scoped token.
+- **Acceptance criteria:**
+  - A single engine call provisions, transactionally (with documented + tested
+    rollback/compensation for partial failure — e.g. CA issuance failing after
+    the org row commits): org row + owner membership/roles, CA
+    `organizational_unit` group, per-org intermediate CA under the platform
+    root, owner entity cert + org-scoped CA token, default auth RBAC group(s),
+    and a Nexus group with spark channel binding.
+  - The auth `Organization` persists the CA-group linkage; an org-scoped token
+    issued through that linkage validates per token spec v1.1 (org scoping
+    honored).
+  - Templates per org type (`enterprise`/`team`/`personal`) select the
+    provisioned groups/policies/cert depth/limits; the hardcoded template map is
+    covered by tests (admin editability explicitly out of scope — follow-up).
+  - Adding a member to a provisioned org issues that member an entity cert + an
+    org-scoped token, exposed as a callable hook (consumed by FEAT-035 import).
+  - Module invocation style (in-process require vs `*_SERVICE_URL` HTTP with
+    `SERVICE_TOKEN_SECRET` HMAC) is decided by a systems-architect ADR **before
+    build** (FEAT-023/ADR-0001 is the precedent); routes verified against
+    `API_SURFACE.md` before wiring.
+  - Schema: the linkage column on the **existing** `organizations` table is an
+    ALTER — its migration `up()` is run directly (sync `db:migrate` will NOT
+    ALTER) and `npm run db:check` is clean after; any new tables (e.g. persisted
+    templates) are fine under sync `db:migrate`.
+  - No new open/unauthenticated surface — the engine is invoked only by
+    authenticated admin or service-HMAC callers; security invariants unchanged.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** **Structural + data**:
+  cross-module writes across auth ↔ CA ↔ nexus (+ spark channel binding) →
+  **systems-architect** sign-off + ADR on invocation style; the `organizations`
+  ALTER + any template table → **dba** sign-off. This is the backbone both entry
+  points (FEAT-033) and import provisioning (FEAT-035) call — sequence it
+  **first**. Sized **L** but at the XL boundary: if architect scoping confirms
+  XL, decompose (engine core / nexus+spark binding / templates) before `ready`
+  per README. Route to sr-developer once assessed.
+
+### FEAT-033 — Org signup entry points: public self-service wizard + admin "provision organization" flow
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-032 (provisioning engine — both entry points compose it)
+- **Legacy:** — (Rick approval 2026-07-10 — entry points: BOTH)
+- **Landed (sr-developer · 2026-07-11 · branch `feat/org-signup-provisioning`):** Both approved entry points shipped over the one FEAT-032 engine. New `signupPolicyService` (fail-closed, platform-org scoped); public `POST /auth/api/auth/signup` + `GET /auth/api/auth/signup-policy` + `POST /auth/api/auth/provision-self` (converges the in-app `/orgs` create onto the same engine); verify-before-provision on verify-email; admin "Provision organization" structured form + public multi-step `SignupWizardPage` (`/signup`). **Single-code-path guarantee held:** admin, wizard, and `/orgs` all call the same engine (equivalence test). **Review (2 lenses) → fixed:** (CRIT) `toSafeObject` leaked `emailVerificationToken` in the signup 202 (self-verify bypass) — now stripped for all callers; (high) idempotency key was slug-only → cross-user org hijack, now **owner-scoped** in all provisioning routes; (med) verify-email missing rate limiter (added); (med) anonymous enterprise signup (restricted to team/personal); (med) signup-policy tenant-org fallback (removed → hard fail-closed); (med) orphaned user on failed signup (now deleted for retry); (med) verify-email recoverability. **Verification:** 29 tests green (signup-policy + equivalence + token-not-leaked + owner-scoped-key regressions); whole-branch cross-cutting verification recorded on FEAT-032. Now **in-review** awaiting the human QA/merge gate.
+- **Cost/Benefit:** done — **proceed, sliced by half: admin "provision organization" flow first (M, groom with FEAT-032), public self-service wizard next (M).** Both halves stay in scope — the public wizard is an approved requirement; this is sequencing, not descoping. Verified: the SPA has no signup route at all (`web/src/app/router.tsx` — login only) and `allowUserRegistration` is consumed by nothing today (model default + admin form only), so the policy-gate AC is a first-ever consumer, not a rewire. The public half's anonymous endpoint is a resource-amplification surface (each signup mints an org + intermediate CA + certs) — priced as risk/hardening cost below, not grounds to reject.
+- **Cost/Benefit assessment (cost-benefit-analyzer · 2026-07-10): proceed — admin slice first, wizard second.**
+  - **Cost — L confirmed (two ~M halves).** **Admin half (M, skews low):** replace/extend the name-only create dialogs (admin AuthSection Organizations tab + in-app `/orgs` page) with a structured form invoking the FEAT-032 engine + org-type/template picker — authenticated, existing admin-SPA patterns, no new anonymous surface, satisfies the no-JSON-only-modals rule cheaply. **Public half (M):** new anonymous backend endpoint composing register (`services/auth/src/routes/auth.js:41`; `strictLimiter` already guards `/register` — reusable pattern) + the engine; a multi-step SPA wizard + new public route; fail-closed `allowUserRegistration` consumption; `requireEmailVerification` honoring; plus the frontend publish lane (`web:build` + nginx recreate) as its own cost.
+  - **Complexity/risk.** The anonymous org-signup endpoint is the platform's most expensive-per-request anonymous write: RSA keygen for an intermediate CA + cert + rows across three schemas per signup. Mitigations to price in (not blockers): rate limit per AC, provision-after-email-verification ordering, and per-email/IP org caps. Exposure reality: there is **no public deployment yet** (in-house, dev TLS) — real abuse exposure begins at release, so tie the abuse-hardening checklist to the release-engineering track (R1–R6) rather than gating the build. Fail-closed policy gate + no security-invariant changes per AC.
+  - **Infra/ops.** Nothing new beyond the engine; ongoing cost is owning a public anonymous surface once deployed (rate-limit tuning, abuse response).
+  - **Value.** Admin flow = immediate operator value — today the only full provisioning is a seed script, and the name-only dialog creates half-provisioned orgs. Public wizard = launch-required, but has **zero users until a public deployment exists** — exactly why it can trail the admin slice without losing any realized value.
+  - **Cheaper alt / smaller slice.** Cheaper alt — skip the wizard; let users register then create an org via an engine-upgraded `/orgs` dialog: **rejected** (Rick approved BOTH entry points), but it confirms admin-first captures most near-term value. Smaller slice — ship the admin half with/immediately after FEAT-032; wizard as the next slice. The single-code-path AC (both entry points call the same engine) is the load-bearing guarantee — hold it in review.
+  - **Verdict — build now (admin slice), build next (public wizard).** Strictly after FEAT-032.
+  - **Handoffs — systems-architect:** review the new anonymous write surface at grooming (flagged in the ticket notes — correct). **product-manager:** decide verify-email-before-provision ordering for the wizard UX. **qa-specialist:** `allowUserRegistration` both-states test, rate-limit behavior, and the wizard-vs-admin same-engine equivalence.
+- **Description:** `POST /api/auth/register` exists
+  (`services/auth/src/routes/auth.js:41`) — it creates user + CA token + session
+  + emails, but no roles/certs/org — and the SPA has **no signup page at all**
+  (login only; `web/src/app/router.tsx`). The `allowUserRegistration` org-policy
+  toggle exists in admin but **nothing consumes it**. Org creation UI today is
+  the admin AuthSection Organizations tab plus a name-only create dialog on the
+  in-app `/orgs` page. Build both approved entry points over the FEAT-032
+  engine: (a) a **public self-service org signup wizard** in `web/` — anonymous
+  user creates account + org in one flow via a new backend endpoint composing
+  register + the provisioning engine, gated by `allowUserRegistration` and
+  honoring `requireEmailVerification`; (b) an **admin-driven "provision
+  organization" flow** in the admin SPA that invokes the **same** engine
+  (replacing/extending the name-only dialog), so there is exactly one
+  provisioning code path.
+- **Acceptance criteria:**
+  - An anonymous user completes the SPA wizard (account + org details + org
+    type) and lands in a fully provisioned org (per the FEAT-032 engine
+    guarantees) as its owner; `requireEmailVerification` is honored when set.
+  - `allowUserRegistration` is actually consumed: when disabled, the signup
+    endpoint rejects **fail-closed** and the SPA hides/disables the wizard entry
+    point; a test covers both states.
+  - The admin "provision organization" flow calls the same engine — no second
+    divergent provisioning path; the org type selects the FEAT-032 template.
+  - The wizard and admin dialog are structured forms bound to live data (the
+    "no JSON-only modals" rule), with per-step validation.
+  - The new anonymous signup endpoint is rate-limited; routes verified against
+    `API_SURFACE.md`; security invariants unchanged (no weakening of
+    `DEV_BYPASS`/CORS/error-handler; the endpoint is the only new anonymous
+    surface and is policy-gated).
+- **Notes:** FEAT — **Cost/Benefit gate applies.** Sequenced strictly after
+  FEAT-032 (it is a composition layer — wizard/endpoint + admin UI). The public
+  half is a **new anonymous write surface** — call that out to the architect at
+  grooming even though the engine itself is FEAT-032's structural review. Sized
+  **L** (multi-step SPA wizard + new endpoint + admin flow rework); route to
+  sr-developer once assessed.
+
+### FEAT-034 — Invite & activation token flow in auth (set-password / activation links)
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** — *(dba sign-off — new invite table in the `auth` schema; new table only, safe under sync `db:migrate`)*
+- **Legacy:** — (Rick approval 2026-07-10 — prerequisite for import invite emails)
+- **Build (sr-developer · 2026-07-11 · branch `feat/FEAT-034-invite-flow`):** Implemented per plan. New `auth.invitations` table (single-use, sha256-hashed-at-rest, 72h-expiring, superseded-on-reinvite) + parity migration `20260711000001-create-invitations.js`; `inviteService` (`createInvite`/`resolveInvite`/`acceptInvite`/`listInvites`/`revokeInvite`); public `POST /auth/api/auth/accept-invite` (strictLimiter, token-gated — the only new unauthenticated surface); admin `POST`/`GET`/`DELETE /auth/api/users/invites` (CA-token + admin, literal-before-`:id`); `emailService.sendInvitationEmail`/`sendActivationEmail` + 4 templates; SPA `/accept-invite` set-password page; `acceptInvite` wraps user-upsert+status-flip in one txn, FEAT-032 `provisionMemberCredentials` hook called best-effort outside the txn when `organizationId` set. **Verification:** `npm run lint` 0 errors; `npm run db:migrate` + `npm run db:check` clean (auth 17 models, no drift); `tests/invite.test.js` **16/16 pass** (full token-state matrix T1–T12 + accept-route non-enumeration + weak-password) via `AUTH_DB_NAME=exprsn_auth_test`; `npm run web:build` green; API_SURFACE.md rows added. **QA:** token-state matrix + rate-limit on accept (strictLimiter is mocked-off in the auth Jest setup — verify the 429 in a live/un-mocked check).
+- **Adversarial review + fixes (sr-developer · 2026-07-11 · branch `feat/org-signup-provisioning`):** Merged onto the org-signup branch and hardened. **Review (2 lenses) → fixed:** (high) account-takeover — the invite path is now **create-only**, activation is bound to its `userId`, and suspended accounts cannot be reactivated; (med) single-use TOCTOU race (row lock + re-assert); (med) MFA-bypass vector (closed by never touching existing accounts); (med) guest over-grant (`roleToSystemSlug` returns null for guest → membership-only). **Verification:** 18 invite tests green incl. account-takeover + suspended + supersede regressions (up from the initial 16/16); whole-branch cross-cutting verification recorded on FEAT-032. Stays **in-review** awaiting the human QA/merge gate.
+- **Cost/Benefit:** done — **build now; M confirmed, skews low.** Cheapest ticket in the chain and the best parallel lane: independent of FEAT-032, hard prerequisite of FEAT-035's invite mode. Everything is pattern reuse inside auth — the invite table is a **new** table (safe under sync `db:migrate`, no ALTER trap), the hashed single-use expiring token mirrors the existing password-reset flow, and `emailService` already ships five templates (verification/reset/welcome/security-alert/MFA) to pattern two more on. Nexus `GroupInvite` is correctly treated as a shape reference only.
+- **Cost/Benefit assessment (cost-benefit-analyzer · 2026-07-10): build now.**
+  - **Cost — M, skewing low.** New invite table in the `auth` schema; create/accept/list/revoke endpoints; two templates on the existing `emailService`; one small SPA set-password/activation page. No queue, no worker, no ALTER, no cross-module writes. One design rule that keeps FEAT-035 cheap later: implement invite creation as a **service function first, HTTP route second**, so batch import calls the function directly instead of looping HTTP.
+  - **Complexity/risk — LOW.** The token-gated accept endpoint is the only new unauthenticated surface — rate-limited, single-use, expiring, hashed at rest per AC; same risk class as the existing reset/verify endpoints. The expired/revoked/reused rejection matrix in the AC is the whole test plan.
+  - **Infra/ops.** None new; email deliverability is the existing `emailService`'s existing problem.
+  - **Value.** Hard prerequisite for FEAT-035's invite-email mode **plus** standalone value now: real org-member invites (today "invite" is just add-member with attribution) and the end of the random-password import UX.
+  - **Cheaper alt / smaller slice.** Core = create + email + accept + expiry/revoke semantics + tests. Defer the list/revoke **admin UI** (ship endpoints only) and any resend/reminder polish. Staffing alt: viable **jr-developer with sr review** if the AC stays crisp (per the ticket's own note) — cheapest staffing in the chain.
+  - **Verdict — build now;** parallelize with FEAT-032 and land no later than the sprint before FEAT-035.
+  - **Handoffs — dba:** light review, new table only. **qa-specialist:** token-state matrix + rate-limit on accept.
+- **Description:** No invite/activation-token flow exists in auth today —
+  `emailService` has verification/welcome/reset templates only, and org
+  "invites" are just add-member with `invitedBy` attribution. (Nexus groups DO
+  have an invite-code flow — `services/nexus/src/models/GroupInvite.js`,
+  `membershipService.js:141-205,380` — a reference pattern, but it lives in the
+  nexus schema and is not reusable for auth accounts.) Build a real invite +
+  activation token flow in auth: an invite table, invite creation by org/platform
+  admins, invite + activation emails with set-password/activation links, and a
+  token-gated acceptance endpoint that sets the password and activates the
+  account. Used by org member invites and by user import (FEAT-035's
+  invite-email mode).
+- **Acceptance criteria:**
+  - A new invite table exists in the `auth` schema (new table — sync
+    `db:migrate` creates it; no ALTER trap); tokens are single-use, expiring,
+    and hashed at rest.
+  - Endpoints: create invite (authenticated org-admin/platform-admin with
+    proper authz), accept/activate (token-gated public endpoint that sets the
+    password and activates the account), and list/revoke; routes verified
+    against `API_SURFACE.md`.
+  - Invite/activation email templates ship via the existing `emailService`;
+    the link lands on a new SPA set-password/activation page that completes the
+    flow.
+  - An expired, revoked, or already-used token is rejected with a
+    correlation-id'd error; a test covers each case plus the happy path.
+  - The token-gated accept endpoint is the only new unauthenticated surface and
+    is rate-limited; security invariants unchanged.
+  - The flow is callable programmatically for batch use (FEAT-035 import
+    invite-email mode).
+- **Notes:** FEAT — **Cost/Benefit gate applies.** Independent of FEAT-032 —
+  parallelizable with it — but a **hard prerequisite of FEAT-035's invite-email
+  mode**, so sequence it no later than the import ticket. **dba**: new table
+  only (safe under sync `db:migrate`). Sized **M**; route to sr-developer (new
+  auth surface), or jr with sr review if the acceptance stays crisp.
+
+### FEAT-035 — User import v2: server-side CSV, org-aware roles, queued large imports, invites + provisioning
+- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-032 (per-member cert/token provisioning hook) · FEAT-034 (invite-email mode) — *the server-side CSV/validation core can start ahead of both, but the ticket is not `done` without them; dba sign-off — Bull queue + import-job state*
+- **Legacy:** — (Rick approval 2026-07-10 — user import: ALL upgrades)
+- **Landed — Slice A (sr-developer · 2026-07-11 · branch `feat/org-signup-provisioning`):** Server-side streamed CSV import shipped — `multer` (8MB) + `csv-parse` (2000-row synchronous cap), new `userImportService` (parse/validate/resolveImportContext/runImport), rewritten multipart `POST /auth/api/users/import`, org-aware per-row roles + org-admin authz boundary + owner-import policy (owner never assignable by org admins; platform-admin gated behind `allowOwner` and never mutates `Organization.ownerId`), `auth_group` assignment, and lazy flag-gated seams for invite-mode + `provisionCredentials` (FEAT-032 hook) + `nexus_group`; SPA switched to raw-file `ImportDialog`. Also **fixed the shared `addMember` always-org-member bug** (now role-appropriate). **Bull queue deferred** (documented >2k seam → TASK-029). **Review (2 lenses) → fixed:** (CRIT) platform-admin determination honored org-scoped `admin` roles → cross-tenant escalation; fixed **at the shared root** — `hasAdminRole` (`shared/middleware/requireAdmin.js`) + `isAdminUser` (`services/auth/src/routes/users.js`) now require GLOBAL-scoped role bindings; (med) post-create steps made best-effort (no false `failed`); (med) `provisionCredentials`+invite combination now rejected; (low) `nexus_group` cross-tenant hardening documented as a pre-enable requirement (→ TASK-028). **Verification:** 23 import tests green incl. the org-scoped-admin-no-bypass regression; whole-branch cross-cutting verification recorded on FEAT-032. Follow-ups filed: **TASK-028** (harden `nexus_group` authz before enabling `USER_IMPORT_NEXUS_ASSIGN`), **TASK-029** (Bull-queued >2k slice B), **TASK-030** (dedupe `isAdminUser` onto shared `hasAdminRole`). Now **in-review** awaiting the human QA/merge gate.
+- **Cost/Benefit:** done — **smaller slice: build the server-side CSV core (M) — streamed raw-CSV endpoint, raised synchronous cap (~2k documented), validation/dedup report, org-aware roles + org-admin authz, SPA raw-file upload — and defer the Bull queue lane behind a revisit trigger.** Invite mode and per-member provisioning complete as FEAT-034/032 land (the core is independently buildable ahead of both, per the Blocked-by note). Full ticket is L skewing high **because of** the queue: Bull is proven platform-wide (moderator/prefetch/timeline/live) and moderator's in-process consumers mean no new worker process is strictly required, but auth has **zero** Bull usage today (verified) — a queue there is new module infra + a dba-owned job-state table, not free reuse, and queued >2k-row imports are speculative at in-house scale.
+- **Cost/Benefit assessment (cost-benefit-analyzer · 2026-07-10): smaller slice / phased.**
+  - **Cost — full L (skews high); core slice M.** Baseline verified: `POST /api/users/import` (`services/auth/src/routes/users.js:119-156`) is a JSON array with a hard 500-row `slice`, random passwords, no org/roles/emails, and the SPA parses CSV client-side (`ImportDialog`). Core slice: multipart/streamed CSV endpoint (+ a small parser dep), per-row validation + dedup report (v1's `created/skipped/failed` row report extends naturally), raised documented synchronous cap, per-row org role mapping onto `OrganizationMember`, org-admin-runnable authz, SPA switch to raw-file upload. Deferred lane: Bull queue + import-job state table + progress/status endpoint. Group-assignment columns add cross-module writes — the Nexus side wants FEAT-032's linkage, so it lands with the fast-follows.
+  - **Complexity/risk.** The **org-admin authz change is the security-relevant piece**: an org admin must be provably unable to import into another org (the AC's boundary test) and per-row `owner` role assignment needs an explicit policy decision at grooming (importing owners is privilege escalation by CSV — recommend org admins may not mint `owner`/`admin` rows above their own role). Second hard rule: stream, never buffer unbounded — the AC has it. Watch the ALTER trap only if an existing auth table gains a column (none expected in the core slice).
+  - **Infra/ops.** Core slice: none. Queue lane (when triggered): Bull queue in a module that has none today, job-state retention/cleanup, progress endpoint — real ongoing footprint for an unproven need.
+  - **Value.** Real and concentrated in the core: the 500 cap, client-side parsing, and random passwords are today's actual operator pain. Org-aware import is what makes FEAT-032 orgs administrable at scale. The >2k queued path has no demonstrated demand yet — classic build-later.
+  - **Cheaper alt / smaller slice.** **Slice A (M, start any time):** server-side streamed CSV + ~2k sync cap + validation/dedup report + org-aware roles/authz + SPA raw upload. **Fast-follows as deps land:** invite-email mode (FEAT-034), per-member cert/token via the FEAT-032 hook, RBAC/Nexus group columns. **Deferred:** Bull queue + job-state table + progress endpoint — revisit trigger: a real import >2k rows, or the synchronous path exceeding a request-timeout budget in practice.
+  - **Verdict — smaller slice / phased.** Build slice A when capacity allows (independent of 032/034); the ticket reaches `done` as the dependency-gated modes land; the queue stays deferred until the trigger fires.
+  - **Handoffs — dba:** queue + state table review if/when triggered; nothing in slice A should ALTER an existing table — flag immediately if it does. **product-manager:** the org-guest semantics + owner-import policy calls at grooming (both flagged in the AC). **qa-specialist:** authz boundary test, report shape, large-file streaming behavior. **systems-architect:** only if group-assignment wiring crosses modules beyond the FEAT-032 contract.
+- **Description:** The existing import is admin-only `POST /api/users/import`
+  (`services/auth/src/routes/users.js:119`) — a JSON array with a 500-row cap,
+  random passwords, no org/roles/emails — and the admin SPA parses CSV
+  **client-side** (`web/src/features/admin/sections/AuthSection.tsx:1975`,
+  `ImportDialog`) before hitting it. (CSV **export** already exists
+  server-side.) Upgrade to import v2: a server-side raw-CSV endpoint with
+  streaming parse, validation + dedup reporting, a raised row cap with queued
+  processing for large files; **org-aware** import (into an org, per-row role
+  `owner/admin/member/guest`, runnable by **org admins** for their own org, not
+  just platform admins); CSV columns for auth RBAC-group and Nexus-group
+  assignment; an optional invite-email mode (FEAT-034) replacing random
+  passwords; and optional per-member entity-cert + org-scoped-token provisioning
+  via the FEAT-032 member hook.
+- **Acceptance criteria:**
+  - A server-side endpoint accepts raw CSV (multipart/stream) and parses it
+    server-side; the admin SPA `ImportDialog` uploads the raw file (client-side
+    parsing removed for this path); routes verified against `API_SURFACE.md`.
+  - The response/report covers validation per row (row number + reason) and
+    dedup against existing users; nothing is partially applied silently.
+  - Row cap raised beyond 500; imports above a documented threshold run as a
+    queued (Bull) job with a progress/status endpoint — large files are
+    streamed, never buffered unbounded; **dba** signs off the queue + any
+    import-job state table before commit.
+  - Org-aware: rows import into a target org with per-row role
+    `owner/admin/member/guest` (mapped onto the existing `OrganizationMember`
+    roles + org-guest semantics agreed at grooming); an **org admin** can run an
+    import scoped to their own org, and a test proves they **cannot** import
+    into another org (authz enforced server-side).
+  - CSV columns assign auth RBAC group(s) and Nexus group membership per row;
+    invalid group refs surface in the validation report.
+  - Invite-email mode: instead of random passwords, each imported user gets a
+    FEAT-034 set-password invite; per-member cert + org-scoped-token
+    provisioning is invoked via the FEAT-032 hook when enabled.
+  - Tests: validation/dedup report shape, org-admin authz boundary, a queued
+    large import completing end-to-end, and group-assignment columns applied.
+- **Notes:** FEAT — **Cost/Benefit gate applies.** Depends on **FEAT-032** (the
+  member provisioning hook) and **FEAT-034** (invite emails) — sequence last in
+  the chain, though the CSV/validation/queue core is independently buildable if
+  the analyzer recommends slicing. **dba** owns the Bull queue + import-job
+  state review (new tables safe under sync `db:migrate`; watch the ALTER trap if
+  any existing auth table gains a column). Authz change (org-admin-runnable) is
+  security-relevant — include it in review. Sized **L**; route to sr-developer
+  once assessed.
+
 ---
 
 ## Bugs
@@ -2320,6 +2563,100 @@ sign-off.)*
     exported function calls a nonexistent service method.
 - **Notes:** Filed 2026-07-07 from the TASK-002 report. Dead-code hygiene, S,
   jr-developer candidate.
+
+*(Org signup/provisioning chain follow-ups — filed 2026-07-11 from the
+FEAT-032/034/035 adversarial-review + deferral notes, branch
+`feat/org-signup-provisioning`. Cross-linked to the parent FEATs. No C/B gate —
+these are TASKs; the deferred queue lane (TASK-029) was already assessed and
+deferred inside FEAT-035's Cost/Benefit, so it is filed as a TASK, not a fresh
+FEAT.)*
+
+### TASK-027 — Provisioning engine façade cleanup: move S1 auth-model writes behind an auth-published transactional service
+- **Type:** task (tech-debt) · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Relates:** FEAT-032 · ADR-0003 (RC-1/RC-5 accepted deviations)
+- **Description:** FEAT-032's `src/provisioning/engine.js` open-codes some auth
+  step-S1 model writes via a **downward lazy require** into the auth module —
+  acyclic, and accepted as a documented deviation in ADR-0003 (constraints
+  RC-1/RC-5). Close the façade boundary by moving those writes behind an
+  auth-owned/published transactional service the engine calls, so the engine no
+  longer reaches into auth's model layer directly.
+- **Acceptance criteria:**
+  - The S1 auth-model writes in `engine.js` go through an auth-published
+    transactional service interface, not a direct require of auth models from the
+    engine.
+  - Saga behavior is unchanged — incl. the S1 rollback/compensation path; the 37
+    provisioning tests still pass.
+  - ADR-0003 RC-1/RC-5 are updated to reflect the boundary is closed (or the
+    residual is re-documented if a full close isn't taken).
+- **Notes:** Accepted-deviation follow-up from FEAT-032's adversarial review —
+  hygiene, not a defect (the deviation is documented + acyclic). Touches the
+  cross-module façade → **systems-architect** should confirm the published-service
+  shape before build. Sized **S**; route to sr-developer.
+
+### TASK-028 — Harden nexus_group import authz before enabling `USER_IMPORT_NEXUS_ASSIGN`
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Relates:** FEAT-035 (review finding #5) — **gates the `USER_IMPORT_NEXUS_ASSIGN` flag**
+- **Description:** FEAT-035 shipped the per-row Nexus-group assignment column behind
+  a lazy, flag-gated (`USER_IMPORT_NEXUS_ASSIGN`, default off) seam. Before that
+  flag is ever enabled, the import must resolve the target group **within the
+  target org's linked nexus group** and **verify the acting importer's authority**
+  over it — otherwise an org-scoped importer could assign members into a nexus
+  group outside their tenant (documented in the FEAT-035 review as a pre-enable
+  requirement).
+- **Acceptance criteria:**
+  - Nexus-group assignment during import resolves the group inside the target
+    org's linked nexus group (via the FEAT-032 org↔nexus linkage), not by raw
+    group id/name across tenants.
+  - The importer's authority over the target nexus group is verified server-side;
+    a cross-tenant assignment attempt is rejected, with a test proving it.
+  - `USER_IMPORT_NEXUS_ASSIGN` is only recommended for enablement after this lands;
+    routes verified against `API_SURFACE.md`.
+- **Notes:** Security-hardening pre-enable requirement (the flag is off today, so
+  not release-blocking now → **P2**). Cross-module authz (auth import ↔ nexus
+  group) → loop **systems-architect** at grooming. Sized **S**; route to
+  sr-developer.
+
+### TASK-029 — User import v2 slice B: Bull-queued large imports (>2000 rows) + import-job state + progress endpoint
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Relates:** FEAT-035 (deferred queue lane) · **Blocked-by:** — *(dba sign-off — Bull queue in a module with none today + a new import-job state table)*
+- **Description:** FEAT-035 slice A capped synchronous import at ~2000 rows
+  (`csv-parse` cap) and **deferred** the large-file lane. This is that lane: a Bull
+  queue (auth has **zero** Bull usage today — new module infra, not free reuse) for
+  imports above the documented threshold, a persisted import-job state table, and a
+  progress/status endpoint; large files stream, never buffer unbounded.
+- **Acceptance criteria:**
+  - Imports above the documented row threshold run as a queued Bull job with a
+    progress/status endpoint; the synchronous path stays for small files.
+  - A new import-job state table persists per-job status/progress/result with
+    retention/cleanup defined. New table → safe under sync `db:migrate`; flag any
+    ALTER on an existing table immediately.
+  - **dba** signs off the Bull queue design + the import-job state table before
+    commit.
+  - Test: a queued large import completes end-to-end with progress reported.
+- **Notes:** **Revisit trigger** (carried from FEAT-035's C/B): a real import
+  **>2000 rows**, or the synchronous path exceeding a request-timeout budget in
+  practice — speculative at in-house scale until then. **dba** owns the queue +
+  state-table review. Filed as a TASK (not a fresh FEAT) because FEAT-035's
+  Cost/Benefit already assessed and deferred this exact lane — no new C/B gate
+  needed. Sized **M**; route to sr-developer once the trigger fires.
+
+### TASK-030 — Dedupe the platform-admin predicate: converge `routes/users.js` `isAdminUser` onto shared `hasAdminRole`
+- **Type:** task (tech-debt) · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Relates:** FEAT-035 (the shared-root CRIT fix)
+- **Description:** FEAT-035 fixed the cross-tenant platform-admin escalation at the
+  shared root by requiring GLOBAL-scoped role bindings in **two** places —
+  `hasAdminRole` (`shared/middleware/requireAdmin.js`) and `isAdminUser`
+  (`services/auth/src/routes/users.js`). Those are now duplicate predicates.
+  Converge `isAdminUser` onto the shared `hasAdminRole` helper so the platform-admin
+  determination lives in exactly one place.
+- **Acceptance criteria:**
+  - `routes/users.js` uses the shared `hasAdminRole` helper for its platform-admin
+    check; the local `isAdminUser` predicate is removed or becomes a thin
+    pass-through.
+  - The GLOBAL-scoped-binding requirement (the FEAT-035 fix) is preserved — the
+    org-scoped-admin-no-bypass regression test still passes.
+- **Notes:** Trivial (XS-class) dedupe hygiene — no behavior change intended, just
+  single-source the predicate. Sized **S**; jr-developer candidate.
 
 ---
 

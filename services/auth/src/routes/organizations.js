@@ -6,23 +6,141 @@
  */
 
 const express = require('express');
+const { validateCAToken } = require('@exprsn/shared');
 const router = express.Router();
 const organizationService = require('../services/organizationService');
 const rbacService = require('../services/rbacService');
 const { requireAuth } = require('../middleware/requireAuth');
+const { requireAdminAfterCA } = require('../middleware/requireAdmin');
+
+// Fields a plain (non-admin, session-authenticated) caller may set on org
+// create. Privileged columns — plan, settings, metadata, status, ownerId,
+// caGroupId, billingEmail, logoUrl, isVerified — are NEVER accepted from the
+// client body here (mass-assignment guard, mirrors the engine's template
+// allowlist): they are template/server-derived. `type` is a benign category
+// label and stays allowed; it grants no capability on its own.
+const ORG_CREATE_ALLOWLIST = ['name', 'slug', 'type', 'description', 'email', 'website'];
+
+function pickAllowed(body, allow) {
+  const out = {};
+  for (const k of allow) {
+    if (body && body[k] !== undefined) {
+      out[k] = body[k];
+    }
+  }
+  return out;
+}
 
 /**
  * POST /api/organizations
- * Create new organization
+ * Create new organization (self-serve, session-authenticated). Only descriptive
+ * fields are honored — plan/settings/metadata/status cannot be mass-assigned
+ * (that is the engine-backed /provision path's job).
  */
 router.post('/', requireAuth, async (req, res, next) => {
   try {
-    const org = await organizationService.createOrganization(req.body, req.user.id);
+    const org = await organizationService.createOrganization(
+      pickAllowed(req.body || {}, ORG_CREATE_ALLOWLIST),
+      req.user.id
+    );
 
     res.status(201).json({
       success: true,
       organization: org
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/organizations/provision
+ * Full org provisioning saga (FEAT-032 / ADR-0003) — admin only. Runs the
+ * in-process composition-layer engine (`src/provisioning/`) that creates the org
+ * + owner + RBAC groups, the CA directory group + per-org intermediate CA, the
+ * owner's entity cert + org-scoped token, the auth↔CA linkage, and (enterprise/
+ * team) the Nexus group + spark channels — atomically-or-compensated.
+ *
+ * Auth: CA-token (write) + requireAdminAfterCA. NOTE: the sibling create route
+ * (POST /) is session-based (requireAuth); this route uses the CA-token/admin
+ * path because requireAdminAfterCA reads req.userId/req.tokenData populated by
+ * validateCAToken (it does not work behind bare session auth). The engine is
+ * required LAZILY (composition layer; no eager module-load coupling).
+ *
+ * 201 on a completed run; 500 (body still carries {status,error,ids}) on a
+ * failed / compensation_failed run so an admin can see what was rolled back.
+ */
+router.post(
+  '/provision',
+  validateCAToken({ requiredPermissions: ['write'] }),
+  requireAdminAfterCA,
+  async (req, res, next) => {
+    try {
+      const engine = require('../../../../src/provisioning/engine');
+      const { normalizeSlug } = require('../../../../src/provisioning/templates');
+      const body = req.body || {};
+
+      let idempotencyKey = body.idempotencyKey;
+      if (!idempotencyKey) {
+        const org = body.organization || {};
+        // Owner-scoped so a given owner's org is idempotent on retry, but two
+        // different owners never collide on one ledger key (no cross-owner
+        // short-circuit into a foreign completed run).
+        const ownerScope = (body.owner && body.owner.email) || req.userId;
+        idempotencyKey = `${normalizeSlug(org.slug || org.name || '')}:${ownerScope}`;
+      }
+
+      const result = await engine.provisionOrganization({
+        idempotencyKey,
+        type: body.type,
+        organization: body.organization,
+        owner: body.owner,
+        actor: { userId: req.userId, isAdmin: true }
+      });
+
+      const completed = result.status === 'completed';
+      res.status(completed ? 201 : 500).json({ success: completed, ...result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/organizations/provision-self
+ * Self-serve org provisioning (FEAT-033). Same in-process engine as the admin
+ * /provision route — one provisioning code path, three fronts (admin, self-serve,
+ * public), differing ONLY in auth + owner resolution. Here the caller is a plain
+ * session-authenticated user and becomes the org owner (actor.isAdmin=false).
+ *
+ * Mass-assignment guard: the org fields are picked from an explicit allowlist
+ * (never `req.body` spread); the engine's buildOrgPayload is the final guard.
+ * 201 on a completed run; 500 (body carries {status,error,ids}) on failure.
+ */
+router.post('/provision-self', requireAuth, async (req, res, next) => {
+  try {
+    const engine = require('../../../../src/provisioning/engine');
+    const { normalizeSlug } = require('../../../../src/provisioning/templates');
+    const body = req.body || {};
+
+    // Descriptive org fields only — type is forwarded separately as the template
+    // selector; plan/settings/status/caGroupId are template/server-derived.
+    const organization = pickAllowed(body, ['name', 'slug', 'description', 'email', 'website']);
+    // Owner-scoped idempotency key: a self-serve run must never short-circuit into
+    // another owner's completed org (the engine dedups by key).
+    const idempotencyKey = body.idempotencyKey
+      || `${normalizeSlug(organization.slug || organization.name || '')}:${req.user.id}`;
+
+    const result = await engine.provisionOrganization({
+      idempotencyKey,
+      type: body.type,
+      organization,
+      owner: { userId: req.user.id, email: req.user.email },
+      actor: { userId: req.user.id, isAdmin: false }
+    });
+
+    const completed = result.status === 'completed';
+    res.status(completed ? 201 : 500).json({ success: completed, ...result });
   } catch (error) {
     next(error);
   }

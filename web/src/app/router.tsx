@@ -44,6 +44,8 @@ import { EntityDetailPage } from '@/features/lowcode/pages/EntityDetailPage';
 import { FlowDetailPage } from '@/features/lowcode/pages/FlowDetailPage';
 import { PublicFormPage } from '@/features/lowcode/PublicFormPage';
 import { LoginPage } from '@/auth/LoginPage';
+import { AcceptInvitePage } from '@/features/auth/AcceptInvitePage';
+import { SignupWizardPage } from '@/features/auth/SignupWizardPage';
 import { SsoCallbackPage } from '@/auth/SsoCallbackPage';
 import { RequireAuth } from '@/auth/RequireAuth';
 import { RequireAdmin } from '@/auth/RequireAdmin';
@@ -52,11 +54,15 @@ import { RequireAdmin } from '@/auth/RequireAdmin';
 // AuthGate (see main.tsx) before any guard runs.
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorBoundary /> },
+  // Public org signup wizard — anonymous, policy-gated (fail-closed on the client).
+  { path: '/signup', element: <SignupWizardPage />, errorElement: <RouteErrorBoundary /> },
   { path: '/sso/callback', element: <SsoCallbackPage />, errorElement: <RouteErrorBoundary /> },
   // Public share landing — anonymous visitors, no app shell / auth guard.
   { path: '/s/:shareLinkId', element: <SharePage />, errorElement: <RouteErrorBoundary /> },
   // Public low-code form landing — anonymous submissions, same pattern.
   { path: '/f/:slug', element: <PublicFormPage />, errorElement: <RouteErrorBoundary /> },
+  // Public invite / activation set-password landing — anonymous, token-gated.
+  { path: '/accept-invite', element: <AcceptInvitePage />, errorElement: <RouteErrorBoundary /> },
   {
     path: '/',
     element: (

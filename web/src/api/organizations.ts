@@ -41,11 +41,29 @@ export function canAdminOrg(org: Organization, userId?: string): boolean {
   return org.ownerId === userId || role === 'owner' || role === 'admin';
 }
 
+export type OrgTemplate = 'enterprise' | 'team' | 'personal';
+
+/** Result envelope from the shared provisioning engine (self-serve front). */
+export interface ProvisionSelfResult {
+  success: boolean;
+  status: 'completed' | 'failed' | 'compensation_failed' | string;
+  organizationId?: string;
+  [k: string]: unknown;
+}
+
 export const organizationsApi = {
   myOrgs: () => http.get<{ organizations: Organization[] }>('/auth/api/organizations'),
   getOrg: (id: string) => http.get<{ organization: Organization }>(`/auth/api/organizations/${id}`),
   createOrg: (body: { name: string; slug?: string; type?: string }) =>
     http.post<{ organization: Organization }>('/auth/api/organizations', body),
+  /**
+   * Self-serve org provisioning (FEAT-033) — the same engine as the admin and
+   * public-signup fronts, differing only in owner (the calling user) and
+   * actor.isAdmin=false. `type` selects the template; org fields are allowlisted
+   * server-side. 201 → `status:'completed'`.
+   */
+  provisionSelf: (body: { name: string; type: OrgTemplate; slug?: string; description?: string }) =>
+    http.post<ProvisionSelfResult>('/auth/api/organizations/provision-self', body),
 
   members: (id: string) => http.get<{ members: OrgMember[] }>(`/auth/api/organizations/${id}/members`),
   addMember: (id: string, body: { userId: string; role: OrgRole }) =>

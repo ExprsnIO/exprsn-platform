@@ -1,0 +1,17 @@
+Activate your account
+
+Hi {{displayName}},
+
+An account was created for you on {{appName}}. Visit this link to set your password and activate it:
+
+{{activateUrl}}
+
+IMPORTANT: This activation link will expire in {{expiryHours}} hours for security reasons.
+
+If you weren't expecting this account, you can safely ignore this email.
+
+---
+Need help? Contact us at support@exprsn.io
+{{appName}}: {{appUrl}}
+
+This is an automated message. Please do not reply to this email.

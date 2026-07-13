@@ -42,6 +42,8 @@ const OAuth2Token = require('./OAuth2Token')(sequelize);
 const OAuth2AuthorizationCode = require('./OAuth2AuthorizationCode')(sequelize);
 const Session = require('./Session')(sequelize);
 const LdapConfig = require('./LdapConfig')(sequelize);
+const ProvisioningRun = require('./ProvisioningRun')(sequelize);
+const Invitation = require('./Invitation')(sequelize);
 
 // Store models in object for association
 const models = {
@@ -204,5 +206,7 @@ module.exports = {
   OAuth2AuthorizationCode,
   Session,
   LdapConfig,
+  ProvisioningRun,
+  Invitation,
   initializeSystemData
 };

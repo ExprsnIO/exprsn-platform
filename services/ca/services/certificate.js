@@ -258,6 +258,56 @@ class CertificateService {
   }
 
   /**
+   * Find the active per-org intermediate CA, keyed by its organizationalUnit
+   * (the auth org id). FEAT-032 / ADR-0003 S4/S5 dedup + the member hook's
+   * intermediate resolver — lets a caller locate an org's issuing CA without
+   * reaching into ca.models. Returns null when none exists.
+   * @param {string} organizationalUnit - The auth organization id
+   * @returns {Promise<Certificate|null>}
+   */
+  async findActiveOrgIntermediate(organizationalUnit) {
+    if (!organizationalUnit) {
+      return null;
+    }
+    return await Certificate.findOne({
+      where: { type: 'intermediate', status: 'active', organizationalUnit },
+      order: [['createdAt', 'DESC']]
+    });
+  }
+
+  /**
+   * Find the single active platform root CA. FEAT-032 / ADR-0003 S0 preflight —
+   * the org-provisioning engine asserts this exists and ABORTS if absent (it
+   * never mints a root; root creation is the CA's init-time responsibility).
+   * Lets the engine assert the root without reaching into ca.models.
+   * @returns {Promise<Certificate|null>}
+   */
+  async findActiveRoot() {
+    return await Certificate.findOne({
+      where: { type: 'root', status: 'active' },
+      order: [['createdAt', 'DESC']]
+    });
+  }
+
+  /**
+   * Best-effort check that a certificate's private key is retrievable from the
+   * configured key store. FEAT-032 / ADR-0003 Decision 4 precondition: under
+   * STORAGE_TYPE=postgresql the root/intermediate private key is never populated,
+   * so intermediate/entity signing would break — the engine's S0 fails fast
+   * rather than minting an unsignable intermediate. Never throws.
+   * @param {string} certificateId
+   * @returns {Promise<boolean>}
+   */
+  async hasUsableSigningKey(certificateId) {
+    try {
+      const key = await getStorage().getPrivateKey(certificateId);
+      return !!key;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
    * Create entity certificate (client, server, code signing)
    */
   async createEntityCertificate(options, userId) {

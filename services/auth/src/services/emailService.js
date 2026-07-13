@@ -336,6 +336,73 @@ class EmailService {
   }
 
   /**
+   * Send invitation email (FEAT-034)
+   * The accept link lands on the web SPA (FRONTEND_URL), not the legacy APP_URL —
+   * the set-password/activation page is served by the SPA. `user` may be a bare
+   * { email } object (as the admin route passes) — displayName degrades cleanly.
+   */
+  async sendInvitationEmail(user, token, ctx = {}) {
+    const template = await this.loadTemplate('invitation');
+    const base = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const acceptUrl = `${base}/accept-invite?token=${token}`;
+    const context = {
+      displayName: user.displayName || user.email,
+      email: user.email,
+      acceptUrl,
+      inviterName: ctx.inviterName || 'An administrator',
+      orgName: ctx.orgName || 'Exprsn',
+      role: ctx.role || 'member',
+      expiryHours: 72,
+      appName: 'Exprsn',
+      appUrl: base
+    };
+
+    const html = template.html(context);
+    const text = template.text ? template.text(context) : null;
+
+    await this.sendEmail({
+      to: user.email,
+      subject: `You've been invited to ${context.orgName}`,
+      html,
+      text
+    });
+
+    logger.info('Invitation email sent', { email: user.email });
+  }
+
+  /**
+   * Send activation email (FEAT-034)
+   * Same public page as the invite, for a pre-created (import) user setting their
+   * password for the first time.
+   */
+  async sendActivationEmail(user, token, ctx = {}) {
+    const template = await this.loadTemplate('activation');
+    const base = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const activateUrl = `${base}/accept-invite?token=${token}`;
+    const context = {
+      displayName: user.displayName || user.email,
+      email: user.email,
+      activateUrl,
+      orgName: ctx.orgName || 'Exprsn',
+      expiryHours: 72,
+      appName: 'Exprsn',
+      appUrl: base
+    };
+
+    const html = template.html(context);
+    const text = template.text ? template.text(context) : null;
+
+    await this.sendEmail({
+      to: user.email,
+      subject: `Activate your ${context.orgName} account`,
+      html,
+      text
+    });
+
+    logger.info('Activation email sent', { email: user.email });
+  }
+
+  /**
    * Send welcome email
    */
   async sendWelcomeEmail(user) {

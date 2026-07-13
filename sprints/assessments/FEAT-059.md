@@ -31,10 +31,40 @@ Grep for any org concept in each module's auth middleware:
 | auth | (uses shared) | org-aware (43 files) — it *owns* the org model |
 | nexus | (uses shared) | 1 file — group-aware in places, not enforced at the token layer |
 | atproto | none — per-route `adminGuard` (`src/routes/ops.js:34+`) | n/a (admin-only surface) |
-| lowcode | none | **`src/routes/design.js:7` says it outright: "Authorization … full org/group RBAC: _any authenticated user_"** |
+| lowcode | `src/middleware/designAuth.js` | **YES — the one module that does. See correction below.** |
 
 Nine modules — spark, filevault, vault, timeline, prefetch, moderator, live, atproto, cortex —
 contain **no reference to `organizationId`/`orgId` anywhere in the module at all.**
+
+> ### ⚠ CORRECTION (2026-07-13, same day — this assessment was wrong on lowcode)
+>
+> **An earlier revision of this assessment claimed lowcode grants "any authenticated user" full design
+> access, citing `src/routes/design.js:7`. That was a misreading — the sentence was truncated
+> mid-clause and its meaning inverted.** The full comment (`design.js:7-12`) reads:
+>
+> > *"Authorization (decisions ledger: full org/group RBAC): any authenticated user may reach this
+> > router, **but every read/mutation is authorized against the target scope via `scopeAuthority`** —
+> > platform admins are superusers; org/group admins act within their org/group; users within their own
+> > scope. A resource tied to an app inherits that app's scope; a platform-global resource
+> > (`appId=null`) requires platform admin."*
+>
+> And it is **real, not aspirational**: `src/services/scopeAuthority.js` (88 lines) exports
+> `canAdminScope` / `canAdminApp` / `ADMIN_ROLES` with a platform-admin superuser path (`:50`), and
+> `assertScope` / `assertApp` from `src/middleware/designAuth.js` are applied **31 times** across
+> `design.js`.
+>
+> **Consequences for this assessment:**
+> - The headline "**zero** of 14 modules enforce org/group scope" should read "**one** of 14 does —
+>   lowcode — and the other thirteen do not." The cost estimate for FEAT-060 is **unchanged**, because
+>   the nine modules with no org concept are still nine.
+> - **Lowcode is not the cautionary tale — it is the reference implementation.** FEAT-060 should copy
+>   `scopeAuthority`'s model rather than invent one. That *reduces* design risk.
+> - **FEAT-058 (lowcode org/group RBAC) may be substantially DONE already** and needs re-grooming
+>   against the code before it is scheduled. It should not be treated as P1-blocking on that basis.
+> - The claim "FEAT-060 gates the lowcode epic outright" is **withdrawn.** The residual concern is
+>   narrower and still real: lowcode enforces scope through *its own* `scopeAuthority`, not through CA
+>   token scope, so a lowcode flow action that reaches into another module (FEAT-057) still lands in a
+>   module that does no scope check. **The gap is at the callee, not the caller.**
 
 **So the org/group scoping in the CA token spec v1.1 is minted but enforced by nobody.** FEAT-060 is
 therefore not a hardening pass over existing checks; it is *introducing an org/group dimension into
@@ -84,18 +114,22 @@ be corrected rather than left overstating the case.
 
 ---
 
-## 4. Sequencing — the dependency is REAL, not soft
+## 4. Sequencing — real, but narrower than first stated
 
-FEAT-058 (lowcode org/group RBAC, P1), FEAT-036 (PDS) and FEAT-051 (workflow) all now declare a
-dependency on FEAT-060. That dependency is **real**, and the lowcode one is urgent:
+FEAT-036 (PDS), FEAT-051 (workflow) and FEAT-057 (lowcode action catalog) all declare a dependency on
+FEAT-060. That dependency is **real** — but see the correction in §1: it is **not** because lowcode
+lacks RBAC (it has it).
 
-`services/lowcode/src/routes/design.js:7` currently grants **any authenticated user** full design
-access. FEAT-056/057 would give lowcode an action catalog that can invoke *every module*. Shipping
-that catalog on top of "any authenticated user" is a **privilege-escalation engine** — which is why
-FEAT-058 was filed P1 and blocks FEAT-057. FEAT-058 cannot be built without FEAT-060's scoping.
+The precise risk is a **confused deputy at the callee, not the caller**. Lowcode authorizes design-time
+actions correctly against its own `scopeAuthority`. But FEAT-057 would let a lowcode flow **invoke every
+other module** — and those modules perform **no org/group scope check of their own** (§1). So a flow
+that is correctly authorized *within lowcode* can still reach into filevault, spark, or timeline, which
+will happily serve it because they cannot tell one org from another. The same shape applies to workflow
+(FEAT-051) and to any PDS-derived credential (FEAT-036/037).
 
-**Therefore FEAT-060 gates the lowcode epic outright, and de-risks PDS and workflow.** It should be
-scheduled before any of them.
+**So FEAT-060 gates FEAT-057 / FEAT-051 / FEAT-036 — but it does not gate the lowcode epic as a whole,
+and FEAT-058 is not the P1 blocker it was filed as.** FEAT-058 should be **re-groomed against the code
+first**; much of it appears already built.
 
 ---
 
@@ -137,10 +171,17 @@ deserves its own cost/benefit once A is done.
 ## 7. Verdict
 
 **BUILD — re-sized.** The value case survives scrutiny (3 clean security-bug prevents, one still open).
-The cost was **materially underestimated**: FEAT-060 is XL because org scoping is enforced by *zero*
-modules today, not "some". Do **not** promote FEAT-060 as filed — decompose per §5, start with
-Slice A (middleware consolidation) and Slice D (capability tokens), and put the org-scoped data access
-(Slice C) through its own assessment.
+The cost was **materially underestimated**: FEAT-060 is XL because org scoping is enforced by *one*
+module (lowcode) and **not by the other thirteen** — nine of which have no org concept at all. Do **not**
+promote FEAT-060 as filed — decompose per §5, start with Slice A (middleware consolidation) and Slice D
+(capability tokens), and put the org-scoped data access (Slice C) through its own assessment.
 
-**Correction to fold into the tickets:** drop **BUG-024** from FEAT-059/061's prevented-bug list — it
-is a moderation-routing failure, not a tokenization one.
+**Three corrections to fold into the tickets:**
+1. Drop **BUG-024** from FEAT-059/061's prevented-bug list — it is a moderation-routing failure, not a
+   tokenization one (§2).
+2. **Lowcode already enforces org/group RBAC** via `scopeAuthority` (§1 correction). It is the
+   **reference implementation to copy**, not a gap. FEAT-060 should adopt its model.
+3. **FEAT-058 is not a P1 blocker** and appears substantially built — **re-groom it against the code
+   before scheduling.** The claim that FEAT-060 "gates the lowcode epic outright" is withdrawn; what it
+   actually gates is FEAT-057 (the cross-module action catalog), because the *callee* modules do no
+   scope check.

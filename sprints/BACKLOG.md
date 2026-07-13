@@ -2180,7 +2180,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 
 ### FEAT-057 — Lowcode Slice: module action + trigger catalog across all modules
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
-- **Owner-role:** unassigned · **Blocked-by:** FEAT-056, FEAT-058 (RBAC must land first or alongside)
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-056, **FEAT-060** (the *callee* modules do no scope check — see Notes). ~~FEAT-058~~ de-listed: lowcode's own RBAC already exists.
 - **Legacy:** FEAT-056 Slice 1
 - **Cost/Benefit:** pending
 - **Description:** A declarative action/trigger registry — each module contributes its verbs;
@@ -2192,11 +2192,22 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 - **Notes:** Extend `moduleActions.js`; do not fork it. FEAT-055 (FileVault/Vault actions) is
   the first real instance and should be treated as the reference implementation.
 
-### FEAT-058 — Lowcode Slice: org / group RBAC
-- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
+### FEAT-058 — Lowcode Slice: org / group RBAC — ⚠ **RE-GROOM: likely already built**
+- **Type:** feature · **Status:** backlog (**needs re-grooming against the code before scheduling**) · **Priority:** P3 (was P1) · **Size:** ? (was L)
 - **Owner-role:** unassigned · **Blocked-by:** FEAT-056
 - **Legacy:** FEAT-056 Slice 2 · lowcode roadmap pass on org/group RBAC
-- **Cost/Benefit:** pending
+- **Cost/Benefit:** done — **this ticket appears to be substantially ALREADY IMPLEMENTED, and was filed
+  on a misreading.** I claimed `src/routes/design.js:7` grants "any authenticated user" full design
+  access; the sentence was **truncated mid-clause and its meaning inverted.** In fact lowcode enforces
+  **full org/group RBAC**: `src/services/scopeAuthority.js` (88 lines) exports `canAdminScope` /
+  `canAdminApp` / `ADMIN_ROLES` with a platform-admin superuser path (`:50`), `src/middleware/designAuth.js`
+  supplies `requireDesignIdentity` / `assertScope` / `assertApp`, and `assertScope`/`assertApp` are applied
+  **31 times** across `design.js`. Per the header comment: *platform admins are superusers; org/group admins
+  act within their org/group; users within their own scope; an app-tied resource inherits the app's scope; a
+  platform-global resource (`appId=null`) requires platform admin.*
+  **Do not schedule as filed.** Re-groom: verify coverage in `records.js` and `hooks.js` (design.js is
+  clearly covered), and reduce this ticket to whatever genuine gap remains — if any. Dropped P1 → P3 and
+  **de-listed as a blocker of FEAT-057**. See `sprints/assessments/FEAT-059.md` §1 correction.
 - **Description:** Org- and group-scoped authorization inside lowcode: who may design, run, and
   see the data of an app/entity/flow.
 - **Acceptance criteria:**
@@ -2214,15 +2225,16 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 - **Legacy:** token spec v1.1 (group/org scoping, `revokedBy`, bulk revoke)
 - **Decomposed into:** FEAT-060 (CA scoped-token enforcement everywhere), FEAT-061 (capability / share-link tokens)
 - **Cost/Benefit:** done — **BUILD, but re-sized and re-sliced. FEAT-060 is XL, not L.** The inventory
-  found that **zero of the 14 modules enforce org/group token scope** — every module's auth middleware
-  validates the CA token and checks a coarse `{read,write,delete}` permissions map, and **nine modules
-  (spark, filevault, vault, timeline, prefetch, moderator, live, atproto, cortex) contain no reference
-  to `organizationId` at all.** So the CA token spec's org/group scoping is *minted but enforced by
-  nobody*: this is not a hardening pass, it is introducing an org dimension into nine modules that have
-  none, plus retiring seven duplicated copies of the same auth middleware. Value survives scrutiny
-  (3 clean security-bug prevents), but **do not promote FEAT-060 as filed — decompose first.**
-  Recommended start: **middleware consolidation (M)** + **FEAT-061 capability tokens (L)**. Full detail:
-  `sprints/assessments/FEAT-059.md`.
+  found that **only one of the 14 modules (lowcode) enforces org/group scope** — the other thirteen do
+  not. Every other module's auth middleware validates the CA token and checks a coarse
+  `{read,write,delete}` permissions map, and **nine (spark, filevault, vault, timeline, prefetch,
+  moderator, live, atproto, cortex) contain no reference to `organizationId` at all.** So the CA token
+  spec's org/group scoping is *minted but enforced almost nowhere*: this is not a hardening pass, it is
+  introducing an org dimension into nine modules that have none, plus retiring seven duplicated copies of
+  the same auth middleware. Value survives scrutiny (3 clean security-bug prevents). **Do not promote
+  FEAT-060 as filed — decompose first.** Recommended start: **middleware consolidation (M)** +
+  **FEAT-061 capability tokens (L)**. **Copy lowcode's `scopeAuthority` model — do not invent one.**
+  Full detail: `sprints/assessments/FEAT-059.md`.
 - **Description:** Rick's ask, in **both** senses (confirmed 2026-07-13): (a) **CA scoped tokens**
   — the token-spec v1.1 model (org/group scoping, `revokedBy`, multi-principal invalidation, bulk
   revoke) is implemented in CA but is **not uniformly enforced by every module**; (b)
@@ -2244,11 +2256,18 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
     or sharing one; tokenization would not have prevented it. It belongs to FEAT-009 / TASK-019.
     Tested honestly, the epic cleanly prevents **BUG-011, BUG-026, BUG-027** (all security; BUG-027
     still open) and *partially* mitigates BUG-020. That is still a strong case — just not a total one.
-  - **The dependency on this epic is real, not soft.** `services/lowcode/src/routes/design.js:7`
-    currently grants **any authenticated user** full design access. FEAT-056/057 would hand lowcode an
-    action catalog that can invoke every module — on top of that, it is a privilege-escalation engine.
-    FEAT-060 therefore **gates the lowcode epic outright** and de-risks FEAT-036 (PDS) and FEAT-051
-    (workflow). Schedule it before any of them.
+  - **The dependency on this epic is real, but narrower than first written.** ⚠ **An earlier revision of
+    this ticket claimed `services/lowcode/src/routes/design.js:7` grants "any authenticated user" full
+    design access. That was a misreading — the sentence was truncated mid-clause and inverted.** Lowcode
+    in fact enforces **full org/group RBAC** via `src/services/scopeAuthority.js` (88 lines;
+    `canAdminScope`/`canAdminApp`, platform-admin superuser) with `assertScope`/`assertApp` applied **31
+    times** across `design.js`. **Lowcode is the reference implementation to copy, not a gap** — FEAT-060
+    should adopt its model rather than invent one.
+    The real risk is a **confused deputy at the callee, not the caller**: FEAT-057 would let a lowcode
+    flow invoke *every other module*, and those modules do **no org/group scope check of their own**. A
+    flow correctly authorized inside lowcode can still reach into filevault/spark/timeline, which cannot
+    tell one org from another. **So FEAT-060 gates FEAT-057, FEAT-051 and FEAT-036 — not the lowcode epic
+    as a whole.** See `sprints/assessments/FEAT-059.md` §1 correction + §4.
 
 ### FEAT-060 — Tokenization Slice: CA scoped-token enforcement across every module
 - **Type:** feature · **Status:** backlog (**XL — must be decomposed before `ready`**) · **Priority:** P1 · **Size:** XL (was L)

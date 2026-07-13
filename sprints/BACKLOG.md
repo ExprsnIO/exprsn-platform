@@ -2169,7 +2169,16 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** token spec v1.1 (group/org scoping, `revokedBy`, bulk revoke)
 - **Decomposed into:** FEAT-060 (CA scoped-token enforcement everywhere), FEAT-061 (capability / share-link tokens)
-- **Cost/Benefit:** pending
+- **Cost/Benefit:** done — **BUILD, but re-sized and re-sliced. FEAT-060 is XL, not L.** The inventory
+  found that **zero of the 14 modules enforce org/group token scope** — every module's auth middleware
+  validates the CA token and checks a coarse `{read,write,delete}` permissions map, and **nine modules
+  (spark, filevault, vault, timeline, prefetch, moderator, live, atproto, cortex) contain no reference
+  to `organizationId` at all.** So the CA token spec's org/group scoping is *minted but enforced by
+  nobody*: this is not a hardening pass, it is introducing an org dimension into nine modules that have
+  none, plus retiring seven duplicated copies of the same auth middleware. Value survives scrutiny
+  (3 clean security-bug prevents), but **do not promote FEAT-060 as filed — decompose first.**
+  Recommended start: **middleware consolidation (M)** + **FEAT-061 capability tokens (L)**. Full detail:
+  `sprints/assessments/FEAT-059.md`.
 - **Description:** Rick's ask, in **both** senses (confirmed 2026-07-13): (a) **CA scoped tokens**
   — the token-spec v1.1 model (org/group scoping, `revokedBy`, multi-principal invalidation, bulk
   revoke) is implemented in CA but is **not uniformly enforced by every module**; (b)
@@ -2185,11 +2194,32 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   disclosure), BUG-026 (room `files/share` ACL bypass), BUG-027 (durable-share residual). Those
   keep recurring **because** each module rolled its own sharing. Architect sign-off.
 
+  **Assessed 2026-07-13 (`sprints/assessments/FEAT-059.md`).** Two corrections from the assessment:
+  - **BUG-024 was previously cited here and has been removed — it was an overclaim.** BUG-024 (live
+    room-collab uploads bypass moderation) is a **moderation-routing** failure, not an authorization
+    or sharing one; tokenization would not have prevented it. It belongs to FEAT-009 / TASK-019.
+    Tested honestly, the epic cleanly prevents **BUG-011, BUG-026, BUG-027** (all security; BUG-027
+    still open) and *partially* mitigates BUG-020. That is still a strong case — just not a total one.
+  - **The dependency on this epic is real, not soft.** `services/lowcode/src/routes/design.js:7`
+    currently grants **any authenticated user** full design access. FEAT-056/057 would hand lowcode an
+    action catalog that can invoke every module — on top of that, it is a privilege-escalation engine.
+    FEAT-060 therefore **gates the lowcode epic outright** and de-risks FEAT-036 (PDS) and FEAT-051
+    (workflow). Schedule it before any of them.
+
 ### FEAT-060 — Tokenization Slice: CA scoped-token enforcement across every module
-- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** backlog (**XL — must be decomposed before `ready`**) · **Priority:** P1 · **Size:** XL (was L)
 - **Owner-role:** unassigned · **Blocked-by:** FEAT-059
 - **Legacy:** FEAT-059 Slice 1 · token spec v1.1
-- **Cost/Benefit:** pending
+- **Cost/Benefit:** done — **re-sized L → XL; do NOT promote as filed.** Zero of 14 modules enforce
+  org/group scope today and nine have no `organizationId` concept at all, so this is not a hardening
+  pass — it introduces an org dimension into nine modules and touches every auth surface in the
+  platform. Decompose into: **(A, M)** consolidate the seven duplicated module auth middlewares into
+  `shared/middleware/` — no behaviour change, but it turns "change nine modules" into "change one file
+  + nine imports", and is what makes the rest affordable; **(B, L)** token-derived identity — no route
+  may trust a body/query `userId`/`orgId` (the BUG-011 class; no schema cost); **(C, XL, dba-led)**
+  org-scoped data access — adds columns across nine module schemas, needs real migrations because sync
+  `db:migrate` will not ALTER existing tables. **Start with (A).** (C) deserves its own assessment.
+  Full detail: `sprints/assessments/FEAT-059.md`.
 - **Description:** Audit every module's auth middleware and make org/group token scoping
   uniformly enforced — including the modules that currently only check "is this token valid?"
   and not "is it scoped to *this* org/group/resource?".
@@ -2210,10 +2240,17 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   symptoms of the same gap. Dedupe the platform-admin predicate first (TASK-030).
 
 ### FEAT-061 — Tokenization Slice: unified capability / share-link tokens
-- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
-- **Owner-role:** unassigned · **Blocked-by:** FEAT-059
+- **Type:** feature · **Status:** ready · **Priority:** P1 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** — (independent of FEAT-060; can run in parallel)
 - **Legacy:** FEAT-059 Slice 2
-- **Cost/Benefit:** pending
+- **Cost/Benefit:** done — **BUILD NOW. Highest value-per-day in the epic.** Structurally prevents
+  BUG-026 (a single capability-issuing path that verifies the issuer's own access at mint time makes
+  the bypass unrepresentable) and closes **BUG-027, which is still open**. Unlike FEAT-060 it needs no
+  org dimension and no cross-schema migration, so it does **not** inherit that epic's XL cost — it is a
+  genuine **L** and can proceed **in parallel** with FEAT-060's decomposition. Main cost is the
+  compatibility window: `services/filevault/src/routes/share.js` and
+  `services/live/src/routes/roomCollab.js` have **live issued share links** that a cutover would break.
+  Full detail: `sprints/assessments/FEAT-059.md` §5 Slice D.
 - **Description:** One shared capability-token mechanism for **all** content sharing — FileVault
   file/directory shares, Live room shares, Gallery albums (FEAT-047/049), and **AT-Proto PDS
   blobs and records (FEAT-039)** — replacing the per-module implementations. Tokens are scoped to
@@ -2221,7 +2258,9 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   **Known consumers (keep this list current):** filevault shares · live room shares · gallery
   albums + contributor invites (FEAT-048/049) · PDS blob/record reads (FEAT-039) · files written
   by workflow actions (FEAT-055). Each is a module that would otherwise roll its own share link —
-  which is precisely how BUG-020/024/026/027 happened.
+  which is precisely how BUG-020/026/027 happened. (**BUG-024 was previously listed here and has
+  been removed as an overclaim** — it is a moderation-routing failure, not a sharing one; see
+  `sprints/assessments/FEAT-059.md` §2.)
 - **Acceptance criteria:**
   - A share link grants exactly the resource + action it names, and nothing else.
   - Revoking a share link immediately stops serving the resource (**including the durable-share

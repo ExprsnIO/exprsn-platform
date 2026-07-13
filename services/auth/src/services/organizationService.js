@@ -140,7 +140,45 @@ async function getOrganizationById(organizationId, options = {}) {
 }
 
 /**
- * Update organization
+ * Fields a caller (org owner/admin) may set via updateOrganization.
+ *
+ * ALLOW-LIST, not a denylist: everything not named here is stripped
+ * server-side. Deliberately EXCLUDED and never mass-assignable through this
+ * path: `id`, `ownerId` (use transferOwnership), `slug` (routing/identity key
+ * with a unique constraint), `type`, `plan` and `status` (billing / lifecycle —
+ * would let an owner self-upgrade their plan or flip suspension), `caGroupId`
+ * (the auth↔CA directory-group identity linkage — ADR-0003 Decision 5), any
+ * other provisioning column, and timestamps.
+ *
+ * `settings` IS user-editable by design — the admin "Auth & Identity" UI binds
+ * the org's own MFA / password / registration policy here. NOTE for handover:
+ * for the DESIGNATED PLATFORM org, `settings.allowUserRegistration` /
+ * `settings.requireEmailVerification` are read by signupPolicyService as
+ * PLATFORM-level policy, and `settings.requireMfa` / `settings.mfa.*` by
+ * mfaPolicyService. The PATCH gate (routes/organizations.js) is the org-scoped
+ * `isOwnerOrAdmin` membership check, NOT the global platform-admin gate — so a
+ * platform-org admin can influence platform signup/MFA policy through their own
+ * org's settings. That is a pre-existing design property of the platform-org
+ * concept, not introduced by this allow-list; flagged so it can be tightened
+ * (e.g. gate platform-org settings edits on the global platform-admin role) in
+ * a follow-up. `metadata` is intentionally omitted: it is a free-form blob and
+ * not needed by the update UI; add it explicitly if a feature requires it.
+ */
+const UPDATABLE_ORG_FIELDS = [
+  'name',
+  'description',
+  'email',
+  'website',
+  'logoUrl',
+  'billingEmail',
+  'settings'
+];
+
+/**
+ * Update organization.
+ *
+ * Only the fields in UPDATABLE_ORG_FIELDS are applied; all other keys in
+ * `updates` (caGroupId, plan, status, ownerId, id, timestamps, …) are ignored.
  */
 async function updateOrganization(organizationId, updates) {
   const org = await Organization.findByPk(organizationId);
@@ -149,10 +187,16 @@ async function updateOrganization(organizationId, updates) {
     throw new AppError('Organization not found', 404, 'ORG_NOT_FOUND');
   }
 
-  // Prevent changing owner via this method
-  delete updates.ownerId;
+  // Allow-list: pick only permitted, present fields into a fresh object so no
+  // caller-supplied key can reach org.update() unfiltered (mass-assignment).
+  const safe = {};
+  for (const field of UPDATABLE_ORG_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(updates || {}, field)) {
+      safe[field] = updates[field];
+    }
+  }
 
-  await org.update(updates);
+  await org.update(safe);
   return org;
 }
 

@@ -36,6 +36,7 @@ const sequelize = new Sequelize(
 const Post = require('./Post')(sequelize);
 const Like = require('./Like')(sequelize);
 const Follow = require('./Follow')(sequelize);
+const UserRelationship = require('./UserRelationship')(sequelize);
 const Comment = require('./Comment')(sequelize);
 const Repost = require('./Repost')(sequelize);
 const Bookmark = require('./Bookmark')(sequelize);
@@ -137,6 +138,7 @@ module.exports = {
   Post,
   Like,
   Follow,
+  UserRelationship,
   Comment,
   Repost,
   Bookmark,

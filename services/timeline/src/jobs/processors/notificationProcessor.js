@@ -81,8 +81,67 @@ async function processBatchNotificationJob(job) {
   });
 
   try {
+    // FEAT-011 N1b: producer-side suppression for the MENTION path. Mentions do
+    // NOT flow through heraldService.notifyInteraction (N1a) — they are enqueued
+    // as a batch-notification Bull job (postService.queuePostJobs) and consumed
+    // HERE, in the standalone worker:timeline process. Drop any recipient who has
+    // blocked/muted the mentioner: getSuppressedIds(recipient) ∋ actorId. The
+    // recipient set is bounded by mentions-per-post (a handful), so one call per
+    // recipient is not the feed N+1 the read-path binding guards against.
+    // relationshipService is require-able + DB-attached here (worker.js boots the
+    // same timeline Sequelize / same pool). Fail-CLOSED per recipient on error.
+    //
+    // getSuppressedIds requires the recipient's UUID, and the id used for the
+    // suppression check MUST be the SAME id used to deliver — otherwise the guard
+    // and the delivery can silently diverge. The current mention producer
+    // (postService.queuePostJobs) emits `recipientUsername` and NOT a
+    // `recipientId`, and timeline has no in-module username->userId resolver
+    // (adding an auth hop is out of scope per the FEAT-011 ADR — no new
+    // *_SERVICE_URL). So we resolve the delivery target ONCE into `recipientId`
+    // and key both the filter and the herald mapping on it, and FAIL CLOSED: a
+    // notification we cannot resolve to a recipient UUID is dropped rather than
+    // delivered un-suppressed. This makes the guard non-vacuous and guarantees it
+    // can never silently fail — any future repair that makes a mention deliverable
+    // MUST populate `recipientId`, which is exactly the field the guard reads.
+    // eslint-disable-next-line global-require
+    const relationshipService = require('../../services/relationshipService');
+    const deliverable = [];
+    for (const notification of notifications) {
+      const actorId = notification.actorId;
+      const recipientId = notification.recipientId;
+      if (!recipientId) {
+        // Unresolved recipient (producer emitted only a username): not
+        // deliverable and not suppression-checkable — drop (fail-closed).
+        logger.debug('mention notification dropped: unresolved recipient (no recipientId)', {
+          jobId: job.id,
+          recipientUsername: notification.recipientUsername
+        });
+        continue;
+      }
+      if (actorId) {
+        let suppressed;
+        try {
+          suppressed = (await relationshipService.getSuppressedIds(recipientId)) || [];
+        } catch (err) {
+          logger.warn('mention suppression check failed; dropping (fail-closed)', {
+            jobId: job.id,
+            recipientId,
+            error: err.message
+          });
+          continue;
+        }
+        if (suppressed.includes(actorId)) {
+          logger.debug('mention notification suppressed (block/mute)', { jobId: job.id, recipientId });
+          continue;
+        }
+      }
+      // Carry the resolved recipient id explicitly so the herald mapping below
+      // delivers to the SAME id the suppression check ran against.
+      deliverable.push({ ...notification, recipientId });
+    }
+
     // Format notifications for Herald batch API
-    const heraldNotifications = notifications.map(notification => ({
+    const heraldNotifications = deliverable.map(notification => ({
       userId: notification.recipientId,
       type: notification.type,
       title: getNotificationTitle(notification.type),

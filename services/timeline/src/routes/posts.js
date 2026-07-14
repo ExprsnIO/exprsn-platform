@@ -13,6 +13,8 @@ const postService = require('../services/postService');
 const approvalService = require('../services/approvalService');
 const moderationSink = require('../services/moderationSink');
 const heraldService = require('../services/heraldService');
+const relationshipService = require('../services/relationshipService');
+const { Op } = require('sequelize');
 const { Post, Like, Comment, Repost, Bookmark } = require('../models');
 const { broadcastNewPost, broadcastPostLike, broadcastPostComment } = require('../socket');
 
@@ -152,6 +154,14 @@ router.get('/:id',
       throw new AppError('This post is private', 403, 'FORBIDDEN');
     }
 
+    // FEAT-011 R9: a post whose author is blocked either way is not-found to the
+    // viewer (block only — a one-way mute does not 404 a directly-opened post).
+    // 404 rather than 403 so the block's existence is not leaked.
+    if (post.userId !== req.userId
+        && await relationshipService.isBlockedEitherWay(req.userId, post.userId)) {
+      throw new AppError('Post not found', 404, 'POST_NOT_FOUND');
+    }
+
     // Moderation read-gate: a rejected post (or, with the hold flag on, a
     // pending one) is not servable to users other than the author. No-op when
     // moderation is not deployed. Treated as not-found to avoid leaking that a
@@ -225,6 +235,13 @@ router.post('/:id/like', requireWrite('/posts'), asyncHandler(async (req, res) =
     throw new AppError('Post not found', 404, 'NOT_FOUND');
   }
 
+  // FEAT-011 W1: reject the like when blocked either way (contact rejection).
+  // Single pairwise check on a write path — never inside a loop.
+  if (post.userId !== req.userId
+      && await relationshipService.isBlockedEitherWay(req.userId, post.userId)) {
+    throw new AppError('You cannot interact with this user', 403, 'BLOCKED');
+  }
+
   const [like, created] = await Like.findOrCreate({
     where: { postId: id, userId: req.userId },
     defaults: { postId: id, userId: req.userId }
@@ -294,6 +311,12 @@ router.post('/:id/comments', requireWrite('/posts'), asyncHandler(async (req, re
     throw new AppError('Post not found', 404, 'NOT_FOUND');
   }
 
+  // FEAT-011 W2: reject the comment when blocked either way (contact rejection).
+  if (post.userId !== req.userId
+      && await relationshipService.isBlockedEitherWay(req.userId, post.userId)) {
+    throw new AppError('You cannot interact with this user', 403, 'BLOCKED');
+  }
+
   const comment = await Comment.create({
     postId: id,
     userId: req.userId,
@@ -330,8 +353,15 @@ router.get('/:id/comments', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { page, limit, offset } = validatePagination(req.query);
 
+  // FEAT-011 R10: suppress comments from blocked/muted authors (one query).
+  const suppressed = (await relationshipService.getSuppressedIds(req.userId)) || [];
+  const commentWhere = { postId: id, deleted: false };
+  if (suppressed.length) {
+    commentWhere.userId = { [Op.notIn]: suppressed };
+  }
+
   const comments = await Comment.findAll({
-    where: { postId: id, deleted: false },
+    where: commentWhere,
     order: [['createdAt', 'DESC']],
     limit,
     offset
@@ -350,7 +380,9 @@ router.get('/:id/comments', asyncHandler(async (req, res) => {
 router.get('/:id/thread',
   validateUUID('id'),
   asyncHandler(async (req, res) => {
-    const thread = await postService.getPostThread(req.params.id);
+    // FEAT-011 R11: viewer-scoped so blocked-author root 404s and blocked/muted
+    // replies are suppressed.
+    const thread = await postService.getPostThread(req.params.id, { viewerId: req.userId });
 
     res.json({
       success: true,
@@ -366,7 +398,8 @@ router.get('/:id/thread',
 router.get('/:id/quotes',
   validateUUID('id'),
   asyncHandler(async (req, res) => {
-    const quotes = await postService.getQuotePosts(req.params.id);
+    // FEAT-011 R12: suppress quotes authored by blocked/muted users.
+    const quotes = await postService.getQuotePosts(req.params.id, { viewerId: req.userId });
 
     res.json({
       success: true,
@@ -417,6 +450,12 @@ router.post('/:id/repost',
 
     if (!post) {
       throw new AppError('Post not found', 404, 'NOT_FOUND');
+    }
+
+    // FEAT-011 W3: reject the repost when blocked either way (contact rejection).
+    if (post.userId !== req.userId
+        && await relationshipService.isBlockedEitherWay(req.userId, post.userId)) {
+      throw new AppError('You cannot interact with this user', 403, 'BLOCKED');
     }
 
     const [repost, created] = await Repost.findOrCreate({
@@ -532,8 +571,15 @@ router.get('/:id/likes',
   asyncHandler(async (req, res) => {
     const { page, limit, offset } = validatePagination(req.query);
 
+    // FEAT-011 R13: suppress likers the viewer has blocked/muted (one query).
+    const suppressed = (await relationshipService.getSuppressedIds(req.userId)) || [];
+    const likeWhere = { postId: req.params.id };
+    if (suppressed.length) {
+      likeWhere.userId = { [Op.notIn]: suppressed };
+    }
+
     const likes = await Like.findAll({
-      where: { postId: req.params.id },
+      where: likeWhere,
       order: [['createdAt', 'DESC']],
       limit,
       offset
@@ -557,8 +603,15 @@ router.get('/:id/reposts',
   asyncHandler(async (req, res) => {
     const { page, limit, offset } = validatePagination(req.query);
 
+    // FEAT-011 R14: suppress reposters the viewer has blocked/muted (one query).
+    const suppressed = (await relationshipService.getSuppressedIds(req.userId)) || [];
+    const repostWhere = { postId: req.params.id };
+    if (suppressed.length) {
+      repostWhere.userId = { [Op.notIn]: suppressed };
+    }
+
     const reposts = await Repost.findAll({
-      where: { postId: req.params.id },
+      where: repostWhere,
       order: [['createdAt', 'DESC']],
       limit,
       offset

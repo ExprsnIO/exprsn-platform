@@ -11,6 +11,7 @@ const { requireToken } = require('../middleware/auth');
 const { Post, Trending } = require('../models');
 const { Op } = require('sequelize');
 const elasticsearchService = require('../services/elasticsearchService');
+const relationshipService = require('../services/relationshipService');
 const config = require('../config');
 
 const router = express.Router();
@@ -23,7 +24,13 @@ router.use(requireToken({ requiredPermissions: { read: true }, resourcePrefix: '
  * Search posts by content
  */
 router.get('/posts', asyncHandler(async (req, res) => {
-  const { q: query, page, limit, offset } = validatePagination(req.query);
+  const { page, limit, offset } = validatePagination(req.query);
+  // validatePagination returns ONLY { page, limit, offset } — it does NOT echo
+  // `q`, so the search term must be read from req.query directly (reading it from
+  // the pagination result left `query` permanently undefined -> a 400 on every
+  // request, which also made the FEAT-011 R15/R16 suppression on this route dead
+  // code).
+  const query = req.query.q;
   const { sortBy = 'relevance', hasMedia, dateFrom, dateTo } = req.query;
 
   if (!query || query.trim().length === 0) {
@@ -37,6 +44,11 @@ router.get('/posts', asyncHandler(async (req, res) => {
   let posts;
   let total;
   let searchMethod;
+
+  // FEAT-011 R15/R16: exclude blocked/muted authors from search results. ONE
+  // set-returning query per request; fed to ES as a must_not terms filter and to
+  // the SQL fallback as [Op.notIn].
+  const suppressed = (await relationshipService.getSuppressedIds(req.userId)) || [];
 
   // Use ElasticSearch if enabled
   if (config.elasticsearch.enabled) {
@@ -52,6 +64,9 @@ router.get('/posts', asyncHandler(async (req, res) => {
     if (dateTo) {
       filters.dateTo = dateTo;
     }
+    if (suppressed.length) {
+      filters.excludeUserIds = suppressed;
+    }
 
     const result = await elasticsearchService.searchPosts(query, {
       from: offset,
@@ -66,13 +81,13 @@ router.get('/posts', asyncHandler(async (req, res) => {
     } else {
       // Fallback to SQL search if ElasticSearch fails
       searchMethod = 'postgres-fallback';
-      posts = await sqlSearch(query, limit, offset);
+      posts = await sqlSearch(query, limit, offset, suppressed);
       total = posts.length;
     }
   } else {
     // Fallback to SQL search
     searchMethod = 'postgres';
-    posts = await sqlSearch(query, limit, offset);
+    posts = await sqlSearch(query, limit, offset, suppressed);
     total = posts.length;
   }
 
@@ -95,13 +110,18 @@ router.get('/posts', asyncHandler(async (req, res) => {
 /**
  * SQL-based search fallback
  */
-async function sqlSearch(query, limit, offset) {
+async function sqlSearch(query, limit, offset, suppressed = []) {
+  const where = {
+    content: { [Op.iLike]: `%${query}%` },
+    deleted: false,
+    visibility: 'public'
+  };
+  // FEAT-011 R15: exclude blocked/muted authors.
+  if (suppressed.length) {
+    where.userId = { [Op.notIn]: suppressed };
+  }
   return await Post.findAll({
-    where: {
-      content: { [Op.iLike]: `%${query}%` },
-      deleted: false,
-      visibility: 'public'
-    },
+    where,
     order: [
       ['likeCount', 'DESC'],
       ['createdAt', 'DESC']
@@ -116,7 +136,8 @@ async function sqlSearch(query, limit, offset) {
  * Search by hashtag
  */
 router.get('/hashtags', asyncHandler(async (req, res) => {
-  const { q: query, page, limit, offset } = validatePagination(req.query);
+  const { page, limit, offset } = validatePagination(req.query);
+  const query = req.query.q; // validatePagination does not echo `q` (see /posts note)
 
   if (!query || query.trim().length === 0) {
     throw new AppError('Hashtag query required', 400, 'MISSING_QUERY');
@@ -125,15 +146,26 @@ router.get('/hashtags', asyncHandler(async (req, res) => {
   // Remove # if present
   const hashtag = query.replace(/^#/, '').toLowerCase();
 
+  // FEAT-011 (R15-shape): hashtag search is a public content-surfacing read path
+  // with the same leak shape as the SQL post search (R15) — a blocked/muted
+  // author's post must not surface to the viewer. One set-returning query per
+  // request, applied as [Op.notIn] on the author id.
+  const suppressed = (await relationshipService.getSuppressedIds(req.userId)) || [];
+
+  const where = {
+    'metadata.entities.hashtags': {
+      [Op.contains]: [{ tag: hashtag }]
+    },
+    deleted: false,
+    visibility: 'public'
+  };
+  if (suppressed.length) {
+    where.userId = { [Op.notIn]: suppressed };
+  }
+
   // Search posts with this hashtag in metadata
   const posts = await Post.findAll({
-    where: {
-      'metadata.entities.hashtags': {
-        [Op.contains]: [{ tag: hashtag }]
-      },
-      deleted: false,
-      visibility: 'public'
-    },
+    where,
     order: [
       ['createdAt', 'DESC']
     ],

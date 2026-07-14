@@ -170,6 +170,32 @@ async function notifyInteraction(type, recipientId, actorId, post, additionalDat
     return { success: false, reason: 'Self-interaction' };
   }
 
+  // FEAT-011 N1a: producer-side notification suppression for like/comment/reply/
+  // repost/follow. Drop the notification when the actor is suppressed for the
+  // recipient — i.e. getSuppressedIds(recipient) contains the actor (block either
+  // way ∪ recipient-muted-actor). Lazy require avoids a require cycle and keeps
+  // this resolvable in both the gateway and worker:timeline processes. The
+  // mention path does NOT flow through here — see N1b in processBatchNotificationJob.
+  // Fail-CLOSED: if the check errors, drop rather than risk leaking to a blocked
+  // user (the read-time feed filter remains the correctness guarantee).
+  if (recipientId && actorId) {
+    try {
+      // eslint-disable-next-line global-require
+      const relationshipService = require('./relationshipService');
+      const suppressed = (await relationshipService.getSuppressedIds(recipientId)) || [];
+      if (suppressed.includes(actorId)) {
+        return { success: false, reason: 'Suppressed (block/mute)' };
+      }
+    } catch (err) {
+      logger.warn('block/mute suppression check failed; dropping notification (fail-closed)', {
+        recipientId,
+        type,
+        error: err.message
+      });
+      return { success: false, reason: 'suppression-check-failed' };
+    }
+  }
+
   const notificationMap = {
     like: {
       title: 'New Like',

@@ -7,6 +7,9 @@
 const { Post, Follow, Like, Repost } = require('../models');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
+// FEAT-011 block/mute enforcement. Intra-module require (both live in timeline);
+// relationshipService depends only on models, so there is no require cycle.
+const relationshipService = require('./relationshipService');
 
 /**
  * Calculate post score for ranking
@@ -53,9 +56,20 @@ async function getHomeFeed(userId, { limit = 20, offset = 0, where = {} } = {}) 
     // Include user's own posts
     const userIds = [userId, ...followingIds];
 
+    // FEAT-011 R1: suppress authors the viewer has blocked (or who blocked the
+    // viewer) and authors the viewer muted (unexpired). ONE set-returning query
+    // per request — never a per-post pairwise check. Empty set = no filter, so
+    // there is no cost/regression when the viewer has no relationships.
+    const suppressed = (await relationshipService.getSuppressedIds(userId)) || [];
+
+    const userIdClause = { [Op.in]: userIds };
+    if (suppressed.length) {
+      userIdClause[Op.notIn] = suppressed;
+    }
+
     // Build where clause combining base conditions with cursor conditions
     const whereClause = {
-      userId: { [Op.in]: userIds },
+      userId: userIdClause,
       deleted: false,
       visibility: { [Op.in]: ['public', 'followers'] },
       ...where // Merge cursor where clause
@@ -89,8 +103,16 @@ async function getHomeFeed(userId, { limit = 20, offset = 0, where = {} } = {}) 
  * Get user timeline
  * Supports both cursor-based and offset-based pagination
  */
-async function getUserTimeline(userId, { limit = 20, offset = 0, where = {} } = {}) {
+async function getUserTimeline(userId, { limit = 20, offset = 0, where = {}, viewerId = null } = {}) {
   try {
+    // FEAT-011 R2: a profile is empty to a viewer who is blocked either way.
+    // Block only — a one-way mute does not hide a directly-visited profile
+    // (mute suppresses feed surfacing, not direct navigation).
+    if (viewerId && viewerId !== userId
+        && await relationshipService.isBlockedEitherWay(viewerId, userId)) {
+      return [];
+    }
+
     const whereClause = {
       userId,
       deleted: false,
@@ -114,17 +136,24 @@ async function getUserTimeline(userId, { limit = 20, offset = 0, where = {} } = 
 /**
  * Get explore/discovery feed
  */
-async function getExploreFeed({ limit = 20, offset = 0 } = {}) {
+async function getExploreFeed({ limit = 20, offset = 0, viewerId = null } = {}) {
   try {
+    // FEAT-011 R3: suppress blocked/muted authors (one query per request).
+    const suppressed = viewerId ? ((await relationshipService.getSuppressedIds(viewerId)) || []) : [];
+    const where = {
+      deleted: false,
+      visibility: 'public',
+      createdAt: {
+        [Op.gte]: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+      }
+    };
+    if (suppressed.length) {
+      where.userId = { [Op.notIn]: suppressed };
+    }
+
     // Get recent popular posts
     const posts = await Post.findAll({
-      where: {
-        deleted: false,
-        visibility: 'public',
-        createdAt: {
-          [Op.gte]: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
-        }
-      },
+      where,
       order: [
         ['likeCount', 'DESC'],
         ['repostCount', 'DESC'],
@@ -144,16 +173,23 @@ async function getExploreFeed({ limit = 20, offset = 0 } = {}) {
 /**
  * Get trending posts
  */
-async function getTrendingPosts({ limit = 20, offset = 0 } = {}) {
+async function getTrendingPosts({ limit = 20, offset = 0, viewerId = null } = {}) {
   try {
+    // FEAT-011 R4: suppress blocked/muted authors (one query per request).
+    const suppressed = viewerId ? ((await relationshipService.getSuppressedIds(viewerId)) || []) : [];
+    const where = {
+      deleted: false,
+      visibility: 'public',
+      createdAt: {
+        [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+      }
+    };
+    if (suppressed.length) {
+      where.userId = { [Op.notIn]: suppressed };
+    }
+
     const posts = await Post.findAll({
-      where: {
-        deleted: false,
-        visibility: 'public',
-        createdAt: {
-          [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-        }
-      },
+      where,
       order: [
         ['likeCount', 'DESC'],
         ['repostCount', 'DESC']
@@ -172,7 +208,7 @@ async function getTrendingPosts({ limit = 20, offset = 0 } = {}) {
 /**
  * Get post thread (conversation)
  */
-async function getPostThread(postId) {
+async function getPostThread(postId, { viewerId = null } = {}) {
   try {
     const rootPost = await Post.findByPk(postId);
 
@@ -180,12 +216,19 @@ async function getPostThread(postId) {
       throw new Error('Post not found');
     }
 
+    // FEAT-011 R5: suppress replies from blocked/muted authors (one query).
+    const suppressed = viewerId ? ((await relationshipService.getSuppressedIds(viewerId)) || []) : [];
+    const replyWhere = {
+      'metadata.replyTo': postId,
+      deleted: false
+    };
+    if (suppressed.length) {
+      replyWhere.userId = { [Op.notIn]: suppressed };
+    }
+
     // Get all replies
     const replies = await Post.findAll({
-      where: {
-        'metadata.replyTo': postId,
-        deleted: false
-      },
+      where: replyWhere,
       order: [['createdAt', 'ASC']]
     });
 

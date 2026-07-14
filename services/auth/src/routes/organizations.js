@@ -12,6 +12,7 @@ const organizationService = require('../services/organizationService');
 const rbacService = require('../services/rbacService');
 const { requireAuth } = require('../middleware/requireAuth');
 const { requireAdminAfterCA } = require('../middleware/requireAdmin');
+const { validate, provisionSelfSchema } = require('../validators');
 
 // Fields a plain (non-admin, session-authenticated) caller may set on org
 // create. Privileged columns — plan, settings, metadata, status, ownerId,
@@ -113,23 +114,29 @@ router.post(
  * public), differing ONLY in auth + owner resolution. Here the caller is a plain
  * session-authenticated user and becomes the org owner (actor.isAdmin=false).
  *
+ * Privilege guard: `provisionSelfSchema` restricts `type` to the self-serve
+ * allow-list (team|personal) — a self-serve caller can NEVER select 'enterprise'
+ * (that stays admin-only, /provision) — and strips any unknown field, so a
+ * client-supplied `idempotencyKey` is dropped before the handler runs.
  * Mass-assignment guard: the org fields are picked from an explicit allowlist
  * (never `req.body` spread); the engine's buildOrgPayload is the final guard.
  * 201 on a completed run; 500 (body carries {status,error,ids}) on failure.
  */
-router.post('/provision-self', requireAuth, async (req, res, next) => {
+router.post('/provision-self', requireAuth, validate(provisionSelfSchema), async (req, res, next) => {
   try {
     const engine = require('../../../../src/provisioning/engine');
     const { normalizeSlug } = require('../../../../src/provisioning/templates');
     const body = req.body || {};
 
     // Descriptive org fields only — type is forwarded separately as the template
-    // selector; plan/settings/status/caGroupId are template/server-derived.
+    // selector (already constrained to team|personal by provisionSelfSchema);
+    // plan/settings/status/caGroupId are template/server-derived.
     const organization = pickAllowed(body, ['name', 'slug', 'description', 'email', 'website']);
-    // Owner-scoped idempotency key: a self-serve run must never short-circuit into
-    // another owner's completed org (the engine dedups by key).
-    const idempotencyKey = body.idempotencyKey
-      || `${normalizeSlug(organization.slug || organization.name || '')}:${req.user.id}`;
+    // Idempotency key is DERIVED SERVER-SIDE (owner-scoped) and NEVER read from the
+    // client body: the engine dedups by {idempotencyKey, kind} with no owner
+    // scoping of its own, so honoring a client key would let a caller short-circuit
+    // into (and read back the internal ids of) another owner's completed run.
+    const idempotencyKey = `${normalizeSlug(organization.slug || organization.name || '')}:${req.user.id}`;
 
     const result = await engine.provisionOrganization({
       idempotencyKey,

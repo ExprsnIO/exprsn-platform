@@ -26,7 +26,8 @@ module.exports = (sequelize) => {
     contentType: {
       type: DataTypes.ENUM(
         'text', 'image', 'video', 'audio',
-        'post', 'comment', 'message', 'profile', 'file'
+        'post', 'comment', 'message', 'profile', 'file',
+        'llm_message' // BUG-015: an action logged for a cortex llm_message item
       ),
       allowNull: false,
       field: 'content_type'

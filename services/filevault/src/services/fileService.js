@@ -74,19 +74,23 @@ async function uploadFile({ userId, buffer, filename, path, directoryId, tags, m
     }, { transaction });
 
     // FEAT-031: every uploaded object gets a moderation row IN THIS TRANSACTION,
-    // so an image can never exist without a visibility state. Images start
-    // `pending` (hidden from other users) and are cleared asynchronously; other
-    // objects are `skipped` (servable) immediately.
-    const modState = await imageModeration.establishModerationState(
+    // so an image can never exist without a visibility state. In enforce mode
+    // images start `pending` (hidden from other users) and are cleared
+    // asynchronously; in shadow mode they start `approved` (servable) and are
+    // scored asynchronously without ever being held; other objects are `skipped`
+    // (servable) immediately.
+    await imageModeration.establishModerationState(
       FileModeration, { id: file.id, mimetype, metadata }, { transaction, mode: 'create' });
 
     await transaction.commit();
     logger.info(`File created: ${file.id}`);
 
     // Enqueue AFTER commit — a worker must never see a row the transaction has
-    // not yet made visible. Best-effort: a Redis outage leaves the image
-    // `pending` (hidden), which is the fail-closed posture, not a failed upload.
-    if (modState.status === 'pending') {
+    // not yet made visible. `shouldQueue` covers BOTH modes (enforce `pending`
+    // and shadow `approved`/`shadow_pending`), not just the hidden case. Best-
+    // effort: a Redis outage in enforce leaves the image `pending` (fail-closed),
+    // and the reconcile sweep re-queues either mode later.
+    if (imageModeration.shouldQueue({ mimetype, metadata })) {
       await enqueueImageModeration(file.id);
     }
 
@@ -359,13 +363,13 @@ async function updateFile(fileId, userId, buffer, changeDescription) {
     // describes this file. Without this, "upload benign → get approved → save a
     // new version" serves unmoderated content under an approved status. Reset to
     // `pending` (i.e. hidden from others) inside the transaction, then re-queue.
-    const modState = await imageModeration.establishModerationState(
+    await imageModeration.establishModerationState(
       FileModeration, file, { transaction, mode: 'reset' });
 
     await transaction.commit();
     logger.info(`File updated to version ${newVersion}: ${file.id}`);
 
-    if (modState.status === 'pending') {
+    if (imageModeration.shouldQueue(file)) {
       // Must REMOVE the stale job first — a plain re-add is a silent no-op while
       // the completed job's key survives in Redis (BUG-016).
       await requeueImageModeration(file.id);
@@ -552,13 +556,13 @@ async function uploadGroupFile({ groupId, userId, buffer, filename, path, direct
     // This path created no moderation row at all, so every group image was served
     // unmoderated to the whole group — the chokepoint's largest hole, and exactly
     // the content most visible to other people.
-    const modState = await imageModeration.establishModerationState(
+    await imageModeration.establishModerationState(
       FileModeration, { id: file.id, mimetype, metadata }, { transaction, mode: 'create' });
 
     await transaction.commit();
     logger.info(`Group file created: ${file.id} (group ${groupId})`);
 
-    if (modState.status === 'pending') {
+    if (imageModeration.shouldQueue({ mimetype, metadata })) {
       await enqueueImageModeration(file.id);
     }
 

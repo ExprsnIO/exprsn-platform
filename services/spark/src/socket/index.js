@@ -12,6 +12,7 @@ const axios = require('axios');
 const { Message, Conversation, Participant, MessageKey } = require('../models');
 const config = require('../config');
 const encryptionService = require('../services/encryptionService');
+const messageModeration = require('../services/messageModeration');
 const {
   authorizeConversationAccess,
   ensureParticipant
@@ -316,6 +317,12 @@ module.exports = function(io) {
           mentions: mentions || []
         });
 
+        // FEAT-009: pre-create the moderation side-row (pending for scannable
+        // plaintext, skipped for E2EE/empty) BEFORE broadcasting, then
+        // fire-and-forget the scoring job. Never blocks delivery (fail-open);
+        // an adverse verdict retracts later via the sink.
+        await messageModeration.moderateMessage(message, { mode: 'create' });
+
         // Emit onto the plugin hook bus (fire-and-forget, best-effort). Inert
         // unless PLUGINS_ENABLED/LOWCODE_ENABLED; lazily required + guarded so a
         // missing/erroring plugins module can't affect message delivery.
@@ -544,6 +551,11 @@ module.exports = function(io) {
         message.edited = true;
         message.editedAt = new Date();
         await message.save();
+
+        // FEAT-009: an EDIT re-moderates. mode:'reset' clears the stale verdict
+        // AND removes the stale queue job (BUG-016) so the new text's verdict
+        // cannot be pre-empted by the old one. Encrypted edits re-skip.
+        await messageModeration.moderateMessage(message, { mode: 'reset' });
 
         if (isEncrypted && Array.isArray(recipientKeys) && recipientKeys.length > 0) {
           await MessageKey.destroy({ where: { messageId } });

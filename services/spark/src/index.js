@@ -99,6 +99,7 @@ app.use('/api/attachments', attachmentRoutes);
 app.use('/api/queues', queueRoutes);
 app.use('/api/encryption', encryptionRoutes);
 app.use('/api/config', require('./routes/config'));
+app.use('/api/moderation', require('./routes/moderation'));
 app.use('/api', enhancedRoutes);
 
 /**
@@ -122,6 +123,11 @@ function registerSockets(ioServer) {
   // TODO(platform): verify socket auth + redis adapter wiring
   const nsp = io.of('/spark');
   socketHandler(nsp);
+  // Hand the moderation sink the gateway-owned io so an adverse-verdict
+  // retraction arriving via POST /api/moderation/action can emit
+  // `message:redacted` live (FEAT-009). In the separate worker process this is
+  // never called, so the sink there redacts durably in the DB only.
+  require('./services/moderationSink').setIo(io);
   logger.info('Spark socket handlers attached to /spark namespace');
 }
 

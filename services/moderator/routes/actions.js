@@ -12,6 +12,12 @@ const { Op } = require('sequelize');
 const { ModerationAction, ModerationCase } = require('../models/sequelize-index');
 const moderationActions = require('../services/moderationActions');
 const logger = require('../utils/logger');
+const requireAdmin = require('../src/middleware/requireAdmin');
+
+// All action reads AND the mutating POST /execute are admin-only. Previously
+// unauthenticated (BUG-010 / SPIKE-001) — any caller could execute
+// remove/hide/warn/ban on arbitrary content.
+router.use(requireAdmin);
 
 /**
  * GET /api/actions/recent
@@ -126,7 +132,6 @@ router.post('/execute', async (req, res) => {
       sourceService,
       userId,
       reason,
-      moderatorId,
       metadata
     } = req.body;
 
@@ -138,6 +143,10 @@ router.post('/execute', async (req, res) => {
       });
     }
 
+    // Actor of record is the authenticated admin (requireAdmin sets req.userId),
+    // never a client-supplied body field (BUG-010 audit-integrity fix).
+    const moderatorId = req.userId;
+
     // Execute the action
     const result = await moderationActions.executeAction({
       action: actionType,
@@ -146,7 +155,7 @@ router.post('/execute', async (req, res) => {
       sourceService,
       userId,
       reason: reason || `Moderation action: ${actionType}`,
-      moderatorId: moderatorId || 'system',
+      moderatorId,
       metadata
     });
 

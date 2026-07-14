@@ -28,7 +28,8 @@ CREATE TYPE content_type AS ENUM (
   'comment',
   'message',
   'profile',
-  'file'
+  'file',
+  'llm_message' -- BUG-015: Cortex moderatorScreen submits llm_message
 );
 
 -- Moderation status

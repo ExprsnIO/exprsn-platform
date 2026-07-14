@@ -48,7 +48,7 @@ const validate = (schema) => {
 // Moderation request schema
 const moderateContentSchema = Joi.object({
   contentType: Joi.string()
-    .valid('text', 'image', 'video', 'audio', 'post', 'comment', 'message', 'profile', 'file')
+    .valid('text', 'image', 'video', 'audio', 'post', 'comment', 'message', 'profile', 'file', 'llm_message')
     .required(),
   contentId: Joi.string()
     .max(255)

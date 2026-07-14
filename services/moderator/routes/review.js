@@ -14,6 +14,12 @@ const moderationActions = require('../services/moderationActions');
 // methods. Matches the working routes (rules.js) and services (queueService.js).
 const { ReviewQueue, ModerationCase } = require('../models/sequelize-index');
 const logger = require('../src/utils/logger');
+const requireAdmin = require('../src/middleware/requireAdmin');
+
+// The entire review queue (reads + all state-mutating review actions) is
+// admin-only. Previously unauthenticated (BUG-010 / SPIKE-001) — any caller
+// could approve/reject/remove/ban/warn any queue item.
+router.use(requireAdmin);
 
 /**
  * GET /api/queue/pending
@@ -51,14 +57,11 @@ router.get('/pending', async (req, res) => {
 router.post('/:itemId/approve', async (req, res) => {
   try {
     const { itemId } = req.params;
-    const { moderatorId, notes } = req.body;
+    const { notes } = req.body;
 
-    if (!moderatorId) {
-      return res.status(400).json({
-        error: 'INVALID_REQUEST',
-        message: 'moderatorId is required'
-      });
-    }
+    // Actor of record is the authenticated admin (requireAdmin sets req.userId),
+    // never a client-supplied body field (BUG-010 audit-integrity fix).
+    const moderatorId = req.userId;
 
     const result = await moderationService.reviewContent(
       itemId,
@@ -87,14 +90,11 @@ router.post('/:itemId/approve', async (req, res) => {
 router.post('/:itemId/reject', async (req, res) => {
   try {
     const { itemId } = req.params;
-    const { moderatorId, notes } = req.body;
+    const { notes } = req.body;
 
-    if (!moderatorId) {
-      return res.status(400).json({
-        error: 'INVALID_REQUEST',
-        message: 'moderatorId is required'
-      });
-    }
+    // Actor of record is the authenticated admin (requireAdmin sets req.userId),
+    // never a client-supplied body field (BUG-010 audit-integrity fix).
+    const moderatorId = req.userId;
 
     const result = await moderationService.reviewContent(
       itemId,
@@ -269,7 +269,11 @@ router.post('/:id/analyze', async (req, res) => {
 router.post('/:id/warn', async (req, res) => {
   try {
     const { id } = req.params;
-    const { moderatorId, reason } = req.body;
+    const { reason } = req.body;
+
+    // Actor of record is the authenticated admin (requireAdmin sets req.userId),
+    // never a client-supplied body field (BUG-010 audit-integrity fix).
+    const moderatorId = req.userId;
 
     const item = await ReviewQueue.findByPk(id, {
       include: [{
@@ -295,7 +299,7 @@ router.post('/:id/warn', async (req, res) => {
       sourceService: moderationCase.sourceService,
       userId: moderationCase.contentMetadata?.userId,
       reason: reason || 'Content flagged for policy violation',
-      moderatorId: moderatorId || 'system'
+      moderatorId
     });
 
     // Update queue item status
@@ -329,7 +333,11 @@ router.post('/:id/warn', async (req, res) => {
 router.post('/:id/remove', async (req, res) => {
   try {
     const { id } = req.params;
-    const { moderatorId, reason } = req.body;
+    const { reason } = req.body;
+
+    // Actor of record is the authenticated admin (requireAdmin sets req.userId),
+    // never a client-supplied body field (BUG-010 audit-integrity fix).
+    const moderatorId = req.userId;
 
     const item = await ReviewQueue.findByPk(id, {
       include: [{
@@ -355,7 +363,7 @@ router.post('/:id/remove', async (req, res) => {
       sourceService: moderationCase.sourceService,
       userId: moderationCase.contentMetadata?.userId,
       reason: reason || 'Content removed for policy violation',
-      moderatorId: moderatorId || 'system'
+      moderatorId
     });
 
     // Update queue item status
@@ -388,7 +396,11 @@ router.post('/:id/remove', async (req, res) => {
 router.post('/:id/ban', async (req, res) => {
   try {
     const { id } = req.params;
-    const { moderatorId, reason, duration } = req.body;
+    const { reason, duration } = req.body;
+
+    // Actor of record is the authenticated admin (requireAdmin sets req.userId),
+    // never a client-supplied body field (BUG-010 audit-integrity fix).
+    const moderatorId = req.userId;
 
     const item = await ReviewQueue.findByPk(id, {
       include: [{
@@ -414,7 +426,7 @@ router.post('/:id/ban', async (req, res) => {
       sourceService: moderationCase.sourceService,
       userId: moderationCase.contentMetadata?.userId,
       reason: reason || 'User banned for policy violation',
-      moderatorId: moderatorId || 'system',
+      moderatorId,
       metadata: { duration: duration || 'permanent' }
     });
 

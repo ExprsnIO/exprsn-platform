@@ -7,8 +7,28 @@
 
 const express = require('express');
 const router = express.Router();
+const { verifyServiceToken } = require('@exprsn/shared/utils/serviceToken');
 const moderationService = require('../services/moderationService');
 const logger = require('../src/utils/logger');
+const requireService = require('../src/middleware/requireService');
+const requireAdmin = require('../src/middleware/requireAdmin');
+
+/**
+ * GET /status accepts EITHER a valid service HMAC token OR an admin CA bearer:
+ * services poll status inter-module, and the admin console reads it. A valid
+ * service token short-circuits; otherwise fall back to the admin bearer gate
+ * (which owns the 401/403 response). The in-process `moderateContent` direct
+ * require path is unaffected — it never reaches this HTTP surface.
+ */
+function requireServiceOrAdmin(req, res, next) {
+  const serviceId = req.get('X-Service-ID');
+  const token = req.get('X-Service-Token');
+  if (verifyServiceToken(serviceId, token)) {
+    req.serviceId = serviceId;
+    return next();
+  }
+  return requireAdmin(req, res, next);
+}
 
 /**
  * Fields an UNTRUSTED HTTP caller may set. `moderateContent` also accepts
@@ -39,7 +59,7 @@ function sanitizeModerationInput(body) {
  * POST /api/moderate/content
  * Submit content for moderation
  */
-router.post('/content', async (req, res) => {
+router.post('/content', requireService, async (req, res) => {
   try {
     const {
       contentType,
@@ -95,7 +115,7 @@ router.post('/content', async (req, res) => {
  * GET /api/moderate/status/:sourceService/:contentType/:contentId
  * Get moderation status for content
  */
-router.get('/status/:sourceService/:contentType/:contentId', async (req, res) => {
+router.get('/status/:sourceService/:contentType/:contentId', requireServiceOrAdmin, async (req, res) => {
   try {
     const { sourceService, contentType, contentId } = req.params;
 
@@ -129,7 +149,7 @@ router.get('/status/:sourceService/:contentType/:contentId', async (req, res) =>
  * POST /api/moderate/batch
  * Batch moderation for multiple items
  */
-router.post('/batch', async (req, res) => {
+router.post('/batch', requireService, async (req, res) => {
   try {
     const { items } = req.body;
 

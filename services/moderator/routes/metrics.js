@@ -10,6 +10,11 @@ const { Op } = require('sequelize');
 // factory files export functions and `../models` exports a pg pool, not these).
 const { sequelize, ModerationCase, ModerationAction, Report, ReviewQueue, Appeal } = require('../models/sequelize-index');
 const logger = require('../utils/logger');
+const requireAdmin = require('../src/middleware/requireAdmin');
+
+// Moderation metrics/export are admin-only (info disclosure otherwise).
+// Previously unauthenticated (BUG-010 / SPIKE-001).
+router.use(requireAdmin);
 
 /**
  * GET /api/metrics

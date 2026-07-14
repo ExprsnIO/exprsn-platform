@@ -441,6 +441,10 @@ async function searchPosts(query, options = {}) {
     // Build query
     const must = [];
     const filter = [];
+    // FEAT-011 R16: authors the viewer has blocked (either way) or muted are
+    // excluded via a must_not terms filter (this is extra ES work, not a `where`
+    // clause). Empty/absent = no exclusion.
+    const mustNot = [];
 
     // Main search query
     if (query && query.trim()) {
@@ -479,6 +483,11 @@ async function searchPosts(query, options = {}) {
     // Default filter: only published posts
     filter.push({ term: { status: 'published' } });
 
+    // FEAT-011 R16: suppress blocked/muted authors.
+    if (Array.isArray(filters.excludeUserIds) && filters.excludeUserIds.length) {
+      mustNot.push({ terms: { userId: filters.excludeUserIds } });
+    }
+
     // Build sort
     let sort = [];
     if (sortBy === 'recent') {
@@ -499,7 +508,8 @@ async function searchPosts(query, options = {}) {
       query: {
         bool: {
           must,
-          filter
+          filter,
+          must_not: mustNot
         }
       },
       sort

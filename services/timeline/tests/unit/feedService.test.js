@@ -26,7 +26,16 @@ jest.mock('../../src/models', () => ({
   }
 }));
 
+// FEAT-011: feedService now consults the block/mute façade. Mock it so these
+// tests stay DB-free; default is "nothing suppressed" (no filter). Suppression
+// wiring is covered in enforcement.test.js.
+jest.mock('../../src/services/relationshipService', () => ({
+  getSuppressedIds: jest.fn().mockResolvedValue([]),
+  isBlockedEitherWay: jest.fn().mockResolvedValue(false)
+}));
+
 const feedService = require('../../src/services/feedService');
+const relationshipService = require('../../src/services/relationshipService');
 const { Post, Follow } = require('../../src/models');
 const { Op } = require('sequelize');
 const {
@@ -40,6 +49,9 @@ const {
 describe('Feed Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // resetMocks wipes the factory defaults — re-establish "nothing suppressed".
+    relationshipService.getSuppressedIds.mockResolvedValue([]);
+    relationshipService.isBlockedEitherWay.mockResolvedValue(false);
   });
 
   describe('getHomeFeed', () => {

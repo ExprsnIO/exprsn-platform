@@ -21,7 +21,15 @@ jest.mock('axios', () => ({
   create: jest.fn(() => mockHeraldClient)
 }));
 
+// FEAT-011 N1a: notifyInteraction now consults the block/mute façade. Mock it so
+// these tests exercise the Herald path (default: nothing suppressed). Suppression
+// behavior itself is covered in notificationSuppression.test.js.
+jest.mock('../../src/services/relationshipService', () => ({
+  getSuppressedIds: jest.fn().mockResolvedValue([])
+}));
+
 const heraldService = require('../../src/services/heraldService');
+const relationshipService = require('../../src/services/relationshipService');
 const config = require('../../src/config');
 
 describe('Herald Service', () => {
@@ -30,6 +38,8 @@ describe('Herald Service', () => {
     // setup.js sets HERALD_ENABLED=false, but config.herald.enabled is computed
     // at require-time. Force it on for the tests that exercise the HTTP path.
     config.herald.enabled = true;
+    // Default: no block/mute suppression (resetMocks wipes the factory default).
+    relationshipService.getSuppressedIds.mockResolvedValue([]);
   });
 
   describe('sendNotification', () => {

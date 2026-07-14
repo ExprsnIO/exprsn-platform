@@ -29,6 +29,7 @@ jest.mock('../../src/models', () => ({
   Post: mockMakeModel(),
   Like: mockMakeModel(),
   Follow: mockMakeModel(),
+  UserRelationship: mockMakeModel(), // FEAT-011 block/mute store (façade reads this)
   Comment: mockMakeModel(),
   Repost: mockMakeModel(),
   Bookmark: mockMakeModel(),

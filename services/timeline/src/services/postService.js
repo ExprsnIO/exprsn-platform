@@ -12,6 +12,9 @@ const { Op } = require('sequelize');
 const { queues } = require('../config/queue');
 const blueskyWebhook = require('./blueskyWebhook');
 const moderationSink = require('./moderationSink');
+// FEAT-011 block/mute enforcement (intra-module; relationshipService depends
+// only on models, so there is no require cycle).
+const relationshipService = require('./relationshipService');
 
 /**
  * Create a new post
@@ -90,6 +93,14 @@ async function getPostById(postId, options = {}) {
     if (!post) {
       throw new Error('Post not found');
     }
+
+    // FEAT-011 QUOTE-EMBED GUARD-RAIL (ADR finding 11): this function does NOT
+    // inline-hydrate the quoted post (metadata.quoteOf) — the SPA re-fetches it,
+    // which hits the R9 post-detail block 404 (posts.js GET /:id). If any future
+    // change starts attaching the quoted author/body into this payload, it MUST
+    // filter the embedded author through relationshipService.getSuppressedIds
+    // (or isBlockedEitherWay) for the viewer and drop/redact the embed when
+    // suppressed, or the block leaks past R9.
 
     return post;
   } catch (error) {
@@ -266,7 +277,7 @@ async function getPostStats(postId) {
 /**
  * Get post thread (replies)
  */
-async function getPostThread(postId) {
+async function getPostThread(postId, { viewerId = null } = {}) {
   try {
     const rootPost = await Post.findByPk(postId);
 
@@ -274,12 +285,26 @@ async function getPostThread(postId) {
       throw new AppError('Post not found', 404, 'POST_NOT_FOUND');
     }
 
+    // FEAT-011 R11: a thread rooted on a post whose author is blocked either way
+    // is not-found to the viewer (mirrors the R9 post-detail 404; block only).
+    if (viewerId && rootPost.userId !== viewerId
+        && await relationshipService.isBlockedEitherWay(viewerId, rootPost.userId)) {
+      throw new AppError('Post not found', 404, 'POST_NOT_FOUND');
+    }
+
+    // Suppress replies from blocked/muted authors (one set-returning query).
+    const suppressed = viewerId ? ((await relationshipService.getSuppressedIds(viewerId)) || []) : [];
+    const replyWhere = {
+      'metadata.replyTo': postId,
+      deleted: false
+    };
+    if (suppressed.length) {
+      replyWhere.userId = { [Op.notIn]: suppressed };
+    }
+
     // Get all replies to this post
     const replies = await Post.findAll({
-      where: {
-        'metadata.replyTo': postId,
-        deleted: false
-      },
+      where: replyWhere,
       order: [['createdAt', 'ASC']],
       include: [
         { model: Like, as: 'likes' },
@@ -302,13 +327,20 @@ async function getPostThread(postId) {
 /**
  * Get quote posts
  */
-async function getQuotePosts(postId) {
+async function getQuotePosts(postId, { viewerId = null } = {}) {
   try {
+    // FEAT-011 R12: suppress quotes authored by blocked/muted users (one query).
+    const suppressed = viewerId ? ((await relationshipService.getSuppressedIds(viewerId)) || []) : [];
+    const where = {
+      'metadata.quoteOf': postId,
+      deleted: false
+    };
+    if (suppressed.length) {
+      where.userId = { [Op.notIn]: suppressed };
+    }
+
     const quotes = await Post.findAll({
-      where: {
-        'metadata.quoteOf': postId,
-        deleted: false
-      },
+      where,
       order: [['createdAt', 'DESC']],
       include: [
         { model: Like, as: 'likes' }
@@ -325,14 +357,23 @@ async function getQuotePosts(postId) {
 /**
  * Get user's liked posts
  */
-async function getUserLikes(userId, { limit = 20, offset = 0 } = {}) {
+async function getUserLikes(userId, { limit = 20, offset = 0, viewerId = null } = {}) {
   try {
+    // FEAT-011 R8: exclude liked posts whose author is blocked/muted for the
+    // viewer (defaults to the list owner). One set-returning query per request.
+    const effectiveViewer = viewerId || userId;
+    const suppressed = (await relationshipService.getSuppressedIds(effectiveViewer)) || [];
+    const postWhere = { deleted: false };
+    if (suppressed.length) {
+      postWhere.userId = { [Op.notIn]: suppressed };
+    }
+
     const likes = await Like.findAll({
       where: { userId },
       include: [{
         model: Post,
         as: 'post',
-        where: { deleted: false }
+        where: postWhere
       }],
       order: [['createdAt', 'DESC']],
       limit,
@@ -349,14 +390,23 @@ async function getUserLikes(userId, { limit = 20, offset = 0 } = {}) {
 /**
  * Get user's bookmarked posts
  */
-async function getUserBookmarks(userId, { limit = 20, offset = 0 } = {}) {
+async function getUserBookmarks(userId, { limit = 20, offset = 0, viewerId = null } = {}) {
   try {
+    // FEAT-011 R8: exclude bookmarked posts whose author is blocked/muted for
+    // the viewer (defaults to the list owner). One set-returning query.
+    const effectiveViewer = viewerId || userId;
+    const suppressed = (await relationshipService.getSuppressedIds(effectiveViewer)) || [];
+    const postWhere = { deleted: false };
+    if (suppressed.length) {
+      postWhere.userId = { [Op.notIn]: suppressed };
+    }
+
     const bookmarks = await Bookmark.findAll({
       where: { userId },
       include: [{
         model: Post,
         as: 'post',
-        where: { deleted: false }
+        where: postWhere
       }],
       order: [['createdAt', 'DESC']],
       limit,

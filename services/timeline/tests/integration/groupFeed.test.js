@@ -41,6 +41,14 @@ jest.mock('../../src/middleware/auth', () => {
 // Mock models.
 jest.mock('../../src/models');
 
+// FEAT-011: isolate the group-feed query assertion from the block/mute façade.
+// The models automock shares Model.findAll across models, so without this the
+// façade's getSuppressedIds query would land in Post.findAll.mock.calls[0].
+// Default: nothing suppressed (R7 still adds no userId filter when empty).
+jest.mock('../../src/services/relationshipService', () => ({
+  getSuppressedIds: jest.fn().mockResolvedValue([])
+}));
+
 const { app } = require('../../src/index');
 const { Post } = require('../../src/models');
 const { createPosts } = require('../fixtures/factories');

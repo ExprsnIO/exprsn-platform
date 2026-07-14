@@ -12,6 +12,7 @@ const { Post, Like, Follow } = require('../models');
 const feedService = require('../services/feedService');
 const postService = require('../services/postService');
 const moderationSink = require('../services/moderationSink');
+const relationshipService = require('../services/relationshipService');
 const { Op } = require('sequelize');
 const { parsePaginationParams, buildCursorResponse, buildCursorWhere } = require('../utils/cursor');
 
@@ -94,6 +95,13 @@ router.get('/global', asyncHandler(async (req, res) => {
     visibility: 'public'
   };
 
+  // FEAT-011 R6: suppress blocked/muted authors on the global timeline (both the
+  // cursor and offset branches share baseWhere). One set-returning query.
+  const suppressed = (await relationshipService.getSuppressedIds(req.userId)) || [];
+  if (suppressed.length) {
+    baseWhere.userId = { [Op.notIn]: suppressed };
+  }
+
   let posts;
   let response;
 
@@ -169,6 +177,13 @@ router.get('/group/:groupId', requireGroupMembership(), asyncHandler(async (req,
     deleted: false
   };
 
+  // FEAT-011 R7: block/mute suppression applies inside a group too — shared
+  // membership does NOT exempt a blocked/muted author from being hidden.
+  const suppressed = (await relationshipService.getSuppressedIds(req.userId)) || [];
+  if (suppressed.length) {
+    baseWhere.userId = { [Op.notIn]: suppressed };
+  }
+
   let posts;
   let response;
 
@@ -234,7 +249,7 @@ router.get('/explore', asyncHandler(async (req, res) => {
   const { page, limit, offset } = validatePagination(req.query);
 
   const posts = await moderationSink.filterServablePosts(
-    await feedService.getExploreFeed({ limit, offset }), req.userId
+    await feedService.getExploreFeed({ limit, offset, viewerId: req.userId }), req.userId
   );
 
   res.json({
@@ -252,7 +267,7 @@ router.get('/trending', asyncHandler(async (req, res) => {
   const { page, limit, offset } = validatePagination(req.query);
 
   const posts = await moderationSink.filterServablePosts(
-    await feedService.getTrendingPosts({ limit, offset }), req.userId
+    await feedService.getTrendingPosts({ limit, offset, viewerId: req.userId }), req.userId
   );
 
   res.json({
@@ -271,9 +286,12 @@ router.get('/user/:userId', asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const { page, limit, offset } = validatePagination(req.query);
 
+  // FEAT-011 R2: empty when the viewer is blocked either way (handled in
+  // feedService via viewerId).
   let posts = await feedService.getUserTimeline(userId, {
     limit,
-    offset
+    offset,
+    viewerId: req.userId
   });
 
   // A viewer sees another user's posts here; a rejected post must not leak.
@@ -295,7 +313,7 @@ router.get('/bookmarks', asyncHandler(async (req, res) => {
   const { page, limit, offset } = validatePagination(req.query);
 
   const posts = await moderationSink.filterServablePosts(
-    await postService.getUserBookmarks(req.userId, { limit, offset }), req.userId
+    await postService.getUserBookmarks(req.userId, { limit, offset, viewerId: req.userId }), req.userId
   );
 
   res.json({
@@ -314,7 +332,7 @@ router.get('/likes', asyncHandler(async (req, res) => {
   const { page, limit, offset } = validatePagination(req.query);
 
   const posts = await moderationSink.filterServablePosts(
-    await postService.getUserLikes(req.userId, { limit, offset }), req.userId
+    await postService.getUserLikes(req.userId, { limit, offset, viewerId: req.userId }), req.userId
   );
 
   res.json({

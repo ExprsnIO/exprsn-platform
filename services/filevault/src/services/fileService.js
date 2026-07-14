@@ -197,24 +197,6 @@ async function downloadFileStream(fileId, userId, versionNumber = null) {
 }
 
 /**
- * Download a file for a requester whose right to access is established by an
- * EXTERNAL container membership (e.g. a live room), NOT by FileVault ownership.
- *
- * This mirrors the share.js pattern (assertShareableImage + owner-id nuance) but
- * consolidates it inside FileVault so there is one moderation code path:
- *  - The caller has ALREADY verified the requester may access this file's
- *    container (room membership); so we do NOT apply getFile()'s private-
- *    visibility owner check (a non-uploader member is legitimately authorized).
- *  - The FEAT-031 moderation gate STILL applies to that member as a non-uploader:
- *    a held (pending/rejected) image is not served to anyone but its uploader.
- *
- * Deliberately throws the same FILE_NOT_FOUND as a missing file so a held image
- * is not enumerable.
- *
- * @param {string} fileId    - FileVault file id
- * @param {string} requesterId - the user asking to read the bytes
- */
-/**
  * Does a durable container share (a live room today; gallery albums later) still
  * authorize this file, given the provenance of the share?
  *
@@ -241,6 +223,28 @@ function shareGrantAllows(file, requesterId, sharedAsOwner) {
   return String(file.userId) === String(requesterId);
 }
 
+/**
+ * Download a file for a requester whose right to access is established by an
+ * EXTERNAL container membership (e.g. a live room), NOT by FileVault ownership.
+ *
+ * Consolidated inside FileVault so there is one code path for both gates:
+ *  - **Share grant (FEAT-061).** Container membership alone is NOT sufficient. The
+ *    share carries provenance, and `shareGrantAllows()` decides whether it survived
+ *    the file's current visibility. (This function previously skipped the visibility
+ *    check outright — that was BUG-027.)
+ *  - **Moderation (FEAT-031).** Still applies to the member as a non-uploader: a held
+ *    (pending/rejected) image is not served to anyone but its uploader. A share grant
+ *    does not buy past it.
+ *
+ * Both gates throw the same FILE_NOT_FOUND as a missing file, so neither a held image
+ * nor a lapsed share is distinguishable from a file that was never there.
+ *
+ * @param {string} fileId      - FileVault file id
+ * @param {string} requesterId - the user asking to read the bytes
+ * @param {object} [opts]
+ * @param {boolean} [opts.sharedAsOwner=false] - was the sharer the file's owner at share
+ *   time? Defaults to false, i.e. fails closed on a private file.
+ */
 async function downloadFileStreamForMember(fileId, requesterId, { sharedAsOwner = false } = {}) {
   const file = await File.findOne({
     where: { id: fileId, isDeleted: false },

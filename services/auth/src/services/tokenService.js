@@ -7,6 +7,7 @@
  */
 
 const axios = require('axios');
+const { Op } = require('sequelize');
 const { logger } = require('@exprsn/shared');
 const { isPlatformAdmin } = require('@exprsn/shared/utils/platformAdmin');
 const config = require('../config');
@@ -187,7 +188,28 @@ async function revokeToken(tokenId, reason = 'User logout') {
 async function resolveUserRoles(user) {
   try {
     if (!user || typeof user.getRoles !== 'function') return [];
-    const userRoles = (await user.getRoles()) || [];
+    // SECURITY (P1, platform-wide): this is the TOKEN-MINTING role source. Every
+    // consumer of the CA token's data.roles — moderator (requireAdmin
+    // ADMIN_ROLES), nexus (groupAuth isPlatformAdminRequest), timeline (rbac) —
+    // trusts what this emits, so it MUST only surface ACTIVE, non-expired
+    // bindings. The User↔Role belongsToMany association applies NO
+    // status/expiresAt predicate, so a bare getRoles() returns roles linked by
+    // REVOKED (status='revoked') or time-EXPIRED UserRole rows — letting a
+    // revoked admin re-authenticate and mint a fresh token still carrying
+    // 'admin' (revocation never takes effect in any module). Scope the
+    // join-table read here (mirrors requireAdmin.hasAdminRole) instead of
+    // changing the global association, so role-ADMIN views that must list
+    // revoked/expired bindings (rbacService / organizationService query UserRole
+    // directly, not via getRoles) keep seeing them.
+    const now = new Date();
+    const userRoles = (await user.getRoles({
+      through: {
+        where: {
+          status: 'active',
+          [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: now } }]
+        }
+      }
+    })) || [];
     const slugs = userRoles.map(r => r.slug).filter(Boolean);
     const names = userRoles.map(r => r.name).filter(Boolean);
     const roles = new Set(slugs);

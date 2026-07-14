@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  MenuItem,
   Stack,
   Tab,
   Tabs,
@@ -69,8 +70,11 @@ interface Toaster {
 }
 
 function OverviewTab() {
-  const stats = useQuery({ queryKey: ['atproto', 'stats'], queryFn: atprotoAdminApi.stats });
+  // Poll so queue depth / DLQ counts stay live while the tab is open.
+  const stats = useQuery({ queryKey: ['atproto', 'stats'], queryFn: atprotoAdminApi.stats, refetchInterval: 15_000 });
+  const health = useQuery({ queryKey: ['atproto', 'health'], queryFn: atprotoAdminApi.health });
   const identity = useQuery({ queryKey: ['atproto', 'identity'], queryFn: atprotoAdminApi.identity });
+  const serviceRecord = useQuery({ queryKey: ['atproto', 'service-record'], queryFn: atprotoAdminApi.serviceRecord });
   const feed = useQuery({ queryKey: ['atproto', 'feed'], queryFn: atprotoAdminApi.feedRecord });
 
   return (
@@ -90,6 +94,18 @@ function OverviewTab() {
         )}
       </QueryState>
 
+      <QueryState query={health}>
+        {(d) => (
+          <Card title="Bridge status">
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Chip size="small" color={d.enabled ? 'success' : 'error'} label={d.enabled ? 'Enabled' : 'Disabled'} />
+              <Chip size="small" variant="outlined" label={`transport: ${d.transport}`} />
+              <Chip size="small" variant="outlined" color={d.ok ? 'success' : 'default'} label={d.ok ? 'ok' : 'not ok'} />
+            </Stack>
+          </Card>
+        )}
+      </QueryState>
+
       <QueryState query={identity}>
         {(d) => (
           <Card title="Labeler identity">
@@ -103,10 +119,33 @@ function OverviewTab() {
                   <Chip size="small" color={d.published ? 'success' : 'default'} label={d.published ? 'published' : 'unpublished'} />
                   <Chip size="small" variant="outlined" label={d.host} />
                 </Stack>
+                {d.publicKeyMultibase && (
+                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                    {d.publicKeyMultibase}
+                  </Typography>
+                )}
               </Stack>
             ) : (
               <Typography variant="body2" color="text.secondary">
                 No labeler identity provisioned. Run <code>npm run atproto:provision</code>.
+              </Typography>
+            )}
+          </Card>
+        )}
+      </QueryState>
+
+      <QueryState query={serviceRecord}>
+        {(d) => (
+          <Card title="Declared labels">
+            {d.policies?.labelValues?.length ? (
+              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                {d.policies.labelValues.map((v) => (
+                  <Chip key={v} size="small" variant="outlined" label={v} />
+                ))}
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No label values declared.
               </Typography>
             )}
           </Card>
@@ -232,44 +271,79 @@ function OutLabelsTab({ toaster }: { toaster: Toaster }) {
 
 function InboundTab({ toaster }: { toaster: Toaster }) {
   const qc = useQueryClient();
-  const query = useQuery({ queryKey: ['atproto', 'inbound'], queryFn: () => atprotoAdminApi.inboundLabels(100) });
+  // Server-side filters — the endpoint is limit-capped, so filtering must happen
+  // in the query (client-only filtering would miss rows beyond the limit).
+  const [uri, setUri] = useState('');
+  const [src, setSrc] = useState('');
+  const [verified, setVerified] = useState<'' | 'true' | 'false'>('');
 
-  const hide = (uri: string) =>
+  const filter = {
+    uri: uri.trim() || undefined,
+    src: src.trim() || undefined,
+    verified: verified === '' ? undefined : verified === 'true',
+  };
+  const query = useQuery({
+    queryKey: ['atproto', 'inbound', uri.trim(), src.trim(), verified],
+    queryFn: () => atprotoAdminApi.inboundLabels(100, filter),
+  });
+
+  const hide = (subject: string) =>
     atprotoAdminApi
-      .applyLabel(uri, '!hide')
+      .applyLabel(subject, '!hide')
       .then(() => {
-        toaster.showToast(`Hidden ${short(uri, 24)}`, 'success');
+        toaster.showToast(`Hidden ${short(subject, 24)}`, 'success');
         qc.invalidateQueries({ queryKey: ['atproto'] });
       })
       .catch((e) => toaster.showError(e));
 
   return (
-    <QueryState query={query} empty="No inbound labels consumed yet.">
-      {(d) => (
-        <DataTable<InboundLabel>
-          rows={d.labels ?? []}
-          rowKey={(l, i) => `${l.src}:${l.uri}:${l.val}:${i}`}
-          columns={[
-            { key: 'val', header: 'Label', render: (l) => <Chip size="small" color={l.neg ? 'default' : 'secondary'} label={l.neg ? `¬${l.val}` : l.val} /> },
-            { key: 'uri', header: 'Subject', render: (l) => short(l.uri, 34) },
-            { key: 'src', header: 'Issuer', render: (l) => short(l.src) },
-            { key: 'verified', header: 'Verified', render: (l) => <Chip size="small" color={l.verified ? 'success' : 'warning'} label={l.verified ? 'yes' : 'no'} /> },
-            {
-              key: 'actions',
-              header: '',
-              align: 'right',
-              render: (l) => (
-                <Tooltip title="Apply our !hide label to this URI">
-                  <Button size="small" startIcon={<VisibilityOffOutlinedIcon />} onClick={() => hide(l.uri)}>
-                    Hide
-                  </Button>
-                </Tooltip>
-              ),
-            },
-          ]}
-        />
-      )}
-    </QueryState>
+    <Stack spacing={2}>
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+        <TextField size="small" label="Subject URI" value={uri} onChange={(e) => setUri(e.target.value)} placeholder="at:// or did:" />
+        <TextField size="small" label="Issuer (src)" value={src} onChange={(e) => setSrc(e.target.value)} placeholder="did:plc:…" />
+        <TextField
+          select
+          size="small"
+          label="Verified"
+          value={verified}
+          onChange={(e) => setVerified(e.target.value as '' | 'true' | 'false')}
+          sx={{ minWidth: 140 }}
+        >
+          <MenuItem value="">All</MenuItem>
+          <MenuItem value="true">Verified</MenuItem>
+          <MenuItem value="false">Unverified</MenuItem>
+        </TextField>
+      </Stack>
+      <QueryState query={query} empty="No inbound labels consumed yet.">
+        {(d) => (
+          <DataTable<InboundLabel>
+            rows={d.labels ?? []}
+            rowKey={(l, i) => `${l.src}:${l.uri}:${l.val}:${i}`}
+            columns={[
+              { key: 'val', header: 'Label', render: (l) => <Chip size="small" color={l.neg ? 'default' : 'secondary'} label={l.neg ? `¬${l.val}` : l.val} /> },
+              { key: 'uri', header: 'Subject', render: (l) => short(l.uri, 34) },
+              { key: 'src', header: 'Issuer', render: (l) => short(l.src) },
+              { key: 'labeler', header: 'Labeler', render: (l) => short(l.labeler, 22) },
+              { key: 'verified', header: 'Verified', render: (l) => <Chip size="small" color={l.verified ? 'success' : 'warning'} label={l.verified ? 'yes' : 'no'} /> },
+              { key: 'cts', header: 'Created', render: (l) => short(l.cts, 24) },
+              { key: 'srcSeq', header: 'Seq', render: (l) => short(l.srcSeq, 18) },
+              {
+                key: 'actions',
+                header: '',
+                align: 'right',
+                render: (l) => (
+                  <Tooltip title="Apply our !hide label to this URI">
+                    <Button size="small" startIcon={<VisibilityOffOutlinedIcon />} onClick={() => hide(l.uri)}>
+                      Hide
+                    </Button>
+                  </Tooltip>
+                ),
+              },
+            ]}
+          />
+        )}
+      </QueryState>
+    </Stack>
   );
 }
 

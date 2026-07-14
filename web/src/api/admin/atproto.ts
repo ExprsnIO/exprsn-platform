@@ -14,6 +14,33 @@ export interface AtprotoStats {
   moderationDlq?: number | null;
 }
 
+/** Liveness + module-enablement + configured firehose transport (public read). */
+export interface AtprotoHealth {
+  ok: boolean;
+  enabled: boolean;
+  transport: string;
+}
+
+/** One declared label value's definition (severity / blur / locale metadata). */
+export interface AtprotoLabelValueDefinition {
+  identifier: string;
+  severity: string;
+  blurs: string;
+  defaultSetting?: string;
+  adultOnly?: boolean;
+  locales?: Array<{ lang: string; name: string; description: string }>;
+}
+
+/** The published app.bsky.labeler.service record (label policy declaration). */
+export interface AtprotoServiceRecord {
+  $type?: string;
+  policies: {
+    labelValues: string[];
+    labelValueDefinitions?: AtprotoLabelValueDefinition[];
+  };
+  createdAt?: string;
+}
+
 export interface AtprotoIdentity {
   did: string | null;
   method: string;
@@ -63,15 +90,30 @@ export interface FeedRecord {
 }
 
 export const atprotoAdminApi = {
+  health: () => http.get<AtprotoHealth>('/atproto/health'),
   stats: () => http.get<AtprotoStats>('/atproto/stats'),
   identity: () => http.get<AtprotoIdentity>('/atproto/identity'),
+  serviceRecord: () => http.get<AtprotoServiceRecord>('/atproto/service-record'),
   feedRecord: () => http.get<FeedRecord>('/atproto/feed-record'),
   outLabels: (limit = 100) =>
     http.get<{ cursor?: string; labels: OutLabel[] }>(
       `/xrpc/com.atproto.label.queryLabels?uriPatterns=*&limit=${limit}`,
     ),
-  inboundLabels: (limit = 100) =>
-    http.get<{ labels: InboundLabel[] }>(`/atproto/inbound-labels?limit=${limit}`),
+  /**
+   * Inbound labels consumed from external labelers. Server-side filters (uri /
+   * src / verified) are appended only when set — the table is limit-capped, so
+   * client-only filtering would miss rows beyond the limit.
+   */
+  inboundLabels: (
+    limit = 100,
+    filter: { uri?: string; src?: string; verified?: boolean } = {},
+  ) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (filter.uri) params.set('uri', filter.uri);
+    if (filter.src) params.set('src', filter.src);
+    if (filter.verified != null) params.set('verified', String(filter.verified));
+    return http.get<{ labels: InboundLabel[] }>(`/atproto/inbound-labels?${params.toString()}`);
+  },
   externalLabelers: () => http.get<{ labelers: ExternalLabeler[] }>('/atproto/external-labelers'),
 
   // --- Operator mutations (platform-admin CA bearer required) ---

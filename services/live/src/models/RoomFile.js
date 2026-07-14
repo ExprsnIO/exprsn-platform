@@ -14,7 +14,11 @@ RoomFile.init({
   storage_key: { type: DataTypes.STRING(512), allowNull: true },
   name: { type: DataTypes.STRING(512), allowNull: false },
   mimetype: { type: DataTypes.STRING(128), allowNull: true },
-  size: { type: DataTypes.BIGINT, allowNull: true }
+  size: { type: DataTypes.BIGINT, allowNull: true },
+  // Capability provenance (FEAT-061 / BUG-027): was the sharer the file's owner at
+  // share time? An owner sharing their OWN file keeps serving after they flip it to
+  // private; a non-owner's share of a then-public file does not.
+  shared_as_owner: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }
 }, { sequelize, modelName: 'RoomFile', tableName: 'room_files', timestamps: true, underscored: true });
 
 module.exports = RoomFile;

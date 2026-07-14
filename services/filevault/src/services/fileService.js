@@ -197,30 +197,68 @@ async function downloadFileStream(fileId, userId, versionNumber = null) {
 }
 
 /**
+ * Does a durable container share (a live room today; gallery albums later) still
+ * authorize this file, given the provenance of the share?
+ *
+ * FEAT-061 / BUG-027. A share is a capability minted at share time, and the two
+ * cases below must diverge once the owner flips the file to `private`:
+ *
+ *   - the OWNER shared their own file    -> survives the flip. This is the flow the
+ *     old blanket visibility-skip existed to protect, and it must keep working.
+ *   - a NON-owner shared a public file   -> dies on the flip. The grant was only ever
+ *     as strong as the visibility it was minted under.
+ *
+ * `sharedAsOwner` is per-share provenance (live: `room_files.shared_as_owner`), NOT a
+ * property of the requester — any room member downloading an owner-shared private file
+ * passes, which is the point.
+ *
+ * @param {object} file
+ * @param {string} requesterId
+ * @param {boolean} sharedAsOwner - was the sharer the file's owner at share time?
+ */
+function shareGrantAllows(file, requesterId, sharedAsOwner) {
+  if (file.visibility !== 'private') return true;
+  if (sharedAsOwner) return true;
+  // A requester who owns the file needs no share to read it.
+  return String(file.userId) === String(requesterId);
+}
+
+/**
  * Download a file for a requester whose right to access is established by an
  * EXTERNAL container membership (e.g. a live room), NOT by FileVault ownership.
  *
- * This mirrors the share.js pattern (assertShareableImage + owner-id nuance) but
- * consolidates it inside FileVault so there is one moderation code path:
- *  - The caller has ALREADY verified the requester may access this file's
- *    container (room membership); so we do NOT apply getFile()'s private-
- *    visibility owner check (a non-uploader member is legitimately authorized).
- *  - The FEAT-031 moderation gate STILL applies to that member as a non-uploader:
- *    a held (pending/rejected) image is not served to anyone but its uploader.
+ * Consolidated inside FileVault so there is one code path for both gates:
+ *  - **Share grant (FEAT-061).** Container membership alone is NOT sufficient. The
+ *    share carries provenance, and `shareGrantAllows()` decides whether it survived
+ *    the file's current visibility. (This function previously skipped the visibility
+ *    check outright — that was BUG-027.)
+ *  - **Moderation (FEAT-031).** Still applies to the member as a non-uploader: a held
+ *    (pending/rejected) image is not served to anyone but its uploader. A share grant
+ *    does not buy past it.
  *
- * Deliberately throws the same FILE_NOT_FOUND as a missing file so a held image
- * is not enumerable.
+ * Both gates throw the same FILE_NOT_FOUND as a missing file, so neither a held image
+ * nor a lapsed share is distinguishable from a file that was never there.
  *
- * @param {string} fileId    - FileVault file id
+ * @param {string} fileId      - FileVault file id
  * @param {string} requesterId - the user asking to read the bytes
+ * @param {object} [opts]
+ * @param {boolean} [opts.sharedAsOwner=false] - was the sharer the file's owner at share
+ *   time? Defaults to false, i.e. fails closed on a private file.
  */
-async function downloadFileStreamForMember(fileId, requesterId) {
+async function downloadFileStreamForMember(fileId, requesterId, { sharedAsOwner = false } = {}) {
   const file = await File.findOne({
     where: { id: fileId, isDeleted: false },
     include: [{ model: FileModeration, as: 'moderation' }]
   });
 
   if (!file) {
+    throw new Error('FILE_NOT_FOUND');
+  }
+
+  // BUG-027: a share does not outlive the visibility it was granted under, unless the
+  // owner is the one who shared it. Same error as a missing file — a revoked share must
+  // not be distinguishable from a file that was never there.
+  if (!shareGrantAllows(file, requesterId, sharedAsOwner)) {
     throw new Error('FILE_NOT_FOUND');
   }
 
@@ -237,14 +275,25 @@ async function downloadFileStreamForMember(fileId, requesterId) {
 
 /**
  * Given a set of FileVault file ids, return the subset that may be served to
- * `requesterId` under the FEAT-031 gate. Used by container listings (e.g. a live
- * room's file list) so a held image is not enumerable to a non-uploader.
+ * `requesterId` under the FEAT-031 moderation gate AND the FEAT-061 share grant.
+ * Used by container listings (e.g. a live room's file list) so that neither a held
+ * image nor a file whose share has lapsed is enumerable.
+ *
+ * The listing MUST apply the same rule as the download path. If it did not, a file
+ * whose share died on a private-flip would keep appearing in the room's file list —
+ * leaking its name, size, and existence while its bytes 404. That is the same
+ * metadata-disclosure shape as BUG-020, and it is what makes the check belong here
+ * rather than only at download.
  *
  * @param {string[]} fileIds
  * @param {string} requesterId
+ * @param {object} [opts]
+ * @param {Set<string>} [opts.ownerSharedIds] - ids whose share was minted BY the owner
+ *   (live: `room_files.shared_as_owner`). Absent = treat every share as non-owner,
+ *   which fails closed.
  * @returns {Promise<Set<string>>} servable file ids (as strings)
  */
-async function servableFileIds(fileIds, requesterId) {
+async function servableFileIds(fileIds, requesterId, { ownerSharedIds } = {}) {
   const ids = (fileIds || []).map((id) => String(id)).filter(Boolean);
   if (ids.length === 0) return new Set();
 
@@ -255,6 +304,8 @@ async function servableFileIds(fileIds, requesterId) {
 
   const servable = new Set();
   for (const file of files) {
+    const sharedAsOwner = ownerSharedIds ? ownerSharedIds.has(String(file.id)) : false;
+    if (!shareGrantAllows(file, requesterId, sharedAsOwner)) continue;
     if (imageModeration.canServe(file, file.moderation, requesterId)) {
       servable.add(String(file.id));
     }
@@ -616,6 +667,7 @@ module.exports = {
   downloadFileStream,
   downloadFileStreamForMember,
   servableFileIds,
+  shareGrantAllows,
   updateFile,
   renameFile,
   deleteFile,

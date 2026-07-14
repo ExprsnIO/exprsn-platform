@@ -116,3 +116,96 @@ describe('servableFileIds (listing gate)', () => {
     expect(mockFileFindAll).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * FEAT-061 / BUG-027 — a share does not outlive the visibility it was granted under,
+ * unless the OWNER is the one who shared it.
+ *
+ * The old code skipped the visibility check on this path entirely, deliberately: it was
+ * the only way to keep "owner shares their own private file into a room" working. The
+ * cost was BUG-027 — a NON-owner's share of a then-public file kept serving after the
+ * owner flipped it private. Per-share provenance (`sharedAsOwner`) lets both hold.
+ */
+function privateFile({ userId = UPLOADER, status = 'approved', mimetype = 'image/png' } = {}) {
+  return {
+    id: 'file-1',
+    userId,
+    visibility: 'private',
+    mimetype,
+    storageKey: 'k1',
+    storageBackend: 'local',
+    moderation: status ? { status } : null,
+  };
+}
+
+describe('downloadFileStreamForMember (FEAT-061 share-grant gate / BUG-027)', () => {
+  test('OWNER-shared private file IS still served to a member after the private-flip', async () => {
+    mockFileFindOne.mockResolvedValue(privateFile());
+    const { file } = await fileService.downloadFileStreamForMember('file-1', MEMBER, {
+      sharedAsOwner: true,
+    });
+    expect(file.id).toBe('file-1');
+    expect(mockRetrieve).toHaveBeenCalled();
+  });
+
+  test('NON-owner-shared file STOPS being served once it is private (the BUG-027 fix)', async () => {
+    mockFileFindOne.mockResolvedValue(privateFile());
+    await expect(
+      fileService.downloadFileStreamForMember('file-1', MEMBER, { sharedAsOwner: false })
+    ).rejects.toThrow('FILE_NOT_FOUND');
+    expect(mockRetrieve).not.toHaveBeenCalled();
+  });
+
+  test('a non-private file is unaffected by provenance', async () => {
+    mockFileFindOne.mockResolvedValue(imageFile('approved')); // no visibility => not private
+    const { file } = await fileService.downloadFileStreamForMember('file-1', MEMBER, {
+      sharedAsOwner: false,
+    });
+    expect(file.id).toBe('file-1');
+  });
+
+  test('the owner may always read their own private file, share or no share', async () => {
+    mockFileFindOne.mockResolvedValue(privateFile({ userId: UPLOADER }));
+    const { file } = await fileService.downloadFileStreamForMember('file-1', UPLOADER, {
+      sharedAsOwner: false,
+    });
+    expect(file.id).toBe('file-1');
+  });
+
+  test('omitting the options FAILS CLOSED on a private file', async () => {
+    mockFileFindOne.mockResolvedValue(privateFile());
+    await expect(fileService.downloadFileStreamForMember('file-1', MEMBER))
+      .rejects.toThrow('FILE_NOT_FOUND');
+  });
+
+  test('the moderation gate still applies to an owner-shared private file', async () => {
+    // Both gates must hold — a share grant does not buy past FEAT-031.
+    mockFileFindOne.mockResolvedValue(privateFile({ status: 'pending' }));
+    await expect(
+      fileService.downloadFileStreamForMember('file-1', MEMBER, { sharedAsOwner: true })
+    ).rejects.toThrow('FILE_NOT_FOUND');
+  });
+});
+
+describe('servableFileIds (FEAT-061 — the listing must not leak what the download denies)', () => {
+  test('a private non-owner-shared file is NOT enumerable; an owner-shared one is', async () => {
+    mockFileFindAll.mockResolvedValue([
+      { id: 'owned', userId: UPLOADER, visibility: 'private', mimetype: 'image/png', moderation: { status: 'approved' } },
+      { id: 'lapsed', userId: UPLOADER, visibility: 'private', mimetype: 'image/png', moderation: { status: 'approved' } },
+    ]);
+    const set = await fileService.servableFileIds(['owned', 'lapsed'], MEMBER, {
+      ownerSharedIds: new Set(['owned']),
+    });
+    expect(set.has('owned')).toBe(true);
+    // Would otherwise leak name/size/existence while its bytes 404 — the BUG-020 shape.
+    expect(set.has('lapsed')).toBe(false);
+  });
+
+  test('without a provenance set, private files FAIL CLOSED in a listing', async () => {
+    mockFileFindAll.mockResolvedValue([
+      { id: 'p', userId: UPLOADER, visibility: 'private', mimetype: 'image/png', moderation: { status: 'approved' } },
+    ]);
+    const set = await fileService.servableFileIds(['p'], MEMBER);
+    expect(set.has('p')).toBe(false);
+  });
+});

@@ -108,7 +108,13 @@ router.get('/:id/files', requireAuth, loadRoom, requireRoomMember, async (req, r
     // legacy `ephemeral` disk rows have no FileVault moderation state and are
     // left as-is (pre-existing rows only — no new ones are created).
     const vaultIds = files.filter((f) => f.kind === 'vault' && f.file_id).map((f) => String(f.file_id));
-    const servable = await fileService.servableFileIds(vaultIds, req.user.id);
+    // FEAT-061: the listing applies the SAME grant rule as the download path. Without
+    // the provenance set, a file whose share died on a private-flip would still be
+    // listed — leaking its name, size, and existence while its bytes 404.
+    const ownerSharedIds = new Set(
+      files.filter((f) => f.kind === 'vault' && f.file_id && f.shared_as_owner).map((f) => String(f.file_id))
+    );
+    const servable = await fileService.servableFileIds(vaultIds, req.user.id, { ownerSharedIds });
     const visible = files.filter((f) => {
       if (f.kind === 'vault' && f.file_id) return servable.has(String(f.file_id));
       return true;
@@ -140,10 +146,18 @@ router.post('/:id/files/share', requireAuth, loadRoom, requireRoomMember, async 
       return res.status(404).json({ error: 'FILE_NOT_FOUND' });
     }
 
+    // FEAT-061: record the capability's provenance. A share is only ever as strong as
+    // the visibility it was minted under — UNLESS the owner is the one who shared it,
+    // in which case a later private-flip must not revoke the room's access (that is the
+    // flow the download path's visibility-skip was built to protect). Deriving this from
+    // the VERIFIED file, never the request body.
+    const sharedAsOwner = String(vaultFile.userId) === String(req.user.id);
+
     const file = await RoomFile.create({
       room_id: req.room.id, user_id: req.user.id, kind: 'vault',
       file_id: vaultFile.id, name: name || vaultFile.name,
-      mimetype: vaultFile.mimetype || null, size: vaultFile.size || null
+      mimetype: vaultFile.mimetype || null, size: vaultFile.size || null,
+      shared_as_owner: sharedAsOwner
     });
     res.status(201).json({ success: true, file });
   } catch (e) { res.status(500).json({ error: 'SHARE_FAILED', message: e.message }); }
@@ -171,7 +185,9 @@ router.post('/:id/files/upload', requireAuth, loadRoom, requireRoomMember, uploa
     const file = await RoomFile.create({
       room_id: req.room.id, user_id: req.user.id, kind: 'vault',
       file_id: vaultFile.id, name: req.file.originalname,
-      mimetype: req.file.mimetype, size: req.file.size
+      mimetype: req.file.mimetype, size: req.file.size,
+      // The uploader IS the owner — uploadFile() created the file under req.user.id.
+      shared_as_owner: true
     });
     res.status(201).json({ success: true, file });
   } catch (e) { logger.error('room upload failed', { error: e.message }); res.status(500).json({ error: 'UPLOAD_FAILED', message: e.message }); }
@@ -184,9 +200,18 @@ router.get('/:id/files/:fileId/download', requireAuth, loadRoom, requireRoomMemb
   // requester (verified above); the FEAT-031 gate still applies to them as a
   // non-uploader, so a held (pending/rejected) image 404s exactly like a
   // missing file and is never served.
+  //
+  // FEAT-061 / BUG-027: room membership is no longer sufficient on its own. The share
+  // carries provenance — a non-owner's share of a then-public file stops serving the
+  // moment the owner flips it private, while an owner's share of their own file
+  // survives. Passing `shared_as_owner` is what lets FileVault tell the two apart.
   if (file.kind === 'vault' && file.file_id) {
     try {
-      const { stream, file: vaultFile } = await fileService.downloadFileStreamForMember(file.file_id, req.user.id);
+      const { stream, file: vaultFile } = await fileService.downloadFileStreamForMember(
+        file.file_id,
+        req.user.id,
+        { sharedAsOwner: file.shared_as_owner === true }
+      );
       res.setHeader('Content-Type', (vaultFile && vaultFile.mimetype) || file.mimetype || 'application/octet-stream');
       res.setHeader('Content-Disposition', `inline; filename="${file.name}"`);
       return stream.pipe(res);

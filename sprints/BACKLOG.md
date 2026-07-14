@@ -748,8 +748,21 @@ are cross-referenced, not re-filed.)*
   updated. Backlog of the 17 tracked as BUG-025.
 
 ### BUG-027 — Room-shared file keeps serving to a room after the owner flips it to private (durable-share residual)
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
-- **Owner-role:** product-manager + sr-developer · **Relates:** BUG-024, BUG-026 · **Found:** QA re-verify of BUG-026 (2026-07-10)
+- **Type:** bug · **Status:** in-review (**FIXED 2026-07-14 under FEAT-061 Pass 1**) · **Priority:** P3 · **Size:** S
+- **Owner-role:** sr-developer · **Relates:** BUG-024, BUG-026, **FEAT-061** · **Found:** QA re-verify of BUG-026 (2026-07-10)
+
+> **RESOLVED.** The "Decision needed (PM/architect)" below is now answered — **Rick chose
+> provenance-aware revoke (2026-07-13)**, which is exactly the "per-share access model (who shared it,
+> were they the owner)" this ticket proposed as the alternative to a blanket ownership-skip.
+>
+> `live.room_files.shared_as_owner` records whether the sharer owned the file at share time
+> (migration `20250101000006`, run + verified, with a join-derived backfill). `fileService` now applies
+> one predicate — `shareGrantAllows()` — at **both** the download and the listing path:
+> a **non-owner's** share stops serving the moment the owner flips the file private (the fix); an
+> **owner's** share of their own file keeps working (the flow the visibility-skip was traded for).
+> Fails closed when provenance is absent. The FEAT-031 moderation gate still applies independently.
+> 16/16 tests green. QA: verify a non-owner share dies on private-flip **and disappears from
+> `GET /live/api/rooms/:id/files`**, while an owner-shared private file still serves.
 - **Description:** A file legitimately shared into a live room while `public`/`shared`
   (or owned by the sharer) keeps being served to that room's members even if the
   owner later flips its visibility to `private`. `downloadFileStreamForMember`
@@ -2303,8 +2316,43 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   symptoms of the same gap. Dedupe the platform-admin predicate first (TASK-030).
 
 ### FEAT-061 — Tokenization Slice: unified capability / share-link tokens
-- **Type:** feature · **Status:** ready · **Priority:** P1 · **Size:** L
-- **Owner-role:** unassigned · **Blocked-by:** — (independent of FEAT-060; can run in parallel)
+- **Type:** feature · **Status:** in-review (**Pass 1 of 2 — FileVault + Live done; see Progress**) · **Priority:** P1 · **Size:** L
+- **Owner-role:** sr-developer · **Blocked-by:** — (independent of FEAT-060; can run in parallel)
+
+> **PASS 1 DONE 2026-07-14 — the share-grant model. Closes BUG-027.**
+>
+> **What the code actually turned out to be:** FileVault's `ShareLink` was *already* a proper
+> capability — it carries a CA `tokenId`, `permissions`, `expiresAt`, `maxUses`/`useCount`,
+> `isRevoked`/`revokedAt`, all indexed; `share.js` says it plainly (*"the file-scoped CA token in
+> `?token=` is the capability"*). The **room** share was the unguarded one: a `RoomFile` row with
+> **no token, no expiry, no revocation**, authorized by bare room membership. So the gap was never
+> "build a capability system" — it was "the room path never got one."
+>
+> **The decision (Rick, 2026-07-13): provenance-aware revoke.** A share is only ever as strong as the
+> visibility it was minted under — *unless the owner is the one who shared it*:
+> - **owner** shared their own file → survives a later private-flip (this is the flow the old blanket
+>   visibility-skip existed to protect, and it still works)
+> - **non-owner** shared a then-public file → **dies** on the private-flip ← **this is BUG-027**
+>
+> **Implemented:**
+> - `live.room_files.shared_as_owner` — per-share provenance
+>   (migration `20250101000006`, **run + verified**; the backfill derives the true value by joining
+>   `filevault.files`, because defaulting existing rows to `false` would have silently revoked every
+>   file an owner had legitimately shared).
+> - `fileService.shareGrantAllows(file, requesterId, sharedAsOwner)` — **one** predicate, applied at
+>   **both** the download path (`downloadFileStreamForMember`) and the listing path
+>   (`servableFileIds`). The listing matters as much as the download: without it a lapsed share stays
+>   enumerable — leaking name, size and existence while its bytes 404 (the BUG-020 shape).
+> - Both entry points **fail closed** when provenance is absent.
+> - The FEAT-031 moderation gate still applies independently — a share grant does not buy past it.
+> - 16/16 unit tests green (8 pre-existing FEAT-031 + 8 new); filevault unit suite 51/51; 0 lint errors.
+>
+> **Honest scope note — what Pass 1 did NOT do.** It unified the *grant semantics* (provenance-aware,
+> revocable, fail-closed, enforced in one predicate), **not the token mechanism**. Room shares remain
+> row-backed rather than CA-token-backed. That is a deliberate call: room access is already authorized
+> by membership + provenance, so minting a token per room share adds indirection without adding
+> security. **Pass 2** (extract a shared capability façade so Gallery/FEAT-047 plugs in without a
+> redesign, and reconcile `ShareLink` + `RoomFile` behind it) remains — file it before FEAT-047 starts.
 - **Legacy:** FEAT-059 Slice 2
 - **Cost/Benefit:** done — **BUILD NOW. Highest value-per-day in the epic.** Structurally prevents
   BUG-026 (a single capability-issuing path that verifies the issuer's own access at mint time makes

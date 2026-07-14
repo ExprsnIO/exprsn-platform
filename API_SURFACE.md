@@ -880,7 +880,14 @@ prefix as `rooms.js`; the two together make up `/live/api/rooms/*`.
 **Security note:** the file-sharing routes are the subject of BUG-024 (uploads bypassed
 moderation — fixed), BUG-026 (`files/share` did not verify the *sharer* could access the
 file — fixed), and BUG-027 (a shared file kept serving after the owner flipped it private —
-**still open**). FEAT-061 replaces this router's ad-hoc sharing with unified capability tokens.
+**fixed 2026-07-14 under FEAT-061**).
+
+A room share is a **capability with provenance**: `room_files.shared_as_owner` records whether
+the sharer owned the file at share time. FileVault's `shareGrantAllows()` is applied at **both**
+the download and the listing path, so a **non-owner's** share stops serving *and stops being
+enumerable* the moment the owner flips the file private, while an **owner's** share of their own
+file survives. Room membership alone is no longer sufficient to read a file. The FEAT-031
+moderation gate applies independently — a share grant does not buy past it.
 
 | Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|

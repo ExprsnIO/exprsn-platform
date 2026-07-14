@@ -15,6 +15,27 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 
 ---
 
+## Session completion — 2026-07-14 (merged to `main`)
+
+The following shipped and are verified on `main` (lint 0 errors, `db:check` clean, per-module suites green). Set each
+to **done** on its ticket when reconciling this list into the sections below (left as an additive note to avoid
+clobbering concurrent grooming). Full record: this session's handover.
+
+- **Security (were LIVE on main after the org merge, now fixed):** provision-self enterprise-template escalation (P1),
+  org mass-assignment (P2), admin-role revocation/expiry bypass (P1, root-fixed in `resolveUserRoles`), `csv-parse`
+  boot-crash (P1). Merge `7b1ce57`.
+- **done:** FEAT-032/033/034/035 (org signup/provisioning/invite/import, hardened), FEAT-023, FEAT-031, BUG-014,
+  BUG-016, BUG-020, TASK-024 (audit-passed in-review), FEAT-024, TASK-025, BUG-010, FEAT-010, FEAT-009/TASK-019,
+  BUG-015, TASK-026, TASK-021, FEAT-011. (Merges `5815bd8` `55bae89` `b2cf804` `eb1911f` `6df3c53` `9d9b48b`.)
+- **FEAT-029 → done (shipped swap-first):** the "fails AC2 co-residency" reading was a SUPERSEDED AC (swap-first
+  accepted 2026-07-09). Sole remainder is an operator action: `MODELS_MAX=2 "/Volumes/Storage/MacOS LLM/start-server.sh" autostart`.
+- **New follow-ups filed below:** FEAT-070 (spark block), FEAT-071 (org-admin import slice), BUG-031 (resolveUserRoles
+  scope), TASK-034 (live-chat block topology), TASK-035 (social module), TASK-036 (Redis blocklist cache), TASK-037
+  (moderatorScreen warn), TASK-038 (sandbox hardening).
+- **Sprints closed:** 2026-07 (9/9) and 2026-08 (BUG-010 + FEAT-010) → `archive/`.
+
+---
+
 ## Features
 
 ### FEAT-001 — Full CalDAV/CardDAV DAV verbs for native OS account sync (parent epic)
@@ -2484,6 +2505,33 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 
 ---
 
+
+### FEAT-070 — Spark block enforcement (block/mute for messaging) *(Tier 1)*
+- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer · **Relates:** FEAT-011 (mandatory sibling per its ADR)
+- **Description:** FEAT-011 shipped block/mute in timeline (`timeline.user_relationships` + `relationshipService`
+  façade). A block that does not stop a DM is incomplete: the ADR (`sprints/feat-011-blockmute-adr.md`) decomposed
+  spark enforcement into this sibling. Wire spark's write-time contact rejection (reject a DM/new-conversation when
+  `relationshipService.isBlockedEitherWay`) at the real message-create sites, plus read filtering and notification
+  suppression (N2). Reuse the published `relationshipService.canContact()` alias — no cross-schema SQL, no new
+  `*_SERVICE_URL` hop.
+- **Acceptance criteria:** a blocked user cannot start/continue a DM with the blocker (403); existing threads are
+  filtered on read; message notifications from a suppressed user are dropped; no new unauthenticated surface.
+- **Notes:** FILE per the FEAT-011 ADR — the timeline slice ships a documented DM gap until this lands. Cost/Benefit gate applies (P1 safety).
+
+### FEAT-071 — Org-admin-runnable user import/invite route (strict org-binding) *(deferred slice)*
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer + architect (authz) · **Relates:** FEAT-035
+- **Description:** FEAT-035's HTTP import/invite routes are `requireAdminAfterCA` (platform-admin only), so an
+  org-admin cannot run an import scoped to their own org via HTTP — the AC's "org admin can import to their own org"
+  is unmet. Deliberately deferred at ship because opening the route is the security-sensitive direction. Do it via the
+  existing `resolveImportContext` / `organizationService.isOwnerOrAdmin` org-authz path with the target org bound to
+  the caller's administered org — **never** a body-supplied `organizationId` (that is the cross-tenant escalation the
+  security audit flagged). Adversarial-review the cross-tenant surface.
+- **Acceptance criteria:** an org owner/admin can import/invite ONLY into an org they administer; a spoofed body org id
+  has no effect; platform-admin path unchanged.
+- **Notes:** Cost/Benefit gate applies. Coordinate with TASK-028 (nexus_group import authz).
+
 ## Bugs
 
 *(Security-hardening items triaged out of the `SP-11` review — filed, not
@@ -3112,6 +3160,20 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 
 ---
 
+
+### BUG-031 — `resolveUserRoles` does not filter by scope: org-scoped super-admin gets the platform admin token marker
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Relates:** the admin-revocation fix (merged) — SEPARATE issue
+- **Found:** adversarial hunt during the admin-gate revocation fix (2026-07-14).
+- **Description:** `services/auth/src/services/tokenService.js` `resolveUserRoles` now filters revoked/expired
+  bindings (fixed), but it does NOT filter by SCOPE. An ACTIVE **org-scoped** `super-admin` binding still adds the
+  platform-wide `admin` marker to the minted CA token, whereas `requireAdmin.hasAdminRole` correctly requires
+  `scope='global'`. So an org-scoped super-admin could present a token that moderator/nexus/timeline read as
+  platform-admin. Pre-exists on main; not the revocation hole. Fix: scope the token `admin`-marker derivation to
+  global bindings (or emit org-scoped roles distinctly so downstream gates don't treat them as platform-admin).
+- **Acceptance criteria:** an active org-scoped super-admin binding does NOT yield the platform `admin` marker in the
+  token; a global admin binding still does; the three module gates that trust `data.roles` are unaffected for global admins.
+
 ## Tasks
 
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)
@@ -3663,6 +3725,45 @@ FEAT.)*
   before deleting. Distinct from **TASK-020** (dead rbac *middleware*).
 
 ---
+
+
+### TASK-034 — Live stream-chat block enforcement (socket topology) *(architect)*
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** systems-architect + sr-developer · **Relates:** FEAT-011
+- **Description:** Per the FEAT-011 ADR (L1): live stream chat uses `io.to(streamId).emit(...)` — a room broadcast that
+  cannot be per-recipient filtered, so block/mute cannot suppress a blocked user's chat as-written. Requires a
+  socket-topology change (per-socket emit / server-side filtered fan-out). Architect call on the approach.
+- **Acceptance criteria:** a viewer does not receive live-chat messages from a user they block/mute; broadcast latency
+  is not materially regressed.
+
+### TASK-035 — Extract Follow + user_relationships into a `social` module *(deferred)*
+- **Type:** task · **Status:** deferred · **Priority:** P3 · **Size:** L
+- **Owner-role:** systems-architect · **Relates:** FEAT-011
+- **Description:** The social graph (`Follow`, `List`, `user_relationships`) lives in timeline. Per the FEAT-011 ADR,
+  extraction to a dedicated `social` module is correct only once a THIRD module must enforce the graph directly.
+  **Revisit trigger:** a third enforcing module beyond timeline + spark.
+
+### TASK-036 — Redis blocklist cache behind the relationshipService façade *(deferred, dba)*
+- **Type:** task · **Status:** deferred · **Priority:** P3 · **Size:** M
+- **Owner-role:** dba · **Relates:** FEAT-011
+- **Description:** Per the FEAT-011 ADR (Option c): a Redis blocklist cache in front of `getSuppressedIds` is a pure
+  optimization behind the façade (zero consumer churn). **Revisit trigger:** per-message spark socket enforcement, or a
+  feed p95 regression > +10ms. DBA owns key shape, TTL, and the block/unblock/mute invalidation protocol.
+
+### TASK-037 — Make the cortex moderatorScreen fail-open warn observable
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** sr-developer · **Relates:** BUG-015, FEAT-021/023
+- **Description:** `moderatorScreen` fails open on any moderator error (returns null + a single warn line). BUG-015
+  showed a 100%-failing screen was indistinguishable from a working one for weeks. Count/meter the fail-open path (or
+  raise its log level with context) so a future silent CORTEX_MODERATE regression surfaces.
+
+### TASK-038 — Harden the TASK-021 python sandbox (residual notes)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** sr-developer · **Relates:** TASK-021
+- **Description:** Residual hardening from the TASK-021 escape review (none are escapes): (1) `ulimit -f` uses
+  1024-byte units on macOS but the wrapper assumes 512, so the file-size cap is ~2x the configured MB (still bounded) —
+  fix the unit; (2) narrow the seatbelt read allowlist from the whole python prefix to `<prefix>/lib`; (3) for a
+  Linux/CI production worker, use a container/VM (gVisor/Firecracker) — sandbox-exec is macOS-only + deprecated.
 
 ## Spikes
 

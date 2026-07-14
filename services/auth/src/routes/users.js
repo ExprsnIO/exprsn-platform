@@ -43,8 +43,17 @@ async function isAdminUser(userId) {
   // (scope='global', organizationId=null). An org-scoped role — even one named
   // 'admin' — must never grant platform-wide admin (which here gates cross-user
   // profile/group reads). Mirrors hasAdminRole in middleware/requireAdmin.js.
+  // SECURITY: only an ACTIVE, non-expired binding confers admin. Without the
+  // status/expiresAt predicate, a revoked (status='revoked') or time-expired
+  // global admin grant would silently keep conferring platform super-admin.
   const globalBindings = await UserRole.findAll({
-    where: { userId, scope: 'global', organizationId: null },
+    where: {
+      userId,
+      scope: 'global',
+      organizationId: null,
+      status: 'active',
+      [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }]
+    },
     attributes: ['roleId']
   });
   if (!globalBindings.length) {

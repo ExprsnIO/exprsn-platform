@@ -19,7 +19,8 @@ module.exports = (sequelize) => {
     contentType: {
       type: DataTypes.ENUM(
         'text', 'image', 'video', 'audio',
-        'post', 'comment', 'message', 'profile', 'file'
+        'post', 'comment', 'message', 'profile', 'file',
+        'llm_message' // BUG-015: Cortex's moderatorScreen posts llm_message
       ),
       allowNull: false,
       field: 'content_type'

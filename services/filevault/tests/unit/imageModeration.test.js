@@ -33,6 +33,22 @@ beforeEach(() => {
   delete process.env.FILEVAULT_IMAGE_RISK_THRESHOLD;
 });
 
+// ---------------------------------------------------------------- mode (TASK-026)
+
+describe('moderationMode() — off | shadow | enforce', () => {
+  const cases = [
+    [undefined, 'off'], ['', 'off'], ['false', 'off'], ['off', 'off'], ['nonsense', 'off'],
+    ['shadow', 'shadow'], ['SHADOW', 'shadow'], ['  shadow  ', 'shadow'],
+    ['enforce', 'enforce'], ['true', 'enforce'], // 'true' is the legacy enforce alias
+  ];
+  test.each(cases)('%s -> %s', (raw, expected) => {
+    if (raw === undefined) delete process.env.FILEVAULT_IMAGE_MODERATION;
+    else process.env.FILEVAULT_IMAGE_MODERATION = raw;
+    expect(svc.moderationMode()).toBe(expected);
+    expect(svc.featureEnabled()).toBe(expected !== 'off');
+  });
+});
+
 // ---------------------------------------------------------------- gating
 
 describe('what gets queued', () => {
@@ -62,6 +78,21 @@ describe('what gets queued', () => {
     process.env.FILEVAULT_IMAGE_MODERATION = 'false';
     expect(svc.initialState(img())).toEqual({ status: 'skipped', reason: 'feature_disabled' });
     expect(svc.isServableToOthers({ status: 'skipped' })).toBe(true);
+  });
+
+  // Shadow must NEVER hold: the image is servable from upload (not even
+  // transiently pending), yet still queued so the shadow verdict is recorded.
+  test('shadow: an image starts APPROVED (servable, never held) but is still queued', () => {
+    process.env.FILEVAULT_IMAGE_MODERATION = 'shadow';
+    expect(svc.initialState(img())).toEqual({ status: 'approved', reason: 'shadow_pending' });
+    expect(svc.isServableToOthers({ status: 'approved' })).toBe(true);
+    expect(svc.shouldQueue(img())).toBe(true);
+  });
+
+  test('shadow: non-images and encrypted objects are still skipped, not queued', () => {
+    process.env.FILEVAULT_IMAGE_MODERATION = 'shadow';
+    expect(svc.shouldQueue(img({ mimetype: 'application/pdf' }))).toBe(false);
+    expect(svc.shouldQueue(img({ metadata: { encrypted: true } }))).toBe(false);
   });
 });
 
@@ -159,13 +190,37 @@ describe('evaluate()', () => {
   });
 
   // Escalate-only: held for a human, never auto-deleted.
-  test('a flagged image is REJECTED (held), never deleted', async () => {
+  test('enforce: a flagged image is REJECTED (held), never deleted', async () => {
     cortex.moderateImage.mockResolvedValue(NASTY);
     cortex.describeImage.mockResolvedValue(DESC);
     const r = await svc.evaluate(Buffer.from([1]));
     expect(r.status).toBe('rejected');
     expect(r.reason).toBe('flagged');
     expect(r.riskScore).toBe(95);
+  });
+
+  // Shadow: the verdict is RECORDED but the image is NOT held (TASK-026).
+  test('shadow: a flagged image stays APPROVED (servable) but records the verdict', async () => {
+    process.env.FILEVAULT_IMAGE_MODERATION = 'shadow';
+    cortex.moderateImage.mockResolvedValue(NASTY);
+    cortex.describeImage.mockResolvedValue(DESC);
+    const r = await svc.evaluate(Buffer.from([1]));
+    // does NOT hold / enforce ...
+    expect(r.status).toBe('approved');
+    expect(svc.isServableToOthers(r)).toBe(true);
+    // ... but the flag IS recorded for TASK-023 to consume.
+    expect(r.reason).toBe('shadow_flagged');
+    expect(r.riskScore).toBe(95);
+    expect(r.verdict).toEqual(NASTY);
+  });
+
+  test('shadow: a clean image is approved with reason `clean`, same as enforce', async () => {
+    process.env.FILEVAULT_IMAGE_MODERATION = 'shadow';
+    cortex.moderateImage.mockResolvedValue(CLEAN);
+    cortex.describeImage.mockResolvedValue(DESC);
+    const r = await svc.evaluate(Buffer.from([1]));
+    expect(r.status).toBe('approved');
+    expect(r.reason).toBe('clean');
   });
 
   test('the risk threshold is configurable and inclusive', async () => {

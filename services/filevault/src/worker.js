@@ -52,7 +52,13 @@ async function processFile(fileId) {
     await record.update({ ...initial, attempts: record.attempts + 1 });
     return { status: initial.status, reason: initial.reason };
   }
-  if (record.status === 'approved' || record.status === 'rejected') {
+  // Already resolved by a prior attempt (jobs are idempotent)? A shadow row is
+  // seeded `approved`/`shadow_pending` (servable but NOT yet scored) — it must
+  // still run its vision pass, so short-circuit only once a verdict is written
+  // (`rejected`, or `approved` with a reason other than `shadow_pending`).
+  const scored = record.status === 'rejected'
+    || (record.status === 'approved' && record.reason !== 'shadow_pending');
+  if (scored) {
     return { status: record.status, alreadyResolved: true };
   }
 
@@ -100,16 +106,26 @@ async function processFile(fileId) {
   await record.update({ ...patch, attempts: record.attempts + 1 });
 
   if (patch.status === 'rejected') {
-    // Escalate-only: hand the verdict to moderator so its rules, review queue,
-    // and audit trail own the outcome. Never delete the object here.
+    // Escalate-only, and ENFORCE-only: only a `rejected` verdict is escalated.
+    // Shadow never produces `rejected` (a flagged image stays `approved`/
+    // `shadow_flagged`), so shadow scores and logs without holding or escalating.
     await escalate(file, patch).catch((err) =>
       logger.error('failed to escalate flagged image for review', { fileId, error: err.message }));
   }
 
+  // Shadow-flagged images are recorded but not acted on — log them prominently so
+  // TASK-023 (and operators) can see what enforce WOULD have held.
+  const shadowFlagged = patch.reason === 'shadow_flagged';
   logger.info('image moderated', {
-    fileId, status: patch.status, riskScore: patch.riskScore, tags: (patch.aiTags || []).length,
+    fileId,
+    mode: imageModeration.moderationMode(),
+    status: patch.status,
+    reason: patch.reason,
+    riskScore: patch.riskScore,
+    shadowFlagged,
+    tags: (patch.aiTags || []).length,
   });
-  return { status: patch.status, riskScore: patch.riskScore };
+  return { status: patch.status, reason: patch.reason, riskScore: patch.riskScore };
 }
 
 /**
@@ -150,12 +166,16 @@ async function escalate(file, patch) {
 }
 
 /**
- * Reconcile images stuck in `pending` with no queue job (TASK-025).
+ * Reconcile images stranded before scoring with no queue job (TASK-025 / -026).
  *
  * The moderation job is enqueued best-effort AFTER the upload transaction
  * commits. If the process dies between commit and enqueue, or Redis is down at
- * that instant, the row is `pending` (hidden) with no job that will ever clear
- * it — fail-closed, but permanently. This sweep finds such rows and re-queues.
+ * that instant, the row is left with no job that will ever score it. Two cases:
+ *   - enforce: the row is `pending` (hidden) permanently — fail-closed, but
+ *     hidden forever.
+ *   - shadow: the row is `approved`/`shadow_pending` (servable, so NO user
+ *     impact) but never scored — so TASK-023 silently loses that data point.
+ * This sweep finds both and re-queues them.
  *
  * Only rows older than a grace window are considered, so a row whose enqueue is
  * simply in flight is not double-queued (and `jobId: file:<id>` dedups anyway).
@@ -167,7 +187,13 @@ async function reconcileStuckPending() {
   let requeued = 0;
   try {
     const stuck = await FileModeration.findAll({
-      where: { status: 'pending', updatedAt: { [Op.lt]: cutoff } },
+      where: {
+        updatedAt: { [Op.lt]: cutoff },
+        [Op.or]: [
+          { status: 'pending' }, // enforce: hidden, never scored
+          { status: 'approved', reason: 'shadow_pending' }, // shadow: servable, never scored
+        ],
+      },
       attributes: ['fileId'],
       limit: 500,
     });
@@ -213,6 +239,7 @@ async function startWorker() {
 
     logger.info('FileVault image-moderation worker started', {
       concurrency,
+      mode: imageModeration.moderationMode(), // off | shadow | enforce (TASK-026)
       featureEnabled: imageModeration.featureEnabled(),
       riskThreshold: imageModeration.imageRiskThreshold(),
       reconcileEveryMs,

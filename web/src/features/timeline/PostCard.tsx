@@ -30,9 +30,11 @@ import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import { timelineApi, type Post } from '@/api/timeline';
 import { toMessage } from '@/lib/errors';
 import { ShareToChatDialog } from '@/features/messages/ShareToChatDialog';
+import { ReportDialog } from '@/features/moderation/ReportDialog';
 import { absoluteTime, initials, relativeTime, shortHandle } from './util';
 import { PostMediaGrid } from './PostMedia';
 
@@ -82,10 +84,14 @@ export function PostCard({
   const media = Array.isArray(post.media) ? post.media : [];
 
   const canManage = isOwn && (!!onUpdated || !!onDeleted);
+  // Anyone can report content that isn't their own (FEAT-010, timeline-first).
+  const canReport = !isOwn;
+  const showMenu = canManage || canReport;
   const [menuEl, setMenuEl] = useState<null | HTMLElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [draft, setDraft] = useState(post.content);
 
   const editMutation = useMutation({
@@ -137,7 +143,7 @@ export function PostCard({
               </Typography>
             )}
             <Box sx={{ flex: 1 }} />
-            {canManage && (
+            {showMenu && (
               <IconButton size="small" onClick={(e) => setMenuEl(e.currentTarget)} aria-label="Post actions">
                 <MoreVertIcon fontSize="small" />
               </IconButton>
@@ -232,7 +238,7 @@ export function PostCard({
         </Box>
       </Stack>
 
-      {/* Overflow menu (own posts only) */}
+      {/* Overflow menu: own posts (Edit/Delete) or others' posts (Report) */}
       <Menu anchorEl={menuEl} open={!!menuEl} onClose={() => setMenuEl(null)}>
         {onUpdated && (
           <MenuItem
@@ -258,6 +264,17 @@ export function PostCard({
           >
             <DeleteOutlineIcon fontSize="small" sx={{ mr: 1 }} />
             Delete
+          </MenuItem>
+        )}
+        {canReport && (
+          <MenuItem
+            onClick={() => {
+              setMenuEl(null);
+              setReportOpen(true);
+            }}
+          >
+            <FlagOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
+            Report
           </MenuItem>
         )}
       </Menu>
@@ -336,6 +353,18 @@ export function PostCard({
           ],
         }}
       />
+
+      {/* Report this post to moderation (timeline-first slice of FEAT-010) */}
+      {canReport && (
+        <ReportDialog
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          contentType="post"
+          contentId={post.id}
+          sourceService="timeline"
+          contentLabel="post"
+        />
+      )}
     </Paper>
   );
 }

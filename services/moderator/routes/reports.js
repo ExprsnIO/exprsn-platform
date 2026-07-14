@@ -41,6 +41,30 @@ router.post('/', requireUser, async (req, res) => {
       });
     }
 
+    // Double-report guard (FEAT-010): a user may not report the same item twice.
+    // App-level pre-check on the full content identity (reporter + where the
+    // content lives + what it is + which item). This is the lower-risk choice
+    // vs. a DB UNIQUE constraint, which would be an ALTER on the existing
+    // moderator.reports table that the sync `db:migrate` does NOT apply (that
+    // would need the migration up() run directly — a dba concern). Returns a
+    // clean, idempotent 409 (never a 500) so the client can show "already
+    // reported". Note: a narrow race window remains under concurrent duplicate
+    // submits; acceptable for this slice and the natural home for a future
+    // unique-index hardening.
+    const existing = await Report.findOne({
+      where: { reportedBy, sourceService, contentType, contentId }
+    });
+    if (existing) {
+      return res.status(409).json({
+        error: 'ALREADY_REPORTED',
+        message: 'You have already reported this item',
+        report: {
+          id: existing.id,
+          status: existing.status
+        }
+      });
+    }
+
     const report = await Report.create({
       contentType,
       contentId,

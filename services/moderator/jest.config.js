@@ -36,6 +36,12 @@ module.exports = {
   // Setup files
   setupFilesAfterEnv: ['<rootDir>/tests/integration/setup.js'],
 
+  // The UGC worker ladder tests (FEAT-009) are pure-logic unit tests with all
+  // deps injected; they must NOT load the DB-bound integration setup above.
+  // They run under jest.worker.config.js instead — excluded here so `npx jest`
+  // doesn't drag them through a live-Postgres beforeAll.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/worker/'],
+
   // Test timeout
   testTimeout: 20000,
 

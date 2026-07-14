@@ -11,6 +11,7 @@ const logger = require('../utils/logger');
 const { Op } = require('sequelize');
 const { queues } = require('../config/queue');
 const blueskyWebhook = require('./blueskyWebhook');
+const moderationSink = require('./moderationSink');
 
 /**
  * Create a new post
@@ -53,6 +54,13 @@ async function createPost({ userId, content, mediaIds = [], visibility = 'public
     });
 
     logger.info('Post created', { postId: post.id, userId, contentType });
+
+    // UGC moderation invariant (FEAT-009 / ADR 0004 §4.1): PRE-CREATE the
+    // post_moderation row (pending), then enqueue. Best-effort — never fails the
+    // post (text is fail-open). Awaits only the row write, not the enqueue.
+    await moderationSink.establishPostModerationState({ post, mode: 'create' }).catch((err) =>
+      logger.error('establishPostModerationState (create) failed; post still served', { postId: post.id, error: err.message })
+    );
 
     // Queue background jobs
     await queuePostJobs(post, processed);
@@ -145,6 +153,13 @@ async function updatePost(postId, userId, { content }) {
     });
 
     logger.info('Post updated', { postId, userId });
+
+    // Content bytes changed → RE-MODERATE (FEAT-009 / ADR 0004 §4.1). mode
+    // 'reset' removes the stale job (BUG-016) and clears the prior verdict —
+    // an old verdict does not describe the edited content.
+    await moderationSink.establishPostModerationState({ post, mode: 'reset' }).catch((err) =>
+      logger.error('establishPostModerationState (reset) failed on edit', { postId, error: err.message })
+    );
 
     // Re-index in search
     if (queues.indexing) {

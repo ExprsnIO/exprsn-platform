@@ -11,6 +11,7 @@ const { requireToken, requireWrite, requireUpdate, requireDelete, requireAdmin }
 const { validatePostCreation, validatePostUpdate, validateUUID } = require('../middleware/validation');
 const postService = require('../services/postService');
 const approvalService = require('../services/approvalService');
+const moderationSink = require('../services/moderationSink');
 const heraldService = require('../services/heraldService');
 const { Post, Like, Comment, Repost, Bookmark } = require('../models');
 const { broadcastNewPost, broadcastPostLike, broadcastPostComment } = require('../socket');
@@ -149,6 +150,15 @@ router.get('/:id',
     // Check visibility
     if (post.visibility === 'private' && post.userId !== req.userId) {
       throw new AppError('This post is private', 403, 'FORBIDDEN');
+    }
+
+    // Moderation read-gate: a rejected post (or, with the hold flag on, a
+    // pending one) is not servable to users other than the author. No-op when
+    // moderation is not deployed. Treated as not-found to avoid leaking that a
+    // held/retracted post exists.
+    const [servable] = await moderationSink.filterServablePosts([post], req.userId);
+    if (!servable) {
+      throw new AppError('Post not found', 404, 'POST_NOT_FOUND');
     }
 
     res.json({

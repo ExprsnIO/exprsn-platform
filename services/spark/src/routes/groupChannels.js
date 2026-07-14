@@ -24,6 +24,7 @@ const {
   requireGroupMembership
 } = require('@exprsn/shared');
 const { Conversation, Message } = require('../models');
+const messageModeration = require('../services/messageModeration');
 const {
   CHANNEL_KINDS,
   ensureGroupChannels,
@@ -114,6 +115,10 @@ router.post(
       contentType: contentType || 'text',
       mentions: mentions || []
     });
+
+    // FEAT-009: group-channel posts are PLAINTEXT — they get scanned. Pre-create
+    // the moderation row + enqueue before broadcasting (fail-open delivery).
+    await messageModeration.moderateMessage(message, { mode: 'create' });
 
     await Conversation.update(
       { lastMessageAt: new Date() },

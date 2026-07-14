@@ -34,6 +34,7 @@ const Reaction = require('./Reaction')(sequelize);
 const Attachment = require('./Attachment')(sequelize);
 const EncryptionKey = require('./EncryptionKey')(sequelize);
 const MessageKey = require('./MessageKey')(sequelize);
+const MessageModeration = require('./MessageModeration')(sequelize);
 
 /**
  * ═══════════════════════════════════════════════════════════
@@ -107,6 +108,24 @@ Attachment.belongsTo(Message, {
   as: 'message'
 });
 
+// Message <-> MessageModeration (1:1 side table, FEAT-009).
+// CASCADE (not Sequelize's hasOne SET NULL default) so a purged message takes its
+// moderation row with it and message_id stays NOT NULL (companion migration
+// 20260714000001 enforces this at the DB level). See MessageModeration model.
+Message.hasOne(MessageModeration, {
+  foreignKey: 'message_id',
+  as: 'moderation',
+  onDelete: 'CASCADE',
+  onUpdate: 'CASCADE'
+});
+
+MessageModeration.belongsTo(Message, {
+  foreignKey: 'message_id',
+  as: 'message',
+  onDelete: 'CASCADE',
+  onUpdate: 'CASCADE'
+});
+
 module.exports = {
   sequelize,
   Sequelize,
@@ -116,5 +135,6 @@ module.exports = {
   Reaction,
   Attachment,
   EncryptionKey,
-  MessageKey
+  MessageKey,
+  MessageModeration
 };

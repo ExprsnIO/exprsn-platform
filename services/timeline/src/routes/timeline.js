@@ -11,6 +11,7 @@ const { requireToken, optionalToken } = require('../middleware/auth');
 const { Post, Like, Follow } = require('../models');
 const feedService = require('../services/feedService');
 const postService = require('../services/postService');
+const moderationSink = require('../services/moderationSink');
 const { Op } = require('sequelize');
 const { parsePaginationParams, buildCursorResponse, buildCursorWhere } = require('../utils/cursor');
 
@@ -47,6 +48,11 @@ router.get('/', asyncHandler(async (req, res) => {
       where: whereClause
     });
 
+    // Moderation read-gate: hide rejected (and, when the hold flag is on,
+    // pending) posts from users other than the author. No-op when moderation
+    // is not deployed.
+    posts = await moderationSink.filterServablePosts(posts, req.userId);
+
     response = buildCursorResponse(posts, paginationParams.limit - 1);
 
     res.json({
@@ -60,6 +66,8 @@ router.get('/', asyncHandler(async (req, res) => {
       limit: paginationParams.limit,
       offset: paginationParams.offset
     });
+
+    posts = await moderationSink.filterServablePosts(posts, req.userId);
 
     res.json({
       success: true,
@@ -109,6 +117,9 @@ router.get('/global', asyncHandler(async (req, res) => {
       limit: paginationParams.limit
     });
 
+    // Moderation read-gate (no-op unless moderation is deployed).
+    posts = await moderationSink.filterServablePosts(posts, req.userId);
+
     response = buildCursorResponse(posts, paginationParams.limit - 1);
 
     res.json({
@@ -127,6 +138,8 @@ router.get('/global', asyncHandler(async (req, res) => {
       limit: paginationParams.limit,
       offset: paginationParams.offset
     });
+
+    posts = await moderationSink.filterServablePosts(posts, req.userId);
 
     res.json({
       success: true,
@@ -176,6 +189,9 @@ router.get('/group/:groupId', requireGroupMembership(), asyncHandler(async (req,
       limit: paginationParams.limit
     });
 
+    // Moderation read-gate (no-op unless moderation is deployed).
+    posts = await moderationSink.filterServablePosts(posts, req.userId);
+
     response = buildCursorResponse(posts, paginationParams.limit - 1);
 
     res.json({
@@ -194,6 +210,8 @@ router.get('/group/:groupId', requireGroupMembership(), asyncHandler(async (req,
       limit: paginationParams.limit,
       offset: paginationParams.offset
     });
+
+    posts = await moderationSink.filterServablePosts(posts, req.userId);
 
     res.json({
       success: true,
@@ -215,7 +233,9 @@ router.get('/group/:groupId', requireGroupMembership(), asyncHandler(async (req,
 router.get('/explore', asyncHandler(async (req, res) => {
   const { page, limit, offset } = validatePagination(req.query);
 
-  const posts = await feedService.getExploreFeed({ limit, offset });
+  const posts = await moderationSink.filterServablePosts(
+    await feedService.getExploreFeed({ limit, offset }), req.userId
+  );
 
   res.json({
     success: true,
@@ -231,7 +251,9 @@ router.get('/explore', asyncHandler(async (req, res) => {
 router.get('/trending', asyncHandler(async (req, res) => {
   const { page, limit, offset } = validatePagination(req.query);
 
-  const posts = await feedService.getTrendingPosts({ limit, offset });
+  const posts = await moderationSink.filterServablePosts(
+    await feedService.getTrendingPosts({ limit, offset }), req.userId
+  );
 
   res.json({
     success: true,
@@ -249,10 +271,13 @@ router.get('/user/:userId', asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const { page, limit, offset } = validatePagination(req.query);
 
-  const posts = await feedService.getUserTimeline(userId, {
+  let posts = await feedService.getUserTimeline(userId, {
     limit,
     offset
   });
+
+  // A viewer sees another user's posts here; a rejected post must not leak.
+  posts = await moderationSink.filterServablePosts(posts, req.userId);
 
   res.json({
     success: true,
@@ -269,10 +294,9 @@ router.get('/user/:userId', asyncHandler(async (req, res) => {
 router.get('/bookmarks', asyncHandler(async (req, res) => {
   const { page, limit, offset } = validatePagination(req.query);
 
-  const posts = await postService.getUserBookmarks(req.userId, {
-    limit,
-    offset
-  });
+  const posts = await moderationSink.filterServablePosts(
+    await postService.getUserBookmarks(req.userId, { limit, offset }), req.userId
+  );
 
   res.json({
     success: true,
@@ -289,10 +313,9 @@ router.get('/bookmarks', asyncHandler(async (req, res) => {
 router.get('/likes', asyncHandler(async (req, res) => {
   const { page, limit, offset } = validatePagination(req.query);
 
-  const posts = await postService.getUserLikes(req.userId, {
-    limit,
-    offset
-  });
+  const posts = await moderationSink.filterServablePosts(
+    await postService.getUserLikes(req.userId, { limit, offset }), req.userId
+  );
 
   res.json({
     success: true,

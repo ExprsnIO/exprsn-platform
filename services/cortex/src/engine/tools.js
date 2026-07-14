@@ -22,9 +22,12 @@
  *    private ranges are rejected unless CORTEX_TOOL_ALLOW_PRIVATE_HOSTS.
  */
 
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const dns = require('dns').promises;
 const net = require('net');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const config = require('../config');
 const { Tool } = require('../models');
 const { namedError, pyDumps } = require('./agent');
@@ -193,35 +196,202 @@ async function assertPublicHost(url) {
   }
 }
 
-function runProcess(cmd, argv, input, timeoutSec) {
+// ------------------------------------------------------------ python sandbox
+//
+// python tools are ARBITRARY CODE EXECUTION, so every invocation runs inside a
+// macOS seatbelt (sandbox-exec) profile with:
+//   - (deny default) + (deny network*)      -> no sockets, no network
+//   - file-read* limited to the python runtime roots + a per-call scratch dir
+//     (so it CANNOT read /etc/passwd, $HOME, project files, etc.)
+//   - file-write* limited to the scratch dir (+ /dev/null)
+//   - (deny process-fork)                    -> fork bombs are impossible
+// wrapped by `ulimit -t` (CPU seconds) and `ulimit -f` (file size), guarded by
+// a parent-side RSS watchdog (address-space rlimits are unreliable on macOS),
+// and killed as a whole process group on a hard wall-clock timeout.
+//
+// Fail CLOSED: if sandbox-exec is missing or the profile fails to compile/run,
+// the tool refuses — it never falls back to unsandboxed python.
+
+const SANDBOX_EXEC = '/usr/bin/sandbox-exec';
+
+// Resolve the python binary (abs realpath) and its install prefix once.
+let _py = null;
+function resolvePython() {
+  if (_py) return _py;
+  let bin = config.cortex.pythonBin || 'python3';
+  if (!path.isAbsolute(bin)) {
+    const r = spawnSync('/bin/sh', ['-c', 'command -v "$1"', 'sh', bin], { encoding: 'utf8' });
+    const found = (r.stdout || '').trim().split('\n')[0];
+    if (found) bin = found;
+  }
+  let real = bin;
+  try { real = fs.realpathSync(bin); } catch { /* keep as-is; preflight will fail */ }
+  // .../<prefix>/bin/python3.x -> prefix (holds lib/pythonX.Y stdlib + dylibs)
+  const prefix = path.dirname(path.dirname(real));
+  _py = { bin: real, prefix };
+  return _py;
+}
+
+// Build the per-call seatbelt profile with the scratch dir interpolated.
+function seatbeltProfile(scratch, prefix, extraReads = []) {
+  const roots = Array.from(new Set([prefix, '/usr/lib', '/System', ...extraReads]))
+    .filter(Boolean);
+  const sub = (p) => `(subpath ${JSON.stringify(p)})`;
+  const rootSubs = roots.map(sub).join(' ');
+  // The read grant covers the whole python install prefix (needed so the
+  // interpreter can boot: stdlib, lib-dynload, and whatever layout — Homebrew
+  // Cellar/opt, framework, etc. — the dylibs live under). That prefix subtree
+  // can ALSO hold OTHER apps' secrets on a dev box: Homebrew keeps service
+  // configs under <prefix>/etc and databases/state under <prefix>/var
+  // (postgres, redis, mysql...). The interpreter never reads those, so deny
+  // them AFTER the broad grant — seatbelt is last-match-wins — to keep
+  // incidental host secrets out of a python tool's reach.
+  const prefixSecretDirs = ['etc', 'var'].map((d) => path.join(prefix, d));
+  const denySubs = prefixSecretDirs.map(sub).join(' ');
+  // An admin who deliberately whitelists a path via CORTEX_PYTHON_READ_PATHS
+  // wins over the deny (re-allowed last), so the escape hatch still works.
+  const extraSubs = extraReads.filter(Boolean).map(sub).join(' ');
+  return [
+    '(version 1)',
+    '(deny default)',
+    '(deny network*)',       // no sockets of any kind
+    '(deny process-fork)',   // no fork bombs / subprocesses
+    `(allow process-exec ${rootSubs})`, // launcher must exec python itself
+    '(allow sysctl-read)',
+    '(allow mach-lookup)',
+    '(allow mach-priv-host-port)',
+    '(allow iokit-open)',
+    '(allow system-fsctl)',
+    '(allow file-read-metadata)',        // path traversal / stat of ancestors
+    `(allow file-read* (literal "/") ${rootSubs} ` +
+      '(literal "/dev/null") (literal "/dev/random") (literal "/dev/urandom") ' +
+      `${sub(scratch)})`,
+    `(deny file-read* ${denySubs})`,     // carve secret-bearing config/state dirs back out
+    ...(extraSubs ? [`(allow file-read* ${extraSubs})`] : []),
+    `(allow file-write* (literal "/dev/null") ${sub(scratch)})`,
+    '',
+  ].join('\n');
+}
+
+// sandbox-exec prints its OWN parse/apply failures with a "sandbox-exec:"
+// prefix (python then never runs) — distinct from a working in-sandbox denial,
+// which surfaces as a normal python traceback. Only the former is fail-closed.
+function isSandboxStartupError(stderr) {
+  return /^sandbox-exec:/m.test(stderr || '');
+}
+
+// One-time (per bin+prefix) proof that sandbox-exec exists AND the profile we
+// generate actually compiles and runs python on this host. Cached.
+let _preflightKey = null;
+let _preflightOk = false;
+function preflight() {
+  const { bin, prefix } = resolvePython();
+  const key = `${bin}|${prefix}|${(config.cortex.pythonReadPaths || []).join(':')}`;
+  if (_preflightKey === key) return _preflightOk;
+  _preflightKey = key;
+  _preflightOk = false;
+  if (process.platform !== 'darwin' || !fs.existsSync(SANDBOX_EXEC)) return false;
+  let scratch = null;
+  try {
+    scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'cortex-pf-')));
+    const prof = path.join(scratch, '.sandbox.sb');
+    fs.writeFileSync(prof, seatbeltProfile(scratch, prefix, config.cortex.pythonReadPaths), { mode: 0o600 });
+    const r = spawnSync(SANDBOX_EXEC, ['-f', prof, bin, '-I', '-c', 'import sys; sys.exit(0)'],
+      { cwd: scratch, env: { PATH: '/usr/bin:/bin', TMPDIR: scratch, HOME: scratch }, timeout: 15000 });
+    _preflightOk = r.status === 0 && !isSandboxStartupError(String(r.stderr || ''));
+  } catch {
+    _preflightOk = false;
+  } finally {
+    if (scratch) { try { fs.rmSync(scratch, { recursive: true, force: true }); } catch { /* best effort */ } }
+  }
+  return _preflightOk;
+}
+
+// Run `code` (with `args`) as a python tool inside the seatbelt sandbox.
+// Resolves { code, signal, stdout, stderr, timedOut, memKilled, sandboxError };
+// the scratch dir is ALWAYS removed, even on timeout/kill/error.
+function runSandboxedPython(code, args, wallSec) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, argv);
+    const { bin, prefix } = resolvePython();
+    const cpuSec = Math.max(1, Math.min(config.cortex.pythonCpuSeconds || DEFAULT_TIMEOUT, wallSec));
+    const fsizeBlocks = Math.max(1, Math.ceil(((config.cortex.pythonFsizeMb || 64) * 1024 * 1024) / 512));
+    const memKb = Math.max(64, config.cortex.pythonMemoryMb || 512) * 1024;
+
+    let scratch;
+    try {
+      scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'cortex-py-')));
+    } catch (e) {
+      return reject(namedError('RuntimeError', `sandbox scratch setup failed: ${e.message}`));
+    }
+    // Guard against a scratch path that would break profile quoting/escape.
+    if (!/^\/[^"\n]+$/.test(scratch)) {
+      try { fs.rmSync(scratch, { recursive: true, force: true }); } catch { /* ignore */ }
+      return reject(namedError('RuntimeError', 'unsafe scratch path'));
+    }
+    const profilePath = path.join(scratch, '.sandbox.sb');
+    try {
+      fs.writeFileSync(profilePath, seatbeltProfile(scratch, prefix, config.cortex.pythonReadPaths), { mode: 0o600 });
+    } catch (e) {
+      try { fs.rmSync(scratch, { recursive: true, force: true }); } catch { /* ignore */ }
+      return reject(namedError('RuntimeError', `sandbox profile write failed: ${e.message}`));
+    }
+
+    // ulimit is a shell builtin, so wrap in /bin/sh; pass cpu/fsize and the full
+    // argv as POSITIONAL params (no string interpolation of untrusted data).
+    const child = spawn('/bin/sh', [
+      '-c', 'ulimit -t "$1" 2>/dev/null; ulimit -f "$2" 2>/dev/null; shift 2; exec "$@"',
+      'sh', String(cpuSec), String(fsizeBlocks),
+      SANDBOX_EXEC, '-f', profilePath, bin, '-I', '-c', PY_RUNNER,
+    ], {
+      cwd: scratch,
+      env: { PATH: '/usr/bin:/bin', TMPDIR: scratch, HOME: scratch, LC_ALL: 'C.UTF-8', LANG: 'C.UTF-8' },
+      detached: true, // own process group so we can SIGKILL the whole tree
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
     let stdout = '';
     let stderr = '';
     let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill('SIGKILL');
-    }, timeoutSec * 1000);
+    let memKilled = false;
+    let done = false;
+    const pgid = child.pid;
+    const killGroup = (sig) => {
+      try { process.kill(-pgid, sig); } catch { try { child.kill(sig); } catch { /* gone */ } }
+    };
+    const wallTimer = setTimeout(() => { timedOut = true; killGroup('SIGKILL'); }, wallSec * 1000);
+    if (wallTimer.unref) wallTimer.unref();
+    // Address-space rlimits don't stick on macOS, so poll group RSS instead.
+    const memTimer = setInterval(() => {
+      try {
+        const r = spawnSync('ps', ['-o', 'rss=', '-g', String(pgid)], { encoding: 'utf8', timeout: 2000 });
+        const total = String(r.stdout || '').split('\n')
+          .map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n))
+          .reduce((a, b) => a + b, 0);
+        if (total > memKb) { memKilled = true; killGroup('SIGKILL'); }
+      } catch { /* transient ps failure; retry next tick */ }
+    }, 250);
+    if (memTimer.unref) memTimer.unref();
+
+    const finish = (result, err) => {
+      if (done) return;
+      done = true;
+      clearTimeout(wallTimer);
+      clearInterval(memTimer);
+      try { fs.rmSync(scratch, { recursive: true, force: true }); } catch { /* best effort */ }
+      if (err) reject(err); else resolve(result);
+    };
+
     child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (d) => (stdout += d));
+    child.stdout.on('data', (d) => { if (stdout.length < 4 * MAX_RESULT) stdout += d; });
     child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (d) => (stderr += d));
-    child.on('error', (e) => {
-      clearTimeout(timer);
-      reject(e);
-    });
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      if (timedOut) {
-        reject(namedError('TimeoutExpired',
-          `Command '${cmd} ${argv[0]} ${argv[1]} ...' timed out after ${timeoutSec} seconds`));
-      } else {
-        resolve({ code, stdout, stderr });
-      }
-    });
+    child.stderr.on('data', (d) => { if (stderr.length < 8192) stderr += d; });
+    child.on('error', (e) => finish(null, namedError('RuntimeError', `failed to launch sandbox: ${e.message}`)));
+    child.on('close', (code, signal) => finish({
+      code, signal, stdout, stderr, timedOut, memKilled,
+      sandboxError: isSandboxStartupError(stderr),
+    }));
     child.stdin.on('error', () => {});
-    child.stdin.end(input);
+    child.stdin.end(JSON.stringify({ code, args }));
   });
 }
 
@@ -320,14 +490,38 @@ class ToolRegistry {
       throw namedError('PermissionError',
         'python tools are disabled on this deployment (CORTEX_PYTHON_TOOLS_ENABLED)');
     }
-    const proc = await runProcess(
-      'python3', ['-I', '-c', PY_RUNNER],
-      JSON.stringify({ code: spec.code, args }),
+    // Fail CLOSED: no seatbelt sandbox on this host -> refuse (never run
+    // unsandboxed python).
+    if (process.platform !== 'darwin' || !fs.existsSync(SANDBOX_EXEC)) {
+      throw namedError('PermissionError',
+        'python tool sandbox unavailable (macOS sandbox-exec/seatbelt required); ' +
+        'refusing to run (fail-closed)');
+    }
+    if (!preflight()) {
+      throw namedError('PermissionError',
+        'python tool sandbox failed preflight (sandbox profile did not compile/run); ' +
+        'refusing to run (fail-closed)');
+    }
+    const wallSec = Math.min(
       spec.timeout ?? DEFAULT_TIMEOUT,
+      config.cortex.pythonWallMaxSeconds || MAX_TIMEOUT,
     );
-    if (proc.code !== 0) {
-      const tail = (proc.stderr || '').trim().split('\n').slice(-3);
-      throw namedError('RuntimeError', 'tool code failed: ' + tail.join(' | '));
+    const proc = await runSandboxedPython(spec.code, args, wallSec);
+    if (proc.sandboxError) {
+      throw namedError('PermissionError',
+        'python tool sandbox error (profile did not apply); refusing to run (fail-closed)');
+    }
+    if (proc.timedOut) {
+      throw namedError('TimeoutExpired', `python tool timed out after ${wallSec} seconds`);
+    }
+    if (proc.memKilled) {
+      throw namedError('MemoryError',
+        `python tool exceeded the memory limit (${config.cortex.pythonMemoryMb} MB)`);
+    }
+    if (proc.code !== 0 || proc.signal) {
+      const tail = (proc.stderr || '').trim().split('\n').slice(-3).filter(Boolean);
+      const why = proc.signal ? ` (killed by ${proc.signal})` : '';
+      throw namedError('RuntimeError', `tool code failed${why}: ${tail.join(' | ')}`);
     }
     return proc.stdout.slice(0, MAX_RESULT);
   }
@@ -554,4 +748,9 @@ async function buildSpec(description, chatFn, { name = null, kind = null } = {})
   return second.spec && !second.problems.length ? second : first;
 }
 
-module.exports = { KINDS, HTTP_METHODS, validateSpec, substitute, pyQuote, assertPublicHost, ToolRegistry, buildSpec };
+module.exports = {
+  KINDS, HTTP_METHODS, validateSpec, substitute, pyQuote, assertPublicHost,
+  ToolRegistry, buildSpec,
+  // exported for the sandbox test suite
+  SANDBOX_EXEC, seatbeltProfile, resolvePython, preflight, runSandboxedPython,
+};

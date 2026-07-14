@@ -1,0 +1,50 @@
+[Unit]
+Description=Exprsn platform gateway (HTTPS edge, :8443)
+Documentation=file:///opt/exprsn/docs/runbooks/digitalocean-ubuntu.md
+# The gateway connects to Postgres/Redis/OpenSearch/RabbitMQ at require() time,
+# so it needs the containers up. Compose brings them up via docker.service.
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=exprsn
+Group=exprsn
+
+# Load-bearing: src/config/index.js and every worker call a bare
+# `require('dotenv').config()`, which resolves .env relative to the CURRENT
+# WORKING DIRECTORY. If this is not the repo root, the process starts with no
+# configuration and fails in confusing ways.
+WorkingDirectory=/opt/exprsn
+
+ExecStart=/usr/bin/node src/index.js
+
+Environment=NODE_ENV=production
+# nginx already owns :80 and issues the HTTP->HTTPS redirect. Without this the
+# gateway also binds 0.0.0.0:8080 with a second redirect listener.
+Environment=HTTP_REDIRECT_PORT=0
+
+# Postgres can take longer to accept connections than the gateway takes to
+# crash on a failed connect. Retry forever rather than giving up after systemd's
+# default 5-failures-in-10s burst limit, which is easy to trip during a reboot.
+Restart=always
+RestartSec=5s
+StartLimitIntervalSec=0
+
+# Hardening. ProtectSystem=full (not strict) keeps /opt writable, which the
+# modules need for uploads/certs; strict would make the whole tree read-only.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=exprsn-gateway
+
+[Install]
+WantedBy=multi-user.target

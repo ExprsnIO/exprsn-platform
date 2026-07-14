@@ -1,0 +1,50 @@
+[Unit]
+Description=Exprsn %i worker
+Documentation=file:///opt/exprsn/docs/runbooks/digitalocean-ubuntu.md
+# Templated unit: every worker in the platform lives at the same path,
+# services/<name>/src/worker.js, so one template covers all six. Instantiate as
+# exprsn-worker@timeline, exprsn-worker@prefetch, exprsn-worker@atproto,
+# exprsn-worker@live, exprsn-worker@cortex, exprsn-worker@filevault.
+#
+# NOTE the last one: package.json calls the script `worker:filevault-moderation`,
+# but the module directory is `filevault` -- the instance name must match the
+# DIRECTORY, so it is exprsn-worker@filevault.
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+PartOf=exprsn.target
+
+[Service]
+Type=simple
+User=exprsn
+Group=exprsn
+
+# See exprsn-gateway.service -- bare dotenv resolves .env from cwd.
+WorkingDirectory=/opt/exprsn
+
+ExecStart=/usr/bin/node services/%i/src/worker.js
+
+Environment=NODE_ENV=production
+# Only the prefetch worker reads this (it shares an entry point with the
+# in-process role and refuses to consume the queue without it). Harmless to the
+# other five, which never look at it -- that is what lets one template serve all.
+Environment=PREFETCH_ROLE=worker
+
+Restart=always
+RestartSec=5s
+StartLimitIntervalSec=0
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=exprsn-worker-%i
+
+[Install]
+WantedBy=multi-user.target

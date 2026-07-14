@@ -1,0 +1,17 @@
+[Unit]
+Description=Exprsn platform (gateway + all workers)
+# Convenience grouping so the whole platform starts/stops as one unit:
+#   systemctl start exprsn.target
+#   systemctl restart exprsn.target
+# The workers declare PartOf=exprsn.target, so stopping the target stops them.
+Wants=exprsn-gateway.service
+Wants=exprsn-worker@timeline.service
+Wants=exprsn-worker@prefetch.service
+Wants=exprsn-worker@atproto.service
+Wants=exprsn-worker@live.service
+Wants=exprsn-worker@cortex.service
+Wants=exprsn-worker@filevault.service
+After=docker.service
+
+[Install]
+WantedBy=multi-user.target

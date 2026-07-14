@@ -1,0 +1,107 @@
+# ============================================================================
+# Exprsn Platform — production overlay (public droplet)
+# ----------------------------------------------------------------------------
+# Always applied ON TOP of docker-compose.yml, never alone:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# (Export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml in the deploy
+# shell so plain `docker compose ...` picks both up and you cannot forget.)
+#
+# WHAT THIS FIXES
+# ---------------
+# The base compose file publishes Postgres, Redis, OpenSearch and RabbitMQ to
+# 0.0.0.0 — correct for a laptop, catastrophic on a droplet with a public IP.
+# A host firewall does NOT save you: Docker installs its own iptables rules in
+# the DOCKER-USER chain, which are evaluated BEFORE ufw's, so a published
+# container port stays reachable from the internet even when `ufw status` shows
+# it denied. OpenSearch is the sharpest edge — the base file runs it with
+# DISABLE_SECURITY_PLUGIN=true, i.e. no authentication at all.
+#
+# The fix is to publish those ports on the loopback interface instead of relying
+# on the firewall. The gateway and all six workers are HOST processes that reach
+# the datastores over localhost, so nothing breaks.
+#
+# REQUIRES Docker Compose v2.24+ for the `!override` tag (Feb 2024; the version
+# in Docker's own apt repo is well past this). Check: `docker compose version`.
+#
+#   Why !override and not a plain `ports:` key: for ports, expose, dns and a few
+#   other multi-value options, Compose CONCATENATES the two files' lists rather
+#   than replacing them. Without the tag you would end up publishing BOTH
+#   0.0.0.0:5432 and 127.0.0.1:5432 — i.e. silently keeping the hole you were
+#   trying to close, while the file reads as though you closed it.
+# ============================================================================
+
+networks:
+  exprsn:
+    # Pinned so the ufw rule that lets the nginx container reach the gateway on
+    # the host (see deploy/README.md) has a stable source range to allow.
+    # If the network already exists from a dev run with a different subnet,
+    # Compose will NOT re-create it: `docker network rm exprsn-net` first.
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# Cap container log growth. A chatty container can otherwise fill a droplet's
+# disk, and a full disk takes Postgres down with it.
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  # ---------------------------------------------------------- DATASTORES -----
+  # All four are consumed only by host processes (gateway + workers) over
+  # localhost, and by other containers over the internal Docker network — which
+  # does not use the published port at all. Loopback-only is therefore safe.
+
+  postgres:
+    <<: *logging
+    ports: !override
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+
+  redis:
+    <<: *logging
+    ports: !override
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+
+  opensearch:
+    <<: *logging
+    ports: !override
+      - "127.0.0.1:9200:9200"
+      - "127.0.0.1:9600:9600"
+
+  rabbitmq:
+    <<: *logging
+    ports: !override
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      # Management UI. Reach it over an SSH tunnel, never the public interface:
+      #   ssh -L 15672:127.0.0.1:15672 exprsn@<droplet>
+      - "127.0.0.1:${RABBITMQ_MGMT_PORT:-15672}:15672"
+
+  # --------------------------------------------------------------- EDGE -----
+
+  nginx:
+    <<: *logging
+    # 80 and 443 stay public — this is the only thing that should be.
+    # 80 is required for the ACME http-01 challenge as well as the redirect.
+
+  srs:
+    <<: *logging
+    ports: !override
+      # RTMP ingest — public ONLY if external publishers (OBS) push streams to
+      # this droplet. If ingest is internal or unused, delete this line.
+      - "${SRS_RTMP_PORT:-1935}:1935"
+      # SRS HTTP API is the control plane (create/destroy/kick streams). It is
+      # unauthenticated. The live module reaches it from the host over loopback.
+      - "127.0.0.1:${SRS_API_PORT:-1985}:1985"
+      # HLS playback. Browsers do NOT hit this directly — they go through nginx,
+      # which proxies /live/hls to host.docker.internal:8085. `host-gateway`
+      # resolves to the DEFAULT bridge (docker0, 172.17.0.1), not to the exprsn
+      # network's gateway, so this must bind the docker0 address rather than
+      # loopback or the nginx container cannot reach it.
+      #   Verify the address on the droplet: ip -4 addr show docker0
+      #   If your host uses a custom `bip`, change this to match.
+      - "172.17.0.1:${SRS_HTTP_PORT:-8085}:8080"

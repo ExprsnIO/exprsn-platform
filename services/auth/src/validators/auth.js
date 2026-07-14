@@ -275,6 +275,79 @@ const signupSchema = Joi.object({
 });
 
 /**
+ * Self-serve org provisioning schema (FEAT-033, POST /organizations/provision-self)
+ * The self-serve front carries the org intent as a FLAT body (unlike /signup's
+ * nested `org`), but is subject to the SAME privilege constraints:
+ *   - `type` is restricted to team|personal. 'enterprise' (unlimited members,
+ *     5yr CA, plan=enterprise, extra RBAC groups) is NOT self-provisionable — it
+ *     is admin-provisioned only (mirrors signupSchema.org.type).
+ *   - `idempotencyKey` is deliberately NOT a field here: `stripUnknown` drops any
+ *     client-supplied key so it can never be honored, and the route derives an
+ *     owner-scoped key server-side (a client key would otherwise short-circuit
+ *     into another owner's completed run — engine dedups by {idempotencyKey,kind}
+ *     with no owner scoping).
+ * Only descriptive org fields are accepted; plan/settings/status/type-as-privilege
+ * are template/server-derived.
+ */
+const provisionSelfSchema = Joi.object({
+  type: Joi.string()
+    .valid('team', 'personal')
+    .required()
+    .messages({
+      'any.only': 'Organization type must be team or personal',
+      'any.required': 'Organization type is required'
+    }),
+  name: Joi.string()
+    .min(1)
+    .max(200)
+    .trim()
+    .required()
+    .messages({
+      'string.min': 'Organization name cannot be empty',
+      'string.max': 'Organization name must not exceed 200 characters',
+      'any.required': 'Organization name is required'
+    }),
+  slug: Joi.string()
+    .max(100)
+    .trim()
+    .lowercase()
+    .pattern(/^[a-z0-9-]+$/)
+    .optional()
+    .allow('')
+    .messages({
+      'string.pattern.base': 'Slug may contain only lowercase letters, numbers, and hyphens',
+      'string.max': 'Slug must not exceed 100 characters'
+    }),
+  description: Joi.string()
+    .max(1000)
+    .trim()
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Description must not exceed 1000 characters'
+    }),
+  email: Joi.string()
+    .email()
+    .lowercase()
+    .trim()
+    .max(255)
+    .optional()
+    .allow('')
+    .messages({
+      'string.email': 'Please provide a valid email address',
+      'string.max': 'Email must not exceed 255 characters'
+    }),
+  website: Joi.string()
+    .max(255)
+    .trim()
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Website must not exceed 255 characters'
+    })
+});
+
+/**
  * Email verification token schema
  */
 const verifyEmailSchema = Joi.object({
@@ -312,6 +385,7 @@ module.exports = {
   changePasswordSchema,
   acceptInviteSchema,
   signupSchema,
+  provisionSelfSchema,
   verifyEmailSchema,
   resendVerificationSchema
 };

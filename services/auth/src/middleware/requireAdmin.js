@@ -22,6 +22,7 @@
  * ═══════════════════════════════════════════════════════════
  */
 
+const { Op } = require('sequelize');
 const { validateCAToken } = require('@exprsn/shared');
 const { isPlatformAdmin } = require('@exprsn/shared/utils/platformAdmin');
 const { Role, UserRole } = require('../models');
@@ -40,8 +41,17 @@ async function hasAdminRole(userId) {
     return false;
   }
 
+  // SECURITY: only an ACTIVE, non-expired binding confers admin. Without the
+  // status/expiresAt predicate, a revoked (status='revoked') or time-expired
+  // global admin grant would silently keep conferring platform super-admin.
   const globalBindings = await UserRole.findAll({
-    where: { userId, scope: 'global', organizationId: null },
+    where: {
+      userId,
+      scope: 'global',
+      organizationId: null,
+      status: 'active',
+      [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }]
+    },
     attributes: ['roleId']
   });
   if (!globalBindings.length) {

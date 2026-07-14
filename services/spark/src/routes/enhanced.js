@@ -7,6 +7,7 @@ const express = require('express');
 const { createLogger } = require('@exprsn/shared');
 const { requireAuth } = require('../middleware/auth');
 const db = require('../models');
+const messageModeration = require('../services/messageModeration');
 
 const router = express.Router();
 const logger = createLogger('exprsn-spark:enhanced');
@@ -85,6 +86,11 @@ router.post('/:id/forward',
         });
 
         forwardedMessages.push(forwardedMessage);
+
+        // FEAT-009: a forward creates NEW content bytes in a new conversation —
+        // moderate it like any other message (fail-open delivery).
+        // eslint-disable-next-line no-await-in-loop
+        await messageModeration.moderateMessage(forwardedMessage, { mode: 'create' });
 
         // Emit socket event
         if (req.io) {
@@ -414,6 +420,9 @@ router.post('/:id/reply',
 
       // Update parent message reply count
       await parentMessage.increment('replyCount');
+
+      // FEAT-009: a thread reply is new content bytes — moderate it too.
+      await messageModeration.moderateMessage(reply, { mode: 'create' });
 
       // Emit socket event
       if (req.io) {

@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const { asyncHandler } = require('@exprsn/shared');
 const logger = require('../utils/logger');
 const { Post } = require('../models');
+const moderationSink = require('../services/moderationSink');
 
 const router = express.Router();
 
@@ -124,6 +125,21 @@ router.post('/bluesky',
             logger.info('Updated Timeline post from Bluesky', {
               postId: data.exprsnPostId
             });
+
+            // This path rewrites posts.content BYPASSING postService — it is the
+            // BUG-018 class ingress the ADR calls out. RE-MODERATE the edited
+            // content (mode:'reset') exactly like postService.updatePost, or the
+            // stale verdict would describe pre-edit bytes. Best-effort.
+            try {
+              const updated = await Post.findByPk(data.exprsnPostId);
+              if (updated && !updated.deleted) {
+                await moderationSink.establishPostModerationState({ post: updated, mode: 'reset' });
+              }
+            } catch (err) {
+              logger.error('re-moderation on Bluesky record.updated failed', {
+                postId: data.exprsnPostId, error: err.message
+              });
+            }
           }
           break;
 

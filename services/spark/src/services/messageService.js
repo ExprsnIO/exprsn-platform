@@ -6,6 +6,7 @@ const { Message, Conversation, Participant, Reaction } = require('../models');
 const { Op } = require('sequelize');
 const sanitizeHtml = require('sanitize-html');
 const logger = require('../utils/logger');
+const messageModeration = require('./messageModeration');
 
 class MessageService {
   /**
@@ -60,6 +61,11 @@ class MessageService {
     }
 
     const message = await Message.create(messageData);
+
+    // FEAT-009: message-content ingress — establish the moderation side-row so
+    // this service layer is safe to wire from any route/worker. Fail-open: the
+    // helper never throws into the send path (BUG-017 invariant).
+    await messageModeration.moderateMessage(message, { mode: 'create' });
 
     // Update conversation last activity
     await Conversation.update(
@@ -139,6 +145,10 @@ class MessageService {
     message.edited = true;
     message.editedAt = new Date();
     await message.save();
+
+    // FEAT-009: an EDIT re-moderates the new bytes. mode:'reset' clears the
+    // stale verdict and removes the stale queue job (BUG-016). Fail-open.
+    await messageModeration.moderateMessage(message, { mode: 'reset' });
 
     logger.info('Message edited', {
       messageId,

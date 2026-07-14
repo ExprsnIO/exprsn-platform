@@ -8,6 +8,7 @@
 const express = require('express');
 const { asyncHandler, AppError, validateCAToken, validatePagination } = require('@exprsn/shared');
 const { Message, Participant, Reaction } = require('../models');
+const messageModeration = require('../services/messageModeration');
 
 const router = express.Router();
 
@@ -146,6 +147,13 @@ router.put('/:conversationId/:messageId', validateCAToken({ requiredPermissions:
   message.edited = true;
   message.editedAt = new Date();
   await message.save();
+
+  // FEAT-009: this REST edit is a live message-content ingress — the new bytes
+  // MUST be re-scored. mode:'reset' re-establishes the side-row with a fresh
+  // content_hash+cleared verdict AND removes the stale queue job (BUG-016/018),
+  // matching the socket edit:message path. Fail-open: never throws into the
+  // request, so delivery/response is unaffected.
+  await messageModeration.moderateMessage(message, { mode: 'reset' });
 
   // Emit update via Socket.IO
   if (req.io) {

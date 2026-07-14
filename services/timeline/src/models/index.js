@@ -44,6 +44,7 @@ const ListMember = require('./ListMember')(sequelize);
 const Trending = require('./Trending')(sequelize);
 const Attachment = require('./Attachment')(sequelize);
 const TimelineConfig = require('./TimelineConfig')(sequelize);
+const PostModeration = require('./PostModeration')(sequelize);
 
 /**
  * ═══════════════════════════════════════════════════════════
@@ -126,6 +127,10 @@ Comment.hasMany(Attachment, {
   as: 'attachments'
 });
 
+// Post <-> PostModeration (1:1). Declared via the model's associate() hook so the
+// CASCADE FK lives with the model (see PostModeration.associate).
+PostModeration.associate({ Post, PostModeration });
+
 module.exports = {
   sequelize,
   Sequelize,
@@ -139,5 +144,6 @@ module.exports = {
   ListMember,
   Trending,
   Attachment,
-  TimelineConfig
+  TimelineConfig,
+  PostModeration
 };

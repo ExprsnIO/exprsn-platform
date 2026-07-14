@@ -47,6 +47,8 @@ const jobRoutes = require('./routes/jobs');
 const healthRoutes = require('./routes/health');
 const webhookRoutes = require('./routes/webhooks');
 const attachmentRoutes = require('./routes/attachments');
+const moderationRoutes = require('./routes/moderation');
+const moderationSink = require('./services/moderationSink');
 
 // Logger
 const logger = createLogger('exprsn-timeline');
@@ -156,6 +158,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/config', require('./routes/config'));
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/moderation', moderationRoutes);
 
 /**
  * ═══════════════════════════════════════════════════════════
@@ -179,6 +182,11 @@ app.use(errorHandler);
 function registerSockets(io) {
   nsp = io.of('/timeline');
   socketHandler(nsp);
+  // Give the moderation sink the /timeline namespace so an adverse verdict
+  // arriving on the HTTP action route (gateway process) can emit a live
+  // 'post:retracted' retraction. In the worker process this is never set, so
+  // applyVerdict falls back to the DB write + read-gate only.
+  moderationSink.setNamespace(nsp);
   logger.info('Socket.IO namespace /timeline registered');
   return nsp;
 }

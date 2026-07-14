@@ -36,6 +36,7 @@
     "worker:live": "node services/live/src/worker.js",
     "worker:cortex": "node services/cortex/src/worker.js",
     "worker:filevault-moderation": "node services/filevault/src/worker.js",
+    "worker:moderation": "node services/moderator/src/worker.js",
     "atproto:provision": "node services/atproto/scripts/provision-identity.js",
     "web:install": "npm --prefix web install",
     "web:dev": "npm --prefix web run dev",

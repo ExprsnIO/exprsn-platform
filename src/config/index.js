@@ -121,6 +121,21 @@ const config = {
     visionMaxFrames: num(process.env.CORTEX_VISION_MAX_FRAMES, 3), // animated GIF/WebP sampling
     pythonToolsEnabled: bool(process.env.CORTEX_PYTHON_TOOLS_ENABLED, false),
     toolAllowPrivateHosts: bool(process.env.CORTEX_TOOL_ALLOW_PRIVATE_HOSTS, false),
+    // Python custom-tool sandbox (TASK-021). Execution is wrapped in a macOS
+    // seatbelt (sandbox-exec) profile — no network, reads limited to the python
+    // runtime + a per-call scratch dir, writes only into that scratch dir —
+    // plus ulimit CPU/file-size caps, a parent-side RSS watchdog, and a hard
+    // wall-clock timeout. Fail-closed: if sandbox-exec is unavailable the tool
+    // refuses to run. Defaults are conservative; tune per deployment.
+    pythonBin: process.env.CORTEX_PYTHON_BIN || 'python3',
+    pythonCpuSeconds: num(process.env.CORTEX_PYTHON_CPU_SECONDS, 10),
+    pythonMemoryMb: num(process.env.CORTEX_PYTHON_MEMORY_MB, 512),
+    pythonFsizeMb: num(process.env.CORTEX_PYTHON_FSIZE_MB, 64),
+    pythonWallMaxSeconds: num(process.env.CORTEX_PYTHON_WALL_MAX_SECONDS, 120),
+    // Extra ':'-separated read-only roots to permit in the seatbelt profile
+    // (rarely needed; e.g. a non-standard python install prefix).
+    pythonReadPaths: (process.env.CORTEX_PYTHON_READ_PATHS || '')
+      .split(':').map((s) => s.trim()).filter(Boolean),
     moderate: bool(process.env.CORTEX_MODERATE, false),
     cacheTtl: num(process.env.CORTEX_CACHE_TTL, 3600),
   },

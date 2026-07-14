@@ -72,11 +72,18 @@ describe('reconcileStuckPending', () => {
     await reconcileStuckPending();
 
     const where = mockFindAll.mock.calls[0][0].where;
-    expect(where.status).toBe('pending');
     // an updatedAt < cutoff filter is present
     const opLt = Object.getOwnPropertySymbols(where.updatedAt)[0];
     expect(where.updatedAt[opLt]).toBeInstanceOf(Date);
     expect(where.updatedAt[opLt].getTime()).toBeLessThan(Date.now());
+    // ...and both stranded-before-scoring cases are swept (TASK-025 + -026):
+    // enforce `pending` (hidden) and shadow `approved`/`shadow_pending` (servable).
+    const opOr = Object.getOwnPropertySymbols(where)[0];
+    const branches = where[opOr];
+    expect(branches).toEqual(expect.arrayContaining([
+      { status: 'pending' },
+      { status: 'approved', reason: 'shadow_pending' },
+    ]));
   });
 
   test('never throws — a DB failure is logged, not propagated', async () => {

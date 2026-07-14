@@ -111,13 +111,13 @@ async function restoreVersion(fileId, versionNumber, userId) {
     // not individually moderated, so the only safe move is to re-moderate the
     // file's new current bytes: reset to `pending` (hidden) inside the
     // transaction, re-queue after commit.
-    const modState = await imageModeration.establishModerationState(
+    await imageModeration.establishModerationState(
       FileModeration, file, { transaction, mode: 'reset' });
 
     await transaction.commit();
     logger.info(`File restored to version ${versionNumber}: ${fileId}`);
 
-    if (modState.status === 'pending') {
+    if (imageModeration.shouldQueue(file)) {
       // Remove the stale job first — a plain re-add is a silent no-op (BUG-016).
       await requeueImageModeration(file.id);
     }

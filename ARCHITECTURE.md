@@ -76,18 +76,34 @@ and log, never enforce) is the intended first step, and a `sourceService:
 'cortex'` request never selects the cortex provider (loop guard, applied to the
 fallback chain too).
 
-**`CORTEX_MODERATION_MODE` governs TEXT verdicts only.** Image verdicts
+**Two independent moderation flags — `CORTEX_MODERATION_MODE` governs TEXT,
+`FILEVAULT_IMAGE_MODERATION` governs IMAGES (TASK-026).** Image verdicts
 (FEAT-031) are produced by the FileVault worker, which calls the cortex façade
-directly and therefore bypasses `AIProviderFactory` and its mode gate; they are
-governed by `FILEVAULT_IMAGE_MODERATION` instead. An operator who sets
-`CORTEX_MODERATION_MODE=off` will still get cortex scoring their images. This
-deviation from ADR 0002 §4 is accepted (see its addendum): the worker path is
-escalate-only, so a wrong image verdict can only add a human-review item, never
-auto-clear or auto-delete. Consequences: image moderation has **no shadow rung**
-today (TASK-026), which is also why TASK-023's accuracy benchmark cannot yet
-gather image shadow data. A synchronous or non-FileVault image-verdict caller
-must go through a moderator-owned `analyzeImage`, not a second
-`precomputedResult` caller.
+directly and therefore **bypasses** `AIProviderFactory` and its mode gate; they
+are governed by `FILEVAULT_IMAGE_MODERATION` instead. The two flags are
+**independent** and neither governs the other: `CORTEX_MODERATION_MODE=off` still
+lets cortex moderate images, and `FILEVAULT_IMAGE_MODERATION=off` still lets
+cortex moderate text. To disable all cortex moderation, set **both** off (or
+`CORTEX_ENABLED=false`, which hard-refuses the façade). Using `FILEVAULT_IMAGE_MODERATION`
+as the governing flag is a deliberate deviation from ADR 0002 §4 (see its
+addendum): the worker path is escalate-only, so a wrong image verdict can only
+add a human-review item, never auto-clear or auto-delete.
+
+`FILEVAULT_IMAGE_MODERATION` carries the same three-rung ladder as its text
+counterpart — `off | shadow | enforce` (`true` is a legacy alias for `enforce`):
+
+| Mode | Visibility of a flagged image | Escalated? | Verdict recorded? |
+|---|---|---|---|
+| `off` | served as before (`skipped`) | no | no — not scored |
+| `shadow` | **served** (`approved`, reason `shadow_flagged`) — never held | no | **yes** (`risk_score` + `verdict` JSONB + tags) |
+| `enforce` | **held** (`rejected`, hidden from all but uploader) | yes | yes |
+
+Shadow scores and logs with **zero user impact** (the image is `approved`/servable
+from upload — it is never even transiently `pending`/hidden), which is what lets
+TASK-023's accuracy benchmark gather image shadow data. The fail-closed
+`pending`/hidden state applies only to `enforce` (feature on but cortex/router
+unavailable). A synchronous or non-FileVault image-verdict caller must still go
+through a moderator-owned `analyzeImage`, not a second `precomputedResult` caller.
 
 `moderateContent()`'s `precomputedResult` parameter is **in-process only**. Both
 unauthenticated ingest routes (`/api/moderate/content` and `/batch`) strip it via

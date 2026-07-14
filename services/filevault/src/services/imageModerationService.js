@@ -29,10 +29,32 @@ const cortex = require('../../../cortex/src/client');
 
 const logger = createLogger('exprsn-filevault-imagemod');
 
+// The image-moderation mode, read from FILEVAULT_IMAGE_MODERATION (TASK-026).
+// This is the governing flag for the escalate-only worker path (architect's
+// ruling): it is INDEPENDENT of CORTEX_MODERATION_MODE, which governs TEXT
+// verdicts through moderator's provider factory. `off` on one does NOT disable
+// the other. See .env.example and ARCHITECTURE.md.
+//
+//   off     — no image moderation. Images are `skipped`/servable exactly as the
+//             platform behaved before FEAT-031. (unset / 'false' / 'off' / other)
+//   enforce — score AND ACT: a flagged image is HELD (`rejected`) for human
+//             review and escalated. This is the fail-closed enforcing posture.
+//             Legacy value 'true' is kept as an alias for enforce (back-compat).
+//   shadow  — score and RECORD the verdict (riskScore + verdict JSONB + tags) and
+//             LOG it, but never HOLD: a flagged image stays `approved`/servable
+//             (reason `shadow_flagged`) and is NOT escalated. This is the rung
+//             TASK-023's accuracy benchmark reads to gather image shadow data.
+function moderationMode() {
+  const raw = String(process.env.FILEVAULT_IMAGE_MODERATION || '').trim().toLowerCase();
+  if (raw === 'shadow') return 'shadow';
+  if (raw === 'enforce' || raw === 'true') return 'enforce'; // 'true' = legacy back-compat
+  return 'off';
+}
+
 // Separate from CORTEX_ENABLED on purpose. "The feature is off" (serve images as
 // the platform always did) is a different state from "the feature is on but
 // cortex is unavailable" (hold images — fail closed). See FileModeration.status.
-const featureEnabled = () => process.env.FILEVAULT_IMAGE_MODERATION === 'true';
+const featureEnabled = () => moderationMode() !== 'off';
 
 // Statuses whose objects may be served to users other than the uploader.
 const SERVABLE = new Set(['approved', 'skipped']);
@@ -78,15 +100,29 @@ function canServe(file, moderation, requesterId) {
  * upload path, so it must be synchronous and must never throw.
  */
 function initialState(file) {
-  if (!featureEnabled()) return { status: 'skipped', reason: 'feature_disabled' };
+  const mode = moderationMode();
+  if (mode === 'off') return { status: 'skipped', reason: 'feature_disabled' };
   if (!isModeratableImage(file)) return { status: 'skipped', reason: 'not_an_image' };
   if (isEncrypted(file)) return { status: 'skipped', reason: 'encrypted' };
+  // enforce: HOLD until a verdict clears the image (fail-closed visibility).
+  // shadow: serve IMMEDIATELY (never hold) — the verdict is recorded later but
+  // never gates visibility. `shadow_pending` marks a row still awaiting its
+  // shadow verdict so the worker knows to score it (it is already servable).
+  if (mode === 'shadow') return { status: 'approved', reason: 'shadow_pending' };
   return { status: 'pending', reason: null };
 }
 
-/** Should this upload be queued for a vision pass? */
+/**
+ * Should this upload be queued for a vision pass? True whenever moderation is on
+ * (enforce OR shadow) and the object is a decodable, non-encrypted image. Note
+ * this is NOT `initialState().status === 'pending'`: a shadow image is servable
+ * (`approved`) from the start yet must still be scored.
+ */
 function shouldQueue(file) {
-  return initialState(file).status === 'pending';
+  if (moderationMode() === 'off') return false;
+  if (!isModeratableImage(file)) return false;
+  if (isEncrypted(file)) return false;
+  return true;
 }
 
 /**
@@ -109,11 +145,28 @@ async function evaluate(buffer) {
   }
 
   const flagged = verdict.riskScore >= imageRiskThreshold();
+  const enforcing = moderationMode() === 'enforce';
+
+  // Enforce vs shadow diverge ONLY on an adverse verdict (TASK-026):
+  //   enforce + flagged -> `rejected`: HELD for a human, never auto-deleted.
+  //   shadow  + flagged -> `approved`/`shadow_flagged`: the verdict is recorded
+  //                        (riskScore + verdict JSONB below) and logged, but the
+  //                        image is NOT held and NOT escalated. This is the data
+  //                        TASK-023's benchmark consumes.
+  //   clean (either mode) -> `approved`/`clean`.
+  let status;
+  let reason;
+  if (flagged) {
+    status = enforcing ? 'rejected' : 'approved';
+    reason = enforcing ? 'flagged' : 'shadow_flagged';
+  } else {
+    status = 'approved';
+    reason = 'clean';
+  }
 
   return {
-    // Escalate-only: a flagged image is HELD for a human, never auto-deleted.
-    status: flagged ? 'rejected' : 'approved',
-    reason: flagged ? 'flagged' : 'clean',
+    status,
+    reason,
     riskScore: verdict.riskScore,
     verdict, // scores/flags/explanation/imageMeta — no pixel data
     provider: verdict.provider,
@@ -166,6 +219,7 @@ async function establishModerationState(FileModeration, file, { transaction, mod
 }
 
 module.exports = {
+  moderationMode,
   featureEnabled,
   isModeratableImage,
   isEncrypted,

@@ -44,6 +44,14 @@ const HELD_REPLY = 'Thanks for your message. A human agent is reviewing this ' +
 
 const WORKSPACES_DIR = path.join(config.cortex.dataDir, 'workspaces');
 
+// The moderator's moderation_items.user_id is a NOT NULL uuid column, so the
+// cortex system principal is represented by the nil UUID rather than the string
+// 'cortex' — which used to make moderatorScreen 500 on
+// `invalid input syntax for type uuid: "cortex"` immediately after BUG-015's
+// content_type wall (the two together are why the screen had never persisted a
+// row). sourceService:'cortex' still carries the provenance for the audit trail.
+const CORTEX_SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+
 async function applyOutputGuardrails(text, channel) {
   const verdict = await ENGINE.evaluate(text, 'output', channel);
   return [verdict.action, verdict];
@@ -68,7 +76,7 @@ async function moderatorScreen(text, channel, sessionId) {
         contentType: 'llm_message',
         contentId: sessionId || `llm-${newId('mod')}`,
         sourceService: 'cortex',
-        userId: 'cortex',
+        userId: CORTEX_SYSTEM_USER_ID,
         contentText: String(text).slice(0, 32000),
         contentMetadata: { channel },
       },

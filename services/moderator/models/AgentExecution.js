@@ -27,7 +27,8 @@ module.exports = (sequelize) => {
     contentType: {
       type: DataTypes.ENUM(
         'text', 'image', 'video', 'audio',
-        'post', 'comment', 'message', 'profile', 'file'
+        'post', 'comment', 'message', 'profile', 'file',
+        'llm_message' // BUG-015: keep in lock-step with the content_type enum
       ),
       allowNull: false,
       field: 'content_type'

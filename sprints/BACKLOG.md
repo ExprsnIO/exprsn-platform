@@ -2652,7 +2652,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   TASK-042. Route to sr-developer (L). Audio track is unanalyzed — named gap TASK-043.
 
 ### FEAT-074 — Video moderation + AI tagging for Live recordings (+ `live.recording_moderation`)
-- **Type:** feature · **Status:** deferred *(blocked on broken Live recording persistence — revisit once BUG-032 + TASK-041 land)* · **Priority:** P3 · **Size:** L *(XL on the critical path — sequenced behind the recording-state fixes)*
+- **Type:** feature · **Status:** done *(BUG-032 + TASK-041 landed; recording moderation shipped shadow-capable, fail-closed)* · **Priority:** P3 · **Size:** L
 - **Owner-role:** unassigned · **Blocked-by:** BUG-032, TASK-041 *(also depends on FEAT-072/073)*
 - **Legacy:** supersedes FEAT-016 (video half) · **amends ADR-0002 §5** (Live recordings now IN scope) · reuses ADR-0004 side-table + terminal-state-ladder pattern
 - **Cost/Benefit:** done: proceed-with-slice — DEFERRED per assessment
@@ -3341,7 +3341,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   token; a global admin binding still does; the three module gates that trust `data.roles` are unaffected for global admins.
 
 ### BUG-032 — Live recording persistence is broken: model/service disagree and the insert is swallowed
-- **Type:** bug · **Status:** ready · **Priority:** P2 · **Size:** M
+- **Type:** bug · **Status:** done · **Priority:** P2 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** blocks FEAT-074 + TASK-041 · surfaced by ADR-0005 §8.3 / finding 7
 - **Description:** Per **ADR-0005 §8.3 / finding 7** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).
@@ -4027,7 +4027,7 @@ FEAT.)*
   §4 finding 5, Required-change 6. **Hard prereq of FEAT-073** (and FEAT-074). Route to sr-developer (S/M).
 
 ### TASK-041 — `worker:live` writes recording completion signal (path, size, duration, `status: 'ready'`) + enqueues moderation
-- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Type:** task · **Status:** done · **Priority:** P3 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** BUG-032
 - **Legacy:** the enqueue trigger FEAT-074 needs · relates to TASK-015 (persist live video to FileVault)
 - **Description:** Per **ADR-0005 §8.3 / Required-change 11** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).

@@ -9,9 +9,10 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const router = express.Router();
-const { Room, RoomInvite, RoomJoinRequest, RoomFile, Recording, Participant } = require('../models');
+const { Room, RoomInvite, RoomJoinRequest, RoomFile, Recording, RecordingModeration, Participant } = require('../models');
 const { requireAuth } = require('../middleware/auth');
 const liveQueue = require('../services/liveQueue');
+const recordingModeration = require('../services/recordingModeration');
 const liveConfig = require('../services/liveConfig');
 const logger = require('../utils/logger');
 // In-process FileVault façade (same pattern as room.js → plugins/pluginHost).
@@ -254,25 +255,60 @@ router.post('/:id/recording/start', requireAuth, loadRoom, requireHost, async (r
     if (!rec.recordingEnabled) return res.status(403).json({ error: 'RECORDING_DISABLED' });
     const provider = await liveConfig.getSection('provider');
     const quality = req.body.quality || rec.quality || 'source';
+    const format = rec.format || 'mp4';
+    // Decide the output path up front so the row records WHERE the bytes will land
+    // (worker:live muxes to this path, then finalizes the row — TASK-041).
+    const outputPath = path.join(UPLOAD_DIR, req.room.id, `recording-${Date.now()}.${format}`);
+    // BUG-032: the row MUST persist. Previously this wrote camelCase attrs the
+    // model doesn't define, omitted the NOT-NULL user_id, and set status
+    // 'recording' (outside the processing|ready|failed|deleted enum) — so the
+    // insert threw and `.catch(()=>null)` swallowed it, leaving recordingId null
+    // and no row for the worker to finalize. There is no 'recording' enum value;
+    // 'processing' is the active state until worker:live sets 'ready'.
     const recording = await Recording.create({
-      room_id: req.room.id, title: `${req.room.name || 'Room'} recording`, status: 'recording', format: rec.format || 'mp4'
-    }).catch(() => null);
-    await liveQueue.enqueueRecording({
-      roomId: req.room.id, recordingId: recording ? recording.id : null,
-      inputUrl: `${provider.srsHlsBase}/${req.room.room_code}.m3u8`,
-      outputPath: path.join(UPLOAD_DIR, req.room.id, `recording-${Date.now()}.${rec.format || 'mp4'}`),
-      format: rec.format || 'mp4', quality
+      room_id: req.room.id,
+      user_id: req.user.id, // NOT NULL — the host who started the recording
+      title: `${req.room.name || 'Room'} recording`,
+      status: 'processing',
+      format,
+      started_at: new Date(),
+      storage_url: outputPath,
     });
-    res.status(202).json({ success: true, recording: recording || { status: 'queued' } });
+    await liveQueue.enqueueRecording({
+      roomId: req.room.id, recordingId: recording.id,
+      inputUrl: `${provider.srsHlsBase}/${req.room.room_code}.m3u8`,
+      outputPath,
+      format, quality
+    });
+    res.status(202).json({ success: true, recording });
   } catch (e) { logger.error('recording start failed', { error: e.message }); res.status(500).json({ error: 'RECORDING_FAILED', message: e.message }); }
 });
 router.post('/:id/recording/stop', requireAuth, loadRoom, requireHost, async (req, res) => {
-  await Recording.update({ status: 'completed' }, { where: { room_id: req.room.id, status: 'recording' } }).catch(() => {});
+  // Finalization (status 'ready' + storage_url/size/duration) is owned by
+  // worker:live when the ffmpeg mux exits (TASK-041). This endpoint only
+  // acknowledges the host's stop request — the recording ends when the broadcast
+  // (SRS HLS input) does. (Previously wrote an invalid 'completed' enum against a
+  // non-existent 'recording' status — a swallowed no-op; BUG-032.)
   res.json({ success: true });
 });
 router.get('/:id/recordings', requireAuth, loadRoom, async (req, res) => {
-  const recordings = await Recording.findAll({ where: { room_id: req.room.id }, order: [['created_at', 'DESC']], limit: 50 }).catch(() => []);
-  res.json({ success: true, recordings });
+  const recordings = await Recording.findAll({
+    where: { room_id: req.room.id },
+    include: [{ model: RecordingModeration, as: 'moderation', required: false }],
+    order: [['created_at', 'DESC']], limit: 50
+  }).catch(() => []);
+  // FEAT-074 visibility gate: the host sees everything (incl. held/pending);
+  // everyone else sees only recordings whose moderation says they're servable.
+  const host = isHost(req.room, req.user.id);
+  const visible = recordings
+    .filter((r) => host || recordingModeration.isServable(r.moderation))
+    .map((r) => {
+      const json = r.toJSON();
+      json.moderationStatus = r.moderation ? r.moderation.status : null;
+      delete json.moderation;
+      return json;
+    });
+  res.json({ success: true, recordings: visible });
 });
 
 module.exports = router;

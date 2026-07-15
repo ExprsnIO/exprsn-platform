@@ -142,79 +142,121 @@ async function extractFrames(videoPath, tmpDir, timestamps) {
 }
 
 /**
- * Run the full video moderation pass for one File row. Returns the patch to
- * apply to its FileModeration row (same shape the image `evaluate()` returns,
- * with per-frame detail carried inside `verdict`). Throws (fail closed) on any
- * moderation/infra failure; the worker decides retry vs terminal by err.code.
+ * The shared heavy pass: probe → extract keyframes into `framesDir` → per-frame
+ * vision (fail CLOSED) + tags (fail SOFT). Returns { verdict, description }.
+ * Does NOT manage `framesDir` or the source file — the caller owns both.
+ */
+async function runFramePasses(videoPath, framesDir, earlyExitRisk) {
+  const duration = await probeDuration(videoPath);
+  const timestamps = frameTimestamps(duration);
+  const frames = await extractFrames(videoPath, framesDir, timestamps);
+  if (!frames.length) {
+    // Not a single frame to inspect → we CANNOT clear this video. Transient so
+    // Bull retries; the row stays hidden meanwhile. Fail closed.
+    throw coded('FFMPEG_NO_FRAMES', 'no keyframes could be extracted for inspection');
+  }
+
+  // --- verdict: FAIL CLOSED. A throw here propagates to the caller.
+  const verdict = await cortex.moderateFrames(frames, { earlyExitAtRisk: earlyExitRisk });
+
+  // --- tags/alt-text: FAIL SOFT. Never let this sink the verdict.
+  let description = null;
+  try {
+    description = await cortex.describeFrames(frames);
+  } catch (err) {
+    logger.warn('video description unavailable (continuing without tags)', {
+      code: err.code, error: err.message,
+    });
+  }
+  return { verdict, description };
+}
+
+/**
+ * Shape the moderation-row patch from a verdict + description, given the CALLER's
+ * mode + risk threshold. Shared by the FileVault (FileModeration) and Live
+ * (RecordingModeration) paths — identical enforce/shadow semantics.
+ *   enforce + flagged -> `rejected` (HELD, escalated).
+ *   shadow  + flagged -> `approved`/`shadow_flagged` (recorded, never held).
+ *   clean (either)    -> `approved`.
+ */
+function buildPatch(verdict, description, mode, riskThreshold) {
+  const flagged = verdict.riskScore >= riskThreshold;
+  const enforcing = mode === 'enforce';
+  let status;
+  let reason;
+  if (flagged) {
+    status = enforcing ? 'rejected' : 'approved';
+    reason = enforcing ? 'flagged' : 'shadow_flagged';
+  } else {
+    status = 'approved';
+    reason = 'clean';
+  }
+  return {
+    status,
+    reason,
+    riskScore: verdict.riskScore,
+    verdict, // scores/flags/explanation/frameScores/framesInspected — no pixels
+    provider: verdict.provider,
+    backend: verdict.backend, // ignored by models without the column (FileModeration)
+    model: verdict.model,
+    altText: description ? description.altText : null,
+    aiTags: description ? description.tags : [],
+    textInImage: description ? description.textInImage : null,
+    lastError: null,
+  };
+}
+
+/**
+ * Moderate one FileVault File row (FEAT-073). Streams the bytes to a temp dir
+ * (NEVER storage.retrieve() — whole-buffer → OOM on big videos), moderates, and
+ * ALWAYS purges the temp dir (which may hold the whole decrypted recording).
+ * Throws (fail closed); the worker decides retry vs terminal by err.code.
  */
 async function evaluateVideo(file) {
   const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'fv-vidmod-'));
   await fsp.chmod(tmpDir, 0o700).catch(() => {});
   try {
     const videoPath = path.join(tmpDir, 'source');
-    // Stream to disk — NEVER storage.retrieve() (whole-buffer → OOM on big videos).
     await storage.retrieveToFile(file.storageKey, file.storageBackend, videoPath);
-
-    const duration = await probeDuration(videoPath);
-    const timestamps = frameTimestamps(duration);
-    const frames = await extractFrames(videoPath, tmpDir, timestamps);
-    if (!frames.length) {
-      // Not a single frame to inspect → we CANNOT clear this video. Transient so
-      // Bull retries; the row stays `pending` (hidden) meanwhile. Fail closed.
-      throw coded('FFMPEG_NO_FRAMES', 'no keyframes could be extracted for inspection');
-    }
-
-    // --- verdict: FAIL CLOSED. A throw here propagates to the worker.
-    const verdict = await cortex.moderateFrames(frames, {
-      earlyExitAtRisk: envInt('VIDEO_EARLY_EXIT_RISK', 85),
-    });
-
-    // --- tags/alt-text: FAIL SOFT. Never let this sink the verdict.
-    let description = null;
-    try {
-      description = await cortex.describeFrames(frames);
-    } catch (err) {
-      logger.warn('video description unavailable (continuing without tags)', {
-        code: err.code, error: err.message,
-      });
-    }
-
-    const flagged = verdict.riskScore >= imageModeration.videoRiskThreshold();
-    const enforcing = imageModeration.videoModerationMode() === 'enforce';
-
-    // enforce + flagged -> `rejected` (HELD, escalated). shadow + flagged ->
-    // `approved`/`shadow_flagged` (recorded, never held). clean -> `approved`.
-    let status;
-    let reason;
-    if (flagged) {
-      status = enforcing ? 'rejected' : 'approved';
-      reason = enforcing ? 'flagged' : 'shadow_flagged';
-    } else {
-      status = 'approved';
-      reason = 'clean';
-    }
-
-    return {
-      status,
-      reason,
-      riskScore: verdict.riskScore,
-      verdict, // scores/flags/explanation/frameScores/framesInspected — no pixels
-      provider: verdict.provider,
-      model: verdict.model,
-      altText: description ? description.altText : null,
-      aiTags: description ? description.tags : [],
-      textInImage: description ? description.textInImage : null,
-      lastError: null,
-    };
+    const { verdict, description } = await runFramePasses(
+      videoPath, tmpDir, envInt('VIDEO_EARLY_EXIT_RISK', 85),
+    );
+    return buildPatch(
+      verdict, description,
+      imageModeration.videoModerationMode(), imageModeration.videoRiskThreshold(),
+    );
   } finally {
-    // ALWAYS purge — the temp dir may hold the whole decrypted recording.
     await fsp.rm(tmpDir, { recursive: true, force: true }).catch((err) =>
       logger.warn('failed to purge video moderation temp dir', { tmpDir, error: err.message }));
   }
 }
 
+/**
+ * Moderate a recording ALREADY on local disk (FEAT-074). worker:live muxed the
+ * recording to `localPath`; that file is NOT ours to delete — only the frames
+ * temp dir is. `mode`/`riskThreshold` come from the LIVE flags, not FileVault's.
+ * Throws (fail closed) on any moderation/infra failure.
+ */
+async function evaluateLocalVideo(localPath, { mode, riskThreshold, earlyExitRisk } = {}) {
+  const framesDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'live-vidmod-'));
+  await fsp.chmod(framesDir, 0o700).catch(() => {});
+  try {
+    const { verdict, description } = await runFramePasses(
+      localPath, framesDir, earlyExitRisk || envInt('VIDEO_EARLY_EXIT_RISK', 85),
+    );
+    return buildPatch(verdict, description, mode, riskThreshold);
+  } finally {
+    // Purge the FRAMES temp dir only — never the source recording.
+    await fsp.rm(framesDir, { recursive: true, force: true }).catch((err) =>
+      logger.warn('failed to purge live frames temp dir', { framesDir, error: err.message }));
+  }
+}
+
 module.exports = {
   evaluateVideo,
+  evaluateLocalVideo,
+  runFramePasses,
+  buildPatch,
   frameTimestamps,
   probeDuration,
   extractFrames,

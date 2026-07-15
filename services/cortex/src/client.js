@@ -196,6 +196,53 @@ async function describeImage(buffer) {
   }
 }
 
+// ---------------------------------------------------------------- video (FEAT-073)
+//
+// Video moderation is per-frame and CPU-heavy: it may run for MINUTES on the
+// Ollama secondary. These are worker-only and never wrapped in the short
+// interactive timeout — the budget scales with the frame count.
+
+/**
+ * Aggregated moderation verdict for pre-extracted video keyframes. FAILS CLOSED,
+ * exactly like moderateImage. Returns the moderateImage score shape plus
+ * per-frame detail. The caller (the video worker) owns extracting the frames
+ * (ffmpeg) and its own Bull-level retry/timeout.
+ * @param {Buffer[]} frameBuffers
+ * @param {{earlyExitAtRisk?: number}} [opts]
+ */
+async function moderateFrames(frameBuffers, opts = {}) {
+  const vision = visionEngine();
+  const budget = Math.max(1, (frameBuffers || []).length) * config.cortex.visionTimeoutMs;
+  try {
+    return await withTimeout(
+      vision.moderateFrames(frameBuffers, opts),
+      budget,
+      'cortex.moderateFrames',
+    );
+  } catch (err) {
+    throw wrapVision(err);
+  }
+}
+
+/**
+ * Tags + alt-text for a video (union across keyframes). FAILS SOFT at the call
+ * site, like describeImage.
+ * @param {Buffer[]} frameBuffers
+ */
+async function describeFrames(frameBuffers) {
+  const vision = visionEngine();
+  const budget = Math.max(1, (frameBuffers || []).length) * config.cortex.visionTimeoutMs;
+  try {
+    return await withTimeout(
+      vision.describeFrames(frameBuffers),
+      budget,
+      'cortex.describeFrames',
+    );
+  } catch (err) {
+    throw wrapVision(err);
+  }
+}
+
 /** Non-throwing probe: is image inference actually usable right now? */
 async function visionAvailable() {
   if (!isEnabled()) return { available: false, reason: 'CORTEX_DISABLED' };
@@ -216,7 +263,14 @@ async function health() {
   try {
     // eslint-disable-next-line global-require
     const { routerHealth } = require('./lib/llama');
-    return { enabled: true, up: await routerHealth(), brain: config.cortex.brainModel };
+    // eslint-disable-next-line global-require
+    const registry = require('./backends');
+    return {
+      enabled: true,
+      up: await routerHealth(), // primary reachability (llama.cpp router)
+      brain: config.cortex.brainModel,
+      backends: registry.snapshot(), // primary/secondaries + breaker states
+    };
   } catch (err) {
     return { enabled: true, up: false, error: err.message };
   }
@@ -230,6 +284,9 @@ module.exports = {
   // vision (FEAT-030) — async callers only
   moderateImage,
   describeImage,
+  // video (FEAT-073) — worker-only, per-frame
+  moderateFrames,
+  describeFrames,
   visionAvailable,
   CortexDisabledError,
   CortexUnavailableError,

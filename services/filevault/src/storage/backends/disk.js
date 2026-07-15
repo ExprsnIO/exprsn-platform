@@ -5,6 +5,8 @@
  */
 
 const fs = require('fs').promises;
+const fscb = require('fs');
+const { pipeline } = require('stream/promises');
 const path = require('path');
 const crypto = require('crypto');
 const logger = require('../../utils/logger');
@@ -94,6 +96,57 @@ class DiskBackend {
       return data;
     } catch (error) {
       logger.error('Failed to retrieve file from disk', {
+        error: error.message,
+        key
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Stream a stored file to a local destination path WITHOUT buffering the
+   * whole object in memory (OOM guard for large media, e.g. video moderation).
+   *
+   * The caller owns creating the parent directory of `destPath`. We resolve the
+   * source path from `key` and defensively confirm it stays inside the storage
+   * root so an attacker-controlled key can't traverse out of it.
+   *
+   * @param {string} key      storage key (from a trusted File row)
+   * @param {string} destPath absolute/relative local path to stream into
+   * @returns {Promise<{path: string, bytesWritten: number}>}
+   */
+  async retrieveToFile(key, destPath) {
+    if (!this.initialized) {
+      throw new Error('Disk backend not initialized');
+    }
+
+    if (!destPath || typeof destPath !== 'string') {
+      throw new Error('retrieveToFile requires a destination path');
+    }
+
+    const root = path.resolve(this.config.storagePath);
+    const source = path.resolve(this.getFilePath(key));
+
+    // Defensive: reject keys that resolve outside the storage root.
+    if (source !== root && !source.startsWith(root + path.sep)) {
+      throw new Error('Invalid storage key: resolved path escapes storage root');
+    }
+
+    const dest = path.resolve(destPath);
+
+    try {
+      await pipeline(
+        fscb.createReadStream(source),
+        fscb.createWriteStream(dest)
+      );
+
+      const { size } = await fs.stat(dest);
+
+      logger.info('File streamed from disk', { key, dest, bytesWritten: size });
+
+      return { path: dest, bytesWritten: size };
+    } catch (error) {
+      logger.error('Failed to stream file from disk', {
         error: error.message,
         key
       });

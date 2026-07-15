@@ -159,9 +159,12 @@ describe('vision capability preflight', () => {
     await expect(vision.assertVisionCapable()).rejects.toThrow(/does not accept image input/);
   });
 
-  test('an unreachable router surfaces as VISION_UNAVAILABLE', async () => {
+  test('an unreachable router surfaces as an availability failure', async () => {
+    // FEAT-072: a transport failure during the vision preflight is now an
+    // AVAILABILITY error (LLM_UNAVAILABLE) so it can drive failover to the
+    // secondary, rather than being flattened to a vision-config error.
     llama.modelSupportsImages.mockRejectedValue(new Error('ECONNREFUSED'));
-    await expect(vision.assertVisionCapable()).rejects.toMatchObject({ code: 'VISION_UNAVAILABLE' });
+    await expect(vision.assertVisionCapable()).rejects.toMatchObject({ code: 'LLM_UNAVAILABLE' });
   });
 
   test('a positive preflight is memoized (one /models call, not one per image)', async () => {
@@ -279,9 +282,12 @@ describe('cold-swap handling (MODELS_MAX=1)', () => {
     await expect(vision.moderateImage(await png())).resolves.toMatchObject({ provider: 'cortex' });
   });
 
-  test('an unregistered model is a clear config error', async () => {
+  test('driver reports an unregistered model as a clear config error', async () => {
+    // eslint-disable-next-line global-require
+    const llamacpp = require('../../src/backends/llamacpp');
     llama.listModels.mockResolvedValue({ data: [] });
-    await expect(vision.ensureVisionResident('nope')).rejects.toThrow(/not registered with the router/);
+    await expect(llamacpp.ensureResident('nope', { timeoutMs: 10 }))
+      .rejects.toThrow(/not registered with the llama.cpp router/);
   });
 
   test('does not reload a model that is already resident', async () => {
@@ -290,9 +296,13 @@ describe('cold-swap handling (MODELS_MAX=1)', () => {
     expect(llama.loadModel).not.toHaveBeenCalled();
   });
 
-  test('an empty completion is reported as VISION_UNAVAILABLE, not a parse error', async () => {
+  test('an empty completion is reported as a backend availability failure, not a parse error', async () => {
+    // FEAT-072: an empty body is the llama.cpp router answering mid-load — the
+    // driver classifies it as an availability failure (LLM_UNAVAILABLE), which
+    // both names the real cause AND lets it fail over, instead of surfacing as
+    // "the model wrote bad JSON".
     llama.chatComplete.mockResolvedValue({ choices: [{ message: { content: '' } }] });
-    await expect(vision.moderateImage(await png())).rejects.toMatchObject({ code: 'VISION_UNAVAILABLE' });
+    await expect(vision.moderateImage(await png())).rejects.toMatchObject({ code: 'LLM_UNAVAILABLE' });
   });
 
   test('a truncated response names truncation rather than bad JSON', async () => {
@@ -302,22 +312,27 @@ describe('cold-swap handling (MODELS_MAX=1)', () => {
     await expect(vision.moderateImage(await png())).rejects.toThrow(/truncated/);
   });
 
-  // The router refuses a concurrent POST /models/load while anything is loading,
-  // which is precisely the text-job-swapping-in / image-job-arrives collision.
-  test('waits out a "loading" status instead of racing a concurrent load', async () => {
+  // Residency (POST /models/load poll-and-nudge) is llama.cpp-specific and moved
+  // to the driver in FEAT-072. It is exercised against the llamacpp driver
+  // directly; the registry/failover behaviour is covered in backends.test.js.
+  test('driver waits out a "loading" status instead of racing a concurrent load', async () => {
+    // eslint-disable-next-line global-require
+    const llamacpp = require('../../src/backends/llamacpp');
     llama.listModels
       .mockResolvedValueOnce({ data: [{ id: 'test-vl', status: { value: 'loading' } }] })
       .mockResolvedValueOnce({ data: [{ id: 'test-vl', status: { value: 'loading' } }] })
       .mockResolvedValue({ data: [{ id: 'test-vl', status: { value: 'loaded' } }] });
 
-    await expect(vision.ensureVisionResident('test-vl')).resolves.toBeUndefined();
+    await expect(llamacpp.ensureResident('test-vl', { timeoutMs: 300000 })).resolves.toBeUndefined();
     expect(llama.loadModel).not.toHaveBeenCalled(); // never nudged a loading model
   });
 
-  test('gives up if a "loading" model never becomes resident', async () => {
+  test('driver gives up if a "loading" model never becomes resident', async () => {
+    // eslint-disable-next-line global-require
+    const llamacpp = require('../../src/backends/llamacpp');
     llama.listModels.mockResolvedValue({ data: [{ id: 'test-vl', status: { value: 'loading' } }] });
-    await expect(vision.ensureVisionResident('test-vl')).rejects.toMatchObject({
-      code: 'VISION_UNAVAILABLE',
+    await expect(llamacpp.ensureResident('test-vl', { timeoutMs: 10 })).rejects.toMatchObject({
+      code: 'LLM_UNAVAILABLE',
     });
   });
 });

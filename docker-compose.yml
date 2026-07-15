@@ -10,6 +10,10 @@
 #                           (KDC + kadmin), dovecot (IMAP/POP3), strongswan (IPsec)
 #   optional      optional— developer/observability extras:
 #                           opensearch-dashboards, wireshark
+#   cortex        cortex  — opt-in local inference backend for the cortex module:
+#                           ollama (the AUTOMATIC SECONDARY vision backend).
+#                           NOT started by `npm run infra:up*`; bring it up with
+#                           `docker compose --profile cortex up -d ollama`.
 #
 # Usage (via npm scripts — see package.json):
 #   npm run infra:pull      # pull every image (all tiers)
@@ -48,6 +52,7 @@ volumes:
   bind_cache:
   kerberos_data:
   dovecot_mail:
+  ollama_models:
 
 services:
   # ---------------------------------------------------------------- CORE -----
@@ -316,3 +321,51 @@ services:
     ports:
       - "3000:3000"
     network_mode: host
+
+  # -------------------------------------------------------------- CORTEX -----
+
+  # Ollama — the AUTOMATIC SECONDARY inference backend for the cortex module
+  # (FEAT-072 / ADR-0005). The PRIMARY stays the llama.cpp router at
+  # CORTEX_LLM_BASE_URL; Ollama takes over only on the primary's availability
+  # failure, and ONLY on async worker paths (QUEUE-ONLY — the Ollama driver
+  # registers no synchronous route; enforced in code). Opt-in: it sits behind
+  # the `cortex` profile, so `npm run infra:up` (core) never starts it and the
+  # core stack does NOT depend on it to boot.
+  #
+  # LOOPBACK ONLY — this is load-bearing, not a dev convenience. Ollama has NO
+  # authentication. The port is published on 127.0.0.1 in BOTH dev and prod,
+  # NEVER 0.0.0.0, because Docker installs its own rules in the DOCKER-USER
+  # iptables chain, which are evaluated AHEAD of ufw — a 0.0.0.0 mapping would
+  # expose an unauthenticated LLM to the internet that the host firewall cannot
+  # close. See docs/runbooks/digitalocean-ubuntu.md §5.
+  #
+  # Conservatively resourced for the CPU-only 8 GB / 4 vCPU all-in-one droplet:
+  # one model loaded, one request at a time, two inference threads, and a short
+  # keep-alive so the model is evicted between bursts. Two worker processes
+  # (image + video) can hit it at once, so NUM_PARALLEL/MAX_LOADED_MODELS=1 keep
+  # a second request queued behind the first rather than loading a second copy
+  # of a multi-GB model. The named volume keeps pulled models across restarts;
+  # models are pulled at PROVISION time (scripts/provision-ollama.sh), never
+  # inside a job.
+  ollama:
+    <<: *restart
+    image: ollama/ollama:0.6.8
+    container_name: exprsn-ollama
+    profiles: [cortex]
+    environment:
+      OLLAMA_NUM_PARALLEL: 1
+      OLLAMA_MAX_LOADED_MODELS: 1
+      OLLAMA_KEEP_ALIVE: 5m
+      OLLAMA_NUM_THREAD: 2
+    ports:
+      # NEVER "11434:11434" — see the loopback note above.
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks: [exprsn]

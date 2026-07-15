@@ -11,7 +11,6 @@ const { calculateSHA256, generateStorageKey } = require('../utils/hash');
 const logger = require('../utils/logger');
 const config = require('../config');
 const imageModeration = require('./imageModerationService');
-const { enqueueImageModeration, requeueImageModeration } = require('../queues/imageModeration');
 
 /**
  * Upload a new file
@@ -86,13 +85,12 @@ async function uploadFile({ userId, buffer, filename, path, directoryId, tags, m
     logger.info(`File created: ${file.id}`);
 
     // Enqueue AFTER commit — a worker must never see a row the transaction has
-    // not yet made visible. `shouldQueue` covers BOTH modes (enforce `pending`
-    // and shadow `approved`/`shadow_pending`), not just the hidden case. Best-
-    // effort: a Redis outage in enforce leaves the image `pending` (fail-closed),
-    // and the reconcile sweep re-queues either mode later.
-    if (imageModeration.shouldQueue({ mimetype, metadata })) {
-      await enqueueImageModeration(file.id);
-    }
+    // not yet made visible. The dispatcher covers BOTH modes (enforce `pending`
+    // and shadow `approved`/`shadow_pending`) and routes image vs video to the
+    // right queue (FEAT-073); it no-ops for non-governed objects. Best-effort: a
+    // Redis outage in enforce leaves the object `pending` (fail-closed), and the
+    // reconcile sweep re-queues either mode later.
+    await imageModeration.enqueueModerationFor({ id: file.id, mimetype, metadata });
 
     return file;
   } catch (error) {
@@ -373,11 +371,10 @@ async function updateFile(fileId, userId, buffer, changeDescription) {
     await transaction.commit();
     logger.info(`File updated to version ${newVersion}: ${file.id}`);
 
-    if (imageModeration.shouldQueue(file)) {
-      // Must REMOVE the stale job first — a plain re-add is a silent no-op while
-      // the completed job's key survives in Redis (BUG-016).
-      await requeueImageModeration(file.id);
-    }
+    // Byte-replacement: REMOVE the stale job first — a plain re-add is a silent
+    // no-op while the completed job's key survives in Redis (BUG-016). The
+    // dispatcher routes image vs video to the right queue (FEAT-073).
+    await imageModeration.enqueueModerationFor(file, { requeue: true });
 
     return file;
   } catch (error) {
@@ -566,9 +563,8 @@ async function uploadGroupFile({ groupId, userId, buffer, filename, path, direct
     await transaction.commit();
     logger.info(`Group file created: ${file.id} (group ${groupId})`);
 
-    if (imageModeration.shouldQueue({ mimetype, metadata })) {
-      await enqueueImageModeration(file.id);
-    }
+    // Route image vs video to the right queue; no-ops for non-governed objects.
+    await imageModeration.enqueueModerationFor({ id: file.id, mimetype, metadata });
 
     return file;
   } catch (error) {

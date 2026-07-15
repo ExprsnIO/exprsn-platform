@@ -1,0 +1,40 @@
+[Unit]
+Description=Exprsn Cortex — Ollama secondary backend up + model pull (TASK-039)
+Documentation=file:///opt/exprsn/docs/runbooks/digitalocean-ubuntu.md
+# Oneshot provisioner: brings the loopback-bound `ollama` container up (compose
+# `cortex` profile) and pulls CORTEX_OLLAMA_VISION_MODEL into its volume, ONCE,
+# at provision time — never inside a worker job (ADR-0005 §4). Idempotent:
+# re-running no-ops if the container is up and the model layers are present.
+#
+# This is NOT part of exprsn.target: Ollama is the OPT-IN secondary backend, so
+# enabling the platform must not drag it in. Enable it deliberately:
+#   systemctl enable --now exprsn-ollama-pull.service
+# The container itself is supervised by Docker/Compose (restart: unless-stopped),
+# not by this unit — this unit only ensures it exists and is seeded.
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+User=exprsn
+Group=exprsn
+
+# scripts/provision-ollama.sh loads .env relative to the repo root (same dotenv
+# convention as the gateway/worker units), so cwd must be the repo root.
+WorkingDirectory=/opt/exprsn
+
+ExecStart=/usr/bin/env bash scripts/provision-ollama.sh
+
+Environment=NODE_ENV=production
+
+# A cold multi-GB pull on a CPU-only box can be slow; do not let systemd kill it.
+TimeoutStartSec=1800
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=exprsn-ollama-pull
+
+[Install]
+WantedBy=multi-user.target

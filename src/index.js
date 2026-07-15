@@ -64,6 +64,20 @@ async function main() {
   // Init error tracking first so startup/init failures can be reported too.
   initErrorTracking(config, logger);
 
+  // Queue-only invariant, layer 1 (FEAT-072, ADR 0005). CORTEX_ASYNC_ROLE=worker
+  // is what admits the CPU-only Ollama secondary into the cortex backend
+  // registry; it must be set ONLY on the worker aliases, never on the gateway.
+  // If it leaks into the gateway's environment the secondary would be reachable
+  // on a synchronous request path — refuse to boot rather than serve that.
+  if (String(process.env.CORTEX_ASYNC_ROLE || '') === 'worker') {
+    logger.error(
+      'CORTEX_ASYNC_ROLE=worker is set in the gateway process — this admits the '
+      + 'CPU-only Ollama secondary onto request paths. It belongs only on the '
+      + 'worker:* aliases. Refusing to start.',
+    );
+    process.exit(1);
+  }
+
   const loaded = await loadModules();
   await initModules(loaded);
 

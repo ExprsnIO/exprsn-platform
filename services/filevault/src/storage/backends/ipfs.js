@@ -6,6 +6,10 @@
 
 const axios = require('axios');
 const FormData = require('form-data');
+const fs = require('fs');
+const fsp = require('fs').promises;
+const path = require('path');
+const { pipeline } = require('stream/promises');
 const logger = require('../../utils/logger');
 
 class IPFSBackend {
@@ -101,6 +105,55 @@ class IPFSBackend {
       return Buffer.from(response.data);
     } catch (error) {
       logger.error('Failed to retrieve file from IPFS', {
+        error: error.message,
+        cid
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Stream an IPFS object to a local destination path WITHOUT buffering the
+   * whole object in memory (OOM guard for large media). Uses an axios stream
+   * response rather than an arraybuffer (which resolves a full Buffer).
+   *
+   * The caller owns creating the parent directory of `destPath`.
+   *
+   * @param {string} cid      IPFS content id
+   * @param {string} destPath local path to stream into
+   * @returns {Promise<{path: string, bytesWritten: number}>}
+   */
+  async retrieveToFile(cid, destPath) {
+    if (!this.initialized) {
+      throw new Error('IPFS backend not initialized');
+    }
+
+    if (!destPath || typeof destPath !== 'string') {
+      throw new Error('retrieveToFile requires a destination path');
+    }
+
+    const dest = path.resolve(destPath);
+
+    try {
+      const response = await axios.post(
+        `${this.config.apiUrl}/api/v0/cat?arg=${cid}`,
+        null,
+        {
+          responseType: 'stream',
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity
+        }
+      );
+
+      await pipeline(response.data, fs.createWriteStream(dest));
+
+      const { size } = await fsp.stat(dest);
+
+      logger.info('File streamed from IPFS', { cid, dest, bytesWritten: size });
+
+      return { path: dest, bytesWritten: size };
+    } catch (error) {
+      logger.error('Failed to stream file from IPFS', {
         error: error.message,
         cid
       });

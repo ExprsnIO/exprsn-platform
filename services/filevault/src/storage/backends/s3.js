@@ -5,6 +5,10 @@
  */
 
 const AWS = require('aws-sdk');
+const fs = require('fs');
+const fsp = require('fs').promises;
+const path = require('path');
+const { pipeline } = require('stream/promises');
 const logger = require('../../utils/logger');
 const crypto = require('crypto');
 
@@ -113,6 +117,52 @@ class S3Backend {
       return data.Body;
     } catch (error) {
       logger.error('Failed to retrieve file from S3', {
+        error: error.message,
+        key
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Stream an S3 object to a local destination path WITHOUT buffering the whole
+   * object in memory (OOM guard for large media). Uses the SDK's readable
+   * stream rather than getObject().promise() (which resolves a full Buffer).
+   *
+   * The caller owns creating the parent directory of `destPath`.
+   *
+   * @param {string} key      object key
+   * @param {string} destPath local path to stream into
+   * @returns {Promise<{path: string, bytesWritten: number}>}
+   */
+  async retrieveToFile(key, destPath) {
+    if (!this.initialized) {
+      throw new Error('S3 backend not initialized');
+    }
+
+    if (!destPath || typeof destPath !== 'string') {
+      throw new Error('retrieveToFile requires a destination path');
+    }
+
+    const dest = path.resolve(destPath);
+
+    try {
+      const params = {
+        Bucket: this.config.bucket,
+        Key: key
+      };
+
+      const readStream = this.s3.getObject(params).createReadStream();
+
+      await pipeline(readStream, fs.createWriteStream(dest));
+
+      const { size } = await fsp.stat(dest);
+
+      logger.info('File streamed from S3', { key, dest, bytesWritten: size });
+
+      return { path: dest, bytesWritten: size };
+    } catch (error) {
+      logger.error('Failed to stream file from S3', {
         error: error.message,
         key
       });

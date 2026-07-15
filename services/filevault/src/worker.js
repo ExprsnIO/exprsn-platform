@@ -194,6 +194,17 @@ async function reconcileStuckPending() {
           { status: 'approved', reason: 'shadow_pending' }, // shadow: servable, never scored
         ],
       },
+      // Scope to IMAGE rows only (FEAT-073): videos are stranded/reconciled by the
+      // separate video worker onto their own queue. Without this filter, this sweep
+      // would re-enqueue a stuck video onto the IMAGE queue, which would then
+      // whole-buffer the video (OOM) and mis-judge it against the image model.
+      include: [{
+        model: File,
+        as: 'file',
+        attributes: ['id'],
+        required: true,
+        where: { mimetype: { [Op.iLike]: 'image/%' } },
+      }],
       attributes: ['fileId'],
       limit: 500,
     });

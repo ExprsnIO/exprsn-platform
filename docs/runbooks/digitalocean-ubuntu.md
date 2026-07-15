@@ -90,6 +90,10 @@ unlike the emulated dev setup on Apple Silicon.
 `NET_ADMIN`, joins the host network namespace, and exposes an unauthenticated
 web UI on `:3000`.
 
+**Cortex** (`--profile cortex`): `ollama/ollama` — the OPT-IN secondary
+inference backend for the cortex module. Not started by `npm run infra:up*`;
+see §6 for the loopback binding, model pull, and firewall posture.
+
 ---
 
 ## 3. Process supervision
@@ -104,6 +108,11 @@ worker:live      worker:cortex    worker:filevault-moderation
 
 Use systemd (built into Ubuntu, nothing to install) — one unit per process, with
 `Restart=always` and `After=docker.service` so they start after the containers.
+
+If you run the optional Ollama secondary backend (§6), there is also a **oneshot**
+provisioner unit, `exprsn-ollama-pull.service`, that brings its container up and
+pulls the model. It is deliberately NOT part of `exprsn.target` — enable it only
+when you actually opt into Ollama.
 
 ---
 
@@ -142,6 +151,7 @@ default:
 | 9200 | OpenSearch | **runs with `DISABLE_SECURITY_PLUGIN=true` — no auth at all** |
 | 5672 / 15672 | RabbitMQ + management UI | broker + admin console |
 | 8443 | Node gateway | should sit behind nginx, not be reachable directly |
+| 11434 | Ollama (if run, §6) | **unauthenticated LLM — MUST stay loopback-only** |
 
 Before this stack goes on a public droplet, bind those mappings to loopback
 (`"127.0.0.1:5432:5432"`, etc.) rather than relying on the firewall, and/or
@@ -150,3 +160,65 @@ adopt `ufw-docker` to fix the rule ordering.
 **Ports that should actually be public:** `22` (SSH, ideally source-restricted),
 `80` (nginx + ACME challenge), `443` (nginx), and `1935` only if you accept RTMP
 ingest from external publishers.
+
+---
+
+## 6. Cortex Ollama secondary backend (optional)
+
+Ollama is the **automatic secondary** inference backend for the cortex module
+(FEAT-072 / ADR-0005). The **primary** stays the llama.cpp router at
+`CORTEX_LLM_BASE_URL`; the backend registry only fails over to Ollama when the
+primary is unavailable, and only on **async worker** paths — it is **queue-only**
+and never sits on a synchronous request path (enforced in code). It is fully
+**opt-in**: the container lives behind the compose `cortex` profile, so
+`npm run infra:up*` never starts it and the core stack does not depend on it.
+
+### Loopback binding — non-negotiable
+
+Ollama serves an **unauthenticated** LLM. Its host port is published on
+`127.0.0.1:${OLLAMA_PORT:-11434}:11434` in **both** `docker-compose.yml` and
+`docker-compose.prod.yml` — **never** `11434:11434`. This is exactly the trap in
+**§5**: a `0.0.0.0` mapping puts an open LLM on the public internet, and because
+Docker's `DOCKER-USER` iptables chain is evaluated **ahead of** ufw, `ufw status`
+would show the port denied while it stays reachable. Loopback binding, not the
+firewall, is what closes it. The cortex workers run on the host and reach it over
+`http://127.0.0.1:11434`, so nothing breaks.
+
+Verify after start:
+
+```bash
+docker port exprsn-ollama
+# expect: 11434/tcp -> 127.0.0.1:11434   (NEVER 0.0.0.0:11434)
+```
+
+### Resource limits (CPU-only 8 GB droplet)
+
+The service sets `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`,
+`OLLAMA_KEEP_ALIVE=5m`, `OLLAMA_NUM_THREAD=2` — one model loaded, one request at
+a time, short keep-alive. Two worker processes (image + video) can hit it at
+once, so the `NUM_PARALLEL`/`MAX_LOADED_MODELS=1` caps are load-bearing: a second
+request queues behind the first instead of loading a second copy of a multi-GB
+model into 8 GB. The `ollama_models` named volume keeps pulled models across
+restarts.
+
+### Bring it up and pull the model
+
+Model tag is `CORTEX_OLLAMA_VISION_MODEL` (default `qwen3.5:2b`, chosen for the
+CPU-only box). Pull happens at **provision time**, never inside a job:
+
+```bash
+# one command does both (up + wait + pull + list):
+npm run cortex:ollama:provision
+# or on a systemd host, the oneshot unit:
+sudo systemctl enable --now exprsn-ollama-pull.service
+```
+
+**VERIFY the exact tag** the box actually holds after the pull — Ollama tag names
+drift, and the pulled tag is authoritative. Reconcile `.env` if it differs:
+
+```bash
+docker exec exprsn-ollama ollama list
+```
+
+Then set `CORTEX_OLLAMA_ENABLED=true` (and the rest of the `CORTEX_OLLAMA_*`
+block in `.env`) once the cortex backend code is deployed.

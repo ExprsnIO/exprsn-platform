@@ -472,11 +472,18 @@ are cross-referenced, not re-filed.)*
   authenticated write). Sized **S–M** (call it **S** if the backend needs no change); route by
   final size — S with crisp acceptance to jr-developer, else sr — once assessed.
 
-### FEAT-016 — Image/video moderation productionization (unify vision path into live pipeline + video frame sampling) *(Tier 2)*
-- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+### FEAT-016 — Image/video moderation productionization (unify vision path into live pipeline + video frame sampling) *(Tier 2)* — **SUPERSEDED**
+- **Type:** feature · **Status:** deferred *(superseded — do not build)* · **Priority:** P2 · **Size:** L
 - **Owner-role:** unassigned · **Blocked-by:** — *(sequence after FEAT-009 — the live pipeline it plugs into)*
 - **Legacy:** moderation gap analysis Tier 2 · relates to FEAT-009 (central pipeline) + FEAT-008 (CSAM hashing)
-- **Cost/Benefit:** pending
+- **Superseded-by:** FEAT-072 / FEAT-073 / FEAT-074 (ADR-0005). Reason: this ticket proposed
+  productionizing vision/video moderation via the per-call **cloud** AI providers
+  (`services/moderator/src/ai-providers/` — claude/deepseek/openai). ADR-0005 (Accepted, 2026-07-14)
+  chose the **local Ollama** async-only path instead (in-Docker vision model behind a circuit breaker,
+  queue-only, video via ffmpeg keyframe sampling). Do **not** build both — the local path is the
+  decided direction; the cloud-provider approach here is parked. Revisit trigger: only if ADR-0005 is
+  reversed or if a cloud-provider moderation lane is explicitly re-scoped by Rick.
+- **Cost/Benefit:** pending *(moot — superseded before assessment; see FEAT-072–074 for the approved slice)*
 - **Description:** The vision classification path in `services/moderator/services/classification.js`
   is not wired into the live `moderateContent` pipeline, and there is no video handling. Unify the
   vision path into `moderationService.js`'s live flow and add video frame-sampling so videos are
@@ -2532,6 +2539,165 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   has no effect; platform-admin path unchanged.
 - **Notes:** Cost/Benefit gate applies. Coordinate with TASK-028 (nexus_group import authz).
 
+### FEAT-072 — Cortex backend driver abstraction + Ollama secondary backend (automatic failover, circuit breaker, queue-only enforcement)
+- **Type:** feature · **Status:** ready · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** supersedes FEAT-016 · relates to FEAT-029 (llama.cpp router), FEAT-031 (image lane this generalizes), BUG-016/BUG-022 (requeue / compare-and-set patterns), TASK-023/TASK-026 (benchmark + shadow rung)
+- **Cost/Benefit:** done: proceed-with-slice — shadow-only, 2B model (qwen3.5:2b), enforce gated on TASK-042 + droplet decision
+- **Description:** Per **ADR-0005 §1–§3** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`,
+  Accepted 2026-07-14). Today `services/cortex/src/lib/llama.js` is not a driver — it hard-codes the
+  llama.cpp **router** API (`/models`, `/models/load`, `/models/unload`, `input_modalities`), and
+  `services/cortex/src/engine/vision.js` `assertVisionCapable()` / `ensureVisionResident()` break outright
+  against Ollama (which has `/api/tags`, `/api/show` `capabilities[]`, `/api/ps`, `/api/pull`, and an
+  OpenAI-compatible `/v1/chat/completions`). Introduce a backend driver abstraction under
+  `services/cortex/src/backends/{index,types,llamacpp,ollama}.js`: a registry owns backend selection,
+  **role→id resolution** (`brain|judge|vision`, never a raw model id), residency, and a per-backend
+  circuit breaker. `engine/vision.js` and `engine/agent.js` talk to the registry, never a driver directly;
+  llama.cpp-specific concepts (residency poll-and-nudge, the "empty body = mid-load" rule) live **only** in
+  the llama.cpp driver. Ollama becomes an **automatic secondary** on availability failure of the primary.
+  The queue-only invariant (ADR §2) is enforced in the process boundary: the Ollama driver registers only
+  when `CORTEX_ASYNC_ROLE=worker`; the gateway asserts that var is unset at boot; the registry refuses any
+  secondary-backend call outside an `AsyncLocalStorage` job context (`CORTEX_SYNC_CALL_FORBIDDEN`).
+- **Acceptance criteria:**
+  - `services/cortex/src/backends/` exists with the `types.js` `Driver` contract from ADR §1; both
+    `llamacpp` and `ollama` drivers implement it (`name`, `capabilities`, `modelFor`, `health`,
+    `supportsVision`, `ensureResident`, `chatComplete`).
+  - `engine/vision.js` and `engine/agent.js` select inference **by role** and never read
+    `config.cortex.visionModel` / pass a raw model id to `chatComplete`; role→id is resolved by the
+    selected driver (`CORTEX_VISION_MODEL` for llamacpp, `CORTEX_OLLAMA_VISION_MODEL` for ollama).
+  - No llama.cpp concept (`input_modalities`, `/models/load`, empty-body-means-mid-load) appears anywhere
+    in the Ollama driver or in `engine/vision.js` after this lands; `supportsVision` is memoized **per backend**.
+  - `chatComplete` returns a normalized `{ text, finishReason }`; the empty-body check lives in the
+    llama.cpp driver only.
+  - Queue-only enforcement (Layer 1): the **gateway process registry contains only `llamacpp`** — asserted
+    in a unit test; the gateway boot **fails** if `CORTEX_ASYNC_ROLE` is set in its env.
+  - Queue-only enforcement (Layer 2): a secondary-backend call made outside an ALS job context throws
+    `CORTEX_SYNC_CALL_FORBIDDEN` rather than dialing Ollama — asserted in a unit test with primary down.
+  - Failover taxonomy exactly per ADR §3.1/§3.2: only availability failures (transport, 5xx, `health()`
+    false, role-model-absent, residency timeout, llama.cpp empty body) are failover-eligible and trip the
+    breaker; `UNSUPPORTED_*`, 400/413, `CORTEX_DISABLED`, `CORTEX_SYNC_CALL_FORBIDDEN`, and
+    unparseable-JSON / missing-score verdicts are **never** failover-eligible and never trip the breaker
+    (unparseable-JSON still fails **closed**/escalate) — covered by tests.
+  - Per-backend in-memory circuit breaker with cheap `health()` HALF_OPEN gate and exponential cooldown
+    (`CORTEX_BREAKER_*` defaults per ADR §3.4); a bounded `CORTEX_PRIMARY_ATTEMPT_TIMEOUT_MS` so an
+    absent/hung primary costs one bounded probe (not a full vision timeout) per job; "no primary configured"
+    is a cheap steady state.
+  - `CORTEX_OLLAMA_ROLES` defaults to `vision` (secondary does not serve `brain` agent loops unless opted in).
+  - Backend failover is invisible above the façade: `moderateImage()` returns one verdict (with
+    `verdict.backend` recorded) or throws exactly once; the async media lane still bypasses
+    `AIProviderFactory` via `precomputedResult` (disjoint-lanes invariant, ADR §3.3) — asserted.
+  - New config keys land in `src/config/index.js` + `.env.example` (architect-owned).
+- **Notes:** Structural — **systems-architect signed off** (the driver contract, failover/breaker
+  semantics, the queue-only invariant, and the process-boundary enforcement are the §1–§3 design; ADR
+  status Accepted/APPROVED-WITH-CHANGES). **cost-benefit-analyzer signed off** (`done: proceed-with-slice`).
+  Cross-link: **ADR-0005** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §1–§3, §7,
+  Required-changes 1–5. Hard prereq of FEAT-073/074 and TASK-042. Enforce-mode on the secondary is gated on
+  **TASK-042** (per-model calibration) + the §8.1 droplet/RAM decision (Rick). Route to sr-developer (L,
+  structural risk). Verify the Ollama vision tag against the live daemon before pinning (ADR §1 finding 3 —
+  `qwen3.5:*` may not be a real registry tag).
+
+### FEAT-073 — Video moderation + AI tagging at the FileVault upload chokepoint
+- **Type:** feature · **Status:** ready · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-072, TASK-040
+- **Legacy:** supersedes FEAT-016 (video half) · extends FEAT-031 (FileVault image chokepoint) · relates to BUG-016/BUG-022 (requeue / compare-and-set)
+- **Cost/Benefit:** done: proceed-with-slice — shadow-only
+- **Description:** Per **ADR-0005 §4** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).
+  Add a video-moderation + AI-tagging lane over FileVault video uploads, placed as a **composition-layer
+  worker** at `src/workers/videoModeration/` (NOT inside `services/cortex/` or
+  `services/filevault/src/worker.js` — ADR §4.1 rejected both; cortex stays pixels-in/verdict-out). Pipeline
+  (ADR §4.2): resolve bytes to a **local path** via `storage.retrieveToFile()` (TASK-040) — **never**
+  `storage.retrieve()` which reads a whole Buffer and OOMs the box on video (ADR §4 finding 5); `ffprobe`
+  guard (undecodable ⇒ `UNSUPPORTED_VIDEO`, terminal); `-ss`-seek ffmpeg keyframe extraction into a `0700`
+  temp dir under `CORTEX_DATA_DIR` purged in a `finally`; per-frame `cortex.moderateFrames()` with
+  **max-wins** aggregation and **escalate-only** early exit (never early-exit to clear); `cortex.describeFrames()`
+  on ≤3 frames for tags/alt-text. State **reuses `filevault.file_moderation` as-is — no DDL**:
+  `isModeratableVideo()` (`video/*`) joins `isModeratableImage()`, and `establishModerationState()` routes
+  video to the new video queue. New Bull queue **`video-moderation`** (separate from the image queue so a
+  minutes-long video can't head-of-line-block seconds-long images) + root alias `worker:video-moderation`.
+- **Acceptance criteria:**
+  - The worker lives at `src/workers/videoModeration/` (composition layer), requires each module's published
+    surface, and reaches moderator **in-process** (`require('../../moderator/...')`) — `registry.js` unchanged
+    (no new routes, no new schema owned by the worker).
+  - The video lane resolves bytes via `storage.retrieveToFile()` / a streaming accessor and **never** calls
+    `storage.retrieve()` on a video — asserted (no whole-video Buffer).
+  - `ffprobe` guards the file; an undecodable/bomb/bad-container video yields `UNSUPPORTED_VIDEO` which is
+    **terminal** (no failover, no Bull retry, per ADR §3.2).
+  - Keyframe count `N = clamp(ceil(duration / VIDEO_FRAME_INTERVAL_S), MIN 3, MAX 12)`, `-ss` input seeks
+    (decode around each timestamp, not a full scan), scaled to `CORTEX_VISION_MAX_EDGE`, JPEG; frames written
+    to a `0700` temp dir that is **empty after the job, including after a failed job** (VERIFY, ADR §7.4).
+  - `cortex.moderateFrames()` fails **CLOSED** and uses per-frame calls with max-wins aggregation and
+    escalate-only early exit; `cortex.describeFrames()` fails **SOFT** (video ships untagged if tagging fails).
+  - Side-table write reuses `filevault.file_moderation` with **no DDL**; the write is a compare-and-set on
+    the content hash (BUG-022 pattern); every verdict row records `backend` + `model`.
+  - Flagged videos route to moderator via `moderationService.moderateContent({ contentType: 'video', precomputedResult })`;
+    a test asserts `contentType: 'video'` is a valid `moderation_items.content_type` enum value (already is —
+    ADR §4.2; assert, don't migrate).
+  - A test asserts `contentType: 'video'` + `precomputedResult` **cannot** be posted over an HTTP route
+    boundary (stripped by `sanitizeModerationInput()`, ADR §7.2).
+  - New Bull queue `video-moderation` on shared Redis with `jobId: 'video:<source>:<id>'` dedup, the
+    remove-then-add requeue on bytes change (BUG-016), `attempts: 4` + exponential backoff, `removeOnFail`,
+    DLQ + depth alert; root alias `worker:video-moderation` added to the worker set and to
+    `docs/runbooks/digitalocean-ubuntu.md` (§ systemd units) + `deploy/systemd/`.
+  - FileVault video pending-visibility is gated by a **new, separate** flag
+    `FILEVAULT_VIDEO_MODERATION=off|shadow|enforce` (default **off**), independent of
+    `FILEVAULT_IMAGE_MODERATION`; per-backend video risk thresholds resolvable (`..._RISK_THRESHOLD_OLLAMA`
+    falling back to base).
+- **Notes:** Structural + data/queue — **systems-architect signed off** (composition-layer placement §4.1,
+  pipeline §4.2/§4.3, no-DDL state reuse §4.4). The new `video-moderation` Bull queue + DLQ/backoff are
+  **dba co-sign** mechanics (queue config; no DDL for FileVault video). **cost-benefit-analyzer signed off**
+  (`done: proceed-with-slice — shadow-only`). Cross-link: **ADR-0005**
+  (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §4, §6, §7, Required-changes 6–9.
+  **Blocked-by FEAT-072** (needs the backend abstraction + `moderateFrames`/`describeFrames` façade) **and
+  TASK-040** (streaming retrieval — hard prereq; OOM guard). Enforce on the secondary backend gated on
+  TASK-042. Route to sr-developer (L). Audio track is unanalyzed — named gap TASK-043.
+
+### FEAT-074 — Video moderation + AI tagging for Live recordings (+ `live.recording_moderation`)
+- **Type:** feature · **Status:** deferred *(blocked on broken Live recording persistence — revisit once BUG-032 + TASK-041 land)* · **Priority:** P3 · **Size:** L *(XL on the critical path — sequenced behind the recording-state fixes)*
+- **Owner-role:** unassigned · **Blocked-by:** BUG-032, TASK-041 *(also depends on FEAT-072/073)*
+- **Legacy:** supersedes FEAT-016 (video half) · **amends ADR-0002 §5** (Live recordings now IN scope) · reuses ADR-0004 side-table + terminal-state-ladder pattern
+- **Cost/Benefit:** done: proceed-with-slice — DEFERRED per assessment
+- **Description:** Per **ADR-0005 §4–§6** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`),
+  which **amends ADR-0002 §5** to bring Live recordings into the moderation chokepoint (justification: the
+  gap was ffmpeg capability, now closed, and `/live` publish is in MVP scope — ADR §5). Extend the
+  FEAT-073 video lane to Live recordings via a **new side table `live.recording_moderation`** in **live's**
+  schema (ADR-0004 §3 side-table shape: `recording_id` PK/unique FK, `status`, `reason`, `risk_score`,
+  `verdict` JSONB, `provider`, `backend`, `model`, `alt_text`, `ai_tags`, `frames_scored`, `attempts`,
+  `last_error`, timestamps) with ADR-0004 §4.2's terminal-state ladder. Do **not** add moderation columns
+  to `recordings`. Recording bytes are resolved from live's `outputPath`, not FileVault. **This ticket
+  cannot be built on the current Live recording code** (ADR §8.3 / finding 7): the recording state machine
+  does not persist — see **BUG-032** (model/service disagree; insert swallowed) and **TASK-041**
+  (`worker:live` must signal completion). There is today no trustworthy "recording finalized, bytes at path
+  X" event to hang the enqueue hook on, so FEAT-074 is **blocked** until both are `done`.
+- **Acceptance criteria:**
+  - New side table `live.recording_moderation` in live's schema (ADR-0004 side-table + terminal-state-ladder
+    shape), migration schema-qualified (`db:migrate` creates but does not ALTER — STATUS #1); moderation
+    columns are **not** added to `recordings`.
+  - Recording bytes resolved from live's `outputPath` (finalized recording, TASK-041 signal); the lane never
+    reads a whole-video Buffer.
+  - The FEAT-073 video pipeline (keyframes → `moderateFrames` fail-closed / `describeFrames` fail-soft →
+    side-table compare-and-set → flagged ⇒ `moderateContent({ contentType: 'video', precomputedResult })`) is
+    reused, not re-invented; `establishModerationState()` discipline is ported to live (invariant A3 — every
+    path that writes recording bytes re-establishes moderation state).
+  - Invariant **A1**: recordings are not servable to anyone but their owner until moderation resolves,
+    gated by `LIVE_RECORDING_MODERATION=off|shadow|enforce` (default **off**); a `canServe(recording,
+    moderation, requesterId)` gate mirrors FileVault's shape (playback route is TASK-044).
+  - Invariant **A2**: recording bytes are served only through an authorized module route — **no static
+    nginx/SRS exposure of the recording directory**; VERIFY inspects the nginx config.
+  - §6.3 product call is honored: the first production rung is **shadow**; owner-visible-immediately +
+    others-pending is the default hold shape — required AC per ADR §6.3 (Rick owns the product decision).
+  - Per-backend video risk thresholds recorded (`backend` + `model` on every row); enforce on the secondary
+    backend gated on TASK-042.
+- **Notes:** Structural + data — **systems-architect signed off** (the ADR-0002 §5 amendment, the A1–A5
+  invariants, composition-layer reuse). The `live.recording_moderation` DDL, its indexes (incl. the partial
+  reconcile index), and the migration mechanics are **dba co-sign required** (ADR §4.4). **Rick** owns the
+  §6.3 recording pending-visibility product call. **cost-benefit-analyzer signed off**
+  (`done: proceed-with-slice — DEFERRED per assessment`). Cross-link: **ADR-0005**
+  (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §4.4, §5 (A1–A5), §6.3, §8.3,
+  Required-changes 7/11/12. **Deferred**: blocked on BUG-032 + TASK-041 (the recording state machine must
+  persist and `worker:live` must signal completion first); also depends on FEAT-072/073. Revisit trigger:
+  BUG-032 **and** TASK-041 both `done`. Route to sr-developer (XL critical path — break down further at
+  grooming-for-commit if still large after the prereqs land).
+
 ## Bugs
 
 *(Security-hardening items triaged out of the `SP-11` review — filed, not
@@ -3174,6 +3340,42 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Acceptance criteria:** an active org-scoped super-admin binding does NOT yield the platform `admin` marker in the
   token; a global admin binding still does; the three module gates that trust `data.roles` are unaffected for global admins.
 
+### BUG-032 — Live recording persistence is broken: model/service disagree and the insert is swallowed
+- **Type:** bug · **Status:** ready · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** blocks FEAT-074 + TASK-041 · surfaced by ADR-0005 §8.3 / finding 7
+- **Description:** Per **ADR-0005 §8.3 / finding 7** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).
+  The Live recording state machine cannot persist a recording, and every failure is swallowed:
+  `services/live/src/models/Recording.js` declares **snake_case** attributes (`stream_id`, `room_id`,
+  `user_id` **NOT NULL**, `started_at`, `completed_at`, `duration_seconds`, `file_size_bytes`) and a status
+  enum of exactly `('processing','ready','failed','deleted')`. But
+  `services/live/src/services/recording.js` `createRecording()` writes **camelCase** (`streamId`, `roomId`,
+  `startedAt`, `fileSize`, `duration`) — attributes the model does not define — **omits the NOT-NULL
+  `user_id`**, and sets `status: 'recording'` (outside the enum), so the insert cannot succeed;
+  `_processRecording()` then writes `status: 'completed'` plus `thumbnails`, `variants`, `processedAt`,
+  `error` — four columns that do not exist. `services/live/src/routes/roomCollab.js` uses the right
+  snake_case keys but still `status: 'recording'` and still no `user_id`, wrapped in `.catch(() => null)` —
+  so the insert fails **silently**, the RabbitMQ recording job is published with `recordingId: null`, and
+  `/recording/stop` writes `status: 'completed'` under another `.catch(() => {})`. Net: there is no
+  trustworthy "recording finalized, bytes at path X" event anywhere in the platform.
+- **Acceptance criteria:**
+  - `recording.js` and `roomCollab.js` write **only** attribute names the `Recording` model defines
+    (snake_case), and every create path supplies the NOT-NULL `user_id`.
+  - Every `status` value written is inside the model enum (`processing|ready|failed|deleted`); `'recording'`
+    and `'completed'` no longer appear as status writes.
+  - Writes to non-existent columns (`thumbnails`, `variants`, `processedAt`, `error`) are removed or backed
+    by real model attributes (coordinate the model shape with dba if any are genuinely wanted).
+  - The recording insert **no longer swallows failures** with `.catch(() => null)` / `.catch(() => {})`;
+    a failed insert surfaces (logged with a correlation id, and the code path does not proceed to publish a
+    job with `recordingId: null`).
+  - A test creates a recording through `createRecording()` and asserts the row persists with a valid status,
+    a non-null `user_id`, and the expected snake_case fields.
+- **Notes:** Data-adjacent (touches the `Recording` model contract) — loop **dba** if the model shape needs
+  to change (any genuinely-wanted `thumbnails`/`variants` columns would be new DDL; `db:migrate` creates but
+  does not ALTER — STATUS #1). **systems-architect** flagged this as the blocking finding for FEAT-074 (ADR
+  §8.3). Cross-link: **ADR-0005** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §8.3,
+  finding 7, Required-change 11. **Blocks BUG-032→TASK-041→FEAT-074** in that order. Route to sr-developer (M).
+
 ## Tasks
 
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)
@@ -3764,6 +3966,165 @@ FEAT.)*
   1024-byte units on macOS but the wrapper assumes 512, so the file-size cap is ~2x the configured MB (still bounded) —
   fix the unit; (2) narrow the seatbelt read allowlist from the whole python prefix to `<prefix>/lib`; (3) for a
   Linux/CI production worker, use a container/VM (gVisor/Firecracker) — sandbox-exec is macOS-only + deprecated.
+
+### TASK-039 — Ollama Docker container (loopback-only), model provisioning + firewall + systemd unit
+- **Type:** task · **Status:** ready · **Priority:** P2 · **Size:** S/M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** relates to R4 (TLS/edge posture) · supports FEAT-072
+- **Description:** Per **ADR-0005 §7.1 / Required-change 9** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).
+  Add the Ollama vision backend as a Docker container in `docker-compose.prod.yml`, bound to **loopback
+  only** — `ports: ["127.0.0.1:${OLLAMA_PORT:-11434}:11434"]`, with `OLLAMA_HOST=0.0.0.0` **inside the
+  container only**. **Never** a bare `11434:11434`: Docker writes `DOCKER-USER` iptables rules evaluated
+  *ahead of* ufw, so a published port is internet-reachable even when ufw denies it, and Ollama has **no
+  auth** (an exposed 11434 is a free, unauthenticated LLM + prompt-injection/exfil pivot). Pull the vision
+  model **at provision time** (not lazily in a job — ADR §1: `/api/pull` inside a bounded job is how one slow
+  job becomes a stuck queue); default `CORTEX_OLLAMA_AUTO_PULL=false`. Set the load-bearing container env:
+  `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_KEEP_ALIVE` short (default `5m`),
+  `OLLAMA_NUM_THREAD=2` (of 4 vCPU) per ADR §4.5/§8.1. Add the container + its loopback binding to
+  `docs/runbooks/digitalocean-ubuntu.md` (§5 firewall note) and wire `CORTEX_OLLAMA_BASE_URL=http://127.0.0.1:11434`.
+- **Acceptance criteria:**
+  - Ollama runs from `docker-compose.prod.yml` published on `127.0.0.1:11434` **only**; no bare
+    `11434:11434` anywhere; VERIFY confirms the port is not reachable off-host.
+  - `OLLAMA_NUM_PARALLEL=1` and `OLLAMA_MAX_LOADED_MODELS=1` are set (a second concurrent request queues
+    behind the first rather than loading a second copy of the model); `OLLAMA_KEEP_ALIVE` and
+    `OLLAMA_NUM_THREAD` set per ADR §8.1.
+  - The vision model is pulled at provision (a documented provision step / preflight), not inside a job;
+    `CORTEX_OLLAMA_AUTO_PULL` defaults `false`; a missing model surfaces as `VISION_UNAVAILABLE`, not a
+    self-heal.
+  - `docs/runbooks/digitalocean-ubuntu.md` documents the container, the loopback binding, the firewall
+    posture, and the model-pull step; `.env.example` gains `OLLAMA_PORT` / `CORTEX_OLLAMA_BASE_URL` /
+    `CORTEX_OLLAMA_VISION_MODEL`.
+  - The Ollama vision tag is **verified against the live daemon** (`ollama list`) before it is pinned in
+    config (ADR §1 finding 3 — `qwen3.5:*` may not be a real registry tag).
+- **Notes:** Infra/deploy — **dba/architect co-sign** on the compose + firewall posture (this is the ADR §7
+  security invariant: loopback-only, never public). **systems-architect** owns the §8.1 model-size / thread
+  choices. Cross-link: **ADR-0005** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §7.1,
+  §4.5, §8.1, Required-change 9. Supports FEAT-072 (the Ollama driver has nothing to talk to without this).
+  Route to sr-developer (deploy-sensitive).
+
+### TASK-040 — Streaming file retrieval in FileVault storage (`retrieveToFile` / streaming accessor)
+- **Type:** task · **Status:** ready · **Priority:** P2 · **Size:** S/M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** hard prereq of FEAT-073 · relates to FEAT-031 (FileVault chokepoint)
+- **Description:** Per **ADR-0005 §4 finding 5 / Required-change 6** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).
+  `services/filevault/src/storage/backends/disk.js` `retrieve()` is `fs.readFile()` — it returns a whole
+  Buffer. That is fine for a 2 MB JPEG and **fatal for video** on an 8 GB box: a 1.5 GB recording read into
+  a Buffer, in a Node process that also holds Sequelize + Bull, is an OOM with the moderation worker's name
+  on it. Add a streaming `retrieveToFile()` (or a streaming accessor) to the FileVault storage backend(s) so
+  the video moderation lane resolves bytes to a local path without ever materializing the whole file in
+  memory. The video lane must **never** call `retrieve()` on a video.
+- **Acceptance criteria:**
+  - The FileVault storage backend interface gains `retrieveToFile()` (or an equivalent streaming accessor)
+    implemented for the disk backend (and any other configured backend), writing bytes to a caller-supplied
+    local path via a stream, never a whole-file Buffer.
+  - A test confirms a large file is retrieved to a path without loading it entirely into memory (e.g.
+    asserts streaming semantics / bounded memory, or that `fs.readFile` is not on the path).
+  - The existing Buffer-returning `retrieve()` is unchanged for its current small-object callers (no
+    regression).
+- **Notes:** Data/storage — the accessor is storage-layer plumbing (loop **dba/architect** if the backend
+  interface contract changes for other consumers). **systems-architect** flagged this as the OOM guard the
+  video lane depends on. Cross-link: **ADR-0005** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`)
+  §4 finding 5, Required-change 6. **Hard prereq of FEAT-073** (and FEAT-074). Route to sr-developer (S/M).
+
+### TASK-041 — `worker:live` writes recording completion signal (path, size, duration, `status: 'ready'`) + enqueues moderation
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** BUG-032
+- **Legacy:** the enqueue trigger FEAT-074 needs · relates to TASK-015 (persist live video to FileVault)
+- **Description:** Per **ADR-0005 §8.3 / Required-change 11** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).
+  Today `worker:live` muxes the recording file to `outputPath` and exits — it **never writes anything back**:
+  no path, no size, no duration, no terminal status. Make the worker persist a recording-completion signal:
+  write `outputPath` (storage path), `file_size_bytes`, `duration_seconds`, and `status: 'ready'` back onto
+  the `Recording` row, and enqueue the video-moderation job. This is the "recording finalized, bytes at path
+  X" event FEAT-074's enqueue hook has nothing to attach to today. **Depends on BUG-032** — the model/service
+  must agree on attribute names, the NOT-NULL `user_id`, and the status enum before a completion write can
+  succeed.
+- **Acceptance criteria:**
+  - On successful mux, `worker:live` updates the `Recording` row with the storage path, `file_size_bytes`,
+    `duration_seconds`, and `status: 'ready'` (all valid model attributes / enum values per BUG-032).
+  - A failed mux writes `status: 'failed'` (not swallowed) with an error surfaced (correlation id logged).
+  - On `status: 'ready'`, the worker enqueues the `video-moderation` job for the recording (source `live`),
+    carrying the recording id and content hash — the FEAT-074 enqueue trigger.
+  - A test asserts a completed recording ends `status: 'ready'` with a non-null path/size/duration and that
+    the moderation job is enqueued.
+- **Notes:** Data/queue — **dba co-sign** (the completion write + the `video-moderation` enqueue interact
+  with the queue config in FEAT-073). **systems-architect** sequenced this after BUG-032 (ADR §8.3).
+  Cross-link: **ADR-0005** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §8.3,
+  Required-change 11. **Blocked-by BUG-032**; itself blocks FEAT-074. Route to sr-developer (M).
+
+### TASK-042 — Per-backend / per-model risk-threshold calibration for the moderation secondary (blocking gate on enforce)
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned *(qa-specialist hint)* · **Blocked-by:** FEAT-072
+- **Legacy:** relates to TASK-023 (labeled corpus / recall gate), TASK-026 (shadow rung)
+- **Description:** Per **ADR-0005 §8.2 / Required-change 10** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).
+  `FILEVAULT_IMAGE_RISK_THRESHOLD` (default 70) is a single number applied to whichever model answered. The
+  llama.cpp primary (`qwen2.5-vl-3b`) and the Ollama secondary (a Qwen-VL) are **different models with
+  different score distributions**, so a threshold calibrated on the primary is miscalibrated on the
+  secondary — and the secondary is exactly what serves traffic during every primary outage. Calibrate the
+  secondary backend's scores against the same benchmark set (reuse TASK-023's labeled corpus) and set
+  per-backend thresholds. **This is a blocking gate on enforce mode for the secondary backend**: until the
+  secondary is calibrated, it may run in **shadow** only — failing over from a calibrated model to an
+  uncalibrated one in enforce is worse than failing closed to a human.
+- **Acceptance criteria:**
+  - Per-backend thresholds are resolvable: `FILEVAULT_IMAGE_RISK_THRESHOLD` / `..._RISK_THRESHOLD_OLLAMA`
+    (and the video equivalents), falling back to the base value when unset.
+  - Every verdict row records `backend` **and** `model` (mandatory, surfaced in the side tables).
+  - The secondary backend's score distribution is measured against TASK-023's benchmark set and a calibrated
+    Ollama threshold is produced (with the recall/precision evidence).
+  - Enforce mode for the secondary backend is **gated**: documented and enforced that the secondary runs in
+    `shadow` until calibration is signed off.
+- **Notes:** **qa-specialist owns** this (owner-role hint per ADR §Deciders / Ownership handoffs) — it is a
+  calibration/benchmark task, not product code. **Blocking gate on enforce for the secondary** (ADR §8.2).
+  **Blocked-by FEAT-072** (needs the two-backend path + per-backend `verdict.backend`/`model`). Cross-link:
+  **ADR-0005** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §8.2, Required-change 10;
+  reuses TASK-023's corpus.
+
+### TASK-043 — Audio-track moderation gap for video / recordings (whisper transcription → text lane)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** named gap · relates to FEAT-073 / FEAT-074
+- **Description:** Per **ADR-0005 §4.3 / §6 / Consequence 6** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).
+  The video/recording moderation lane samples **visual frames only** — audio is not analysed at all, so a
+  recording with benign visuals and hateful audio passes clean. Close the named gap: transcribe the audio
+  track (e.g. whisper) and route the transcript through the **existing text moderation lane**. Filed as a
+  deliberate follow-up so the gap is named, not silent.
+- **Acceptance criteria:**
+  - Video/recording moderation extracts the audio track, transcribes it, and submits the transcript to the
+    existing text `moderateContent` lane; the resulting text verdict is combined with the visual verdict.
+  - A recording with clean visuals but policy-violating audio is flagged.
+  - The audio lane fails soft/closed consistently with the ADR's split (documented) and does not block the
+    visual verdict on transcription failure.
+- **Notes:** Named gap, not a silent one (ADR §4.3 "audio is not analysed at all"). Sequenced **after**
+  FEAT-073/FEAT-074 (it augments the video lane they build). Cross-link: **ADR-0005**
+  (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §4.3, §6, Consequence 6. Loop
+  **systems-architect** on where the transcription worker sits + **cost/benefit** if whisper adds real infra
+  cost. Route to sr-developer (M).
+
+### TASK-044 — Authorized recording-playback route + visibility gate (A1 invariant)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-074
+- **Legacy:** implements ADR-0005 invariant A1/A2 · new `API_SURFACE.md` entry
+- **Description:** Per **ADR-0005 §5 (A1/A2) / §7.2 / Required-change 12** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`).
+  Recordings have **no serving path yet** — no nginx `alias`/`root`, no download route; `GET
+  /live/api/rooms/:id/recordings` returns rows, not bytes (ADR §8 finding 8 — "a gift"). Build the authorized
+  playback/status route **with** the fail-closed visibility gate from day one: `requireUser`-gated,
+  enforcing `canServe(recording, moderation, requesterId)` (invariant **A1** — not servable to anyone but the
+  owner until moderation resolves, under `LIVE_RECORDING_MODERATION`). Invariant **A2** is absolute:
+  recording bytes are served **only** through this route — **no static nginx/SRS exposure** of the recording
+  directory, ever, or every moderation gate in this lane is theatre.
+- **Acceptance criteria:**
+  - A new `requireUser`-gated module route serves recording bytes and moderation status; it is documented in
+    `API_SURFACE.md`.
+  - The route enforces `canServe(recording, moderation, requesterId)` (A1): a non-owner cannot fetch bytes
+    while moderation is `pending`/held under `LIVE_RECORDING_MODERATION=enforce`; the owner can.
+  - VERIFY confirms **no static nginx/SRS exposure** of the recording directory (A2) — the nginx/SRS config
+    is inspected and has no `alias`/`root`/static handler over the recording path.
+  - The `precomputedResult` field cannot be forged over this route boundary (stripped by
+    `sanitizeModerationInput()`, ADR §7.2).
+- **Notes:** Security-sensitive route work — **systems-architect** owns the A1/A2 invariants and the
+  route-boundary posture (ADR §5, §7.2). This is the playback surface FEAT-074's visibility gate needs.
+  **Blocked-by FEAT-074** (the moderation state it gates on must exist first). Cross-link: **ADR-0005**
+  (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §5 (A1/A2), §7.2/§7.3, §8 finding 8,
+  Required-change 12. Route to sr-developer (M, security review).
 
 ## Spikes
 

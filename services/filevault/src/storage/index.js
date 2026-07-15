@@ -137,6 +137,26 @@ class StorageManager {
   }
 
   /**
+   * Stream a stored file to a local destination path, without ever holding the
+   * whole object in memory. Prefer this over retrieve() for large media (video
+   * moderation, etc.) to avoid OOM on constrained hosts.
+   *
+   * @param {string} key      storage key (from a trusted File row)
+   * @param {string} backend  backend name (disk|s3|ipfs)
+   * @param {string} destPath local path to stream into (caller owns its parent dir)
+   * @returns {Promise<{path: string, bytesWritten: number}>}
+   */
+  async retrieveToFile(key, backend, destPath) {
+    const backendInstance = this.getBackend(backend);
+
+    if (typeof backendInstance.retrieveToFile !== 'function') {
+      throw new Error(`Backend '${backend}' does not support streaming retrieval`);
+    }
+
+    return await backendInstance.retrieveToFile(key, destPath);
+  }
+
+  /**
    * Delete file from specified backend
    */
   async delete(key, backend) {

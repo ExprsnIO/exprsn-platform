@@ -3174,6 +3174,37 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Acceptance criteria:** an active org-scoped super-admin binding does NOT yield the platform `admin` marker in the
   token; a global admin binding still does; the three module gates that trust `data.roles` are unaffected for global admins.
 
+### BUG-032 — atproto firehose ingest fills Redis unboundedly and OOM-crashes the whole platform
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** —
+- **Description:** `worker:atproto` enqueues every ingested Bluesky firehose post as a
+  `bull:moderation:atp*` job (producer: `services/atproto/src/ingest/queue.js` +
+  `enqueue.js`/`moderationBridge.js`, Redis db 3). Nothing bounds the queue: jobs are not
+  removed on completion/failure, ingest is far faster than moderation drain, and the shared
+  Redis container has `maxmemory 0` (unlimited). Observed 2026-07-16 on a dev boot: db3
+  reached **1.2M keys / ~4.4GB**, Redis went `BUSY`/unresponsive and fell over — which
+  crashed the **gateway** (unhandledRejection on setex) and the timeline/prefetch/
+  filevault-moderation workers. Because Redis is shared by every module, the atproto
+  worker running unattended is a whole-platform outage. Recovery required stopping the
+  worker and `FLUSHDB` on db3 (2GB → 3MB).
+- **Acceptance criteria:**
+  - atproto ingest jobs carry `removeOnComplete`/`removeOnFail` (bounded counts) so
+    processed jobs don't accumulate.
+  - Ingest is backpressured or capped: when the moderation queue depth (or Redis memory)
+    exceeds a configurable threshold, the firehose consumer pauses/drops instead of
+    enqueueing — no unbounded growth while the drain is slower than ingest.
+  - The Redis container gets a `maxmemory` + eviction/alarm posture agreed with the dba
+    (shared instance — eviction policy must not silently eat other modules' Bull state;
+    a cap + refuse-writes on the atproto path may be safer than global eviction).
+  - Soak: `worker:atproto` running ≥30 min against the live firehose keeps Redis memory
+    at a plateau, and gateway `/health` stays `ok` throughout.
+- **Notes:** Found while booting the platform 2026-07-16 (Redis peak 4.73G,
+  `used_memory_peak_human`). Slowlog showed the `atp:*` jobs carry `attempts: 3` +
+  exponential backoff, so failures also linger in the retry/delayed sets. dba sign-off on
+  the Redis memory posture; consider whether the firehose backlog belongs in RabbitMQ
+  (durable, disk-backed — the rabbit helper already exists) instead of Redis/Bull at all.
+
 ## Tasks
 
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)

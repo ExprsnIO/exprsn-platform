@@ -37,6 +37,7 @@
     "worker:cortex": "CORTEX_ASYNC_ROLE=worker node services/cortex/src/worker.js",
     "worker:filevault-moderation": "CORTEX_ASYNC_ROLE=worker node services/filevault/src/worker.js",
     "worker:video-moderation": "CORTEX_ASYNC_ROLE=worker node src/workers/videoModeration/index.js",
+    "worker:live-recording-moderation": "CORTEX_ASYNC_ROLE=worker node src/workers/recordingModeration/index.js",
     "worker:moderation": "node services/moderator/src/worker.js",
     "atproto:provision": "node services/atproto/scripts/provision-identity.js",
     "cortex:ollama:up": "docker compose --profile cortex up -d ollama",

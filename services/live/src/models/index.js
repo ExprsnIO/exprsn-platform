@@ -3,6 +3,7 @@
  * Exports all models and sets up associations
  */
 
+const { sequelize } = require('../config/database');
 const Stream = require('./Stream');
 const Room = require('./Room');
 const Participant = require('./Participant');
@@ -127,11 +128,24 @@ Recording.belongsTo(Room, {
   as: 'room'
 });
 
+// Recording moderation side table (FEAT-074)
+const RecordingModeration = require('./RecordingModeration');
+Recording.hasOne(RecordingModeration, {
+  foreignKey: 'recording_id',
+  as: 'moderation'
+});
+RecordingModeration.belongsTo(Recording, {
+  foreignKey: 'recording_id',
+  as: 'recording'
+});
+
 module.exports = {
+  sequelize,
   Stream,
   Room,
   Participant,
   Recording,
+  RecordingModeration,
   Event,
   StreamDestination,
   TimelineSegment,

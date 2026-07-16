@@ -17,15 +17,24 @@ class RecordingService {
    */
   async createRecording(data) {
     try {
+      // BUG-032: use the model's snake_case attributes and a VALID enum value.
+      // The prior camelCase keys (streamId/roomId/startedAt/fileSize/duration)
+      // were silently dropped by Sequelize, user_id (NOT NULL) was omitted, and
+      // status 'recording' is not in the processing|ready|failed|deleted enum —
+      // so every insert threw. There is no active-'recording' enum value:
+      // 'processing' is the active state until it is finalized to 'ready'.
       const recording = await Recording.create({
-        streamId: data.streamId || null,
-        roomId: data.roomId || null,
+        stream_id: data.streamId || null,
+        room_id: data.roomId || null,
+        user_id: data.userId, // NOT NULL — the initiating user
         title: data.title,
         description: data.description || null,
-        startedAt: new Date(),
-        status: 'recording',
-        fileSize: 0,
-        duration: 0
+        started_at: new Date(),
+        status: 'processing',
+        storage_url: data.outputPath || null,
+        format: data.format || 'mp4',
+        file_size_bytes: 0,
+        duration_seconds: 0
       });
 
       logger.info('Recording created', {
@@ -131,6 +140,7 @@ class RecordingService {
 
       const recording = await this.createRecording({
         streamId,
+        userId: stream.user_id, // NOT NULL on the recording row (BUG-032)
         title: `${stream.title} - Recording`,
         description: `Recorded stream from ${new Date().toLocaleString()}`
       });
@@ -169,26 +179,29 @@ class RecordingService {
         throw new Error('Recording not found');
       }
 
-      const duration = Math.floor((Date.now() - new Date(recording.startedAt)) / 1000);
+      // BUG-032: read/write the model's snake_case fields. `startedAt`/`endedAt`/
+      // `duration` are undefined on the instance, so the old duration was
+      // NaN and endedAt/duration were dropped on write.
+      const duration = Math.floor((Date.now() - new Date(recording.started_at)) / 1000);
 
       await recording.update({
-        endedAt: new Date(),
-        duration,
+        completed_at: new Date(),
+        duration_seconds: Number.isFinite(duration) ? duration : 0,
         status: 'processing'
       });
 
       // Update stream/room status
-      if (recording.streamId) {
+      if (recording.stream_id) {
         await Stream.update(
           { recordingStatus: 'stopped' },
-          { where: { id: recording.streamId } }
+          { where: { id: recording.stream_id } }
         );
       }
 
-      if (recording.roomId) {
+      if (recording.room_id) {
         await Room.update(
           { recordingStatus: 'stopped' },
-          { where: { id: recording.roomId } }
+          { where: { id: recording.room_id } }
         );
       }
 
@@ -232,12 +245,19 @@ class RecordingService {
       // Transcode to different qualities if needed
       const variants = await this._transcodeRecording(recording);
 
-      // Update recording with processing results
+      // BUG-032: 'completed' is not a valid status ('ready' is the terminal
+      // success value); thumbnails/variants/processedAt are not model columns —
+      // fold them into metadata + completed_at, and use thumbnail_url for the
+      // primary thumbnail.
       await recording.update({
-        status: 'completed',
-        thumbnails: JSON.stringify(thumbnails),
-        variants: JSON.stringify(variants),
-        processedAt: new Date()
+        status: 'ready',
+        thumbnail_url: thumbnails[0] || recording.thumbnail_url || null,
+        completed_at: new Date(),
+        metadata: {
+          ...(recording.metadata || {}),
+          thumbnails,
+          variants
+        }
       });
 
       logger.info('Recording processing completed', {
@@ -252,13 +272,14 @@ class RecordingService {
         recordingId
       });
 
-      await Recording.update(
-        {
+      // 'error' is not a column — record the reason in metadata.
+      const rec = await Recording.findByPk(recordingId);
+      if (rec) {
+        await rec.update({
           status: 'failed',
-          error: error.message
-        },
-        { where: { id: recordingId } }
-      );
+          metadata: { ...(rec.metadata || {}), error: error.message }
+        });
+      }
     }
   }
 
@@ -270,8 +291,8 @@ class RecordingService {
   async _generateThumbnails(recording) {
     try {
       // If using Cloudflare Stream
-      if (recording.cloudflareVideoId) {
-        const videoDetails = await cloudflareService.getVideo(recording.cloudflareVideoId);
+      if (recording.cloudflare_video_id) {
+        const videoDetails = await cloudflareService.getVideo(recording.cloudflare_video_id);
         return videoDetails.thumbnails || [];
       }
 
@@ -295,7 +316,7 @@ class RecordingService {
   async _transcodeRecording(recording) {
     try {
       // If using Cloudflare Stream, variants are handled automatically
-      if (recording.cloudflareVideoId) {
+      if (recording.cloudflare_video_id) {
         return [];
       }
 
@@ -325,8 +346,8 @@ class RecordingService {
       }
 
       // Delete from Cloudflare if applicable
-      if (recording.cloudflareVideoId) {
-        await cloudflareService.deleteVideo(recording.cloudflareVideoId);
+      if (recording.cloudflare_video_id) {
+        await cloudflareService.deleteVideo(recording.cloudflare_video_id);
       }
 
       await recording.destroy();
@@ -358,25 +379,25 @@ class RecordingService {
         throw new Error('Recording not found');
       }
 
-      if (recording.status !== 'completed') {
+      if (recording.status !== 'ready') {
         throw new Error('Recording not ready for playback');
       }
 
       // If using Cloudflare Stream
-      if (recording.cloudflareVideoId) {
-        const url = cloudflareService.getPlaybackUrl(recording.cloudflareVideoId);
+      if (recording.cloudflare_video_id) {
+        const url = cloudflareService.getPlaybackUrl(recording.cloudflare_video_id);
 
         // Generate signed URL if private
         if (options.signed) {
           const expiry = options.expiry || 3600; // 1 hour default
-          return cloudflareService.generateSignedUrl(recording.cloudflareVideoId, expiry);
+          return cloudflareService.generateSignedUrl(recording.cloudflare_video_id, expiry);
         }
 
         return url;
       }
 
       // Otherwise return local storage URL
-      return recording.fileUrl || null;
+      return recording.storage_url || null;
 
     } catch (error) {
       logger.error('Get playback URL failed', {
@@ -400,17 +421,17 @@ class RecordingService {
         throw new Error('Recording not found');
       }
 
-      if (recording.status !== 'completed') {
+      if (recording.status !== 'ready') {
         throw new Error('Recording not ready for download');
       }
 
       // If using Cloudflare Stream
-      if (recording.cloudflareVideoId) {
-        return cloudflareService.getDownloadUrl(recording.cloudflareVideoId);
+      if (recording.cloudflare_video_id) {
+        return cloudflareService.getDownloadUrl(recording.cloudflare_video_id);
       }
 
       // Otherwise return local storage URL
-      return recording.fileUrl || null;
+      return recording.storage_url || null;
 
     } catch (error) {
       logger.error('Get download URL failed', {
@@ -468,8 +489,8 @@ class RecordingService {
       }
 
       // If using Cloudflare Stream, get analytics
-      if (recording.cloudflareVideoId) {
-        const analytics = await cloudflareService.getVideoAnalytics(recording.cloudflareVideoId);
+      if (recording.cloudflare_video_id) {
+        const analytics = await cloudflareService.getVideoAnalytics(recording.cloudflare_video_id);
 
         return {
           recordingId,

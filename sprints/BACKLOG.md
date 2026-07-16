@@ -3205,6 +3205,59 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   the Redis memory posture; consider whether the firehose backlog belongs in RabbitMQ
   (durable, disk-backed — the rabbit helper already exists) instead of Redis/Bull at all.
 
+### BUG-033 — cortex worker fails tasks on LLM model cold-load (undici headersTimeout beats the 600s app timeout)
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (relates: FEAT-021/FEAT-029 swap-first LLM serving)
+- **Description:** The llama-swap server loads models on demand; a 30B brain
+  (`qwen3-30b-a3b`) cold-load takes >5 min. `services/cortex/src/client.js` wraps LLM
+  calls in a 600s app-level timeout (`withTimeout`), but the underlying Node `fetch`
+  (undici) has a default `headersTimeout` of 300s, which fires first while the router
+  holds the request during model load — the task fails
+  `Error: LLM router unreachable (UND_ERR_HEADERS_TIMEOUT)`. Observed 2026-07-16:
+  first cortex task after boot ran 16:54→16:59 and failed; an identical task ran in
+  ~1s once the model was warm. Swap-first serving (MODELS_MAX=2) makes cold-loads a
+  normal, recurring condition — every brain swap re-exposes this.
+- **Acceptance criteria:**
+  - A cortex task submitted while the brain model is unloaded succeeds (undici
+    dispatcher/Agent configured with `headersTimeout` ≥ the app timeout, or the call
+    retries on UND_ERR_HEADERS_TIMEOUT, or the worker warms the model first, e.g. a
+    cheap `/v1/models`-status check + load-wait before the real call).
+  - The 600s `withTimeout` bound in `client.js` remains the effective ceiling.
+  - Failure mode when the router is genuinely down is unchanged (fails fast, task
+    marked failed with a clear error).
+- **Notes:** Repro: unload models (restart llama-swap), enqueue a task via
+  `POST /cortex/api/v1/tasks`. Worker: `services/cortex/src/worker.js`; transport:
+  `services/cortex/src/client.js`.
+
+### BUG-034 — CA `/api/tokens/validate` rate limiter buckets all in-process callers as 127.0.0.1 — modules starve each other
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** —
+- **Description:** Every module validates bearer tokens by calling the CA over the
+  gateway loopback (`*_SERVICE_URL` → `https://localhost:8443/ca`), so ALL in-process
+  validation traffic shares one per-IP rate-limit bucket (`ip=127.0.0.1`,
+  `path=/tokens/validate`, 15-min window). Observed 2026-07-16: a client polling one
+  cortex task status every ~5s exhausted the bucket; after that, **every** authed
+  route on **every** module returned 429→`VALIDATION_ERROR` for the remainder of the
+  window — including fresh logins. One chatty client (or one busy module) locks the
+  whole platform's auth path out for up to 15 minutes. Limiter warn logs come from
+  the gateway (`Rate limit exceeded {"ip":"127.0.0.1","path":"/tokens/validate"}`);
+  CA-side limiter: `services/ca/middleware/rateLimit.js`; shared:
+  `shared/middleware/rateLimiter.js`.
+- **Acceptance criteria:**
+  - In-process service-to-service validate calls (loopback + service HMAC identity)
+    are exempt from the per-IP bucket or keyed per calling service — one caller
+    exhausting its budget does not 429 other modules' token validation.
+  - End-user abuse protection is preserved: external per-IP (or per-token) limiting
+    on validate still exists, and the real client IP is used behind the edge
+    (X-Forwarded-For from nginx, trust-proxy configured) rather than the loopback.
+  - Regression check: sustained polling of one authed endpoint by one user does not
+    cause 429s on logins or other modules' authed routes.
+- **Notes:** Consider caching validate verdicts briefly (the moderator user-routes
+  already validate per request) to cut loopback QPS platform-wide. Security-sensitive
+  (auth surface) — sr-developer + architect eyes per the auth-surface escalation rule.
+
 ## Tasks
 
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)

@@ -387,7 +387,7 @@ export function DataTable<R>({
               </IconButton>
             </Tooltip>
           )}
-          {tableId && (
+          {(
             <>
               <Tooltip title="Add / remove columns">
                 <IconButton size="small" onClick={(e) => setPickerAnchor(e.currentTarget)}>

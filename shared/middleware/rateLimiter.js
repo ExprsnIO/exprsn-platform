@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 const { RedisStore } = require('rate-limit-redis');
 const { createClient } = require('redis');
 const logger = require('../utils/logger');
+const { verifyServiceToken } = require('../utils/serviceToken');
 
 let redisClient = null;
 
@@ -83,6 +84,25 @@ function createRateLimiter(options = {}) {
     skipFailedRequests,
     standardHeaders: true,
     legacyHeaders: false,
+    // BUG-034 (authorized by Rick 2026-07-17): in the unified gateway every
+    // module's internal call arrives from 127.0.0.1, so ALL in-process traffic
+    // shared one per-IP bucket — one busy admin console 429'd every module's
+    // token validation (and logins) platform-wide for a full window. A request
+    // that PROVES a service identity — X-Service-ID plus the constant-time-
+    // verified HMAC X-Service-Token derived from SERVICE_TOKEN_SECRET — is
+    // exempt: external callers cannot forge the HMAC, so per-IP abuse
+    // protection for real clients is unchanged. Absent/invalid service
+    // headers always count normally (verifyServiceToken fails closed).
+    skip: (req) => {
+      const serviceId = req.get('x-service-id');
+      const serviceToken = req.get('x-service-token');
+      if (!serviceId || !serviceToken) return false;
+      try {
+        return verifyServiceToken(serviceId, serviceToken) === true;
+      } catch {
+        return false;
+      }
+    },
     handler: (req, res) => {
       logger.warn('Rate limit exceeded', {
         ip: req.ip,

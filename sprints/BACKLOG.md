@@ -3432,7 +3432,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   `services/cortex/src/client.js`.
 
 ### BUG-034 — CA `/api/tokens/validate` rate limiter buckets all in-process callers as 127.0.0.1 — modules starve each other
-- **Type:** bug · **Status:** in-review (fixed on `feat/admin-refactor`, `ba71477`) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done (merged to `main` `fe58d2c`; service-HMAC exemption) · **Priority:** P2 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** —
 - **Description:** Every module validates bearer tokens by calling the CA over the
@@ -3470,7 +3470,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 ## Tasks
 
 ### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
-- **Type:** task · **Status:** in-review (built + runtime-verified on `feat/admin-refactor`; see Notes) · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)
+- **Type:** task · **Status:** done (merged to `main` `fe58d2c`; IA restructure + config store + live updates, e2e-verified) · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)
 - **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
 - **Legacy:** — (builds on the reusable DataTable + admin click-through audit)
 - **Description:** Full restructure of the `/admin` SPA + its backend surface, per Rick's

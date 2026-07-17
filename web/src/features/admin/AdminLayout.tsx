@@ -7,6 +7,7 @@
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import FingerprintOutlinedIcon from '@mui/icons-material/FingerprintOutlined';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
@@ -20,12 +21,16 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
+import DynamicFeedOutlinedIcon from '@mui/icons-material/DynamicFeedOutlined';
+import CachedOutlinedIcon from '@mui/icons-material/CachedOutlined';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { authApi } from '@/api/auth';
 import { useAppStore } from '@/app/store';
 import { RealtimeStatus } from '@/app/RealtimeStatus';
+import Chip from '@mui/material/Chip';
+import { useAdminSocket } from './useAdminSocket';
 import { ThemeToggle } from '@/app/ThemeToggle';
 
 interface AdminItem {
@@ -35,9 +40,12 @@ interface AdminItem {
 }
 const SECTIONS: AdminItem[] = [
   { label: 'Overview', to: '/admin', icon: DashboardOutlinedIcon },
+  { label: 'Platform', to: '/admin/platform', icon: TuneOutlinedIcon },
   { label: 'Certificate Authority', to: '/admin/ca', icon: VerifiedUserOutlinedIcon },
   { label: 'Auth & Identity', to: '/admin/auth', icon: FingerprintOutlinedIcon },
   { label: 'Jobs & Queues', to: '/admin/jobs', icon: LayersOutlinedIcon },
+  { label: 'Timeline', to: '/admin/timeline', icon: DynamicFeedOutlinedIcon },
+  { label: 'Prefetch', to: '/admin/prefetch', icon: CachedOutlinedIcon },
   { label: 'Groups (Nexus)', to: '/admin/nexus', icon: GroupsOutlinedIcon },
   { label: 'Live Streaming', to: '/admin/live', icon: LiveTvOutlinedIcon },
   { label: 'Vault', to: '/admin/vault', icon: LockOutlinedIcon },
@@ -53,6 +61,20 @@ const SECTIONS: AdminItem[] = [
 function initials(name: string): string {
   const parts = name.trim().split(/[\s@.]+/).filter(Boolean);
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'A';
+}
+
+/** Connection state of the /_admin live stream (health + config events). */
+function AdminLiveChip() {
+  const { state } = useAdminSocket();
+  return (
+    <Chip
+      size="small"
+      variant="outlined"
+      color={state === 'connected' ? 'success' : 'warning'}
+      label={state === 'connected' ? 'Admin live' : 'Admin polling'}
+      sx={{ mr: 1 }}
+    />
+  );
 }
 
 export function AdminLayout() {
@@ -82,6 +104,7 @@ export function AdminLayout() {
         </RouterLink>
 
         <div className="navbar-actions">
+          <AdminLiveChip />
           <RealtimeStatus />
           <ThemeToggle />
 

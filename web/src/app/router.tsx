@@ -40,6 +40,9 @@ import { FilevaultSection } from '@/features/admin/sections/FilevaultSection';
 import { PluginsSection } from '@/features/admin/sections/PluginsSection';
 import { LowcodeSection } from '@/features/admin/sections/LowcodeSection';
 import { CortexSection } from '@/features/admin/sections/CortexSection';
+import { TimelineSection } from '@/features/admin/sections/TimelineSection';
+import { PrefetchSection } from '@/features/admin/sections/PrefetchSection';
+import PlatformSection from '@/features/admin/sections/PlatformSection';
 import { EntityDetailPage } from '@/features/lowcode/pages/EntityDetailPage';
 import { FlowDetailPage } from '@/features/lowcode/pages/FlowDetailPage';
 import { PublicFormPage } from '@/features/lowcode/PublicFormPage';
@@ -134,6 +137,9 @@ export const router = createBrowserRouter([
           { path: 'plugins', element: <PluginsSection /> },
           { path: 'lowcode', element: <LowcodeSection /> },
           { path: 'cortex', element: <CortexSection /> },
+          { path: 'timeline', element: <TimelineSection /> },
+          { path: 'prefetch', element: <PrefetchSection /> },
+          { path: 'platform', element: <PlatformSection /> },
           { path: 'lowcode/entities/:id', element: <EntityDetailPage /> },
           { path: 'lowcode/flows/:id', element: <FlowDetailPage /> },
         ],

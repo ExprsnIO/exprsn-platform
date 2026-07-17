@@ -29,6 +29,13 @@ import {
 } from '@/api/admin/plugins';
 import { formatDate } from '@/features/files/util';
 import { Card, DataTable, DataView, JsonDialog, QueryState, SectionHeader, StatusChip, useToast } from '../ui';
+import {
+  BehaviorEditor,
+  behaviorFromJson,
+  behaviorToJson,
+  emptyBehaviorDraft,
+  type BehaviorDraft,
+} from './PluginBehaviorEditor';
 
 const KINDS = ['declarative', 'webhook', 'script', 'internal'];
 const PLUGIN_STATUSES = ['draft', 'published', 'disabled', 'deprecated'];
@@ -60,11 +67,10 @@ const EMPTY_MANIFEST_FORM = {
   endpointUrl: '',
   endpointTimeoutMs: '',
   scriptSource: '',
-  behavior: '{\n  "match": {},\n  "actions": []\n}',
 };
 
 /** Assemble a manifest object (MANIFEST_SCHEMA shape) from the form state. */
-function buildManifest(f: typeof EMPTY_MANIFEST_FORM): Record<string, unknown> {
+function buildManifest(f: typeof EMPTY_MANIFEST_FORM, behavior?: Record<string, unknown>): Record<string, unknown> {
   const m: Record<string, unknown> = {
     key: f.key.trim(),
     name: f.name.trim(),
@@ -84,9 +90,7 @@ function buildManifest(f: typeof EMPTY_MANIFEST_FORM): Record<string, unknown> {
     if (!f.capabilities.includes('call:webhook')) m.capabilities = [...f.capabilities, 'call:webhook'];
   }
   if (f.kind === 'script') m.script = { source: f.scriptSource };
-  if (f.kind === 'declarative') {
-    try { m.behavior = JSON.parse(f.behavior || '{}'); } catch { m.behavior = f.behavior; }
-  }
+  if (f.kind === 'declarative') m.behavior = behavior ?? {};
   return m;
 }
 
@@ -98,15 +102,53 @@ function RegisterManifestDialog({ onToast, onError }: TabProps) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[] | null>(null);
+  // Declarative `behavior` — structured builder with a scoped JSON escape hatch.
+  const [behavior, setBehavior] = useState<BehaviorDraft>(emptyBehaviorDraft);
+  const [behaviorRaw, setBehaviorRaw] = useState(false);
+  const [behaviorText, setBehaviorText] = useState('');
   const set = <K extends keyof typeof EMPTY_MANIFEST_FORM>(k: K, v: (typeof EMPTY_MANIFEST_FORM)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  /** Resolve the behavior object from whichever editor is active. */
+  const resolveBehavior = (): Record<string, unknown> | null => {
+    if (!behaviorRaw) return behaviorToJson(behavior);
+    try {
+      const v = JSON.parse(behaviorText || '{}');
+      if (typeof v !== 'object' || v == null || Array.isArray(v)) throw new Error('Behavior must be a JSON object.');
+      return v as Record<string, unknown>;
+    } catch (e) {
+      setErrors([(e as Error).message === 'Behavior must be a JSON object.' ? (e as Error).message : 'Behavior is not valid JSON.']);
+      return null;
+    }
+  };
+
+  const toggleBehaviorRaw = () => {
+    if (!behaviorRaw) {
+      setBehaviorText(JSON.stringify(behaviorToJson(behavior), null, 2));
+      setBehaviorRaw(true);
+      setErrors(null);
+      return;
+    }
+    try {
+      setBehavior(behaviorFromJson(JSON.parse(behaviorText || '{}')));
+      setErrors(null);
+      setBehaviorRaw(false);
+    } catch {
+      setErrors(['Fix the behavior JSON before switching back to the builder.']);
+    }
+  };
 
   // Live vocabularies: the closed capability registry + known events/surfaces.
   const caps = useQuery({ queryKey: ['plugins', 'capabilities'], queryFn: pluginsAdminApi.capabilities, enabled: open });
   const evs = useQuery({ queryKey: ['plugins', 'events'], queryFn: pluginsAdminApi.events, enabled: open });
 
   const currentManifest = (): Record<string, unknown> | null => {
-    if (!rawMode) return buildManifest(form);
+    if (!rawMode) {
+      if (form.kind !== 'declarative') return buildManifest(form);
+      const b = resolveBehavior();
+      if (!b) return null;
+      return buildManifest(form, b);
+    }
     try {
       const v = JSON.parse(text || '{}');
       if (typeof v !== 'object' || v == null || Array.isArray(v)) throw new Error('Manifest must be a JSON object.');
@@ -118,7 +160,11 @@ function RegisterManifestDialog({ onToast, onError }: TabProps) {
   };
 
   const toggleRaw = () => {
-    if (!rawMode) setText(JSON.stringify(buildManifest(form), null, 2));
+    if (!rawMode) {
+      const b = form.kind === 'declarative' ? resolveBehavior() : undefined;
+      if (form.kind === 'declarative' && !b) return;
+      setText(JSON.stringify(buildManifest(form, b ?? undefined), null, 2));
+    }
     setRawMode((r) => !r);
     setErrors(null);
   };
@@ -149,6 +195,8 @@ function RegisterManifestDialog({ onToast, onError }: TabProps) {
       setOpen(false);
       setErrors(null);
       setForm(EMPTY_MANIFEST_FORM);
+      setBehavior(emptyBehaviorDraft());
+      setBehaviorRaw(false);
     } catch (e) {
       onError(e);
     } finally {
@@ -247,15 +295,24 @@ function RegisterManifestDialog({ onToast, onError }: TabProps) {
                 />
               )}
               {form.kind === 'declarative' && (
-                <TextField
-                  label="Behavior (JSON: match tree and/or actions)"
-                  required
-                  multiline
-                  minRows={4}
-                  value={form.behavior}
-                  onChange={(e) => set('behavior', e.target.value)}
-                  inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
-                />
+                <Stack spacing={1.5}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="subtitle1" fontWeight={600}>Behavior</Typography>
+                    <Button size="small" onClick={toggleBehaviorRaw}>{behaviorRaw ? 'Visual builder' : 'Edit as JSON'}</Button>
+                  </Stack>
+                  {behaviorRaw ? (
+                    <TextField
+                      label="Behavior (JSON: match tree and/or actions)"
+                      multiline
+                      minRows={6}
+                      value={behaviorText}
+                      onChange={(e) => { setBehaviorText(e.target.value); setErrors(null); }}
+                      inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
+                    />
+                  ) : (
+                    <BehaviorEditor value={behavior} onChange={setBehavior} />
+                  )}
+                </Stack>
               )}
             </Stack>
           )}

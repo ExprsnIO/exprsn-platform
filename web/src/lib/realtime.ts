@@ -24,6 +24,9 @@ export const NS = {
   moderation: '/moderation',
   notifications: '/notifications',
   live: '/live',
+  // Gateway-owned admin console stream (health + config events); the namespace
+  // enforces platform-admin identity during the handshake (TASK-039).
+  admin: '/_admin',
 } as const;
 
 export type Namespace = (typeof NS)[keyof typeof NS];

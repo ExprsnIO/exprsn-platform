@@ -4,6 +4,7 @@ import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormC
 import { filevaultAdminApi, type Quota } from '@/api/admin/filevault';
 import { formatBytes } from '@/features/files/util';
 import { Card, DataTable, DataView, JsonDialog, QueryState, SectionHeader, StatCard, useToast } from '../ui';
+import { PlatformConfigPanel } from './PlatformSection';
 
 function arr<T>(d: Record<string, unknown>, ...keys: string[]): T[] {
   for (const k of keys) if (Array.isArray(d[k])) return d[k] as T[];
@@ -151,7 +152,7 @@ function MaintenanceTab({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
-type FvTab = 'storage' | 'quotas' | 'duplicates' | 'maintenance';
+type FvTab = 'storage' | 'quotas' | 'duplicates' | 'maintenance' | 'config';
 
 export function FilevaultSection() {
   const [tab, setTab] = useState<FvTab>('storage');
@@ -164,11 +165,13 @@ export function FilevaultSection() {
         <Tab value="quotas" label="Quotas" />
         <Tab value="duplicates" label="Duplicates" />
         <Tab value="maintenance" label="Maintenance" />
+        <Tab value="config" label="Config" />
       </Tabs>
       {tab === 'storage' && <StorageTab />}
       {tab === 'quotas' && <QuotasTab onToast={showToast} />}
       {tab === 'duplicates' && <DuplicatesTab onToast={showToast} />}
       {tab === 'maintenance' && <MaintenanceTab onToast={showToast} />}
+      {tab === 'config' && <PlatformConfigPanel module="filevault" />}
       {ToastHost}
     </Stack>
   );

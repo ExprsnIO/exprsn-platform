@@ -3260,6 +3260,43 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 
 ## Tasks
 
+### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
+- **Type:** task · **Status:** in-progress · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)
+- **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
+- **Legacy:** — (builds on the reusable DataTable + admin click-through audit)
+- **Description:** Full restructure of the `/admin` SPA + its backend surface, per Rick's
+  2026-07-16 direction. Audit findings driving it: only 3/14 sections enable DataTable
+  sort/filter and no table has global search; zero socket.io in admin (react-query
+  polling only; `/_health` ns unused by SPA); timeline + prefetch have admin APIs but
+  no sections; vault config read-only, filevault/atproto surface no config editor;
+  3 primary raw-JSON editors violate the no-JSON-only-modals rule; and the
+  auth/spark/timeline/prefetch/moderator/live `/api/config` endpoints are **publicly
+  writable (no auth)**. Decisions (Rick, TUI 2026-07-16): socket.io `/_admin`
+  namespace + react-query polling fallback; gate the ungated config endpoints now
+  (CA admin auth); a **writable platform config-overrides store** (DB-backed,
+  overrides env at runtime where safe, restart-required flags, architect sign-off);
+  **full restructure** (split AuthSection 102KB into tabs, normalize all sections to
+  one template).
+- **Acceptance criteria:**
+  - Every admin table: sortable + per-column filter + **global free-text search**,
+    via the shared DataTable (no per-section forks).
+  - Live updates: `/_admin` socket namespace (admin-auth gated) pushes
+    dashboard/health/queue/moderation deltas; sections subscribe with react-query
+    polling as fallback; RealtimeStatus reflects admin socket state.
+  - All 14 modules have an admin section incl. new timeline + prefetch; every module's
+    config is readable AND writable from admin (vault write path fixed; filevault +
+    atproto editors added), with structured forms primary and JSON only as escape
+    hatch (moderator AgentsTab, PluginsSection behavior, VaultSection rules rebuilt).
+  - Env-only settings surfaced via the overrides store: DB-persisted overrides with
+    env fallback, masked secrets, restart-required flagging; store design has
+    systems-architect sign-off before merge.
+  - All `/api/config` read/write endpoints require CA admin auth (the six ungated
+    modules gated); regression: SPA flows keep working with bearer tokens.
+  - Lint 0 errors, `web:build` green, existing module suites no worse than baseline.
+- **Notes:** Work on branch `feat/admin-refactor` in an isolated worktree. Security
+  surface (config gating) → sr-developer + architect review. Related: BUG-034 (validate
+  limiter) may bite admin polling — keep admin QPS modest until it lands.
+
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)
 - **Type:** task · **Status:** done (landed `430eaa0`; full flow PASS incl. the SP-6 revoked-bearer-401s check; CI job manual/non-blocking — no live stack on runners) · **Priority:** P1 · **Size:** M
 - **Owner-role:** qa-specialist · **Blocked-by:** — *(unblocked: `SP-6`/`#9` sessions is DONE)*

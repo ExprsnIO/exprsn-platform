@@ -3231,7 +3231,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   `services/cortex/src/client.js`.
 
 ### BUG-034 — CA `/api/tokens/validate` rate limiter buckets all in-process callers as 127.0.0.1 — modules starve each other
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-review (fixed on `feat/admin-refactor`, `ba71477`) · **Priority:** P2 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** —
 - **Description:** Every module validates bearer tokens by calling the CA over the
@@ -3257,6 +3257,14 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Consider caching validate verdicts briefly (the moderator user-routes
   already validate per request) to cut loopback QPS platform-wide. Security-sensitive
   (auth surface) — sr-developer + architect eyes per the auth-surface escalation rule.
+  **Fixed 2026-07-17 (Rick-authorized):** `shared/middleware/rateLimiter.js` now
+  exempts any request proving a service identity — `X-Service-ID` + the
+  constant-time-verified HMAC `X-Service-Token` (`verifyServiceToken`, fails
+  closed). In-process module→CA validate calls carry these headers, so they no
+  longer share the per-IP 127.0.0.1 bucket; forged/absent headers still count,
+  so external per-IP abuse protection is unchanged. Verified: valid HMAC skips,
+  forged/replayed-under-other-id do not; admin e2e (23 sections) no longer 429s.
+  Still wants architect sign-off at merge (auth surface).
 
 ## Tasks
 

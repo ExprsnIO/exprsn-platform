@@ -64,6 +64,10 @@ async function main() {
   // Init error tracking first so startup/init failures can be reported too.
   initErrorTracking(config, logger);
 
+  // Apply DB config overrides BEFORE any module is required, so require-time
+  // process.env readers see them. Never throws; env-only on DB failure.
+  await require('./config/overridesStore').loadAndApply(config, logger);
+
   const loaded = await loadModules();
   await initModules(loaded);
 

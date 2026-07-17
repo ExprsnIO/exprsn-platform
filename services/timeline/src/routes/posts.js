@@ -111,6 +111,27 @@ router.post('/',
 );
 
 /**
+ * GET /api/posts/approvals/pending
+ * List posts held for approval (admin only) — the queue the admin console's
+ * Approvals tab shows. Held posts carry metadata.approval.status='pending'
+ * with visibility forced private, and had no listing endpoint (TASK-039).
+ * Registered before /:id so 'approvals' is never parsed as a post id.
+ */
+router.get('/approvals/pending',
+  requireAdmin(),
+  asyncHandler(async (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const { Post } = require('../models');
+    const posts = await Post.findAll({
+      where: { 'metadata.approval.status': 'pending' },
+      order: [['createdAt', 'ASC']],
+      limit
+    });
+    res.json({ success: true, count: posts.length, posts });
+  })
+);
+
+/**
  * POST /api/posts/:id/approval
  * Manual approval decision for a held post (admin only).
  * Body: { decision: 'approved' | 'rejected', reason? }

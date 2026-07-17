@@ -1,13 +1,12 @@
 /**
  * Cortex overview: /cortex/health (public — answers even while the module is
- * disabled) polled every 15s, plus the LLM router's model list. A 502 from
- * /models means the router itself is unreachable — shown inline, not a crash.
+ * disabled) polled every 15s — module/router/cache status and the task-queue
+ * counters. The model list moved to ModelsTab (Infrastructure → AI → Models).
  */
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Chip, Stack, Typography } from '@mui/material';
-import { cortexApi, isCortexDisabled } from '@/api/cortex';
-import { toMessage } from '@/lib/errors';
-import { Card, DataTable, Loading, QueryState, StatCard, StatusChip } from '@/features/admin/ui';
+import { Alert, Chip, Stack } from '@mui/material';
+import { cortexApi } from '@/api/cortex';
+import { QueryState, StatCard, StatusChip } from '@/features/admin/ui';
 
 function UpChip({ up, labels = ['up', 'down'] }: { up: boolean; labels?: [string, string] }) {
   return <Chip size="small" color={up ? 'success' : 'error'} variant="outlined" label={up ? labels[0] : labels[1]} />;
@@ -18,13 +17,6 @@ export function OverviewTab() {
     queryKey: ['cortex-admin', 'health'],
     queryFn: cortexApi.health,
     refetchInterval: 15_000,
-  });
-  const enabled = health.data?.enabled === true;
-  const models = useQuery({
-    queryKey: ['cortex-admin', 'models'],
-    queryFn: cortexApi.models,
-    enabled,
-    retry: false,
   });
 
   return (
@@ -59,43 +51,6 @@ export function OverviewTab() {
           </Stack>
         )}
       </QueryState>
-
-      <Card title="Models">
-        {!enabled ? (
-          <Typography variant="body2" color="text.secondary">
-            Model list is unavailable while the module is disabled.
-          </Typography>
-        ) : models.isLoading ? (
-          <Loading />
-        ) : models.isError ? (
-          isCortexDisabled(models.error) ? (
-            <Typography variant="body2" color="text.secondary">
-              Model list is unavailable while the module is disabled.
-            </Typography>
-          ) : (
-            <Alert severity="warning">LLM router unreachable — {toMessage(models.error)}</Alert>
-          )
-        ) : (
-          <Stack spacing={1}>
-            <Typography variant="caption" color="text.secondary">
-              brain: {models.data?.brain}
-            </Typography>
-            <DataTable
-              rows={models.data?.models ?? []}
-              rowKey={(m) => m.id}
-              empty="The router reported no models."
-              columns={[
-                { key: 'id', header: 'Model', mono: true },
-                {
-                  key: 'status',
-                  header: 'Status',
-                  render: (m) => (m.status ? <StatusChip status={m.status} /> : '—'),
-                },
-              ]}
-            />
-          </Stack>
-        )}
-      </Card>
     </Stack>
   );
 }

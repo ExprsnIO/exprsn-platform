@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
+  Autocomplete,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   IconButton,
   MenuItem,
   Stack,
@@ -14,6 +16,7 @@ import {
   Tabs,
   TextField,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import BlockIcon from '@mui/icons-material/Block';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -110,31 +113,126 @@ const EMPTY_POLICY_FORM = {
   name: '',
   description: '',
   policyType: 'secret',
-  rules: '{}',
   entityTypes: '',
   priority: '',
   enforcementMode: 'enforcing',
 };
 
+/**
+ * Structured draft of the AccessPolicy `rules` JSONB. The known rule
+ * vocabulary comes from services/vault/src/services/aiPolicyService.js
+ * (the only producer in the codebase): pathRestrictions, ipWhitelist,
+ * rateLimit and timeRestriction. Anything else lives in `extra` and is
+ * editable via the JSON escape hatch.
+ */
+interface RulesDraft {
+  pathRestrictions: string[] | null;
+  ipWhitelist: string[] | null;
+  rateLimit: { maxRequests: number | ''; windowMinutes: number | '' } | null;
+  timeRestriction: { timezone: string; allowedHours: number[]; allowedDays: number[] } | null;
+  extra: Record<string, unknown>;
+}
+
+const EMPTY_RULES: RulesDraft = { pathRestrictions: null, ipWhitelist: null, rateLimit: null, timeRestriction: null, extra: {} };
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const HOURS = Array.from({ length: 24 }, (_v, h) => h);
+
+function rulesToJson(d: RulesDraft): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...d.extra };
+  if (d.pathRestrictions) out.pathRestrictions = d.pathRestrictions;
+  if (d.ipWhitelist) out.ipWhitelist = d.ipWhitelist;
+  if (d.rateLimit) {
+    out.rateLimit = {
+      ...(d.rateLimit.maxRequests !== '' && { maxRequests: Number(d.rateLimit.maxRequests) }),
+      ...(d.rateLimit.windowMinutes !== '' && { windowMinutes: Number(d.rateLimit.windowMinutes) }),
+    };
+  }
+  if (d.timeRestriction) {
+    out.timeRestriction = {
+      timezone: d.timeRestriction.timezone.trim() || 'UTC',
+      allowedHours: d.timeRestriction.allowedHours,
+      allowedDays: d.timeRestriction.allowedDays,
+    };
+  }
+  return out;
+}
+
+function rulesFromJson(v: unknown): RulesDraft {
+  const obj = (v && typeof v === 'object' && !Array.isArray(v) ? v : {}) as Record<string, unknown>;
+  const draft: RulesDraft = { ...EMPTY_RULES, extra: {} };
+  for (const [k, val] of Object.entries(obj)) {
+    if (k === 'pathRestrictions' && Array.isArray(val)) draft.pathRestrictions = val.map(String);
+    else if (k === 'ipWhitelist' && Array.isArray(val)) draft.ipWhitelist = val.map(String);
+    else if (k === 'rateLimit' && val != null && typeof val === 'object' && !Array.isArray(val)) {
+      const r = val as Record<string, unknown>;
+      draft.rateLimit = {
+        maxRequests: typeof r.maxRequests === 'number' ? r.maxRequests : '',
+        windowMinutes: typeof r.windowMinutes === 'number' ? r.windowMinutes : '',
+      };
+    } else if (k === 'timeRestriction' && val != null && typeof val === 'object' && !Array.isArray(val)) {
+      const t = val as Record<string, unknown>;
+      draft.timeRestriction = {
+        timezone: typeof t.timezone === 'string' ? t.timezone : 'UTC',
+        allowedHours: Array.isArray(t.allowedHours) ? t.allowedHours.map(Number).filter((h) => !Number.isNaN(h)) : [],
+        allowedDays: Array.isArray(t.allowedDays) ? t.allowedDays.map(Number).filter((d) => !Number.isNaN(d)) : [],
+      };
+    } else {
+      draft.extra[k] = val;
+    }
+  }
+  return draft;
+}
+
 function PoliciesTab({ onToast }: { onToast: (m: string) => void }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_POLICY_FORM);
+  const [rules, setRules] = useState<RulesDraft>(EMPTY_RULES);
+  const [rulesRaw, setRulesRaw] = useState(false);
+  const [rulesText, setRulesText] = useState('{}');
   const [rulesError, setRulesError] = useState<string | null>(null);
   const set = (k: keyof typeof EMPTY_POLICY_FORM) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+  const setRule = <K extends keyof RulesDraft>(k: K, v: RulesDraft[K]) => setRules((r) => ({ ...r, [k]: v }));
   const query = useQuery({ queryKey: ['vault', 'policies'], queryFn: () => vaultAdminApi.listPolicies() });
+
+  /** Resolve the rules object from whichever editor is active. */
+  const resolveRules = (): Record<string, unknown> | null => {
+    if (!rulesRaw) return rulesToJson(rules);
+    try {
+      const v = JSON.parse(rulesText || '{}');
+      if (typeof v !== 'object' || v == null || Array.isArray(v)) throw new Error('object');
+      return v as Record<string, unknown>;
+    } catch {
+      setRulesError('Rules must be a valid JSON object.');
+      return null;
+    }
+  };
+
+  const toggleRulesRaw = () => {
+    if (!rulesRaw) {
+      setRulesText(JSON.stringify(rulesToJson(rules), null, 2));
+      setRulesRaw(true);
+      setRulesError(null);
+      return;
+    }
+    const v = resolveRules();
+    if (!v) return;
+    setRules(rulesFromJson(v));
+    setRulesError(null);
+    setRulesRaw(false);
+  };
+
   const create = useMutation({
     mutationFn: () => {
       // Mirrors the backend createPolicySchema (services/vault/src/routes/admin.js).
-      let rules: unknown;
-      try { rules = JSON.parse(form.rules || '{}'); }
-      catch { setRulesError('Rules must be a valid JSON object.'); return Promise.reject(new Error('Rules must be a valid JSON object.')); }
+      const resolved = resolveRules();
+      if (!resolved) return Promise.reject(new Error('Rules must be a valid JSON object.'));
       setRulesError(null);
       const body: Record<string, unknown> = {
         name: form.name.trim(),
         policyType: form.policyType,
-        rules,
+        rules: resolved,
         enforcementMode: form.enforcementMode,
       };
       if (form.description.trim()) body.description = form.description.trim();
@@ -143,7 +241,7 @@ function PoliciesTab({ onToast }: { onToast: (m: string) => void }) {
       if (form.priority !== '') body.priority = Number(form.priority);
       return vaultAdminApi.createPolicy(body);
     },
-    onSuccess: () => { onToast('Policy created'); setOpen(false); setForm(EMPTY_POLICY_FORM); qc.invalidateQueries({ queryKey: ['vault', 'policies'] }); },
+    onSuccess: () => { onToast('Policy created'); setOpen(false); setForm(EMPTY_POLICY_FORM); setRules(EMPTY_RULES); setRulesRaw(false); setRulesText('{}'); qc.invalidateQueries({ queryKey: ['vault', 'policies'] }); },
     onError: (e) => onToast((e as Error).message),
   });
   const del = (id: string) => vaultAdminApi.deletePolicy(id).then(() => { onToast('Policy deleted'); qc.invalidateQueries({ queryKey: ['vault', 'policies'] }); }).catch((e) => onToast((e as Error).message));
@@ -184,17 +282,143 @@ function PoliciesTab({ onToast }: { onToast: (m: string) => void }) {
               <TextField label="Entity types" placeholder="comma-separated" value={form.entityTypes} onChange={set('entityTypes')} sx={{ flex: 2 }} />
               <TextField label="Priority" type="number" inputProps={{ min: 1, max: 1000 }} value={form.priority} onChange={set('priority')} sx={{ flex: 1 }} />
             </Stack>
-            <TextField
-              label="Rules (JSON object)"
-              required
-              multiline
-              minRows={4}
-              value={form.rules}
-              onChange={set('rules')}
-              error={!!rulesError}
-              helperText={rulesError ?? 'Free-form rule object evaluated by the policy engine.'}
-              inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
-            />
+            <Divider />
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="subtitle1" fontWeight={600}>Rules</Typography>
+              <Button size="small" onClick={toggleRulesRaw}>{rulesRaw ? 'Form view' : 'Edit as JSON'}</Button>
+            </Stack>
+            {rulesError && <Alert severity="error">{rulesError}</Alert>}
+            {rulesRaw ? (
+              <TextField
+                label="Rules (JSON object)"
+                multiline
+                minRows={6}
+                value={rulesText}
+                onChange={(e) => { setRulesText(e.target.value); setRulesError(null); }}
+                inputProps={{ style: { fontFamily: 'monospace', fontSize: 12 } }}
+              />
+            ) : (
+              <Stack spacing={2}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {rules.pathRestrictions == null && (
+                    <Button size="small" variant="outlined" onClick={() => setRule('pathRestrictions', [])}>+ Path restrictions</Button>
+                  )}
+                  {rules.ipWhitelist == null && (
+                    <Button size="small" variant="outlined" onClick={() => setRule('ipWhitelist', [])}>+ IP whitelist</Button>
+                  )}
+                  {rules.rateLimit == null && (
+                    <Button size="small" variant="outlined" onClick={() => setRule('rateLimit', { maxRequests: '', windowMinutes: 60 })}>+ Rate limit</Button>
+                  )}
+                  {rules.timeRestriction == null && (
+                    <Button size="small" variant="outlined" onClick={() => setRule('timeRestriction', { timezone: 'UTC', allowedHours: [], allowedDays: [] })}>+ Time restriction</Button>
+                  )}
+                </Stack>
+                {rules.pathRestrictions == null && rules.ipWhitelist == null && rules.rateLimit == null && rules.timeRestriction == null && (
+                  <Typography variant="caption" color="text.secondary">No rules yet — add at least one restriction above.</Typography>
+                )}
+
+                {rules.pathRestrictions != null && (
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <Autocomplete
+                      multiple
+                      freeSolo
+                      options={[]}
+                      value={rules.pathRestrictions}
+                      onChange={(_e, v) => setRule('pathRestrictions', v as string[])}
+                      sx={{ flex: 1 }}
+                      renderInput={(params) => (
+                        <TextField {...params} label="Path restrictions" placeholder="add path prefix and press Enter" helperText="Secret paths this policy allows access to" />
+                      )}
+                    />
+                    <IconButton size="small" color="error" onClick={() => setRule('pathRestrictions', null)} aria-label="remove path restrictions"><DeleteIcon fontSize="small" /></IconButton>
+                  </Stack>
+                )}
+
+                {rules.ipWhitelist != null && (
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <Autocomplete
+                      multiple
+                      freeSolo
+                      options={[]}
+                      value={rules.ipWhitelist}
+                      onChange={(_e, v) => setRule('ipWhitelist', v as string[])}
+                      sx={{ flex: 1 }}
+                      renderInput={(params) => (
+                        <TextField {...params} label="IP whitelist" placeholder="add IP / CIDR and press Enter" helperText="Only these addresses may use the policy target" />
+                      )}
+                    />
+                    <IconButton size="small" color="error" onClick={() => setRule('ipWhitelist', null)} aria-label="remove ip whitelist"><DeleteIcon fontSize="small" /></IconButton>
+                  </Stack>
+                )}
+
+                {rules.rateLimit != null && (
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="Max requests"
+                      inputProps={{ min: 1 }}
+                      value={rules.rateLimit.maxRequests}
+                      onChange={(e) => setRule('rateLimit', { ...rules.rateLimit!, maxRequests: e.target.value === '' ? '' : Number(e.target.value) })}
+                      sx={{ width: 150 }}
+                    />
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="Window (minutes)"
+                      inputProps={{ min: 1 }}
+                      value={rules.rateLimit.windowMinutes}
+                      onChange={(e) => setRule('rateLimit', { ...rules.rateLimit!, windowMinutes: e.target.value === '' ? '' : Number(e.target.value) })}
+                      sx={{ width: 160 }}
+                    />
+                    <IconButton size="small" color="error" onClick={() => setRule('rateLimit', null)} aria-label="remove rate limit"><DeleteIcon fontSize="small" /></IconButton>
+                  </Stack>
+                )}
+
+                {rules.timeRestriction != null && (
+                  <Stack spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TextField
+                        size="small"
+                        label="Timezone"
+                        value={rules.timeRestriction.timezone}
+                        onChange={(e) => setRule('timeRestriction', { ...rules.timeRestriction!, timezone: e.target.value })}
+                        sx={{ width: 160 }}
+                        helperText="IANA name, e.g. UTC"
+                      />
+                      <TextField
+                        select
+                        size="small"
+                        label="Allowed days"
+                        SelectProps={{ multiple: true, renderValue: (sel) => (sel as number[]).map((d) => DAY_LABELS[d] ?? d).join(', ') }}
+                        value={rules.timeRestriction.allowedDays}
+                        onChange={(e) => setRule('timeRestriction', { ...rules.timeRestriction!, allowedDays: (typeof e.target.value === 'string' ? e.target.value.split(',').map(Number) : (e.target.value as unknown as number[])) })}
+                        sx={{ minWidth: 200 }}
+                      >
+                        {DAY_LABELS.map((d, i) => <MenuItem key={d} value={i}>{d}</MenuItem>)}
+                      </TextField>
+                      <IconButton size="small" color="error" onClick={() => setRule('timeRestriction', null)} aria-label="remove time restriction"><DeleteIcon fontSize="small" /></IconButton>
+                    </Stack>
+                    <TextField
+                      select
+                      size="small"
+                      label="Allowed hours (empty = all)"
+                      SelectProps={{ multiple: true, renderValue: (sel) => (sel as number[]).map((h) => `${h}:00`).join(', ') }}
+                      value={rules.timeRestriction.allowedHours}
+                      onChange={(e) => setRule('timeRestriction', { ...rules.timeRestriction!, allowedHours: (typeof e.target.value === 'string' ? e.target.value.split(',').map(Number) : (e.target.value as unknown as number[])) })}
+                    >
+                      {HOURS.map((h) => <MenuItem key={h} value={h}>{`${h}:00 – ${h}:59`}</MenuItem>)}
+                    </TextField>
+                  </Stack>
+                )}
+
+                {Object.keys(rules.extra).length > 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    {Object.keys(rules.extra).length} additional rule key{Object.keys(rules.extra).length === 1 ? '' : 's'} preserved — use “Edit as JSON” to change them.
+                  </Typography>
+                )}
+              </Stack>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>

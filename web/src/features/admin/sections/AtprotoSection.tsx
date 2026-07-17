@@ -29,6 +29,7 @@ import {
   type OutLabel,
 } from '@/api/admin/atproto';
 import { Card, DataTable, QueryState, SectionHeader, StatCard, useToast } from '../ui';
+import { PlatformConfigPanel } from './PlatformSection';
 
 /** Short at:// URI / DID for table cells. */
 function short(s?: string | null, n = 28): string {
@@ -504,7 +505,7 @@ function LabelersTab({ toaster }: { toaster: Toaster }) {
   );
 }
 
-const TABS = ['Overview', 'Our labels', 'Inbound labels', 'Labelers'];
+const TABS = ['Overview', 'Our labels', 'Inbound labels', 'Labelers', 'Config'];
 
 /**
  * Admin view of the AT-Protocol / Bluesky bridge: stats + identity + feed, the
@@ -530,6 +531,7 @@ export function AtprotoSection() {
       {tab === 1 && <OutLabelsTab toaster={toaster} />}
       {tab === 2 && <InboundTab toaster={toaster} />}
       {tab === 3 && <LabelersTab toaster={toaster} />}
+      {tab === 4 && <PlatformConfigPanel module="atproto" />}
       {ToastHost}
     </Stack>
   );

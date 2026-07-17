@@ -3375,8 +3375,147 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   does not ALTER — STATUS #1). **systems-architect** flagged this as the blocking finding for FEAT-074 (ADR
   §8.3). Cross-link: **ADR-0005** (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §8.3,
   finding 7, Required-change 11. **Blocks BUG-032→TASK-041→FEAT-074** in that order. Route to sr-developer (M).
+### BUG-035 — atproto firehose ingest fills Redis unboundedly and OOM-crashes the whole platform (renumbered from BUG-032: collided with live-recording BUG-032 on main)
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** —
+- **Description:** `worker:atproto` enqueues every ingested Bluesky firehose post as a
+  `bull:moderation:atp*` job (producer: `services/atproto/src/ingest/queue.js` +
+  `enqueue.js`/`moderationBridge.js`, Redis db 3). Nothing bounds the queue: jobs are not
+  removed on completion/failure, ingest is far faster than moderation drain, and the shared
+  Redis container has `maxmemory 0` (unlimited). Observed 2026-07-16 on a dev boot: db3
+  reached **1.2M keys / ~4.4GB**, Redis went `BUSY`/unresponsive and fell over — which
+  crashed the **gateway** (unhandledRejection on setex) and the timeline/prefetch/
+  filevault-moderation workers. Because Redis is shared by every module, the atproto
+  worker running unattended is a whole-platform outage. Recovery required stopping the
+  worker and `FLUSHDB` on db3 (2GB → 3MB).
+- **Acceptance criteria:**
+  - atproto ingest jobs carry `removeOnComplete`/`removeOnFail` (bounded counts) so
+    processed jobs don't accumulate.
+  - Ingest is backpressured or capped: when the moderation queue depth (or Redis memory)
+    exceeds a configurable threshold, the firehose consumer pauses/drops instead of
+    enqueueing — no unbounded growth while the drain is slower than ingest.
+  - The Redis container gets a `maxmemory` + eviction/alarm posture agreed with the dba
+    (shared instance — eviction policy must not silently eat other modules' Bull state;
+    a cap + refuse-writes on the atproto path may be safer than global eviction).
+  - Soak: `worker:atproto` running ≥30 min against the live firehose keeps Redis memory
+    at a plateau, and gateway `/health` stays `ok` throughout.
+- **Notes:** Found while booting the platform 2026-07-16 (Redis peak 4.73G,
+  `used_memory_peak_human`). Slowlog showed the `atp:*` jobs carry `attempts: 3` +
+  exponential backoff, so failures also linger in the retry/delayed sets. dba sign-off on
+  the Redis memory posture; consider whether the firehose backlog belongs in RabbitMQ
+  (durable, disk-backed — the rabbit helper already exists) instead of Redis/Bull at all.
+
+### BUG-033 — cortex worker fails tasks on LLM model cold-load (undici headersTimeout beats the 600s app timeout)
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (relates: FEAT-021/FEAT-029 swap-first LLM serving)
+- **Description:** The llama-swap server loads models on demand; a 30B brain
+  (`qwen3-30b-a3b`) cold-load takes >5 min. `services/cortex/src/client.js` wraps LLM
+  calls in a 600s app-level timeout (`withTimeout`), but the underlying Node `fetch`
+  (undici) has a default `headersTimeout` of 300s, which fires first while the router
+  holds the request during model load — the task fails
+  `Error: LLM router unreachable (UND_ERR_HEADERS_TIMEOUT)`. Observed 2026-07-16:
+  first cortex task after boot ran 16:54→16:59 and failed; an identical task ran in
+  ~1s once the model was warm. Swap-first serving (MODELS_MAX=2) makes cold-loads a
+  normal, recurring condition — every brain swap re-exposes this.
+- **Acceptance criteria:**
+  - A cortex task submitted while the brain model is unloaded succeeds (undici
+    dispatcher/Agent configured with `headersTimeout` ≥ the app timeout, or the call
+    retries on UND_ERR_HEADERS_TIMEOUT, or the worker warms the model first, e.g. a
+    cheap `/v1/models`-status check + load-wait before the real call).
+  - The 600s `withTimeout` bound in `client.js` remains the effective ceiling.
+  - Failure mode when the router is genuinely down is unchanged (fails fast, task
+    marked failed with a clear error).
+- **Notes:** Repro: unload models (restart llama-swap), enqueue a task via
+  `POST /cortex/api/v1/tasks`. Worker: `services/cortex/src/worker.js`; transport:
+  `services/cortex/src/client.js`.
+
+### BUG-034 — CA `/api/tokens/validate` rate limiter buckets all in-process callers as 127.0.0.1 — modules starve each other
+- **Type:** bug · **Status:** in-review (fixed on `feat/admin-refactor`, `ba71477`) · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** —
+- **Description:** Every module validates bearer tokens by calling the CA over the
+  gateway loopback (`*_SERVICE_URL` → `https://localhost:8443/ca`), so ALL in-process
+  validation traffic shares one per-IP rate-limit bucket (`ip=127.0.0.1`,
+  `path=/tokens/validate`, 15-min window). Observed 2026-07-16: a client polling one
+  cortex task status every ~5s exhausted the bucket; after that, **every** authed
+  route on **every** module returned 429→`VALIDATION_ERROR` for the remainder of the
+  window — including fresh logins. One chatty client (or one busy module) locks the
+  whole platform's auth path out for up to 15 minutes. Limiter warn logs come from
+  the gateway (`Rate limit exceeded {"ip":"127.0.0.1","path":"/tokens/validate"}`);
+  CA-side limiter: `services/ca/middleware/rateLimit.js`; shared:
+  `shared/middleware/rateLimiter.js`.
+- **Acceptance criteria:**
+  - In-process service-to-service validate calls (loopback + service HMAC identity)
+    are exempt from the per-IP bucket or keyed per calling service — one caller
+    exhausting its budget does not 429 other modules' token validation.
+  - End-user abuse protection is preserved: external per-IP (or per-token) limiting
+    on validate still exists, and the real client IP is used behind the edge
+    (X-Forwarded-For from nginx, trust-proxy configured) rather than the loopback.
+  - Regression check: sustained polling of one authed endpoint by one user does not
+    cause 429s on logins or other modules' authed routes.
+- **Notes:** Consider caching validate verdicts briefly (the moderator user-routes
+  already validate per request) to cut loopback QPS platform-wide. Security-sensitive
+  (auth surface) — sr-developer + architect eyes per the auth-surface escalation rule.
+  **Fixed 2026-07-17 (Rick-authorized):** `shared/middleware/rateLimiter.js` now
+  exempts any request proving a service identity — `X-Service-ID` + the
+  constant-time-verified HMAC `X-Service-Token` (`verifyServiceToken`, fails
+  closed). In-process module→CA validate calls carry these headers, so they no
+  longer share the per-IP 127.0.0.1 bucket; forged/absent headers still count,
+  so external per-IP abuse protection is unchanged. Verified: valid HMAC skips,
+  forged/replayed-under-other-id do not; admin e2e (23 sections) no longer 429s.
+  Still wants architect sign-off at merge (auth surface).
 
 ## Tasks
+
+### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
+- **Type:** task · **Status:** in-review (built + runtime-verified on `feat/admin-refactor`; see Notes) · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)
+- **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
+- **Legacy:** — (builds on the reusable DataTable + admin click-through audit)
+- **Description:** Full restructure of the `/admin` SPA + its backend surface, per Rick's
+  2026-07-16 direction. Audit findings driving it: only 3/14 sections enable DataTable
+  sort/filter and no table has global search; zero socket.io in admin (react-query
+  polling only; `/_health` ns unused by SPA); timeline + prefetch have admin APIs but
+  no sections; vault config read-only, filevault/atproto surface no config editor;
+  3 primary raw-JSON editors violate the no-JSON-only-modals rule; and the
+  auth/spark/timeline/prefetch/moderator/live `/api/config` endpoints are **publicly
+  writable (no auth)**. Decisions (Rick, TUI 2026-07-16): socket.io `/_admin`
+  namespace + react-query polling fallback; gate the ungated config endpoints now
+  (CA admin auth); a **writable platform config-overrides store** (DB-backed,
+  overrides env at runtime where safe, restart-required flags, architect sign-off);
+  **full restructure** (split AuthSection 102KB into tabs, normalize all sections to
+  one template).
+- **Acceptance criteria:**
+  - Every admin table: sortable + per-column filter + **global free-text search**,
+    via the shared DataTable (no per-section forks).
+  - Live updates: `/_admin` socket namespace (admin-auth gated) pushes
+    dashboard/health/queue/moderation deltas; sections subscribe with react-query
+    polling as fallback; RealtimeStatus reflects admin socket state.
+  - All 14 modules have an admin section incl. new timeline + prefetch; every module's
+    config is readable AND writable from admin (vault write path fixed; filevault +
+    atproto editors added), with structured forms primary and JSON only as escape
+    hatch (moderator AgentsTab, PluginsSection behavior, VaultSection rules rebuilt).
+  - Env-only settings surfaced via the overrides store: DB-persisted overrides with
+    env fallback, masked secrets, restart-required flagging; store design has
+    systems-architect sign-off before merge.
+  - All `/api/config` read/write endpoints require CA admin auth (the six ungated
+    modules gated); regression: SPA flows keep working with bearer tokens.
+  - Lint 0 errors, `web:build` green, existing module suites no worse than baseline.
+- **Notes:** Work on branch `feat/admin-refactor` in an isolated worktree. Security
+  surface (config gating) → sr-developer + architect review. Related: BUG-034 (validate
+  limiter) may bite admin polling — keep admin QPS modest until it lands.
+  **2026-07-17 build complete** (commits `63bc34e` `8469249` `3c8f08d`): all ACs
+  runtime-verified except a full SPA click-through (QA). Deviations/finds:
+  auth+timeline config routes were ALREADY gated (audit data stale) — the truly
+  ungated four (spark/prefetch/moderator/live) now use shared `requirePlatformAdmin`;
+  vault/prefetch/timeline-settings config writes were log-and-echo fakes, now persist
+  (vault_config / Redis / TimelineConfig); shared `authenticateSocket` hardcoded
+  `resource:'socket'` which 401'd every real handshake — fixed (default omits).
+  Follow-ups to file: db:check coverage for the `platform` schema; CONFIG_STORE_KEY
+  encrypted-secret support before any secret key enters the descriptor; PM decision
+  on slimming the /admin/jobs vs Timeline/Prefetch section overlap; QA click-through
+  of all 15 sections.
 
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)
 - **Type:** task · **Status:** done (landed `430eaa0`; full flow PASS incl. the SP-6 revoked-bearer-401s check; CI job manual/non-blocking — no live stack on runners) · **Priority:** P1 · **Size:** M

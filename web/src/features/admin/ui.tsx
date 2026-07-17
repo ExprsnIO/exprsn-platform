@@ -39,6 +39,8 @@ import {
 } from '@mui/material';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import SearchIcon from '@mui/icons-material/Search';
+import { InputAdornment } from '@mui/material';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { toMessage } from '@/lib/errors';
 
@@ -252,10 +254,12 @@ function loadHidden(tableId: string | undefined, columns: { key: string; default
 }
 
 /**
- * Column-driven table. Optional capabilities, all backward compatible:
+ * Column-driven table. Sort, per-column filters, and global search are ON by
+ * default (TASK-039) — pass `sortable={false}` etc. to opt out. Capabilities:
  *  - `tableId` — column picker (add/remove columns), persisted per table
  *  - `sortable` — click headers to sort (uses `sortValue`, falls back to the raw cell)
  *  - `filterable` — a per-column filter row, toggled from the toolbar
+ *  - `searchable` — global free-text search across all visible columns
  *  - `onRowClick` — row click opens the row (clicks on buttons/inputs are ignored)
  */
 export function DataTable<R>({
@@ -264,8 +268,9 @@ export function DataTable<R>({
   rowKey,
   empty = 'No records.',
   tableId,
-  sortable = false,
-  filterable = false,
+  sortable = true,
+  filterable = true,
+  searchable = true,
   onRowClick,
   initialSort,
 }: {
@@ -276,6 +281,7 @@ export function DataTable<R>({
   tableId?: string;
   sortable?: boolean;
   filterable?: boolean;
+  searchable?: boolean;
   onRowClick?: (row: R) => void;
   initialSort?: { key: string; dir: 'asc' | 'desc' };
 }) {
@@ -283,6 +289,7 @@ export function DataTable<R>({
   const [pickerAnchor, setPickerAnchor] = useState<HTMLElement | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(initialSort ?? null);
 
   const toggleColumn = (key: string) => {
@@ -298,8 +305,13 @@ export function DataTable<R>({
   const visible = columns.filter((c) => c.locked || !hidden.includes(c.key));
 
   const activeFilters = Object.entries(filters).filter(([, v]) => v.trim() !== '');
+  const needle = search.trim().toLowerCase();
   const processed = useMemo(() => {
     let out = rows;
+    if (searchable && needle) {
+      const searchCols = columns.filter((c) => c.header !== '' && (c.locked || !hidden.includes(c.key)));
+      out = out.filter((row) => searchCols.some((c) => filterText(c, row).toLowerCase().includes(needle)));
+    }
     if (filterable && activeFilters.length) {
       out = out.filter((row) =>
         activeFilters.every(([key, needle]) => {
@@ -326,9 +338,9 @@ export function DataTable<R>({
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, columns, sort, filterable, JSON.stringify(filters)]);
+  }, [rows, columns, sort, filterable, searchable, needle, hidden, JSON.stringify(filters)]);
 
-  const hasToolbar = !!tableId || filterable;
+  const hasToolbar = !!tableId || filterable || searchable;
 
   if (!rows.length && !hasToolbar) return <Alert severity="info">{empty}</Alert>;
 
@@ -343,7 +355,27 @@ export function DataTable<R>({
   return (
     <Box>
       {hasToolbar && (
-        <Stack direction="row" spacing={0.5} justifyContent="flex-end" sx={{ mb: 0.5 }}>
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
+          {searchable ? (
+            <TextField
+              size="small"
+              variant="standard"
+              placeholder="Search…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              sx={{ maxWidth: 260, flexGrow: 1 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" color={needle ? 'primary' : 'disabled'} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          ) : (
+            <Box sx={{ flexGrow: 1 }} />
+          )}
+          <Box sx={{ flexGrow: 1 }} />
           {filterable && (
             <Tooltip title={filtersOpen ? 'Hide filters' : 'Filter columns'}>
               <IconButton
@@ -355,7 +387,7 @@ export function DataTable<R>({
               </IconButton>
             </Tooltip>
           )}
-          {tableId && (
+          {(
             <>
               <Tooltip title="Add / remove columns">
                 <IconButton size="small" onClick={(e) => setPickerAnchor(e.currentTarget)}>
@@ -427,7 +459,7 @@ export function DataTable<R>({
               {processed.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={visible.length} sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-                    No rows match the filters.
+                    No rows match the current search/filters.
                   </TableCell>
                 </TableRow>
               ) : (

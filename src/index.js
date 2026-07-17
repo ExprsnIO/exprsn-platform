@@ -78,6 +78,10 @@ async function main() {
     process.exit(1);
   }
 
+  // Apply DB config overrides BEFORE any module is required, so require-time
+  // process.env readers see them. Never throws; env-only on DB failure.
+  await require('./config/overridesStore').loadAndApply(config, logger);
+
   const loaded = await loadModules();
   await initModules(loaded);
 

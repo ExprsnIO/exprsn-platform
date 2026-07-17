@@ -55,6 +55,12 @@ function assertSecureCaUrl(url) {
 function authenticateSocket(options = {}) {
   const {
     requiredPermissions = [],
+    // Optional CA resource to match the token against. Default omits the
+    // field: the old hardcoded 'socket' literal can never glob-match the
+    // URL-scoped resources real login tokens carry, so it 401'd every
+    // authenticated handshake (found wiring /_admin, TASK-039). Pass an
+    // explicit resource only when tokens are actually minted for it.
+    resource = null,
     caUrl = process.env.CA_URL || process.env.CA_BASE_URL || process.env.CA_SERVICE_URL || 'http://localhost:3000'
   } = options;
 
@@ -85,7 +91,7 @@ function authenticateSocket(options = {}) {
         {
           token,
           requiredPermissions,
-          resource: 'socket'
+          ...(resource ? { resource } : {})
         },
         {
           timeout: 5000,

@@ -96,6 +96,17 @@ router.post('/:sectionId', async (req, res) => {
 // Configuration Fetching Functions
 // ========================================
 
+async function storedTimelineSettings() {
+  try {
+    const { TimelineConfig } = require('../models');
+    const row = await TimelineConfig.findByPk('settings');
+    return (row && row.data) || {};
+  } catch (error) {
+    logger.warn(`Failed to load stored timeline settings: ${error.message}`);
+    return {};
+  }
+}
+
 async function getTimelineSettings() {
   // Get timeline statistics
   const totalPosts = await Post.count();
@@ -108,7 +119,8 @@ async function getTimelineSettings() {
     }
   });
 
-  return {
+  const stored = await storedTimelineSettings();
+  const section = {
     title: 'Timeline Settings',
     description: 'Configure timeline feed settings',
     fields: [
@@ -128,6 +140,12 @@ async function getTimelineSettings() {
       todayPosts
     }
   };
+  for (const field of section.fields) {
+    if (Object.prototype.hasOwnProperty.call(stored, field.name)) {
+      field.value = stored[field.name];
+    }
+  }
+  return section;
 }
 
 async function getTimelineModeration() {
@@ -174,23 +192,44 @@ async function getTimelineModeration() {
 // Configuration Update Functions
 // ========================================
 
+const SETTINGS_FIELDS = [
+  'maxPostLength', 'enableSearch', 'enableReactions', 'enableReposts',
+  'enableBookmarks', 'enableLists', 'enableHashtags', 'enableMentions',
+  'postsPerPage'
+];
+
 async function updateTimelineSettings(configData) {
-  logger.info('Timeline settings updated:', configData);
+  // The editor round-trips the whole schema ({ fields: [...] }); accept either
+  // that shape or a flat key→value object.
+  const flat = Array.isArray(configData?.fields)
+    ? Object.fromEntries(configData.fields.map((f) => [f.name, f.value]))
+    : (configData || {});
 
-  // Update runtime configuration
-  if (configData.maxPostLength) {
+  // Persist via TimelineConfig (same mechanism as the moderation section) so
+  // settings survive a restart — previously this only mutated the in-process
+  // config object (TASK-039).
+  const { TimelineConfig } = require('../models');
+  const row = await TimelineConfig.findByPk('settings');
+  const clean = { ...((row && row.data) || {}) };
+  for (const k of SETTINGS_FIELDS) {
+    if (flat[k] !== undefined) clean[k] = flat[k];
+  }
+  await TimelineConfig.upsert({ section: 'settings', data: clean });
+
+  // Keep the in-process runtime config in step (hot-apply).
+  if (clean.maxPostLength) {
     config.posts = config.posts || {};
-    config.posts.maxLength = parseInt(configData.maxPostLength);
+    config.posts.maxLength = parseInt(clean.maxPostLength);
   }
-
-  if (configData.postsPerPage) {
+  if (clean.postsPerPage) {
     config.pagination = config.pagination || {};
-    config.pagination.limit = parseInt(configData.postsPerPage);
+    config.pagination.limit = parseInt(clean.postsPerPage);
   }
 
+  logger.info('Timeline settings saved', { keys: Object.keys(clean) });
   return {
-    message: 'Timeline settings updated successfully',
-    config: configData
+    message: 'Timeline settings saved',
+    config: clean
   };
 }
 

@@ -3261,7 +3261,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 ## Tasks
 
 ### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
-- **Type:** task · **Status:** in-progress · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)
+- **Type:** task · **Status:** in-review (built + runtime-verified on `feat/admin-refactor`; see Notes) · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)
 - **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
 - **Legacy:** — (builds on the reusable DataTable + admin click-through audit)
 - **Description:** Full restructure of the `/admin` SPA + its backend surface, per Rick's
@@ -3296,6 +3296,17 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Work on branch `feat/admin-refactor` in an isolated worktree. Security
   surface (config gating) → sr-developer + architect review. Related: BUG-034 (validate
   limiter) may bite admin polling — keep admin QPS modest until it lands.
+  **2026-07-17 build complete** (commits `63bc34e` `8469249` `3c8f08d`): all ACs
+  runtime-verified except a full SPA click-through (QA). Deviations/finds:
+  auth+timeline config routes were ALREADY gated (audit data stale) — the truly
+  ungated four (spark/prefetch/moderator/live) now use shared `requirePlatformAdmin`;
+  vault/prefetch/timeline-settings config writes were log-and-echo fakes, now persist
+  (vault_config / Redis / TimelineConfig); shared `authenticateSocket` hardcoded
+  `resource:'socket'` which 401'd every real handshake — fixed (default omits).
+  Follow-ups to file: db:check coverage for the `platform` schema; CONFIG_STORE_KEY
+  encrypted-secret support before any secret key enters the descriptor; PM decision
+  on slimming the /admin/jobs vs Timeline/Prefetch section overlap; QA click-through
+  of all 15 sections.
 
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)
 - **Type:** task · **Status:** done (landed `430eaa0`; full flow PASS incl. the SP-6 revoked-bearer-401s check; CI job manual/non-blocking — no live stack on runners) · **Priority:** P1 · **Size:** M

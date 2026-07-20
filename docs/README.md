@@ -9,6 +9,7 @@ local files.
 ```
 docs/
   index.html              Landing page: service cards + Markdown guide cards
+  setup-wizard.html       Setup wizard (npm run setup) + first-run flow
   exprsn-ca.html          Hand-written service pages
   exprsn-auth.html
   exprsn-timeline.html

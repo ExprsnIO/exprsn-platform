@@ -106,6 +106,7 @@
 
     pages: [
       { title: 'Index', href: 'index.html' },
+      { title: 'Setup', href: 'setup-wizard.html' },
       { title: 'CA', href: 'exprsn-ca.html' },
       { title: 'Auth', href: 'exprsn-auth.html' },
       { title: 'Timeline', href: 'exprsn-timeline.html' },

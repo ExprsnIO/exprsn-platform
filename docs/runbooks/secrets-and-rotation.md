@@ -30,6 +30,12 @@ Generate strong values with:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
+Or use the interactive setup wizard (`npm run setup`, `scripts/setup-tui.js`) —
+its ⚡ Generate option mints hex secrets at documented strengths
+(`SERVICE_TOKEN_SECRET` 48 bytes; `JWT_SECRET` / `SESSION_SECRET` /
+`DEV_BYPASS_SECRET` 32 bytes), flags placeholder values, and backs up the
+existing `.env` before writing.
+
 ## Production readiness checklist (before deploy)
 
 - [ ] `NODE_ENV=production` (this alone makes `DEV_BYPASS` inert — see below).

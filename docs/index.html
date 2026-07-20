@@ -11,6 +11,7 @@
   <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
   <nav>
     <a href="index.html" class="active">Index</a>
+    <a href="setup-wizard.html">Setup</a>
     <a href="exprsn-ca.html">CA</a>
     <a href="exprsn-auth.html">Auth</a>
     <a href="exprsn-timeline.html">Timeline</a>
@@ -25,6 +26,16 @@
 <h1>Exprsn Platform — Service Documentation</h1>
 <p>The Exprsn Platform consolidates ten formerly standalone microservices into a single Node.js process behind one HTTPS port (default <code>8443</code>). Each former service is now a <em>module</em>: an Express app mounted at a path prefix on a unified gateway (<code>src/gateway.js</code>), with its tables isolated in its own Postgres schema and its real-time events attached as namespaces on one shared Socket.IO server. The canonical module list lives in <code>src/modules/registry.js</code>.</p>
 <p>This documentation set covers four of the platform's modules. Each page describes the module's purpose, full endpoint inventory (with gateway-prefixed paths), data models, configuration, real-time events, background jobs, and integration points.</p>
+
+<h2>Getting started</h2>
+<p>First run: <code>npm install</code> → <code>npm run gen:certs</code> → <code>npm run setup</code> → <code>npm run db:bootstrap</code> → <code>npm run db:migrate</code> → <code>npm start</code>. The <a href="setup-wizard.html">interactive setup wizard</a> (<code>npm run setup</code>) walks 19 sections covering the entire environment surface, generates secrets at documented strengths, validates values before writing, and backs up any existing <code>.env</code>. Manual <code>cp .env.example .env</code> remains the non-interactive fallback.</p>
+<div class="cards">
+  <div class="card">
+    <h3><a href="setup-wizard.html">Setup Wizard &amp; First Run</a></h3>
+    <p class="tag">npm run setup · scripts/setup-tui.js · zero deps</p>
+    <p>The terminal UI that configures every tunable of the unified platform: section walkthrough, keyboard reference, secret generation, validation rules, the dev quick-start preset, derived service URLs, and the review screen's worker checklist.</p>
+  </div>
+</div>
 
 <h2>Documented services</h2>
 <div class="cards">
@@ -82,6 +93,7 @@
     <tr><td>Gateway (mounts, health, Socket.IO, error handling)</td><td><code>src/gateway.js</code></td></tr>
     <tr><td>Bootstrap &amp; HTTPS server</td><td><code>src/index.js</code></td></tr>
     <tr><td>Env parsing</td><td><code>src/config/index.js</code> (loads <code>.env</code> from the repo root)</td></tr>
+    <tr><td>Interactive configuration</td><td><code>npm run setup</code> (<code>scripts/setup-tui.js</code>) — see the <a href="setup-wizard.html">Setup Wizard</a> page</td></tr>
     <tr><td>Workers (run separately)</td><td><code>node services/timeline/src/worker.js</code> · <code>node services/prefetch/src/worker.js</code></td></tr>
     <tr><td>Aggregate health</td><td><code>curl -k https://localhost:8443/health</code></td></tr>
   </tbody>

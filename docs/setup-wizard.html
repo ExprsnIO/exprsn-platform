@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setup Wizard — Exprsn Platform Documentation</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="setup-wizard.html" class="active">Setup</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="viewer.html">Guides (MD)</a>
+  </nav>
+</header>
+<main>
+<h1>Setup Wizard &amp; First Run</h1>
+<p>The platform ships an interactive setup wizard — <code>npm run setup</code> — that configures the entire environment surface of the unified process, section by section, into a grouped, commented <code>.env</code>. It replaces hand-editing <code>.env.example</code> as the recommended first-run configuration step (the manual <code>cp .env.example .env</code> path remains the non-interactive fallback).</p>
+
+<div class="meta-card">
+  <dl>
+    <dt>Command</dt><dd><code>npm run setup</code> (landed as TASK-045)</dd>
+    <dt>Script</dt><dd><code>scripts/setup-tui.js</code></dd>
+    <dt>Dependencies</dt><dd>None — pure Node (readline + ANSI escapes), no external packages</dd>
+    <dt>Optional argument</dt><dd>Path to the env file to edit: <code>node scripts/setup-tui.js path/to/x.env</code> (default <code>./.env</code>)</dd>
+    <dt>Requires</dt><dd>An interactive terminal (TTY); the script exits with an error otherwise</dd>
+    <dt>Source of truth</dt><dd>The wizard's field schema tracks <code>src/config/index.js</code> and <code>.env.example</code></dd>
+  </dl>
+</div>
+
+<h2 id="first-run">First-run flow</h2>
+<p>The wizard sits between certificate generation and database bootstrap:</p>
+<pre><code>npm install            # also resolves @exprsn/shared via file:./shared
+npm run gen:certs      # dev self-signed cert (required for the HTTPS edge)
+npm run setup          # interactive wizard — writes ./.env
+npm run db:bootstrap   # create db `exprsn` + one Postgres schema per module
+npm run db:migrate     # sync each module's models into its schema
+npm start              # https://localhost:8443 — verify: curl -k https://localhost:8443/health</code></pre>
+<p class="note"><strong>Non-interactive fallback:</strong> <code>cp .env.example .env</code> and edit by hand. Postgres and Redis must be up (see <code>npm run infra:up</code>) before <code>db:bootstrap</code> and <code>npm start</code>.</p>
+
+<h2 id="behavior">How it treats your <code>.env</code></h2>
+<ul>
+  <li><strong>Loads the existing file if present</strong>, otherwise seeds from <code>.env.example</code>. The main menu header shows which one was loaded.</li>
+  <li><strong>Nothing is written until you choose "Review &amp; write .env".</strong> Browsing and editing values is entirely in-memory; quitting with unsaved changes prompts for confirmation.</li>
+  <li><strong>An existing file is backed up first</strong> to <code>.env.bak-&lt;timestamp&gt;</code> before being overwritten.</li>
+  <li><strong>Keys it does not manage are preserved verbatim</strong> — anything in your <code>.env</code> outside the wizard's schema is carried into the output under an "Unmanaged keys" section.</li>
+  <li>The written file is grouped into commented sections mirroring the wizard's menu; unset optional keys are emitted as comments (<code>#&nbsp;KEY=</code>) so the full surface stays discoverable.</li>
+</ul>
+
+<h2 id="keyboard">Keyboard reference</h2>
+<table>
+  <thead><tr><th>Key</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><code>↑</code> / <code>↓</code></td><td>Move the cursor</td></tr>
+    <tr><td><code>Enter</code></td><td>Select / save</td></tr>
+    <tr><td><code>1</code>–<code>9</code></td><td>Jump directly to a menu entry</td></tr>
+    <tr><td><code>Space</code></td><td>Toggle an entry in multi-select lists</td></tr>
+    <tr><td><code>Esc</code></td><td>Back / cancel</td></tr>
+    <tr><td><code>Ctrl-C</code></td><td>Quit</td></tr>
+  </tbody>
+</table>
+<p>The main menu shows a per-section <em>n/m set</em> counter and a red <strong>⚠</strong> marker wherever a secret still holds a placeholder value (<code>change_me</code>, <code>changeme</code>, <code>secret</code>, <code>password</code>, or empty-with-a-default).</p>
+
+<h2 id="sections">The 19 sections</h2>
+<p>Together the sections cover the platform's entire environment surface:</p>
+<table>
+  <thead><tr><th>#</th><th>Section</th><th>Covers</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>HTTPS edge &amp; CORS</td><td>The one exposed port (default <code>8443</code>), <code>PUBLIC_HOST</code>, HTTP→HTTPS redirect, <code>CORS_ORIGIN</code> (unset/<code>*</code> = same-origin only)</td></tr>
+    <tr><td>2</td><td>TLS</td><td>Cert/key paths, <code>TLS_ENABLED</code></td></tr>
+    <tr><td>3</td><td>PostgreSQL</td><td>Single database <code>exprsn</code> (per-module schemas), host/port/credentials, SSL options</td></tr>
+    <tr><td>4</td><td>Redis</td><td>The one shared Redis: host/port/password/db</td></tr>
+    <tr><td>5</td><td>Auth &amp; service secrets</td><td><code>SERVICE_TOKEN_SECRET</code> (required), <code>SERVICE_ID</code>, legacy-token migration switches, <code>JWT_SECRET</code>, <code>SESSION_SECRET</code>, OIDC issuer, webhook secrets</td></tr>
+    <tr><td>6</td><td>Dev auth bypass (fail-closed)</td><td><code>DEV_BYPASS</code> + <code>DEV_BYPASS_SECRET</code> — only works with <code>NODE_ENV=development</code> + secret header + loopback</td></tr>
+    <tr><td>7</td><td>Observability</td><td>Prometheus <code>/metrics</code> (+ optional bearer token), Sentry DSN and traces sample rate</td></tr>
+    <tr><td>8</td><td>Email (auth / moderator)</td><td>SMTP / SendGrid / Mailgun settings</td></tr>
+    <tr><td>9</td><td>OAuth providers</td><td>Social-login client IDs/secrets (Google, GitHub, …)</td></tr>
+    <tr><td>10</td><td>AI providers (moderator)</td><td><code>DEFAULT_AI_PROVIDER</code> (<code>claude</code>|<code>openai</code>|<code>cortex</code>), <code>CLAUDE_*</code>, <code>OPENAI_*</code> keys and models</td></tr>
+    <tr><td>11</td><td>FileVault storage</td><td>S3 endpoint/bucket, AWS credentials/region, IPFS API URL</td></tr>
+    <tr><td>12</td><td>Elasticsearch</td><td>Node URL + credentials (spark / timeline / filevault search)</td></tr>
+    <tr><td>13</td><td>RabbitMQ</td><td>Extras broker: enabled flag, AMQP/management ports, credentials</td></tr>
+    <tr><td>14</td><td>Live streaming</td><td>Cloudflare Stream credentials, recording moderation mode (FEAT-074) + risk threshold and worker tuning</td></tr>
+    <tr><td>15</td><td>AT-Proto / Bluesky bridge</td><td>The full bridge surface: firehose transport/sampling/backpressure, labeler identity (<code>ATPROTO_DID_METHOD</code>: <code>exprsn</code>|<code>web</code>|<code>plc</code>), signing key, label values, PDS/PLC settings, feed generator</td></tr>
+    <tr><td>16</td><td>Plugins &amp; low-code</td><td>Flag-gated extensibility framework (default OFF, loads inert): plugins, sandboxed scripts, webhook guards, low-code builder</td></tr>
+    <tr><td>17</td><td>Cortex (local LLM)</td><td>Models (brain/judge/vision), concurrency, python sandbox caps, Ollama failover backend (FEAT-072) + circuit breaker, moderation modes</td></tr>
+    <tr><td>18</td><td>FileVault image &amp; video moderation</td><td>Upload-chokepoint moderation (FEAT-031 image, FEAT-073 video): modes, risk thresholds, frame sampling, ffmpeg paths</td></tr>
+    <tr><td>19</td><td>Docker extras</td><td>nginx ports, LDAP, BIND9 DNS, Kerberos, Dovecot mail ports, Ollama host port (loopback-bound)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="secrets">Secrets</h2>
+<p>Secret values are always <strong>masked</strong> in the UI (shown as <code>••••••••</code>). Fields with a <strong>⚡ Generate</strong> option mint a cryptographically random hex secret at a documented strength:</p>
+<table>
+  <thead><tr><th>Secret</th><th>Generated strength</th></tr></thead>
+  <tbody>
+    <tr><td><code>SERVICE_TOKEN_SECRET</code></td><td>48 bytes (96 hex chars)</td></tr>
+    <tr><td><code>JWT_SECRET</code></td><td>32 bytes</td></tr>
+    <tr><td><code>SESSION_SECRET</code></td><td>32 bytes</td></tr>
+    <tr><td><code>DEV_BYPASS_SECRET</code></td><td>32 bytes</td></tr>
+  </tbody>
+</table>
+<p>Other generator-equipped secrets (webhook secrets, <code>METRICS_TOKEN</code>, <code>ATPROTO_USER_DID_SECRET</code>) also use 32-byte hex. See the <a href="viewer.html?doc=runbook-secrets">Secrets &amp; Rotation runbook</a> for what each secret protects and how to rotate it.</p>
+
+<h2 id="validation">Validation</h2>
+<p>Invalid values are rejected at entry time, and the review screen re-checks everything before writing:</p>
+<ul>
+  <li><strong>Ports</strong> must be integers 0–65535; <strong>numeric</strong> fields must be numbers; sample rates must be fractions 0..1; risk thresholds must be 0–100.</li>
+  <li><strong>Secret minimums</strong>: <code>SERVICE_TOKEN_SECRET</code>, <code>JWT_SECRET</code>, <code>SESSION_SECRET</code>, and <code>DEV_BYPASS_SECRET</code> must be ≥ 32 characters. <code>SERVICE_TOKEN_SECRET</code> is required — its absence is flagged as a problem.</li>
+  <li><strong>Enum-only fields</strong> are picked from a menu, never typed:
+    <table>
+      <thead><tr><th>Variable</th><th>Allowed values</th></tr></thead>
+      <tbody>
+        <tr><td><code>CORTEX_MODERATION_MODE</code></td><td><code>off</code> | <code>shadow</code> | <code>enforce</code></td></tr>
+        <tr><td><code>FILEVAULT_IMAGE_MODERATION</code></td><td><code>off</code> | <code>shadow</code> | <code>enforce</code></td></tr>
+        <tr><td><code>FILEVAULT_VIDEO_MODERATION</code></td><td><code>off</code> | <code>shadow</code> | <code>enforce</code></td></tr>
+        <tr><td><code>LIVE_RECORDING_MODERATION</code></td><td><code>off</code> | <code>shadow</code> | <code>enforce</code></td></tr>
+        <tr><td><code>ATPROTO_DID_METHOD</code></td><td><code>exprsn</code> | <code>web</code> | <code>plc</code></td></tr>
+        <tr><td><code>DEFAULT_AI_PROVIDER</code></td><td><code>claude</code> | <code>openai</code> | <code>cortex</code></td></tr>
+      </tbody>
+    </table>
+  </li>
+  <li><strong><code>CORTEX_ASYNC_ROLE</code> must never appear in <code>.env</code></strong> — the wizard errors if it finds it there, because the gateway refuses to boot with it set. Only the <code>worker:*</code> npm aliases set it, per-process.</li>
+  <li><strong><code>DEV_BYPASS=true</code> under <code>NODE_ENV=production</code></strong> is flagged: the bypass is fail-closed, so the setting is inert and should be removed.</li>
+  <li>Placeholder secrets (<code>change_me</code> etc.) are listed as problems. You can still choose "Write anyway" — the wizard warns, it doesn't block.</li>
+</ul>
+
+<h2 id="quickstart">Dev quick-start preset</h2>
+<p>The <strong>⚡ Dev quick-start</strong> menu entry fills every untouched field with its local-development default, sets <code>NODE_ENV=development</code>, and generates fresh secrets wherever placeholder values remain (<code>SERVICE_TOKEN_SECRET</code>, <code>JWT_SECRET</code>, <code>SESSION_SECRET</code>, plus random passwords for Postgres/RabbitMQ/LDAP/Kerberos placeholders). One selection, then review and write.</p>
+
+<h2 id="derived">Derived service URLs</h2>
+<p>The 13 <code>*_SERVICE_URL</code> variables (<code>CA_SERVICE_URL</code>, <code>AUTH_SERVICE_URL</code>, <code>SPARK_SERVICE_URL</code>, …, plus <code>CA_URL</code>/<code>CA_BASE_URL</code> aliases and <code>HERALD_SERVICE_URL</code>) are <strong>not hand-editable</strong> in the wizard. In the unified platform they must all point back at the single origin, so they are derived from <code>PUBLIC_HOST</code> and <code>TLS_ENABLED</code> as <code>&lt;scheme&gt;://&lt;host&gt;/&lt;module-prefix&gt;</code> and written into their own commented block of the output file.</p>
+
+<h2 id="review">Review &amp; write</h2>
+<p>The review screen shows, before anything touches disk:</p>
+<ul>
+  <li>A <strong>feature summary</strong> — which optional subsystems the config enables (AT-Proto bridge, plugins, low-code, cortex and its moderation/vision/python/Ollama options, FileVault image/video moderation, live recording moderation, metrics, Sentry, RabbitMQ).</li>
+  <li>The <strong>worker processes this config requires</strong>: always <code>worker:timeline</code> and <code>worker:prefetch</code>; conditionally <code>worker:atproto</code>, <code>worker:cortex</code>, <code>worker:filevault-moderation</code>, <code>worker:video-moderation</code>, and <code>worker:live-recording-moderation</code> depending on the flags you enabled.</li>
+  <li>Any outstanding <strong>problems</strong> (see Validation above), with the choice to write anyway.</li>
+  <li>A <strong>Preview file</strong> option that renders the exact <code>.env</code> that would be written.</li>
+</ul>
+
+<h2 id="see-also">See also</h2>
+<ul>
+  <li><a href="viewer.html?doc=claude">CLAUDE.md</a> — full command reference and architecture pointers</li>
+  <li><a href="viewer.html?doc=runbook-secrets">Runbook: Secrets &amp; Rotation</a> — production secret sourcing and rotation</li>
+  <li><a href="viewer.html?doc=architecture">Architecture</a> — the gateway, module contract, and data isolation the config feeds</li>
+</ul>
+</main>
+<footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+</body>
+</html>

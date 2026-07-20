@@ -11,6 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useAppStore } from '@/app/store';
+import { useTimelinePrefs } from '@/app/timelinePrefs';
 import { NS } from '@/lib/realtime';
 import { namespace, connect } from '@/lib/realtime';
 import { useNamespaceStatus, type ConnState } from '@/lib/useRealtime';
@@ -19,6 +20,7 @@ import { timelineApi, type FeedResponse, type Post } from '@/api/timeline';
 import { prefetchApi } from '@/api/prefetch';
 import { Composer } from './Composer';
 import { PostCard, PostSkeleton } from './PostCard';
+import { TimelineSettingsMenu } from './TimelineSettingsMenu';
 
 const CHIP_COLOR: Record<ConnState, 'success' | 'warning' | 'default' | 'error'> = {
   connected: 'success',
@@ -59,9 +61,12 @@ export function TimelinePage() {
   // Active feed. Held in component state so toggling re-renders (the previous
   // query-cache read had no observer, so setQueryData never re-rendered and the
   // toggle was stuck on Home). Seeded from — and written back to — the query
-  // cache so the choice persists across navigation within the session.
+  // cache so the choice persists across navigation within the session; on a cold
+  // load it falls back to the user's persisted default-feed preference.
+  const defaultFeed = useTimelinePrefs((s) => s.defaultFeed);
+  const density = useTimelinePrefs((s) => s.density);
   const [kind, setKindState] = useState<FeedKind>(
-    () => (qc.getQueryData<FeedKind>(['timeline', 'feedKind']) ?? 'home') as FeedKind,
+    () => (qc.getQueryData<FeedKind>(['timeline', 'feedKind']) ?? defaultFeed) as FeedKind,
   );
   const setKind = (k: FeedKind) => {
     qc.setQueryData(['timeline', 'feedKind'], k);
@@ -178,9 +183,10 @@ export function TimelinePage() {
   if (!userId) return <Alert severity="error">Not signed in.</Alert>;
 
   const posts = query.data?.posts ?? [];
+  const feedSpacing = density === 'compact' ? 1 : 2;
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 640, mx: 'auto', pb: 6 }}>
+    <Stack spacing={feedSpacing} sx={{ maxWidth: 640, mx: 'auto', pb: 6 }}>
       <Stack direction="row" spacing={1} alignItems="center">
         <Typography variant="h5">Timeline</Typography>
         <Chip size="small" color={CHIP_COLOR[conn]} label={conn === 'connected' ? 'live' : conn} />
@@ -194,6 +200,7 @@ export function TimelinePage() {
           <ToggleButton value="home">Home</ToggleButton>
           <ToggleButton value="global">Global</ToggleButton>
         </ToggleButtonGroup>
+        <TimelineSettingsMenu />
       </Stack>
 
       <Composer onPosted={onPosted} />

@@ -320,7 +320,7 @@ router.delete('/:id/like', asyncHandler(async (req, res) => {
  */
 router.post('/:id/comments', requireWrite('/posts'), asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { content } = req.body;
+  const { content, parentId } = req.body;
 
   validateRequired({ content }, ['content']);
 
@@ -338,10 +338,24 @@ router.post('/:id/comments', requireWrite('/posts'), asyncHandler(async (req, re
     throw new AppError('You cannot interact with this user', 403, 'BLOCKED');
   }
 
+  // Threaded reply: validate the parent belongs to THIS post and is live. The
+  // stored parentId is always the direct parent — the client caps only the
+  // visual indentation, so the reply graph stays intact regardless of depth.
+  let parent = null;
+  if (parentId) {
+    parent = await Comment.findOne({
+      where: { id: parentId, postId: id, deleted: false }
+    });
+    if (!parent) {
+      throw new AppError('Parent comment not found', 404, 'NOT_FOUND');
+    }
+  }
+
   const comment = await Comment.create({
     postId: id,
     userId: req.userId,
-    content
+    content,
+    parentId: parent ? parent.id : null
   });
 
   post.commentCount += 1;
@@ -360,6 +374,18 @@ router.post('/:id/comments', requireWrite('/posts'), asyncHandler(async (req, re
     })
     .catch(() => {});
 
+  // Also notify the parent comment's author on a direct reply (skip if it's the
+  // post author — already notified above — or a self-reply).
+  if (parent && parent.userId !== post.userId && parent.userId !== req.userId) {
+    heraldService
+      .notifyInteraction('comment', parent.userId, req.userId, post, {
+        commentText: content,
+        commentId: comment.id,
+        parentCommentId: parent.id
+      })
+      .catch(() => {});
+  }
+
   res.status(201).json({
     message: 'Comment added',
     comment
@@ -374,6 +400,14 @@ router.get('/:id/comments', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { page, limit, offset } = validatePagination(req.query);
 
+  // Base ordering. Threaded views fetch the whole set and re-order/group on the
+  // client; `sort` here controls the top-level default (newest|oldest). 'top'
+  // (most replies) is derived client-side since it needs the full reply graph.
+  const sort = String(req.query.sort || 'newest').toLowerCase();
+  const order = sort === 'oldest'
+    ? [['createdAt', 'ASC']]
+    : [['createdAt', 'DESC']];
+
   // FEAT-011 R10: suppress comments from blocked/muted authors (one query).
   const suppressed = (await relationshipService.getSuppressedIds(req.userId)) || [];
   const commentWhere = { postId: id, deleted: false };
@@ -383,13 +417,14 @@ router.get('/:id/comments', asyncHandler(async (req, res) => {
 
   const comments = await Comment.findAll({
     where: commentWhere,
-    order: [['createdAt', 'DESC']],
+    order,
     limit,
     offset
   });
 
   res.json({
     comments,
+    sort,
     pagination: { page, limit, hasMore: comments.length === limit }
   });
 }));

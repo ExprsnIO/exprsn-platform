@@ -32,11 +32,13 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import { timelineApi, type Post } from '@/api/timeline';
+import { useTimelinePrefs } from '@/app/timelinePrefs';
 import { toMessage } from '@/lib/errors';
 import { ShareToChatDialog } from '@/features/messages/ShareToChatDialog';
 import { ReportDialog } from '@/features/moderation/ReportDialog';
 import { absoluteTime, initials, relativeTime, shortHandle } from './util';
 import { PostMediaGrid } from './PostMedia';
+import { RichText } from './RichText';
 
 const MAX_LEN = 4000;
 
@@ -93,6 +95,7 @@ export function PostCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [draft, setDraft] = useState(post.content);
+  const markdown = useTimelinePrefs((s) => s.markdown);
 
   const editMutation = useMutation({
     mutationFn: () => timelineApi.updatePost(post.id, draft.trim()),
@@ -150,9 +153,9 @@ export function PostCard({
             )}
           </Stack>
 
-          <Typography variant="body1" sx={{ mt: 0.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {post.content}
-          </Typography>
+          <Box sx={{ mt: 0.5 }}>
+            <RichText text={post.content} markdown={markdown} />
+          </Box>
 
           {media.length > 0 && <PostMediaGrid media={media} />}
 

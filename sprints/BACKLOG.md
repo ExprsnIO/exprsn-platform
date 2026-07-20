@@ -38,6 +38,35 @@ clobbering concurrent grooming). Full record: this session's handover.
 
 ## Features
 
+### FEAT-075 — Threaded/markdown comments + advanced comment controls + persisted timeline prefs
+- **Type:** feature · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Branch:** `worktree-feat-timeline-comments` (worktree, not yet merged)
+- **Cost/Benefit:** owner-directed (Rick, 2026-07-20) — implemented ahead of the CB gate at the owner's explicit request; record here for traceability rather than as a groomed backlog promotion.
+- **Description:** Upgrade the timeline comment experience end-to-end:
+  nested/threaded replies, GFM markdown authoring + rendering, and client-side
+  advanced sort/filter/group, plus per-user timeline "look" preferences persisted
+  locally (localStorage, mirroring `themeMode.ts`).
+- **Acceptance criteria (all met on branch):**
+  - Backend: `Comment.parentId` self-FK (migration `20260720000000`, applied to
+    live `timeline.comments`; `db:check` clean). `POST /:id/comments` accepts
+    `parentId` (validated same-post + live) and notifies the parent author;
+    `GET /:id/comments` accepts `sort=newest|oldest`.
+  - Comments render as a capped-depth thread (indent caps at depth 4, then
+    flattens) with per-node collapse/expand and inline reply composer; orphaned
+    replies (deleted/suppressed parent) promote to top level.
+  - Markdown: bodies render via `react-markdown`+`remark-gfm` (no raw HTML — safe)
+    behind a user toggle; composer has Write/Preview + a formatting toolbar.
+  - Advanced controls: sort (Newest/Oldest/Top-by-reply-count), filter (search /
+    mine / has-replies), grouping (Threaded on/off, By-time buckets).
+  - Prefs (`web/src/app/timelinePrefs.ts`): default feed, density, markdown,
+    comment sort/threaded/group — persisted to localStorage; feed-level prefs via
+    a Timeline settings gear, comment prefs via the comment toolbar.
+  - `web` build + `tsc` + eslint: 0 errors.
+- **Follow-ups (filed separately if wanted):** soft-deleted parents render as
+  `[deleted]` tombstones instead of orphan-promotion; server-side 'top' sort +
+  comment pagination for very large threads (client currently fetches up to 500);
+  optional cross-device pref sync via a backend preferences store.
+
 ### FEAT-001 — Full CalDAV/CardDAV DAV verbs for native OS account sync (parent epic)
 - **Type:** feature (epic) · **Status:** backlog · **Priority:** P3 · **Size:** XL
 - **Owner-role:** unassigned · **Blocked-by:** TASK-004 (real edge TLS — native-client DoD)

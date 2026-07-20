@@ -77,12 +77,18 @@ export interface Comment {
   postId: string;
   userId: string;
   content: string;
+  /** Direct parent comment for threaded replies; null/absent = top-level. */
+  parentId?: string | null;
   createdAt: string;
   [k: string]: unknown;
 }
 
+/** Order of the comment list returned by GET /:id/comments. */
+export type CommentSortParam = 'newest' | 'oldest';
+
 export interface CommentsResponse {
   comments: Comment[];
+  sort?: string;
   pagination?: { page?: number; limit?: number; hasMore?: boolean };
 }
 
@@ -261,15 +267,23 @@ export const timelineApi = {
     }),
 
   // ── Comments / reposts (postId-based; shared with the main timeline) ────────
-  comments: (postId: string, params?: { page?: number; limit?: number }) => {
+  comments: (
+    postId: string,
+    params?: { page?: number; limit?: number; sort?: CommentSortParam },
+  ) => {
     const sp = new URLSearchParams();
     if (params?.page != null) sp.set('page', String(params.page));
     if (params?.limit != null) sp.set('limit', String(params.limit));
+    if (params?.sort) sp.set('sort', params.sort);
     const q = sp.toString();
     return http.get<CommentsResponse>(`/timeline/api/posts/${postId}/comments${q ? `?${q}` : ''}`);
   },
-  comment: (postId: string, content: string) =>
-    http.post<{ message: string; comment: Comment }>(`/timeline/api/posts/${postId}/comments`, { content }),
+  /** Create a comment, optionally as a threaded reply to `parentId`. */
+  comment: (postId: string, content: string, parentId?: string | null) =>
+    http.post<{ message: string; comment: Comment }>(`/timeline/api/posts/${postId}/comments`, {
+      content,
+      ...(parentId ? { parentId } : {}),
+    }),
   repost: (postId: string) =>
     http.post<{ success: boolean; reposted: boolean }>(`/timeline/api/posts/${postId}/repost`),
   unrepost: (postId: string) =>

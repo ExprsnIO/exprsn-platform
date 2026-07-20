@@ -16,6 +16,15 @@ module.exports = (sequelize) => {
       type: DataTypes.UUID,
       allowNull: false
     },
+    // Self-referential parent for threaded/nested comments. NULL = top-level.
+    // Columns are camelCase by default here (no global `underscored`), so map
+    // this new column explicitly to snake_case (matches Post.groupId → group_id).
+    parentId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'parent_id',
+      references: { model: 'comments', key: 'id' }
+    },
     content: {
       type: DataTypes.TEXT,
       allowNull: false
@@ -29,7 +38,8 @@ module.exports = (sequelize) => {
     timestamps: true,
     indexes: [
       { fields: ['postId'] },
-      { fields: ['userId'] }
+      { fields: ['userId'] },
+      { name: 'comments_parent_id', fields: ['parent_id'] }
     ]
   });
 

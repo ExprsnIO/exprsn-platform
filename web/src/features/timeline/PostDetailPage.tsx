@@ -3,66 +3,37 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
-  Avatar,
   Box,
-  Button,
   CircularProgress,
   Divider,
   IconButton,
   Paper,
   Stack,
-  TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useAppStore } from '@/app/store';
+import { useTimelinePrefs } from '@/app/timelinePrefs';
 import { toMessage } from '@/lib/errors';
 import { timelineApi, type Comment, type Post } from '@/api/timeline';
 import { PostCard, PostSkeleton } from './PostCard';
-import { absoluteTime, initials, relativeTime, shortHandle } from './util';
-
-const COMMENT_MAX = 2000;
+import { CommentThread } from './comments/CommentThread';
+import { CommentComposer } from './comments/CommentComposer';
 
 function postKey(id: string) {
   return ['timeline', 'post', id] as const;
 }
-function commentsKey(id: string) {
-  return ['timeline', 'post', id, 'comments'] as const;
-}
-
-/** One comment row — avatar, author, relative time, body. */
-function CommentRow({ comment, isOwn }: { comment: Comment; isOwn: boolean }) {
-  return (
-    <Stack direction="row" spacing={1.5} sx={{ py: 1.25 }}>
-      <Avatar sx={{ bgcolor: isOwn ? 'primary.main' : 'grey.600', width: 32, height: 32, fontSize: 13 }}>
-        {initials(comment.userId)}
-      </Avatar>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Stack direction="row" spacing={1} alignItems="baseline">
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-            {isOwn ? 'You' : shortHandle(comment.userId)}
-          </Typography>
-          <Tooltip title={absoluteTime(comment.createdAt)}>
-            <Typography variant="caption" color="text.secondary" sx={{ cursor: 'default' }}>
-              · {relativeTime(comment.createdAt)}
-            </Typography>
-          </Tooltip>
-        </Stack>
-        <Typography variant="body2" sx={{ mt: 0.25, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {comment.content}
-        </Typography>
-      </Box>
-    </Stack>
-  );
+function commentsKey(id: string, sort: string) {
+  return ['timeline', 'post', id, 'comments', sort] as const;
 }
 
 /**
  * Full-content / permalink view for a single post. Fetches the post by id,
- * renders it with the shared PostCard (full body + rich media: images,
- * galleries, video, live), and shows the comment thread with an inline
- * composer. Likes and bookmarks toggle optimistically against the single-post
- * cache; new comments prepend on success and bump the post's commentCount.
+ * renders it with the shared PostCard (full body + rich media), and shows the
+ * threaded comment section (markdown, nested replies, sort/filter/group) driven
+ * by the user's persisted timeline prefs. Likes and bookmarks toggle
+ * optimistically against the single-post cache; new comments/replies patch the
+ * comment cache and bump the post's commentCount.
  */
 export function PostDetailPage() {
   const { id = '' } = useParams();
@@ -71,14 +42,22 @@ export function PostDetailPage() {
   const qc = useQueryClient();
   const [draft, setDraft] = useState('');
 
+  // The list sort is a persisted pref; 'top' is derived client-side, so the API
+  // only needs newest/oldest. Key the query by the fetch sort so switching
+  // newest⇄oldest refetches while 'top' reuses the newest fetch.
+  const commentSort = useTimelinePrefs((s) => s.commentSort);
+  const markdown = useTimelinePrefs((s) => s.markdown);
+  const fetchSort: 'newest' | 'oldest' = commentSort === 'oldest' ? 'oldest' : 'newest';
+
   const postQ = useQuery({
     queryKey: postKey(id),
     queryFn: () => timelineApi.getPost(id),
     enabled: !!id,
   });
   const commentsQ = useQuery({
-    queryKey: commentsKey(id),
-    queryFn: () => timelineApi.comments(id, { limit: 100 }),
+    queryKey: commentsKey(id, fetchSort),
+    // Fetch the whole set (capped) so the tree/threading is complete client-side.
+    queryFn: () => timelineApi.comments(id, { limit: 500, sort: fetchSort }),
     enabled: !!id,
   });
 
@@ -86,6 +65,15 @@ export function PostDetailPage() {
     qc.setQueryData<{ success: boolean; post: Post }>(postKey(id), (prev) =>
       prev?.post ? { ...prev, post: fn(prev.post) } : prev,
     );
+
+  const appendComment = (comment: Comment) => {
+    // Patch every cached sort variant so the new row shows regardless of order.
+    qc.setQueriesData<{ comments: Comment[] }>(
+      { queryKey: ['timeline', 'post', id, 'comments'] },
+      (prev) => (prev ? { ...prev, comments: [...prev.comments, comment] } : prev),
+    );
+    patchPost((p) => ({ ...p, commentCount: (p.commentCount ?? 0) + 1 }));
+  };
 
   const likeMutation = useMutation({
     mutationFn: (post: Post) => (post.liked ? timelineApi.unlike(post.id) : timelineApi.like(post.id)),
@@ -107,29 +95,31 @@ export function PostDetailPage() {
     onError: (_e, post) => patchPost((p) => ({ ...p, bookmarked: post.bookmarked })),
   });
 
+  // Top-level comment.
   const commentMutation = useMutation({
     mutationFn: () => timelineApi.comment(id, draft.trim()),
     onSuccess: (res) => {
       setDraft('');
-      if (res?.comment) {
-        qc.setQueryData<{ comments: Comment[] }>(commentsKey(id), (prev) =>
-          prev ? { ...prev, comments: [...prev.comments, res.comment] } : prev,
-        );
-      }
-      patchPost((p) => ({ ...p, commentCount: (p.commentCount ?? 0) + 1 }));
+      if (res?.comment) appendComment(res.comment);
     },
   });
+
+  // Threaded reply — awaited by CommentNode so it can show inline errors and
+  // close its composer on success.
+  const submitReply = async (parentId: string, content: string) => {
+    const res = await timelineApi.comment(id, content, parentId);
+    if (res?.comment) appendComment(res.comment);
+  };
 
   const onUpdated = (post: Post) => patchPost((p) => ({ ...p, ...post }));
   const onDeleted = () => navigate('/feed');
 
   const post = postQ.data?.post;
   const comments = commentsQ.data?.comments ?? [];
-  const commentTooLong = draft.length > COMMENT_MAX;
-  const canComment = draft.trim().length > 0 && !commentTooLong && !commentMutation.isPending;
+  const count = post?.commentCount ?? comments.length;
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 640, mx: 'auto', pb: 6 }}>
+    <Stack spacing={2} sx={{ maxWidth: 680, mx: 'auto', pb: 6 }}>
       <Stack direction="row" spacing={1} alignItems="center">
         <IconButton size="small" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowBackIcon />
@@ -153,38 +143,25 @@ export function PostDetailPage() {
 
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-              {post.commentCount ?? comments.length} {(post.commentCount ?? comments.length) === 1 ? 'comment' : 'comments'}
+              {count} {count === 1 ? 'comment' : 'comments'}
             </Typography>
 
             {userId && (
-              <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={1}
-                  maxRows={6}
-                  size="small"
-                  placeholder="Write a comment…"
+              <Box sx={{ mb: 1.5 }}>
+                <CommentComposer
                   value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canComment) commentMutation.mutate();
-                  }}
-                  error={commentTooLong}
-                  helperText={commentTooLong ? `${draft.length}/${COMMENT_MAX}` : undefined}
+                  onChange={setDraft}
+                  onSubmit={() => commentMutation.mutate()}
+                  submitting={commentMutation.isPending}
+                  markdown={markdown}
+                  error={commentMutation.isError ? toMessage(commentMutation.error) : null}
+                  placeholder="Write a comment…"
+                  submitLabel="Comment"
                 />
-                <Button variant="contained" disabled={!canComment} onClick={() => commentMutation.mutate()}>
-                  {commentMutation.isPending ? '…' : 'Reply'}
-                </Button>
-              </Stack>
-            )}
-            {commentMutation.isError && (
-              <Alert severity="error" sx={{ mb: 1 }}>
-                {toMessage(commentMutation.error)}
-              </Alert>
+              </Box>
             )}
 
-            <Divider />
+            <Divider sx={{ mb: 1 }} />
 
             {commentsQ.isLoading && (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
@@ -196,17 +173,9 @@ export function PostDetailPage() {
                 {toMessage(commentsQ.error)}
               </Alert>
             )}
-            {commentsQ.isSuccess && comments.length === 0 && (
-              <Typography color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
-                No comments yet — start the conversation.
-              </Typography>
+            {commentsQ.isSuccess && (
+              <CommentThread comments={comments} userId={userId} submitReply={submitReply} />
             )}
-
-            <Stack divider={<Divider />}>
-              {comments.map((c) => (
-                <CommentRow key={c.id} comment={c} isOwn={c.userId === userId} />
-              ))}
-            </Stack>
           </Paper>
         </>
       )}

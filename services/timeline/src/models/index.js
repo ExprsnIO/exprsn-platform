@@ -75,6 +75,17 @@ Comment.belongsTo(Post, {
   as: 'post'
 });
 
+// Comment <-> Comment (self-referential, for threaded/nested replies)
+Comment.hasMany(Comment, {
+  foreignKey: 'parentId',
+  as: 'replies'
+});
+
+Comment.belongsTo(Comment, {
+  foreignKey: 'parentId',
+  as: 'parent'
+});
+
 // Post <-> Repost (One-to-Many)
 Post.hasMany(Repost, {
   foreignKey: 'postId',

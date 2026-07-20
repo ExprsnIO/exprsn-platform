@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exprsn-Cortex — Local-LLM Agents &amp; Guardrails Engine</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<header class="site">
+  <span class="brand"><a href="index.html">Exprsn Platform Docs</a></span>
+  <nav>
+    <a href="index.html">Index</a>
+    <a href="setup-wizard.html">Setup</a>
+    <a href="exprsn-ca.html">CA</a>
+    <a href="exprsn-auth.html">Auth</a>
+    <a href="exprsn-timeline.html">Timeline</a>
+    <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="exprsn-cortex.html" class="active">Cortex</a>
+    <a href="database-model.html">DB Model</a>
+    <a href="platform-model.html">Platform Model</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="viewer.html">Guides (MD)</a>
+  </nav>
+</header>
+<main>
+<h1>Exprsn-Cortex — Local-LLM Agents &amp; Guardrails Engine</h1>
+
+<div class="meta-card">
+  <dl>
+    <dt>Gateway mount</dt><dd><code>/cortex</code></dd>
+    <dt>Postgres schema</dt><dd><code>cortex</code></dd>
+    <dt>Socket.IO namespace</dt><dd>None</dd>
+    <dt>Entry point</dt><dd><code>services/cortex/src/index.js</code></dd>
+    <dt>Background worker</dt><dd><code>npm run worker:cortex</code> → <code>services/cortex/src/worker.js</code> (Bull queue <code>cortex-tasks</code>)</dd>
+    <dt>Feature flag</dt><dd><code>CORTEX_ENABLED</code> (default <code>false</code>) — mounts inert until enabled</dd>
+    <dt>Ticket</dt><dd>FEAT-021 (module), FEAT-023/024 (in-process client, ADR&nbsp;0001)</dd>
+  </dl>
+</div>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#flag">The CORTEX_ENABLED gate</a></li>
+    <li><a href="#endpoints">API endpoints</a></li>
+    <li><a href="#models">Data models</a></li>
+    <li><a href="#jobs">Background jobs &amp; concurrency</a></li>
+    <li><a href="#integration">Integration: the in-process client &amp; moderator</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#security">Security posture</a></li>
+  </ul>
+</div>
+
+<h2 id="overview">Overview</h2>
+<p>Exprsn-Cortex is the platform's <strong>local-LLM engine</strong>: an agent tool-calling loop, a guardrail engine (deterministic rules plus an LLM judge, with a test-gated lifecycle), custom tool and skill registries, long-running agent tasks, and guarded customer-service chat/email flows with human-review escalations. All inference runs on an <strong>external OpenAI-compatible <code>llama.cpp</code> router</strong> (<code>CORTEX_LLM_BASE_URL</code>, default <code>http://127.0.0.1:8080/v1</code>) — <strong>no cloud APIs</strong>.</p>
+<p>As a platform module it exports <code>{ name, app, init }</code> — JSON API only, no views, no <code>listen()</code>. It owns the <code>cortex</code> Postgres schema, attaches no Socket.IO namespace, and pushes long-running work onto a Bull queue drained by a separate worker. It is the newest of the four post-consolidation additions and, like <code>plugins</code> and <code>lowcode</code>, ships behind its own feature flag.</p>
+<p>Cortex is also an <strong>in-process LLM source</strong> for the rest of the platform: <code>services/cortex/src/client.js</code> is the single supported façade other modules use to reach the local model (see <a href="#integration">Integration</a>).</p>
+
+<h2 id="flag">The CORTEX_ENABLED gate</h2>
+<p>The module always mounts, but is dark by default. Its behavior is governed entirely by <code>CORTEX_ENABLED</code> (default <code>false</code>):</p>
+<table>
+  <thead><tr><th>State</th><th>Behavior</th></tr></thead>
+  <tbody>
+    <tr><td><code>CORTEX_ENABLED=false</code> (default)</td><td><code>init()</code> logs <em>"Cortex module loaded INERT"</em> and returns immediately — no DB authenticate, no cache/queue init, no data-dir creation. <code>/cortex/health</code> still answers; every <code>/cortex/api/v1</code> route returns <strong>503</strong> <code>{error:'CORTEX_DISABLED'}</code> via the <code>requireEnabled</code> middleware.</td></tr>
+    <tr><td><code>CORTEX_ENABLED=true</code></td><td>Full init: DB authenticate, cache + queue setup, data directory creation. In <code>development</code>, <code>sequelize.sync({ alter: true })</code> runs. Routes enforce their per-route CA-token + admin checks.</td></tr>
+  </tbody>
+</table>
+<div class="note">The flag is also re-checked inside the in-process client façade <strong>before</strong> the lazy require of the inference engine, and it fails closed — calling the engine while cortex is dark is refused with <code>CortexDisabledError</code> (503), not silently allowed through to the router.</div>
+
+<h2 id="endpoints">API endpoints</h2>
+<p>Paths are as reached through the gateway (prefix <code>/cortex</code>). <code>/cortex/health</code> is public; everything else lives under <code>/cortex/api/v1</code>, behind <code>requireEnabled</code> (503 when the flag is off) <em>and</em> per-route auth. Auth legend: <strong>read</strong> = CA token with <code>read</code> permission; <strong>write</strong> = CA token with <code>write</code>; <strong>admin</strong> = <code>requireCortexAdmin</code> (the <code>PLATFORM_ADMIN_EMAILS</code> allowlist).</p>
+
+<h3>Health &amp; models</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/cortex/health</code></td><td>Status: <code>{status, enabled, brain, judge, router:{base,up}, cache, queue}</code> — answers even while dark</td><td>public</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/cortex/api/v1/models</code></td><td>List router models + the configured brain model (502 if router unreachable)</td><td>read</td></tr>
+  </tbody>
+</table>
+
+<h3>Agent tasks — <code>/cortex/api/v1/tasks</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/tasks</code></td><td>Create a long-running agent task, enqueue on <code>cortex-tasks</code>; returns 202 <code>{id,status}</code></td><td>write</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/tasks</code></td><td>List tasks (own; all if admin), limit 200</td><td>read</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/tasks/:id</code></td><td>Task detail (own unless admin)</td><td>read</td></tr>
+  </tbody>
+</table>
+
+<h3>Assistant chat — <code>/cortex/api/v1/chat</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/chat</code></td><td>Assistant chat turn (full tools + skills, guardrail-screened)</td><td>write</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/chat</code></td><td>List assistant sessions (own/all-if-admin), with previews</td><td>read</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/chat/:id</code></td><td>Session + messages (ownership-checked)</td><td>read</td></tr>
+  </tbody>
+</table>
+
+<h3>Guarded customer service — <code>/cortex/api/v1/cs</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method post">POST</span></td><td><code>/cs/chat</code></td><td>CS chat turn — input <em>and</em> output screened; an escalate verdict holds the reply and files a review</td><td>write</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/cs/chat</code> · <code>/cs/chat/:id</code></td><td>List / read CS chat sessions</td><td>read</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/cs/email</code></td><td>Draft a CS email reply (screened; may land in the outbox as <code>pending_review</code>)</td><td>write</td></tr>
+  </tbody>
+</table>
+
+<h3>Outbox &amp; review queue</h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/cortex/api/v1/outbox</code> · <code>/outbox/:id</code></td><td>List / read drafted CS email replies</td><td>read</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/cortex/api/v1/reviews</code></td><td>List pending human reviews</td><td>read + admin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/cortex/api/v1/reviews/:id</code></td><td>Resolve a review (<code>approve</code>/<code>reject</code> + note); 409 if already resolved</td><td>write + admin</td></tr>
+  </tbody>
+</table>
+
+<h3>Registries: guardrails, tools, skills</h3>
+<p>Guardrails, custom tools, and skills share a common registry router shape (list, LLM-<code>build</code> a spec from a description, save, get, delete, and a <code>:verb</code> action). Guardrails and tools are <strong>test-gated</strong> — enabling one requires its bundled test suite to pass; skills are not. All reads require <code>read</code>; all mutations require <code>write</code> + admin.</p>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/guardrails</code> · <code>/tools</code> · <code>/skills</code></td><td>List (brief)</td><td>read</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/…/:name</code></td><td>Get the full spec</td><td>read</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/…/build</code></td><td>LLM-build a spec from a <code>description</code>; saved disabled, tests run</td><td>write + admin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/…</code></td><td>Save a spec (enabling requires passing tests, for guardrails &amp; tools)</td><td>write + admin</td></tr>
+    <tr><td><span class="method delete">DELETE</span></td><td><code>/…/:name</code></td><td>Delete</td><td>write + admin</td></tr>
+    <tr><td><span class="method post">POST</span></td><td><code>/…/:name/:verb</code></td><td><code>test</code> · <code>enable</code> (test-gated) · <code>disable</code> · <code>run</code> (tools only)</td><td>write + admin</td></tr>
+  </tbody>
+</table>
+
+<h3>Prompt log — <code>/cortex/api/v1/prompts</code></h3>
+<table>
+  <thead><tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr></thead>
+  <tbody>
+    <tr><td><span class="method get">GET</span></td><td><code>/prompts</code></td><td>Query the prompt/response telemetry log (<code>channel</code>, <code>session</code>, <code>q</code>, <code>limit</code>, <code>offset</code>)</td><td>read + admin</td></tr>
+  </tbody>
+</table>
+
+<h2 id="models">Data models</h2>
+<p>All models are defined in <code>services/cortex/src/models/index.js</code> and persisted in the <code>cortex</code> schema (<code>underscored: true</code>). Registry entities (guardrails, skills, tools) use UUID primary keys; run artifacts (tasks, sessions, outbox, reviews) keep the engine's human-readable string ids (e.g. <code>task-…</code>, <code>rev-…</code>). The only declared association is <code>ChatSession</code>&nbsp;1:N&nbsp;<code>ChatMessage</code>; every other cross-reference (task/outbox/review ids) is a logical string reference exposed through the API, with no DB-level foreign key.</p>
+<table>
+  <thead><tr><th>Model → table</th><th>Purpose</th><th>Key columns</th></tr></thead>
+  <tbody>
+    <tr><td><code>Guardrail</code> → <code>guardrails</code></td><td>Declarative content policy with a test-gated lifecycle</td><td><code>id</code> (UUID), <code>name</code> (unique, <code>/^[\w-]{1,64}$/</code>), <code>enabled</code> (default <strong>false</strong> — drafts save disabled), <code>scope</code> JSONB (<code>input</code>/<code>output</code>/<code>tool_call</code>), <code>channels</code> JSONB, <code>action</code> (<code>warn</code>|<code>escalate</code>|<code>block</code>), <code>rules</code> JSONB (<code>regex</code>/<code>contains</code>/<code>max_length</code>/<code>llm_judge</code>), <code>tests</code> JSONB, <code>built_from</code>, <code>created_by</code></td></tr>
+    <tr><td><code>Skill</code> → <code>skills</code></td><td>Reusable instruction pack injected into system prompts</td><td><code>id</code> (UUID), <code>name</code> (unique), <code>enabled</code> (default false), <code>instructions</code> TEXT, <code>recommended_tools</code> JSONB, <code>built_from</code>, <code>created_by</code></td></tr>
+    <tr><td><code>Tool</code> → <code>tools</code></td><td>Custom tool: HTTP request template or python snippet, test-gated</td><td><code>id</code> (UUID), <code>name</code> (unique), <code>enabled</code> (default false), <code>kind</code> (<code>http</code>|<code>python</code>), <code>parameters</code> JSONB (JSON-schema), <code>code</code> (python <code>def run(args)</code>), <code>request</code> JSONB (http), <code>timeout</code> (sec, 1–120, default 10), <code>tests</code> JSONB</td></tr>
+    <tr><td><code>AgentTask</code> → <code>tasks</code></td><td>Long-running task executed by the Bull worker</td><td><code>id</code> STRING (<code>task-&lt;epoch&gt;-&lt;hex&gt;</code>), <code>goal</code> TEXT, <code>model</code>, <code>status</code> (<code>queued</code>|<code>running</code>|<code>done</code>|<code>failed</code>), <code>tools</code>/<code>skills</code> JSONB, <code>result</code>, <code>error</code>, <code>transcript</code> JSONB, <code>guardrails</code> JSONB (final verdict), <code>user_id</code>, <code>finished_at</code></td></tr>
+    <tr><td><code>ChatSession</code> → <code>chat_sessions</code></td><td>Assistant or guarded-CS conversation</td><td><code>id</code> STRING (<code>asst-…</code>/<code>chat-…</code>), <code>channel</code> (<code>assistant</code>|<code>cs</code>), <code>model</code>, <code>skills</code> JSONB (assistant only), <code>user_id</code>. <strong>hasMany</strong> <code>ChatMessage</code></td></tr>
+    <tr><td><code>ChatMessage</code> → <code>chat_messages</code></td><td>One turn in a session (created_at only)</td><td><code>id</code> (UUID), <code>session_id</code> STRING (FK), <code>role</code> (<code>user</code>|<code>assistant</code>|<code>customer</code>|<code>agent</code>), <code>content</code> TEXT, <code>status</code> (<code>sent</code>|<code>blocked_input</code>|<code>blocked_output</code>|<code>escalated_*</code>|<code>sent_after_review</code>)</td></tr>
+    <tr><td><code>OutboxEntry</code> → <code>outbox</code></td><td>Drafted CS email reply awaiting send/review</td><td><code>id</code> STRING (<code>mail-…</code>), <code>to_address</code>, <code>subject</code>, <code>body</code>, <code>status</code> (<code>sent</code>|<code>pending_review</code>|<code>blocked</code>), <code>guardrails</code> JSONB, <code>user_id</code></td></tr>
+    <tr><td><code>Review</code> → <code>reviews</code></td><td>Human-review queue for escalated content</td><td><code>id</code> STRING (<code>rev-…</code>), <code>kind</code> (<code>assistant_reply</code>|<code>cs_chat_input</code>|<code>cs_chat_reply</code>|<code>cs_email</code>), <code>session_id</code>, <code>outbox_id</code>, <code>draft</code>, <code>customer_message</code>, <code>guardrails</code> JSONB, <code>status</code> (<code>pending</code>|<code>approved</code>|<code>rejected</code>), <code>note</code>, <code>resolved_at</code>, <code>resolved_by</code></td></tr>
+    <tr><td><code>PromptLog</code> → <code>prompt_logs</code></td><td>Fire-and-forget telemetry of every LLM prompt/response</td><td><code>id</code> (UUID), <code>channel</code> (<code>assistant</code>|<code>cs_chat</code>|<code>cs_email</code>|<code>task</code>|<code>judge</code>|<code>build</code>), <code>session_id</code>, <code>model</code>, <code>prompt</code>/<code>response</code>/<code>usage</code> JSONB, <code>cached</code> BOOLEAN, <code>guardrails</code> JSONB, <code>latency_ms</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="jobs">Background jobs &amp; concurrency</h2>
+<p>Cortex splits work between the gateway process and a separate worker:</p>
+<table>
+  <thead><tr><th>Where</th><th>What runs there</th></tr></thead>
+  <tbody>
+    <tr><td><strong>In-process (gateway)</strong></td><td>All interactive flows — assistant chat, CS chat/email, guardrail/tool/skill build+test+run, the LLM judge, one-shot completions. Serialized behind an LLM concurrency semaphore in <code>src/lib/llama.js</code>: two separate pools, <code>text</code> (max <code>CORTEX_LLM_CONCURRENCY</code>, default 2) and <code>vision</code> (max <code>CORTEX_VISION_CONCURRENCY</code>, default 1), so async image work never starves interactive chat.</td></tr>
+    <tr><td><strong>Bull queue <code>cortex-tasks</code></strong> (worker)</td><td>Only long-running agent <code>runTask</code> executions (from <code>POST /tasks</code>). Run via <code>npm run worker:cortex</code>. Jobs use <code>attempts: 1</code> — an agent task is not idempotent, so it is never auto-retried. The worker drains queued jobs even if the flag is later turned off (it warns but keeps processing).</td></tr>
+  </tbody>
+</table>
+
+<h2 id="integration">Integration: the in-process client &amp; moderator</h2>
+<p><code>services/cortex/src/client.js</code> is cortex's <strong>public in-process façade</strong> — the only supported way another module reaches the local LLM. Consumers require it relatively; it is deliberately <em>not</em> part of <code>@exprsn/shared</code> (which stays a dependency-leaf, since cortex depends on shared). Its surface: <code>isEnabled</code>, <code>complete()</code>, <code>judge()</code>, <code>health()</code>, and the vision helpers <code>moderateImage()</code>/<code>describeImage()</code>/<code>moderateFrames()</code>/<code>describeFrames()</code>/<code>visionAvailable()</code>, plus the error classes <code>CortexDisabledError</code> (503) and <code>CortexUnavailableError</code> (503).</p>
+<p>Two <strong>ADR&nbsp;0001</strong> invariants keep it safe:</p>
+<ul>
+  <li>The façade binds only to cortex's <strong>inference</strong> layer (<code>engine/agent.js</code>), never its <strong>flow</strong> layer (<code>engine/jobs.js</code>). Because the cortex→moderator call (<code>moderatorScreen()</code>) lives only in <code>jobs.js</code>, a <code>moderator → cortex → moderator</code> cycle is <em>structurally impossible</em>. <code>engine/agent.js</code> pulls in no Sequelize models, no Bull, and opens no DB/Redis connection at require time.</li>
+  <li>The <code>CORTEX_ENABLED</code> gate is evaluated <strong>before</strong> the lazy require and fails closed.</li>
+</ul>
+<p>Callers own their failure policy, because the right one differs by consumer:</p>
+<table>
+  <thead><tr><th>Consumer</th><th>On LLM failure</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>moderator (<code>ai-providers/cortex.js</code>)</td><td><strong>fail CLOSED</strong> — throw, so the provider factory falls back to a cloud provider</td><td>the provider <em>is</em> the verdict; a synthetic "safe" score would ship unmoderated content</td></tr>
+    <tr><td>lowcode (<code>cortex</code> flow action, AI fields)</td><td><strong>fail SOFT</strong> — record <code>{ error }</code> / keep the prior value</td><td>an LLM hiccup must not block a record write</td></tr>
+    <tr><td>filevault worker (image/video moderation)</td><td>governed by <code>FILEVAULT_IMAGE_MODERATION</code> — escalate-only</td><td>calls the façade directly, bypassing the provider factory; a wrong verdict can only add a review item</td></tr>
+  </tbody>
+</table>
+<p><strong>Cortex ↔ moderator (the flow layer).</strong> With <code>CORTEX_MODERATE=true</code>, cortex additionally screens chat/CS content through <code>POST /moderator/api/moderate/content</code> (service-HMAC headers, <strong>fail-open</strong>). The strongest verdict wins (<code>pass</code>&lt;<code>warn</code>&lt;<code>escalate</code>&lt;<code>block</code>). A request tagged <code>sourceService:'cortex'</code> never selects the cortex provider (loop guard). Note this is separate from moderator's own <code>CORTEX_MODERATION_MODE</code> (governs whether moderator uses cortex to score <em>text</em>) and from <code>FILEVAULT_IMAGE_MODERATION</code> (governs <em>image</em> verdicts) — neither of those keys is read inside <code>services/cortex/</code>.</p>
+
+<h2 id="config">Configuration</h2>
+<p>All cortex config is parsed in the platform's <code>src/config/index.js</code> (the module's <code>src/config.js</code> is a thin re-export, so the gateway and the worker read identical values). The master flag lives under <code>features</code>; everything else under <code>cortex</code>.</p>
+<table>
+  <thead><tr><th>Group</th><th>Variables (default)</th></tr></thead>
+  <tbody>
+    <tr><td>Master flag</td><td><code>CORTEX_ENABLED</code> (<code>false</code>)</td></tr>
+    <tr><td>Router &amp; models</td><td><code>CORTEX_LLM_BASE_URL</code> (<code>http://127.0.0.1:8080/v1</code>), <code>CORTEX_BRAIN_MODEL</code> (<code>qwen3-30b-a3b</code>), <code>CORTEX_JUDGE_MODEL</code> (falls back to brain), <code>CORTEX_DATA_DIR</code> (<code>&lt;repo&gt;/data/cortex</code>)</td></tr>
+    <tr><td>Concurrency</td><td><code>CORTEX_LLM_CONCURRENCY</code> (2, text pool), <code>CORTEX_TASK_CONCURRENCY</code> (1, worker), <code>CORTEX_VISION_CONCURRENCY</code> (1, vision pool)</td></tr>
+    <tr><td>Vision</td><td><code>CORTEX_VISION_MODEL</code> (unset = vision off), <code>CORTEX_VISION_TIMEOUT_MS</code> (120000), <code>CORTEX_VISION_MAX_EDGE</code> (1024), <code>CORTEX_VISION_MAX_PIXELS</code> (50000000), <code>CORTEX_VISION_MAX_FRAMES</code> (3)</td></tr>
+    <tr><td>Moderation layering</td><td><code>CORTEX_MODERATE</code> (<code>false</code>) — enables the fail-open <code>moderatorScreen()</code> layer on chat/CS flows</td></tr>
+    <tr><td>Caching</td><td><code>CORTEX_CACHE_TTL</code> (3600s, completion cache)</td></tr>
+    <tr><td>Python tool sandbox</td><td><code>CORTEX_PYTHON_TOOLS_ENABLED</code> (<code>false</code>), <code>CORTEX_PYTHON_BIN</code> (<code>python3</code>), <code>CORTEX_PYTHON_CPU_SECONDS</code> (10), <code>CORTEX_PYTHON_MEMORY_MB</code> (512), <code>CORTEX_PYTHON_FSIZE_MB</code> (64), <code>CORTEX_PYTHON_WALL_MAX_SECONDS</code> (120), <code>CORTEX_PYTHON_READ_PATHS</code></td></tr>
+    <tr><td>HTTP tool guard</td><td><code>CORTEX_TOOL_ALLOW_PRIVATE_HOSTS</code> (<code>false</code>) — SSRF guard for HTTP tool targets</td></tr>
+    <tr><td>Secondary backend (Ollama, FEAT-072)</td><td><code>CORTEX_OLLAMA_ENABLED</code> (<code>false</code>), <code>CORTEX_OLLAMA_BASE_URL</code> (<code>http://127.0.0.1:11434</code>), <code>CORTEX_OLLAMA_ROLES</code> (<code>vision</code>), <code>CORTEX_OLLAMA_VISION_MODEL</code>/<code>_BRAIN_MODEL</code>/<code>_JUDGE_MODEL</code>, <code>CORTEX_OLLAMA_TIMEOUT_MS</code> (300000), <code>CORTEX_OLLAMA_AUTO_PULL</code> (<code>false</code>) — queue-only, never for interactive text</td></tr>
+    <tr><td>Circuit breaker</td><td><code>CORTEX_BREAKER_FAILURES</code> (3), <code>CORTEX_BREAKER_WINDOW_MS</code> (120000), <code>CORTEX_BREAKER_COOLDOWN_MS</code> (300000), <code>CORTEX_BREAKER_COOLDOWN_MAX_MS</code> (1800000), <code>CORTEX_PRIMARY_ATTEMPT_TIMEOUT_MS</code> (8000)</td></tr>
+    <tr><td>Shared platform</td><td><code>PLATFORM_ADMIN_EMAILS</code> (admin allowlist), <code>SERVICE_ID</code> + <code>SERVICE_TOKEN_SECRET</code> (HMAC for the moderator call), <code>CORS_ORIGIN</code>, Redis + base-URL config</td></tr>
+  </tbody>
+</table>
+
+<h2 id="security">Security posture</h2>
+<p>Every <code>/cortex/api/v1</code> route requires a valid CA bearer token; registry mutations (guardrails, tools, skills), the review queue, and the prompt log are additionally platform-admin gated. The two highest-risk surfaces are separately flag-gated and off by default:</p>
+<ul>
+  <li><strong>Python custom-tool execution</strong> (<code>CORTEX_PYTHON_TOOLS_ENABLED</code>) — arbitrary code execution; runs under CPU/memory/file-size/wall-clock limits and a restricted read-path seatbelt profile, but needs real sandboxing before production use.</li>
+  <li><strong>Private-network HTTP tool targets</strong> (<code>CORTEX_TOOL_ALLOW_PRIVATE_HOSTS</code>) — an SSRF guard; private hosts are refused unless explicitly allowed.</li>
+</ul>
+<p>Inference is local-only (no cloud APIs leave the host), guardrails are enforced on both input and output paths, and the moderator layering call is fail-open so an LLM outage degrades to the local guardrail verdict rather than blocking traffic. The platform-wide fail-closed dev auth bypass (<code>DEV_BYPASS</code>) applies here as elsewhere and must never be weakened.</p>
+
+<h2 id="integration-files">Key files</h2>
+<table>
+  <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>services/cortex/src/index.js</code></td><td>Module entry — mount, health, the <code>requireEnabled</code> gate, route wiring, <code>init()</code></td></tr>
+    <tr><td><code>services/cortex/src/client.js</code></td><td>Public in-process façade (ADR 0001) — the only supported cross-module entry</td></tr>
+    <tr><td><code>services/cortex/src/models/index.js</code></td><td>All nine Sequelize models (see above)</td></tr>
+    <tr><td><code>services/cortex/src/engine/agent.js</code> · <code>engine/jobs.js</code></td><td>Inference layer (agent loop) vs. flow layer (chat/CS/task orchestration + <code>moderatorScreen</code>)</td></tr>
+    <tr><td><code>services/cortex/src/lib/llama.js</code></td><td>llama.cpp router client + the text/vision concurrency semaphores</td></tr>
+    <tr><td><code>services/cortex/src/worker.js</code> · <code>src/queues/index.js</code></td><td>Bull worker and the <code>cortex-tasks</code> queue</td></tr>
+  </tbody>
+</table>
+</main>
+<footer class="site">Exprsn Platform documentation — generated July 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+</body>
+</html>

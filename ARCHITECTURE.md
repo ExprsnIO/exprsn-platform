@@ -18,7 +18,15 @@ The original services now run **in-process as domain modules** behind a gateway.
 | prefetch | `/prefetch` | `prefetch` | — | exprsn-prefetch (cache) |
 | moderator | `/moderator` | `moderator` | `/moderation`, `/notifications` | exprsn-moderator |
 | live | `/live` | `live` | `/live` | exprsn-live (streaming) |
+| atproto | `/atproto` | `atproto` | — | AT-Protocol bridge (Bluesky firehose ingest → moderator, labeler, `did:exprsn`) |
+| plugins | `/plugins` | `plugins` | — | Plugin/extension framework (manifest hook bus; flag-gated `PLUGINS_ENABLED`) |
+| lowcode | `/lowcode` | `lowcode` | — | Low-code framework (typed entities/forms/flows; flag-gated `LOWCODE_ENABLED`) |
 | cortex | `/cortex` | `cortex` | — | MacOS LLM agents engine (local-LLM agents/guardrails; flag-gated `CORTEX_ENABLED`) |
+
+The intro's "ten formerly-standalone microservices" is the historical consolidation
+count; **atproto, plugins, lowcode, and cortex are later platform additions**, each
+flag-gated where noted. The canonical, always-current list is
+`src/modules/registry.js`.
 
 ### Cortex module (FEAT-021)
 

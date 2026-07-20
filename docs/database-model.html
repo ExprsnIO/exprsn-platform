@@ -16,6 +16,7 @@
     <a href="exprsn-auth.html">Auth</a>
     <a href="exprsn-timeline.html">Timeline</a>
     <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="exprsn-cortex.html">Cortex</a>
     <a href="database-model.html" class="active">DB Model</a>
     <a href="platform-model.html">Platform Model</a>
     <a href="glossary.html">Glossary</a>
@@ -28,9 +29,9 @@
 <div class="meta-card">
   <dl>
     <dt>Database</dt><dd>One PostgreSQL database: <code>exprsn</code></dd>
-    <dt>Isolation</dt><dd>One schema per module (Sequelize <code>define.schema</code>): <code>ca</code>, <code>auth</code>, <code>timeline</code>, <code>prefetch</code> (plus <code>spark</code>, <code>nexus</code>, <code>filevault</code>, <code>vault</code>, <code>moderator</code>, <code>live</code>)</dd>
-    <dt>Keys</dt><dd>UUID primary keys throughout; Sequelize-managed <code>createdAt</code>/<code>updatedAt</code> timestamps</dd>
-    <dt>Migrations</dt><dd>Per-module, orchestrated by <code>scripts/migrate-modules.js</code> with <code>DB_SCHEMA</code>/<code>DB_NAME</code> injected via env</dd>
+    <dt>Isolation</dt><dd>One schema per module (Sequelize <code>define.schema</code>), one for each of the 14 modules in <code>src/modules/registry.js</code>: <code>ca</code>, <code>auth</code>, <code>spark</code>, <code>nexus</code>, <code>filevault</code>, <code>vault</code>, <code>timeline</code>, <code>prefetch</code>, <code>moderator</code>, <code>live</code>, <code>atproto</code>, <code>plugins</code>, <code>lowcode</code>, <code>cortex</code></dd>
+    <dt>Keys</dt><dd>UUID primary keys throughout (a few tables use a natural string PK — e.g. <code>*_config.section</code>, <code>ca.acme_nonces.nonce</code>, <code>atproto.labels.seq</code>); Sequelize-managed <code>createdAt</code>/<code>updatedAt</code> timestamps. Several tables use epoch-ms <code>BIGINT</code> instants rather than <code>DATE</code></dd>
+    <dt>Migrations</dt><dd>Default path <code>db:migrate</code> (<code>scripts/migrate-sync.js</code>) syncs each module's models into its schema; <code>db:migrate:raw</code> (<code>scripts/migrate-modules.js</code>) replays historical migration files with <code>DB_SCHEMA</code>/<code>DB_NAME</code> injected via env. Audit drift with <code>db:check</code></dd>
   </dl>
 </div>
 
@@ -39,10 +40,20 @@
   <ul>
     <li><a href="#principles">Modeling principles</a></li>
     <li><a href="#overview">Schema overview diagram</a></li>
-    <li><a href="#ca">Schema: ca</a></li>
-    <li><a href="#auth">Schema: auth</a></li>
-    <li><a href="#timeline">Schema: timeline</a></li>
-    <li><a href="#prefetch">Schema: prefetch</a></li>
+    <li><a href="#ca">Schema: ca</a> — trust / tokens / RBAC</li>
+    <li><a href="#auth">Schema: auth</a> — identity / OAuth2 / orgs</li>
+    <li><a href="#spark">Schema: spark</a> — messaging</li>
+    <li><a href="#nexus">Schema: nexus</a> — groups / events</li>
+    <li><a href="#filevault">Schema: filevault</a> — files</li>
+    <li><a href="#vault">Schema: vault</a> — secrets</li>
+    <li><a href="#timeline">Schema: timeline</a> — feed</li>
+    <li><a href="#prefetch">Schema: prefetch</a> — cache (Redis)</li>
+    <li><a href="#moderator">Schema: moderator</a> — moderation / notifications</li>
+    <li><a href="#live">Schema: live</a> — streaming / rooms</li>
+    <li><a href="#atproto">Schema: atproto</a> — Bluesky bridge / labeler</li>
+    <li><a href="#plugins">Schema: plugins</a> — extension framework</li>
+    <li><a href="#lowcode">Schema: lowcode</a> — low-code runtime</li>
+    <li><a href="#cortex">Schema: cortex</a> — local-LLM engine</li>
     <li><a href="#cross">Cross-schema references</a></li>
   </ul>
 </div>
@@ -123,6 +134,7 @@
   <path class="edge" d="M 845 340 C 845 372, 700 372, 660 342"/>
   <text x="770" y="368" text-anchor="middle" class="lbl">prefetch caches timeline feeds</text>
 </svg>
+<p class="note">The diagram highlights four representative core schemas. The platform has <strong>one schema per module for all 14 modules</strong>; every schema is documented in full below. See the <a href="platform-model.html">platform model</a> for the module-topology and dependency diagrams.</p>
 
 <h2 id="ca">Schema: <code>ca</code></h2>
 <p>Tables backing the <a href="exprsn-ca.html">CA service</a>. Intra-schema FKs are real; <code>issuerId</code> is a self-reference on <code>certificates</code>.</p>
@@ -158,7 +170,77 @@
     <tr><td><code>applications</code></td><td><code>id</code>, <code>clientId</code>/<code>clientSecret</code>, <code>clientType</code>, redirect/post-logout URIs, web origins, grant/response types, scopes, token lifetimes (access/refresh/ID), <code>requirePkce</code>, <code>requireConsent</code>, <code>isTrusted</code>/<code>isFirstParty</code>, <code>allowedPermissions</code>, <code>serviceAccess</code>, <code>accessControl</code>, branding URLs, <code>rateLimit</code></td><td><code>organizationId</code> → organizations; <code>ownerId</code> → users; richer OIDC app registry alongside <code>oauth2_clients</code></td></tr>
     <tr><td><code>sessions</code></td><td><code>id</code>, <code>sessionId</code> (unique), <code>ipAddress</code>, <code>userAgent</code>, <code>expiresAt</code>, <code>lastActivityAt</code>, <code>data</code>, <code>active</code></td><td><code>userId</code> → users; live session state also mirrored in Redis</td></tr>
     <tr><td><code>ldap_configs</code></td><td><code>id</code>, <code>organizationId</code>, <code>host</code>/<code>port</code>/<code>useSSL</code>/<code>useTLS</code>, <code>bindDN</code>/<code>bindPassword</code>, base DNs, search filters/object classes, <code>attributeMapping</code>/<code>groupMapping</code>, sync settings (<code>syncEnabled</code>, <code>syncInterval</code>, <code>lastSyncAt</code>/<code>lastSyncStatus</code>/<code>lastSyncError</code>), <code>autoCreateUsers</code>, <code>defaultUserRole</code></td><td><code>organizationId</code> → organizations</td></tr>
-    <tr><td><code>user_groups</code> / <code>user_roles</code> / <code>group_roles</code></td><td>Join tables</td><td>users↔groups, users↔roles, groups↔roles</td></tr>
+    <tr><td><code>user_groups</code> / <code>user_roles</code> / <code>auth_group_roles</code></td><td>Join tables (surrogate <code>id</code> PKs, scoped assignments with optional expiry)</td><td>users↔groups, users↔roles, groups↔roles</td></tr>
+    <tr><td><code>provisioning_runs</code></td><td><code>id</code>, <code>idempotencyKey</code>, <code>kind</code> (org|member), <code>userId</code>, <code>organizationId</code>, <code>status</code> (in_progress|completed|failed|compensation_failed), <code>cursor</code> (last completed step), <code>ids</code> JSONB (compensation ledger), <code>error</code> JSONB</td><td>Org-provisioning saga idempotency + compensation ledger (FEAT-032 / ADR-0003); partial-unique on idempotency key. No FK — the engine's sole model</td></tr>
+    <tr><td><code>invitations</code></td><td><code>id</code>, <code>tokenHash</code> (sha256; raw token emailed once), <code>email</code>, <code>kind</code> (invite|activation), <code>status</code>, <code>organizationId</code>, <code>role</code>, <code>invitedBy</code>, <code>userId</code>, <code>expiresAt</code> (epoch-ms)</td><td>Single-use invite / activation tokens (FEAT-034); org/role context by bare UUID (no FK)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="spark">Schema: <code>spark</code></h2>
+<p>Tables backing the Spark messaging module. E2EE conversations, messages, reactions, and per-recipient key wrapping. All <code>userId</code>/<code>senderId</code>-type columns are logical references to auth users; <code>encryption_keys.userId</code> is the platform's <em>one</em> explicitly-declared cross-schema FK to <code>auth.users</code>.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>conversations</code></td><td><code>id</code>, <code>type</code> (direct|group), <code>name</code>, <code>createdBy</code>, <code>groupId</code> (logical → nexus group), <code>channelKind</code> (chat|announcement), <code>lastMessageAt</code>, <code>settings</code>/<code>metadata</code> JSON, <code>active</code></td><td>1:N messages, participants. Also backs auto-provisioned nexus group channels</td></tr>
+    <tr><td><code>messages</code></td><td><code>id</code>, <code>conversationId</code>, <code>senderId</code>, <code>content</code> (null when encrypted), <code>contentType</code> (text|image|video|file|audio), <code>encrypted</code> + <code>encryptedContent</code> + <code>senderKeyFingerprint</code>, <code>parentMessageId</code> (threads), <code>attachments</code>/<code>mentions</code>/<code>readBy</code>/<code>deliveredTo</code> JSON, <code>edited</code>, <code>deleted</code>, <code>isPinned</code>, <code>threadId</code>/<code>replyCount</code></td><td>→ conversations; self-ref threads; 1:N reactions, message_keys, attachments; 1:1 message_moderation. Validation hook enforces the encrypted-vs-plaintext contract</td></tr>
+    <tr><td><code>participants</code></td><td><code>id</code>, <code>conversationId</code>, <code>userId</code>, <code>role</code> (owner|admin|member), <code>lastReadMessageId</code>/<code>lastReadAt</code>, <code>muted</code>/<code>mutedUntil</code>, <code>joinedAt</code>/<code>leftAt</code>, <code>active</code></td><td>→ conversations; unique (conversationId, userId)</td></tr>
+    <tr><td><code>reactions</code></td><td><code>id</code>, <code>messageId</code>, <code>userId</code>, <code>emoji</code></td><td>→ messages; unique (messageId, userId, emoji)</td></tr>
+    <tr><td><code>attachments</code></td><td><code>id</code>, <code>messageId</code>, <code>fileName</code>/<code>originalName</code>/<code>mimeType</code>/<code>fileSize</code>/<code>fileUrl</code>, <code>thumbnailUrl</code>, <code>duration</code>, <code>dimensions</code>, <code>encrypted</code>, <code>status</code></td><td>→ messages (spark-local model, distinct from the shared factory)</td></tr>
+    <tr><td><code>encryption_keys</code></td><td><code>id</code>, <code>userId</code>, <code>deviceId</code>, <code>publicKey</code> (PEM), <code>encryptedPrivateKey</code> (AES-256-GCM), <code>salt</code>, <code>keyFingerprint</code> (unique SHA-256), <code>keyType</code> (rsa-4096), <code>active</code>, <code>expiresAt</code></td><td>Per-user/per-device E2EE key pairs. <strong>Explicit cross-schema FK <code>userId</code> → <code>auth.users</code></strong>; beforeFind hook hides expired keys</td></tr>
+    <tr><td><code>message_keys</code></td><td><code>id</code>, <code>messageId</code>, <code>recipientId</code>, <code>encryptedMessageKey</code> (AES key wrapped w/ recipient RSA pubkey)</td><td>→ messages; unique (messageId, recipientId); createdAt only. Per-recipient E2EE fan-out</td></tr>
+    <tr><td><code>message_moderation</code></td><td><code>id</code>, <code>messageId</code> (unique), <code>conversationId</code>, <code>status</code> (pending|approved|rejected|skipped|failed), <code>reason</code>, <code>action</code>, <code>riskScore</code>, <code>verdict</code> JSONB, <code>moderationItemId</code> (→ moderator), <code>contentHash</code>, <code>attempts</code></td><td>1:1 side table (FEAT-009 / ADR 0004); CASCADE FK to messages. Spark policy is <strong>report-only / fail-open</strong></td></tr>
+  </tbody>
+</table>
+
+<h2 id="nexus">Schema: <code>nexus</code></h2>
+<p>Tables backing the Nexus groups/events module. Note nexus uses <code>timestamps:false</code> with manual <strong>BIGINT epoch-ms</strong> <code>created_at</code>/<code>updated_at</code> columns (not Sequelize-managed dates), and <code>underscored</code> snake_case columns. <code>creatorId</code>/<code>userId</code>-type columns are logical references to auth users.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>groups</code></td><td><code>id</code>, <code>name</code>, <code>slug</code> (unique), <code>creatorId</code>, <code>visibility</code> (public|private|unlisted), <code>joinMode</code> (open|request|invite), <code>governanceModel</code> (centralized|decentralized|dao|consensus) + <code>governanceRules</code>, <code>category</code> (→ group_categories.slug), <code>tags[]</code>, geo (<code>latitude</code>/<code>longitude</code>), counters, <code>isFeatured</code>/<code>isVerified</code>/<code>isActive</code>, <code>deletedAt</code> (soft delete)</td><td>Hub entity — 1:N memberships, roles, join_requests, invites, events, proposals, recommendations, content_flags, moderation_cases, subgroups; 1:1 trending_stats</td></tr>
+    <tr><td><code>group_memberships</code></td><td><code>id</code>, <code>userId</code>, <code>groupId</code>, <code>role</code> (owner/admin/moderator/member), <code>customRoleId</code>, <code>status</code> (active|suspended|banned|left), <code>signature</code> (crypto sig), suspension fields</td><td>→ groups (CASCADE); unique (userId, groupId); M:N roles via member_roles</td></tr>
+    <tr><td><code>group_roles</code> / <code>member_roles</code></td><td>Custom per-group roles (permission flags, <code>position</code>, <code>isSystem</code>) and the M:N junction assigning multiple roles to a membership (with <code>expiresAt</code>)</td><td>→ groups / group_memberships (CASCADE)</td></tr>
+    <tr><td><code>join_requests</code> / <code>group_invites</code></td><td>Requests to join request-gated groups (status, reviewer) and direct/shareable invites (<code>inviteCode</code>, <code>maxUses</code>/<code>useCount</code>)</td><td>→ groups (CASCADE)</td></tr>
+    <tr><td><code>events</code> / <code>event_attendees</code></td><td>Group events (<code>eventType</code> in-person|virtual|hybrid, <code>liveStreamId</code> → exprsn-live, start/end epoch-ms, RSVP/visibility) and RSVP + check-in records</td><td>events → groups (CASCADE); attendees → events; unique (eventId, userId)</td></tr>
+    <tr><td><code>proposals</code> / <code>proposal_votes</code></td><td>Governance proposals (<code>votingMethod</code>, quorum, yes/no/abstain counts, <code>actionData</code>) and individual weighted votes (<code>signature</code>)</td><td>→ groups / proposals (CASCADE); unique (proposalId, userId). DAO/consensus governance</td></tr>
+    <tr><td><code>group_categories</code></td><td><code>id</code>, <code>name</code>/<code>slug</code> (unique), <code>parentId</code> (self-ref hierarchy), <code>icon</code>/<code>color</code>, <code>groupCount</code></td><td>Standard hierarchical categories; joined to groups via <code>slug</code></td></tr>
+    <tr><td><code>group_trending_stats</code></td><td>1:1 rollup of member growth (24h/7d/30d), activity, engagement, <code>trendingScore</code>/<code>trendingRank</code>, quality/moderation scores</td><td>→ groups (CASCADE); unique (groupId). Powers discovery/trending</td></tr>
+    <tr><td><code>group_recommendations</code></td><td>Per-user personalized recs: component scores (category/tags/similar/trending/social/activity), <code>reasons[]</code>, interaction funnel (<code>wasShown</code>/<code>wasClicked</code>/<code>wasJoined</code>/<code>wasDismissed</code>)</td><td>→ groups (CASCADE); unique (userId, groupId)</td></tr>
+    <tr><td><code>group_content_flags</code> / <code>group_moderation_cases</code></td><td>User reports of in-group content (polymorphic <code>contentType</code>/<code>contentId</code>, reason, priority) and aggregated moderation cases (<code>moderatorServiceCaseId</code> → Moderator, evidence/actions/workflow JSONB)</td><td>→ groups (CASCADE); cross-service refs to the moderator schema</td></tr>
+    <tr><td><code>subgroups</code> / <code>subgroup_memberships</code></td><td>Channels / sub-communities nested under a parent group (<code>type</code> channel|subgroup, <code>inheritPermissions</code>, <code>allowedRoles[]</code>) and explicit subgroup membership</td><td>→ groups (parentGroup, CASCADE); unique (parentGroupId, slug) / (subgroupId, userId)</td></tr>
+    <tr><td><code>admin_audit</code></td><td><code>id</code>, <code>actorUserId</code>, <code>action</code> (dotted), <code>targetType</code>/<code>targetId</code> (string), <code>groupId</code>, <code>metadata</code>, <code>createdAt</code> (epoch-ms)</td><td>Append-only audit of privileged nexus admin actions (no associations)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="filevault">Schema: <code>filevault</code></h2>
+<p>Tables backing the FileVault module. Content-addressed storage with versioning, dedup (reference-counted blobs), sharing, quotas, and per-file image moderation. File <em>bytes</em> live in the storage backend (S3/disk/IPFS), never in Postgres. <code>user_id</code>/<code>group_id</code>/<code>token_id</code> are logical references to auth/nexus/CA-token services.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>files</code></td><td><code>id</code>, <code>user_id</code>, <code>owner_type</code> (user|group) + <code>group_id</code>, <code>directory_id</code>, <code>name</code>/<code>path</code>/<code>size</code>/<code>mimetype</code>, <code>content_hash</code> (SHA-256), <code>storage_backend</code> (disk|s3|ipfs) + <code>storage_key</code>, <code>current_version</code>, <code>tags[]</code>, <code>visibility</code> (private|shared|public), <code>is_deleted</code></td><td>belongsTo directories; 1:N versions, share_links (CASCADE); 1:1 moderation</td></tr>
+    <tr><td><code>file_blobs</code></td><td><code>id</code>, <code>checksum</code> (unique SHA-256), <code>size</code>, <code>storage_backend</code>+<code>storage_key</code>, <code>ref_count</code></td><td>Content-addressed physical blob with reference counting for dedup</td></tr>
+    <tr><td><code>file_versions</code></td><td><code>id</code>, <code>file_id</code>, <code>version</code>, <code>user_id</code>, <code>size</code>, <code>content_hash</code>, <code>storage_backend</code>+<code>storage_key</code>, <code>change_description</code></td><td>→ files (CASCADE); unique (file_id, version). Immutable prior versions</td></tr>
+    <tr><td><code>directories</code></td><td><code>id</code>, <code>user_id</code>, <code>owner_type</code>+<code>group_id</code>, <code>parent_id</code> (self-ref; null = root), <code>name</code>/<code>path</code> (unique), <code>is_deleted</code></td><td>Self-referential folder tree; 1:N files, subdirectories</td></tr>
+    <tr><td><code>share_links</code></td><td><code>id</code>, <code>file_id</code>, <code>user_id</code>, <code>token_id</code> (CA token), <code>share_type</code> (link|direct), <code>permissions</code> JSONB, <code>expires_at</code>, <code>max_uses</code>/<code>use_count</code>, <code>is_revoked</code></td><td>→ files (CASCADE); access gated by a CA token</td></tr>
+    <tr><td><code>downloads</code> / <code>thumbnails</code></td><td>Download-event audit (<code>ip_address</code>, <code>user_agent</code>, timestamps only) and cached thumbnail variants (<code>size</code> small|medium|large, <code>width</code>/<code>height</code>)</td><td>→ files (CASCADE); thumbnails unique (file_id, size)</td></tr>
+    <tr><td><code>storage_quotas</code></td><td><code>id</code>, <code>user_id</code> (unique), <code>used_bytes</code>, <code>quota_bytes</code> (default 10 GB)</td><td>One row per user; usage/limit tracking</td></tr>
+    <tr><td><code>file_moderation</code></td><td><code>id</code>, <code>file_id</code> (unique), <code>status</code> (pending|approved|rejected|failed|skipped), <code>reason</code>, <code>risk_score</code>, <code>verdict</code> JSONB, <code>alt_text</code>/<code>ai_tags[]</code>/<code>text_in_image</code>, <code>moderation_item_id</code> (→ moderator), <code>provider</code>/<code>model</code>, <code>attempts</code></td><td>1:1 side table (FEAT-031); CASCADE FK to files. Drives serve-path visibility (image moderation, <strong>fail-closed</strong> on <code>enforce</code>)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="vault">Schema: <code>vault</code></h2>
+<p>Tables backing the Vault secrets module. Encrypted secrets at hierarchical paths, wrapped data-encryption keys, dynamic-secret leases, bearer access tokens with policies, group secret ACLs, and an immutable audit trail. <code>created_by</code>/<code>actor</code>/<code>entity_id</code>/<code>group_id</code>/<code>token_id</code> are logical references to auth/nexus/CA-token services.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>secrets</code></td><td><code>id</code>, <code>path</code> (unique where not soft-deleted), <code>key</code>, <code>encrypted_value</code> (AES-256-GCM) + <code>iv</code> + <code>auth_tag</code>, <code>encryption_key_id</code>, <code>version</code>, <code>rotation_policy</code>, <code>expires_at</code>, <code>created_by</code>, <code>status</code></td><td>belongsTo encryption_keys; hasMany group_access, audit_logs (polymorphic). <code>paranoid</code> soft delete</td></tr>
+    <tr><td><code>encryption_keys</code></td><td><code>id</code>, <code>name</code> (unique), <code>algorithm</code> (default AES-256-GCM), <code>encrypted_key</code> (master-key-wrapped DEK), <code>key_derivation</code>, <code>purpose</code>, <code>rotation_schedule</code>, <code>status</code> (active|rotating|deprecated|revoked)</td><td>1:N secrets, leases. Data-encryption keys wrapped by the master key. <code>paranoid</code></td></tr>
+    <tr><td><code>leases</code></td><td><code>id</code>, <code>lease_id</code> (unique), <code>secret_type</code> (database|api_key|ssh_key|tls_cert), <code>secret_path</code>, <code>credential_data</code> JSONB (encrypted), <code>encryption_key_id</code>, <code>ttl</code>/<code>max_ttl</code>, <code>renewable</code>/<code>renew_count</code>, <code>expires_at</code>, <code>status</code></td><td>belongsTo encryption_keys. Time-bound dynamic-secret credential leases</td></tr>
+    <tr><td><code>vault_tokens</code></td><td><code>id</code>, <code>token_id</code> (unique) + <code>token_hash</code>, <code>entity_type</code> (user|group|organization|service|certificate) + <code>entity_id</code>, <code>permissions</code> JSONB, <code>path_prefixes[]</code>/<code>ip_whitelist[]</code>, <code>expires_at</code>/<code>max_uses</code>/<code>usage_count</code>, <code>status</code>, <code>ca_token_id</code>/<code>auth_session_id</code>, <code>risk_score</code></td><td>1:N token_bindings. Bearer access tokens (prefix <code>vt_</code>)</td></tr>
+    <tr><td><code>token_bindings</code> / <code>access_policies</code></td><td>Binds a vault token to a policy or a direct permission override; policies are reusable JSONLex rule sets (<code>policy_type</code>, <code>rules</code>, <code>priority</code>, <code>enforcement_mode</code> enforcing|permissive|audit)</td><td>bindings → vault_tokens (CASCADE) + access_policies (SET NULL)</td></tr>
+    <tr><td><code>secret_group_access</code></td><td><code>id</code>, <code>secret_id</code>, <code>group_id</code> (→ nexus), <code>permission</code> (read|write|manage), <code>granted_by</code>, <code>expires_at</code></td><td>→ secrets; unique (secret_id, group_id). Group secret ACL grants (Phase 6 shared secrets)</td></tr>
+    <tr><td><code>audit_logs</code></td><td><code>id</code>, <code>action</code>, <code>resource_type</code> (secret|key|lease|credential) + <code>resource_id</code> (polymorphic), <code>resource_path</code>, <code>actor</code>/<code>actor_ip</code>, <code>token_id</code>, <code>success</code>, <code>duration</code>, <code>request_id</code>, <code>timestamp</code></td><td>Immutable (<code>timestamps:false</code>); polymorphic, no DB FK</td></tr>
+    <tr><td><code>vault_config</code></td><td><code>section</code> (<strong>string PK</strong>), <code>data</code> JSONB</td><td>Persisted admin config, one row per section (TASK-039)</td></tr>
   </tbody>
 </table>
 
@@ -176,9 +258,13 @@
     <tr><td><code>lists</code></td><td><code>id</code>, <code>userId</code> (owner), <code>name</code>, <code>description</code>, <code>visibility</code>, <code>memberCount</code>, <code>deleted</code></td><td>1:N <code>list_members</code></td></tr>
     <tr><td><code>list_members</code></td><td><code>id</code>, <code>listId</code>, <code>userId</code></td><td>→ lists</td></tr>
     <tr><td><code>trending</code></td><td><code>id</code>, <code>topic</code>, <code>topicType</code> (hashtag|keyword|user), <code>postsCount</code>, <code>engagementCount</code>, <code>trendScore</code>, <code>peakAt</code></td><td>Recomputed every 15 min; indexed on topic, trendScore, topicType, peakAt</td></tr>
-    <tr><td><code>attachments</code></td><td><code>id</code>, <code>entityType</code> (post|comment), <code>entityId</code>, FileVault <code>fileId</code>/<code>fileUrl</code>, <code>fileName</code>/<code>mimeType</code>/<code>size</code>, <code>uploadedBy</code>, <code>description</code>/<code>altText</code>/<code>isPrimary</code>, <code>deleted</code></td><td>Polymorphic link to posts or comments (shared model from <code>@exprsn/shared</code>); file bytes live in FileVault, not Postgres</td></tr>
+    <tr><td><code>attachments</code></td><td><code>id</code>, <code>entityType</code> (post|comment), <code>entityId</code>, FileVault <code>fileId</code>/<code>fileUrl</code>, <code>fileName</code>/<code>mimeType</code>/<code>size</code>, <code>uploadedBy</code>, <code>description</code>/<code>altText</code>/<code>isPrimary</code>, <code>status</code>, <code>virusScanStatus</code>, <code>deletedAt</code></td><td>Polymorphic link to posts or comments (shared factory model from <code>@exprsn/shared</code>, <code>paranoid</code>); file bytes live in FileVault, not Postgres</td></tr>
+    <tr><td><code>user_relationships</code></td><td><code>id</code>, <code>actorId</code>, <code>targetId</code>, <code>type</code> (block|mute), <code>reason</code> (actor-private), <code>expiresAt</code> (temp mute)</td><td>Authoritative block/mute edges (FEAT-011); unique (actorId, targetId, type); self-block CHECK. User↔user logical refs</td></tr>
+    <tr><td><code>post_moderation</code></td><td><code>id</code>, <code>postId</code> (unique), <code>status</code> (pending|approved|rejected|failed|skipped), <code>reason</code>, <code>action</code>, <code>riskScore</code>, <code>verdict</code> JSONB, <code>moderationItemId</code> (→ moderator), <code>contentHash</code>, <code>attempts</code></td><td>1:1 side table (FEAT-009 / ADR 0004); CASCADE FK to posts. Text is <strong>fail-open</strong>; partial pending index</td></tr>
+    <tr><td><code>timeline_config</code></td><td><code>section</code> (<strong>string PK</strong>), <code>data</code> JSONB</td><td>Persisted admin config, one row per section</td></tr>
   </tbody>
 </table>
+<p>Note: <code>posts.groupId</code> (indexed with <code>createdAt</code>) is a logical reference to a <a href="#nexus">nexus group</a> — null for personal/global posts — tying feed content to groups.</p>
 
 <h2 id="prefetch">Schema: <code>prefetch</code></h2>
 <p>The <a href="exprsn-prefetch.html">Prefetch service</a> is deliberately light on Postgres — its working state lives in Redis.</p>
@@ -199,6 +285,100 @@
   </tbody>
 </table>
 
+<h2 id="moderator">Schema: <code>moderator</code></h2>
+<p>Tables backing the Moderator module. Content moderation cases, custom rules, review queues, disciplinary user actions, appeals, AI agents, workflow runs, plus email notifications and config. Many timestamp columns are <strong>epoch-ms BIGINT</strong> instants. <code>user_id</code>/<code>content_id</code>/<code>reviewed_by</code>/<code>performed_by</code> are logical references to auth users and the originating source service's content.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>moderation_items</code></td><td><code>id</code>, <code>content_type</code>, <code>content_id</code>, <code>source_service</code>, <code>user_id</code> (author), <code>content_text</code>/<code>content_url</code>, per-axis scores (<code>risk</code>/<code>toxicity</code>/<code>nsfw</code>/<code>spam</code>/<code>violence</code>/<code>hate_speech</code>/<code>sentiment</code>), <code>risk_level</code> (safe…critical), <code>ai_provider</code> (claude|openai|deepseek|local|cortex) + <code>ai_response</code>, <code>status</code>, <code>action</code>, <code>requires_review</code></td><td>The central case record (model <code>ModerationCase</code>). 1:N review_queue, moderation_actions, appeals; unique (source_service, content_type, content_id)</td></tr>
+    <tr><td><code>moderation_rules</code></td><td><code>id</code>, <code>name</code> (unique), <code>applies_to[]</code>, <code>source_services[]</code>, <code>conditions</code> JSONB, <code>threshold_score</code>, <code>action</code>, <code>enabled</code>, <code>priority</code>, <code>parent_rule_id</code> (chained rules), <code>metadata</code> (safeguard/gate/labelVals)</td><td>Custom rule/policy engine with nested conditions, chaining, and safeguards</td></tr>
+    <tr><td><code>moderation_actions</code></td><td><code>id</code>, <code>action</code>, <code>content_type</code>/<code>content_id</code>/<code>source_service</code>, <code>performed_by</code> (null = automated), <code>is_automated</code>, <code>reason</code>, <code>moderation_item_id</code>, <code>report_id</code>, <code>performed_at</code> (epoch-ms)</td><td>Audit trail of every action; FKs to moderation_items / reports (SET NULL)</td></tr>
+    <tr><td><code>reports</code></td><td><code>id</code>, <code>content_type</code>/<code>content_id</code>/<code>source_service</code>, <code>reported_by</code>, <code>reason</code> (spam|harassment|hate_speech|…), <code>status</code> (open|investigating|resolved|dismissed|escalated), <code>assigned_to</code>, <code>resolved_by</code>, <code>action_taken</code></td><td>User-submitted content reports; 1:N moderation_actions</td></tr>
+    <tr><td><code>review_queue</code></td><td><code>id</code>, <code>moderation_item_id</code>, <code>priority</code>, <code>escalated</code> + <code>escalated_reason</code>, <code>assigned_to</code>, <code>status</code>, <code>queued_at</code>/<code>completed_at</code> (epoch-ms)</td><td>→ moderation_items (CASCADE). Manual-review work queue</td></tr>
+    <tr><td><code>user_actions</code></td><td><code>id</code>, <code>user_id</code> (target), <code>action_type</code> (warn|suspend|ban|restrict|unsuspend|unban), <code>reason</code>, <code>duration_seconds</code>/<code>expires_at</code>, <code>performed_by</code>, <code>related_report_id</code>, <code>active</code>, revoke fields</td><td>Disciplinary actions against accounts; 1:N appeals; → reports (SET NULL)</td></tr>
+    <tr><td><code>appeals</code></td><td><code>id</code>, <code>moderation_item_id</code> <em>xor</em> <code>user_action_id</code>, <code>user_id</code> (appellant), <code>reason</code>, <code>status</code> (pending|reviewing|approved|denied), <code>reviewed_by</code>, <code>decision</code></td><td>Appeal against a case or an action (exactly one target, XOR-validated)</td></tr>
+    <tr><td><code>ai_agents</code> / <code>agent_executions</code></td><td>AI moderation-agent config (<code>type</code>, <code>provider</code>, <code>prompt_template</code>, thresholds, enable/auto-action, perf counters) and per-run history (<code>status</code>, <code>execution_time_ms</code>, input/output/scores JSONB)</td><td>agent_executions belongsTo ai_agents + moderation_items</td></tr>
+    <tr><td><code>email_templates</code> / <code>email_logs</code></td><td>Reusable notification templates (typed, variable substitution) and sent/attempted-email audit records</td><td>email_logs belongsTo templates / moderation_items / user_actions</td></tr>
+    <tr><td><code>moderator_config</code></td><td><code>id</code>, <code>key</code> (unique), <code>value</code> JSONB, <code>category</code> (general|thresholds|email|ai_providers|workflows|queues|rate_limiting|…), <code>is_sensitive</code>/<code>is_system</code></td><td>System-wide key/value config. <strong>Workflow definitions live here</strong> under category <code>workflows</code></td></tr>
+    <tr><td><code>rate_limit_violations</code> / <code>workflow_executions</code></td><td>Detected rate-limit/spam violations (<code>violation_type</code>, <code>severity</code>, request counts, <code>action_taken</code>) and durable workflow-run records (<code>workflow_id</code>, <code>status</code>, per-step <code>steps</code> JSONB)</td><td>Workflow definitions in <code>moderator_config</code>; runs recorded here (Bull-backed execution engine)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="live">Schema: <code>live</code></h2>
+<p>Tables backing the Live streaming module. Streams, scheduled events, WebRTC rooms, participants, recordings (with moderation), multi-platform simulcast, and timeline-edited segments. <code>user_id</code>/<code>host_id</code>/<code>moderator_id</code>/<code>group_id</code> are logical references to auth users / nexus groups.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>streams</code></td><td><code>id</code>, <code>user_id</code> (host), <code>group_id</code>, <code>title</code>, <code>stream_key</code> (unique RTMP secret), <code>cloudflare_stream_id</code>, <code>rtmp_url</code>/<code>hls_url</code>/<code>dash_url</code>, <code>status</code> (pending|live|ended|error), <code>visibility</code>, viewer counters, <code>is_recording</code></td><td>1:N participants (viewers), recordings, destinations, moderation_actions; 1:1 event</td></tr>
+    <tr><td><code>events</code></td><td><code>id</code>, <code>user_id</code>, <code>stream_id</code> (null for pre-recorded), <code>event_type</code> (live|pre_recorded|webinar|premiere), <code>status</code>, <code>scheduled_start_time</code>/<code>actual_*</code>, <code>max_viewers</code>, <code>moderation_settings</code> JSONB</td><td>→ streams; 1:N timeline_segments, moderation_actions (CASCADE)</td></tr>
+    <tr><td><code>rooms</code></td><td><code>id</code>, <code>host_id</code>, <code>name</code>, <code>room_code</code> (unique join code), <code>status</code> (waiting|active|ended), <code>is_private</code> + <code>password_hash</code>, <code>max_participants</code>, participant counters, <code>settings</code> JSONB</td><td>Multi-participant WebRTC rooms; 1:N participants, recordings (CASCADE)</td></tr>
+    <tr><td><code>participants</code></td><td><code>id</code>, <code>user_id</code>, <code>room_id</code>/<code>stream_id</code>, <code>socket_id</code>, <code>peer_id</code> (WebRTC), <code>status</code>, <code>role</code> (host|moderator|participant|viewer), audio/video/screen flags, <code>joined_at</code>/<code>left_at</code>, <code>connection_quality</code></td><td>belongsTo streams / rooms. Presence for both rooms and streams</td></tr>
+    <tr><td><code>recordings</code> / <code>recording_moderation</code></td><td>Recording metadata (<code>cloudflare_video_id</code>, storage/HLS/DASH URLs, <code>status</code> processing|ready|failed|deleted, duration/size, <code>visibility</code>) and its 1:1 moderation verdict (<code>status</code>, <code>risk_score</code>, <code>verdict</code>, per-frame scores, <code>moderation_item_id</code>)</td><td>recordings belongsTo streams/rooms; recording_moderation unique (recording_id), <strong>fail-closed</strong> serve (FEAT-074 / ADR 0005)</td></tr>
+    <tr><td><code>stream_destinations</code></td><td><code>id</code>, <code>stream_id</code>, <code>user_id</code>, <code>platform</code> (youtube|twitch|facebook|…|srs|rtmp_custom|cloudflare), <code>rtmp_url</code>/<code>stream_key</code> (encrypted), OAuth tokens (encrypted), <code>status</code>, retry fields, <code>settings</code> (bitrate/resolution/framerate)</td><td>→ streams (CASCADE). Multi-platform simulcast destinations</td></tr>
+    <tr><td><code>timeline_segments</code></td><td><code>id</code>, <code>event_id</code>, <code>segment_type</code> (intro|main_content|break|qa_session|…), <code>order_index</code>, <code>start_time_ms</code>/<code>end_time_ms</code>/<code>duration_ms</code>, source clip fields, <code>transitions</code>/<code>audio_settings</code>/<code>overlays</code>/<code>markers</code> JSONB</td><td>→ events (CASCADE). Timeline editing for pre-recorded webinars</td></tr>
+    <tr><td><code>moderation_actions</code></td><td><code>id</code>, <code>stream_id</code>/<code>event_id</code>, <code>moderator_id</code> (null = automated), <code>target_user_id</code>, <code>action_type</code> (ban/timeout/delete_message/slow_mode/…), <code>duration_seconds</code>, <code>is_automated</code> + <code>automation_rule</code>, <code>is_active</code></td><td>→ streams / events (CASCADE). Live chat/stream moderation log</td></tr>
+    <tr><td><code>room_invites</code> / <code>room_join_requests</code> / <code>room_files</code></td><td>Host invites (status pending|accepted|revoked), join requests for request-policy rooms, and files shared into a room (<code>kind</code> vault|ephemeral, <code>file_id</code> or <code>storage_key</code>, <code>shared_as_owner</code> provenance)</td><td>Logical refs to rooms; room collaboration surface (FEAT-061)</td></tr>
+    <tr><td><code>live_config</code></td><td><code>section</code> (<strong>string PK</strong>), <code>data</code> JSONB</td><td>Persisted admin config (limits/provider/recording/roompolicy/moderation)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="atproto">Schema: <code>atproto</code></h2>
+<p>Tables backing the AT-Protocol bridge / labeler. Emitted and consumed labels, external-labeler subscriptions, firehose cursors, the labeler's DID/signing identity, per-user DIDs, and the AT-URI → moderation-case bridge. Identity is by <strong>DID</strong> (not UUID); private keys are never stored, only references. No in-module associations — relationships are logical.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>labels</code></td><td><code>seq</code> (<strong>BIGINT autoincrement PK</strong> — doubles as the <code>subscribeLabels</code> cursor), <code>src</code> (issuer DID), <code>uri</code>, <code>cid</code>, <code>val</code> (label value), <code>neg</code> (negation), <code>cts</code>/<code>exp</code>, <code>sig</code> (signature bytes), <code>signing_key_id</code>, <code>moderation_case_id</code> (→ moderator)</td><td>Signed labels this service <strong>emits</strong> — source of truth for subscribeLabels + queryLabels. Requires a single writer (seq monotonicity)</td></tr>
+    <tr><td><code>inbound_labels</code></td><td><code>id</code>, <code>labeler_endpoint</code>, <code>src_seq</code>, <code>src</code>, <code>uri</code>/<code>cid</code>, <code>val</code>, <code>neg</code>, <code>sig</code>, <code>verified</code> (did the signature verify)</td><td>Labels <strong>consumed</strong> from other labelers (Bluesky/Ozone or other Exprsn nodes), kept separate from emitted labels</td></tr>
+    <tr><td><code>external_labelers</code></td><td><code>endpoint</code> (<strong>PK</strong>, wss URL), <code>did</code>, <code>cursor</code> (our consume cursor), <code>active</code>, <code>status</code> (idle|connecting|connected|disconnected), health fields (<code>last_event_at</code>, <code>heartbeat_at</code>)</td><td>One row per subscribed labeler with consume cursor + liveness</td></tr>
+    <tr><td><code>firehose_cursor</code></td><td><code>transport</code> (<strong>PK</strong>; jetstream → time_us µs, subscribeRepos → seq), <code>cursor</code> (BIGINT)</td><td>Ingest resume position per transport</td></tr>
+    <tr><td><code>labeler_identity</code></td><td><code>id</code>, <code>did</code> (unique), <code>did_method</code> (web|plc), <code>signing_key_id</code>, <code>public_key_multibase</code>, <code>private_key_ref</code> (env/vault/KMS handle — not the key), <code>service_record_cid</code>, <code>active</code></td><td>The labeler's DID + signing-key metadata; supports key rotation (one active row)</td></tr>
+    <tr><td><code>user_dids</code></td><td><code>user_id</code> (<strong>PK</strong>, → auth user), <code>did_exprsn</code> (self-certifying, key never stored), <code>did_web</code>/<code>did_web_verified</code>, <code>did_plc</code>/<code>did_plc_verified</code>, proof types, <code>challenge</code>/<code>challenge_expires_at</code></td><td>Per-user AT-Protocol identities keyed by platform user UUID</td></tr>
+    <tr><td><code>uri_case_map</code></td><td><code>uri</code> (<strong>PK</strong>, at://…), <code>cid</code>, <code>author_did</code>, <code>moderation_case_id</code> (→ moderator; userId synthesized as UUIDv5 from the DID), <code>last_label_seq</code>, <code>status</code> (pending|moderated|labeled|skipped)</td><td>Bridges an AT-URI to a moderator case (author is a DID, not a UUID)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="plugins">Schema: <code>plugins</code></h2>
+<p>Tables backing the Plugin/extension framework (flag <code>PLUGINS_ENABLED</code>). A plugin is declarative, scoped, capability-gated <strong>data</strong> (a JSONB manifest interpreted at runtime) — never arbitrary code loaded into the gateway. There is no dynamic-table mechanism here; extensibility is expressed as manifests (declarative/webhook/script/internal).</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>plugins</code> / <code>plugin_versions</code></td><td>Plugin catalog (<code>plugin_key</code> unique, <code>kind</code> declarative|webhook|script|internal, <code>source</code>, <code>status</code>, <code>manifest</code> JSONB, <code>signature</code>) and immutable manifest history (unique per plugin+version)</td><td>plugins 1:N versions, installations</td></tr>
+    <tr><td><code>plugin_installations</code></td><td><code>id</code>, <code>plugin_id</code>, <code>scope_type</code> (platform|organization|group|user) + <code>scope_id</code>, <code>version</code>, <code>status</code> (installed|enabled|disabled|error), <code>lifecycle_state</code>, <code>config</code> JSONB, <code>secrets_ref</code></td><td>A plugin enabled at a scope; unique (plugin_id, scope_type, scope_id); 1:N grants, deliveries, endpoints, transitions</td></tr>
+    <tr><td><code>plugin_grants</code></td><td><code>id</code>, <code>installation_id</code>, <code>capability</code> (closed vocabulary), <code>resource</code>, <code>granted_by</code></td><td>Capability grants approved at install time</td></tr>
+    <tr><td><code>plugin_deliveries</code></td><td><code>id</code>, <code>installation_id</code>, <code>plugin_key</code>, <code>event</code>, <code>kind</code>, <code>status</code> (queued|running|completed|failed|skipped), <code>matched</code>, <code>attempts</code>, <code>response_code</code>, <code>result</code>, <code>correlation_id</code></td><td>Hook/webhook delivery + execution log (also the audit trail)</td></tr>
+    <tr><td><code>plugin_endpoints</code></td><td><code>id</code>, <code>installation_id</code>, <code>name</code>, <code>direction</code> (outbound|inbound), <code>method</code>, <code>url</code>/<code>inbound_path</code>, <code>timeout_ms</code>, <code>secret_ref</code>, circuit-breaker (<code>failure_count</code>, <code>opened_until</code>)</td><td>Named outbound/inbound endpoints with a circuit breaker; unique (installation_id, name)</td></tr>
+    <tr><td><code>plugin_transitions</code></td><td><code>id</code>, <code>installation_id</code>, <code>machine</code>, <code>from_state</code>/<code>to_state</code>, <code>event</code>, <code>actor</code></td><td>State-machine transition log</td></tr>
+  </tbody>
+</table>
+
+<h2 id="lowcode">Schema: <code>lowcode</code></h2>
+<p>Tables backing the Low-code runtime (flag <code>LOWCODE_ENABLED</code>). It reuses the plugins module's trust layer (scope model, capability vocabulary, condition evaluator, state-machine engine, hook bus) at the <em>service</em> level; its tables are independent of the plugins schema.</p>
+<div class="note"><strong>Dynamic entities without dynamic tables:</strong> low-code does <em>not</em> create a physical table per user-defined entity. Each entity's typed field schema lives in <code>lc_entities.fields</code> (JSONB); every user record of every entity is stored generically as a row in the single <code>lc_records</code> table with values in <code>lc_records.data</code> (JSONB). Optional per-entity <code>storage</code> selects where records physically live (<code>db</code> default, <code>mirror</code>, <code>filevault</code>, or <code>export</code>).</div>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>lc_apps</code></td><td><code>id</code>, <code>key</code> (unique), <code>name</code>, <code>status</code> (draft|published|archived), <code>scope_type</code> + <code>scope_id</code>, <code>capabilities</code> JSONB (subset of the plugins capability vocabulary)</td><td>Groups entities/forms/flows/lookups; 1:N each</td></tr>
+    <tr><td><code>lc_entities</code></td><td><code>id</code>, <code>app_id</code>, <code>key</code>, <code>fields</code> JSONB (typed defs: type/role/aggregation/enum/reference…), <code>state_machine</code> JSONB, <code>storage</code> JSONB</td><td>A strongly-typed record type (the dynamic-entity definition); 1:N lc_records; unique (app_id, key)</td></tr>
+    <tr><td><code>lc_records</code></td><td><code>id</code>, <code>entity_id</code>, <code>app_id</code>, <code>data</code> JSONB (the field values), <code>state</code> (state-machine), <code>owner_id</code>, <code>scope_type</code>+<code>scope_id</code>, <code>storage_ref</code></td><td>Generic JSONB store for <strong>all</strong> dynamic entities; → lc_entities</td></tr>
+    <tr><td><code>lc_lookups</code></td><td><code>id</code>, <code>app_id</code>, <code>key</code>, <code>values</code> JSONB (value/label/color/order), <code>source</code> (static or provider)</td><td>Reusable lookup lists / enum sources; unique (app_id, key)</td></tr>
+    <tr><td><code>lc_forms</code> / <code>lc_views</code></td><td>Declarative UI over an entity: forms (<code>layout</code> JSONB sections/steps, <code>is_public</code> + <code>slug</code> for anonymous submission) and named grid/kanban/calendar views (<code>view_type</code>, <code>config</code>)</td><td>→ lc_apps / entity by key; forms unique (app_id, key)</td></tr>
+    <tr><td><code>lc_flows</code> / <code>lc_flow_runs</code></td><td>Trigger → condition → action automations (<code>event</code>/<code>trigger</code> event|schedule|webhook|manual, <code>match</code> condition tree, <code>actions[]</code>) executed on the plugins hook bus, and per-run audit (<code>status</code>, per-step <code>steps</code> JSONB)</td><td>flows → lc_apps; runs → lc_flows; flows unique (app_id, key)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="cortex">Schema: <code>cortex</code></h2>
+<p>Tables backing the local-LLM engine (flag <code>CORTEX_ENABLED</code>). See the dedicated <a href="exprsn-cortex.html">Cortex service page</a> for full column detail. Registry entities (guardrails/skills/tools) use UUID PKs; run artifacts keep human-readable string ids. The only declared association is <code>chat_sessions</code>&nbsp;1:N&nbsp;<code>chat_messages</code>.</p>
+<table>
+  <thead><tr><th>Table</th><th>Key columns</th><th>Relationships / notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>guardrails</code> / <code>skills</code> / <code>tools</code></td><td>Test-gated registry entities: guardrails (<code>scope</code>, <code>action</code> warn|escalate|block, <code>rules</code>, <code>tests</code>), skills (instruction packs), tools (<code>kind</code> http|python, <code>parameters</code>, <code>tests</code>). All default <code>enabled=false</code> — enabling requires passing tests (guardrails/tools)</td><td>UUID PKs; unique names</td></tr>
+    <tr><td><code>tasks</code></td><td><code>id</code> (<code>task-…</code> string PK), <code>goal</code>, <code>model</code>, <code>status</code> (queued|running|done|failed), <code>tools</code>/<code>skills</code>, <code>result</code>/<code>error</code>/<code>transcript</code>, <code>guardrails</code> verdict, <code>user_id</code></td><td>Long-running agent tasks run on the Bull queue <code>cortex-tasks</code></td></tr>
+    <tr><td><code>chat_sessions</code> / <code>chat_messages</code></td><td>Assistant/CS sessions (<code>id</code> string PK, <code>channel</code> assistant|cs, <code>model</code>, <code>skills</code>) and their turns (<code>role</code>, <code>content</code>, <code>status</code> sent|blocked_*|escalated_*|sent_after_review)</td><td>1:1 declared association (chat_sessions 1:N chat_messages)</td></tr>
+    <tr><td><code>outbox</code> / <code>reviews</code></td><td>Drafted CS email replies (<code>status</code> sent|pending_review|blocked) and the human-review queue (<code>kind</code>, <code>draft</code>, <code>customer_message</code>, <code>status</code> pending|approved|rejected)</td><td>String PKs (<code>mail-…</code> / <code>rev-…</code>); logical refs to sessions/outbox</td></tr>
+    <tr><td><code>prompt_logs</code></td><td><code>id</code>, <code>channel</code> (assistant|cs_chat|cs_email|task|judge|build), <code>session_id</code>, <code>model</code>, <code>prompt</code>/<code>response</code>/<code>usage</code> JSONB, <code>cached</code>, <code>guardrails</code>, <code>latency_ms</code></td><td>Fire-and-forget telemetry of every LLM prompt/response</td></tr>
+  </tbody>
+</table>
+
 <h2 id="cross">Cross-schema references</h2>
 <table>
   <thead><tr><th>From</th><th>To</th><th>Mechanism</th></tr></thead>
@@ -208,9 +388,18 @@
     <tr><td>CA tokens ↔ platform users</td><td><code>ca.tokens.userId</code></td><td>Tokens are issued against CA-side user records; other modules trust the validated token's <code>userId</code> claim</td></tr>
     <tr><td>Timeline attachments</td><td>FileVault files</td><td><code>fileId</code>/<code>fileUrl</code> reference FileVault's store; bytes never enter the timeline schema</td></tr>
     <tr><td>Auth sessions</td><td>Redis</td><td>Session state mirrored under <code>exprsn:auth:sess:*</code></td></tr>
+    <tr><td><code>auth.sessions.caTokenId</code></td><td><code>ca.tokens.id</code></td><td>Login mints a revocable CA token; the id is stored as a STRING (no FK). <code>auth.organizations.caGroupId</code> similarly bridges to <code>ca.groups.id</code></td></tr>
+    <tr><td><code>spark.encryption_keys.userId</code></td><td>auth users</td><td><strong>The one explicitly-declared cross-schema FK</strong> in the platform — every other cross-schema link is a bare UUID</td></tr>
+    <tr><td><code>spark.conversations.groupId</code>, <code>timeline.posts.groupId</code></td><td><code>nexus.groups</code></td><td>Ties messaging channels and feed posts to nexus groups (logical UUID)</td></tr>
+    <tr><td><code>nexus.events.liveStreamId</code></td><td><code>live.streams</code></td><td>A group event optionally linked to a Live stream (logical UUID, no FK)</td></tr>
+    <tr><td>Moderation side tables: <code>{spark.message,timeline.post,filevault.file,live.recording}_moderation.moderation_item_id</code></td><td><code>moderator.moderation_items</code></td><td>The 1:1 side-table pattern (FEAT-009/031/074): each module keeps a local verdict row referencing the moderator case</td></tr>
+    <tr><td><code>vault.secret_group_access.group_id</code>, <code>filevault.files.group_id</code></td><td><code>nexus.groups</code></td><td>Group-scoped secret ACLs and group-owned files (logical UUID)</td></tr>
+    <tr><td><code>atproto.user_dids.user_id</code></td><td>auth users</td><td>Per-user AT-Protocol identities keyed by platform user UUID; <code>atproto.*.moderation_case_id</code> → <code>moderator.moderation_items</code> (userId synthesized as UUIDv5 from the author DID)</td></tr>
+    <tr><td>Plugins / low-code scopes (<code>scope_type</code>+<code>scope_id</code>)</td><td>orgs / groups / users</td><td>Installations, apps, records, and flows are scoped to platform/org/group/user by a bare (<code>scope_type</code>, <code>scope_id</code>) pair — no FK</td></tr>
   </tbody>
 </table>
-<div class="note">Duplicate concepts are intentional during consolidation: <code>ca.users</code>/<code>ca.groups</code>/<code>ca.roles</code> and <code>auth.users</code>/<code>auth.groups</code>/<code>auth.roles</code> are separate tables in separate schemas. Long-term unification is a platform-level decision tracked outside this document.</div>
+<div class="note">Duplicate concepts are intentional during consolidation: <code>ca.users</code>/<code>ca.groups</code>/<code>ca.roles</code> and <code>auth.users</code>/<code>auth.groups</code>/<code>auth.roles</code> are separate tables in separate schemas — <strong>auth is the platform identity authority</strong> (CA tokens' <code>userId</code> now logically reference auth users, not <code>ca.users</code>). Long-term unification is a platform-level decision tracked outside this document.</div>
+<div class="note"><strong>Timestamp conventions differ by module.</strong> Most schemas use Sequelize-managed <code>DATE</code> <code>createdAt</code>/<code>updatedAt</code>; nexus and much of moderator use manual <strong>epoch-ms BIGINT</strong> instants; ca is snake_case (<code>underscored</code>) while auth is camelCase in the DB. Consult a module's models before writing raw SQL against it.</div>
 </main>
 <footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
 </body>

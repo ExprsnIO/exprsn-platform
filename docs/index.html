@@ -16,6 +16,7 @@
     <a href="exprsn-auth.html">Auth</a>
     <a href="exprsn-timeline.html">Timeline</a>
     <a href="exprsn-prefetch.html">Prefetch</a>
+    <a href="exprsn-cortex.html">Cortex</a>
     <a href="database-model.html">DB Model</a>
     <a href="platform-model.html">Platform Model</a>
     <a href="glossary.html">Glossary</a>
@@ -24,8 +25,30 @@
 </header>
 <main>
 <h1>Exprsn Platform — Service Documentation</h1>
-<p>The Exprsn Platform consolidates ten formerly standalone microservices into a single Node.js process behind one HTTPS port (default <code>8443</code>). Each former service is now a <em>module</em>: an Express app mounted at a path prefix on a unified gateway (<code>src/gateway.js</code>), with its tables isolated in its own Postgres schema and its real-time events attached as namespaces on one shared Socket.IO server. The canonical module list lives in <code>src/modules/registry.js</code>.</p>
-<p>This documentation set covers four of the platform's modules. Each page describes the module's purpose, full endpoint inventory (with gateway-prefixed paths), data models, configuration, real-time events, background jobs, and integration points.</p>
+<p>The Exprsn Platform consolidates ten formerly standalone microservices into a single Node.js process behind one HTTPS port (default <code>8443</code>). Each former service is now a <em>module</em>: an Express app mounted at a path prefix on a unified gateway (<code>src/gateway.js</code>), with its tables isolated in its own Postgres schema and its real-time events attached as namespaces on one shared Socket.IO server. Since consolidation the platform has grown to <strong>fourteen modules</strong> — the ten originals plus four later additions (<code>atproto</code>, <code>plugins</code>, <code>lowcode</code>, <code>cortex</code>), each flag-gated where noted. The canonical, always-current module list lives in <code>src/modules/registry.js</code>.</p>
+<p>This documentation set provides deep per-service pages for five modules (CA, Auth, Timeline, Prefetch, Cortex) plus a <a href="database-model.html">data-model reference covering every schema</a>. Each service page describes the module's purpose, full endpoint inventory (with gateway-prefixed paths), data models, configuration, real-time events, background jobs, and integration points.</p>
+
+<h2 id="modules">All platform modules</h2>
+<p>Every module in <code>src/modules/registry.js</code>, mounted behind the one gateway. Modules with a dedicated documentation page are linked.</p>
+<table>
+  <thead><tr><th>Module</th><th>Prefix</th><th>Schema</th><th>Realtime ns</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td><a href="exprsn-ca.html">ca</a></td><td><code>/ca</code></td><td><code>ca</code></td><td><code>/ca</code></td><td>Certificate &amp; token authority, OCSP/CRL, audit chain, RBAC</td></tr>
+    <tr><td><a href="exprsn-auth.html">auth</a></td><td><code>/auth</code></td><td><code>auth</code></td><td>—</td><td>Identity: login, MFA, OAuth2/OIDC, SAML, LDAP, RBAC</td></tr>
+    <tr><td>spark</td><td><code>/spark</code></td><td><code>spark</code></td><td><code>/spark</code></td><td>E2EE messaging, conversations, calls</td></tr>
+    <tr><td>nexus</td><td><code>/nexus</code></td><td><code>nexus</code></td><td>—</td><td>Groups, events, calendar/contacts (CalDAV/CardDAV)</td></tr>
+    <tr><td>filevault</td><td><code>/filevault</code></td><td><code>filevault</code></td><td>—</td><td>File storage, versioning, dedup, sharing, image moderation</td></tr>
+    <tr><td>vault</td><td><code>/vault</code></td><td><code>vault</code></td><td><code>/vault</code></td><td>Secrets, encryption keys, dynamic-secret leases, policies</td></tr>
+    <tr><td><a href="exprsn-timeline.html">timeline</a></td><td><code>/timeline</code></td><td><code>timeline</code></td><td><code>/timeline</code></td><td>Social feed: posts, fan-out, trending, Bluesky federation</td></tr>
+    <tr><td><a href="exprsn-prefetch.html">prefetch</a></td><td><code>/prefetch</code></td><td><code>prefetch</code></td><td>—</td><td>Hot/warm Redis feed cache, priority prefetch jobs</td></tr>
+    <tr><td>moderator</td><td><code>/moderator</code></td><td><code>moderator</code></td><td><code>/moderation</code>, <code>/notifications</code></td><td>Content moderation, review queues, notifications, appeals</td></tr>
+    <tr><td>live</td><td><code>/live</code></td><td><code>live</code></td><td><code>/live</code></td><td>Streaming, WebRTC rooms, chat, recordings</td></tr>
+    <tr><td>atproto</td><td><code>/atproto</code></td><td><code>atproto</code></td><td>—</td><td>AT-Protocol bridge: Bluesky firehose, labeler, <code>did:exprsn</code></td></tr>
+    <tr><td>plugins</td><td><code>/plugins</code></td><td><code>plugins</code></td><td>—</td><td>Plugin/extension framework (flag <code>PLUGINS_ENABLED</code>)</td></tr>
+    <tr><td>lowcode</td><td><code>/lowcode</code></td><td><code>lowcode</code></td><td>—</td><td>Low-code entities/forms/flows (flag <code>LOWCODE_ENABLED</code>)</td></tr>
+    <tr><td><a href="exprsn-cortex.html">cortex</a></td><td><code>/cortex</code></td><td><code>cortex</code></td><td>—</td><td>Local-LLM agents &amp; guardrails (flag <code>CORTEX_ENABLED</code>)</td></tr>
+  </tbody>
+</table>
 
 <h2>Getting started</h2>
 <p>First run: <code>npm install</code> → <code>npm run gen:certs</code> → <code>npm run setup</code> → <code>npm run db:bootstrap</code> → <code>npm run db:migrate</code> → <code>npm start</code>. The <a href="setup-wizard.html">interactive setup wizard</a> (<code>npm run setup</code>) walks 19 sections covering the entire environment surface, generates secrets at documented strengths, validates values before writing, and backs up any existing <code>.env</code>. Manual <code>cp .env.example .env</code> remains the non-interactive fallback.</p>
@@ -60,9 +83,14 @@
     <p>Read acceleration for timelines: tiered hot/warm Redis caching, priority-queued prefetch jobs, activity-based scheduling, cache metrics, and Kubernetes-style health probes.</p>
   </div>
   <div class="card">
+    <h3><a href="exprsn-cortex.html">Exprsn-Cortex</a></h3>
+    <p class="tag">/cortex · schema: cortex · worker · flag CORTEX_ENABLED</p>
+    <p>The platform's local-LLM engine: an agent tool-calling loop, a test-gated guardrail engine, custom tool/skill registries, long-running agent tasks, and guarded customer-service chat/email flows with human-review escalations. Inference on an external llama.cpp router — no cloud APIs.</p>
+  </div>
+  <div class="card">
     <h3><a href="database-model.html">Database Model</a></h3>
-    <p class="tag">database: exprsn · schemas: ca, auth, timeline, prefetch</p>
-    <p>The data layer across the documented services: schema-per-module isolation, every table with key columns and relationships, Redis runtime stores, and the logical UUID references that cross schema boundaries.</p>
+    <p class="tag">database: exprsn · all 14 module schemas</p>
+    <p>The data layer across every module: schema-per-module isolation, each table with key columns and relationships, Redis runtime stores, and the logical UUID references that cross schema boundaries.</p>
   </div>
   <div class="card">
     <h3><a href="platform-model.html">Platform Model</a></h3>

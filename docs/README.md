@@ -14,7 +14,8 @@ docs/
   exprsn-auth.html
   exprsn-timeline.html
   exprsn-prefetch.html
-  database-model.html     Data-layer reference
+  exprsn-cortex.html
+  database-model.html     Data-layer reference (all 14 module schemas)
   platform-model.html     Mermaid architecture diagrams
   glossary.html           Term definitions
   viewer.html             Markdown viewer (?doc=<id>, TOC sidebar)

@@ -297,6 +297,10 @@ const SECTIONS = [
     fields: [
       { env: 'CLOUDFLARE_ACCOUNT_ID', label: 'Cloudflare account id', type: 'text', def: '' },
       { env: 'CLOUDFLARE_STREAM_TOKEN', label: 'Cloudflare stream token', type: 'secret', def: '' },
+      { env: 'LIVE_RECORDING_MODERATION', label: 'Recording moderation mode', type: 'enum', options: ['off', 'shadow', 'enforce'], def: 'off', hint: 'FEAT-074; needs worker:live-recording-moderation; shares VIDEO_FRAME_* tuning' },
+      { env: 'LIVE_RECORDING_RISK_THRESHOLD', label: 'Recording risk threshold (0-100)', type: 'num', def: '70', check: (v) => (v && (!isNum(v) || +v > 100) ? 'must be 0-100' : null) },
+      { env: 'LIVE_RECORDING_MODERATION_CONCURRENCY', label: 'Recording worker concurrency', type: 'num', def: '' },
+      { env: 'MODERATE_RECORDING_ATTEMPTS', label: 'Recording job attempts', type: 'num', def: '' },
     ],
   },
   {
@@ -381,10 +385,21 @@ const SECTIONS = [
       { env: 'CORTEX_MODERATION_MODE', label: 'Text moderation via cortex', type: 'enum', options: ['off', 'shadow', 'enforce'], def: 'off', hint: 'shadow = score+log only; enforce also needs DEFAULT_AI_PROVIDER=cortex' },
       { env: 'CORTEX_MODERATION_TIMEOUT_MS', label: 'Moderation timeout (ms)', type: 'num', def: '', hint: 'fails CLOSED on expiry → falls back to a cloud provider' },
       { env: 'CORTEX_CACHE_TTL', label: 'Chat cache TTL (s)', type: 'num', def: '' },
+      { env: 'CORTEX_OLLAMA_ENABLED', label: 'Ollama failover backend', type: 'bool', def: 'false', hint: 'FEAT-072: queue-only secondary; container must stay loopback-bound' },
+      { env: 'CORTEX_OLLAMA_BASE_URL', label: 'Ollama base URL', type: 'text', def: 'http://127.0.0.1:11434' },
+      { env: 'CORTEX_OLLAMA_VISION_MODEL', label: 'Ollama vision model', type: 'text', def: 'qwen3.5:2b', hint: 'verify the exact tag on the box: docker exec exprsn-ollama ollama list' },
+      { env: 'CORTEX_OLLAMA_ROLES', label: 'Ollama model roles', type: 'text', def: 'vision', hint: 'comma-separated roles this backend may serve' },
+      { env: 'CORTEX_OLLAMA_TIMEOUT_MS', label: 'Ollama timeout (ms)', type: 'num', def: '300000', hint: 'cold model load on CPU is slow' },
+      { env: 'CORTEX_OLLAMA_AUTO_PULL', label: 'Ollama boot-time auto-pull', type: 'bool', def: 'false', hint: 'models are pulled at provision time (scripts/provision-ollama.sh); leave false' },
+      { env: 'CORTEX_BREAKER_FAILURES', label: 'Breaker: failures to trip', type: 'num', def: '3', hint: 'per-backend circuit breaker (FEAT-072)' },
+      { env: 'CORTEX_BREAKER_WINDOW_MS', label: 'Breaker: window (ms)', type: 'num', def: '120000' },
+      { env: 'CORTEX_BREAKER_COOLDOWN_MS', label: 'Breaker: cooldown (ms)', type: 'num', def: '300000', hint: 'doubles on each re-trip' },
+      { env: 'CORTEX_BREAKER_COOLDOWN_MAX_MS', label: 'Breaker: cooldown max (ms)', type: 'num', def: '1800000' },
+      { env: 'CORTEX_PRIMARY_ATTEMPT_TIMEOUT_MS', label: 'Primary attempt timeout (ms)', type: 'num', def: '8000', hint: 'bounds the health probe before failover' },
     ],
   },
   {
-    key: 'imgmod', title: 'FileVault image moderation', comment: 'FileVault image moderation at the upload chokepoint (FEAT-031)',
+    key: 'imgmod', title: 'FileVault image & video moderation', comment: 'FileVault image (FEAT-031) + video (FEAT-073) moderation at the upload chokepoint',
     fields: [
       { env: 'FILEVAULT_IMAGE_MODERATION', label: 'Image moderation mode', type: 'enum', options: ['off', 'shadow', 'enforce'], def: 'off', hint: 'INDEPENDENT of CORTEX_MODERATION_MODE (that one is text). Needs worker:filevault-moderation' },
       { env: 'FILEVAULT_IMAGE_RISK_THRESHOLD', label: 'Risk threshold (0-100)', type: 'num', def: '', check: (v) => (v && (!isNum(v) || +v > 100) ? 'must be 0-100' : null) },
@@ -392,6 +407,14 @@ const SECTIONS = [
       { env: 'FILEVAULT_MODERATION_CONCURRENCY', label: 'Worker concurrency', type: 'num', def: '' },
       { env: 'FILEVAULT_MODERATION_RECONCILE_INTERVAL_MS', label: 'Reconcile sweep interval (ms)', type: 'num', def: '', hint: 'self-heal for images orphaned in pending' },
       { env: 'FILEVAULT_MODERATION_RECONCILE_GRACE_MS', label: 'Reconcile grace window (ms)', type: 'num', def: '' },
+      { env: 'FILEVAULT_VIDEO_MODERATION', label: 'Video moderation mode', type: 'enum', options: ['off', 'shadow', 'enforce'], def: 'off', hint: 'FEAT-073; needs worker:video-moderation + ffmpeg' },
+      { env: 'FILEVAULT_VIDEO_RISK_THRESHOLD', label: 'Video risk threshold (0-100)', type: 'num', def: '70', check: (v) => (v && (!isNum(v) || +v > 100) ? 'must be 0-100' : null) },
+      { env: 'VIDEO_FRAME_INTERVAL_S', label: 'Frame sample interval (s)', type: 'num', def: '30' },
+      { env: 'VIDEO_FRAMES_MIN', label: 'Min frames sampled', type: 'num', def: '3' },
+      { env: 'VIDEO_FRAMES_MAX', label: 'Max frames sampled', type: 'num', def: '12' },
+      { env: 'VIDEO_EARLY_EXIT_RISK', label: 'Early-exit risk score', type: 'num', def: '85', check: (v) => (v && (!isNum(v) || +v > 100) ? 'must be 0-100' : null) },
+      { env: 'FFMPEG_PATH', label: 'ffmpeg path', type: 'text', def: '' },
+      { env: 'FFPROBE_PATH', label: 'ffprobe path', type: 'text', def: '' },
     ],
   },
   {
@@ -404,6 +427,7 @@ const SECTIONS = [
       { env: 'LDAP_ADMIN_PASSWORD', label: 'LDAP admin password', type: 'secret', def: 'change_me' },
       { env: 'LDAP_PORT', label: 'LDAP port', type: 'port', def: '389' },
       { env: 'LDAPS_PORT', label: 'LDAPS port', type: 'port', def: '636' },
+      { env: 'OLLAMA_PORT', label: 'Ollama host port (loopback)', type: 'port', def: '11434', hint: 'published as 127.0.0.1:<port>:11434 — must stay loopback-bound' },
       { env: 'DNS_PORT', label: 'BIND9 DNS port', type: 'port', def: '53' },
       { env: 'KRB5_REALM', label: 'Kerberos realm', type: 'text', def: 'EXPRSN.LOCAL' },
       { env: 'KRB5_KDC', label: 'Kerberos KDC host', type: 'text', def: 'kerberos' },
@@ -600,6 +624,9 @@ function featureSummary() {
   feat('  └ python tools', on('CORTEX_PYTHON_TOOLS_ENABLED', 'false'), on('CORTEX_PYTHON_TOOLS_ENABLED', 'false') === 'true');
   feat('  └ vision model', on('CORTEX_VISION_MODEL', '(off)'), !!env.CORTEX_VISION_MODEL);
   feat('Image moderation (FileVault)', on('FILEVAULT_IMAGE_MODERATION', 'off'), on('FILEVAULT_IMAGE_MODERATION', 'off') !== 'off');
+  feat('Video moderation (FileVault)', on('FILEVAULT_VIDEO_MODERATION', 'off'), on('FILEVAULT_VIDEO_MODERATION', 'off') !== 'off');
+  feat('Recording moderation (Live)', on('LIVE_RECORDING_MODERATION', 'off'), on('LIVE_RECORDING_MODERATION', 'off') !== 'off');
+  feat('Ollama failover (cortex)', on('CORTEX_OLLAMA_ENABLED', 'false'), on('CORTEX_OLLAMA_ENABLED', 'false') === 'true');
   feat('Metrics /metrics', on('METRICS_ENABLED', 'true'), on('METRICS_ENABLED', 'true') === 'true');
   feat('Sentry', env.SENTRY_DSN ? 'configured' : '(off)', !!env.SENTRY_DSN);
   feat('RabbitMQ', on('RABBITMQ_ENABLED', 'true'), on('RABBITMQ_ENABLED', 'true') === 'true');
@@ -608,6 +635,8 @@ function featureSummary() {
   if (on('ATPROTO_ENABLED', 'false') === 'true') workers.push('worker:atproto');
   if (on('CORTEX_ENABLED', 'false') === 'true') workers.push('worker:cortex');
   if (on('FILEVAULT_IMAGE_MODERATION', 'off') !== 'off') workers.push('worker:filevault-moderation');
+  if (on('FILEVAULT_VIDEO_MODERATION', 'off') !== 'off') workers.push('worker:video-moderation');
+  if (on('LIVE_RECORDING_MODERATION', 'off') !== 'off') workers.push('worker:live-recording-moderation');
   lines.push('');
   lines.push('  ' + c.cyan + 'Workers this config needs:' + c.reset + ' ' + workers.join(', '));
   return lines.join('\n');
@@ -626,6 +655,9 @@ function problems() {
   if (!sts) errs.push('SERVICE_TOKEN_SECRET: required (>= 32 chars) — generate one in Auth & service secrets');
   if (env.NODE_ENV === 'production' && (env.DEV_BYPASS || '') === 'true') {
     errs.push('DEV_BYPASS=true with NODE_ENV=production — the bypass is fail-closed and will not work; remove it');
+  }
+  if (unmanaged.CORTEX_ASYNC_ROLE !== undefined) {
+    errs.push('CORTEX_ASYNC_ROLE must NEVER be set in .env — the gateway refuses to boot; only worker:* npm aliases set it');
   }
   return errs;
 }

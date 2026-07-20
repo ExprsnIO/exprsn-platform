@@ -3518,7 +3518,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   of all 15 sections.
 
 ### TASK-045 — Interactive setup TUI for platform configuration (`npm run setup`)
-- **Type:** task · **Status:** in-progress · **Priority:** P2 · **Size:** M
+- **Type:** task · **Status:** done (merged to main; pty-driven E2E verified: write, reload, quick-start, backup) · **Priority:** P2 · **Size:** M
 - **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
 - **Legacy:** — (complements `.env.example`; sibling of the lowcode TUIs in `scripts/`)
 - **Description:** First-run configuration currently means hand-editing a 400-line

@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exprsn-Auth — Authentication &amp; Authorization Service</title>
 <link rel="stylesheet" href="assets/docs.css">
+<style>
+  pre.mermaid { background:#fff; text-align:center; overflow-x:auto; border:1px solid #d0d7de; border-radius:6px; padding:0.6rem; margin:0.5rem 0; }
+  p.diagram-note { font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0 1.25rem; }
+</style>
 </head>
 <body>
 <header class="site">
@@ -182,6 +186,54 @@
 </table>
 
 <h2 id="flows">Authentication flows</h2>
+
+<p><strong>Local login with MFA.</strong> Password verification, an optional TOTP/backup-code step, then a CA token is minted and a session row persists with the token id (Redis-backed).</p>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant A as Auth (/auth)
+    participant DB as Postgres (auth schema)
+    participant R as Redis (sessions)
+    participant CA as CA module
+
+    C->>A: POST /auth/api/auth/login (email + password)
+    A->>DB: load user · bcrypt verify · lockout check
+    alt MFA enabled
+        A-->>C: 200 { mfaRequired: true }
+        C->>A: POST /auth/api/auth/mfa/verify (TOTP / backup code)
+        A->>DB: validate code
+    end
+    A->>CA: mint CA token (login)
+    CA-->>A: { token, caTokenId }
+    A->>DB: INSERT sessions row (caTokenId)
+    A->>R: store session (exprsn:auth:sess:*)
+    A-->>C: 200 { user, token } + session cookie
+</pre>
+<p class="diagram-note">On logout / <code>DELETE /sessions</code> the CA token is revoked in-process, so the bearer 401s thereafter.</p>
+
+<p><strong>OAuth2 / OIDC authorization-code flow with PKCE.</strong> The provider issues a single-use code, exchanges it for tokens after verifying the PKCE challenge, and exposes OIDC claims at UserInfo.</p>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant App as Client app
+    participant UA as User agent
+    participant A as Auth OAuth2 provider (/auth)
+
+    App->>UA: redirect → /auth/api/oauth2/authorize<br/>(client_id · scope · code_challenge)
+    UA->>A: GET /oauth2/authorize
+    A->>UA: consent screen
+    UA->>A: POST /oauth2/authorize (approve)
+    A-->>UA: 302 redirect_uri?code=…
+    UA-->>App: authorization code
+    App->>A: POST /auth/api/oauth2/token<br/>(code + code_verifier)
+    A->>A: verify PKCE · enforce single-use code
+    A-->>App: { access_token, refresh_token, id_token }
+    App->>A: GET /auth/api/oauth2/userinfo (Bearer)
+    A-->>App: OIDC claims
+</pre>
+<p class="diagram-note">Public clients must use PKCE (<code>requirePkce</code>); discovery + JWKS are at <code>/auth/.well-known/*</code>. Source blocks are copy-paste-ready Mermaid.</p>
+
 <table>
   <thead><tr><th>Flow</th><th>How it works</th></tr></thead>
   <tbody>
@@ -247,5 +299,25 @@
 </table>
 </main>
 <footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+<script>
+  function initMermaid() {
+    if (window.mermaid) {
+      window.mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });
+      window.mermaid.run && window.mermaid.run();
+    }
+  }
+  (function loadMermaid(sources) {
+    if (!sources.length) return; // offline: raw Mermaid source stays visible
+    var s = document.createElement('script');
+    s.src = sources[0];
+    s.onload = initMermaid;
+    s.onerror = function () { loadMermaid(sources.slice(1)); };
+    document.body.appendChild(s);
+  })([
+    'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js',
+    'https://unpkg.com/mermaid@11/dist/mermaid.min.js'
+  ]);
+</script>
 </body>
 </html>

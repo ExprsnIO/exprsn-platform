@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exprsn-Timeline — Feed &amp; Timeline Service</title>
 <link rel="stylesheet" href="assets/docs.css">
+<style>
+  pre.mermaid { background:#fff; text-align:center; overflow-x:auto; border:1px solid #d0d7de; border-radius:6px; padding:0.6rem; margin:0.5rem 0; }
+  p.diagram-note { font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0 1.25rem; }
+</style>
 </head>
 <body>
 <header class="site">
@@ -159,6 +163,37 @@
 </table>
 
 <h2 id="feed">Feed &amp; fan-out architecture</h2>
+<p>Writes persist synchronously (post row + a <code>post_moderation</code> side row screened fail-open), then distribution is asynchronous: a worker fans the post out to followers' Redis feeds and the durable store, indexes it, and optionally mirrors it to Bluesky.</p>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant T as Timeline (/timeline)
+    participant DB as Postgres (timeline schema)
+    participant MOD as Moderator
+    participant Q as Bull queues (Redis)
+    participant W as Timeline worker
+    participant ES as ElasticSearch
+    participant BSKY as Bluesky PDS
+
+    C->>T: POST /timeline/api/posts
+    T->>T: sanitize · extract hashtags/mentions/URLs
+    T->>DB: INSERT posts (+ post_moderation: pending)
+    T->>MOD: screen text (fail-open)
+    MOD-->>T: verdict → post_moderation
+    T->>Q: enqueue post-fanout · hashtag-extraction · post-index
+    T->>T: emit new:post on /timeline namespace
+    T-->>C: 201 created
+    W->>Q: consume post-fanout
+    W->>DB: follower fan-out rows (batches of 100)
+    W->>Q: write timeline:{userId} sorted set (TTL 5 min, cap 100)
+    W->>ES: index post (exprsn_posts)
+    opt syncedToBluesky
+        W->>BSKY: mirror post (AT URI)
+    end
+</pre>
+<p class="diagram-note">Mermaid source above; renders via CDN when online, otherwise the source stays visible.</p>
+
 <p><strong>Feed ranking</strong> (<code>feedService.js</code>): the home feed combines posts from followed users plus the caller's own, scored by recency (time decay), engagement (likes/reposts/comments), relationship strength, and media presence. The explore feed surfaces popular posts from the last 7 days; user timelines are plain reverse-chronological. Pagination supports Base64 cursors and offsets.</p>
 <p><strong>Fan-out on write</strong> (<code>fanoutService.js</code>): when a post is created, a <code>post-fanout</code> job distributes it to every active follower — written both to Redis (sorted set <code>timeline:{userId}</code>, scores = timestamps, TTL 5 min, capped at 100 posts) for hot reads and to the database for durable timeline reconstruction, in batches of 100 followers. Deletion enqueues <code>post-removal</code>; cache invalidation is also job-driven.</p>
 <p><strong>Post-creation flow</strong>: create record → extract entities (hashtags, mentions, URLs) → enqueue <code>fanout.post-fanout</code>, <code>trending.hashtag-extraction</code>, <code>indexing.post-index</code> → notify Bluesky asynchronously → broadcast <code>new:post</code> on the <code>/timeline</code> Socket.IO namespace.</p>
@@ -230,5 +265,25 @@
 </table>
 </main>
 <footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+<script>
+  function initMermaid() {
+    if (window.mermaid) {
+      window.mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });
+      window.mermaid.run && window.mermaid.run();
+    }
+  }
+  (function loadMermaid(sources) {
+    if (!sources.length) return; // offline: raw Mermaid source stays visible
+    var s = document.createElement('script');
+    s.src = sources[0];
+    s.onload = initMermaid;
+    s.onerror = function () { loadMermaid(sources.slice(1)); };
+    document.body.appendChild(s);
+  })([
+    'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js',
+    'https://unpkg.com/mermaid@11/dist/mermaid.min.js'
+  ]);
+</script>
 </body>
 </html>

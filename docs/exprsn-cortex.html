@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exprsn-Cortex — Local-LLM Agents &amp; Guardrails Engine</title>
 <link rel="stylesheet" href="assets/docs.css">
+<style>
+  pre.mermaid { background:#fff; text-align:center; overflow-x:auto; border:1px solid #d0d7de; border-radius:6px; padding:0.6rem; margin:0.5rem 0; }
+  p.diagram-note { font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0 1.25rem; }
+</style>
 </head>
 <body>
 <header class="site">
@@ -56,6 +60,40 @@
 <p>Exprsn-Cortex is the platform's <strong>local-LLM engine</strong>: an agent tool-calling loop, a guardrail engine (deterministic rules plus an LLM judge, with a test-gated lifecycle), custom tool and skill registries, long-running agent tasks, and guarded customer-service chat/email flows with human-review escalations. All inference runs on an <strong>external OpenAI-compatible <code>llama.cpp</code> router</strong> (<code>CORTEX_LLM_BASE_URL</code>, default <code>http://127.0.0.1:8080/v1</code>) — <strong>no cloud APIs</strong>.</p>
 <p>As a platform module it exports <code>{ name, app, init }</code> — JSON API only, no views, no <code>listen()</code>. It owns the <code>cortex</code> Postgres schema, attaches no Socket.IO namespace, and pushes long-running work onto a Bull queue drained by a separate worker. It is the newest of the four post-consolidation additions and, like <code>plugins</code> and <code>lowcode</code>, ships behind its own feature flag.</p>
 <p>Cortex is also an <strong>in-process LLM source</strong> for the rest of the platform: <code>services/cortex/src/client.js</code> is the single supported façade other modules use to reach the local model (see <a href="#integration">Integration</a>).</p>
+
+<h3>Request routing &amp; the inference/flow split</h3>
+<p>Interactive routes and queued tasks run through the <strong>flow layer</strong> (<code>engine/jobs.js</code>), which applies guardrails and — when <code>CORTEX_MODERATE</code> is on — the fail-open moderator screen. The in-process <code>client.js</code> façade binds only to the <strong>inference layer</strong> (<code>engine/agent.js</code>), never the flow layer, so a <code>moderator → cortex → moderator</code> cycle is structurally impossible (ADR 0001). The <code>CORTEX_ENABLED</code> gate is checked before any inference and fails closed.</p>
+<pre class="mermaid">
+flowchart TB
+    client["Other modules<br/>client.js façade"]
+
+    subgraph gw [Gateway process — in-process]
+        routes["Interactive routes<br/>/chat · /cs · guardrails"]
+        flow["engine/jobs.js<br/>(flow layer — guardrails)"]
+        infer["engine/agent.js<br/>(inference layer)"]
+        sem["LLM semaphore<br/>text / vision pools"]
+    end
+    subgraph wk [worker:cortex — separate process]
+        task["cortex-tasks queue<br/>runTask (attempts:1)"]
+    end
+    router[("llama.cpp router<br/>CORTEX_LLM_BASE_URL")]
+    mod["Moderator<br/>/moderator/api/moderate/content"]
+    gate{"CORTEX_ENABLED?"}
+
+    routes --> flow
+    task --> flow
+    flow -->|guardrails in / out| infer
+    flow -.->|CORTEX_MODERATE=true<br/>fail-open · strongest verdict wins| mod
+    client --> gate
+    gate -->|false| deny["503 CORTEX_DISABLED"]
+    gate -->|true| infer
+    infer --> sem --> router
+
+    style gate fill:#fff3cd,stroke:#b8860b
+    style deny fill:#fdecea,stroke:#c62828
+    style router fill:#dbe9ff,stroke:#0b5fff
+</pre>
+<p class="diagram-note">The façade path (client → gate → inference) deliberately bypasses the flow layer; that one-way dependency is what makes the moderator loop impossible. Mermaid source above.</p>
 
 <h2 id="flag">The CORTEX_ENABLED gate</h2>
 <p>The module always mounts, but is dark by default. Its behavior is governed entirely by <code>CORTEX_ENABLED</code> (default <code>false</code>):</p>
@@ -228,5 +266,25 @@
 </table>
 </main>
 <footer class="site">Exprsn Platform documentation — generated July 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+<script>
+  function initMermaid() {
+    if (window.mermaid) {
+      window.mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });
+      window.mermaid.run && window.mermaid.run();
+    }
+  }
+  (function loadMermaid(sources) {
+    if (!sources.length) return; // offline: raw Mermaid source stays visible
+    var s = document.createElement('script');
+    s.src = sources[0];
+    s.onload = initMermaid;
+    s.onerror = function () { loadMermaid(sources.slice(1)); };
+    document.body.appendChild(s);
+  })([
+    'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js',
+    'https://unpkg.com/mermaid@11/dist/mermaid.min.js'
+  ]);
+</script>
 </body>
 </html>

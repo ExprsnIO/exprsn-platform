@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exprsn-Prefetch — Timeline Caching &amp; Prefetch Service</title>
 <link rel="stylesheet" href="assets/docs.css">
+<style>
+  pre.mermaid { background:#fff; text-align:center; overflow-x:auto; border:1px solid #d0d7de; border-radius:6px; padding:0.6rem; margin:0.5rem 0; }
+  p.diagram-note { font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0 1.25rem; }
+</style>
 </head>
 <body>
 <header class="site">
@@ -102,6 +106,43 @@
 </table>
 
 <h2 id="cache">Cache architecture &amp; data shapes</h2>
+<p>Reads try the hot tier, fall back to warm, and on a full miss schedule a priority-queued refresh that pulls from Timeline and repopulates the cache. Every outcome bumps a metrics counter on Redis DB 2.</p>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant P as Prefetch (/prefetch)
+    participant H as Redis hot (DB 0, 5 min)
+    participant Wm as Redis warm (DB 1, 15 min)
+    participant M as Redis metrics (DB 2)
+    participant Q as Bull queue prefetch
+    participant T as Timeline
+
+    C->>P: GET /prefetch/api/cache/:userId
+    P->>H: GET timeline:{userId}
+    alt hot hit
+        H-->>P: cached feed
+        P->>M: incr cache:hits:hot
+        P-->>C: 200 (tier: hot)
+    else hot miss
+        P->>Wm: GET timeline:{userId}
+        alt warm hit
+            Wm-->>P: cached feed
+            P->>M: incr cache:hits:warm
+            P-->>C: 200 (tier: warm)
+        else full miss
+            P->>M: incr cache:misses
+            P-->>C: 404 not cached
+            C->>P: POST /prefetch/api/prefetch/schedule/:userId
+            P->>Q: enqueue timeline job (priority · 3 retries)
+            Q->>T: GET /api/timeline/user/:userId?limit=100
+            T-->>Q: posts
+            Q->>H: SET timeline:{userId} (tier by priority)
+        end
+    end
+</pre>
+<p class="diagram-note">Keys carry the ioredis <code>prefetch:</code> prefix so they never clash with Timeline's own feed keys on DB 0. Mermaid source above.</p>
+
 <h3>Redis tiers</h3>
 <table>
   <thead><tr><th>Tier</th><th>Redis DB</th><th>TTL</th><th>Purpose</th></tr></thead>
@@ -187,5 +228,25 @@ metrics:prefetch:durations  (list of JSON samples, capped at 1000)</code></pre>
 </table>
 </main>
 <footer class="site">Exprsn Platform documentation — generated June 2026 · <a href="index.html">Index</a> · <a href="glossary.html">Glossary</a></footer>
+<script>
+  function initMermaid() {
+    if (window.mermaid) {
+      window.mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });
+      window.mermaid.run && window.mermaid.run();
+    }
+  }
+  (function loadMermaid(sources) {
+    if (!sources.length) return; // offline: raw Mermaid source stays visible
+    var s = document.createElement('script');
+    s.src = sources[0];
+    s.onload = initMermaid;
+    s.onerror = function () { loadMermaid(sources.slice(1)); };
+    document.body.appendChild(s);
+  })([
+    'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js',
+    'https://unpkg.com/mermaid@11/dist/mermaid.min.js'
+  ]);
+</script>
 </body>
 </html>

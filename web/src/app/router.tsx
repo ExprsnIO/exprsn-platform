@@ -40,6 +40,15 @@ import { FilevaultSection } from '@/features/admin/sections/FilevaultSection';
 import { PluginsSection } from '@/features/admin/sections/PluginsSection';
 import { LowcodeSection } from '@/features/admin/sections/LowcodeSection';
 import { CortexSection } from '@/features/admin/sections/CortexSection';
+import { TimelineSection } from '@/features/admin/sections/TimelineSection';
+import { PrefetchSection } from '@/features/admin/sections/PrefetchSection';
+import PlatformSection from '@/features/admin/sections/PlatformSection';
+import { UsersSection } from '@/features/admin/sections/UsersSection';
+import { IdentityGroupsSection } from '@/features/admin/sections/IdentityGroupsSection';
+import { RolesSection } from '@/features/admin/sections/RolesSection';
+import { PermissionsSection } from '@/features/admin/sections/PermissionsSection';
+import { ScopesSection } from '@/features/admin/sections/ScopesSection';
+import { AiSection } from '@/features/admin/sections/AiSection';
 import { EntityDetailPage } from '@/features/lowcode/pages/EntityDetailPage';
 import { FlowDetailPage } from '@/features/lowcode/pages/FlowDetailPage';
 import { PublicFormPage } from '@/features/lowcode/PublicFormPage';
@@ -134,6 +143,15 @@ export const router = createBrowserRouter([
           { path: 'plugins', element: <PluginsSection /> },
           { path: 'lowcode', element: <LowcodeSection /> },
           { path: 'cortex', element: <CortexSection /> },
+          { path: 'timeline', element: <TimelineSection /> },
+          { path: 'prefetch', element: <PrefetchSection /> },
+          { path: 'platform', element: <PlatformSection /> },
+          { path: 'users', element: <UsersSection /> },
+          { path: 'identity-groups', element: <IdentityGroupsSection /> },
+          { path: 'roles', element: <RolesSection /> },
+          { path: 'permissions', element: <PermissionsSection /> },
+          { path: 'scopes', element: <ScopesSection /> },
+          { path: 'ai', element: <AiSection /> },
           { path: 'lowcode/entities/:id', element: <EntityDetailPage /> },
           { path: 'lowcode/flows/:id', element: <FlowDetailPage /> },
         ],

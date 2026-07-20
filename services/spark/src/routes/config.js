@@ -5,6 +5,12 @@
 
 const express = require('express');
 const router = express.Router();
+const { requirePlatformAdmin } = require('@exprsn/shared');
+
+// Platform-config management is admin-only (TASK-039). These sections were
+// previously reachable (read AND write) by anonymous callers; the shared gate
+// validates the CA bearer and requires platform-admin identity.
+router.use(requirePlatformAdmin);
 const { Message, Conversation } = require('../models');
 const { Op } = require('sequelize');
 const config = require('../config');

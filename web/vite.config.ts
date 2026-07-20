@@ -22,9 +22,14 @@ const BACKEND_PATHS = [
   '/moderator',
   '/live',
   '/atproto',
+  '/plugins',
+  '/lowcode',
+  '/cortex',
   '/xrpc',
   '/.well-known',
   '/health',
+  // Gateway-owned config-overrides store (TASK-039) — not a module prefix.
+  '/platform',
 ];
 
 const proxy: Record<string, ProxyOptions> = Object.fromEntries(

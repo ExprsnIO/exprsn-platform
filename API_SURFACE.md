@@ -53,6 +53,26 @@ Columns: **Method | Path | Required Fields | Optional Fields | Min/Max | Auth | 
 
 ---
 
+## Platform (gateway-owned, prefix /platform) — config-overrides store (TASK-039)
+
+Not a module — mounted directly by `src/gateway.js`. All routes require
+`requirePlatformAdmin` (shared CA-bearer validation + platform-admin identity).
+The code-side descriptor `src/config/overridableKeys.js` governs what is
+overridable; denylisted keys (DEV_BYPASS*, SERVICE_TOKEN*, DB_*, REDIS_*, TLS_*,
+CORS_ORIGIN, ...) are never accepted or applied.
+
+| Method | Path | Required | Optional | Validation | Auth | Notes |
+|---|---|---|---|---|---|---|
+| GET | /platform/api/config | — | — | — | requirePlatformAdmin | every descriptor key + metadata, masked secrets, anomalous rows |
+| PUT | /platform/api/config/:key | `value` | `version` | descriptor type/range; 404 unknown, 403 denylisted, 422 invalid, 409 stale version | requirePlatformAdmin | hot keys apply in-process; others flag pendingRestart |
+| DELETE | /platform/api/config/:key | — | — | 404 if not overridden | requirePlatformAdmin | reverts to env; hot keys revert in-process |
+
+Socket.IO: `/_admin` namespace (gateway) — CA bearer handshake auth + platform-admin
+required; emits `health` snapshots (5s while connected) and `config:changed`
+events (key/module/restart metadata only, never values). Config changes also
+publish `{key, restartRequired}` on Redis channel `platform:config:changed` for
+worker processes (`shared/utils/configOverrides.js`).
+
 ## CA module (prefix /ca)
 
 Global notes: ACME router overrides body limit to 1 MB; OCSP POST `/` uses a raw 10 KB limit.
@@ -351,8 +371,8 @@ adding `/forward`, `/pin`, `/settings`, etc.
 | GET | /spark/api/groups/:groupId/channels | `groupId` | — | — | CA `read`; group member | list/auto-provision a group's chat + announcement channels |
 | POST | /spark/api/groups/:groupId/channels/:channelKind/messages | `groupId`, `channelKind`, `content` | — | — | CA `write`; group member (announcement→admin/owner) | post a plaintext message to a group channel |
 | GET | /spark/health, /health/db, /health/ca | — | — | — | none | 503 if down |
-| GET | /spark/api/config/:sectionId | `sectionId`∈messaging-settings/messaging-moderation | — | — | none | 404 unknown |
-| POST | /spark/api/config/:sectionId | `sectionId`; config | — | — | none | runtime only |
+| GET | /spark/api/config/:sectionId | `sectionId`∈messaging-settings/messaging-moderation | — | — | requirePlatformAdmin | 404 unknown |
+| POST | /spark/api/config/:sectionId | `sectionId`; config | — | — | requirePlatformAdmin | runtime only |
 
 ### Socket.IO events (namespace /spark)
 
@@ -603,7 +623,7 @@ Per-route rate limits noted in Defaults.
 | DELETE | /vault/api/groups/:groupId/secrets/:path(*)/share | `groupId`, `path` | — | — | write + group admin | revoke the group's access |
 | GET | /vault/api/groups/:groupId/secrets/:path(*)/reveal | `groupId`, `path` | — | — | read + group admin | explicit, audited reveal of one secret's plaintext (only group route returning plaintext); 403 NOT_SHARED if no live grant |
 | GET | /vault/api/config/:sectionId | `sectionId`∈vault/vault-secrets/vault-encryption/vault-access/vault-audit | — | — | admin `/config` | 404 unknown |
-| POST | /vault/api/config/:sectionId | `sectionId`; config | — | (vault not writable) | admin `/config` | 404 unknown |
+| POST | /vault/api/config/:sectionId | `sectionId`; config or {fields:[...]} | — | persists to vault_config | write `/config` | 404 unknown |
 | GET | /vault/health | — | — | — | none | static |
 
 ### Socket.IO events (namespace /vault)
@@ -650,6 +670,7 @@ add permissions. `/api/config` and `/api/webhooks` have no token middleware. `/a
 | GET | /timeline/api/posts/:id/thread, /quotes | `id`(uuid) | — | uuid | read `/posts` | — |
 | GET | /timeline/api/posts/:id/analytics | `id`(uuid) | — | uuid | read `/posts` | 403 unless owner |
 | POST | /timeline/api/posts/:id/approval | `id`(uuid), `decision` | `reason` | decision approved\|rejected | admin (`requireAdmin`) | manual decision for a post held by "Require Approval for New Posts"; approve restores requested visibility |
+| GET | /timeline/api/posts/approvals/pending | — | `limit` ≤200 | — | requireAdmin | posts held with metadata.approval.status=pending |
 | POST | /timeline/api/posts/:id/repost | `id`(uuid) | comment | uuid | write `/posts` | — |
 | DELETE | /timeline/api/posts/:id/repost | `id`(uuid) | — | uuid | read `/posts` | — |
 | POST/DELETE | /timeline/api/posts/:id/bookmark | `id`(uuid) | — | uuid | read `/posts` | — |
@@ -724,8 +745,8 @@ so every endpoint is reachable under both prefixes (`/api/cache/...` shown paren
 | Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
 | GET | /prefetch/health[/redis,/timeline,/ca,/cache,/ready,/live] | — | — | — | none | — |
-| GET | /prefetch/api/config/:sectionId | `sectionId`∈prefetch/prefetch-settings/prefetch-cache/prefetch-performance | — | — | none | 404 unknown |
-| POST | /prefetch/api/config/:sectionId | `sectionId`; config | config fields | sectionId∈settings/cache/performance | none | 404 unknown |
+| GET | /prefetch/api/config/:sectionId | `sectionId`∈prefetch/prefetch-settings/prefetch-cache/prefetch-performance | — | — | requirePlatformAdmin | stored overlay (Redis prefetch:config:*) |
+| POST | /prefetch/api/config/:sectionId | `sectionId`; config or {fields:[...]} | config fields | sectionId∈settings/cache/performance | requirePlatformAdmin | persists to Redis |
 | POST | /prefetch/api/prefetch/schedule/:userId (also /api/cache/...) | `userId`(UUID) | priority, delay | priority∈high/medium/low | CA **write** + self-or-admin | priority=medium, delay=0; 202 |
 | POST | /prefetch/api/prefetch/immediate/:userId (also /api/cache/...) | `userId`(UUID) | priority | priority∈high/medium/low | CA **write** + self-or-admin | priority=medium |
 | GET | /prefetch/api/prefetch/:userId (also /api/cache/:userId) | `userId`(UUID) | — | — | CA **read** + self-or-admin | 404 if not cached |
@@ -796,8 +817,8 @@ that nothing populates, falling back to body fields.
 | GET | /moderator/api/actions/content/:contentType/:contentId | params | — | — | none | — |
 | POST | /moderator/api/actions/execute | `actionType`, `contentType`, `contentId`, `sourceService` | userId, reason, moderatorId, metadata | — | none | moderatorId=system, reason default |
 | GET | /moderator/api/actions/providers/status | — | — | — | none | — |
-| GET | /moderator/api/config/:sectionId | `sectionId`∈moderation-rules/moderation-ai/moderation-queue | — | — | none | 404 unknown |
-| POST | /moderator/api/config/:sectionId | `sectionId`; config | — | only moderation-ai | none | 404 unknown |
+| GET | /moderator/api/config/:sectionId | `sectionId`∈moderation-rules/moderation-ai/moderation-queue | — | — | requirePlatformAdmin | 404 unknown |
+| POST | /moderator/api/config/:sectionId | `sectionId`; config | — | only moderation-ai | requirePlatformAdmin | 404 unknown |
 | POST | /moderator/api/notifications | headers `X-Service-ID`/`X-Service-Token`; `userId` | type, channel, title, body, data, priority | — | **per-service HMAC** | type=info, channel=in-app, data={}, priority=normal; 201 |
 
 ### Socket.IO events (namespace /moderation)
@@ -868,7 +889,7 @@ instead of personal owner.
 | POST | /live/api/destinations/:id/test-connection | `id`(UUID) | — | — | requireAuth (owner) | — |
 | POST | /live/api/groups/:groupId/streams | `groupId`, `title` | description, visibility, isRecording | title 1–255 | requireAuth + group admin (requireGroupMembership('admin')) | create a group-owned live stream; 201 |
 | GET | /live/api/groups/:groupId/streams | `groupId` | status, visibility, limit, offset | limit 1–100 | requireAuth + group member | list a group's streams |
-| GET/POST | /live/api/config/:sectionId | `sectionId`∈live-rooms/live-recordings/live-settings | — | POST only live-settings | none | 404 unknown |
+| GET/POST | /live/api/config/:sectionId | `sectionId`∈live-rooms/live-recordings/live-settings | — | POST only live-settings | requirePlatformAdmin | 404 unknown |
 
 ### Room collaboration (`routes/roomCollab.js`, also mounted at `/api/rooms`)
 

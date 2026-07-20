@@ -105,3 +105,12 @@ services:
       #   Verify the address on the droplet: ip -4 addr show docker0
       #   If your host uses a custom `bip`, change this to match.
       - "172.17.0.1:${SRS_HTTP_PORT:-8085}:8080"
+
+  # --------------------------------------------------------------- CORTEX ----
+  # Ollama already binds 127.0.0.1 in the base file (it must — it is an
+  # unauthenticated LLM), so there is NO port override to make here; the base
+  # mapping is already prod-safe. Only cap its log growth, like everything else.
+  # It stays behind the `cortex` profile, so this overlay does not start it
+  # either — bring it up explicitly with `--profile cortex`.
+  ollama:
+    <<: *logging

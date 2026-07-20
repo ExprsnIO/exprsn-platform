@@ -7,6 +7,33 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
 const { requireRead, requireWrite } = require('../middleware/auth');
+const { VaultConfig } = require('../models');
+
+/**
+ * Persisted section settings (TASK-039). Row data wins over the env-derived
+ * field defaults; unknown keys are dropped at write time so junk isn't stored.
+ */
+async function storedSection(sectionId) {
+  try {
+    const row = await VaultConfig.findByPk(sectionId);
+    return (row && row.data) || {};
+  } catch (error) {
+    logger.error(`Failed to load stored config for ${sectionId}: ${error.message}`);
+    return {};
+  }
+}
+
+/** Overlay persisted values onto a section's env-derived `fields` array. */
+function overlayStored(section, stored) {
+  if (Array.isArray(section.fields)) {
+    for (const field of section.fields) {
+      if (Object.prototype.hasOwnProperty.call(stored, field.name)) {
+        field.value = stored[field.name];
+      }
+    }
+  }
+  return section;
+}
 
 // Configuration endpoints expose and mutate Vault settings. CA tokens have no
 // "admin" permission (the model is read/write/append/delete/update), so gate by
@@ -48,7 +75,8 @@ router.get('/:sectionId', ...requireRead('/config'), async (req, res) => {
         });
     }
 
-    res.json(data);
+    const canonical = sectionId === 'vault' ? 'vault-secrets' : sectionId;
+    res.json(overlayStored(data, await storedSection(canonical)));
   } catch (error) {
     logger.error(`Error fetching config for ${sectionId}:`, error);
     res.status(500).json({
@@ -70,20 +98,21 @@ router.post('/:sectionId', ...requireWrite('/config'), async (req, res) => {
     let result;
 
     switch (sectionId) {
+      case 'vault':
       case 'vault-secrets':
-        result = await updateSecretsConfig(configData);
+        result = await updateSection('vault-secrets', configData);
         break;
 
       case 'vault-encryption':
-        result = await updateEncryptionConfig(configData);
+        result = await updateSection('vault-encryption', configData);
         break;
 
       case 'vault-access':
-        result = await updateAccessConfig(configData);
+        result = await updateSection('vault-access', configData);
         break;
 
       case 'vault-audit':
-        result = await updateAuditConfig(configData);
+        result = await updateSection('vault-audit', configData);
         break;
 
       default:
@@ -184,55 +213,44 @@ async function getAuditConfig() {
 // Configuration Update Functions
 // ========================================
 
-async function updateSecretsConfig(configData) {
-  logger.info('Secrets configuration updated:', configData);
+/**
+ * Allowed keys per section — derived from each section's `fields` list above.
+ * Writes persist to vault_config (VaultConfig model); previously these
+ * handlers logged-and-echoed without persisting anything (TASK-039).
+ */
+const SECTION_FIELDS = {
+  'vault-secrets': ['enableRotation', 'rotationInterval', 'enableExpiry', 'defaultExpiry'],
+  'vault-encryption': ['algorithm', 'keyDerivation', 'iterations', 'enableHSM', 'masterKeyRotation'],
+  'vault-access': ['enableRBAC', 'requireMFA', 'sessionTimeout', 'maxAttempts', 'lockoutDuration'],
+  'vault-audit': ['enableAudit', 'logLevel', 'retention', 'enableSIEM', 'siemEndpoint', 'complianceMode']
+};
 
-  if (configData.enableRotation !== undefined) {
-    logger.info(`Secret rotation ${configData.enableRotation ? 'enabled' : 'disabled'}`);
+async function updateSection(sectionId, configData) {
+  const allowed = SECTION_FIELDS[sectionId];
+  // ConfigSectionEditor round-trips the whole schema ({ fields: [...] });
+  // accept either that or a flat key/value object.
+  const flat = Array.isArray(configData && configData.fields)
+    ? Object.fromEntries(configData.fields.map((f) => [f.name, f.value]))
+    : configData;
+  const stored = await storedSection(sectionId);
+  const clean = { ...stored };
+  const rejected = [];
+  for (const [key, value] of Object.entries(flat || {})) {
+    if (allowed.includes(key)) {
+      clean[key] = value;
+    } else {
+      rejected.push(key);
+    }
   }
-
+  await VaultConfig.upsert({ section: sectionId, data: clean });
+  logger.info(`Vault config section ${sectionId} saved`, {
+    keys: Object.keys(clean),
+    ...(rejected.length ? { rejected } : {})
+  });
   return {
-    message: 'Secrets configuration updated successfully',
-    config: configData
-  };
-}
-
-async function updateEncryptionConfig(configData) {
-  logger.info('Encryption configuration updated:', configData);
-
-  if (configData.algorithm) {
-    logger.info(`Encryption algorithm changed to ${configData.algorithm}`);
-  }
-
-  return {
-    message: 'Encryption configuration updated successfully',
-    config: configData
-  };
-}
-
-async function updateAccessConfig(configData) {
-  logger.info('Access configuration updated:', configData);
-
-  if (configData.requireMFA !== undefined) {
-    logger.info(`MFA for admin ${configData.requireMFA ? 'required' : 'optional'}`);
-  }
-
-  return {
-    message: 'Access configuration updated successfully',
-    config: configData
-  };
-}
-
-async function updateAuditConfig(configData) {
-  logger.info('Audit configuration updated:', configData);
-
-  if (configData.complianceMode) {
-    logger.info(`Compliance mode set to ${configData.complianceMode}`);
-  }
-
-  return {
-    message: 'Audit configuration updated successfully',
-    config: configData
+    message: 'Configuration saved',
+    config: clean,
+    ...(rejected.length ? { rejectedKeys: rejected } : {})
   };
 }
 

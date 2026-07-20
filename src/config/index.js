@@ -138,6 +138,45 @@ const config = {
       .split(':').map((s) => s.trim()).filter(Boolean),
     moderate: bool(process.env.CORTEX_MODERATE, false),
     cacheTtl: num(process.env.CORTEX_CACHE_TTL, 3600),
+
+    // ---- Backend failover (FEAT-072, ADR 0005) ---------------------------
+    // The llama.cpp router above (llmBaseUrl) is the PRIMARY backend. Ollama is
+    // an AUTOMATIC SECONDARY, reached only from async queue workers (the
+    // queue-only invariant is enforced in code — backends/jobContext.js — not by
+    // convention). On a llama.cpp outage the vision path fails over to Ollama
+    // behind a per-backend circuit breaker; interactive text NEVER fails over
+    // (it 503s, the correct failure on a request path).
+    ollama: {
+      enabled: bool(process.env.CORTEX_OLLAMA_ENABLED, false),
+      baseUrl: process.env.CORTEX_OLLAMA_BASE_URL || 'http://127.0.0.1:11434',
+      // Ollama model tags per role. Only `vision` is populated by default —
+      // the secondary is NOT eligible for brain/judge unless explicitly listed
+      // in `roles`. Verify the exact tag against `ollama list` (tags drift).
+      visionModel: process.env.CORTEX_OLLAMA_VISION_MODEL || null,
+      brainModel: process.env.CORTEX_OLLAMA_BRAIN_MODEL || null,
+      judgeModel: process.env.CORTEX_OLLAMA_JUDGE_MODEL
+        || process.env.CORTEX_OLLAMA_BRAIN_MODEL || null,
+      // Which roles the secondary may serve. Default: vision only.
+      roles: (process.env.CORTEX_OLLAMA_ROLES || 'vision')
+        .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
+      // Generous: Ollama runs CPU-only on the worker; a cold model load + a
+      // multi-frame video pass is minutes, never a request path.
+      timeoutMs: num(process.env.CORTEX_OLLAMA_TIMEOUT_MS, 300000),
+      // Pull the model on demand if missing. Off by default: a pull is a
+      // multi-GB download that must never happen inside a moderation job.
+      autoPull: bool(process.env.CORTEX_OLLAMA_AUTO_PULL, false),
+    },
+    // Per-backend circuit breaker (backends/breaker.js).
+    breaker: {
+      failures: num(process.env.CORTEX_BREAKER_FAILURES, 3), // consecutive → OPEN
+      windowMs: num(process.env.CORTEX_BREAKER_WINDOW_MS, 120000),
+      cooldownMs: num(process.env.CORTEX_BREAKER_COOLDOWN_MS, 300000),
+      cooldownMaxMs: num(process.env.CORTEX_BREAKER_COOLDOWN_MAX_MS, 1800000),
+    },
+    // Bound the PRIMARY attempt independently so a hung/absent primary costs one
+    // short probe per job (then failover), not a full vision timeout. On the DO
+    // box the primary may be absent entirely (llmBaseUrl points at a dev Mac).
+    primaryAttemptTimeoutMs: num(process.env.CORTEX_PRIMARY_ATTEMPT_TIMEOUT_MS, 8000),
   },
 };
 

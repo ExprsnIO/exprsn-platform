@@ -5,9 +5,85 @@
 
 const express = require('express');
 const router = express.Router();
+const { requirePlatformAdmin } = require('@exprsn/shared');
+
+// Platform-config management is admin-only (TASK-039). These sections were
+// previously reachable (read AND write) by anonymous callers; the shared gate
+// validates the CA bearer and requires platform-admin identity.
+router.use(requirePlatformAdmin);
 
 // Logger
 const logger = require('../utils/logger');
+
+// Persisted section settings (TASK-039). Prefetch has no SQL models, so
+// sections persist as JSON under prefetch:config:<sectionId> in the shared
+// Redis. Stored values overlay the env-derived field defaults on read;
+// previously POSTs logged-and-echoed without persisting anything.
+const Redis = require('ioredis');
+let configRedis = null;
+function redis() {
+  if (!configRedis) {
+    configRedis = new Redis({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD || undefined,
+      db: parseInt(process.env.REDIS_DB) || 0,
+      lazyConnect: true,
+      maxRetriesPerRequest: 1
+    });
+  }
+  return configRedis;
+}
+const configKey = (sectionId) => `prefetch:config:${sectionId}`;
+
+async function storedSection(sectionId) {
+  try {
+    const raw = await redis().get(configKey(sectionId));
+    return raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    logger.warn(`Failed to load stored config for ${sectionId}: ${error.message}`);
+    return {};
+  }
+}
+
+function overlayStored(section, stored) {
+  if (Array.isArray(section.fields)) {
+    for (const field of section.fields) {
+      if (Object.prototype.hasOwnProperty.call(stored, field.name)) {
+        field.value = stored[field.name];
+      }
+    }
+  }
+  return section;
+}
+
+const SECTION_FIELDS = {
+  'prefetch-settings': ['enablePrefetch', 'prefetchInterval', 'prefetchDepth', 'enableActivity', 'minActivity'],
+  'prefetch-cache': ['hotCacheTTL', 'warmCacheTTL', 'maxHotCacheSize', 'maxWarmCacheSize', 'enableCompression', 'evictionPolicy'],
+  'prefetch-performance': ['maxConcurrentRequests', 'requestTimeout', 'retryAttempts', 'retryDelay', 'enableMetrics', 'metricsInterval']
+};
+
+async function updateSection(sectionId, configData) {
+  // ConfigSectionEditor round-trips the whole schema ({ fields: [...] });
+  // accept either that or a flat key/value object.
+  const flat = Array.isArray(configData && configData.fields)
+    ? Object.fromEntries(configData.fields.map((f) => [f.name, f.value]))
+    : configData;
+  const allowed = SECTION_FIELDS[sectionId];
+  const clean = { ...(await storedSection(sectionId)) };
+  const rejected = [];
+  for (const [key, value] of Object.entries(flat || {})) {
+    if (allowed.includes(key)) clean[key] = value;
+    else rejected.push(key);
+  }
+  await redis().set(configKey(sectionId), JSON.stringify(clean));
+  logger.info(`Prefetch config section ${sectionId} saved`, { keys: Object.keys(clean) });
+  return {
+    message: 'Configuration saved',
+    config: clean,
+    ...(rejected.length ? { rejectedKeys: rejected } : {})
+  };
+}
 
 /**
  * GET /api/config/:sectionId
@@ -40,7 +116,8 @@ router.get('/:sectionId', async (req, res) => {
         });
     }
 
-    res.json(data);
+    const canonical = sectionId === 'prefetch' ? 'prefetch-settings' : sectionId;
+    res.json(overlayStored(data, await storedSection(canonical)));
   } catch (error) {
     logger.error(`Error fetching config for ${sectionId}:`, error);
     res.status(500).json({
@@ -62,16 +139,17 @@ router.post('/:sectionId', async (req, res) => {
     let result;
 
     switch (sectionId) {
+      case 'prefetch':
       case 'prefetch-settings':
-        result = await updatePrefetchSettings(configData);
+        result = await updateSection('prefetch-settings', configData);
         break;
 
       case 'prefetch-cache':
-        result = await updateCacheConfig(configData);
+        result = await updateSection('prefetch-cache', configData);
         break;
 
       case 'prefetch-performance':
-        result = await updatePerformanceConfig(configData);
+        result = await updateSection('prefetch-performance', configData);
         break;
 
       default:
@@ -158,52 +236,5 @@ async function getPerformanceConfig() {
 // ========================================
 // Configuration Update Functions
 // ========================================
-
-async function updatePrefetchSettings(configData) {
-  logger.info('Prefetch settings updated:', configData);
-
-  if (configData.enablePrefetch !== undefined) {
-    logger.info(`Prefetching ${configData.enablePrefetch ? 'enabled' : 'disabled'}`);
-  }
-
-  if (configData.prefetchInterval) {
-    logger.info(`Prefetch interval set to ${configData.prefetchInterval} seconds`);
-  }
-
-  return {
-    message: 'Prefetch settings updated successfully',
-    config: configData
-  };
-}
-
-async function updateCacheConfig(configData) {
-  logger.info('Cache configuration updated:', configData);
-
-  if (configData.hotCacheTTL) {
-    logger.info(`Hot cache TTL set to ${configData.hotCacheTTL} seconds`);
-  }
-
-  if (configData.evictionPolicy) {
-    logger.info(`Cache eviction policy changed to ${configData.evictionPolicy}`);
-  }
-
-  return {
-    message: 'Cache configuration updated successfully',
-    config: configData
-  };
-}
-
-async function updatePerformanceConfig(configData) {
-  logger.info('Performance configuration updated:', configData);
-
-  if (configData.maxConcurrentRequests) {
-    logger.info(`Max concurrent requests set to ${configData.maxConcurrentRequests}`);
-  }
-
-  return {
-    message: 'Performance configuration updated successfully',
-    config: configData
-  };
-}
 
 module.exports = router;

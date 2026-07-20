@@ -25,6 +25,11 @@ const {
   requireGroupMembership
 } = require('./middleware/groupMembership');
 
+// Middleware - Platform-admin gate (config surfaces without local RBAC)
+const {
+  requirePlatformAdmin
+} = require('./middleware/platformAdminGuard');
+
 // Middleware - Error Handling
 const {
   AppError,
@@ -186,6 +191,7 @@ module.exports = {
 
   // Middleware - Cross-module Group Membership Guard
   requireGroupMembership,
+  requirePlatformAdmin,
 
   // Middleware - Error Handling
   AppError,

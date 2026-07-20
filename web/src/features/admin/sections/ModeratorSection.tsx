@@ -17,7 +17,6 @@ import {
 import { formatDate } from '@/features/files/util';
 import { Card, ConfigSectionEditor, DataTable, DataView, JsonDialog, QueryState, SectionHeader, StatusChip, useToast } from '../ui';
 import { RuleBuilderDialog } from './moderator/RuleBuilderDialog';
-import { AgentsTab } from './moderator/AgentsTab';
 import { WordListsTab } from './moderator/WordListsTab';
 import { WorkflowsTab } from './moderator/WorkflowsTab';
 import { QueuesTab } from './moderator/QueuesTab';
@@ -241,7 +240,7 @@ function MetricsTab() {
 
 /* ------------------------------------------------------------------- page */
 
-type ModTab = 'queue' | 'reports' | 'rules' | 'agents' | 'wordlists' | 'appeals' | 'workflows' | 'queues' | 'metrics' | 'config';
+type ModTab = 'queue' | 'reports' | 'rules' | 'wordlists' | 'appeals' | 'workflows' | 'queues' | 'metrics' | 'config';
 
 export function ModeratorSection() {
   const [tab, setTab] = useState<ModTab>('queue');
@@ -249,12 +248,11 @@ export function ModeratorSection() {
   const moderatorId = useAppStore((s) => s.user?.id) ?? 'admin';
   return (
     <Stack spacing={2} sx={{ pb: 6 }}>
-      <SectionHeader title="Moderation" subtitle="Queue, reports, rules, AI agents, word lists, appeals, workflows, queues, metrics — /moderator/api" />
+      <SectionHeader title="Moderation" subtitle="Queue, reports, rules, word lists, appeals, workflows, queues, metrics — /moderator/api (AI agents moved to Infrastructure → AI)" />
       <Tabs value={tab} onChange={(_e, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
         <Tab value="queue" label="Queue" />
         <Tab value="reports" label="Reports" />
         <Tab value="rules" label="Rules" />
-        <Tab value="agents" label="AI Agents" />
         <Tab value="wordlists" label="Word Lists" />
         <Tab value="appeals" label="Appeals" />
         <Tab value="workflows" label="Workflows" />
@@ -265,7 +263,6 @@ export function ModeratorSection() {
       {tab === 'queue' && <QueueTab onToast={showToast} moderatorId={moderatorId} />}
       {tab === 'reports' && <ReportsTab onToast={showToast} moderatorId={moderatorId} />}
       {tab === 'rules' && <RulesTab onToast={showToast} />}
-      {tab === 'agents' && <AgentsTab onToast={showToast} />}
       {tab === 'wordlists' && <WordListsTab onToast={showToast} />}
       {tab === 'appeals' && <AppealsTab onToast={showToast} />}
       {tab === 'workflows' && <WorkflowsTab onToast={showToast} />}

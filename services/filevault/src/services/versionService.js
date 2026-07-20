@@ -9,7 +9,6 @@ const storage = require('../storage');
 const { calculateTextDiff, isTextFile } = require('../utils/diff');
 const logger = require('../utils/logger');
 const imageModeration = require('./imageModerationService');
-const { requeueImageModeration } = require('../queues/imageModeration');
 
 /**
  * Get all versions of a file
@@ -117,10 +116,9 @@ async function restoreVersion(fileId, versionNumber, userId) {
     await transaction.commit();
     logger.info(`File restored to version ${versionNumber}: ${fileId}`);
 
-    if (imageModeration.shouldQueue(file)) {
-      // Remove the stale job first — a plain re-add is a silent no-op (BUG-016).
-      await requeueImageModeration(file.id);
-    }
+    // Remove the stale job first — a plain re-add is a silent no-op (BUG-016).
+    // The dispatcher routes image vs video to the right queue (FEAT-073).
+    await imageModeration.enqueueModerationFor(file, { requeue: true });
 
     return file;
   } catch (error) {

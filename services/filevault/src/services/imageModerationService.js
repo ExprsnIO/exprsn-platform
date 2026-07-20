@@ -51,6 +51,18 @@ function moderationMode() {
   return 'off';
 }
 
+// The VIDEO-moderation mode (FEAT-073), read from FILEVAULT_VIDEO_MODERATION.
+// Parsed identically to moderationMode() but INDEPENDENT of it: video moderation
+// can be on while image moderation is off, or vice-versa. Video is a heavier,
+// slower pass (retrieve → ffprobe → keyframe extract → vision-per-frame) drained
+// by a SEPARATE queue/worker, so it earns its own flag.
+function videoModerationMode() {
+  const raw = String(process.env.FILEVAULT_VIDEO_MODERATION || '').trim().toLowerCase();
+  if (raw === 'shadow') return 'shadow';
+  if (raw === 'enforce' || raw === 'true') return 'enforce';
+  return 'off';
+}
+
 // Separate from CORTEX_ENABLED on purpose. "The feature is off" (serve images as
 // the platform always did) is a different state from "the feature is on but
 // cortex is unavailable" (hold images — fail closed). See FileModeration.status.
@@ -60,10 +72,29 @@ const featureEnabled = () => moderationMode() !== 'off';
 const SERVABLE = new Set(['approved', 'skipped']);
 
 const IMAGE_MIME = /^image\//i;
+const VIDEO_MIME = /^video\//i;
 
 /** Is this object something we can and should look at? */
 function isModeratableImage(file) {
   return Boolean(file && typeof file.mimetype === 'string' && IMAGE_MIME.test(file.mimetype));
+}
+
+/** Is this object a video we can and should look at? (FEAT-073) */
+function isModeratableVideo(file) {
+  return Boolean(file && typeof file.mimetype === 'string' && VIDEO_MIME.test(file.mimetype));
+}
+
+/**
+ * Which moderation pipeline governs this object, if any (FEAT-073).
+ * Returns `'image'` | `'video'` | `null`. `null` means "do not queue": the
+ * object is encrypted, or not a moderatable mimetype, or the mode governing its
+ * kind is `off`. Kinds are disjoint by mimetype; each consults its OWN mode.
+ */
+function mediaKind(file) {
+  if (isEncrypted(file)) return null;
+  if (isModeratableImage(file)) return moderationMode() === 'off' ? null : 'image';
+  if (isModeratableVideo(file)) return videoModerationMode() === 'off' ? null : 'video';
+  return null;
 }
 
 /**
@@ -100,6 +131,9 @@ function canServe(file, moderation, requesterId) {
  * upload path, so it must be synchronous and must never throw.
  */
 function initialState(file) {
+  // Video is a distinct pipeline with its own mode/flag (FEAT-073). Branch on it
+  // FIRST so the image logic below stays byte-for-byte identical for images.
+  if (isModeratableVideo(file)) return videoInitialState(file);
   const mode = moderationMode();
   if (mode === 'off') return { status: 'skipped', reason: 'feature_disabled' };
   if (!isModeratableImage(file)) return { status: 'skipped', reason: 'not_an_image' };
@@ -113,16 +147,56 @@ function initialState(file) {
 }
 
 /**
+ * Initial moderation row for a freshly uploaded VIDEO. Same fail-closed
+ * semantics as images, keyed off the INDEPENDENT video mode:
+ *   off     — skipped/feature_disabled (servable, as before FEAT-073).
+ *   enforce — pending (HIDDEN) until a verdict clears it.
+ *   shadow  — approved/shadow_pending (servable, scored but never held).
+ * Caller guarantees isModeratableVideo(file) is already true.
+ */
+function videoInitialState(file) {
+  const mode = videoModerationMode();
+  if (mode === 'off') return { status: 'skipped', reason: 'feature_disabled' };
+  if (isEncrypted(file)) return { status: 'skipped', reason: 'encrypted' };
+  if (mode === 'shadow') return { status: 'approved', reason: 'shadow_pending' };
+  return { status: 'pending', reason: null };
+}
+
+/**
  * Should this upload be queued for a vision pass? True whenever moderation is on
  * (enforce OR shadow) and the object is a decodable, non-encrypted image. Note
  * this is NOT `initialState().status === 'pending'`: a shadow image is servable
  * (`approved`) from the start yet must still be scored.
  */
 function shouldQueue(file) {
-  if (moderationMode() === 'off') return false;
-  if (!isModeratableImage(file)) return false;
-  if (isEncrypted(file)) return false;
-  return true;
+  // True for any object a moderation pipeline governs — image OR video (FEAT-073).
+  // `mediaKind` already folds in the mode-off / non-media / encrypted exclusions,
+  // and preserves the exact image semantics this function had before.
+  return mediaKind(file) !== null;
+}
+
+/**
+ * Route a governed object onto the CORRECT queue (FEAT-073). ONE dispatcher for
+ * all five byte-writing sites: it consults `mediaKind` and calls the image or
+ * video queue's enqueue/requeue. No-ops (returns false) when the object is not
+ * queued (encrypted / non-media / mode off) so callers need no `if (shouldQueue)`
+ * guard. `requeue: true` uses remove-then-add (BUG-016) for byte-REPLACEMENT
+ * paths (new version / restore); the default add() is for fresh uploads.
+ *
+ * The queue modules are required lazily so this file stays free of Bull imports
+ * at module scope (it is loaded by the gateway too, not only the worker).
+ */
+async function enqueueModerationFor(file, { requeue = false } = {}) {
+  const kind = mediaKind(file);
+  if (!kind) return false;
+  if (kind === 'video') {
+    // eslint-disable-next-line global-require
+    const q = require('../queues/videoModeration');
+    return requeue ? q.requeueVideoModeration(file.id) : q.enqueueVideoModeration(file.id);
+  }
+  // eslint-disable-next-line global-require
+  const q = require('../queues/imageModeration');
+  return requeue ? q.requeueImageModeration(file.id) : q.enqueueImageModeration(file.id);
 }
 
 /**
@@ -183,6 +257,13 @@ function imageRiskThreshold() {
   return Number.isFinite(n) ? n : 70;
 }
 
+// Risk score at/above which a video keyframe verdict is treated as flagged
+// (FEAT-073). Independent of the image threshold; default 70.
+function videoRiskThreshold() {
+  const n = Number(process.env.FILEVAULT_VIDEO_RISK_THRESHOLD);
+  return Number.isFinite(n) ? n : 70;
+}
+
 /**
  * THE invariant, in one place: whenever a file's bytes are created or replaced,
  * its moderation state must be (re)established before those bytes can be served
@@ -220,15 +301,20 @@ async function establishModerationState(FileModeration, file, { transaction, mod
 
 module.exports = {
   moderationMode,
+  videoModerationMode,
   featureEnabled,
   isModeratableImage,
+  isModeratableVideo,
+  mediaKind,
   isEncrypted,
   isServableToOthers,
   canServe,
   initialState,
   establishModerationState,
   shouldQueue,
+  enqueueModerationFor,
   evaluate,
   imageRiskThreshold,
+  videoRiskThreshold,
   SERVABLE,
 };

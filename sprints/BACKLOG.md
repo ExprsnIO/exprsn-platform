@@ -2732,6 +2732,21 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 *(Security-hardening items triaged out of the `SP-11` review — filed, not
 must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)".)*
 
+### BUG-036 — `CA_BASE_URL` points at the nginx edge; node/axios loopback to it hangs → platform-wide CA_UNAVAILABLE
+- **Type:** bug · **Status:** backlog · **Priority:** P1 · **Size:** S
+- **Owner-role:** systems-architect / dba
+- **Found:** 2026-07-20 while runtime-verifying FEAT-075 on this machine.
+- **Symptom:** every authenticated module request 401s with `CA_UNAVAILABLE` ("Unable to connect to Certificate Authority", axios `timeout of 5000ms exceeded`). Token *issuance* (login) works; token *validation* by modules does not, so the whole platform is unusable while authenticated.
+- **Root cause:** `.env` sets `CA_BASE_URL=https://exprsn.local/ca` — i.e. module→CA validation loops **out through the nginx edge**. Node/axios's TLS handshake to nginx (`exprsn.local:443`) hangs (curl to the same URL works; node→gateway `localhost:8443` works). The unified in-process gateway should loop CA calls back to the gateway directly, exactly like the other `*_SERVICE_URL`s (CLAUDE.md: "all point back at https://localhost:8443/<module>").
+- **Fix:** set `CA_BASE_URL=https://localhost:8443/ca` (and align `.env.example`, the setup TUI schema — see [[setup-tui]], and any prod override). Verified: overriding `CA_BASE_URL` to the localhost loopback makes `validateToken` return in ~10ms and all authed module calls succeed.
+- **Note:** this is env/config, not code; but worth a guard so an nginx-edge `CA_BASE_URL` can't silently wedge the platform (e.g. prefer loopback for in-process, or a startup self-check).
+
+### BUG-037 — `logger.error is not a function` in CA `requireSessionOrService` catch → 500 (and can strand a request)
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** XS
+- **Owner-role:** jr-developer
+- **Found:** 2026-07-20 alongside BUG-036.
+- **Detail:** `services/ca/middleware/auth.js:397` calls `logger.error(...)` in the service-auth catch branch, but the module's logger (`require('../config/logging')`) has no `.error` method — so a *thrown* `verifyServiceToken` (e.g. malformed `X-Service-Token`) turns into a `TypeError` and a 500 instead of a clean 401. Fix: use the correct logger method/import (match the `logger` used elsewhere in the file) and return 401 on verify failure.
+
 ### BUG-001 — Authenticated SSRF via DID link / proof-of-control fetch
 - **Type:** bug · **Status:** done (landed `fa2cd3c`; QA-verified 2026-07-07 — full caller-surface review, no bypasses; 55 tests green) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —

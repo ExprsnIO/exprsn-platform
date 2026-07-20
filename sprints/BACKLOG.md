@@ -3297,6 +3297,35 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   surface (config gating) → sr-developer + architect review. Related: BUG-034 (validate
   limiter) may bite admin polling — keep admin QPS modest until it lands.
 
+### TASK-045 — Interactive setup TUI for platform configuration (`npm run setup`)
+- **Type:** task · **Status:** in-progress · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
+- **Legacy:** — (complements `.env.example`; sibling of the lowcode TUIs in `scripts/`)
+- **Description:** First-run configuration currently means hand-editing a 400-line
+  `.env.example`. Add `scripts/setup-tui.js` (pure Node readline + ANSI, same house
+  style as `scripts/lowcode-tui.js`, zero new deps) that walks every configurable
+  surface of the platform — edge/TLS, Postgres, Redis, secrets, observability,
+  email, OAuth, AI providers, storage, Elasticsearch, RabbitMQ, live streaming,
+  the AT-Proto bridge, plugins/low-code, cortex (+ vision + python sandbox +
+  moderation modes), FileVault image moderation, and the Docker extras stack —
+  and writes a grouped, commented `.env`.
+- **Acceptance criteria:**
+  - `npm run setup` opens the TUI; loads existing `.env` values (else
+    `.env.example` defaults); never clobbers without a timestamped backup.
+  - Every env var consumed by `src/config/index.js` + documented in `.env.example`
+    is editable; secrets are masked and offer one-key generation at the documented
+    strengths (SERVICE_TOKEN_SECRET 48B, JWT/SESSION/DEV_BYPASS ≥32B hex).
+  - Validation: required secret lengths, numeric ports, enum-only fields
+    (e.g. CORTEX_MODERATION_MODE, FILEVAULT_IMAGE_MODERATION, ATPROTO_DID_METHOD).
+  - A "dev quick-start" preset fills sane local defaults + generated secrets.
+  - Final review screen summarizes enabled features and which `worker:*`
+    processes the chosen config requires; unknown/unmanaged keys in an existing
+    `.env` are preserved verbatim.
+  - Lint clean; no new dependencies.
+- **Notes:** Config keys and defaults must stay in step with `src/config/index.js`
+  and `.env.example` — the TUI's schema cites both. Dev-bypass fields keep their
+  fail-closed wording (never weaken conditions per CLAUDE.md).
+
 ### TASK-001 — Frontend E2E pass (login → MFA wizard → sessions revoke)
 - **Type:** task · **Status:** done (landed `430eaa0`; full flow PASS incl. the SP-6 revoked-bearer-401s check; CI job manual/non-blocking — no live stack on runners) · **Priority:** P1 · **Size:** M
 - **Owner-role:** qa-specialist · **Blocked-by:** — *(unblocked: `SP-6`/`#9` sessions is DONE)*

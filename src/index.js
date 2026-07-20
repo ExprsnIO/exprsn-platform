@@ -78,6 +78,29 @@ async function main() {
     process.exit(1);
   }
 
+  // CA loopback invariant (BUG-036). Modules validate every bearer by calling
+  // the CA at CA_BASE_URL/CA_URL. In the unified in-process gateway that must
+  // loop back to THIS gateway (localhost:8443/ca) — pointing it at the nginx
+  // edge (e.g. https://exprsn.local/ca) makes node/axios's TLS handshake to
+  // nginx hang, so EVERY authenticated request 401s with CA_UNAVAILABLE while
+  // login still works. Warn loudly with the fix rather than let it wedge silently.
+  for (const name of ['CA_BASE_URL', 'CA_URL']) {
+    const raw = process.env[name];
+    if (!raw) continue;
+    let host = '';
+    try { host = new URL(raw).hostname; } catch { /* malformed — leave to the caller */ }
+    const isLoopback = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    if (host && !isLoopback) {
+      logger.warn(
+        `${name}=${raw} is not a loopback URL. The in-process gateway validates `
+        + 'tokens by calling its own CA; a non-loopback (nginx edge) host can hang '
+        + `the TLS handshake and 401 every authed request (CA_UNAVAILABLE). Set ${name}`
+        + `=https://localhost:${config.http.httpsPort || 8443}/ca unless the CA truly `
+        + 'runs out-of-process.',
+      );
+    }
+  }
+
   // Apply DB config overrides BEFORE any module is required, so require-time
   // process.env readers see them. Never throws; env-only on DB failure.
   await require('./config/overridesStore').loadAndApply(config, logger);

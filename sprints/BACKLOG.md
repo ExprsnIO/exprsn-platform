@@ -2733,8 +2733,9 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)".)*
 
 ### BUG-036 — `CA_BASE_URL` points at the nginx edge; node/axios loopback to it hangs → platform-wide CA_UNAVAILABLE
-- **Type:** bug · **Status:** backlog · **Priority:** P1 · **Size:** S
+- **Type:** bug · **Status:** in-review (**FIXED 2026-07-20** on `worktree-feat-timeline-comments`) · **Priority:** P1 · **Size:** S
 - **Owner-role:** systems-architect / dba
+- **Fix applied:** corrected the live `.env` CA URLs to the localhost loopback (backup at `.env.bak-ca-fix-20260720`; `.env.example` was already correct) **and** added a startup guard in `src/index.js` — the gateway now warns loudly (with the exact fix) at boot if `CA_BASE_URL`/`CA_URL` is a non-loopback host. Verified: authed writes return 200 with no override; guard fires on the edge value, silent on loopback.
 - **Found:** 2026-07-20 while runtime-verifying FEAT-075 on this machine.
 - **Symptom:** every authenticated module request 401s with `CA_UNAVAILABLE` ("Unable to connect to Certificate Authority", axios `timeout of 5000ms exceeded`). Token *issuance* (login) works; token *validation* by modules does not, so the whole platform is unusable while authenticated.
 - **Root cause:** `.env` sets `CA_BASE_URL=https://exprsn.local/ca` — i.e. module→CA validation loops **out through the nginx edge**. Node/axios's TLS handshake to nginx (`exprsn.local:443`) hangs (curl to the same URL works; node→gateway `localhost:8443` works). The unified in-process gateway should loop CA calls back to the gateway directly, exactly like the other `*_SERVICE_URL`s (CLAUDE.md: "all point back at https://localhost:8443/<module>").
@@ -2742,8 +2743,9 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
 - **Note:** this is env/config, not code; but worth a guard so an nginx-edge `CA_BASE_URL` can't silently wedge the platform (e.g. prefer loopback for in-process, or a startup self-check).
 
 ### BUG-037 — `logger.error is not a function` in CA `requireSessionOrService` catch → 500 (and can strand a request)
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** XS
+- **Type:** bug · **Status:** in-review (**FIXED 2026-07-20** on `worktree-feat-timeline-comments`) · **Priority:** P3 · **Size:** XS
 - **Owner-role:** jr-developer
+- **Fix applied:** `services/ca/middleware/auth.js` imported `../config/logging` (a config object `{ level }`) instead of `../utils/logger` (the winston logger the other 12 CA files use) — so **all 8** `logger.*` calls in the file were broken, not just line 397. One-line import fix. Verified: a malformed `X-Service-Token` now returns a clean 401 instead of a 500.
 - **Found:** 2026-07-20 alongside BUG-036.
 - **Detail:** `services/ca/middleware/auth.js:397` calls `logger.error(...)` in the service-auth catch branch, but the module's logger (`require('../config/logging')`) has no `.error` method — so a *thrown* `verifyServiceToken` (e.g. malformed `X-Service-Token`) turns into a `TypeError` and a 500 instead of a clean 401. Fix: use the correct logger method/import (match the `logger` used elsewhere in the file) and return 401 on verify failure.
 

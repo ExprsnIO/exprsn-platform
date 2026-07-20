@@ -4,7 +4,11 @@
  * ═══════════════════════════════════════════════════════════
  */
 
-const logger = require('../config/logging');
+// The real winston logger (has .error/.warn/.info). `../config/logging` is only
+// a config object ({ level, ... }) — importing that here made every logger.*
+// call in this file throw `logger.error is not a function` (BUG-037), turning a
+// service-auth failure into a 500 instead of a clean 401.
+const logger = require('../utils/logger');
 
 /**
  * Require authentication - redirect to login if not authenticated

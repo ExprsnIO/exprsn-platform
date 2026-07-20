@@ -11,7 +11,7 @@ A unified Node.js platform that consolidates ten formerly-standalone Exprsn micr
 ```bash
 npm install            # also resolves @exprsn/shared via file:./shared
 npm run gen:certs      # dev self-signed cert (required for the HTTPS edge)
-cp .env.example .env   # fill DB/Redis/secrets
+npm run setup          # scripts/setup-tui.js — interactive TUI: builds/edits .env (all sections, secret generation, validation; backs up before overwrite). Or: cp .env.example .env and fill by hand
 npm run db:bootstrap   # src/db/migrate.js — create db `exprsn` + one Postgres schema per module
 npm run db:migrate     # scripts/migrate-sync.js — sync each module's models into its schema
 npm start              # https://localhost:8443 — verify with: curl -k https://localhost:8443/health

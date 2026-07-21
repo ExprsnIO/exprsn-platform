@@ -22,13 +22,14 @@ import {
 import SettingsIcon from '@mui/icons-material/Settings';
 import {
   useTimelinePrefs,
+  INLINE_COUNT_OPTIONS,
   type Density,
   type FeedKind,
 } from '@/app/timelinePrefs';
 
 export function TimelineSettingsMenu() {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const { defaultFeed, density, markdown, set, reset } = useTimelinePrefs();
+  const { defaultFeed, density, markdown, feedInlineCount, set, reset } = useTimelinePrefs();
 
   return (
     <>
@@ -81,6 +82,26 @@ export function TimelineSettingsMenu() {
               >
                 <ToggleButton value="comfortable">Comfortable</ToggleButton>
                 <ToggleButton value="compact">Compact</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Inline comments in feed
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                fullWidth
+                value={feedInlineCount}
+                onChange={(_e, v: number | null) => v != null && set({ feedInlineCount: v })}
+                sx={{ mt: 0.5 }}
+              >
+                {INLINE_COUNT_OPTIONS.map((n) => (
+                  <ToggleButton key={n} value={n}>
+                    {n === 0 ? 'Off' : n}
+                  </ToggleButton>
+                ))}
               </ToggleButtonGroup>
             </Box>
 

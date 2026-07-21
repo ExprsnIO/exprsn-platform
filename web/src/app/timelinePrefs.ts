@@ -30,7 +30,15 @@ export interface TimelinePrefs {
   threaded: boolean;
   /** Section top-level comments into Today / This week / Earlier buckets. */
   commentGroup: CommentGroup;
+  /**
+   * How many top comments to preview inline under each post in the feed
+   * (ordered by `commentSort`). 0 = off (open the post for its comments).
+   */
+  feedInlineCount: number;
 }
+
+/** Allowed inline-preview counts, surfaced as a fixed choice in settings. */
+export const INLINE_COUNT_OPTIONS = [0, 1, 3, 5] as const;
 
 const DEFAULTS: TimelinePrefs = {
   defaultFeed: 'home',
@@ -39,6 +47,7 @@ const DEFAULTS: TimelinePrefs = {
   commentSort: 'newest',
   threaded: true,
   commentGroup: 'none',
+  feedInlineCount: 3,
 };
 
 function resolveInitial(): TimelinePrefs {
@@ -83,6 +92,7 @@ export const useTimelinePrefs = create<TimelinePrefsState>((set, get) => {
         commentSort: s.commentSort,
         threaded: s.threaded,
         commentGroup: s.commentGroup,
+        feedInlineCount: s.feedInlineCount,
       };
       persist({ ...current, ...patch });
       set(patch);

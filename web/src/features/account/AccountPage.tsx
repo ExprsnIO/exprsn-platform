@@ -6,6 +6,7 @@ import { toMessage } from '@/lib/errors';
 import { ProfileForm } from './ProfileForm';
 import { SecuritySection } from './SecuritySection';
 import { SessionsList } from './SessionsList';
+import { PreferencesSection } from './PreferencesSection';
 import { UserDids } from './UserDids';
 import { CertificatesTab } from './CertificatesTab';
 import { TokensTab } from './TokensTab';
@@ -36,6 +37,7 @@ export function AccountPage() {
           <Tab label="Profile" />
           <Tab label="Security" />
           <Tab label="Sessions" />
+          <Tab label="Preferences" />
           <Tab label="Identity" />
           <Tab label="Certificates" />
           <Tab label="Tokens" />
@@ -46,10 +48,11 @@ export function AccountPage() {
       {tab === 0 && <ProfileForm user={user} />}
       {tab === 1 && <SecuritySection />}
       {tab === 2 && <SessionsList />}
-      {tab === 3 && <UserDids userId={user.id} />}
-      {tab === 4 && <CertificatesTab />}
-      {tab === 5 && <TokensTab />}
-      {tab === 6 && <SecretsTab />}
+      {tab === 3 && <PreferencesSection />}
+      {tab === 4 && <UserDids userId={user.id} />}
+      {tab === 5 && <CertificatesTab />}
+      {tab === 6 && <TokensTab />}
+      {tab === 7 && <SecretsTab />}
     </Stack>
   );
 }

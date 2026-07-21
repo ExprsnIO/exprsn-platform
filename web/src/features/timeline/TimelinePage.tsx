@@ -21,6 +21,7 @@ import { prefetchApi } from '@/api/prefetch';
 import { Composer } from './Composer';
 import { PostCard, PostSkeleton } from './PostCard';
 import { TimelineSettingsMenu } from './TimelineSettingsMenu';
+import { InlineComments } from './InlineComments';
 
 const CHIP_COLOR: Record<ConnState, 'success' | 'warning' | 'default' | 'error'> = {
   connected: 'success',
@@ -222,16 +223,23 @@ export function TimelinePage() {
       )}
 
       {posts.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          isOwn={post.userId === userId}
-          onToggleLike={(p) => likeMutation.mutate(p)}
-          onToggleBookmark={(p) => bookmarkMutation.mutate(p)}
-          onOpenDetail={(p) => navigate(`/feed/${p.id}`)}
-          onUpdated={onUpdated}
-          onDeleted={onDeleted}
-        />
+        <Box key={post.id}>
+          <PostCard
+            post={post}
+            isOwn={post.userId === userId}
+            onToggleLike={(p) => likeMutation.mutate(p)}
+            onToggleBookmark={(p) => bookmarkMutation.mutate(p)}
+            onOpenDetail={(p) => navigate(`/feed/${p.id}`)}
+            onUpdated={onUpdated}
+            onDeleted={onDeleted}
+          />
+          <InlineComments
+            postId={post.id}
+            commentCount={post.commentCount ?? 0}
+            currentUserId={userId}
+            onOpenDetail={() => navigate(`/feed/${post.id}`)}
+          />
+        </Box>
       ))}
     </Stack>
   );

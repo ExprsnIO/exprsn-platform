@@ -3871,8 +3871,22 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Ratios from TASK-049 script (WCAG formula, MUI 5.16.7). This is the highest-traffic failure (every primary action in dark mode).
 
 ### BUG-049 — Semantic Chip colors fail text contrast: filled success/error/info and outlined success/warning/error/info labels
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Resolution notes (2026-07-27, branch s2610):** Theme-level `MuiChip` variants in
+  `web/src/app/theme.ts` (no call-site edits). Filled success/error/info map onto the
+  design system's on-tint pairs, now mirrored into `tokens.ts` as `SEMANTIC_TINTS`:
+  2.54/3.76/3.68 → **6.78/6.80/7.15** (theme-invariant, both modes). Filled warning
+  (9.22) and secondary (5.70) untouched. Outlined light: labels → `-text` tokens
+  (2.54/2.15/3.76/3.68 → 7.68/7.09/8.31/8.72), borders → `-hover` tokens
+  (3.19–5.17, non-text ≥3). Outlined dark: success/warning keep mains (6.50/7.67),
+  error/info/secondary lighten via `DARK_CHIP_EMPHASIS` (4.38/4.48/2.89 →
+  5.96/6.48/6.06); outlined primary rides the BUG-048 token (4.48 → 5.01 dark, 4.83
+  light). Chip icon/delete-icon inherit the label color; clickable filled chips keep
+  the compliant tint on hover. All ratios computed with the TASK-049 WCAG script.
+  QA spot-check sites: StreamsPage.tsx:203, NotificationsPage.tsx:80,
+  EventsTab.tsx:272, ScopesSection.tsx:97, AtprotoSection.tsx:411, cortex/shared.tsx:62
+  in both themes. vitest 16/16 green; build clean.
 - **Legacy:** 2026-07-20 accessibility review ("outlined chips" suspect — confirmed); TASK-049 measurement
 - **Description:** Colored MUI Chips (33 call sites) fail WCAG 1.4.3 at ~13px labels:
   - Filled, both themes: success #fff/#10b981 = **2.54**, error #fff/#ef4444 = **3.76**, info #fff/#3b82f6 = **3.68** (theme.ts:20-23 sets `contrastText: WHITE`). E.g. `web/src/features/streams/StreamsPage.tsx:203` ("● LIVE"), `web/src/features/moderation/NotificationsPage.tsx:80` (unread count), `web/src/features/groups/tabs/EventsTab.tsx:272`.

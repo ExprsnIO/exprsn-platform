@@ -85,6 +85,31 @@ export const exprsnTokens: Record<ThemeMode, ExprsnPalette> = {
   },
 };
 
+/**
+ * Semantic on-tint pairs (theme-invariant). Mirror the --exprsn-*-bg / -text /
+ * -hover custom properties in src/styles/exprsn-unified.css — keep in sync.
+ * The -text values are the purpose-built text-grade colors that pass 4.5:1 on
+ * their tint (6.78–7.15) and on the light surfaces (7.09–8.72).
+ */
+export const SEMANTIC_TINTS = {
+  success: { bg: '#d1fae5', text: '#065f46', hover: '#059669' },
+  error: { bg: '#fee2e2', text: '#991b1b', hover: '#dc2626' },
+  warning: { bg: '#fef3c7', text: '#92400e', hover: '#d97706' },
+  info: { bg: '#dbeafe', text: '#1e40af', hover: '#2563eb' },
+} as const;
+
+/**
+ * BUG-049: lightened semantic emphasis used ONLY for dark-mode outlined chip
+ * labels/borders (the saturated mains measure 4.38–4.48 on the dark surfaces).
+ * MUI-only — no CSS counterpart, except `secondary`, which mirrors
+ * --exprsn-secondary-light.
+ */
+export const DARK_CHIP_EMPHASIS = {
+  error: '#f87171', // 5.96:1 on surface-raised #1f1f1f
+  info: '#60a5fa', // 6.48:1
+  secondary: '#a78bfa', // 6.06:1
+} as const;
+
 export const FONT_FAMILY =
   "'Inter', -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif";
 export const FONT_FAMILY_MONO =

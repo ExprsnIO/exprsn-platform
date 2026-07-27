@@ -48,6 +48,13 @@
   --exprsn-danger: #ef4444; --exprsn-danger-hover: #dc2626; --exprsn-danger-bg: #fee2e2; --exprsn-danger-text: #991b1b;
   --exprsn-warning: #f59e0b; --exprsn-warning-hover: #d97706; --exprsn-warning-bg: #fef3c7; --exprsn-warning-text: #92400e;
   --exprsn-info: #3b82f6; --exprsn-info-hover: #2563eb; --exprsn-info-bg: #dbeafe; --exprsn-info-text: #1e40af;
+  /* Emphasis (BUG-049): text-grade semantic accents for small text/borders on
+     the raised surfaces (e.g. outlined chip labels). In light mode they equal
+     the saturated mains; dark mode lightens them (the mains only measure
+     4.38–4.48:1 on the dark surfaces). Keep in sync with src/app/tokens.ts. */
+  --exprsn-danger-emphasis: var(--exprsn-danger);
+  --exprsn-info-emphasis: var(--exprsn-info);
+  --exprsn-secondary-emphasis: var(--exprsn-secondary);
   /* Neutrals */
   --exprsn-white: #ffffff; --exprsn-black: #0a0a0a;
   --exprsn-gray-50: #fafafa; --exprsn-gray-100: #f5f5f5; --exprsn-gray-200: #e5e5e5; --exprsn-gray-300: #d4d4d4;
@@ -109,6 +116,11 @@
   --exprsn-primary: #4a8cf7;
   --exprsn-text-on-primary: #0a0a0a;
   --exprsn-primary-hover: #60a5fa;
+  /* Emphasis (BUG-049): lightened so semantic text/borders pass 4.5:1 on the
+     dark surfaces (5.96 / 6.48 / 6.06 on surface-raised #1f1f1f). */
+  --exprsn-danger-emphasis: #f87171;
+  --exprsn-info-emphasis: #60a5fa;
+  --exprsn-secondary-emphasis: var(--exprsn-secondary-light);
   --exprsn-bg-primary: #0a0a0a; --exprsn-bg-secondary: #171717; --exprsn-bg-tertiary: #262626;
   --exprsn-bg-hover: #1c1f23; --exprsn-bg-active: #2f3336; --exprsn-surface-raised: #1f1f1f;
   --exprsn-text-primary: #fafafa; --exprsn-text-secondary: #d4d4d4; --exprsn-text-muted: #a3a3a3;

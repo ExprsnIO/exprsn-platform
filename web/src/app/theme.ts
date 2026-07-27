@@ -1,7 +1,6 @@
 import { createTheme, type Theme } from '@mui/material/styles';
 import {
   exprsnTokens,
-  DARK_CHIP_EMPHASIS,
   SEMANTIC_TINTS,
   FONT_FAMILY,
   FONT_FAMILY_MONO,
@@ -29,23 +28,22 @@ export function buildTheme(mode: ThemeMode): Theme {
   // mains where they pass (success 6.50, warning 7.67) and lightens error/info/
   // secondary (5.96/6.48/6.06). Outlined primary is covered by the BUG-048
   // primary token itself (4.83 light / 5.01 dark).
-  const chipOutlined: Partial<
-    Record<'success' | 'error' | 'warning' | 'info' | 'secondary', { color: string; border: string }>
-  > =
+  type ChipSemantic = 'success' | 'error' | 'warning' | 'info' | 'secondary';
+  const chipOutlined: Partial<Record<ChipSemantic, { color: string; border: string }>> =
     mode === 'light'
-      ? {
-          success: { color: SEMANTIC_TINTS.success.text, border: SEMANTIC_TINTS.success.hover },
-          error: { color: SEMANTIC_TINTS.error.text, border: SEMANTIC_TINTS.error.hover },
-          warning: { color: SEMANTIC_TINTS.warning.text, border: SEMANTIC_TINTS.warning.hover },
-          info: { color: SEMANTIC_TINTS.info.text, border: SEMANTIC_TINTS.info.hover },
-          // Outlined secondary passes in light (5.70) — MUI default kept.
-        }
+      ? // Outlined secondary passes in light (5.70) — MUI default kept.
+        Object.fromEntries(
+          (['success', 'error', 'warning', 'info'] as const).map((c) => [
+            c,
+            { color: SEMANTIC_TINTS[c].text, border: SEMANTIC_TINTS[c].hover },
+          ]),
+        )
       : {
           success: { color: t.success, border: t.success },
           warning: { color: t.warning, border: t.warning },
-          error: { color: DARK_CHIP_EMPHASIS.error, border: DARK_CHIP_EMPHASIS.error },
-          info: { color: DARK_CHIP_EMPHASIS.info, border: DARK_CHIP_EMPHASIS.info },
-          secondary: { color: DARK_CHIP_EMPHASIS.secondary, border: DARK_CHIP_EMPHASIS.secondary },
+          error: { color: t.dangerEmphasis, border: t.dangerEmphasis },
+          info: { color: t.infoEmphasis, border: t.infoEmphasis },
+          secondary: { color: t.secondaryEmphasis, border: t.secondaryEmphasis },
         };
 
   // Icon/delete-icon follow the label color (MUI's defaults assume the old
@@ -67,7 +65,7 @@ export function buildTheme(mode: ThemeMode): Theme {
       },
     })),
     ...(Object.entries(chipOutlined) as Array<
-      ['success' | 'error' | 'warning' | 'info' | 'secondary', { color: string; border: string }]
+      [ChipSemantic, { color: string; border: string }]
     >).map(([color, v]) => ({
       props: { variant: 'outlined' as const, color },
       style: { color: v.color, borderColor: v.border, ...chipIconInherit },

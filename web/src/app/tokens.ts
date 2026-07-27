@@ -21,6 +21,15 @@ interface ExprsnPalette {
   danger: string;
   warning: string;
   info: string;
+  /**
+   * Text-grade semantic accents for small text/borders on the raised surfaces
+   * (mirror --exprsn-danger-emphasis / --exprsn-info-emphasis /
+   * --exprsn-secondary-emphasis). Light = the semantic mains; dark = lightened
+   * so they pass 4.5:1 on the dark surfaces (BUG-049).
+   */
+  dangerEmphasis: string;
+  infoEmphasis: string;
+  secondaryEmphasis: string;
   bgPrimary: string;
   bgSecondary: string;
   bgTertiary: string;
@@ -53,6 +62,9 @@ export const exprsnTokens: Record<ThemeMode, ExprsnPalette> = {
     primary: '#0066ff',
     primaryContrast: WHITE, // white on #0066ff = 4.83:1
     primaryHover: '#0052cc',
+    dangerEmphasis: constants.danger,
+    infoEmphasis: constants.info,
+    secondaryEmphasis: constants.secondary,
     bgPrimary: '#ffffff',
     bgSecondary: '#fafafa',
     bgTertiary: '#f5f5f5',
@@ -73,6 +85,11 @@ export const exprsnTokens: Record<ThemeMode, ExprsnPalette> = {
     primary: '#4a8cf7',
     primaryContrast: BLACK,
     primaryHover: '#60a5fa',
+    // BUG-049 emphasis: 5.96 / 6.48 / 6.06:1 on surface-raised #1f1f1f
+    // (secondaryEmphasis mirrors --exprsn-secondary-light).
+    dangerEmphasis: '#f87171',
+    infoEmphasis: '#60a5fa',
+    secondaryEmphasis: '#a78bfa',
     bgPrimary: '#0a0a0a',
     bgSecondary: '#171717',
     bgTertiary: '#262626',
@@ -96,18 +113,6 @@ export const SEMANTIC_TINTS = {
   error: { bg: '#fee2e2', text: '#991b1b', hover: '#dc2626' },
   warning: { bg: '#fef3c7', text: '#92400e', hover: '#d97706' },
   info: { bg: '#dbeafe', text: '#1e40af', hover: '#2563eb' },
-} as const;
-
-/**
- * BUG-049: lightened semantic emphasis used ONLY for dark-mode outlined chip
- * labels/borders (the saturated mains measure 4.38–4.48 on the dark surfaces).
- * MUI-only — no CSS counterpart, except `secondary`, which mirrors
- * --exprsn-secondary-light.
- */
-export const DARK_CHIP_EMPHASIS = {
-  error: '#f87171', // 5.96:1 on surface-raised #1f1f1f
-  info: '#60a5fa', // 6.48:1
-  secondary: '#a78bfa', // 6.06:1
 } as const;
 
 export const FONT_FAMILY =

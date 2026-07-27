@@ -808,7 +808,7 @@ are cross-referenced, not re-filed.)*
   places; TASK-023's harness can consume image shadow data.
 
 ### TASK-024 — `db:check` is blind to nullability and FK `onDelete` (drift gate gap)
-- **Type:** task · **Status:** in-review — DONE 2026-07-10 · **Priority:** P1 · **Size:** M
+- **Type:** task · **Status:** done — QA-VERIFIED closed 2026-07-27 (in-review closeout, Sprint 2026-10) · **Priority:** P1 · **Size:** M
 - **Owner-role:** dba · **Found:** DBA review of FEAT-031 (2026-07-10)
 - **Resolution:** `check-drift-one.js` now compares column **nullability** and FK
   **`onDelete`/`onUpdate`**. Two subtleties handled so the check is trustworthy
@@ -823,9 +823,13 @@ are cross-referenced, not re-filed.)*
   allowlist; each entry has a reason + ticket). `db:check` PRINTS every finding
   but only FAILS on non-allowlisted ones — proven both directions. STATUS.md
   updated. Backlog of the 17 tracked as BUG-025.
+- **QA closeout (2026-07-27):** Verified in `scripts/check-drift-one.js` — nullability
+  aggregation (:184–190) and FK `onDelete`/`onUpdate` comparison (:264–268) both present;
+  `drift-allow.json` holds 9 reasoned entries. Fresh `db:check` run skipped (no `exprsn`
+  DB reachable in the QA env); corroborated by BUG-025's recorded live verification.
 
 ### BUG-027 — Room-shared file keeps serving to a room after the owner flips it to private (durable-share residual)
-- **Type:** bug · **Status:** in-review (**FIXED 2026-07-14 under FEAT-061 Pass 1**) · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED closed 2026-07-27 (in-review closeout, Sprint 2026-10) · **Priority:** P3 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** BUG-024, BUG-026, **FEAT-061** · **Found:** QA re-verify of BUG-026 (2026-07-10)
 
 > **RESOLVED.** The "Decision needed (PM/architect)" below is now answered — **Rick chose
@@ -854,6 +858,11 @@ are cross-referenced, not re-filed.)*
   visibility-flip revoke room access? If the latter, `downloadFileStreamForMember`
   would need a per-share access model (who shared it, were they the owner) rather
   than a blanket ownership-skip. Not a merge blocker for BUG-024/026.
+- **QA closeout (2026-07-27):** `shareGrantAllows()` fail-closed at both download and
+  listing; `sharedAsOwner` provenance derived from the verified file at all three mint
+  sites; backfill migration joins `filevault.files` for true values; filevault suites
+  62/62 PASS. Pre-existing stale exact-arg assertions in live `roomFiles.test.js` filed
+  as **BUG-054** (test-only, does not invalidate the fix).
 
 ### BUG-025 — Triage the 17 pre-existing nullability/FK divergences surfaced by TASK-024
 - **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (branch `feat/cortex-followups`, HEAD `04d350d`, live DB `exprsn`). `npm run db:check` exits 0 with exactly the 9 allowlisted findings printed (all `ticket:null`, permanent by-design: 8 ca cross-schema user/target refs + timeline polymorphic `entity_id`). Genuineness spot-checks against the live DB, not the allowlist: `ca.crl_counters_issuer_id_fkey` confdeltype=`c` (ON DELETE CASCADE, model-was-right migration `20260710000001` applied); `filevault.thumbnails_file_id_fkey` confdeltype=`c` (absent from allowlist, passes genuinely). Cross-schema claim proven: `ca.users` = 0 rows; all 10210 `ca.certificates.user_id` and all 341998 `ca.tokens.user_id` resolve to `auth.users` — so an in-DB FK to `ca.users` would reject every insert and a cross-schema FK breaks per-schema isolation → allowlist reasoning is real. `filevault`/`auth`/`moderator` etc. report no drift, i.e. the aligned models match live. · **Priority:** P2 · **Size:** M
@@ -893,7 +902,7 @@ are cross-referenced, not re-filed.)*
   fixed.
 
 ### TASK-025 — FileVault: reconcile images stuck `pending` with no queue job
-- **Type:** task · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P2 · **Size:** S
+- **Type:** task · **Status:** done — QA-VERIFIED closed 2026-07-27 (in-review closeout, Sprint 2026-10) · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** FEAT-031 · **Found:** DBA review (2026-07-10)
 - **Description:** The moderation job is enqueued after the upload transaction
   commits, deliberately and best-effort. If the process dies between commit and
@@ -903,9 +912,13 @@ are cross-referenced, not re-filed.)*
 - **Acceptance criteria:** a periodic reconciler re-enqueues rows that are
   `pending` beyond N minutes with no waiting/active Bull job; it is idempotent and
   cannot resurrect a resolved verdict.
+- **QA closeout (2026-07-27):** `reconcileStuckPending()` in
+  `services/filevault/src/worker.js` meets all AC (periodic + grace window; skips live
+  queue jobs; selects only `pending`/`shadow_pending` so resolved verdicts cannot be
+  resurrected); `reconcile.test.js` PASS.
 
 ### BUG-016 — FileVault: `jobId: file:<id>` will silently no-op a future re-moderation
-- **Type:** bug · **Status:** in-review — PRIMARY FIXED 2026-07-10, minor residual open · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED closed 2026-07-27 (in-review closeout, Sprint 2026-10) · **Priority:** P3 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** FEAT-031, BUG-018, BUG-021 · **Found:** DBA review (2026-07-10)
 - **Description:** The queue dedups on `jobId: file:<id>`, which is correct for
   its purpose (collapsing duplicate enqueues of one upload). But Bull treats
@@ -925,6 +938,11 @@ are cross-referenced, not re-filed.)*
 - **Note:** `ai_tags` (`text[]`) has no GIN index. Deliberate — tag filtering is
   not a query that runs today. Add `USING GIN (ai_tags)` in the migration of
   whichever ticket introduces tag filtering.
+- **QA closeout (2026-07-27):** Primary fixed — `requeueImageModeration()`
+  remove-then-add (`queues/imageModeration.js:89–94`), consumed by the BUG-018/BUG-021
+  re-moderation paths and the TASK-025 reconciler; `imageModeration.test.js` PASS. The
+  residual (`evaluate()` overwrites the prior verdict in place — zero audit loss, flagged
+  verdicts persist to moderator) split out as **TASK-054**.
 
 ### BUG-017 — FileVault group-file uploads bypass image moderation entirely (served unmoderated)
 - **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-10 (HEAD `22629ae`). Live E2E, real `filevault` schema, `FILEVAULT_IMAGE_MODERATION=true`: `uploadGroupFile()` → `FileModeration.status='pending'`; `getFile(other group member)` → `FILE_NOT_FOUND` (hidden); `getFile(uploader)` → SERVED. Unit `imageModeration.test.js` (establishModerationState create). `db:check` filevault no drift; lint clean. Fix `733c842`.· **Priority:** P1 · **Size:** M
@@ -1141,7 +1159,7 @@ are cross-referenced, not re-filed.)*
   is NOT the defect.
 
 ### BUG-020 — Share-link metadata endpoint discloses a held image's existence and filename
-- **Type:** bug · **Status:** in-review — FIXED 2026-07-10 · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED closed 2026-07-27 (in-review closeout, Sprint 2026-10) · **Priority:** P3 · **Size:** S
 - **Owner-role:** sr-developer · **Relates:** FEAT-031 · **Found:** QA verification 2026-07-10 (observed, not filed)
 - **Description:** `GET /filevault/api/share/:shareLinkId` returns a file's name,
   size, and mimetype without consulting its moderation state. Only the
@@ -1155,6 +1173,9 @@ are cross-referenced, not re-filed.)*
   rest of the chokepoint enforces.
 - **Acceptance criteria:** the metadata endpoint 404s for a held image exactly as
   the download path does; a test covers it.
+- **QA closeout (2026-07-27):** `assertShareableImage()` 404s the metadata route for
+  held/rejected images (uploader exemption deliberately not applied);
+  `shareGate.test.js` covers all four cases, PASS.
 
 ### FEAT-023 — Cortex as an in-process LLM source for other modules (façade + moderator provider)
 - **Type:** feature · **Status:** done · **Priority:** P1 · **Size:** M — reconciled 2026-07-27 — merged to `main` (`ee6e303`)
@@ -2393,7 +2414,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   symptoms of the same gap. Dedupe the platform-admin predicate first (TASK-030).
 
 ### FEAT-061 — Tokenization Slice: unified capability / share-link tokens
-- **Type:** feature · **Status:** in-review (**Pass 1 of 2 — FileVault + Live done; see Progress**) · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** done — QA-VERIFIED closed 2026-07-27, **re-scoped to Pass 1**; Pass 2 split to FEAT-077 · **Priority:** P1 · **Size:** L
 - **Reconcile note (2026-07-27):** Pass 1 merged to `main` (`4b71df6`/`ff8bba3`, closes BUG-027); left `in-review` rather than `done` because this is an explicitly two-pass ticket and Pass 2 is still outstanding.
 - **Owner-role:** sr-developer · **Blocked-by:** — (independent of FEAT-060; can run in parallel)
 
@@ -2460,6 +2481,13 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 - **Notes:** The four acceptance criteria above are **literally the four share bugs already filed**
   — this slice is the structural fix that stops a fifth. BUG-027 stays open until this lands, or is
   fixed locally first and re-verified here. Architect sign-off.
+- **QA closeout (2026-07-27):** Pass 1 (provenance-aware grant semantics unifying
+  FileVault + Live behind one fail-closed predicate; closes BUG-027) is genuinely done
+  and merged (`4b71df6`/`ff8bba3`), filevault suites 62/62. The full-feature AC as
+  written (one shared capability-token mechanism; private-flip invalidates all links)
+  belongs to Pass 2 and partially contradicts Rick's 2026-07-13 provenance decision
+  (owner-minted capabilities survive) — split to **FEAT-077** with the AC restated,
+  which must land before FEAT-047 album sharing starts.
 
 ### FEAT-062 — Administrative settings for the new features (parent epic)
 - **Type:** feature (epic) · **Status:** backlog · **Priority:** P2 · **Size:** L
@@ -2795,6 +2823,25 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   SC 1.2.2 for prerecorded), deferring live-HLS captions and ASR. P2P WebRTC rooms
   (`VideoTile`) are outside strict caption-file scope. Touches `web/` players +
   FileVault + live edge → **dba** for the schema, sr-developer for the build.
+
+### FEAT-077 — Capability façade (FEAT-061 Pass 2): reconcile ShareLink + RoomFile behind one shared mechanism
+- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** M
+- **Owner-role:** unassigned · **Relates:** FEAT-061 (Pass 1, done), FEAT-047/048/049 (blocked-before), FEAT-039, FEAT-055, BUG-020/026/027 lineage
+- **Cost/Benefit:** pending
+- **Legacy:** — (split from FEAT-061 at the 2026-07-27 in-review closeout)
+- **Description:** Extract a shared capability façade so Gallery (FEAT-047) plugs in
+  without a redesign; reconcile FileVault `ShareLink` (already CA-token-backed) and Live
+  `RoomFile` (row-backed provenance grants) behind it. Restate the invalidation AC to
+  match Rick's 2026-07-13 provenance decision: owner-minted capabilities survive a
+  private-flip; non-owner grants die with the visibility they were minted under.
+- **Acceptance criteria:**
+  - One façade both consumers call; behavior parity proven by the existing shareGate /
+    roomMemberDownload suites plus new façade-level tests.
+  - Compatibility window: live issued share links in `share.js`/`roomCollab.js` do not
+    break on cutover.
+  - Invalidation semantics per the restated (provenance-decision-aligned) AC.
+- **Notes:** **Must land before FEAT-047 album sharing starts** (FEAT-047's notes
+  already require this). systems-architect sign-off on the façade shape.
 
 ## Bugs
 
@@ -3354,7 +3401,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   precedent for restoring a `/moderate/*` route without auth. Touches the same file as FEAT-051.
 
 ### BUG-030 — `POST /api/oauth2/introspect` requires no client authentication (token oracle)
-- **Type:** bug · **Status:** in-review · **Priority:** P1 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED closed 2026-07-27 (in-review closeout, Sprint 2026-10) · **Priority:** P1 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — (found while fixing BUG-029, 2026-07-13)
 - **Description:** **RFC 7662 §2.1 requires authorization on the introspection endpoint.** Ours had
@@ -3379,9 +3426,14 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   handler: the `token_type_hint=refresh_token` branch read `accessTokenExpiresAt`, which
   `getRefreshToken()` does not return — that path threw. (`iat` was likewise always `NaN`, as no
   getter returns `createdAt`; it is now omitted rather than emitted as null.) 33/33 oauth2 tests green.
+- **QA closeout (2026-07-27):** Fail-closed — `authenticateClientRequest` returns 401
+  `invalid_client` before any token lookup (`oauth2.js:378–387`); cross-client
+  introspection reads `{active:false}` (:400–402); all three AC bullets
+  regression-tested (:408, :431, :572). Live-HTTP re-check deferred until exprsn infra
+  is back up in a QA env.
 
 ### BUG-029 — `oidc` router is mounted bare and shadows three `oauth2` endpoints
-- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED closed 2026-07-27 (in-review closeout, Sprint 2026-10) · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — (audit, 2026-07-13; API_SURFACE.md already flags the mount order)
 - **Description:** **Security-relevant: two live implementations of token introspection and
@@ -3440,7 +3492,9 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   the ticket said to read both before deleting either.
 
 ---
-
+- **QA closeout (2026-07-27):** `oidc.js` reduced to the two `/.well-known` routes;
+  `/api/oauth2/*` owned by a single router at a real prefix (commit `f09f82b`);
+  revoke-invalidates regression at `oauth2.test.js:572`.
 
 ### BUG-031 — `resolveUserRoles` does not filter by scope: org-scoped super-admin gets the platform admin token marker
 - **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
@@ -3929,6 +3983,22 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - [ ] Composer attachment chips keep ≥ the spacing-exception margin when wrapping (or delete target enlarged).
   - [ ] No small IconButton regression below 24×24 (guard: no `p:0` overrides — none exist today).
 - **Notes:** MUI-level remedy exists: bump `MuiChip` deleteIcon hit area via theme `styleOverrides` (padding on `.MuiChip-deleteIcon`) instead of per-site edits.
+
+### BUG-054 — live `roomFiles.test.js` stale after FEAT-061 Pass 1 (exact-arg assertions miss the provenance argument)
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (QA in-review closeout 2026-07-27, main `64a9f7a`; relates FEAT-061, BUG-027)
+- **Description:** `cd services/live && npx jest tests/roomFiles.test.js` — the
+  `toHaveBeenCalledWith` assertions at `:212` and `:258` still expect the pre-FEAT-061
+  2-arg call shapes, but the routes now pass a third options argument
+  (`{sharedAsOwner}` / `{ownerSharedIds}`, `roomCollab.js:118/:214`) that `ff8bba3`
+  never propagated into this suite. Jest is strict on arity, so both fail. Test-only
+  defect; product behavior is covered by the updated filevault suites.
+- **Acceptance criteria:**
+  - The two assertions updated to the 3-arg shapes; suite green.
+  - A positive assertion added that provenance IS threaded through both call sites (the
+    load-bearing part of BUG-027).
+- **Notes:** jr-developer.
 
 ## Tasks
 
@@ -4495,7 +4565,7 @@ FEAT.)*
   unblocked. Cross-link BUG-028 for the full evidence trail.
 
 ### TASK-031 — API_SURFACE.md omits two whole modules and one whole router — **DONE**
-- **Type:** task · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Type:** task · **Status:** done — QA-VERIFIED closed 2026-07-27 (in-review closeout, Sprint 2026-10) · **Priority:** P2 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** —
 
 > **DONE 2026-07-13.** Added, each verified 1:1 against the route files:
@@ -4536,6 +4606,8 @@ FEAT.)*
   **not** cover whole-module omission. Cross-link, do not duplicate or close one with the other. The
   doc's existing security annotations are accurate and valuable (it correctly flags the BUG-029 mount
   order) — this is staleness, not wrongness. Consider a generator to stop the drift recurring.
+- **QA closeout (2026-07-27):** Doc-vs-code exact match on main — plugins 24/24 and
+  lowcode 52/52 endpoints; roomCollab router + both socket events documented.
 
 ### TASK-032 — Delete-or-revive the dead auth route directories
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
@@ -4920,6 +4992,23 @@ FEAT.)*
   the same sign-off: HSTS `includeSubDomains` revisit at production-TLS time (fold into
   the R-track TLS ticket), self-hosted STUN/TURN (fold into TASK-050),
   `frame-ancestors` revisit only if lowcode form embedding ever becomes a FEAT.
+
+### TASK-054 — FileVault: persist prior image verdict before re-moderation overwrite (verdict history)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (split from BUG-016's residual at the 2026-07-27 in-review closeout; relates BUG-018, BUG-021)
+- **Description:** `imageModerationService.evaluate()` overwrites `verdict`/`provider`/
+  `model`/`riskScore` in place on re-run (~:244–247), so a prior clean verdict is lost
+  locally (flagged verdicts are already persisted to moderator by the escalate hook —
+  no audit loss today). If a full local verdict history is wanted, persist the prior
+  verdict (e.g. append to a JSONB history column or a child table) before the
+  overwrite.
+- **Acceptance criteria:**
+  - Prior verdict retained locally across a re-moderation (shape chosen with a dba
+    glance — JSONB history vs child table).
+  - Include the deferred `USING GIN (ai_tags)` index in whichever ticket first
+    introduces tag filtering (carried note from BUG-016).
+- **Notes:** dba review for the storage shape. jr-developer.
 
 ## Spikes
 

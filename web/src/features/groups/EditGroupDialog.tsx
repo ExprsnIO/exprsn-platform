@@ -151,13 +151,13 @@ export function EditGroupDialog({
           <ImageUploadField
             label="Group avatar"
             variant="avatar"
-            value={(form.avatarUrl as string) ?? ''}
+            value={form.avatarUrl ?? ''}
             onChange={(url) => set('avatarUrl', url)}
           />
           <ImageUploadField
             label="Cover image"
             variant="cover"
-            value={(form.bannerUrl as string) ?? ''}
+            value={form.bannerUrl ?? ''}
             onChange={(url) => set('bannerUrl', url)}
           />
         </Stack>

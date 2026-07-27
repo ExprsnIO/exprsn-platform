@@ -25,10 +25,13 @@ export function ProfileForm({ user }: { user: AccountUser }) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const set = (key: keyof ProfileUpdate) => (e: { target: { value: string } }) => {
-    setForm((f) => ({ ...f, [key]: e.target.value }));
+  // Single owner of the "editing clears the saved banner" rule.
+  const setField = (key: keyof ProfileUpdate, value: string) => {
+    setForm((f) => ({ ...f, [key]: value }));
     setDone(false);
   };
+  const set = (key: keyof ProfileUpdate) => (e: { target: { value: string } }) =>
+    setField(key, e.target.value);
 
   const mutation = useMutation({
     mutationFn: () => accountApi.updateProfile(user.id, form),
@@ -74,10 +77,7 @@ export function ProfileForm({ user }: { user: AccountUser }) {
             label="Avatar"
             variant="avatar"
             value={form.avatarUrl ?? ''}
-            onChange={(url) => {
-              setForm((f) => ({ ...f, avatarUrl: url }));
-              setDone(false);
-            }}
+            onChange={(url) => setField('avatarUrl', url)}
           />
 
           <Button type="submit" variant="contained" disabled={mutation.isPending} sx={{ alignSelf: 'flex-start' }}>

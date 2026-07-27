@@ -326,74 +326,10 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
     color: var(--exprsn-text-muted);
 }
 
-/* NOTE: RootLayout's account menu no longer renders this markup — it's an
-   MUI <Menu> now (BUG-039), which is keyboard-operable and not a hover
-   dropdown, so there's no double-open risk there. This CSS block still
-   backs AdminLayout's account menu (features/admin/AdminLayout.tsx), which
-   uses the same hand-rolled hover pattern and is out of scope for BUG-039
-   (ticket only covers RootLayout.tsx:107-136) — filed as a follow-up. */
-.user-menu-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    width: 240px;
-    background: var(--exprsn-bg-primary);
-    border: 1px solid var(--exprsn-border-color);
-    border-radius: var(--exprsn-radius-lg);
-    box-shadow: var(--exprsn-shadow-xl);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    transition: var(--exprsn-transition-fast);
-    z-index: 1100;
-}
-
-.user-menu:hover .user-menu-dropdown {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-.dropdown-header {
-    padding: 1rem;
-    border-bottom: 1px solid var(--exprsn-border-color);
-}
-
-.dropdown-header .user-email {
-    font-size: 0.8125rem;
-    color: var(--exprsn-text-muted);
-    margin-top: 0.25rem;
-}
-
-.dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    color: var(--exprsn-text-primary);
-    text-decoration: none;
-    transition: var(--exprsn-transition-base);
-    cursor: pointer;
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-}
-
-.dropdown-item:hover {
-    background: var(--exprsn-bg-secondary);
-}
-
-.dropdown-item.text-danger {
-    color: var(--exprsn-danger);
-}
-
-.dropdown-divider {
-    height: 1px;
-    background: var(--exprsn-border-color);
-    margin: 0.5rem 0;
-}
+/* NOTE (BUG-039/BUG-047): the hand-rolled hover dropdown CSS
+   (.user-menu-dropdown, .dropdown-header/item/divider) is gone — both
+   RootLayout's and AdminLayout's account menus are keyboard-operable MUI
+   <Menu>s now. Only the trigger button (.user-menu-btn) styling remains. */
 
 /* ============================================================================
    SIDEBAR

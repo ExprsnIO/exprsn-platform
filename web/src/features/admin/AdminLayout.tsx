@@ -4,9 +4,9 @@
  * shared auth/session/realtime infra and the Exprsn Unified design-system
  * chrome (see src/styles/exprsn-unified.css) — only the brand and nav differ.
  */
-import { useState } from 'react';
-import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Box, Collapse } from '@mui/material';
+import { useState, type MouseEvent } from 'react';
+import { Link as RouterLink, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Box, Collapse, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -132,16 +132,20 @@ function AdminLiveChip() {
   );
 }
 
-/** One sidebar link (shared by top-level items and category children). */
-function NavLinkItem({ item, pathname }: { item: AdminItem; pathname: string }) {
+/** One sidebar link (shared by top-level items and category children).
+ *  NavLink sets `aria-current="page"` on the active item (TASK-046 parity). */
+function NavLinkItem({ item }: { item: AdminItem }) {
   const Icon = item.icon;
-  const active = isItemActive(item.to, pathname);
   return (
     <div className="nav-item">
-      <RouterLink to={item.to} className={`nav-link${active ? ' active' : ''}`}>
+      <NavLink
+        to={item.to}
+        end={item.to === '/admin'}
+        className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+      >
         <Icon sx={{ fontSize: '1.125rem', width: 24 }} />
         <span>{item.label}</span>
-      </RouterLink>
+      </NavLink>
     </div>
   );
 }
@@ -152,6 +156,11 @@ export function AdminLayout() {
   const user = useAppStore((s) => s.user);
   const clearSession = useAppStore((s) => s.clearSession);
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<HTMLElement | null>(null);
+  const userMenuOpen = Boolean(userMenuAnchor);
+
+  const openUserMenu = (e: MouseEvent<HTMLElement>) => setUserMenuAnchor(e.currentTarget);
+  const closeUserMenu = () => setUserMenuAnchor(null);
 
   const toggleCategory = (label: string) => {
     setCollapsed((cur) => {
@@ -162,6 +171,7 @@ export function AdminLayout() {
   };
 
   const logout = async () => {
+    closeUserMenu();
     try {
       await authApi.logout();
     } finally {
@@ -174,6 +184,10 @@ export function AdminLayout() {
 
   return (
     <>
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+
       {/* ── Top navbar ───────────────────────────────────────────────── */}
       <header className="top-navbar">
         <RouterLink to="/admin" className="navbar-brand">
@@ -187,30 +201,57 @@ export function AdminLayout() {
           <ThemeToggle />
 
           <div className="user-menu">
-            <button type="button" className="user-menu-btn">
+            <button
+              type="button"
+              className="user-menu-btn"
+              id="admin-user-menu-btn"
+              aria-haspopup="menu"
+              aria-expanded={userMenuOpen}
+              aria-controls={userMenuOpen ? 'admin-user-menu-dropdown' : undefined}
+              onClick={openUserMenu}
+            >
               <span className="user-avatar">{initials(displayName)}</span>
               <span className="user-info">
                 <span className="user-name">{displayName}</span>
                 <span className="user-role">Administrator</span>
               </span>
             </button>
-            <div className="user-menu-dropdown">
+            <Menu
+              id="admin-user-menu-dropdown"
+              anchorEl={userMenuAnchor}
+              open={userMenuOpen}
+              onClose={closeUserMenu}
+              MenuListProps={{ 'aria-labelledby': 'admin-user-menu-btn', dense: true }}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              slotProps={{ paper: { sx: { width: 240 } } }}
+            >
               {user && (
-                <div className="dropdown-header">
-                  <div className="user-name">{user.displayName || user.email}</div>
-                  {user.email && <div className="user-email">{user.email}</div>}
-                </div>
+                <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                  <Typography variant="body2" fontWeight={600} noWrap>
+                    {user.displayName || user.email}
+                  </Typography>
+                  {user.email && (
+                    <Typography variant="caption" color="text.secondary" noWrap component="div">
+                      {user.email}
+                    </Typography>
+                  )}
+                </Box>
               )}
-              <RouterLink to="/" className="dropdown-item">
-                <ArrowBackOutlinedIcon fontSize="small" />
-                Back to app
-              </RouterLink>
-              <div className="dropdown-divider" />
-              <button type="button" className="dropdown-item text-danger" onClick={logout}>
-                <LogoutOutlinedIcon fontSize="small" />
-                Sign out
-              </button>
-            </div>
+              <MenuItem component={RouterLink} to="/" onClick={closeUserMenu}>
+                <ListItemIcon>
+                  <ArrowBackOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Back to app</ListItemText>
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={logout} sx={{ color: 'error.main' }}>
+                <ListItemIcon>
+                  <LogoutOutlinedIcon fontSize="small" color="error" />
+                </ListItemIcon>
+                <ListItemText>Sign out</ListItemText>
+              </MenuItem>
+            </Menu>
           </div>
         </div>
       </header>
@@ -220,7 +261,7 @@ export function AdminLayout() {
         <nav className="sidebar-nav">
           <div className="nav-section">
             {TOP_ITEMS.map((item) => (
-              <NavLinkItem key={item.to} item={item} pathname={pathname} />
+              <NavLinkItem key={item.to} item={item} />
             ))}
           </div>
           {CATEGORIES.map((cat) => {
@@ -260,7 +301,7 @@ export function AdminLayout() {
                 </button>
                 <Collapse in={open} timeout={120}>
                   {cat.items.map((item) => (
-                    <NavLinkItem key={item.to} item={item} pathname={pathname} />
+                    <NavLinkItem key={item.to} item={item} />
                   ))}
                 </Collapse>
               </div>
@@ -270,7 +311,7 @@ export function AdminLayout() {
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────────── */}
-      <Box component="main" className="main-content" sx={{ minWidth: 0 }}>
+      <Box component="main" id="main-content" className="main-content" tabIndex={-1} sx={{ minWidth: 0 }}>
         <Outlet />
       </Box>
     </>

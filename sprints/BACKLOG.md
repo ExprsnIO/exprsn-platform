@@ -3818,8 +3818,18 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   TASK-050. sr-developer.
 
 ### BUG-047 — AdminLayout admin-shell a11y parity: hover-only account menu + missing skip link/`aria-current`
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Resolution notes (2026-07-27, branch s2610):** AdminLayout account menu is now the
+  same MUI `<Menu>` pattern as RootLayout (ids `admin-user-menu-btn` /
+  `admin-user-menu-dropdown`, `aria-haspopup`/`aria-expanded`/`aria-controls`, Escape
+  close + focus return come from MUI Menu). Dead hover CSS deleted
+  (`.user-menu-dropdown`, `.user-menu:hover` rule, `.dropdown-header/-item/-divider` —
+  AdminLayout was the sole consumer). Admin shell got the skip link +
+  `id="main-content"`/`tabIndex=-1` target, and sidebar links converted to `NavLink`
+  (auto `aria-current="page"`; `end` on `/admin` preserves prior active logic).
+  QA path: /admin, Tab from address bar → skip link; open account menu via keyboard
+  (Enter), Escape returns focus; active sidebar item exposes `aria-current="page"`.
 - **Legacy:** — (Sprint 2026-09 escalation; same defect classes as BUG-039 / TASK-046, which scoped `RootLayout` only)
 - **Description:** `web/src/features/admin/AdminLayout.tsx` (~189-214) renders the admin
   console's own account menu with the identical hover-only CSS pattern BUG-039 removed

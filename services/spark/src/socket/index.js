@@ -17,6 +17,7 @@ const {
   authorizeConversationAccess,
   ensureParticipant
 } = require('../services/groupChannelService');
+const contactPolicy = require('../services/contactPolicy');
 
 /**
  * Identity-bound service headers for CA calls. The CA's /api/tokens/validate
@@ -80,17 +81,24 @@ async function notifyNewMessage({ conversationId, senderId, senderName, message 
       ? 'Sent you an encrypted message'
       : (message.content || '').slice(0, 120);
 
+    // FEAT-070 N2: beyond the sender + per-conversation mute filter, drop any
+    // recipient whose relationship suppression set contains the sender
+    // (blocked either way, or the recipient user-muted the sender). Fail-closed
+    // inside the helper: a failed lookup drops the notification.
+    const candidates = participants
+      .filter((p) => p.userId !== senderId && !p.muted)
+      .map((p) => p.userId);
+    const notifiable = await contactPolicy.filterNotifiableRecipients(senderId, candidates);
+
     await Promise.all(
-      participants
-        .filter((p) => p.userId !== senderId && !p.muted)
-        .map((p) =>
-          notifyUser(p.userId, {
-            type: 'message',
-            title,
-            body,
-            data: { conversationId, messageId: message.id, senderId, type: 'message' }
-          })
-        )
+      notifiable.map((userId) =>
+        notifyUser(userId, {
+          type: 'message',
+          title,
+          body,
+          data: { conversationId, messageId: message.id, senderId, type: 'message' }
+        })
+      )
     );
   } catch (err) {
     logger.debug('notifyNewMessage failed', { conversationId, error: err.message });
@@ -302,6 +310,22 @@ module.exports = function(io) {
           }
         }
 
+        // FEAT-070 S2: block enforcement on the primary live send path. Direct
+        // (1:1) only — group/group-bound conversations are exempt inside the
+        // guard (ADR §3). Fail-closed: a failed relationship lookup rejects
+        // the send with the generic failure, not the 403 contact message.
+        try {
+          await contactPolicy.assertCanContact(socket.userId, conversation);
+        } catch (policyError) {
+          socket.emit('error', {
+            event: 'send:message',
+            message: policyError instanceof contactPolicy.ContactForbiddenError
+              ? policyError.message
+              : 'Failed to send message'
+          });
+          return;
+        }
+
         // Create message. For E2EE sends the client supplies encryptedContent +
         // senderKeyFingerprint and the model hook nulls out `content`.
         const message = await Message.create({
@@ -395,6 +419,14 @@ module.exports = function(io) {
         });
 
         if (!participant) return;
+
+        // FEAT-070: don't leak typing presence across a frozen 1:1 — in a
+        // blocked pair the counterpart would otherwise see "typing" for a
+        // message that can never arrive. Silent no-op (never an error) so
+        // nothing reveals who blocked whom; false on lookup failure too.
+        if (!(await contactPolicy.canContactInConversation(socket.userId, conversationId))) {
+          return;
+        }
 
         // Add to typing indicators
         if (!typingIndicators.has(conversationId)) {

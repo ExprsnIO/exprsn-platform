@@ -10,19 +10,24 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. No sprint currently in flight — **2026-11 grooming pass complete
-> (2026-07-27)**; slate below awaits the owner's capacity steer before COMMIT
-> (anchors FEAT-070 + FEAT-077, both C/B-approved and `ready`). Closed sprints —
+> active sprint. **Active sprint: `active/sprint-2026-11.md`** — committed
+> 2026-07-27 on the owner's LIGHT single-track steer (TASK-056, FEAT-070,
+> FEAT-077 FileVault-only slice, BUG-054). Closed sprints —
 > `sprint-2026-07.md`, `sprint-2026-08.md`, `sprint-2026-09.md`, and
 > `sprint-2026-10.md` (A11y/CSP follow-through, closed 2026-07-27) — are in
 > `archive/`.
 
 ---
 
-## 2026-11 grooming queue (2026-07-27)
+## 2026-11 grooming queue (2026-07-27) — COMMITTED
 
-Groomed slate for sprint 2026-11. **No sprint file is created and nothing is
-`in-sprint` yet** — COMMIT waits on the owner's (Rick's) capacity steer below.
+**Owner steer received (Rick, 2026-07-27): fork 2 — LIGHT single-track.** Sprint
+2026-11 is **committed**: see `active/sprint-2026-11.md`. Committed set: TASK-056
+(warm-up, first), FEAT-070 (full ADR scope, fallback slice available), **FEAT-077
+FileVault-backend-only slice** (per its C/B's single-implementer alternative;
+RoomFile adapter split to **TASK-057**, 2026-12), BUG-054 (fill). TASK-055 stays
+backlog as a conditional pull (pullable once the slice lands `revokeByResource`).
+The slate below is kept as the grooming record.
 
 - **Anchors (both `ready`):**
   - **FEAT-070** — Spark block enforcement (P1, M, route to sr-developer). C/B
@@ -2638,7 +2643,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 
 
 ### FEAT-070 — Spark block enforcement (block/mute for messaging) *(Tier 1)*
-- **Type:** feature · **Status:** ready — groomed 2026-11 pass (2026-07-27); C/B approved below · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** in-sprint — Committed to Sprint 2026-11 (2026-07-27), full ADR scope; C/B-approved fallback slice available if it runs long · **Priority:** P1 · **Size:** M
 - **Owner-role:** sr-developer · **Relates:** FEAT-011 (mandatory sibling per its ADR)
 - **Description:** FEAT-011 shipped block/mute in timeline (`timeline.user_relationships` + `relationshipService`
   façade). A block that does not stop a DM is incomplete: the ADR (`sprints/feat-011-blockmute-adr.md`) decomposed
@@ -2871,7 +2876,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   FileVault + live edge → **dba** for the schema, sr-developer for the build.
 
 ### FEAT-077 — Capability façade (FEAT-061 Pass 2): reconcile ShareLink + RoomFile behind one shared mechanism
-- **Type:** feature · **Status:** ready — groomed 2026-11 pass (2026-07-27) · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** in-sprint — Committed to Sprint 2026-11 (2026-07-27), **slice-scoped**: 2026-11 commits the **FileVault-backend-only slice** (façade interface + ShareLink/CA-token backend + `revokeByResource`, per the C/B's approved single-implementer alternative); the **RoomFile adapter is split to TASK-057** (backlog, P2, target 2026-12, must still land ahead of FEAT-047). Architect Shape-A sign-off on the façade interface scheduled week-1 day 1–2 · **Priority:** P1 · **Size:** M (2026-11 slice ~S/M)
 - **Owner-role:** unassigned *(route to sr-developer at BUILD; architect-paired)* · **Relates:** FEAT-061 (Pass 1, done), FEAT-047/048/049 (blocked-before), FEAT-039, FEAT-055, BUG-020/026/027 lineage
 - **Cost/Benefit: APPROVED (2026-07-27)** — build-now for sprint 2026-11, size **M
   conditional on Shape A** (interface unification: façade with ShareLink/CA-token +
@@ -4095,7 +4100,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** MUI-level remedy exists: bump `MuiChip` deleteIcon hit area via theme `styleOverrides` (padding on `.MuiChip-deleteIcon`) instead of per-site edits.
 
 ### BUG-054 — live `roomFiles.test.js` stale after FEAT-061 Pass 1 (exact-arg assertions miss the provenance argument)
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** in-sprint — Committed to Sprint 2026-11 (2026-07-27) as fill; pairs naturally with façade-adjacent work but is standalone-safe · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (QA in-review closeout 2026-07-27, main `64a9f7a`; relates FEAT-061, BUG-027)
 - **Description:** `cd services/live && npx jest tests/roomFiles.test.js` — the
@@ -5138,7 +5143,7 @@ FEAT.)*
 
 ### TASK-055 — FileVault: revoke the minted capability token when an avatar/cover is replaced or removed
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** FEAT-077 (per its C/B: the façade's `revokeByResource(fileId)` makes this a one-call trivial-S fix — do not build it standalone first)
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-077 **2026-11 slice** (per its C/B: the façade's `revokeByResource(fileId)` makes this a one-call trivial-S fix — do not build it standalone first). Note the 2026-07-27 split: `revokeByResource` is IN the FileVault-backend-only slice committed to Sprint 2026-11 — this ticket does NOT wait on the TASK-057 RoomFile-adapter remainder, and becomes pullable (conditional pull, only if the sprint drains early) as soon as the slice lands.
 - **Legacy:** — (QA follow-up from TASK-053 verification, 2026-07-27)
 - **Description:** TASK-053's `ImageUploadField` mints a non-expiring read-only
   file-scoped access token and embeds it in the stored avatar/cover URL. Remove/replace
@@ -5154,7 +5159,7 @@ FEAT.)*
   `revokeByResource` lands early enough to leave runway.
 
 ### TASK-056 — FileVault: clamp `file-access` token minting to read-only server-side (pre-existing)
-- **Type:** task · **Status:** ready — groomed 2026-11 pass (2026-07-27) · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** in-sprint — Committed to Sprint 2026-11 (2026-07-27); lands FIRST as the warm-up, independent of the façade branch · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned *(route to jr-developer at BUILD)* · **Blocked-by:** —
 - **Legacy:** — (QA finding during TASK-053 verification, 2026-07-27 — pre-existing, not introduced by Sprint 2026-10)
 - **Description:** `shareService.createFileAccessToken` spreads `options.permissions`
@@ -5169,6 +5174,30 @@ FEAT.)*
   2026-07-27): land this BEFORE and independently of FEAT-077** — do not fold it into
   the façade branch. ~1-line clamp on `createFileAccessToken` + one regression test;
   the façade then inherits the clamp and its test. Good sprint warm-up ticket.
+
+### TASK-057 — RoomFile adapter behind the capability façade (FEAT-077 remainder)
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S/M
+- **Owner-role:** unassigned *(route to sr-developer at BUILD — façade-adjacent)* · **Blocked-by:** FEAT-077 2026-11 slice (the FileVault-backend-only façade must land first)
+- **Legacy:** — (split from FEAT-077 at the 2026-11 COMMIT, 2026-07-27, per the owner's LIGHT single-track steer + the FEAT-077 C/B's single-implementer alternative)
+- **Description:** Sprint 2026-11 commits only FEAT-077's FileVault-backend-only
+  slice (façade interface + ShareLink/CA-token backend + `revokeByResource`). This
+  ticket is the remainder: implement the Live `RoomFile` (row-backed provenance
+  grants) adapter as a **peer backend behind the same façade** — Shape A only, no
+  RoomFile→token storage migration (that variant re-sizes to L and is not approved
+  by the C/B). Target: **sprint 2026-12** — it must still land **ahead of FEAT-047
+  album sharing** (FEAT-047's notes require the complete façade before grooming/build).
+- **Acceptance criteria:**
+  - `RoomFile` grants are resolved/enforced through the façade interface landed by
+    the 2026-11 slice — no second enforcement path remains in `roomCollab.js`.
+  - Behavior parity proven by the existing roomMemberDownload suites plus
+    façade-level tests covering the RoomFile backend.
+  - Compatibility window: live issued room-share links in `roomCollab.js` do not
+    break on cutover.
+  - Invalidation semantics per FEAT-077's restated provenance AC (owner-minted
+    survives private-flip; non-owner grants die with the visibility minted under).
+- **Notes:** Inherits FEAT-077's architect involvement — the Shape-A interface
+  sign-off from the 2026-11 slice governs this adapter; flag the architect if the
+  RoomFile adapter pressures the interface. Sequencing: ahead of FEAT-047/048/049.
 
 ## Spikes
 

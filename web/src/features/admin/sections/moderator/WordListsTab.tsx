@@ -114,6 +114,7 @@ export function WordListsTab({ onToast }: { onToast: (m: string) => void }) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Word lists"
         subtitle="Named keyword lists referenced by rules — /moderator/api/wordlists"
         actions={<Button variant="contained" onClick={() => setDialog({ list: null })}>New list</Button>}

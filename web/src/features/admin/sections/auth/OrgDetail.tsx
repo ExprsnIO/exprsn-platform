@@ -684,7 +684,7 @@ export function OrganizationDetail({ org, onBack, onToast }: { org: Organization
       <OrgSettingsForm org={full} onToast={onToast} />
 
       <div>
-        <SectionHeader title="Members, groups & roles" subtitle="Manage membership and role/permission scopes for this organization." />
+        <SectionHeader level={2} title="Members, groups & roles" subtitle="Manage membership and role/permission scopes for this organization." />
         <Tabs value={tab} onChange={(_e, v) => setTab(v)}>
           <Tab value="members" label="Users" />
           <Tab value="groups" label="Groups" />

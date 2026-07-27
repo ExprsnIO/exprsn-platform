@@ -354,6 +354,7 @@ function CatalogTab({ onToast, onError }: TabProps) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Catalog"
         subtitle="Registered plugins and their manifests"
         actions={<RegisterManifestDialog onToast={onToast} onError={onError} />}
@@ -476,7 +477,7 @@ function InstallationsTab({ onToast, onError }: TabProps) {
 
   return (
     <Stack spacing={2}>
-      <SectionHeader title="Installations" subtitle="Per-scope installs with lifecycle state" actions={<InstallDialog onToast={onToast} onError={onError} />} />
+      <SectionHeader level={2} title="Installations" subtitle="Per-scope installs with lifecycle state" actions={<InstallDialog onToast={onToast} onError={onError} />} />
       <Stack direction="row" spacing={2}>
         <TextField select size="small" label="Scope" value={scopeType} onChange={(e) => setScopeType(e.target.value)} sx={{ minWidth: 160 }}>
           <MenuItem value="">All</MenuItem>
@@ -614,7 +615,7 @@ function EndpointsTab({ onToast, onError }: TabProps) {
   };
   return (
     <Stack spacing={2}>
-      <SectionHeader title="Endpoints" subtitle="Inbound/outbound webhook endpoints" actions={<EndpointDialog onToast={onToast} onError={onError} />} />
+      <SectionHeader level={2} title="Endpoints" subtitle="Inbound/outbound webhook endpoints" actions={<EndpointDialog onToast={onToast} onError={onError} />} />
       <QueryState query={query} empty="No endpoints.">
         {(d) => (
           <DataTable<Endpoint>
@@ -647,7 +648,7 @@ function DeliveriesTab({ onError }: TabProps) {
   void onError;
   return (
     <Stack spacing={2}>
-      <SectionHeader title="Deliveries" subtitle="Plugin event delivery log" />
+      <SectionHeader level={2} title="Deliveries" subtitle="Plugin event delivery log" />
       <TextField select size="small" label="Status" value={status} onChange={(e) => setStatus(e.target.value)} sx={{ maxWidth: 200 }}>
         <MenuItem value="">All</MenuItem>
         {DELIVERY_STATUSES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}

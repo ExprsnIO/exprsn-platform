@@ -82,6 +82,7 @@ export function GuardrailsTab({ toast }: { toast: ToastFn }) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Guardrails"
         subtitle="Typed rule sets screening agent input/output — save → test → enable (test-gated)"
         actions={

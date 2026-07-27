@@ -1,5 +1,5 @@
 import { useState, type MouseEvent } from 'react';
-import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
 import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
 import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
@@ -72,7 +72,6 @@ function initials(name: string): string {
 }
 
 export function RootLayout() {
-  const { pathname } = useLocation();
   const navigate = useNavigate();
   const user = useAppStore((s) => s.user);
   const clearSession = useAppStore((s) => s.clearSession);
@@ -99,6 +98,10 @@ export function RootLayout() {
 
   return (
     <>
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+
       {/* ── Top navbar ───────────────────────────────────────────────── */}
       <header className="top-navbar">
         <RouterLink to="/" className="navbar-brand">
@@ -181,13 +184,16 @@ export function RootLayout() {
               <div className="nav-section-title">{section.title}</div>
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const active = pathname === item.to;
                 return (
                   <div className="nav-item" key={item.to}>
-                    <RouterLink to={item.to} className={`nav-link${active ? ' active' : ''}`}>
+                    <NavLink
+                      to={item.to}
+                      end={item.to === '/'}
+                      className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+                    >
                       <Icon sx={{ fontSize: '1.125rem', width: 24 }} />
                       <span>{item.label}</span>
-                    </RouterLink>
+                    </NavLink>
                   </div>
                 );
               })}
@@ -203,7 +209,7 @@ export function RootLayout() {
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────────── */}
-      <Box component="main" className="main-content">
+      <Box component="main" id="main-content" className="main-content" tabIndex={-1}>
         <Outlet />
       </Box>
     </>

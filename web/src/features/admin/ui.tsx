@@ -81,15 +81,24 @@ export function SectionHeader({
   title,
   subtitle,
   actions,
+  level = 1,
 }: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  /**
+   * Heading level for the rendered title element — keeps the visual h5 style
+   * regardless. Defaults to 1 (page-top heading); pass 2 when this header
+   * sits inside a tab/detail panel of a page that already has its own
+   * level-1 SectionHeader, so each page ends up with exactly one <h1> and no
+   * skipped heading levels.
+   */
+  level?: 1 | 2;
 }) {
   return (
     <Stack direction="row" alignItems="flex-start" justifyContent="space-between" sx={{ mb: 1 }}>
       <Box>
-        <Typography variant="h5">{title}</Typography>
+        <Typography variant="h5" component={level === 1 ? 'h1' : 'h2'}>{title}</Typography>
         {subtitle && (
           <Typography variant="body2" color="text.secondary">
             {subtitle}

@@ -443,6 +443,7 @@ export function AgentsTab({ onToast }: { onToast: (m: string) => void }) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="AI agents"
         subtitle="Automated moderation agents — /moderator/api/agents"
         actions={<Button variant="contained" onClick={() => setDialog({ agent: null })}>New agent</Button>}

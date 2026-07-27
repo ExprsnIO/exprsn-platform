@@ -191,6 +191,7 @@ export function SkillsTab({ toast }: { toast: ToastFn }) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Skills"
         subtitle="Markdown prompt packs with recommended tools — no test gate; AI drafts arrive disabled"
         actions={

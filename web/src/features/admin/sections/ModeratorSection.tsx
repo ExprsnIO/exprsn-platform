@@ -113,6 +113,7 @@ function RulesTab({ onToast }: { onToast: (m: string) => void }) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Rules"
         subtitle="Condition-tree rules evaluated by the moderation engine"
         actions={<Button variant="contained" onClick={() => setDialog({ rule: null })}>New rule</Button>}

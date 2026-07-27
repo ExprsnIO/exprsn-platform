@@ -108,6 +108,10 @@ router.post(
 
     await ensureParticipant(conversation.id, req.userId, req.groupMembership.role);
 
+    // FEAT-070: group-channel sends are deliberately EXEMPT from block-pair
+    // rejection (FEAT-011 ADR §3 — a block never severs shared group spaces;
+    // membership is the group admin's domain). Do not add assertCanContact
+    // here.
     const message = await Message.create({
       conversationId: conversation.id,
       senderId: req.userId,

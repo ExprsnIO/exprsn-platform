@@ -49,6 +49,9 @@ export function RecordingsList({ recordings }: { recordings: Recording[] }) {
             <Paper
               key={r.id}
               variant="outlined"
+              role={ready ? 'button' : undefined}
+              tabIndex={ready ? 0 : undefined}
+              aria-label={ready ? `Play recording ${r.title || 'Recording'}` : undefined}
               sx={{
                 p: 1.5,
                 display: 'flex',
@@ -59,6 +62,13 @@ export function RecordingsList({ recordings }: { recordings: Recording[] }) {
                 borderColor: selected?.id === r.id ? 'primary.main' : undefined,
               }}
               onClick={() => ready && setSelected(r)}
+              onKeyDown={(e) => {
+                if (!ready) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelected(r);
+                }
+              }}
             >
               <PlayCircleOutlineIcon color={ready ? 'primary' : 'disabled'} />
               <Box sx={{ flex: 1, minWidth: 0 }}>

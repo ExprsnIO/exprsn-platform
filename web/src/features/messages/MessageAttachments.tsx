@@ -183,7 +183,27 @@ function LinkCard({ a }: { a: ChatAttachment }) {
     else window.open(a.url, '_blank', 'noopener');
   };
   return (
-    <Stack spacing={0.5} onClick={open} sx={{ px: 1.5, py: 1.25, borderRadius: 1.5, border: '1px solid', borderColor: 'divider', minWidth: 220, maxWidth: 300, bgcolor: 'background.paper', color: 'text.primary', cursor: 'pointer' }}>
+    <Stack
+      component="button"
+      type="button"
+      spacing={0.5}
+      onClick={open}
+      aria-label={`Open link: ${a.title || a.url}`}
+      sx={{
+        px: 1.5,
+        py: 1.25,
+        borderRadius: 1.5,
+        border: '1px solid',
+        borderColor: 'divider',
+        minWidth: 220,
+        maxWidth: 300,
+        bgcolor: 'background.paper',
+        color: 'text.primary',
+        cursor: 'pointer',
+        textAlign: 'left',
+        font: 'inherit',
+      }}
+    >
       <Stack direction="row" spacing={0.5} alignItems="center">
         <OpenInNewIcon fontSize="small" color="action" />
         <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>{a.title || a.url}</Typography>

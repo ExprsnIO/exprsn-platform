@@ -53,11 +53,22 @@ function Node({ name, value, depth }: { name?: string; value: Json; depth: numbe
   return (
     <Box sx={{ pl: depth * 1.5 }}>
       <Box
+        component="button"
+        type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-label={open ? 'Collapse' : 'Expand'}
+        aria-expanded={open}
         sx={{
           display: 'flex',
           alignItems: 'center',
           cursor: 'pointer',
+          border: 0,
+          background: 'none',
+          p: 0,
+          width: '100%',
+          textAlign: 'left',
+          font: 'inherit',
+          color: 'inherit',
           py: 0.1,
           userSelect: 'none',
           '&:hover': { bgcolor: 'action.hover' },

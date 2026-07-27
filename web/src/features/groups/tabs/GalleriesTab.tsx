@@ -66,16 +66,21 @@ function GalleryThumb({ file, onOpen }: { file: FileItem; onOpen: (file: FileIte
 
   return (
     <Box
+      component="button"
+      type="button"
       onClick={() => onOpen(file)}
+      aria-label={`Open ${file.name}`}
       sx={{
         position: 'relative',
         aspectRatio: '1 / 1',
         borderRadius: 1,
         overflow: 'hidden',
         cursor: 'pointer',
-        bgcolor: 'action.hover',
         border: '1px solid',
+        p: 0,
+        textAlign: 'left',
         borderColor: 'divider',
+        bgcolor: 'action.hover',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

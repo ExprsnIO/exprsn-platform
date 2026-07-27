@@ -267,7 +267,17 @@ export function SignupWizardPage() {
                     <Card
                       key={t.key}
                       variant="outlined"
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={orgType === t.key}
+                      aria-label={`Select organization type: ${t.label}`}
                       onClick={() => setOrgType(t.key)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setOrgType(t.key);
+                        }
+                      }}
                       sx={{
                         cursor: 'pointer',
                         borderColor: orgType === t.key ? 'primary.main' : undefined,

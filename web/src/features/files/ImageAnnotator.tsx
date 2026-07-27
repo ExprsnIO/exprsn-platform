@@ -429,10 +429,15 @@ export function ImageAnnotator({
             {SWATCHES.map((c) => (
               <Box
                 key={c}
+                component="button"
+                type="button"
                 onClick={() => setColor(c)}
+                aria-label={`Set colour ${c}`}
+                aria-pressed={color === c}
                 sx={{
                   width: 22,
                   height: 22,
+                  p: 0,
                   borderRadius: '50%',
                   bgcolor: c,
                   cursor: 'pointer',
@@ -469,10 +474,15 @@ export function ImageAnnotator({
             {STROKE_WIDTHS.map((w) => (
               <Box
                 key={w}
+                component="button"
+                type="button"
                 onClick={() => setStrokeWidth(w)}
+                aria-label={`Set stroke width ${w}`}
+                aria-pressed={strokeWidth === w}
                 sx={{
                   width: 30,
                   height: 30,
+                  p: 0,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

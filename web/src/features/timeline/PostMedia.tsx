@@ -117,20 +117,37 @@ function PlayBadge({ live }: { live?: boolean }) {
 }
 
 /** A single thumbnail tile (image / video poster / live poster). */
-function Thumb({ item, onOpen }: { item: PostMedia; onOpen: () => void }) {
+function Thumb({
+  item,
+  onOpen,
+  index,
+  count,
+}: {
+  item: PostMedia;
+  onOpen: () => void;
+  index: number;
+  count: number;
+}) {
   const { url, failed } = useObjectUrl(() => thumbLoader(item), [item.id, item.url, item.thumbnailUrl]);
   const playable = isVideo(item) || isLive(item);
 
   return (
     <Box
+      component="button"
+      type="button"
       onClick={onOpen}
+      aria-label={item.altText ? `Open ${item.altText}` : `Open image ${index + 1} of ${count}`}
       sx={{
         position: 'relative',
         width: '100%',
         height: '100%',
         cursor: 'pointer',
-        bgcolor: playable ? 'common.black' : 'action.hover',
+        border: 0,
+        p: 0,
+        m: 0,
         display: 'flex',
+        textAlign: 'left',
+        bgcolor: playable ? 'common.black' : 'action.hover',
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -176,15 +193,24 @@ function LiveCard({ item }: { item: PostMedia }) {
         </Box>
       ) : (
         <Box
+          component="button"
+          type="button"
           onClick={() => src && setOpen(true)}
+          disabled={!src}
+          aria-label={item.title ? `Play live stream: ${item.title}` : 'Play live stream'}
           sx={{
             position: 'relative',
+            width: '100%',
             aspectRatio: '16 / 9',
             borderRadius: 1,
             overflow: 'hidden',
+            border: 0,
+            p: 0,
+            m: 0,
+            display: 'flex',
+            textAlign: 'left',
             cursor: src ? 'pointer' : 'default',
             bgcolor: 'common.black',
-            display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -399,13 +425,21 @@ export function PostMediaGrid({ media }: { media: PostMedia[] }) {
                   gridColumn: visible.length === 3 && i === 2 ? '1 / -1' : undefined,
                 }}
               >
-                <Thumb item={item} onOpen={() => setOpen(i)} />
+                <Thumb item={item} onOpen={() => setOpen(i)} index={i} count={tiles.length} />
                 {overflow > 0 && last && (
                   <Box
+                    component="button"
+                    type="button"
                     onClick={() => setOpen(i)}
+                    aria-label={`Show ${overflow + 1} more images`}
                     sx={{
                       position: 'absolute',
                       inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      border: 0,
+                      p: 0,
+                      m: 0,
                       bgcolor: 'color-mix(in srgb, var(--exprsn-black) 55%, transparent)',
                       color: 'common.white',
                       display: 'flex',

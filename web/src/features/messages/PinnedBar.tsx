@@ -70,11 +70,15 @@ export function PinnedBar({
   return (
     <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
       <Stack
+        component="button"
+        type="button"
         direction="row"
         spacing={1}
         alignItems="center"
-        sx={{ px: 1.5, py: 0.5, cursor: 'pointer' }}
+        sx={{ px: 1.5, py: 0.5, cursor: 'pointer', width: '100%', border: 0, background: 'none', font: 'inherit', color: 'inherit', textAlign: 'left' }}
         onClick={() => setOpen((o) => !o)}
+        aria-label={open ? 'Hide pinned messages' : 'Show pinned messages'}
+        aria-expanded={open}
       >
         <PushPinIcon sx={{ fontSize: 16 }} color="action" />
         <Typography variant="caption" sx={{ flex: 1, fontWeight: 600 }}>

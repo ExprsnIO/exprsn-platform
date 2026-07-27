@@ -14,7 +14,10 @@
   /* Primary */
   --exprsn-primary: #0066ff;
   /* Text on solid primary fills (BUG-048): white passes in light (4.83:1);
-     dark mode overrides both this and --exprsn-primary below. */
+     dark mode overrides both this and --exprsn-primary below.
+     NEVER pair --exprsn-text-inverse with a --exprsn-primary background — in
+     dark mode that's white-on-#4a8cf7 (3.7:1, WCAG fail). Text on primary
+     fills must always be --exprsn-text-on-primary. */
   --exprsn-text-on-primary: #ffffff;
   --exprsn-primary-hover: #0052cc;
   --exprsn-primary-light: #4d94ff;
@@ -1926,7 +1929,7 @@ input[type="time"] {
 
 /* Pagination — guide markup (<li class="page-item"><a class="page-link">) */
 .page-item { list-style: none; }
-.page-item.active .page-link { color: var(--exprsn-text-inverse); background: var(--exprsn-primary); border-color: var(--exprsn-primary); font-weight: 600; }
+.page-item.active .page-link { color: var(--exprsn-text-on-primary); background: var(--exprsn-primary); border-color: var(--exprsn-primary); font-weight: 600; }
 .page-item.disabled .page-link { color: var(--exprsn-text-muted); background: var(--exprsn-bg-tertiary); cursor: not-allowed; opacity: .5; pointer-events: none; }
 
 /* Loading states */

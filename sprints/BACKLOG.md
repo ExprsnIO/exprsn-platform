@@ -3884,7 +3884,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   TASK-050. sr-developer.
 
 ### BUG-047 — AdminLayout admin-shell a11y parity: hover-only account menu + missing skip link/`aria-current`
-- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED, merged + deployed 2026-07-27 (merge `619ed02`) · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
 - **Resolution notes (2026-07-27, branch s2610):** AdminLayout account menu is now the
@@ -3913,7 +3913,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Direct port of the landed BUG-039 / TASK-046 patterns. jr-developer.
 
 ### BUG-048 — Dark-mode primary too light for white text: contained buttons and filled primary chips fail WCAG 1.4.3
-- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED, merged + deployed 2026-07-27 (merge `619ed02`) · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
 - **Resolution notes (2026-07-27, branch s2610):** No blue can simultaneously pass
@@ -3939,7 +3939,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Ratios from TASK-049 script (WCAG formula, MUI 5.16.7). This is the highest-traffic failure (every primary action in dark mode).
 
 ### BUG-049 — Semantic Chip colors fail text contrast: filled success/error/info and outlined success/warning/error/info labels
-- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Type:** bug · **Status:** done — QA-VERIFIED, merged + deployed 2026-07-27 (merge `619ed02`) · **Priority:** P2 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
 - **Resolution notes (2026-07-27, branch s2610):** Theme-level `MuiChip` variants in
@@ -3969,7 +3969,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** The design system already defines passing text-on-tint tokens (`--exprsn-success-text` #065f46 on #d1fae5 = 6.78 etc.) — mapping chips onto those is the natural remedy.
 
 ### BUG-050 — Green-on-green sidebar system status (live on every page) + tint classes use base semantic color instead of the `-text` tokens
-- **Type:** bug · **Status:** in-review · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED, merged + deployed 2026-07-27 (merge `619ed02`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
 - **Resolution notes (2026-07-27, branch s2610):** `.system-status-text` →
@@ -5014,7 +5014,7 @@ FEAT.)*
   ticket so this fix doesn't itself create a new collision.
 
 ### TASK-053 — External user-supplied image URLs are blocked by the strict SPA CSP (`img-src 'self'`)
-- **Type:** task · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Type:** task · **Status:** done — QA-VERIFIED, merged + deployed 2026-07-27 (merge `619ed02`) · **Priority:** P2 · **Size:** M
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
 - **DECISION (Rick, 2026-07-27):** option **(a)** — FileVault-hosted uploads; no image
@@ -5073,6 +5073,35 @@ FEAT.)*
   - Include the deferred `USING GIN (ai_tags)` index in whichever ticket first
     introduces tag filtering (carried note from BUG-016).
 - **Notes:** dba review for the storage shape. jr-developer.
+
+### TASK-055 — FileVault: revoke the minted capability token when an avatar/cover is replaced or removed
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (QA follow-up from TASK-053 verification, 2026-07-27)
+- **Description:** TASK-053's `ImageUploadField` mints a non-expiring read-only
+  file-scoped access token and embeds it in the stored avatar/cover URL. Remove/replace
+  clears the URL field but never revokes the minted token — anyone who captured the old
+  URL retains permanent read access to the old file.
+- **Acceptance criteria:**
+  - Replacing or removing an avatar/cover revokes the previously minted token (or the
+    flow moves to expiring tokens re-minted on render).
+  - Existing avatar/cover URLs keep working through the transition.
+- **Notes:** Owner-provenance semantics (FEAT-061 Pass 1) make the durable grant
+  acceptable today; this is hardening, not a security defect. jr-developer.
+
+### TASK-056 — FileVault: clamp `file-access` token minting to read-only server-side (pre-existing)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (QA finding during TASK-053 verification, 2026-07-27 — pre-existing, not introduced by Sprint 2026-10)
+- **Description:** `shareService.createFileAccessToken` spreads `options.permissions`
+  over the read-only default, so an owner can mint a persistent `write:true`/
+  `delete:true` capability token via `POST /filevault/api/share/files/:id/access-token`.
+  No current route consumes token-based write (only download exists), but it is a
+  latent widening.
+- **Acceptance criteria:**
+  - Server clamps `shareType:'file-access'` mints to `{read:true, write:false,
+    delete:false}` regardless of the request body; regression test added.
+- **Notes:** jr-developer; quick fail-closed clamp.
 
 ## Spikes
 

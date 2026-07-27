@@ -2575,6 +2575,17 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 - **Acceptance criteria:** a blocked user cannot start/continue a DM with the blocker (403); existing threads are
   filtered on read; message notifications from a suppressed user are dropped; no new unauthenticated surface.
 - **Notes:** FILE per the FEAT-011 ADR — the timeline slice ships a documented DM gap until this lands. Cost/Benefit gate applies (P1 safety).
+- **Cost/Benefit: APPROVED (2026-07-27)** — build-now for sprint 2026-11, size M
+  (ADR-pre-scoped sibling of shipped FEAT-011; façade `canContact` already published,
+  zero new infra/schema, near-zero ongoing cost, HIGH Tier-1 safety value — closes the
+  documented DM gap gating public exposure). Caveats: the ADR's send-site inventory is
+  stale — guard ~5 `Message.create` sites via one `assertCanContact` helper (socket
+  `send:message`, messageService, forward, reply; group-channel exempt per ADR §3);
+  typing-indicator leakage = 1-line gate or documented residual; calls-from-chat is
+  TASK-034's lane, not covered here. Approved fallback slice if capacity-tight:
+  write-rejection + N2 now, S4/S5 read-filter as an explicit follow-up TASK. Full
+  assessment: `sprints/assessments/feat-070-blockmute-cb.md`. Status may move
+  `backlog → ready` at 2026-11 grooming.
 
 ### FEAT-071 — Org-admin-runnable user import/invite route (strict org-binding) *(deferred slice)*
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M

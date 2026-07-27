@@ -45,7 +45,7 @@ router.post('/',
   conditionalGroupMembership,
   validatePostCreation,
   asyncHandler(async (req, res) => {
-    const { content, mediaIds, visibility, replyTo, quoteOf, groupId } = req.body;
+    const { content, mediaIds, media, visibility, replyTo, quoteOf, groupId } = req.body;
 
     // For group posts, enforce visibility semantics from the group itself:
     // private/unlisted groups => member-only post regardless of requested value.
@@ -61,6 +61,7 @@ router.post('/',
       userId: req.userId,
       content,
       mediaIds,
+      media,
       visibility: effectiveVisibility,
       replyTo,
       quoteOf,

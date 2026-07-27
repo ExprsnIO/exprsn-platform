@@ -9,12 +9,19 @@ import { filevaultApi } from '@/api/filevault';
 import type { ChatAttachment } from '@/api/spark';
 
 const MAX_FILES = 6;
+const MAX_ALT_LEN = 1000;
 
 /** Classify a File into a ChatAttachment kind by mime type. */
 function kindFor(file: File): ChatAttachment['kind'] {
   if (file.type.startsWith('image/')) return 'image';
   if (file.type.startsWith('video/')) return 'video';
   return 'file';
+}
+
+/** A picked file plus its author-editable alt text (images only, BUG-040). */
+interface PickedFile {
+  file: File;
+  alt: string;
 }
 
 export function Composer({
@@ -30,7 +37,7 @@ export function Composer({
   onCancelReply?: () => void;
 }) {
   const [text, setText] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -47,14 +54,19 @@ export function Composer({
         // Upload each file to FileVault (visibility 'shared' so recipients can
         // fetch the bytes), then carry plaintext references on the message.
         const uploaded = await Promise.all(
-          files.map((f) => filevaultApi.upload(f, { visibility: 'shared' })),
+          files.map((p) => filevaultApi.upload(p.file, { visibility: 'shared' })),
         );
         attachments = uploaded.map((r, i) => ({
-          kind: kindFor(files[i]),
+          kind: kindFor(files[i].file),
           fileId: r.file.id,
-          name: files[i].name,
-          mimetype: files[i].type,
-          size: files[i].size,
+          name: files[i].file.name,
+          mimetype: files[i].file.type,
+          size: files[i].file.size,
+          // Alt text authored per image (BUG-040); attachments are plaintext
+          // JSON on the message, so it travels with the fileId reference.
+          ...(kindFor(files[i].file) === 'image' && files[i].alt.trim()
+            ? { altText: files[i].alt.trim() }
+            : {}),
         }));
       }
       await onSend(text.trim(), attachments);
@@ -68,7 +80,7 @@ export function Composer({
   };
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
+    const picked = Array.from(e.target.files ?? []).map((file) => ({ file, alt: '' }));
     if (picked.length) setFiles((prev) => [...prev, ...picked].slice(0, MAX_FILES));
     e.target.value = '';
   };
@@ -100,13 +112,30 @@ export function Composer({
 
       {files.length > 0 && (
         <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap', gap: 1 }}>
-          {files.map((f, i) => (
-            <Chip
-              key={`${f.name}-${i}`}
-              label={f.name}
-              onDelete={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
-              size="small"
-            />
+          {files.map((p, i) => (
+            <Stack key={`${p.file.name}-${i}`} spacing={0.5} sx={{ maxWidth: 220 }}>
+              <Chip
+                label={p.file.name}
+                onDelete={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                size="small"
+              />
+              {kindFor(p.file) === 'image' && (
+                <TextField
+                  size="small"
+                  label="Alt text"
+                  placeholder="Describe this image"
+                  value={p.alt}
+                  onChange={(e) =>
+                    setFiles((prev) =>
+                      prev.map((q, j) =>
+                        j === i ? { ...q, alt: e.target.value.slice(0, MAX_ALT_LEN) } : q,
+                      ),
+                    )
+                  }
+                  inputProps={{ 'aria-label': `Alt text for ${p.file.name}` }}
+                />
+              )}
+            </Stack>
           ))}
         </Stack>
       )}

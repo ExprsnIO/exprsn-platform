@@ -139,7 +139,7 @@ function Thumb({ item, onOpen }: { item: PostMedia; onOpen: () => void }) {
         <Box
           component="img"
           src={url}
-          alt={item.title ?? ''}
+          alt={item.altText ?? item.title ?? ''}
           loading="lazy"
           sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: playable ? 0.85 : 1 }}
         />
@@ -222,7 +222,7 @@ function LivePoster({ item }: { item: PostMedia }) {
       <Box
         component="img"
         src={url}
-        alt={item.title ?? ''}
+        alt={item.altText ?? item.title ?? ''}
         sx={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
       />
     );
@@ -255,7 +255,7 @@ function MediaFrame({ item }: { item: PostMedia }) {
     <Box
       component="img"
       src={image.url}
-      alt={item.title ?? ''}
+      alt={item.altText ?? item.title ?? ''}
       sx={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block' }}
     />
   );

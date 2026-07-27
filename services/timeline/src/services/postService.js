@@ -16,17 +16,37 @@ const moderationSink = require('./moderationSink');
 // only on models, so there is no require cycle).
 const relationshipService = require('./relationshipService');
 
+// Cap for per-image alt text carried in Post.media (BUG-040). Generous for
+// screen-reader descriptions but bounded (the column is JSONB, not TEXT).
+const MAX_ALT_TEXT_LENGTH = 1000;
+
 /**
  * Create a new post
  */
-async function createPost({ userId, content, mediaIds = [], visibility = 'public', replyTo = null, quoteOf = null, groupId = null }) {
+async function createPost({ userId, content, mediaIds = [], media = null, visibility = 'public', replyTo = null, quoteOf = null, groupId = null }) {
   try {
     // Process content (sanitize and extract entities)
     const processed = processContent(content);
 
+    // Normalize the media payload (BUG-040): prefer the structured `media`
+    // array ([{ id, altText? }]) so per-image alt text persists in the
+    // Post.media JSON the feed serves; fall back to bare `mediaIds` (legacy
+    // callers). altText is trimmed and capped — it renders into alt="".
+    const normalizedMedia = Array.isArray(media) && media.length > 0
+      ? media
+        .filter((m) => m && m.id)
+        .map((m) => ({
+          id: m.id,
+          type: 'image',
+          ...(typeof m.altText === 'string' && m.altText.trim()
+            ? { altText: m.altText.trim().slice(0, MAX_ALT_TEXT_LENGTH) }
+            : {})
+        }))
+      : (mediaIds || []).map((id) => ({ id, type: 'image' }));
+
     // Determine content type
     let contentType = 'text';
-    if (mediaIds && mediaIds.length > 0) {
+    if (normalizedMedia.length > 0) {
       contentType = 'media';
     } else if (processed.entities.urls.length > 0) {
       contentType = 'link';
@@ -46,7 +66,7 @@ async function createPost({ userId, content, mediaIds = [], visibility = 'public
       userId,
       content: processed.content,
       contentType,
-      media: mediaIds ? mediaIds.map(id => ({ id, type: 'image' })) : [],
+      media: normalizedMedia,
       visibility,
       groupId,
       metadata,

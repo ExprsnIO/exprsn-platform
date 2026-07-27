@@ -521,6 +521,7 @@ No Socket.IO.
 | GET | /filevault/api/files | — | directoryId, limit, offset, tags | — | authenticate | limit=50, offset=0, tags=[] |
 | GET | /filevault/api/files/trash | — | limit, offset | — | authenticate | caller's soft-deleted user-owned files, newest-deleted first; limit=50, offset=0 |
 | GET | /filevault/api/files/:fileId | `fileId`(UUID) | — | UUID v4 | authenticate | — |
+| GET | /filevault/api/files/:fileId/description | `fileId`(UUID) | — | UUID v4 | authenticate (getFile access) | AI alt-text suggestion from the FileModeration row: `{description:{altText,tags,status}}`; nulls when cortex disabled / not yet processed (BUG-040) |
 | GET | /filevault/api/files/:fileId/download | `fileId`(UUID) | version | UUID v4 | authenticate + read | latest version |
 | PUT | /filevault/api/files/:fileId | `fileId`(UUID); multipart `file` | changeDescription | UUID v4; file ≤ maxFileSize | authenticate + write | — |
 | DELETE | /filevault/api/files/:fileId | `fileId`(UUID) | — | UUID v4 | authenticate + delete | — |
@@ -659,7 +660,7 @@ add permissions. `/api/config` and `/api/webhooks` have no token middleware. `/a
 
 | Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
-| POST | /timeline/api/posts/ | `content` | mediaIds, visibility, replyTo, quoteOf, groupId | content 1–4000; mediaIds ≤4; visibility∈public/followers/private | write `/posts` (+ requireGroupMembership() if groupId) | 201; visibility=public; private/unlisted groups force member-only visibility |
+| POST | /timeline/api/posts/ | `content` | mediaIds, media (`[{id,altText?}]`), visibility, replyTo, quoteOf, groupId | content 1–4000; media/mediaIds ≤4; altText ≤1000; visibility∈public/followers/private | write `/posts` (+ requireGroupMembership() if groupId) | 201; visibility=public; private/unlisted groups force member-only visibility; `media` supersedes `mediaIds` and persists per-image altText in Post.media (BUG-040) |
 | GET | /timeline/api/posts/:id | `id`(uuid) | — | uuid | read `/posts` | 403 if private non-owner |
 | PUT | /timeline/api/posts/:id | `id`(uuid), `content` | — | content 1–4000 | update `/posts` | — |
 | DELETE | /timeline/api/posts/:id | `id`(uuid) | — | uuid | delete `/posts` | — |

@@ -33,6 +33,8 @@ export interface PostMedia {
   thumbnailUrl?: string;
   /** Optional caption/title (shown on live + video cards). */
   title?: string;
+  /** Author-provided alt text for the image (BUG-040) — render as alt="". */
+  altText?: string;
   /** Intrinsic dimensions, when known (reserved for layout). */
   width?: number;
   height?: number;
@@ -127,10 +129,18 @@ export interface FeedParams {
   offset?: number;
 }
 
+/** One media entry on post creation — FileVault fileId + optional alt text. */
+export interface CreatePostMedia {
+  id: string;
+  altText?: string;
+}
+
 /** Options for creating a post (main timeline or group-scoped). */
 export interface CreatePostOptions {
   visibility?: string;
+  /** Legacy bare-id form; prefer `media` (carries per-image altText, BUG-040). */
   mediaIds?: string[];
+  media?: CreatePostMedia[];
   replyTo?: string;
   quoteOf?: string;
   groupId?: string;
@@ -194,6 +204,7 @@ export const timelineApi = {
       content,
       visibility: opts.visibility ?? 'public',
       ...(opts.mediaIds?.length ? { mediaIds: opts.mediaIds } : {}),
+      ...(opts.media?.length ? { media: opts.media } : {}),
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       ...(opts.quoteOf ? { quoteOf: opts.quoteOf } : {}),
       ...(opts.groupId ? { groupId: opts.groupId } : {}),

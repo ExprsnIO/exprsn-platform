@@ -160,6 +160,39 @@ router.get('/:fileId',
 );
 
 /**
+ * AI-generated description for an image file (BUG-040).
+ * GET /api/files/:fileId/description
+ *
+ * Surfaces the cortex.describeImage output persisted on the FileModeration row
+ * (alt_text / ai_tags) so composers can offer it as a PRE-FILLED, EDITABLE
+ * alt-text suggestion — never applied silently. The description is produced
+ * asynchronously by the moderation worker, so callers should poll briefly and
+ * treat absence (cortex disabled / not yet processed / non-image) as "no
+ * suggestion": the route then returns nulls, not an error. Access control
+ * reuses fileService.getFile (owner/shared visibility), same as GET /:fileId.
+ */
+router.get('/:fileId/description',
+  authenticate,
+  validateUUID('fileId'),
+  asyncHandler(async (req, res) => {
+    await fileService.getFile(req.params.fileId, req.userId); // throws 403/404
+    const { FileModeration } = require('../models');
+    const moderation = await FileModeration.findOne({ where: { fileId: req.params.fileId } });
+
+    res.json({
+      success: true,
+      description: {
+        altText: moderation ? moderation.altText : null,
+        tags: moderation && moderation.aiTags ? moderation.aiTags : [],
+        /** 'pending' while the async worker hasn't run; null when moderation
+         *  never applied (e.g. cortex disabled before the row existed). */
+        status: moderation ? moderation.status : null
+      }
+    });
+  })
+);
+
+/**
  * Download file
  * GET /api/files/:fileId/download
  */

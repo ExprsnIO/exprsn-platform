@@ -44,13 +44,36 @@ function validatePostCreation(req, res, next) {
       );
     }
 
-    // Validate media count
-    if (req.body.mediaIds && req.body.mediaIds.length > 4) {
+    // Validate media count (both the legacy `mediaIds` array and the
+    // structured `media` array — [{ id, altText? }], BUG-040).
+    const mediaCount = Math.max(
+      Array.isArray(req.body.mediaIds) ? req.body.mediaIds.length : 0,
+      Array.isArray(req.body.media) ? req.body.media.length : 0
+    );
+    if (mediaCount > 4) {
       throw new AppError(
         'Maximum 4 media items allowed per post',
         400,
         'TOO_MANY_MEDIA'
       );
+    }
+
+    // Validate per-image alt text (BUG-040): optional, string, bounded.
+    if (Array.isArray(req.body.media)) {
+      for (const m of req.body.media) {
+        if (m && m.altText !== undefined && m.altText !== null) {
+          if (typeof m.altText !== 'string') {
+            throw new AppError('Media altText must be a string', 400, 'INVALID_ALT_TEXT');
+          }
+          if (m.altText.length > 1000) {
+            throw new AppError(
+              'Media altText exceeds maximum length of 1000 characters',
+              400,
+              'ALT_TEXT_TOO_LONG'
+            );
+          }
+        }
+      }
     }
 
     next();

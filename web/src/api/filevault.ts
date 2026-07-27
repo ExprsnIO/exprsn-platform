@@ -243,6 +243,18 @@ export const filevaultApi = {
 
   deleteFile: (id: string) => http.del<{ success: boolean }>(`/filevault/api/files/${id}`),
 
+  /**
+   * AI-generated description for an image (BUG-040) — the cortex.describeImage
+   * output the moderation worker persisted. Used as a pre-filled, editable
+   * alt-text suggestion. `altText` stays null while processing is pending or
+   * when cortex is disabled — callers must handle absence gracefully.
+   */
+  getFileDescription: (id: string) =>
+    http.get<{
+      success: boolean;
+      description: { altText: string | null; tags: string[]; status: string | null };
+    }>(`/filevault/api/files/${id}/description`),
+
   /** Upload a new version of an existing file (multipart; multer field `file`). */
   updateFile: (fileId: string, file: File, changeDescription?: string) => {
     const form = new FormData();

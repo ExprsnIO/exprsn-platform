@@ -35,6 +35,8 @@ export interface ChatAttachment {
   name?: string;
   mimetype?: string;
   size?: number;
+  /** Sender-provided alt text for an image attachment (BUG-040). */
+  altText?: string;
   /** Poster preview for a video attachment, when available. */
   thumbnailUrl?: string;
   /** call kind. */

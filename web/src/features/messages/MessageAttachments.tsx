@@ -75,7 +75,7 @@ function ImageAttachment({ a, mine }: { a: ChatAttachment; mine: boolean }) {
         }}
       >
         {url ? (
-          <Box component="img" src={url} alt={a.name ?? ''} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <Box component="img" src={url} alt={a.altText ?? a.name ?? ''} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <CircularProgress size={18} />
         )}
@@ -95,7 +95,7 @@ function ImageLightbox({ a, onClose }: { a: ChatAttachment; onClose: () => void 
         </IconButton>
         <Box sx={{ minHeight: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
           {url ? (
-            <Box component="img" src={url} alt={a.name ?? ''} sx={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
+            <Box component="img" src={url} alt={a.altText ?? a.name ?? ''} sx={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
           ) : (
             <CircularProgress sx={{ color: 'common.white' }} />
           )}

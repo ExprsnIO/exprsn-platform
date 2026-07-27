@@ -15,6 +15,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import type { Entity, Field, FieldType, FieldRole, StateMachine, EntityStorage, Lookup } from '@/api/admin/lowcode';
 import { useCatalog } from './catalog';
+import { humanizeKey } from './labels';
 
 const KEY_RE = /^[a-z][a-z0-9_]*$/;
 
@@ -54,6 +55,7 @@ export function EntityEditor({ entity, draft = null, appId, entities = [], looku
   const [raw, setRaw] = useState(false);
   const [rawText, setRawText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     // Refresh when switching between different entities on the detail page,
@@ -82,13 +84,26 @@ export function EntityEditor({ entity, draft = null, appId, entities = [], looku
     for (const f of fields) {
       if (!KEY_RE.test(f.key)) { setError(`Field key "${f.key || '(empty)'}" must be lower_snake_case.`); return null; }
     }
+    // Every field needs a non-empty label so its generated input has an
+    // accessible name (BUG-041) — fall back to a humanized key rather than
+    // blocking the save, but let the user know so they can tidy it up.
+    let autoLabeled = 0;
+    const labeledFields = fields.map((f) => {
+      if (f.label.trim()) return f;
+      autoLabeled += 1;
+      return { ...f, label: humanizeKey(f.key) };
+    });
+    setNotice(autoLabeled > 0
+      ? `Filled in ${autoLabeled} field label${autoLabeled > 1 ? 's' : ''} from the key — review above before saving again.`
+      : null);
     const storage: EntityStorage = { mode: storageMode };
     if (storageDir.trim()) storage.directory = storageDir.trim();
     const payload: Partial<Entity> = {
       name: name.trim(), description: description.trim() || undefined,
-      fields: stripIds(fields), stateMachine: sm, storage,
+      fields: stripIds(labeledFields), stateMachine: sm, storage,
     };
     if (!entity) { payload.appId = appId; payload.key = key; }
+    if (autoLabeled > 0) setFields(labeledFields);
     return payload;
   }
 
@@ -109,6 +124,7 @@ export function EntityEditor({ entity, draft = null, appId, entities = [], looku
   return (
     <Stack spacing={2}>
       {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
+      {notice && <Alert severity="info" onClose={() => setNotice(null)}>{notice}</Alert>}
 
       {raw ? (
         <TextField

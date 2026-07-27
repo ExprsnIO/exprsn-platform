@@ -60,7 +60,7 @@ export function PromptLogTab() {
 
   return (
     <Stack spacing={2}>
-      <SectionHeader title="Prompt log" subtitle="Every LLM round-trip: model, latency, cache hits, guardrail verdicts" />
+      <SectionHeader level={2} title="Prompt log" subtitle="Every LLM round-trip: model, latency, cache hits, guardrail verdicts" />
 
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
         <TextField

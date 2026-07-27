@@ -117,6 +117,28 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 }
 
+/* Skip-to-content link: visually hidden until keyboard-focused, then pinned
+   to the top of the viewport above the fixed navbar (TASK-046). */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 1rem;
+  z-index: 2000;
+  padding: 0.75rem 1.25rem;
+  background: var(--exprsn-primary);
+  color: var(--exprsn-white);
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: var(--exprsn-radius-md);
+  box-shadow: var(--exprsn-shadow-lg);
+  text-decoration: none;
+  transition: top var(--exprsn-transition-fast);
+}
+
+.skip-link:focus {
+  top: 0.75rem;
+}
+
 /* ============================================================================
    TOP NAVBAR
    ============================================================================ */
@@ -304,6 +326,12 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
     color: var(--exprsn-text-muted);
 }
 
+/* NOTE: RootLayout's account menu no longer renders this markup — it's an
+   MUI <Menu> now (BUG-039), which is keyboard-operable and not a hover
+   dropdown, so there's no double-open risk there. This CSS block still
+   backs AdminLayout's account menu (features/admin/AdminLayout.tsx), which
+   uses the same hand-rolled hover pattern and is out of scope for BUG-039
+   (ticket only covers RootLayout.tsx:107-136) — filed as a follow-up. */
 .user-menu-dropdown {
     position: absolute;
     top: calc(100% + 8px);

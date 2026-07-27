@@ -178,6 +178,7 @@ export function ReviewsTab({ toast }: { toast: ToastFn }) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Reviews"
         subtitle="Escalated / held agent output awaiting a human verdict — approve releases the content"
       />

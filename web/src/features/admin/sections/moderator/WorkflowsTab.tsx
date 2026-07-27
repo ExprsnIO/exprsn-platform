@@ -40,6 +40,7 @@ export function WorkflowsTab({ onToast }: { onToast: (m: string) => void }) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Workflows"
         subtitle="Ordered moderation pipelines — /moderator/api/workflows"
         actions={

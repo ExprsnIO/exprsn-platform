@@ -82,6 +82,7 @@ export function ToolsTab({ toast }: { toast: ToastFn }) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Tools"
         subtitle="Custom http/python tools agents can call — save → test → enable (test-gated)"
         actions={

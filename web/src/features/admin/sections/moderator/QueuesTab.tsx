@@ -134,6 +134,7 @@ export function QueuesTab({ onToast }: { onToast: (m: string) => void }) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Queues"
         subtitle="Routing queues for moderation items — /moderator/api/queues"
         actions={<Button variant="contained" onClick={() => setDialog({ queue: null })}>New queue</Button>}

@@ -142,7 +142,7 @@ function AppsTab({ onToast, onError }: TabProps) {
   ];
   return (
     <Stack spacing={2}>
-      <SectionHeader title="Apps" subtitle="Low-code application definitions" actions={<CreateAppDialog onToast={onToast} onError={onError} />} />
+      <SectionHeader level={2} title="Apps" subtitle="Low-code application definitions" actions={<CreateAppDialog onToast={onToast} onError={onError} />} />
       {query.isError && <Alert severity="error">Failed to load apps.</Alert>}
       <AdvancedDataTable<LcApp> columns={columns} rows={query.data?.apps ?? []} rowKey={(a) => a.id} empty="No apps." onRowClick={setDetail} />
       <AppDetailDialog app={detail} onClose={() => setDetail(null)} onToast={onToast} onError={onError} />
@@ -163,7 +163,7 @@ function EntitiesTab() {
   ];
   return (
     <Stack spacing={2}>
-      <SectionHeader title="Entities" subtitle="Data models with field schemas" actions={<Button variant="contained" onClick={() => navigate('/admin/lowcode/entities/new')}>New entity</Button>} />
+      <SectionHeader level={2} title="Entities" subtitle="Data models with field schemas" actions={<Button variant="contained" onClick={() => navigate('/admin/lowcode/entities/new')}>New entity</Button>} />
       {query.isError && <Alert severity="error">Failed to load entities.</Alert>}
       <AdvancedDataTable<Entity> columns={columns} rows={query.data?.entities ?? []} rowKey={(e) => e.id} empty="No entities." onRowClick={(e) => navigate(`/admin/lowcode/entities/${e.id}`)} />
     </Stack>
@@ -203,6 +203,7 @@ function LookupsTab({ onToast, onError }: TabProps) {
   return (
     <Stack spacing={2}>
       <SectionHeader
+        level={2}
         title="Lookups" subtitle="Reusable value/label option sets"
         actions={
           <Stack direction="row" spacing={1} alignItems="center">
@@ -266,7 +267,7 @@ function FlowsTab({ onToast, onError }: TabProps) {
   ];
   return (
     <Stack spacing={2}>
-      <SectionHeader title="Flows" subtitle="Event-driven automation" actions={<Button variant="contained" onClick={() => navigate('/admin/lowcode/flows/new')}>New flow</Button>} />
+      <SectionHeader level={2} title="Flows" subtitle="Event-driven automation" actions={<Button variant="contained" onClick={() => navigate('/admin/lowcode/flows/new')}>New flow</Button>} />
       {query.isError && <Alert severity="error">Failed to load flows.</Alert>}
       <AdvancedDataTable<Flow> columns={columns} rows={query.data?.flows ?? []} rowKey={(f) => f.id} empty="No flows." onRowClick={(f) => navigate(`/admin/lowcode/flows/${f.id}`)} />
       <ConfirmDangerDialog
@@ -293,7 +294,7 @@ function RecordsTab() {
 
   return (
     <Stack spacing={2}>
-      <SectionHeader title="Records" subtitle="Browse and manage runtime records for an entity" />
+      <SectionHeader level={2} title="Records" subtitle="Browse and manage runtime records for an entity" />
       <TextField select size="small" label="Entity" value={entityId} onChange={(e) => setEntityId(e.target.value)} sx={{ maxWidth: 320 }}>
         <MenuItem value="">Select an entity…</MenuItem>
         {(entities.data?.entities ?? []).map((e) => <MenuItem key={e.id} value={e.id}>{e.name} ({e.key})</MenuItem>)}

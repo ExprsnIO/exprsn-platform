@@ -10,9 +10,9 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. In-flight: `active/sprint-2026-09.md` (frontend/edge hardening —
-> security headers + accessibility). Prior sprints `sprint-2026-07.md` and
-> `sprint-2026-08.md` are closed and in `archive/`.
+> active sprint. No sprint currently in flight — `sprint-2026-07.md`,
+> `sprint-2026-08.md`, and `sprint-2026-09.md` (frontend/edge hardening —
+> security headers + accessibility, closed 2026-07-27) are in `archive/`.
 
 ---
 
@@ -4829,7 +4829,7 @@ FEAT.)*
   jr-developer.
 - **Resolution (done · 2026-07-27):** Contrast matrix (both themes, alpha-composited)
   + target-size audit complete — methodology, full pairing tables, and the rerunnable
-  script are archived at `sprints/active/sprint-2026-09-task-049-findings.md`. 10 live
+  script are archived at `sprints/archive/sprint-2026-09-task-049-findings.md`. 10 live
   contrast failure clusters + 1 outright target-size failure → filed as
   **BUG-048…BUG-053**. Cleared suspects recorded as passing: MUI Alert text, muted on
   primary/secondary surfaces, focus ring, disabled states, all 169 small IconButtons

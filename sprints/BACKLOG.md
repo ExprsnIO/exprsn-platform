@@ -10,11 +10,56 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. No sprint currently in flight — **2026-11 grooming is underway**
-> (candidates: FEAT-070 C/B-approved, FEAT-077 C/B in flight). Closed sprints —
+> active sprint. No sprint currently in flight — **2026-11 grooming pass complete
+> (2026-07-27)**; slate below awaits the owner's capacity steer before COMMIT
+> (anchors FEAT-070 + FEAT-077, both C/B-approved and `ready`). Closed sprints —
 > `sprint-2026-07.md`, `sprint-2026-08.md`, `sprint-2026-09.md`, and
 > `sprint-2026-10.md` (A11y/CSP follow-through, closed 2026-07-27) — are in
 > `archive/`.
+
+---
+
+## 2026-11 grooming queue (2026-07-27)
+
+Groomed slate for sprint 2026-11. **No sprint file is created and nothing is
+`in-sprint` yet** — COMMIT waits on the owner's (Rick's) capacity steer below.
+
+- **Anchors (both `ready`):**
+  - **FEAT-070** — Spark block enforcement (P1, M, route to sr-developer). C/B
+    APPROVED 2026-07-27 (`sprints/assessments/feat-070-blockmute-cb.md`); Tier-1
+    safety, ADR-pre-scoped, no design gate.
+  - **FEAT-077** — Capability façade (P1, **M conditional on Shape A** — façade
+    over existing backends, no RoomFile storage migration; Shape B re-sizes to L
+    and is not approved). C/B APPROVED 2026-07-27
+    (`sprints/assessments/feat-077-capability-facade-cb.md`). Route to
+    sr-developer, architect-paired; **systems-architect shape sign-off must be
+    scheduled week-1 day-1–2** (schedule at COMMIT, not mid-sprint). **TASK-056
+    precedes it** (independent 1-line clamp — not folded in).
+- **Capacity fork — owner picks at COMMIT:**
+  1. **Standard 2-track (two implementers):** FEAT-070 and FEAT-077 in parallel —
+     disjoint surfaces (spark/timeline vs filevault/live), no merge contention;
+     both fit one standard 2-week cycle per the FEAT-077 C/B sprint-fit analysis.
+  2. **Light single-track (one implementer):** FEAT-070 first + the approved
+     **FileVault-backend-only façade slice** of FEAT-077 (~S/M); the RoomFile
+     backend adapter becomes a 2026-12 TASK — still lands ahead of FEAT-047
+     grooming.
+- **Fill candidates (groomed; pick by remaining capacity):**
+  - **TASK-056** (ready, P3, S) — read-only clamp; lands early, precedes FEAT-077.
+    Warm-up ticket, jr-sized.
+  - **BUG-054** (P3, S) — stale live `roomFiles.test.js` exact-arg assertions; QA
+    already scoped the exact fix (two 3-arg shapes + one positive provenance
+    assertion). Natural pairing with the FEAT-077 branch.
+  - **BUG-051 / BUG-052 / BUG-053** (P3, S/M/S) — contrast + target-size residue
+    from the TASK-049 measurement pass.
+  - **TASK-054** (P3, S) — FileVault verdict history; needs a dba glance on the
+    storage shape (JSONB vs child table) before build.
+  - **TASK-055** (P3, S, **blocked-by FEAT-077**) — only if FEAT-077's
+    `revokeByResource` lands early; trivial-S behind the façade.
+- **Standing QA-runtime debts — fold into the sprint's qa-specialist track:**
+  - `/admin` keyboard walkthrough (full click-path, keyboard-only).
+  - Dark-theme visual spot-check.
+  - Live avatar-upload E2E — includes the open moderation fail-closed UX question.
+  - `db:check` + auth oauth2 suite re-run once exprsn infra is back in a QA env.
 
 ---
 
@@ -2593,7 +2638,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 
 
 ### FEAT-070 — Spark block enforcement (block/mute for messaging) *(Tier 1)*
-- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** ready — groomed 2026-11 pass (2026-07-27); C/B approved below · **Priority:** P1 · **Size:** M
 - **Owner-role:** sr-developer · **Relates:** FEAT-011 (mandatory sibling per its ADR)
 - **Description:** FEAT-011 shipped block/mute in timeline (`timeline.user_relationships` + `relationshipService`
   façade). A block that does not stop a DM is incomplete: the ADR (`sprints/feat-011-blockmute-adr.md`) decomposed
@@ -2826,9 +2871,25 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   FileVault + live edge → **dba** for the schema, sr-developer for the build.
 
 ### FEAT-077 — Capability façade (FEAT-061 Pass 2): reconcile ShareLink + RoomFile behind one shared mechanism
-- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** M
-- **Owner-role:** unassigned · **Relates:** FEAT-061 (Pass 1, done), FEAT-047/048/049 (blocked-before), FEAT-039, FEAT-055, BUG-020/026/027 lineage
-- **Cost/Benefit:** pending
+- **Type:** feature · **Status:** ready — groomed 2026-11 pass (2026-07-27) · **Priority:** P1 · **Size:** M
+- **Owner-role:** unassigned *(route to sr-developer at BUILD; architect-paired)* · **Relates:** FEAT-061 (Pass 1, done), FEAT-047/048/049 (blocked-before), FEAT-039, FEAT-055, BUG-020/026/027 lineage
+- **Cost/Benefit: APPROVED (2026-07-27)** — build-now for sprint 2026-11, size **M
+  conditional on Shape A** (interface unification: façade with ShareLink/CA-token +
+  row-backed RoomFile as peer backends; **no** RoomFile→token storage migration — that
+  variant re-sizes to L and needs re-grooming). Architect locks the shape week-1 before
+  build. High value: unblocks FEAT-047/048/049 (Gallery's entire sharing surface), feeds
+  FEAT-039/055, gives single enforcement + revoke-by-resource — the divergence it removes
+  already cost BUG-020/026/027. Prereq: land TASK-056 (S, independent clamp) first — do not
+  fold it in; TASK-055 shrinks to trivial-S behind the façade's `revokeByResource` (keep
+  ticket, mark blocked-by FEAT-077). AC must be restated to Rick's 2026-07-13 provenance
+  decision (owner-minted survives private-flip; non-owner grants die with minted-under
+  visibility); issued `share.js`/`roomCollab.js` links stay live through cutover.
+  Sprint-fit: FEAT-070 (M) + FEAT-077 (M) fit one standard 2-week cycle **only with two
+  implementers** (disjoint surfaces, parallelizable); single-implementer → FEAT-070 first +
+  approved smaller slice (FileVault-backend-only façade, ~S/M; RoomFile adapter as
+  follow-up TASK in 2026-12, still ahead of FEAT-047). Full assessment:
+  `sprints/assessments/feat-077-capability-facade-cb.md`. Promoted `backlog → ready` at
+  the 2026-11 grooming pass.
 - **Legacy:** — (split from FEAT-061 at the 2026-07-27 in-review closeout)
 - **Description:** Extract a shared capability façade so Gallery (FEAT-047) plugs in
   without a redesign; reconcile FileVault `ShareLink` (already CA-token-backed) and Live
@@ -5077,7 +5138,7 @@ FEAT.)*
 
 ### TASK-055 — FileVault: revoke the minted capability token when an avatar/cover is replaced or removed
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-077 (per its C/B: the façade's `revokeByResource(fileId)` makes this a one-call trivial-S fix — do not build it standalone first)
 - **Legacy:** — (QA follow-up from TASK-053 verification, 2026-07-27)
 - **Description:** TASK-053's `ImageUploadField` mints a non-expiring read-only
   file-scoped access token and embeds it in the stored avatar/cover URL. Remove/replace
@@ -5089,10 +5150,12 @@ FEAT.)*
   - Existing avatar/cover URLs keep working through the transition.
 - **Notes:** Owner-provenance semantics (FEAT-061 Pass 1) make the durable grant
   acceptable today; this is hardening, not a security defect. jr-developer.
+  Groomed 2026-07-27: blocked-by FEAT-077 — pull into a sprint only if FEAT-077's
+  `revokeByResource` lands early enough to leave runway.
 
 ### TASK-056 — FileVault: clamp `file-access` token minting to read-only server-side (pre-existing)
-- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** task · **Status:** ready — groomed 2026-11 pass (2026-07-27) · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned *(route to jr-developer at BUILD)* · **Blocked-by:** —
 - **Legacy:** — (QA finding during TASK-053 verification, 2026-07-27 — pre-existing, not introduced by Sprint 2026-10)
 - **Description:** `shareService.createFileAccessToken` spreads `options.permissions`
   over the read-only default, so an owner can mint a persistent `write:true`/
@@ -5102,7 +5165,10 @@ FEAT.)*
 - **Acceptance criteria:**
   - Server clamps `shareType:'file-access'` mints to `{read:true, write:false,
     delete:false}` regardless of the request body; regression test added.
-- **Notes:** jr-developer; quick fail-closed clamp.
+- **Notes:** jr-developer; quick fail-closed clamp. **Sequencing (per FEAT-077 C/B,
+  2026-07-27): land this BEFORE and independently of FEAT-077** — do not fold it into
+  the façade branch. ~1-line clamp on `createFileAccessToken` + one regression test;
+  the façade then inherits the clamp and its test. Good sprint warm-up ticket.
 
 ## Spikes
 

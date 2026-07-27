@@ -14,6 +14,14 @@
  * the mockModels/auth/queue layers are stubbed so no Postgres/Redis is needed.
  */
 
+// Requiring roomCollab.js pulls in recordingModeration.js -> @exprsn/shared ->
+// stripeService, which instantiates Stripe(process.env.STRIPE_SECRET_KEY) at
+// require time. Other live test files guard this the same way (see
+// recordingModerationWorker.test.js / liveVideoPipeline.test.js); without it
+// this file only passes by accident when another test file in the same Jest
+// worker set the env var first.
+process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
+
 const { Readable } = require('stream');
 
 // ── model doubles ────────────────────────────────────────────────────────────
@@ -193,9 +201,11 @@ describe('POST /:id/files/share — must verify the sharer can access the file (
 });
 
 describe('GET /:id/files/:fileId/download — served via FileVault, moderation-gated', () => {
-  test('a CLEARED file streams to a room member (requester id threaded to the gate)', async () => {
+  test('a CLEARED file streams to a room member (requester id + provenance threaded to the gate)', async () => {
     asMember();
-    mockModels.RoomFile.findOne.mockResolvedValue({ id: 'rf-1', room_id: ROOM_ID, kind: 'vault', file_id: 'vault-file-9', name: 'pic.png', mimetype: 'image/png' });
+    // FEAT-061 / BUG-027: this row was shared by the OWNER, so `shared_as_owner`
+    // is set on the row — that provenance must reach the FileVault gate.
+    mockModels.RoomFile.findOne.mockResolvedValue({ id: 'rf-1', room_id: ROOM_ID, kind: 'vault', file_id: 'vault-file-9', name: 'pic.png', mimetype: 'image/png', shared_as_owner: true });
     mockFileService.downloadFileStreamForMember.mockResolvedValue({
       stream: Readable.from(Buffer.from('CLEARBYTES')),
       file: { mimetype: 'image/png' },
@@ -208,8 +218,14 @@ describe('GET /:id/files/:fileId/download — served via FileVault, moderation-g
 
     expect(res.status).toBe(200);
     expect(Buffer.from(res.body).toString()).toBe('CLEARBYTES');
-    // FileVault gate was asked on behalf of THIS member (not the uploader)
-    expect(mockFileService.downloadFileStreamForMember).toHaveBeenCalledWith('vault-file-9', MEMBER);
+    // FileVault gate was asked on behalf of THIS member (not the uploader), and the
+    // row's `shared_as_owner` provenance was threaded through as `sharedAsOwner`
+    // (the load-bearing part of BUG-027) — not just a bare 2-arg call.
+    expect(mockFileService.downloadFileStreamForMember).toHaveBeenCalledWith(
+      'vault-file-9',
+      MEMBER,
+      { sharedAsOwner: true }
+    );
   });
 
   test('a HELD image is NOT served to another member — 404', async () => {
@@ -239,8 +255,11 @@ describe('GET /:id/files/:fileId/download — served via FileVault, moderation-g
 describe('GET /:id/files — held images not enumerable to non-uploaders', () => {
   test('held vault image is filtered out of the listing', async () => {
     asMember();
+    // FEAT-061 / BUG-027: 'fa' was shared by the owner (shared_as_owner), 'fb' was
+    // not — the listing's servable-check must thread that provenance as
+    // `ownerSharedIds`, the same rule the download path enforces.
     mockModels.RoomFile.findAll.mockResolvedValue([
-      { id: 'rf-a', kind: 'vault', file_id: 'fa' },
+      { id: 'rf-a', kind: 'vault', file_id: 'fa', shared_as_owner: true },
       { id: 'rf-b', kind: 'vault', file_id: 'fb' }, // held → hidden
       { id: 'rf-c', kind: 'ephemeral', storage_key: 'k' }, // legacy, always shown
     ]);
@@ -255,6 +274,12 @@ describe('GET /:id/files — held images not enumerable to non-uploaders', () =>
     expect(ids).toContain('rf-a');
     expect(ids).not.toContain('rf-b');
     expect(ids).toContain('rf-c');
-    expect(mockFileService.servableFileIds).toHaveBeenCalledWith(['fa', 'fb'], MEMBER);
+    // 3-arg shape: the provenance set (ownerSharedIds) is threaded through, not
+    // just a bare 2-arg call — the load-bearing part of BUG-027.
+    expect(mockFileService.servableFileIds).toHaveBeenCalledWith(
+      ['fa', 'fb'],
+      MEMBER,
+      { ownerSharedIds: new Set(['fa']) }
+    );
   });
 });

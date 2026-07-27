@@ -155,7 +155,15 @@ export function EntityEditor({ entity, draft = null, appId, entities = [], looku
                 <Box key={f._id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
                     <TextField label="key" size="small" value={f.key} onChange={(e) => patchField(f._id, { key: e.target.value })} sx={{ width: 150 }} />
-                    <TextField label="label" size="small" value={f.label} onChange={(e) => patchField(f._id, { label: e.target.value })} sx={{ width: 160 }} />
+                    {/* TASK-048 (ATAG B.3.1.1): pre-save advisory — flag the empty
+                        label while editing, before the save-time auto-fill kicks in. */}
+                    <TextField
+                      label="label" size="small" value={f.label}
+                      onChange={(e) => patchField(f._id, { label: e.target.value })}
+                      sx={{ width: 160 }}
+                      helperText={f.label.trim() ? undefined : `No label — “${f.key ? humanizeKey(f.key) : '…'}” will be used on save`}
+                      FormHelperTextProps={{ sx: { color: 'warning.main', mx: 0 } }}
+                    />
                     <TextField select label="type" size="small" value={f.type} onChange={(e) => patchField(f._id, { type: e.target.value as FieldType })} sx={{ width: 130 }}>
                       {catalog.fieldTypes.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
                     </TextField>

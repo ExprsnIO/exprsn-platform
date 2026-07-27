@@ -61,6 +61,9 @@ let selectedSeq = 0;
 export function Composer({ onPosted }: { onPosted: (post: Post) => void }) {
   const [content, setContent] = useState('');
   const [images, setImages] = useState<Selected[]>([]);
+  // TASK-048 (ATAG B.3.1.1): advisory-only missing-alt warning. Dismissible,
+  // never blocks posting; re-arms when new images are added.
+  const [altWarningDismissed, setAltWarningDismissed] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   // Poll timers per image key, cleared on removal/unmount.
@@ -137,6 +140,11 @@ export function Composer({ onPosted }: { onPosted: (post: Post) => void }) {
     },
   });
 
+  // Images that would be posted without a description (uploads that failed are
+  // excluded — they won't be part of the post at all).
+  const missingAlt = images.filter((s) => !s.uploadError && !s.alt.trim());
+  const showAltWarning = missingAlt.length > 0 && !altWarningDismissed;
+
   const trimmed = content.trim();
   const tooLong = content.length > MAX_LEN;
   const uploadsPending = images.some((s) => s.uploading);
@@ -164,6 +172,7 @@ export function Composer({ onPosted }: { onPosted: (post: Post) => void }) {
       }));
       next.forEach((item) => void startUpload(item));
       setImages((prev) => [...prev, ...next].slice(0, MAX_MEDIA));
+      setAltWarningDismissed(false);
     }
     e.target.value = '';
   };
@@ -292,12 +301,35 @@ export function Composer({ onPosted }: { onPosted: (post: Post) => void }) {
                       })
                     }
                     inputProps={{ 'aria-label': `Alt text for ${s.file.name}` }}
-                    helperText={s.alt && !s.altTouched ? 'AI suggestion — edit or accept' : undefined}
+                    helperText={
+                      s.alt && !s.altTouched
+                        ? 'AI suggestion — edit or accept'
+                        : !s.alt.trim() && showAltWarning
+                          ? 'No alt text yet'
+                          : undefined
+                    }
+                    FormHelperTextProps={
+                      !s.alt.trim() && showAltWarning
+                        ? { sx: { color: 'warning.main', mx: 0 } }
+                        : undefined
+                    }
                   />
                 )}
               </Stack>
             ))}
           </Box>
+        )}
+
+        {/* TASK-048 (ATAG B.3.1.1): advisory only — posting is never blocked. */}
+        {showAltWarning && (
+          <Alert severity="warning" onClose={() => setAltWarningDismissed(true)}>
+            {missingAlt.length === 1
+              ? `“${missingAlt[0].file.name}” has no alt text`
+              : `${missingAlt.length} images have no alt text (${missingAlt
+                  .map((s) => s.file.name)
+                  .join(', ')})`}{' '}
+            — screen-reader users won’t get a description. Add alt text below, or post anyway.
+          </Alert>
         )}
 
         {mutation.isError && <Alert severity="error">{toMessage(mutation.error)}</Alert>}

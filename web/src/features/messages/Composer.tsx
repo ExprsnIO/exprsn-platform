@@ -40,9 +40,14 @@ export function Composer({
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // TASK-048 (ATAG B.3.1.1): advisory-only missing-alt warning. Dismissible,
+  // never blocks sending; re-arms when new files are picked.
+  const [altWarningDismissed, setAltWarningDismissed] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const canSend = (text.trim().length > 0 || files.length > 0) && !busy;
+  const missingAlt = files.filter((p) => kindFor(p.file) === 'image' && !p.alt.trim());
+  const showAltWarning = missingAlt.length > 0 && !altWarningDismissed;
 
   const submit = async () => {
     if (!canSend) return;
@@ -81,7 +86,10 @@ export function Composer({
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? []).map((file) => ({ file, alt: '' }));
-    if (picked.length) setFiles((prev) => [...prev, ...picked].slice(0, MAX_FILES));
+    if (picked.length) {
+      setFiles((prev) => [...prev, ...picked].slice(0, MAX_FILES));
+      setAltWarningDismissed(false);
+    }
     e.target.value = '';
   };
 
@@ -110,6 +118,18 @@ export function Composer({
         </Stack>
       )}
 
+      {/* TASK-048 (ATAG B.3.1.1): advisory only — sending is never blocked. */}
+      {showAltWarning && (
+        <Alert severity="warning" sx={{ mb: 1 }} onClose={() => setAltWarningDismissed(true)}>
+          {missingAlt.length === 1
+            ? `“${missingAlt[0].file.name}” has no alt text`
+            : `${missingAlt.length} images have no alt text (${missingAlt
+                .map((p) => p.file.name)
+                .join(', ')})`}{' '}
+          — screen-reader users won’t get a description. Add alt text below, or send anyway.
+        </Alert>
+      )}
+
       {files.length > 0 && (
         <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap', gap: 1 }}>
           {files.map((p, i) => (
@@ -133,6 +153,12 @@ export function Composer({
                     )
                   }
                   inputProps={{ 'aria-label': `Alt text for ${p.file.name}` }}
+                  helperText={!p.alt.trim() && showAltWarning ? 'No alt text yet' : undefined}
+                  FormHelperTextProps={
+                    !p.alt.trim() && showAltWarning
+                      ? { sx: { color: 'warning.main', mx: 0 } }
+                      : undefined
+                  }
                 />
               )}
             </Stack>

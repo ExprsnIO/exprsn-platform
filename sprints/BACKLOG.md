@@ -10,9 +10,10 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. No sprint currently in flight — `sprint-2026-07.md`,
+> active sprint. Active sprint: **`active/sprint-2026-10.md`** (A11y/CSP
+> follow-through, committed 2026-07-27). Closed sprints — `sprint-2026-07.md`,
 > `sprint-2026-08.md`, and `sprint-2026-09.md` (frontend/edge hardening —
-> security headers + accessibility, closed 2026-07-27) are in `archive/`.
+> security headers + accessibility, closed 2026-07-27) — are in `archive/`.
 
 ---
 
@@ -3818,8 +3819,9 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   TASK-050. sr-developer.
 
 ### BUG-047 — AdminLayout admin-shell a11y parity: hover-only account menu + missing skip link/`aria-current`
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-sprint · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
 - **Legacy:** — (Sprint 2026-09 escalation; same defect classes as BUG-039 / TASK-046, which scoped `RootLayout` only)
 - **Description:** `web/src/features/admin/AdminLayout.tsx` (~189-214) renders the admin
   console's own account menu with the identical hover-only CSS pattern BUG-039 removed
@@ -3836,8 +3838,9 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Direct port of the landed BUG-039 / TASK-046 patterns. jr-developer.
 
 ### BUG-048 — Dark-mode primary too light for white text: contained buttons and filled primary chips fail WCAG 1.4.3
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-sprint · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
 - **Legacy:** 2026-07-20 accessibility review; TASK-049 measurement (sprint 2026-09, branch s2609-sr)
 - **Description:** In dark mode `palette.primary.main` is `#3b82f6` with `contrastText: WHITE` (`web/src/app/theme.ts:18`, token `web/src/app/tokens.ts:65`). White-on-#3b82f6 measures **3.68:1** (needs 4.5:1; button labels are 14–15px/600 — not "large text"). Affects all 188 `variant="contained"` primary buttons, filled primary Chips, and any white-on-primary surface in dark mode. Related marginal fail: primary-colored text/links on `surface-raised` (#3b82f6 on #1f1f1f) = **4.48:1**.
 - **Acceptance criteria:**
@@ -3848,8 +3851,9 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Ratios from TASK-049 script (WCAG formula, MUI 5.16.7). This is the highest-traffic failure (every primary action in dark mode).
 
 ### BUG-049 — Semantic Chip colors fail text contrast: filled success/error/info and outlined success/warning/error/info labels
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-sprint · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
 - **Legacy:** 2026-07-20 accessibility review ("outlined chips" suspect — confirmed); TASK-049 measurement
 - **Description:** Colored MUI Chips (33 call sites) fail WCAG 1.4.3 at ~13px labels:
   - Filled, both themes: success #fff/#10b981 = **2.54**, error #fff/#ef4444 = **3.76**, info #fff/#3b82f6 = **3.68** (theme.ts:20-23 sets `contrastText: WHITE`). E.g. `web/src/features/streams/StreamsPage.tsx:203` ("● LIVE"), `web/src/features/moderation/NotificationsPage.tsx:80` (unread count), `web/src/features/groups/tabs/EventsTab.tsx:272`.
@@ -3863,8 +3867,9 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** The design system already defines passing text-on-tint tokens (`--exprsn-success-text` #065f46 on #d1fae5 = 6.78 etc.) — mapping chips onto those is the natural remedy.
 
 ### BUG-050 — Green-on-green sidebar system status (live on every page) + tint classes use base semantic color instead of the `-text` tokens
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-sprint · **Priority:** P3 · **Size:** S
+- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
 - **Legacy:** 2026-07-20 accessibility review (tinted badge backgrounds suspect — confirmed); TASK-049 measurement
 - **Description:** `web/src/app/RootLayout.tsx:204-206` renders `.system-status` ("All systems operational") in the sidebar footer of every page: `.system-status` bg `--exprsn-success-bg` (#d1fae5) with `.system-status-text` color `--exprsn-success` (#10b981), 13px/500 → **2.24:1** (needs 4.5:1). The tint tokens are not overridden in `[data-theme="dark"]` (`web/src/styles/exprsn-unified.css:91-98`), so it fails identically in dark. Root cause pattern: the CSS component classes pair `--exprsn-<sev>` (the saturated main color) with `--exprsn-<sev>-bg` instead of the purpose-built `--exprsn-<sev>-text` tokens, which all pass (6.4–7.2). Latent (currently unmounted) classes with the same defect: `.badge-success/-warning/-danger/-info/-primary` (css:1291-1314, 1.93–3.10), `.alert-success/-warning/-danger/-info` (css:1381-1401, 2.24–3.36), `.stat-icon.success/.warning` non-text 2.24/1.93 (css:739-749).
 - **Acceptance criteria:**
@@ -4878,8 +4883,14 @@ FEAT.)*
   ticket so this fix doesn't itself create a new collision.
 
 ### TASK-053 — External user-supplied image URLs are blocked by the strict SPA CSP (`img-src 'self'`)
-- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** M
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** task · **Status:** in-sprint · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
+- **Decision (Rick, 2026-07-27): option (a) — FileVault-hosted uploads.** Replace the
+  avatar/cover external-URL text fields with proper image upload served same-origin
+  via FileVault's existing upload endpoints; existing external URLs get a
+  "won't render" notice until re-uploaded. Option (b) (same-origin image proxy)
+  rejected.
 - **Legacy:** — (BUG-038 systems-architect sign-off, required follow-up, 2026-07-27)
 - **Description:** BUG-038's edge CSP (`img-src 'self' blob: data:`) deliberately blocks
   external image origins — but the SPA still lets users enter external image URLs:

@@ -15,6 +15,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { http } from '@/lib/http';
 import { toMessage } from '@/lib/errors';
 import { evaluateCondition } from './conditions';
+import { humanizeKey } from './labels';
 
 interface PublicField {
   key: string;
@@ -50,15 +51,18 @@ const normalize = (e: string | LayoutEntry): LayoutEntry => (typeof e === 'strin
 function FieldInput({ field, entry, value, onChange }: {
   field: PublicField; entry: LayoutEntry; value: unknown; onChange: (v: unknown) => void;
 }) {
+  // Defense in depth: a saved entity can still have an empty field label
+  // (older data, or a direct API write) — never render an unlabeled input.
+  const label = field.label || humanizeKey(field.key);
   const common = {
-    label: field.label + (field.required ? ' *' : ''),
+    label: label + (field.required ? ' *' : ''),
     fullWidth: true,
     placeholder: entry.placeholder,
     helperText: entry.help,
   } as const;
   switch (field.type) {
     case 'boolean':
-      return <FormControlLabel control={<Switch checked={value === true} onChange={(e) => onChange(e.target.checked)} />} label={field.label} />;
+      return <FormControlLabel control={<Switch checked={value === true} onChange={(e) => onChange(e.target.checked)} />} label={label} />;
     case 'enum':
       return (
         <TextField {...common} select value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)}>

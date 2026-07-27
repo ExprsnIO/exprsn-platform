@@ -3900,8 +3900,19 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** The design system already defines passing text-on-tint tokens (`--exprsn-success-text` #065f46 on #d1fae5 = 6.78 etc.) — mapping chips onto those is the natural remedy.
 
 ### BUG-050 — Green-on-green sidebar system status (live on every page) + tint classes use base semantic color instead of the `-text` tokens
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review · **Priority:** P3 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Resolution notes (2026-07-27, branch s2610):** `.system-status-text` →
+  `var(--exprsn-success-text)` (2.24 → **6.78**, both themes); the pulsing
+  `.status-indicator` dot → `var(--exprsn-success-hover)` (non-text 2.24 → **3.33**).
+  Latent classes DELETED (grep confirmed zero TSX consumers):
+  `.badge-primary/-success/-warning/-danger/-info` and
+  `.alert-success/-warning/-danger/-info` (structural `.alert*`/`.badge`/
+  `.badge-secondary` kept) and `.stat-icon.success/.warning`
+  (`.stat-icon.primary`/`.danger` measure 3.10/3.08 ≥3:1 non-text and are kept).
+  Dark-tint-token DECISION recorded in the CSS semantic-token block: the
+  `-bg`/`-text` pairs are theme-invariant by design (no dark overrides); never pair
+  `--exprsn-<sev>` with `--exprsn-<sev>-bg`.
 - **Legacy:** 2026-07-20 accessibility review (tinted badge backgrounds suspect — confirmed); TASK-049 measurement
 - **Description:** `web/src/app/RootLayout.tsx:204-206` renders `.system-status` ("All systems operational") in the sidebar footer of every page: `.system-status` bg `--exprsn-success-bg` (#d1fae5) with `.system-status-text` color `--exprsn-success` (#10b981), 13px/500 → **2.24:1** (needs 4.5:1). The tint tokens are not overridden in `[data-theme="dark"]` (`web/src/styles/exprsn-unified.css:91-98`), so it fails identically in dark. Root cause pattern: the CSS component classes pair `--exprsn-<sev>` (the saturated main color) with `--exprsn-<sev>-bg` instead of the purpose-built `--exprsn-<sev>-text` tokens, which all pass (6.4–7.2). Latent (currently unmounted) classes with the same defect: `.badge-success/-warning/-danger/-info/-primary` (css:1291-1314, 1.93–3.10), `.alert-success/-warning/-danger/-info` (css:1381-1401, 2.24–3.36), `.stat-icon.success/.warning` non-text 2.24/1.93 (css:739-749).
 - **Acceptance criteria:**

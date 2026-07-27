@@ -4,9 +4,9 @@
  * shared auth/session/realtime infra and the Exprsn Unified design-system
  * chrome (see src/styles/exprsn-unified.css) — only the brand and nav differ.
  */
-import { useState, type MouseEvent } from 'react';
-import { Link as RouterLink, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Box, Collapse, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Link as RouterLink, NavLink, Outlet, matchPath, useLocation } from 'react-router-dom';
+import { Box, Collapse, ListItemIcon, ListItemText, MenuItem } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -32,10 +32,8 @@ import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import DynamicFeedOutlinedIcon from '@mui/icons-material/DynamicFeedOutlined';
 import CachedOutlinedIcon from '@mui/icons-material/CachedOutlined';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
-import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { authApi } from '@/api/auth';
-import { useAppStore } from '@/app/store';
+import { UserMenu } from '@/components/UserMenu';
 import { RealtimeStatus } from '@/app/RealtimeStatus';
 import Chip from '@mui/material/Chip';
 import { useAdminSocket } from './useAdminSocket';
@@ -107,15 +105,17 @@ function loadCollapsed(): string[] {
   return [];
 }
 
-function isItemActive(to: string, pathname: string): boolean {
-  return to === '/admin'
-    ? pathname === '/admin'
-    : pathname === to || pathname.startsWith(`${to}/`);
-}
+/** `end` semantics for a sidebar link — only the Overview root matches exactly. */
+const navLinkEnd = (to: string) => to === '/admin';
 
-function initials(name: string): string {
-  const parts = name.trim().split(/[\s@.]+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'A';
+/**
+ * Single source of truth for "is this sidebar link active": react-router's
+ * matchPath with the same `end` flag NavLinkItem passes to NavLink, so the
+ * per-link highlight (NavLink isActive) and the category `containsActive`
+ * check below can never disagree.
+ */
+function isItemActive(to: string, pathname: string): boolean {
+  return matchPath({ path: to, end: navLinkEnd(to) }, pathname) !== null;
 }
 
 /** Connection state of the /_admin live stream (health + config events). */
@@ -140,7 +140,7 @@ function NavLinkItem({ item }: { item: AdminItem }) {
     <div className="nav-item">
       <NavLink
         to={item.to}
-        end={item.to === '/admin'}
+        end={navLinkEnd(item.to)}
         className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
       >
         <Icon sx={{ fontSize: '1.125rem', width: 24 }} />
@@ -152,15 +152,7 @@ function NavLinkItem({ item }: { item: AdminItem }) {
 
 export function AdminLayout() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const user = useAppStore((s) => s.user);
-  const clearSession = useAppStore((s) => s.clearSession);
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed);
-  const [userMenuAnchor, setUserMenuAnchor] = useState<HTMLElement | null>(null);
-  const userMenuOpen = Boolean(userMenuAnchor);
-
-  const openUserMenu = (e: MouseEvent<HTMLElement>) => setUserMenuAnchor(e.currentTarget);
-  const closeUserMenu = () => setUserMenuAnchor(null);
 
   const toggleCategory = (label: string) => {
     setCollapsed((cur) => {
@@ -169,18 +161,6 @@ export function AdminLayout() {
       return next;
     });
   };
-
-  const logout = async () => {
-    closeUserMenu();
-    try {
-      await authApi.logout();
-    } finally {
-      clearSession();
-      navigate('/login', { replace: true });
-    }
-  };
-
-  const displayName = user?.displayName || user?.email || 'Admin';
 
   return (
     <>
@@ -200,59 +180,16 @@ export function AdminLayout() {
           <RealtimeStatus />
           <ThemeToggle />
 
-          <div className="user-menu">
-            <button
-              type="button"
-              className="user-menu-btn"
-              id="admin-user-menu-btn"
-              aria-haspopup="menu"
-              aria-expanded={userMenuOpen}
-              aria-controls={userMenuOpen ? 'admin-user-menu-dropdown' : undefined}
-              onClick={openUserMenu}
-            >
-              <span className="user-avatar">{initials(displayName)}</span>
-              <span className="user-info">
-                <span className="user-name">{displayName}</span>
-                <span className="user-role">Administrator</span>
-              </span>
-            </button>
-            <Menu
-              id="admin-user-menu-dropdown"
-              anchorEl={userMenuAnchor}
-              open={userMenuOpen}
-              onClose={closeUserMenu}
-              MenuListProps={{ 'aria-labelledby': 'admin-user-menu-btn', dense: true }}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              slotProps={{ paper: { sx: { width: 240 } } }}
-            >
-              {user && (
-                <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-                  <Typography variant="body2" fontWeight={600} noWrap>
-                    {user.displayName || user.email}
-                  </Typography>
-                  {user.email && (
-                    <Typography variant="caption" color="text.secondary" noWrap component="div">
-                      {user.email}
-                    </Typography>
-                  )}
-                </Box>
-              )}
-              <MenuItem component={RouterLink} to="/" onClick={closeUserMenu}>
+          <UserMenu menuId="admin-user-menu" roleLabel="Administrator" fallbackName="Admin">
+            {(close) => [
+              <MenuItem key="back" component={RouterLink} to="/" onClick={close}>
                 <ListItemIcon>
                   <ArrowBackOutlinedIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Back to app</ListItemText>
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={logout} sx={{ color: 'error.main' }}>
-                <ListItemIcon>
-                  <LogoutOutlinedIcon fontSize="small" color="error" />
-                </ListItemIcon>
-                <ListItemText>Sign out</ListItemText>
-              </MenuItem>
-            </Menu>
-          </div>
+              </MenuItem>,
+            ]}
+          </UserMenu>
         </div>
       </header>
 

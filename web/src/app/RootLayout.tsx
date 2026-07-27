@@ -1,6 +1,5 @@
-import { useState, type MouseEvent } from 'react';
-import { Link as RouterLink, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
+import { Link as RouterLink, NavLink, Outlet } from 'react-router-dom';
+import { Box, ListItemIcon, ListItemText, MenuItem } from '@mui/material';
 import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
 import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import DynamicFeedOutlinedIcon from '@mui/icons-material/DynamicFeedOutlined';
@@ -19,10 +18,8 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined';
-import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { authApi } from '@/api/auth';
-import { useAppStore } from '@/app/store';
+import { UserMenu } from '@/components/UserMenu';
 import { useNotificationsSocket } from '@/lib/useNotifications';
 import { NotificationsBell } from '@/features/moderation/NotificationsBell';
 import { RealtimeStatus } from './RealtimeStatus';
@@ -66,35 +63,9 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   },
 ];
 
-function initials(name: string): string {
-  const parts = name.trim().split(/[\s@.]+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'U';
-}
-
 export function RootLayout() {
-  const navigate = useNavigate();
-  const user = useAppStore((s) => s.user);
-  const clearSession = useAppStore((s) => s.clearSession);
-  const [userMenuAnchor, setUserMenuAnchor] = useState<HTMLElement | null>(null);
-  const userMenuOpen = Boolean(userMenuAnchor);
-
   // App-wide live notifications (captured regardless of the open page).
   useNotificationsSocket();
-
-  const openUserMenu = (e: MouseEvent<HTMLElement>) => setUserMenuAnchor(e.currentTarget);
-  const closeUserMenu = () => setUserMenuAnchor(null);
-
-  const logout = async () => {
-    closeUserMenu();
-    try {
-      await authApi.logout();
-    } finally {
-      clearSession();
-      navigate('/login', { replace: true });
-    }
-  };
-
-  const displayName = user?.displayName || user?.email || 'Account';
 
   return (
     <>
@@ -114,65 +85,22 @@ export function RootLayout() {
           <ThemeToggle />
           <NotificationsBell />
 
-          <div className="user-menu">
-            <button
-              type="button"
-              className="user-menu-btn"
-              id="user-menu-btn"
-              aria-haspopup="menu"
-              aria-expanded={userMenuOpen}
-              aria-controls={userMenuOpen ? 'user-menu-dropdown' : undefined}
-              onClick={openUserMenu}
-            >
-              <span className="user-avatar">{initials(displayName)}</span>
-              <span className="user-info">
-                <span className="user-name">{displayName}</span>
-                <span className="user-role">Member</span>
-              </span>
-            </button>
-            <Menu
-              id="user-menu-dropdown"
-              anchorEl={userMenuAnchor}
-              open={userMenuOpen}
-              onClose={closeUserMenu}
-              MenuListProps={{ 'aria-labelledby': 'user-menu-btn', dense: true }}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              slotProps={{ paper: { sx: { width: 240 } } }}
-            >
-              {user && (
-                <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-                  <Typography variant="body2" fontWeight={600} noWrap>
-                    {user.displayName || user.email}
-                  </Typography>
-                  {user.email && (
-                    <Typography variant="caption" color="text.secondary" noWrap component="div">
-                      {user.email}
-                    </Typography>
-                  )}
-                </Box>
-              )}
-              <MenuItem component={RouterLink} to="/settings" onClick={closeUserMenu}>
+          <UserMenu menuId="user-menu" roleLabel="Member" fallbackName="Account">
+            {(close) => [
+              <MenuItem key="settings" component={RouterLink} to="/settings" onClick={close}>
                 <ListItemIcon>
                   <SettingsOutlinedIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Settings</ListItemText>
-              </MenuItem>
-              <MenuItem component={RouterLink} to="/admin" onClick={closeUserMenu}>
+              </MenuItem>,
+              <MenuItem key="admin" component={RouterLink} to="/admin" onClick={close}>
                 <ListItemIcon>
                   <AdminPanelSettingsOutlinedIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Admin console</ListItemText>
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={logout} sx={{ color: 'error.main' }}>
-                <ListItemIcon>
-                  <LogoutOutlinedIcon fontSize="small" color="error" />
-                </ListItemIcon>
-                <ListItemText>Sign out</ListItemText>
-              </MenuItem>
-            </Menu>
-          </div>
+              </MenuItem>,
+            ]}
+          </UserMenu>
         </div>
       </header>
 

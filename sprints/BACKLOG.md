@@ -10,10 +10,11 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. Active sprint: **`active/sprint-2026-10.md`** (A11y/CSP
-> follow-through, committed 2026-07-27). Closed sprints — `sprint-2026-07.md`,
-> `sprint-2026-08.md`, and `sprint-2026-09.md` (frontend/edge hardening —
-> security headers + accessibility, closed 2026-07-27) — are in `archive/`.
+> active sprint. No sprint currently in flight — **2026-11 grooming is underway**
+> (candidates: FEAT-070 C/B-approved, FEAT-077 C/B in flight). Closed sprints —
+> `sprint-2026-07.md`, `sprint-2026-08.md`, `sprint-2026-09.md`, and
+> `sprint-2026-10.md` (A11y/CSP follow-through, closed 2026-07-27) — are in
+> `archive/`.
 
 ---
 

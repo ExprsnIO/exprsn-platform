@@ -193,7 +193,10 @@ async function createFileAccessToken(fileId, userId, options = {}) {
     throw new Error('FILE_NOT_FOUND');
   }
 
-  const permissions = { read: true, write: false, delete: false, ...(options.permissions || {}) };
+  // Fail-closed: 'file-access' tokens are always read-only server-side. Do not
+  // let the request body widen this — a persistent write/delete capability
+  // token must never be mintable via this endpoint (TASK-056).
+  const permissions = { read: true, write: false, delete: false };
   const expiresAt = options.expiresIn
     ? new Date(Date.now() + options.expiresIn * 1000)
     : null;

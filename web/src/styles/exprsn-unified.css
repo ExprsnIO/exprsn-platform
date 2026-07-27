@@ -304,6 +304,12 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
     color: var(--exprsn-text-muted);
 }
 
+/* NOTE: RootLayout's account menu no longer renders this markup — it's an
+   MUI <Menu> now (BUG-039), which is keyboard-operable and not a hover
+   dropdown, so there's no double-open risk there. This CSS block still
+   backs AdminLayout's account menu (features/admin/AdminLayout.tsx), which
+   uses the same hand-rolled hover pattern and is out of scope for BUG-039
+   (ticket only covers RootLayout.tsx:107-136) — filed as a follow-up. */
 .user-menu-dropdown {
     position: absolute;
     top: calc(100% + 8px);

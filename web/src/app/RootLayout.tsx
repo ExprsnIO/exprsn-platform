@@ -1,5 +1,6 @@
+import { useState, type MouseEvent } from 'react';
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Box } from '@mui/material';
+import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
 import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
 import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import DynamicFeedOutlinedIcon from '@mui/icons-material/DynamicFeedOutlined';
@@ -75,11 +76,17 @@ export function RootLayout() {
   const navigate = useNavigate();
   const user = useAppStore((s) => s.user);
   const clearSession = useAppStore((s) => s.clearSession);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<HTMLElement | null>(null);
+  const userMenuOpen = Boolean(userMenuAnchor);
 
   // App-wide live notifications (captured regardless of the open page).
   useNotificationsSocket();
 
+  const openUserMenu = (e: MouseEvent<HTMLElement>) => setUserMenuAnchor(e.currentTarget);
+  const closeUserMenu = () => setUserMenuAnchor(null);
+
   const logout = async () => {
+    closeUserMenu();
     try {
       await authApi.logout();
     } finally {
@@ -105,34 +112,63 @@ export function RootLayout() {
           <NotificationsBell />
 
           <div className="user-menu">
-            <button type="button" className="user-menu-btn">
+            <button
+              type="button"
+              className="user-menu-btn"
+              id="user-menu-btn"
+              aria-haspopup="menu"
+              aria-expanded={userMenuOpen}
+              aria-controls={userMenuOpen ? 'user-menu-dropdown' : undefined}
+              onClick={openUserMenu}
+            >
               <span className="user-avatar">{initials(displayName)}</span>
               <span className="user-info">
                 <span className="user-name">{displayName}</span>
                 <span className="user-role">Member</span>
               </span>
             </button>
-            <div className="user-menu-dropdown">
+            <Menu
+              id="user-menu-dropdown"
+              anchorEl={userMenuAnchor}
+              open={userMenuOpen}
+              onClose={closeUserMenu}
+              MenuListProps={{ 'aria-labelledby': 'user-menu-btn', dense: true }}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              slotProps={{ paper: { sx: { width: 240 } } }}
+            >
               {user && (
-                <div className="dropdown-header">
-                  <div className="user-name">{user.displayName || user.email}</div>
-                  {user.email && <div className="user-email">{user.email}</div>}
-                </div>
+                <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                  <Typography variant="body2" fontWeight={600} noWrap>
+                    {user.displayName || user.email}
+                  </Typography>
+                  {user.email && (
+                    <Typography variant="caption" color="text.secondary" noWrap component="div">
+                      {user.email}
+                    </Typography>
+                  )}
+                </Box>
               )}
-              <RouterLink to="/settings" className="dropdown-item">
-                <SettingsOutlinedIcon fontSize="small" />
-                Settings
-              </RouterLink>
-              <RouterLink to="/admin" className="dropdown-item">
-                <AdminPanelSettingsOutlinedIcon fontSize="small" />
-                Admin console
-              </RouterLink>
-              <div className="dropdown-divider" />
-              <button type="button" className="dropdown-item text-danger" onClick={logout}>
-                <LogoutOutlinedIcon fontSize="small" />
-                Sign out
-              </button>
-            </div>
+              <MenuItem component={RouterLink} to="/settings" onClick={closeUserMenu}>
+                <ListItemIcon>
+                  <SettingsOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Settings</ListItemText>
+              </MenuItem>
+              <MenuItem component={RouterLink} to="/admin" onClick={closeUserMenu}>
+                <ListItemIcon>
+                  <AdminPanelSettingsOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Admin console</ListItemText>
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={logout} sx={{ color: 'error.main' }}>
+                <ListItemIcon>
+                  <LogoutOutlinedIcon fontSize="small" color="error" />
+                </ListItemIcon>
+                <ListItemText>Sign out</ListItemText>
+              </MenuItem>
+            </Menu>
           </div>
         </div>
       </header>

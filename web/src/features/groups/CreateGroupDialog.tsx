@@ -27,6 +27,7 @@ import {
   type JoinMode,
 } from '@/api/nexus';
 import { toMessage } from '@/lib/errors';
+import { ImageUploadField } from '@/components/ImageUploadField';
 
 /**
  * Group templates — presets for visibility/join/governance/category. Picking
@@ -168,6 +169,8 @@ export function CreateGroupDialog({
         maxMembers: form.maxMembers || undefined,
         website: form.website?.trim() || undefined,
         location: form.location?.trim() || undefined,
+        avatarUrl: form.avatarUrl || undefined,
+        bannerUrl: form.bannerUrl || undefined,
         ...(coords ? { latitude: coords.lat, longitude: coords.lng } : {}),
       }),
     onSuccess: (res) => {
@@ -258,6 +261,21 @@ export function CreateGroupDialog({
             value={form.location ?? ''}
             onChange={(e) => set('location', e.target.value)}
             helperText="Optional — a place name shown on the group"
+          />
+
+          {/* TASK-053: uploaded, FileVault-hosted images instead of free-text
+              external URLs (the CSP only renders same-origin images). */}
+          <ImageUploadField
+            label="Group avatar"
+            variant="avatar"
+            value={form.avatarUrl ?? ''}
+            onChange={(url) => set('avatarUrl', url)}
+          />
+          <ImageUploadField
+            label="Cover image"
+            variant="cover"
+            value={form.bannerUrl ?? ''}
+            onChange={(url) => set('bannerUrl', url)}
           />
 
           <Button

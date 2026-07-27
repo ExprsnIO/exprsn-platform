@@ -3884,9 +3884,19 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   TASK-050. sr-developer.
 
 ### BUG-047 — AdminLayout admin-shell a11y parity: hover-only account menu + missing skip link/`aria-current`
-- **Type:** bug · **Status:** in-sprint · **Priority:** P2 · **Size:** S
-- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
+- **Resolution notes (2026-07-27, branch s2610):** AdminLayout account menu is now the
+  same MUI `<Menu>` pattern as RootLayout (ids `admin-user-menu-btn` /
+  `admin-user-menu-dropdown`, `aria-haspopup`/`aria-expanded`/`aria-controls`, Escape
+  close + focus return come from MUI Menu). Dead hover CSS deleted
+  (`.user-menu-dropdown`, `.user-menu:hover` rule, `.dropdown-header/-item/-divider` —
+  AdminLayout was the sole consumer). Admin shell got the skip link +
+  `id="main-content"`/`tabIndex=-1` target, and sidebar links converted to `NavLink`
+  (auto `aria-current="page"`; `end` on `/admin` preserves prior active logic).
+  QA path: /admin, Tab from address bar → skip link; open account menu via keyboard
+  (Enter), Escape returns focus; active sidebar item exposes `aria-current="page"`.
 - **Legacy:** — (Sprint 2026-09 escalation; same defect classes as BUG-039 / TASK-046, which scoped `RootLayout` only)
 - **Description:** `web/src/features/admin/AdminLayout.tsx` (~189-214) renders the admin
   console's own account menu with the identical hover-only CSS pattern BUG-039 removed
@@ -3903,9 +3913,22 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Direct port of the landed BUG-039 / TASK-046 patterns. jr-developer.
 
 ### BUG-048 — Dark-mode primary too light for white text: contained buttons and filled primary chips fail WCAG 1.4.3
-- **Type:** bug · **Status:** in-sprint · **Priority:** P2 · **Size:** S
-- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
+- **Resolution notes (2026-07-27, branch s2610):** No blue can simultaneously pass
+  4.5:1 under white text AND as text on the dark surfaces, so dark mode now uses
+  near-black text on primary fills plus a nudged primary token: dark
+  `--exprsn-primary`/`tokens.dark.primary` #3b82f6 → **#4a8cf7**, new mode-aware
+  `primaryContrast`/`--exprsn-text-on-primary` (light #ffffff, dark #0a0a0a) consumed
+  by MUI `palette.primary.contrastText` and the CSS white-on-primary spots
+  (.skip-link, .nav-badge, .btn-outline-primary:hover, .filter-tag-close:hover,
+  .page-link.active). Dark `palette.primary.dark` (contained hover bg) now lightens
+  (→ primaryHover #60a5fa) since near-black on #0047b3 would be ~2.4:1.
+  Ratios (dark): contained label 3.68 → 6.02; hover-state label 7.79; primary text on
+  surface-raised 4.48 → 5.01; on bg-primary/secondary/tertiary 6.02/5.45/4.60; focus
+  ring ≥5.01 (non-text 3:1). Light unchanged: white-on-primary 4.83, primary-on-white
+  4.83. Verified by rerunning the TASK-049 WCAG script with the new values.
 - **Legacy:** 2026-07-20 accessibility review; TASK-049 measurement (sprint 2026-09, branch s2609-sr)
 - **Description:** In dark mode `palette.primary.main` is `#3b82f6` with `contrastText: WHITE` (`web/src/app/theme.ts:18`, token `web/src/app/tokens.ts:65`). White-on-#3b82f6 measures **3.68:1** (needs 4.5:1; button labels are 14–15px/600 — not "large text"). Affects all 188 `variant="contained"` primary buttons, filled primary Chips, and any white-on-primary surface in dark mode. Related marginal fail: primary-colored text/links on `surface-raised` (#3b82f6 on #1f1f1f) = **4.48:1**.
 - **Acceptance criteria:**
@@ -3916,9 +3939,23 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Ratios from TASK-049 script (WCAG formula, MUI 5.16.7). This is the highest-traffic failure (every primary action in dark mode).
 
 ### BUG-049 — Semantic Chip colors fail text contrast: filled success/error/info and outlined success/warning/error/info labels
-- **Type:** bug · **Status:** in-sprint · **Priority:** P2 · **Size:** M
-- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
+- **Resolution notes (2026-07-27, branch s2610):** Theme-level `MuiChip` variants in
+  `web/src/app/theme.ts` (no call-site edits). Filled success/error/info map onto the
+  design system's on-tint pairs, now mirrored into `tokens.ts` as `SEMANTIC_TINTS`:
+  2.54/3.76/3.68 → **6.78/6.80/7.15** (theme-invariant, both modes). Filled warning
+  (9.22) and secondary (5.70) untouched. Outlined light: labels → `-text` tokens
+  (2.54/2.15/3.76/3.68 → 7.68/7.09/8.31/8.72), borders → `-hover` tokens
+  (3.19–5.17, non-text ≥3). Outlined dark: success/warning keep mains (6.50/7.67),
+  error/info/secondary lighten via `DARK_CHIP_EMPHASIS` (4.38/4.48/2.89 →
+  5.96/6.48/6.06); outlined primary rides the BUG-048 token (4.48 → 5.01 dark, 4.83
+  light). Chip icon/delete-icon inherit the label color; clickable filled chips keep
+  the compliant tint on hover. All ratios computed with the TASK-049 WCAG script.
+  QA spot-check sites: StreamsPage.tsx:203, NotificationsPage.tsx:80,
+  EventsTab.tsx:272, ScopesSection.tsx:97, AtprotoSection.tsx:411, cortex/shared.tsx:62
+  in both themes. vitest 16/16 green; build clean.
 - **Legacy:** 2026-07-20 accessibility review ("outlined chips" suspect — confirmed); TASK-049 measurement
 - **Description:** Colored MUI Chips (33 call sites) fail WCAG 1.4.3 at ~13px labels:
   - Filled, both themes: success #fff/#10b981 = **2.54**, error #fff/#ef4444 = **3.76**, info #fff/#3b82f6 = **3.68** (theme.ts:20-23 sets `contrastText: WHITE`). E.g. `web/src/features/streams/StreamsPage.tsx:203` ("● LIVE"), `web/src/features/moderation/NotificationsPage.tsx:80` (unread count), `web/src/features/groups/tabs/EventsTab.tsx:272`.
@@ -3932,9 +3969,20 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** The design system already defines passing text-on-tint tokens (`--exprsn-success-text` #065f46 on #d1fae5 = 6.78 etc.) — mapping chips onto those is the natural remedy.
 
 ### BUG-050 — Green-on-green sidebar system status (live on every page) + tint classes use base semantic color instead of the `-text` tokens
-- **Type:** bug · **Status:** in-sprint · **Priority:** P3 · **Size:** S
-- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review · **Priority:** P3 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
+- **Resolution notes (2026-07-27, branch s2610):** `.system-status-text` →
+  `var(--exprsn-success-text)` (2.24 → **6.78**, both themes); the pulsing
+  `.status-indicator` dot → `var(--exprsn-success-hover)` (non-text 2.24 → **3.33**).
+  Latent classes DELETED (grep confirmed zero TSX consumers):
+  `.badge-primary/-success/-warning/-danger/-info` and
+  `.alert-success/-warning/-danger/-info` (structural `.alert*`/`.badge`/
+  `.badge-secondary` kept) and `.stat-icon.success/.warning`
+  (`.stat-icon.primary`/`.danger` measure 3.10/3.08 ≥3:1 non-text and are kept).
+  Dark-tint-token DECISION recorded in the CSS semantic-token block: the
+  `-bg`/`-text` pairs are theme-invariant by design (no dark overrides); never pair
+  `--exprsn-<sev>` with `--exprsn-<sev>-bg`.
 - **Legacy:** 2026-07-20 accessibility review (tinted badge backgrounds suspect — confirmed); TASK-049 measurement
 - **Description:** `web/src/app/RootLayout.tsx:204-206` renders `.system-status` ("All systems operational") in the sidebar footer of every page: `.system-status` bg `--exprsn-success-bg` (#d1fae5) with `.system-status-text` color `--exprsn-success` (#10b981), 13px/500 → **2.24:1** (needs 4.5:1). The tint tokens are not overridden in `[data-theme="dark"]` (`web/src/styles/exprsn-unified.css:91-98`), so it fails identically in dark. Root cause pattern: the CSS component classes pair `--exprsn-<sev>` (the saturated main color) with `--exprsn-<sev>-bg` instead of the purpose-built `--exprsn-<sev>-text` tokens, which all pass (6.4–7.2). Latent (currently unmounted) classes with the same defect: `.badge-success/-warning/-danger/-info/-primary` (css:1291-1314, 1.93–3.10), `.alert-success/-warning/-danger/-info` (css:1381-1401, 2.24–3.36), `.stat-icon.success/.warning` non-text 2.24/1.93 (css:739-749).
 - **Acceptance criteria:**
@@ -4966,14 +5014,30 @@ FEAT.)*
   ticket so this fix doesn't itself create a new collision.
 
 ### TASK-053 — External user-supplied image URLs are blocked by the strict SPA CSP (`img-src 'self'`)
-- **Type:** task · **Status:** in-sprint · **Priority:** P2 · **Size:** M
-- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Type:** task · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Sprint:** Committed to Sprint 2026-10 (2026-07-27).
-- **Decision (Rick, 2026-07-27): option (a) — FileVault-hosted uploads.** Replace the
-  avatar/cover external-URL text fields with proper image upload served same-origin
-  via FileVault's existing upload endpoints; existing external URLs get a
-  "won't render" notice until re-uploaded. Option (b) (same-origin image proxy)
-  rejected.
+- **DECISION (Rick, 2026-07-27):** option **(a)** — FileVault-hosted uploads; no image
+  proxy.
+- **Resolution notes (2026-07-27, branch s2610):** New
+  `web/src/components/ImageUploadField.tsx`: uploads via `filevaultApi.upload`, mints a
+  non-expiring read-only file-scoped CA access token
+  (`POST /filevault/api/share/files/:id/access-token`), and stores the resulting
+  SAME-ORIGIN absolute URL (`/filevault/api/share/file/:id/download?token=…`) in the
+  existing URL field — passes nexus's `Joi.string().uri()` and the CSP's
+  `img-src 'self'`; auth's `avatarUrl` has no format validator. Wired into
+  ProfileForm (avatar) and Create/EditGroupDialog (group avatar + cover via new
+  `avatarUrl`/`bannerUrl` inputs on Create/UpdateGroupInput; nexus create+update Joi
+  schemas already accept both). Existing EXTERNAL values render the required
+  "external image URLs won't render" notice; the plain-URL escape hatch validates
+  same-origin only; Remove clears (null on group update). Preview shown for
+  same-origin values (round avatar / cover strip). NOTE: `Content-Disposition:
+  attachment` on the download route does not affect `<img>` rendering.
+  OUT OF SCOPE (this slice): markdown image links in FEAT-075 comments — still
+  CSP-blocked for external origins; file separately if a deliberate path is wanted.
+  QA path: Account → Profile → upload avatar → save → avatar renders in AppBar/People;
+  Groups → New/Edit group → upload avatar/cover → GroupDetailPage avatar renders;
+  paste an external URL via the escape hatch → blocked with explanation.
 - **Legacy:** — (BUG-038 systems-architect sign-off, required follow-up, 2026-07-27)
 - **Description:** BUG-038's edge CSP (`img-src 'self' blob: data:`) deliberately blocks
   external image origins — but the SPA still lets users enter external image URLs:

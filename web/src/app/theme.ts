@@ -1,5 +1,14 @@
 import { createTheme, type Theme } from '@mui/material/styles';
-import { exprsnTokens, FONT_FAMILY, FONT_FAMILY_MONO, WHITE, BLACK, type ThemeMode } from './tokens';
+import {
+  exprsnTokens,
+  DARK_CHIP_EMPHASIS,
+  SEMANTIC_TINTS,
+  FONT_FAMILY,
+  FONT_FAMILY_MONO,
+  WHITE,
+  BLACK,
+  type ThemeMode,
+} from './tokens';
 
 /**
  * Builds the MUI theme from the Exprsn Unified design tokens (src/app/tokens.ts
@@ -11,11 +20,73 @@ import { exprsnTokens, FONT_FAMILY, FONT_FAMILY_MONO, WHITE, BLACK, type ThemeMo
 export function buildTheme(mode: ThemeMode): Theme {
   const t = exprsnTokens[mode];
 
+  // ── BUG-049: semantic Chip contrast ────────────────────────────────────────
+  // Filled success/error/info chips map onto the design system's on-tint pairs
+  // (theme-invariant; 6.78–7.15:1). Filled warning (black text, 9.22) and
+  // secondary (white on purple, 5.70) already pass and keep the MUI defaults.
+  // Outlined labels/borders use text-grade colors per mode: light = the -text
+  // tokens (7.09–8.72) with -hover borders (3.19–5.17 non-text); dark keeps the
+  // mains where they pass (success 6.50, warning 7.67) and lightens error/info/
+  // secondary (5.96/6.48/6.06). Outlined primary is covered by the BUG-048
+  // primary token itself (4.83 light / 5.01 dark).
+  const chipOutlined: Partial<
+    Record<'success' | 'error' | 'warning' | 'info' | 'secondary', { color: string; border: string }>
+  > =
+    mode === 'light'
+      ? {
+          success: { color: SEMANTIC_TINTS.success.text, border: SEMANTIC_TINTS.success.hover },
+          error: { color: SEMANTIC_TINTS.error.text, border: SEMANTIC_TINTS.error.hover },
+          warning: { color: SEMANTIC_TINTS.warning.text, border: SEMANTIC_TINTS.warning.hover },
+          info: { color: SEMANTIC_TINTS.info.text, border: SEMANTIC_TINTS.info.hover },
+          // Outlined secondary passes in light (5.70) — MUI default kept.
+        }
+      : {
+          success: { color: t.success, border: t.success },
+          warning: { color: t.warning, border: t.warning },
+          error: { color: DARK_CHIP_EMPHASIS.error, border: DARK_CHIP_EMPHASIS.error },
+          info: { color: DARK_CHIP_EMPHASIS.info, border: DARK_CHIP_EMPHASIS.info },
+          secondary: { color: DARK_CHIP_EMPHASIS.secondary, border: DARK_CHIP_EMPHASIS.secondary },
+        };
+
+  // Icon/delete-icon follow the label color (MUI's defaults assume the old
+  // white-on-main fills and would vanish on the tints).
+  const chipIconInherit = {
+    '& .MuiChip-icon': { color: 'inherit' },
+    '& .MuiChip-deleteIcon': { color: 'inherit', opacity: 0.7, '&:hover': { color: 'inherit', opacity: 1 } },
+  } as const;
+
+  const chipVariants = [
+    ...(['success', 'error', 'info'] as const).map((color) => ({
+      props: { variant: 'filled' as const, color },
+      style: {
+        backgroundColor: SEMANTIC_TINTS[color].bg,
+        color: SEMANTIC_TINTS[color].text,
+        // Keep the compliant tint on clickable hover (MUI would darken to main).
+        '&.MuiChip-clickable:hover': { backgroundColor: SEMANTIC_TINTS[color].bg },
+        ...chipIconInherit,
+      },
+    })),
+    ...(Object.entries(chipOutlined) as Array<
+      ['success' | 'error' | 'warning' | 'info' | 'secondary', { color: string; border: string }]
+    >).map(([color, v]) => ({
+      props: { variant: 'outlined' as const, color },
+      style: { color: v.color, borderColor: v.border, ...chipIconInherit },
+    })),
+  ];
+
   return createTheme({
     palette: {
       mode,
       common: { white: WHITE, black: BLACK },
-      primary: { main: t.primary, light: t.primaryLight, dark: t.primaryDark, contrastText: WHITE },
+      // BUG-048: contrastText is mode-aware (white in light, near-black in dark)
+      // and dark-mode `dark` (the contained-button hover bg) lightens instead of
+      // darkening — near-black on #0047b3 would be ~2.4:1.
+      primary: {
+        main: t.primary,
+        light: t.primaryLight,
+        dark: mode === 'dark' ? t.primaryHover : t.primaryDark,
+        contrastText: t.primaryContrast,
+      },
       secondary: { main: t.secondary, dark: t.secondaryHover, contrastText: WHITE },
       success: { main: t.success, contrastText: WHITE },
       error: { main: t.danger, contrastText: WHITE },
@@ -79,7 +150,8 @@ export function buildTheme(mode: ThemeMode): Theme {
           notchedOutline: { borderColor: t.border },
         },
       },
-      MuiChip: { styleOverrides: { root: { fontWeight: 600 } } },
+      // BUG-049 — see chipVariants above.
+      MuiChip: { styleOverrides: { root: { fontWeight: 600 } }, variants: chipVariants },
       MuiTooltip: {
         styleOverrides: {
           tooltip: { fontSize: '0.75rem', fontWeight: 500, borderRadius: 8 },

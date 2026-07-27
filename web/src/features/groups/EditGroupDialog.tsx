@@ -19,6 +19,7 @@ import {
   type UpdateGroupInput,
 } from '@/api/nexus';
 import { toMessage } from '@/lib/errors';
+import { ImageUploadField } from '@/components/ImageUploadField';
 
 const VISIBILITIES: GroupVisibility[] = ['public', 'private', 'unlisted'];
 const JOIN_MODES: JoinMode[] = ['open', 'request', 'invite'];
@@ -48,6 +49,8 @@ export function EditGroupDialog({
         joinMode: (group.joinMode as JoinMode) ?? 'open',
         location: (group.location as string) ?? '',
         website: (group.website as string) ?? '',
+        avatarUrl: (group.avatarUrl as string) ?? '',
+        bannerUrl: (group.bannerUrl as string) ?? '',
       });
     }
   }, [open, group]);
@@ -64,6 +67,10 @@ export function EditGroupDialog({
         joinMode: form.joinMode,
         location: form.location?.toString().trim() || undefined,
         website: form.website?.toString().trim() || undefined,
+        // TASK-053: null clears the image (Joi allows null; '' would render as
+        // a bogus src="" at the consumers, which use `?? undefined`).
+        avatarUrl: form.avatarUrl || null,
+        bannerUrl: form.bannerUrl || null,
       }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['nexus', 'group', group.id] });
@@ -138,6 +145,20 @@ export function EditGroupDialog({
             value={form.website ?? ''}
             onChange={(e) => set('website', e.target.value)}
             helperText="Optional — must be a full URL (https://…)"
+          />
+          {/* TASK-053: uploaded, FileVault-hosted images instead of free-text
+              external URLs; existing external values surface a notice. */}
+          <ImageUploadField
+            label="Group avatar"
+            variant="avatar"
+            value={(form.avatarUrl as string) ?? ''}
+            onChange={(url) => set('avatarUrl', url)}
+          />
+          <ImageUploadField
+            label="Cover image"
+            variant="cover"
+            value={(form.bannerUrl as string) ?? ''}
+            onChange={(url) => set('bannerUrl', url)}
           />
         </Stack>
       </DialogContent>

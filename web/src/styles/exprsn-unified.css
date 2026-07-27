@@ -13,6 +13,9 @@
 :root {
   /* Primary */
   --exprsn-primary: #0066ff;
+  /* Text on solid primary fills (BUG-048): white passes in light (4.83:1);
+     dark mode overrides both this and --exprsn-primary below. */
+  --exprsn-text-on-primary: #ffffff;
   --exprsn-primary-hover: #0052cc;
   --exprsn-primary-light: #4d94ff;
   --exprsn-primary-dark: #0047b3;
@@ -31,7 +34,13 @@
   --exprsn-accent-purple: #8b5cf6;
   --exprsn-accent-amber: #f59e0b;
   --exprsn-accent-emerald: #10b981;
-  /* Semantic */
+  /* Semantic.
+     DECISION (BUG-050): the -bg/-text tint pairs are THEME-INVARIANT — they are
+     deliberately not overridden in [data-theme="dark"]. A tinted surface always
+     renders as the light pastel with its dark -text color, which passes 4.5:1
+     identically in both themes. Never pair --exprsn-<sev> (the saturated main)
+     with --exprsn-<sev>-bg; on-tint text/icons use --exprsn-<sev>-text (or
+     -hover for >=3:1 non-text marks). */
   --exprsn-success: #10b981; --exprsn-success-hover: #059669; --exprsn-success-bg: #d1fae5; --exprsn-success-text: #065f46;
   --exprsn-danger: #ef4444; --exprsn-danger-hover: #dc2626; --exprsn-danger-bg: #fee2e2; --exprsn-danger-text: #991b1b;
   --exprsn-warning: #f59e0b; --exprsn-warning-hover: #d97706; --exprsn-warning-bg: #fef3c7; --exprsn-warning-text: #92400e;
@@ -89,7 +98,13 @@
 }
 
 [data-theme="dark"] {
-  --exprsn-primary: #3b82f6;
+  /* BUG-048: was #3b82f6 (white-on-primary 3.68:1; primary text on
+     surface-raised 4.48:1). #4a8cf7 keeps primary TEXT >=4.5:1 on every dark
+     surface, and solid primary fills take near-black text instead — no blue
+     can pass 4.5:1 with white text AND as text on the dark surfaces at once.
+     Keep in sync with src/app/tokens.ts (dark.primary / primaryContrast). */
+  --exprsn-primary: #4a8cf7;
+  --exprsn-text-on-primary: #0a0a0a;
   --exprsn-primary-hover: #60a5fa;
   --exprsn-bg-primary: #0a0a0a; --exprsn-bg-secondary: #171717; --exprsn-bg-tertiary: #262626;
   --exprsn-bg-hover: #1c1f23; --exprsn-bg-active: #2f3336; --exprsn-surface-raised: #1f1f1f;
@@ -126,7 +141,7 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
   z-index: 2000;
   padding: 0.75rem 1.25rem;
   background: var(--exprsn-primary);
-  color: var(--exprsn-white);
+  color: var(--exprsn-text-on-primary);
   font-weight: 600;
   font-size: 0.875rem;
   border-radius: var(--exprsn-radius-md);
@@ -326,74 +341,10 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
     color: var(--exprsn-text-muted);
 }
 
-/* NOTE: RootLayout's account menu no longer renders this markup — it's an
-   MUI <Menu> now (BUG-039), which is keyboard-operable and not a hover
-   dropdown, so there's no double-open risk there. This CSS block still
-   backs AdminLayout's account menu (features/admin/AdminLayout.tsx), which
-   uses the same hand-rolled hover pattern and is out of scope for BUG-039
-   (ticket only covers RootLayout.tsx:107-136) — filed as a follow-up. */
-.user-menu-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    width: 240px;
-    background: var(--exprsn-bg-primary);
-    border: 1px solid var(--exprsn-border-color);
-    border-radius: var(--exprsn-radius-lg);
-    box-shadow: var(--exprsn-shadow-xl);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    transition: var(--exprsn-transition-fast);
-    z-index: 1100;
-}
-
-.user-menu:hover .user-menu-dropdown {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-.dropdown-header {
-    padding: 1rem;
-    border-bottom: 1px solid var(--exprsn-border-color);
-}
-
-.dropdown-header .user-email {
-    font-size: 0.8125rem;
-    color: var(--exprsn-text-muted);
-    margin-top: 0.25rem;
-}
-
-.dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    color: var(--exprsn-text-primary);
-    text-decoration: none;
-    transition: var(--exprsn-transition-base);
-    cursor: pointer;
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-}
-
-.dropdown-item:hover {
-    background: var(--exprsn-bg-secondary);
-}
-
-.dropdown-item.text-danger {
-    color: var(--exprsn-danger);
-}
-
-.dropdown-divider {
-    height: 1px;
-    background: var(--exprsn-border-color);
-    margin: 0.5rem 0;
-}
+/* NOTE (BUG-039/BUG-047): the hand-rolled hover dropdown CSS
+   (.user-menu-dropdown, .dropdown-header/item/divider) is gone — both
+   RootLayout's and AdminLayout's account menus are keyboard-operable MUI
+   <Menu>s now. Only the trigger button (.user-menu-btn) styling remains. */
 
 /* ============================================================================
    SIDEBAR
@@ -478,7 +429,7 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
     font-size: 0.6875rem;
     font-weight: 600;
     background: var(--exprsn-primary);
-    color: white;
+    color: var(--exprsn-text-on-primary);
     border-radius: var(--exprsn-radius-full);
 }
 
@@ -515,7 +466,9 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: var(--exprsn-success);
+    /* BUG-050: -hover instead of the base green — the dot sits on the success
+       tint and needs >=3:1 as a non-text indicator (2.24 -> 3.33). */
+    background: var(--exprsn-success-hover);
     animation: pulse 2s infinite;
 }
 
@@ -527,7 +480,9 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
 .system-status-text {
     font-size: 0.8125rem;
     font-weight: 500;
-    color: var(--exprsn-success);
+    /* BUG-050: the -text on-tint token (6.78:1 on --exprsn-success-bg), not the
+       base green (2.24:1). */
+    color: var(--exprsn-success-text);
 }
 
 .sidebar.collapsed .system-status-text {
@@ -624,7 +579,7 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
 
 .btn-outline-primary:hover {
     background: var(--exprsn-primary);
-    color: var(--exprsn-text-inverse);
+    color: var(--exprsn-text-on-primary);
 }
 
 .btn-success {
@@ -735,15 +690,9 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
     color: var(--exprsn-primary);
 }
 
-.stat-icon.success {
-    background: var(--exprsn-success-bg);
-    color: var(--exprsn-success);
-}
-
-.stat-icon.warning {
-    background: var(--exprsn-warning-bg);
-    color: var(--exprsn-warning);
-}
+/* BUG-050: .stat-icon.success/.warning removed — zero TSX consumers and their
+   icon-on-tint pairs measured 2.24/1.93 (<3:1 non-text). .primary (3.10) and
+   .danger (3.08) pass 1.4.11 and are kept. */
 
 .stat-icon.danger {
     background: var(--exprsn-danger-bg);
@@ -1012,7 +961,7 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
 
 .filter-tag-close:hover {
     background: var(--exprsn-primary);
-    color: white;
+    color: var(--exprsn-text-on-primary);
 }
 
 /* ============================================================================
@@ -1289,30 +1238,10 @@ input[type="time"] {
     border-radius: var(--exprsn-radius-full);
 }
 
-.badge-primary {
-    background: var(--exprsn-primary-glow);
-    color: var(--exprsn-primary);
-}
-
-.badge-success {
-    background: var(--exprsn-success-bg);
-    color: var(--exprsn-success);
-}
-
-.badge-warning {
-    background: var(--exprsn-warning-bg);
-    color: var(--exprsn-warning);
-}
-
-.badge-danger {
-    background: var(--exprsn-danger-bg);
-    color: var(--exprsn-danger);
-}
-
-.badge-info {
-    background: var(--exprsn-info-bg);
-    color: var(--exprsn-info);
-}
+/* BUG-050: the .badge-primary/-success/-warning/-danger/-info variants were
+   removed — zero TSX consumers, and they paired the saturated main colors with
+   the tints (1.93–3.10:1). If badges return, use the -text tokens per the
+   decision note on the semantic tokens above. */
 
 .badge-secondary {
     background: var(--exprsn-bg-tertiary);
@@ -1377,29 +1306,10 @@ input[type="time"] {
     opacity: 1;
 }
 
-.alert-success {
-    background: var(--exprsn-success-bg);
-    color: var(--exprsn-success);
-    border-left: 4px solid var(--exprsn-success);
-}
-
-.alert-warning {
-    background: var(--exprsn-warning-bg);
-    color: var(--exprsn-warning-hover);
-    border-left: 4px solid var(--exprsn-warning);
-}
-
-.alert-danger {
-    background: var(--exprsn-danger-bg);
-    color: var(--exprsn-danger);
-    border-left: 4px solid var(--exprsn-danger);
-}
-
-.alert-info {
-    background: var(--exprsn-info-bg);
-    color: var(--exprsn-info);
-    border-left: 4px solid var(--exprsn-info);
-}
+/* BUG-050: the .alert-success/-warning/-danger/-info color variants were
+   removed — zero TSX consumers (MUI <Alert> is the live pattern), and they
+   paired main colors with the tints (2.24–3.36:1). If they return, use the
+   -text tokens. The structural .alert* classes above are kept. */
 
 /* ============================================================================
    TICKERS / LIVE DATA
@@ -1685,7 +1595,7 @@ input[type="time"] {
 
 .page-link.active {
     background: var(--exprsn-primary);
-    color: var(--exprsn-text-inverse);
+    color: var(--exprsn-text-on-primary);
     border-color: var(--exprsn-primary);
 }
 

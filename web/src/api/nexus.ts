@@ -45,6 +45,10 @@ export interface CreateGroupInput {
   maxMembers?: number | null;
   website?: string;
   location?: string;
+  /** Same-origin image URL (TASK-053 — FileVault-hosted upload; CSP blocks external origins). */
+  avatarUrl?: string | null;
+  /** Same-origin cover-image URL (backend column is banner_url). */
+  bannerUrl?: string | null;
   /** Decimal degrees, -90..90. Sent together with longitude or not at all. */
   latitude?: number;
   /** Decimal degrees, -180..180. */
@@ -131,6 +135,10 @@ export interface UpdateGroupInput {
   tags?: string[];
   location?: string | null;
   website?: string | null;
+  /** Same-origin image URL (TASK-053 — FileVault-hosted upload; CSP blocks external origins). */
+  avatarUrl?: string | null;
+  /** Same-origin cover-image URL (backend column is banner_url). */
+  bannerUrl?: string | null;
   /** Decimal degrees, -90..90. Sent together with longitude or not at all. */
   latitude?: number | null;
   /** Decimal degrees, -180..180. */

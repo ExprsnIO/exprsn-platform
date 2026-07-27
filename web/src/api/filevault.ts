@@ -494,6 +494,20 @@ export const filevaultApi = {
     `${window.location.origin}/filevault/api/share/file/${fileId}/download?token=${encodeURIComponent(token)}`,
 
   /**
+   * TASK-053 — upload an image and return a permanent, same-origin display URL
+   * (the only kind the edge CSP renders, BUG-038): uploads the file, mints a
+   * NON-EXPIRING read-only file-scoped access token (the stored URL must keep
+   * working indefinitely), and returns the absolute tokened download URL.
+   */
+  uploadForDisplayUrl: async (file: File): Promise<string> => {
+    const up = await filevaultApi.upload(file);
+    const tok = await filevaultApi.createFileAccessToken(up.file.id, {
+      permissions: { read: true, write: false, delete: false },
+    });
+    return filevaultApi.fileTokenDownloadUrl(up.file.id, tok.tokenId);
+  },
+
+  /**
    * Download a file's bytes and trigger a browser save. The download route is
    * bearer-authenticated (no query-token), so we fetch with the Authorization
    * header and save the resulting blob rather than navigating to the URL.

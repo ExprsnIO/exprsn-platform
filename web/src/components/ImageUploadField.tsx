@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -14,28 +14,28 @@ import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { filevaultApi } from '@/api/filevault';
 import { toMessage } from '@/lib/errors';
+import { isSameOriginUrl } from '@/lib/url';
 
 /**
  * TASK-053 — image field backed by FileVault-hosted uploads.
  *
  * The edge CSP is `img-src 'self' blob: data:` (BUG-038), so externally hosted
  * image URLs never render in the SPA. This field replaces the old free-text
- * "…URL" inputs: the user uploads an image, we store it in FileVault and mint a
- * non-expiring, read-only, file-scoped CA access token, and hand back the
- * resulting SAME-ORIGIN download URL — which the backends' `uri` validators
- * accept and the CSP permits. A plain-URL escape hatch remains, but only for
- * same-origin URLs; existing external values surface a "won't render" notice.
+ * "…URL" inputs: the user uploads an image, we store it in FileVault and hand
+ * back a same-origin tokened download URL (see filevaultApi.uploadForDisplayUrl)
+ * — which the backends' `uri` validators accept and the CSP permits. A
+ * plain-URL escape hatch remains, but only for same-origin URLs; existing
+ * external values surface a "won't render" notice.
  */
 
-/** True for relative URLs and absolute URLs on this origin. */
-function isSameOriginUrl(url: string): boolean {
-  if (!url) return true;
-  try {
-    return new URL(url, window.location.origin).origin === window.location.origin;
-  } catch {
-    return false;
-  }
-}
+/** Shared cover-strip preview frame (image and empty placeholder). */
+const coverSx = {
+  width: 160,
+  height: 56,
+  borderRadius: 1.5,
+  border: 1,
+  borderColor: 'divider',
+} as const;
 
 export function ImageUploadField({
   label,
@@ -57,9 +57,20 @@ export function ImageUploadField({
   const [error, setError] = useState<string | null>(null);
   const [showUrlField, setShowUrlField] = useState(false);
   const [urlDraft, setUrlDraft] = useState('');
+  // Object URL of the just-picked file: preview locally instead of immediately
+  // re-downloading the image we just uploaded. Saved/existing values still
+  // preview via `value`.
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
 
-  const external = value !== '' && !isSameOriginUrl(value);
-  const urlDraftExternal = urlDraft !== '' && !isSameOriginUrl(urlDraft);
+  // Revoke each object URL when it's replaced (cleanup on change) or on unmount.
+  useEffect(() => {
+    return () => {
+      if (localPreview) URL.revokeObjectURL(localPreview);
+    };
+  }, [localPreview]);
+
+  const external = useMemo(() => value !== '' && !isSameOriginUrl(value), [value]);
+  const urlDraftExternal = useMemo(() => urlDraft !== '' && !isSameOriginUrl(urlDraft), [urlDraft]);
 
   const pickFile = () => inputRef.current?.click();
 
@@ -68,12 +79,9 @@ export function ImageUploadField({
     setError(null);
     setUploading(true);
     try {
-      const up = await filevaultApi.upload(file);
-      // Non-expiring read-only token: the URL must keep working indefinitely.
-      const tok = await filevaultApi.createFileAccessToken(up.file.id, {
-        permissions: { read: true, write: false, delete: false },
-      });
-      onChange(new URL(tok.downloadUrl, window.location.origin).toString());
+      const url = await filevaultApi.uploadForDisplayUrl(file);
+      setLocalPreview(URL.createObjectURL(file));
+      onChange(url);
     } catch (err) {
       setError(toMessage(err));
     } finally {
@@ -84,10 +92,13 @@ export function ImageUploadField({
 
   const applyUrlDraft = () => {
     if (urlDraftExternal) return;
+    setLocalPreview(null);
     onChange(urlDraft.trim());
     setUrlDraft('');
     setShowUrlField(false);
   };
+
+  const previewSrc = localPreview ?? (!external && value ? value : undefined);
 
   return (
     <Stack spacing={1}>
@@ -104,36 +115,11 @@ export function ImageUploadField({
 
       <Stack direction="row" spacing={2} alignItems="center">
         {variant === 'avatar' ? (
-          <Avatar
-            src={!external && value ? value : undefined}
-            alt=""
-            sx={{ width: 56, height: 56 }}
-          />
-        ) : !external && value ? (
-          <Box
-            component="img"
-            src={value}
-            alt=""
-            sx={{
-              width: 160,
-              height: 56,
-              borderRadius: 1.5,
-              objectFit: 'cover',
-              border: 1,
-              borderColor: 'divider',
-            }}
-          />
+          <Avatar src={previewSrc} alt="" sx={{ width: 56, height: 56 }} />
+        ) : previewSrc ? (
+          <Box component="img" src={previewSrc} alt="" sx={{ ...coverSx, objectFit: 'cover' }} />
         ) : (
-          <Box
-            sx={{
-              width: 160,
-              height: 56,
-              borderRadius: 1.5,
-              bgcolor: 'action.hover',
-              border: 1,
-              borderColor: 'divider',
-            }}
-          />
+          <Box sx={{ ...coverSx, bgcolor: 'action.hover' }} />
         )}
 
         <Stack direction="row" spacing={1}>
@@ -151,7 +137,10 @@ export function ImageUploadField({
               size="small"
               color="inherit"
               startIcon={<DeleteOutlineIcon />}
-              onClick={() => onChange('')}
+              onClick={() => {
+                setLocalPreview(null);
+                onChange('');
+              }}
               disabled={uploading}
             >
               Remove

@@ -72,10 +72,10 @@ export function WorkflowsTab({ onToast }: { onToast: (m: string) => void }) {
                   align: 'right',
                   render: (w) => (
                     <>
-                      <Tooltip title="Execute"><IconButton size="small" color="success" onClick={() => execute(w.id)}><PlayArrowIcon fontSize="small" /></IconButton></Tooltip>
-                      <Tooltip title="Visual editor"><IconButton size="small" onClick={() => setCanvas({ workflow: w })}><AccountTreeIcon fontSize="small" /></IconButton></Tooltip>
-                      <Tooltip title="Edit"><IconButton size="small" onClick={() => setDialog({ workflow: w })}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                      <IconButton size="small" color="error" onClick={() => { if (confirm('Delete workflow?')) act(() => moderatorAdminApi.deleteWorkflow(w.id), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton>
+                      <Tooltip title="Execute"><IconButton aria-label="Execute" size="small" color="success" onClick={() => execute(w.id)}><PlayArrowIcon fontSize="small" /></IconButton></Tooltip>
+                      <Tooltip title="Visual editor"><IconButton aria-label="Visual editor" size="small" onClick={() => setCanvas({ workflow: w })}><AccountTreeIcon fontSize="small" /></IconButton></Tooltip>
+                      <Tooltip title="Edit"><IconButton aria-label="Edit" size="small" onClick={() => setDialog({ workflow: w })}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                      <IconButton size="small" color="error" aria-label="Delete workflow" onClick={() => { if (confirm('Delete workflow?')) act(() => moderatorAdminApi.deleteWorkflow(w.id), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton>
                     </>
                   ),
                 },

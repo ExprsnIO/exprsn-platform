@@ -240,7 +240,7 @@ function SubGroupRow({
         <Chip size="small" variant="outlined" label={subGroup.visibility} />
         {canManage && (
           <>
-            <IconButton size="small" onClick={(e) => setAnchor(e.currentTarget)}>
+            <IconButton size="small" aria-label="Subgroup actions" onClick={(e) => setAnchor(e.currentTarget)}>
               <MoreVertIcon fontSize="small" />
             </IconButton>
             <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>

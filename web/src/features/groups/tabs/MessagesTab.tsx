@@ -326,7 +326,7 @@ function Composer({
             }
           }}
         />
-        <IconButton color="primary" onClick={submit} disabled={busy || !text.trim()}>
+        <IconButton color="primary" aria-label="Send message" onClick={submit} disabled={busy || !text.trim()}>
           {busy ? <CircularProgress size={20} /> : <SendIcon />}
         </IconButton>
       </Stack>

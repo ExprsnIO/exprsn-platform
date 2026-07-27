@@ -148,7 +148,7 @@ export function VersionHistoryDialog({
                     secondaryAction={
                       !isCurrent && (
                         <Tooltip title="Restore this version">
-                          <IconButton
+                          <IconButton aria-label="Restore this version"
                             edge="end"
                             size="small"
                             disabled={restoreMutation.isPending}

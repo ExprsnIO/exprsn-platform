@@ -502,7 +502,7 @@ export function ImageAnnotator({
 
           <Tooltip title="Undo last action">
             <span>
-              <IconButton size="small" onClick={undo} disabled={opCount === 0}>
+              <IconButton size="small" aria-label="Undo last action" onClick={undo} disabled={opCount === 0}>
                 <UndoOutlinedIcon fontSize="small" />
               </IconButton>
             </span>

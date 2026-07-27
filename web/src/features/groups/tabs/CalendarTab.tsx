@@ -96,17 +96,17 @@ function MonthCalendar({ events }: { events: GroupEvent[] }) {
         <Typography variant="subtitle1" fontWeight={600}>{monthLabel}</Typography>
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="Previous month">
-            <IconButton size="small" onClick={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1))}>
+            <IconButton aria-label="Previous month" size="small" onClick={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1))}>
               <ChevronLeftIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Today">
-            <IconButton size="small" onClick={() => setAnchor(new Date())}>
+            <IconButton aria-label="Today" size="small" onClick={() => setAnchor(new Date())}>
               <TodayIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Next month">
-            <IconButton size="small" onClick={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1))}>
+            <IconButton aria-label="Next month" size="small" onClick={() => setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1))}>
               <ChevronRightIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -282,7 +282,7 @@ function SyncCard({ groupId, onToast }: { groupId: string; onToast: (m: string) 
                 InputProps={{ readOnly: true, sx: { fontFamily: 'monospace', fontSize: 12 } }}
               />
               <Tooltip title="Copy URL">
-                <IconButton size="small" onClick={() => copy(r.url)}><ContentCopyIcon fontSize="small" /></IconButton>
+                <IconButton aria-label="Copy URL" size="small" onClick={() => copy(r.url)}><ContentCopyIcon fontSize="small" /></IconButton>
               </Tooltip>
             </Stack>
           </Box>

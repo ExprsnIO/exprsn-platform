@@ -106,7 +106,7 @@ export function LookupEditorDialog({ open, lookup, appId, busy, onClose, onSave 
                   <TextField label="value" size="small" value={v.value} onChange={(e) => patchValue(i, { value: e.target.value })} sx={{ flex: 1 }} />
                   <TextField label="label" size="small" value={v.label} onChange={(e) => patchValue(i, { label: e.target.value })} sx={{ flex: 1 }} />
                   <TextField label="color" size="small" type="color" value={v.color ?? '#737373'} onChange={(e) => patchValue(i, { color: e.target.value })} sx={{ width: 70 }} />
-                  <IconButton size="small" color="error" onClick={() => setValues((vs) => vs.filter((_, j) => j !== i))}><DeleteOutlineIcon fontSize="small" /></IconButton>
+                  <IconButton size="small" color="error" aria-label={`Delete value ${v.label || v.value || i + 1}`} onClick={() => setValues((vs) => vs.filter((_, j) => j !== i))}><DeleteOutlineIcon fontSize="small" /></IconButton>
                 </Stack>
               ))}
             </Stack>

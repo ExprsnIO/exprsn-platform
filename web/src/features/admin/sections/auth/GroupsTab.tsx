@@ -59,7 +59,7 @@ export function GroupsTab({ onToast }: { onToast: (m: string) => void }) {
                 locked: true,
                 render: (g) => (
                   <Tooltip title="Delete group">
-                    <IconButton size="small" color="error" onClick={() => deleteMut.mutate(g.id)}><DeleteIcon fontSize="small" /></IconButton>
+                    <IconButton aria-label="Delete group" size="small" color="error" onClick={() => deleteMut.mutate(g.id)}><DeleteIcon fontSize="small" /></IconButton>
                   </Tooltip>
                 ),
               },

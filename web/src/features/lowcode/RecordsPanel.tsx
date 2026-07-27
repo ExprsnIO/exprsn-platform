@@ -151,9 +151,9 @@ export function RecordsPanel({
       key: '__actions', header: '', align: 'right',
       render: (r) => (
         <Stack direction="row" justifyContent="flex-end">
-          <Tooltip title="View"><IconButton size="small" onClick={() => setView(r)}><VisibilityOutlinedIcon fontSize="small" /></IconButton></Tooltip>
-          {canEdit && <Tooltip title="Edit"><IconButton size="small" onClick={() => { setEditing(r); setDialogOpen(true); }}><EditOutlinedIcon fontSize="small" /></IconButton></Tooltip>}
-          {canEdit && <Tooltip title="Delete"><IconButton size="small" color="error" onClick={() => del.mutate(r.id)}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>}
+          <Tooltip title="View"><IconButton aria-label="View" size="small" onClick={() => setView(r)}><VisibilityOutlinedIcon fontSize="small" /></IconButton></Tooltip>
+          {canEdit && <Tooltip title="Edit"><IconButton aria-label="Edit" size="small" onClick={() => { setEditing(r); setDialogOpen(true); }}><EditOutlinedIcon fontSize="small" /></IconButton></Tooltip>}
+          {canEdit && <Tooltip title="Delete"><IconButton aria-label="Delete" size="small" color="error" onClick={() => del.mutate(r.id)}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>}
         </Stack>
       ),
     };
@@ -183,11 +183,11 @@ export function RecordsPanel({
           </TextField>
         )}
         <Tooltip title="Save current filters/search as a view">
-          <IconButton size="small" onClick={() => setSaveViewOpen(true)}><BookmarkAddOutlinedIcon fontSize="small" /></IconButton>
+          <IconButton aria-label="Save current filters/search as a view" size="small" onClick={() => setSaveViewOpen(true)}><BookmarkAddOutlinedIcon fontSize="small" /></IconButton>
         </Tooltip>
         {activeView && (
           <Tooltip title="Delete this view">
-            <IconButton size="small" color="error" disabled={deleteView.isPending} onClick={() => deleteView.mutate(activeView.id)}>
+            <IconButton aria-label="Delete this view" size="small" color="error" disabled={deleteView.isPending} onClick={() => deleteView.mutate(activeView.id)}>
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -202,11 +202,11 @@ export function RecordsPanel({
           </ToggleButtonGroup>
         )}
         <Tooltip title="Export CSV (current filters)">
-          <IconButton size="small" disabled={exportCsv.isPending} onClick={() => exportCsv.mutate()}><FileDownloadOutlinedIcon fontSize="small" /></IconButton>
+          <IconButton aria-label="Export CSV (current filters)" size="small" disabled={exportCsv.isPending} onClick={() => exportCsv.mutate()}><FileDownloadOutlinedIcon fontSize="small" /></IconButton>
         </Tooltip>
         {canEdit && (
           <Tooltip title="Import CSV">
-            <IconButton size="small" onClick={() => setImportOpen(true)}><FileUploadOutlinedIcon fontSize="small" /></IconButton>
+            <IconButton aria-label="Import CSV" size="small" onClick={() => setImportOpen(true)}><FileUploadOutlinedIcon fontSize="small" /></IconButton>
           </Tooltip>
         )}
         {canEdit && (

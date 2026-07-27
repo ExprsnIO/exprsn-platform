@@ -601,12 +601,12 @@ export function CertificatesTab() {
                     </TableCell>
                     <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                       <Tooltip title="Details">
-                        <IconButton size="small" onClick={() => setDetailCert(c)}>
+                        <IconButton aria-label="Details" size="small" onClick={() => setDetailCert(c)}>
                           <InfoOutlinedIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Export">
-                        <IconButton size="small" onClick={(e) => openExportMenu(e, c)}>
+                        <IconButton aria-label="Export" size="small" onClick={(e) => openExportMenu(e, c)}>
                           <FileDownloadIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -614,6 +614,7 @@ export function CertificatesTab() {
                         <span>
                           <IconButton
                             size="small"
+                            aria-label="Renew"
                             disabled={c.status !== 'active' || renewMutation.isPending}
                             onClick={() => renewMutation.mutate(c)}
                           >
@@ -626,6 +627,7 @@ export function CertificatesTab() {
                           <IconButton
                             size="small"
                             color="error"
+                            aria-label="Revoke"
                             disabled={c.status !== 'active'}
                             onClick={() => {
                               setRevokeReason('unspecified');

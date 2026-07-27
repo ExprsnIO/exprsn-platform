@@ -103,7 +103,7 @@ export function CommentToolbar({
             ),
             endAdornment: filter.query ? (
               <InputAdornment position="end">
-                <IconButton size="small" onClick={() => onFilterChange({ ...filter, query: '' })}>
+                <IconButton size="small" aria-label="Clear search" onClick={() => onFilterChange({ ...filter, query: '' })}>
                   <ClearIcon fontSize="small" />
                 </IconButton>
               </InputAdornment>

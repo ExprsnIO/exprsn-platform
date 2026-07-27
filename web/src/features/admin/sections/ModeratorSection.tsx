@@ -55,9 +55,9 @@ function QueueTab({ onToast, moderatorId }: { onToast: (m: string) => void; mode
                 align: 'right',
                 render: (it) => (
                   <>
-                    <Tooltip title="Approve"><IconButton size="small" color="success" onClick={() => act(() => moderatorAdminApi.approve(it.id, moderatorId), 'Approved')}><CheckIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title="Reject"><IconButton size="small" color="error" onClick={() => act(() => moderatorAdminApi.reject(it.id, moderatorId), 'Rejected')}><CloseIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title="Analyze"><IconButton size="small" onClick={() => moderatorAdminApi.analyze(it.id).then((v) => setView({ title: 'AI analysis', value: v })).catch((e) => onToast((e as Error).message))}>AI</IconButton></Tooltip>
+                    <Tooltip title="Approve"><IconButton aria-label="Approve" size="small" color="success" onClick={() => act(() => moderatorAdminApi.approve(it.id, moderatorId), 'Approved')}><CheckIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Reject"><IconButton aria-label="Reject" size="small" color="error" onClick={() => act(() => moderatorAdminApi.reject(it.id, moderatorId), 'Rejected')}><CloseIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Analyze"><IconButton aria-label="Analyze" size="small" onClick={() => moderatorAdminApi.analyze(it.id).then((v) => setView({ title: 'AI analysis', value: v })).catch((e) => onToast((e as Error).message))}>AI</IconButton></Tooltip>
                     <Button size="small" onClick={() => act(() => moderatorAdminApi.warn(it.id), 'Warned')}>Warn</Button>
                     <Button size="small" color="warning" onClick={() => act(() => moderatorAdminApi.remove(it.id), 'Removed')}>Remove</Button>
                     <Button size="small" color="error" onClick={() => act(() => moderatorAdminApi.ban(it.id), 'Banned')}>Ban</Button>
@@ -148,7 +148,7 @@ function RulesTab({ onToast }: { onToast: (m: string) => void }) {
                   <>
                     <Button size="small" onClick={() => setDialog({ rule: r as unknown as Rule })}>Edit</Button>
                     <Button size="small" onClick={() => act(() => (r.enabled ? moderatorAdminApi.disableRule(r.id) : moderatorAdminApi.enableRule(r.id)), 'Toggled')}>{r.enabled ? 'Disable' : 'Enable'}</Button>
-                    <IconButton size="small" color="error" onClick={() => { if (confirm('Delete rule?')) act(() => moderatorAdminApi.deleteRule(r.id), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" aria-label="Delete rule" onClick={() => { if (confirm('Delete rule?')) act(() => moderatorAdminApi.deleteRule(r.id), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton>
                   </>
                 ),
               },

@@ -73,7 +73,7 @@ function MemberRow({
         <Chip size="small" label={member.role} color={ROLE_COLOR(member.role)} />
         {manageable && (
           <>
-            <IconButton size="small" onClick={(e) => setAnchor(e.currentTarget)}>
+            <IconButton size="small" aria-label={`Actions for ${name}`} onClick={(e) => setAnchor(e.currentTarget)}>
               <MoreVertIcon fontSize="small" />
             </IconButton>
             <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>

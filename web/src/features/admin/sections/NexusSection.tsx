@@ -309,7 +309,7 @@ function GroupMembersSubTab({ groupId, onToast }: { groupId: string; onToast: (m
                 render: (m) => (
                   <Tooltip title={m.role === 'owner' ? 'Owners cannot be removed' : 'Remove member'}>
                     <span>
-                      <IconButton size="small" color="error" disabled={m.role === 'owner'} onClick={() => setRemove(m)}><DeleteIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" color="error" aria-label="Remove member" disabled={m.role === 'owner'} onClick={() => setRemove(m)}><DeleteIcon fontSize="small" /></IconButton>
                     </span>
                   </Tooltip>
                 ),
@@ -557,7 +557,7 @@ function EventsPanel({ groupId, onToast }: { groupId: string; onToast: (m: strin
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                     <Button size="small" disabled={e.status === 'cancelled'} onClick={() => act(() => nexusAdminApi.cancelEvent(e.id, 'Cancelled from admin console'), 'Event cancelled')}>Cancel</Button>
                     <Button size="small" onClick={() => setNotify(e.id)}>Notify</Button>
-                    <IconButton size="small" color="error" onClick={() => setConfirmDelete(e)}><DeleteIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" aria-label="Delete event" onClick={() => setConfirmDelete(e)}><DeleteIcon fontSize="small" /></IconButton>
                   </Stack>
                 ),
               },
@@ -678,7 +678,7 @@ function SubgroupsPanel({ groupId, onToast }: { groupId: string; onToast: (m: st
                 render: (s) => (
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                     <Button size="small" onClick={() => setDialog({ open: true, subgroup: s })}>Edit</Button>
-                    <IconButton size="small" color="error" onClick={() => setConfirmDelete(s)}><DeleteIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" aria-label="Delete subgroup" onClick={() => setConfirmDelete(s)}><DeleteIcon fontSize="small" /></IconButton>
                   </Stack>
                 ),
               },

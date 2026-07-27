@@ -231,9 +231,9 @@ function StepInspector({
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Typography variant="subtitle2">Step</Typography>
         <Stack direction="row">
-          <Tooltip title="Move up"><IconButton size="small" onClick={() => onMove(-1)}><ArrowUpwardIcon fontSize="small" /></IconButton></Tooltip>
-          <Tooltip title="Move down"><IconButton size="small" onClick={() => onMove(1)}><ArrowDownwardIcon fontSize="small" /></IconButton></Tooltip>
-          <Tooltip title="Delete step"><IconButton size="small" color="error" onClick={onDelete}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Move up"><IconButton aria-label="Move up" size="small" onClick={() => onMove(-1)}><ArrowUpwardIcon fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Move down"><IconButton aria-label="Move down" size="small" onClick={() => onMove(1)}><ArrowDownwardIcon fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Delete step"><IconButton aria-label="Delete step" size="small" color="error" onClick={onDelete}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
         </Stack>
       </Stack>
       <TextField select size="small" label="Step type" value={step.type} onChange={(e) => onChangeType(e.target.value as StepType)}>

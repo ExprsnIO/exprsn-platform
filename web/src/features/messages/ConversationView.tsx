@@ -149,13 +149,13 @@ export function ConversationView({
           </Typography>
           <Tooltip title="Start a video call">
             <span>
-              <IconButton size="small" onClick={() => callMutation.mutate()} disabled={callMutation.isPending}>
+              <IconButton size="small" aria-label="Start a video call" onClick={() => callMutation.mutate()} disabled={callMutation.isPending}>
                 <VideoCallIcon />
               </IconButton>
             </span>
           </Tooltip>
           <Tooltip title="Participants & details">
-            <IconButton size="small" onClick={() => setParticipantsOpen(true)}>
+            <IconButton aria-label="Participants & details" size="small" onClick={() => setParticipantsOpen(true)}>
               <GroupIcon />
             </IconButton>
           </Tooltip>

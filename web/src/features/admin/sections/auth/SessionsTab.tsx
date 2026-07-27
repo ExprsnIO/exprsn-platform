@@ -36,7 +36,7 @@ export function SessionsTab({ onToast }: { onToast: (m: string) => void }) {
                 render: (s) => (
                   <Tooltip title="Revoke">
                     <span>
-                      <IconButton size="small" color="error" disabled={!!s.current} onClick={() => revoke.mutate(s)}><DeleteIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" color="error" aria-label="Revoke" disabled={!!s.current} onClick={() => revoke.mutate(s)}><DeleteIcon fontSize="small" /></IconButton>
                     </span>
                   </Tooltip>
                 ),

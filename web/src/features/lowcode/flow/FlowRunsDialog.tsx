@@ -28,7 +28,7 @@ function RunRow({ run }: { run: FlowRun }) {
     <>
       <TableRow hover sx={{ cursor: 'pointer' }} onClick={() => setOpen((o) => !o)}>
         <TableCell width={40}>
-          <IconButton size="small">{open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}</IconButton>
+          <IconButton size="small" aria-label={open ? 'Collapse run details' : 'Expand run details'} tabIndex={-1}>{open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}</IconButton>
         </TableCell>
         <TableCell>{at ? new Date(at).toLocaleString() : '—'}</TableCell>
         <TableCell><Chip size="small" variant="outlined" label={run.trigger} /></TableCell>
@@ -109,7 +109,7 @@ export function FlowRunsDialog({ open, flow, onClose }: { open: boolean; flow: F
             </Typography>
             <span style={{ flex: 1 }} />
             <Tooltip title="Refresh">
-              <IconButton size="small" onClick={() => runsQ.refetch()}><RefreshIcon fontSize="small" /></IconButton>
+              <IconButton aria-label="Refresh" size="small" onClick={() => runsQ.refetch()}><RefreshIcon fontSize="small" /></IconButton>
             </Tooltip>
           </Stack>
 

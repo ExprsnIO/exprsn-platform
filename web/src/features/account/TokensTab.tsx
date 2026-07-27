@@ -537,7 +537,7 @@ export function TokensTab() {
                     <TableCell>{statusChip(t)}</TableCell>
                     <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                       <Tooltip title="Introspect">
-                        <IconButton size="small" onClick={() => setIntrospectToken(t)}>
+                        <IconButton aria-label="Introspect" size="small" onClick={() => setIntrospectToken(t)}>
                           <InfoOutlinedIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -545,6 +545,7 @@ export function TokensTab() {
                         <span>
                           <IconButton
                             size="small"
+                            aria-label="Refresh expiry"
                             disabled={t.status !== 'active' || t.expiryType !== 'time'}
                             onClick={() => {
                               setRefreshSeconds(3600);
@@ -560,6 +561,7 @@ export function TokensTab() {
                           <IconButton
                             size="small"
                             color="error"
+                            aria-label="Revoke"
                             disabled={t.status !== 'active'}
                             onClick={() => setRevokeToken(t)}
                           >

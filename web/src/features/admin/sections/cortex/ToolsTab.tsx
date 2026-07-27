@@ -157,7 +157,7 @@ export function ToolsTab({ toast }: { toast: ToastFn }) {
                       {t.enabled ? 'Disable' : 'Enable'}
                     </Button>
                     <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => setToDelete(t.name)}>
+                      <IconButton aria-label="Delete" size="small" color="error" onClick={() => setToDelete(t.name)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>

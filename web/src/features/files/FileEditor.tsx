@@ -147,13 +147,13 @@ export function FileEditor({
           {dirty && <Chip size="small" color="warning" label="● unsaved" />}
           {markdown && (
             <Tooltip title={showPreview ? 'Hide preview' : 'Show preview'}>
-              <IconButton size="small" onClick={() => setShowPreview((v) => !v)}>
+              <IconButton size="small" aria-label={showPreview ? 'Hide preview' : 'Show preview'} onClick={() => setShowPreview((v) => !v)}>
                 {showPreview ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
               </IconButton>
             </Tooltip>
           )}
           <Tooltip title={fullScreen ? 'Exit full screen' : 'Full screen'}>
-            <IconButton size="small" onClick={() => setFullScreen((v) => !v)}>
+            <IconButton size="small" aria-label={fullScreen ? 'Exit full screen' : 'Full screen'} onClick={() => setFullScreen((v) => !v)}>
               {fullScreen ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
             </IconButton>
           </Tooltip>

@@ -122,10 +122,10 @@ function Lightbox({
           spacing={0.5}
           sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
         >
-          <IconButton size="small" onClick={() => onDownload(file)} sx={{ color: 'common.white' }}>
+          <IconButton size="small" aria-label="Download" onClick={() => onDownload(file)} sx={{ color: 'common.white' }}>
             <DownloadIcon fontSize="small" />
           </IconButton>
-          <IconButton size="small" onClick={onClose} sx={{ color: 'common.white' }}>
+          <IconButton size="small" aria-label="Close" onClick={onClose} sx={{ color: 'common.white' }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Stack>

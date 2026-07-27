@@ -222,10 +222,10 @@ export function MessageItem({
 
       {!message.deleted && (
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <IconButton size="small" onClick={(e) => setEmojiEl(e.currentTarget)}>
+          <IconButton size="small" aria-label="React" onClick={(e) => setEmojiEl(e.currentTarget)}>
             <AddReactionIcon sx={{ fontSize: 16 }} />
           </IconButton>
-          <IconButton size="small" onClick={(e) => setMenuEl(e.currentTarget)}>
+          <IconButton size="small" aria-label="Message actions" onClick={(e) => setMenuEl(e.currentTarget)}>
             <MoreVertIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Box>
@@ -237,6 +237,7 @@ export function MessageItem({
             <IconButton
               key={emoji}
               size="small"
+              aria-label={`React with ${emoji}`}
               onClick={() => {
                 onReact(message.id, emoji);
                 setEmojiEl(null);

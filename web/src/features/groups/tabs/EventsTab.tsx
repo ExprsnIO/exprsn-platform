@@ -272,7 +272,7 @@ function EventRow({
         {cancelled && <Chip size="small" color="error" label="cancelled" />}
         {canManage && (
           <>
-            <IconButton size="small" onClick={(e) => setAnchor(e.currentTarget)}>
+            <IconButton size="small" aria-label="Event actions" onClick={(e) => setAnchor(e.currentTarget)}>
               <MoreVertIcon fontSize="small" />
             </IconButton>
             <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>

@@ -170,7 +170,7 @@ export function EntityEditor({ entity, draft = null, appId, entities = [], looku
                         label="computed"
                       />
                     )}
-                    <Tooltip title="Remove field"><IconButton size="small" color="error" onClick={() => removeField(f._id)} sx={{ ml: 'auto' }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Remove field"><IconButton aria-label="Remove field" size="small" color="error" onClick={() => removeField(f._id)} sx={{ ml: 'auto' }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
                   </Stack>
                   {f.formula !== undefined && (
                     <TextField
@@ -306,7 +306,7 @@ function StateMachineEditor({ value, onChange }: { value: StateMachine | null; o
                   <TextField select size="small" label="to" sx={{ width: 130 }} value={t.to} onChange={(e) => set({ transitions: sm.transitions.map((x, j) => j === i ? { ...x, to: e.target.value } : x) })}>
                     {sm.states.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
                   </TextField>
-                  <IconButton size="small" color="error" onClick={() => set({ transitions: sm.transitions.filter((_, j) => j !== i) })}><DeleteOutlineIcon fontSize="small" /></IconButton>
+                  <IconButton size="small" color="error" aria-label={`Delete transition ${i + 1}`} onClick={() => set({ transitions: sm.transitions.filter((_, j) => j !== i) })}><DeleteOutlineIcon fontSize="small" /></IconButton>
                 </Stack>
               ))}
               <Button size="small" startIcon={<AddIcon />} disabled={sm.states.length < 1} onClick={() => set({ transitions: [...sm.transitions, { from: sm.states[0], event: '', to: sm.states[0] }] })}>

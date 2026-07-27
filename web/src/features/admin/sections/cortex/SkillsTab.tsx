@@ -249,7 +249,7 @@ export function SkillsTab({ toast }: { toast: ToastFn }) {
                       {s.enabled ? 'Disable' : 'Enable'}
                     </Button>
                     <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => setToDelete(s.name)}>
+                      <IconButton aria-label="Delete" size="small" color="error" onClick={() => setToDelete(s.name)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>

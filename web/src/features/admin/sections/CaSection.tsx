@@ -290,16 +290,16 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
                 render: (c) => (
                   <>
                     <Tooltip title="Download PEM">
-                      <IconButton size="small" onClick={() => download.mutate(c)}><DownloadIcon fontSize="small" /></IconButton>
+                      <IconButton aria-label="Download PEM" size="small" onClick={() => download.mutate(c)}><DownloadIcon fontSize="small" /></IconButton>
                     </Tooltip>
                     <Tooltip title="Export…">
-                      <IconButton size="small" onClick={(e) => setExportMenu({ anchor: e.currentTarget, cert: c })}>
+                      <IconButton aria-label="Export…" size="small" onClick={(e) => setExportMenu({ anchor: e.currentTarget, cert: c })}>
                         <FileDownloadIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Revoke">
                       <span>
-                        <IconButton size="small" color="error" disabled={c.status !== 'active'} onClick={() => { setRevokeReason('unspecified'); setRevokeTarget(c); }}>
+                        <IconButton size="small" color="error" aria-label="Revoke" disabled={c.status !== 'active'} onClick={() => { setRevokeReason('unspecified'); setRevokeTarget(c); }}>
                           <BlockIcon fontSize="small" />
                         </IconButton>
                       </span>
@@ -821,10 +821,10 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
                 align: 'right',
                 render: (t) => (
                   <>
-                    <Tooltip title="Validate"><IconButton size="small" onClick={() => validate.mutate(t)}><RefreshIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Validate"><IconButton aria-label="Validate" size="small" onClick={() => validate.mutate(t)}><RefreshIcon fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Revoke">
                       <span>
-                        <IconButton size="small" color="error" disabled={t.status !== 'active'} onClick={() => setRevokeTarget(t)}>
+                        <IconButton size="small" color="error" aria-label="Revoke" disabled={t.status !== 'active'} onClick={() => setRevokeTarget(t)}>
                           <BlockIcon fontSize="small" />
                         </IconButton>
                       </span>

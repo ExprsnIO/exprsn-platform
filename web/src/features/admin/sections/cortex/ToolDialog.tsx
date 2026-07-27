@@ -366,7 +366,7 @@ export function ToolDialog({
                   </TextField>
                   <TextField size="small" label="Description" value={p.description} onChange={(e) => setParam(i, { ...p, description: e.target.value })} sx={{ flex: 1 }} />
                   <FormControlLabel control={<Switch size="small" checked={p.required} onChange={(e) => setParam(i, { ...p, required: e.target.checked })} />} label="Required" />
-                  <IconButton size="small" color="error" onClick={() => setParams((cur) => cur.filter((_x, j) => j !== i))}>
+                  <IconButton size="small" color="error" aria-label="Remove parameter" onClick={() => setParams((cur) => cur.filter((_x, j) => j !== i))}>
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </Stack>
@@ -413,7 +413,7 @@ export function ToolDialog({
                     <Stack key={i} direction="row" spacing={1} alignItems="center">
                       <TextField size="small" label="Header" value={h.key} onChange={(e) => setHeaders((cur) => cur.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)))} sx={{ width: 220 }} />
                       <TextField size="small" label="Value" value={h.value} onChange={(e) => setHeaders((cur) => cur.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} sx={{ flex: 1 }} />
-                      <IconButton size="small" color="error" onClick={() => setHeaders((cur) => cur.filter((_x, j) => j !== i))}>
+                      <IconButton size="small" color="error" aria-label="Remove header" onClick={() => setHeaders((cur) => cur.filter((_x, j) => j !== i))}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Stack>
@@ -449,7 +449,7 @@ export function ToolDialog({
                       <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
                         Test {i + 1} args
                       </Typography>
-                      <IconButton size="small" color="error" onClick={() => setTests((cur) => cur.filter((_x, j) => j !== i))}>
+                      <IconButton size="small" color="error" aria-label="Remove test" onClick={() => setTests((cur) => cur.filter((_x, j) => j !== i))}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Stack>

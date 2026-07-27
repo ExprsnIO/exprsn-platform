@@ -106,7 +106,7 @@ export function KanbanBoard({
             <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, wordBreak: 'break-word' }}>{cardTitle(r, entity)}</Typography>
             {canEdit && (
               <Tooltip title="Move to…">
-                <IconButton
+                <IconButton aria-label="Move to…"
                   size="small"
                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); setMoveFrom({ record: r, anchor: e.currentTarget }); }}
                 >

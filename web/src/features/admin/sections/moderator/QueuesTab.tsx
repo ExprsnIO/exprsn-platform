@@ -166,11 +166,11 @@ export function QueuesTab({ onToast }: { onToast: (m: string) => void }) {
                   <>
                     {(q.counts?.dlq ?? 0) > 0 && (
                       <Tooltip title={`Dead-letter queue (${q.counts?.dlq})`}>
-                        <IconButton size="small" color="error" onClick={() => setDlq(q.name)}><WarningAmberIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" color="error" aria-label={`Dead-letter queue (${q.counts?.dlq})`} onClick={() => setDlq(q.name)}><WarningAmberIcon fontSize="small" /></IconButton>
                       </Tooltip>
                     )}
-                    <Tooltip title="Edit"><IconButton size="small" onClick={() => edit(q)}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                    <IconButton size="small" color="error" onClick={() => { if (confirm(`Delete queue "${q.name}"?`)) act(() => moderatorAdminApi.deleteQueue(q.name), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton>
+                    <Tooltip title="Edit"><IconButton aria-label="Edit" size="small" onClick={() => edit(q)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                    <IconButton size="small" color="error" aria-label={`Delete queue "${q.name}"`} onClick={() => { if (confirm(`Delete queue "${q.name}"?`)) act(() => moderatorAdminApi.deleteQueue(q.name), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton>
                   </>
                 ),
               },

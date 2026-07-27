@@ -40,7 +40,7 @@ function PinnedRow({ message, canUnpin, onUnpin }: { message: Message; canUnpin:
       </Typography>
       {canUnpin && (
         <Tooltip title="Unpin">
-          <IconButton size="small" onClick={() => onUnpin(message.id)}>
+          <IconButton aria-label="Unpin" size="small" onClick={() => onUnpin(message.id)}>
             <CloseIcon sx={{ fontSize: 14 }} />
           </IconButton>
         </Tooltip>

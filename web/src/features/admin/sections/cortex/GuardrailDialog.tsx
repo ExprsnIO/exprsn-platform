@@ -109,7 +109,7 @@ function RuleRow({ rule, onChange, onDelete }: { rule: RuleDraft; onChange: (r: 
           </TextField>
           <Box sx={{ flex: 1 }} />
           <Tooltip title="Remove rule">
-            <IconButton size="small" color="error" onClick={onDelete}>
+            <IconButton aria-label="Remove rule" size="small" color="error" onClick={onDelete}>
               <DeleteIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -398,7 +398,7 @@ export function GuardrailDialog({
                     <MenuItem value="trigger">trigger</MenuItem>
                     <MenuItem value="pass">pass</MenuItem>
                   </TextField>
-                  <IconButton size="small" color="error" onClick={() => setTests((cur) => cur.filter((_x, j) => j !== i))}>
+                  <IconButton size="small" color="error" aria-label="Remove test" onClick={() => setTests((cur) => cur.filter((_x, j) => j !== i))}>
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </Stack>

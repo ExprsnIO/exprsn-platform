@@ -109,19 +109,19 @@ export function CommentComposer({
           {tab === 'write' && (
             <>
               <Tooltip title="Bold">
-                <IconButton size="small" onClick={() => applyWrap('bold')}><FormatBoldIcon fontSize="small" /></IconButton>
+                <IconButton aria-label="Bold" size="small" onClick={() => applyWrap('bold')}><FormatBoldIcon fontSize="small" /></IconButton>
               </Tooltip>
               <Tooltip title="Italic">
-                <IconButton size="small" onClick={() => applyWrap('italic')}><FormatItalicIcon fontSize="small" /></IconButton>
+                <IconButton aria-label="Italic" size="small" onClick={() => applyWrap('italic')}><FormatItalicIcon fontSize="small" /></IconButton>
               </Tooltip>
               <Tooltip title="Code">
-                <IconButton size="small" onClick={() => applyWrap('code')}><CodeIcon fontSize="small" /></IconButton>
+                <IconButton aria-label="Code" size="small" onClick={() => applyWrap('code')}><CodeIcon fontSize="small" /></IconButton>
               </Tooltip>
               <Tooltip title="Link">
-                <IconButton size="small" onClick={() => applyWrap('link')}><LinkIcon fontSize="small" /></IconButton>
+                <IconButton aria-label="Link" size="small" onClick={() => applyWrap('link')}><LinkIcon fontSize="small" /></IconButton>
               </Tooltip>
               <Tooltip title="Quote">
-                <IconButton size="small" onClick={() => applyWrap('quote')}><FormatQuoteIcon fontSize="small" /></IconButton>
+                <IconButton aria-label="Quote" size="small" onClick={() => applyWrap('quote')}><FormatQuoteIcon fontSize="small" /></IconButton>
               </Tooltip>
             </>
           )}

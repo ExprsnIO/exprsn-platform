@@ -170,13 +170,13 @@ export default function FilesTab({ groupId, ctx }: GroupTabProps) {
                         ) : (
                           <>
                             <Tooltip title="Download">
-                              <IconButton size="small" onClick={() => downloadMutation.mutate(f)}>
+                              <IconButton aria-label="Download" size="small" onClick={() => downloadMutation.mutate(f)}>
                                 <DownloadIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                             {canDelete && (
                               <Tooltip title="Delete">
-                                <IconButton
+                                <IconButton aria-label="Delete"
                                   size="small"
                                   color="error"
                                   onClick={() => {

@@ -171,7 +171,7 @@ function EntitiesTab({ app, entities, showToast, showError }: { app: LcApp; enti
       key: '__actions', header: '', align: 'right',
       render: (e) => (
         <Tooltip title="Delete">
-          <IconButton size="small" color="error" onClick={(ev) => { ev.stopPropagation(); setToDelete(e); }}>
+          <IconButton aria-label="Delete" size="small" color="error" onClick={(ev) => { ev.stopPropagation(); setToDelete(e); }}>
             <DeleteOutlineIcon fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -283,7 +283,7 @@ function FormsTab({ app, entities, showToast, showError }: { app: LcApp; entitie
       key: '__actions', header: '', align: 'right',
       render: (f) => (
         <Tooltip title="Delete">
-          <IconButton size="small" color="error" onClick={(ev) => { ev.stopPropagation(); setToDelete(f); }}>
+          <IconButton aria-label="Delete" size="small" color="error" onClick={(ev) => { ev.stopPropagation(); setToDelete(f); }}>
             <DeleteOutlineIcon fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -381,7 +381,7 @@ function LookupsTab({ app, showToast, showError }: { app: LcApp } & Toaster) {
       key: '__actions', header: '', align: 'right',
       render: (l) => (
         <Tooltip title="Delete">
-          <IconButton size="small" color="error" onClick={(ev) => { ev.stopPropagation(); setToDelete(l); }}>
+          <IconButton aria-label="Delete" size="small" color="error" onClick={(ev) => { ev.stopPropagation(); setToDelete(l); }}>
             <DeleteOutlineIcon fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -504,17 +504,17 @@ function FlowsTab({ app, entities, showToast, showError }: { app: LcApp; entitie
       render: (f) => (
         <Stack direction="row" justifyContent="flex-end">
           <Tooltip title="Run now">
-            <IconButton size="small" disabled={execute.isPending} onClick={(ev) => { ev.stopPropagation(); execute.mutate(f.id); }}>
+            <IconButton aria-label="Run now" size="small" disabled={execute.isPending} onClick={(ev) => { ev.stopPropagation(); execute.mutate(f.id); }}>
               <PlayArrowIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Run history">
-            <IconButton size="small" onClick={(ev) => { ev.stopPropagation(); setRunsFor(f); }}>
+            <IconButton aria-label="Run history" size="small" onClick={(ev) => { ev.stopPropagation(); setRunsFor(f); }}>
               <HistoryIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={(ev) => { ev.stopPropagation(); setToDelete(f); }}>
+            <IconButton aria-label="Delete" size="small" color="error" onClick={(ev) => { ev.stopPropagation(); setToDelete(f); }}>
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>

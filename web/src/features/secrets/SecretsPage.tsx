@@ -168,7 +168,7 @@ export function SecretsPage() {
                           <Stack direction="row" spacing={0.5} alignItems="center">
                             <span style={{ wordBreak: 'break-all' }}>{shown || '∅'}</span>
                             <Tooltip title="Copy">
-                              <IconButton size="small" onClick={() => copy(shown)}>
+                              <IconButton aria-label="Copy" size="small" onClick={() => copy(shown)}>
                                 <ContentCopyIcon sx={{ fontSize: 15 }} />
                               </IconButton>
                             </Tooltip>
@@ -193,7 +193,7 @@ export function SecretsPage() {
                       </TableCell>
                       <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                         <Tooltip title={shown != null ? 'Hide' : 'Reveal'}>
-                          <IconButton size="small" onClick={() => reveal(s)}>
+                          <IconButton size="small" aria-label={shown != null ? 'Hide' : 'Reveal'} onClick={() => reveal(s)}>
                             {shown != null ? (
                               <VisibilityOffIcon fontSize="small" />
                             ) : (
@@ -206,6 +206,7 @@ export function SecretsPage() {
                             <IconButton
                               size="small"
                               color="error"
+                              aria-label={`Delete secret ${s.path}`}
                               disabled={isDeleting}
                               onClick={() => {
                                 if (window.confirm(`Delete secret ${s.path}?`)) deleteMutation.mutate(s);

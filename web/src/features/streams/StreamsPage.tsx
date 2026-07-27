@@ -99,7 +99,7 @@ function StreamDetail({
   return (
     <Stack spacing={2}>
       <Stack direction="row" spacing={1} alignItems="center">
-        <IconButton size="small" onClick={onBack}><ArrowBackIcon /></IconButton>
+        <IconButton size="small" aria-label="Back" onClick={onBack}><ArrowBackIcon /></IconButton>
         <Typography variant="h6">{s.title}</Typography>
         {statusChip(s)}
         <Box sx={{ flex: 1 }} />
@@ -150,7 +150,7 @@ function Field({ label, value, onCopy, secret }: { label: string; value: string;
       {secret && (
         <Button size="small" onClick={() => setShow((v) => !v)}>{show ? 'Hide' : 'Show'}</Button>
       )}
-      <Tooltip title="Copy"><IconButton size="small" onClick={() => onCopy(value)}><ContentCopyIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
+      <Tooltip title="Copy"><IconButton aria-label="Copy" size="small" onClick={() => onCopy(value)}><ContentCopyIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip>
     </Stack>
   );
 }
@@ -306,11 +306,11 @@ export function StreamsPage() {
                       {s.description && <Typography variant="body2" color="text.secondary">{s.description}</Typography>}
                     </Box>
                     <Tooltip title="Watch">
-                      <IconButton size="small" onClick={() => navigate(`/streams/watch/${s.id}`)}><VisibilityIcon fontSize="small" /></IconButton>
+                      <IconButton aria-label="Watch" size="small" onClick={() => navigate(`/streams/watch/${s.id}`)}><VisibilityIcon fontSize="small" /></IconButton>
                     </Tooltip>
                     <Button size="small" onClick={() => setSelected(s)}>Manage</Button>
                     <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => { if (window.confirm(`Delete "${s.title}"?`)) deleteM.mutate(s); }}>
+                      <IconButton aria-label="Delete" size="small" color="error" onClick={() => { if (window.confirm(`Delete "${s.title}"?`)) deleteM.mutate(s); }}>
                         <DeleteOutlineIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>

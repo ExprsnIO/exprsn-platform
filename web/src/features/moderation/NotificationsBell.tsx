@@ -9,7 +9,7 @@ export function NotificationsBell() {
 
   return (
     <Tooltip title="Notifications">
-      <IconButton color="inherit" component={RouterLink} to="/moderation" size="large">
+      <IconButton aria-label="Notifications" color="inherit" component={RouterLink} to="/moderation" size="large">
         <Badge badgeContent={unread} color="error" max={99}>
           <NotificationsIcon />
         </Badge>

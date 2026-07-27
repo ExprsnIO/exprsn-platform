@@ -104,7 +104,7 @@ export function Composer({
           <Typography variant="caption" sx={{ flex: 1 }} noWrap>
             Replying to {replyingTo.label}
           </Typography>
-          <IconButton size="small" onClick={onCancelReply}>
+          <IconButton size="small" aria-label="Cancel reply" onClick={onCancelReply}>
             <CloseIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Stack>
@@ -144,7 +144,11 @@ export function Composer({
         <input ref={fileRef} type="file" hidden multiple onChange={onPick} />
         <Tooltip title={files.length >= MAX_FILES ? `Up to ${MAX_FILES} files` : 'Attach files'}>
           <span>
-            <IconButton onClick={() => fileRef.current?.click()} disabled={busy || files.length >= MAX_FILES}>
+            <IconButton
+              aria-label={files.length >= MAX_FILES ? `Up to ${MAX_FILES} files` : 'Attach files'}
+              onClick={() => fileRef.current?.click()}
+              disabled={busy || files.length >= MAX_FILES}
+            >
               <AttachFileIcon />
             </IconButton>
           </span>
@@ -167,7 +171,7 @@ export function Composer({
             }
           }}
         />
-        <IconButton color="primary" onClick={submit} disabled={!canSend}>
+        <IconButton color="primary" aria-label="Send message" onClick={submit} disabled={!canSend}>
           <SendIcon />
         </IconButton>
       </Stack>

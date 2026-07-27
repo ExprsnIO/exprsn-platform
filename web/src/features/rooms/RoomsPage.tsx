@@ -223,22 +223,22 @@ function RoomView({ active, onLeave }: { active: ActiveRoom; onLeave: () => void
       <Paper variant="outlined" sx={{ p: 1.5 }}>
         <Stack direction="row" spacing={2} justifyContent="center">
           <Tooltip title={audioEnabled ? 'Mute' : 'Unmute'}>
-            <IconButton color={audioEnabled ? 'default' : 'error'} onClick={toggleAudio}>
+            <IconButton aria-label={audioEnabled ? 'Mute' : 'Unmute'} color={audioEnabled ? 'default' : 'error'} onClick={toggleAudio}>
               {audioEnabled ? <MicIcon /> : <MicOffIcon />}
             </IconButton>
           </Tooltip>
           <Tooltip title={videoEnabled ? 'Turn camera off' : 'Turn camera on'}>
-            <IconButton color={videoEnabled ? 'default' : 'error'} onClick={toggleVideo}>
+            <IconButton aria-label={videoEnabled ? 'Turn camera off' : 'Turn camera on'} color={videoEnabled ? 'default' : 'error'} onClick={toggleVideo}>
               {videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
             </IconButton>
           </Tooltip>
           <Tooltip title={isScreenSharing ? 'Stop sharing screen' : 'Share screen'}>
-            <IconButton color={isScreenSharing ? 'primary' : 'default'} onClick={() => void toggleScreenShare()}>
+            <IconButton aria-label={isScreenSharing ? 'Stop sharing screen' : 'Share screen'} color={isScreenSharing ? 'primary' : 'default'} onClick={() => void toggleScreenShare()}>
               {isScreenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
             </IconButton>
           </Tooltip>
           <Tooltip title="Leave room">
-            <IconButton color="error" onClick={handleLeave}>
+            <IconButton aria-label="Leave room" color="error" onClick={handleLeave}>
               <CallEndIcon />
             </IconButton>
           </Tooltip>

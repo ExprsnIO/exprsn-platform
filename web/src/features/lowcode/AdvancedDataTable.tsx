@@ -213,7 +213,7 @@ export function AdvancedDataTable<R>({
           </Typography>
           {activeFilterCount > 0 && (
             <Tooltip title="Clear all filters">
-              <IconButton size="small" onClick={() => setQuery({ ...query, filters: {}, offset: 0 })}>
+              <IconButton aria-label="Clear all filters" size="small" onClick={() => setQuery({ ...query, filters: {}, offset: 0 })}>
                 <ClearIcon fontSize="inherit" />
               </IconButton>
             </Tooltip>

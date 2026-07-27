@@ -220,7 +220,7 @@ function FilesTab({ roomId, onToast }: { roomId: string; onToast: (m: string) =>
             disableGutters
             secondaryAction={
               <Tooltip title="Remove">
-                <IconButton
+                <IconButton aria-label="Remove"
                   edge="end"
                   size="small"
                   color="error"
@@ -348,7 +348,7 @@ function PeopleTab({ roomId, onToast }: { roomId: string; onToast: (m: string) =
             secondaryAction={
               inv.status === 'pending' ? (
                 <Tooltip title="Revoke">
-                  <IconButton
+                  <IconButton aria-label="Revoke"
                     edge="end"
                     size="small"
                     color="error"
@@ -470,7 +470,7 @@ function RequestsTab({
               req.status === 'pending' ? (
                 <Stack direction="row" spacing={0.5}>
                   <Tooltip title="Approve">
-                    <IconButton
+                    <IconButton aria-label="Approve"
                       size="small"
                       color="success"
                       disabled={approveM.isPending}
@@ -480,7 +480,7 @@ function RequestsTab({
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Deny">
-                    <IconButton
+                    <IconButton aria-label="Deny"
                       size="small"
                       color="error"
                       disabled={denyM.isPending}

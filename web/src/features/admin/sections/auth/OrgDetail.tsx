@@ -430,10 +430,10 @@ function OrgMembersTab({ orgId, roles, onToast }: { orgId: string; roles: Role[]
                 render: (m) => (
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                     <Tooltip title="Assign role (scoped to this org)">
-                      <IconButton size="small" onClick={() => setAssign(m)}><SecurityIcon fontSize="small" /></IconButton>
+                      <IconButton aria-label="Assign role (scoped to this org)" size="small" onClick={() => setAssign(m)}><SecurityIcon fontSize="small" /></IconButton>
                     </Tooltip>
                     <Tooltip title="Remove member">
-                      <IconButton size="small" color="error" onClick={() => removeMut.mutate(m.userId)}><DeleteIcon fontSize="small" /></IconButton>
+                      <IconButton aria-label="Remove member" size="small" color="error" onClick={() => removeMut.mutate(m.userId)}><DeleteIcon fontSize="small" /></IconButton>
                     </Tooltip>
                   </Stack>
                 ),
@@ -515,10 +515,10 @@ function OrgGroupsTab({ orgId, roles, onToast }: { orgId: string; roles: Role[];
                 render: (g) => (
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                     <Tooltip title="Assign role (scoped to this org)">
-                      <IconButton size="small" onClick={() => setAssign(g)}><SecurityIcon fontSize="small" /></IconButton>
+                      <IconButton aria-label="Assign role (scoped to this org)" size="small" onClick={() => setAssign(g)}><SecurityIcon fontSize="small" /></IconButton>
                     </Tooltip>
                     <Tooltip title="Delete group">
-                      <IconButton size="small" color="error" onClick={() => deleteMut.mutate(g.id)}><DeleteIcon fontSize="small" /></IconButton>
+                      <IconButton aria-label="Delete group" size="small" color="error" onClick={() => deleteMut.mutate(g.id)}><DeleteIcon fontSize="small" /></IconButton>
                     </Tooltip>
                   </Stack>
                 ),

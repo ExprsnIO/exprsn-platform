@@ -90,7 +90,7 @@ function ImageLightbox({ a, onClose }: { a: ChatAttachment; onClose: () => void 
   return (
     <Dialog open onClose={onClose} maxWidth="lg" fullWidth>
       <Box sx={{ position: 'relative', bgcolor: 'black' }}>
-        <IconButton size="small" onClick={onClose} sx={{ position: 'absolute', top: 8, right: 8, color: 'common.white', zIndex: 1 }}>
+        <IconButton size="small" aria-label="Close" onClick={onClose} sx={{ position: 'absolute', top: 8, right: 8, color: 'common.white', zIndex: 1 }}>
           <CloseIcon fontSize="small" />
         </IconButton>
         <Box sx={{ minHeight: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
@@ -152,7 +152,7 @@ function FileAttachment({ a, mine }: { a: ChatAttachment; mine: boolean }) {
           <Typography variant="caption" sx={{ opacity: 0.7 }}>{fmtBytes(a.size)}</Typography>
         ) : null}
       </Box>
-      <IconButton size="small" onClick={download} disabled={busy} sx={{ color: 'inherit' }}>
+      <IconButton size="small" aria-label={`Download ${a.name ?? 'file'}`} onClick={download} disabled={busy} sx={{ color: 'inherit' }}>
         <DownloadIcon fontSize="small" />
       </IconButton>
     </Stack>

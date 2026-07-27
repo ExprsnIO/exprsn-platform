@@ -388,7 +388,7 @@ function CatalogTab({ onToast, onError }: TabProps) {
                 render: (p) => (
                   <>
                     <Button size="small" onClick={() => inspect(p.pluginKey)}>View</Button>
-                    <IconButton size="small" color="error" onClick={() => del(p.pluginKey)}><DeleteOutlineOutlinedIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" aria-label={`Delete plugin ${p.pluginKey}`} onClick={() => del(p.pluginKey)}><DeleteOutlineOutlinedIcon fontSize="small" /></IconButton>
                   </>
                 ),
               },
@@ -509,7 +509,7 @@ function InstallationsTab({ onToast, onError }: TabProps) {
                       ? <Button size="small" color="warning" onClick={() => act(() => pluginsAdminApi.disableInstallation(it.id), 'Disabled')}>Disable</Button>
                       : <Button size="small" color="success" onClick={() => act(() => pluginsAdminApi.enableInstallation(it.id), 'Enabled')}>Enable</Button>}
                     <Button size="small" onClick={() => setTransFor(it.id)}>History</Button>
-                    <IconButton size="small" color="error" onClick={() => { if (confirm('Uninstall?')) act(() => pluginsAdminApi.uninstall(it.id), 'Uninstalled'); }}><DeleteOutlineOutlinedIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" aria-label="Uninstall" onClick={() => { if (confirm('Uninstall?')) act(() => pluginsAdminApi.uninstall(it.id), 'Uninstalled'); }}><DeleteOutlineOutlinedIcon fontSize="small" /></IconButton>
                   </Stack>
                 ),
               },
@@ -627,7 +627,7 @@ function EndpointsTab({ onToast, onError }: TabProps) {
               { key: 'method', header: 'Method', render: (e) => e.method ?? '—' },
               { key: 'url', header: 'URL', mono: true, render: (e) => e.url ?? '—' },
               { key: 'installationId', header: 'Installation', mono: true, render: (e) => e.installationId ? String(e.installationId).slice(0, 8) : '—' },
-              { key: 'actions', header: '', align: 'right', render: (e) => <IconButton size="small" color="error" onClick={() => del(e.id)}><DeleteOutlineOutlinedIcon fontSize="small" /></IconButton> },
+              { key: 'actions', header: '', align: 'right', render: (e) => <IconButton size="small" color="error" aria-label={`Delete ${e.name}`} onClick={() => del(e.id)}><DeleteOutlineOutlinedIcon fontSize="small" /></IconButton> },
             ]}
           />
         )}

@@ -87,7 +87,7 @@ function NodeEditor({ node, onChange, onRemove, depth }: {
           </TextField>
           <Button size="small" startIcon={<AddIcon />} onClick={() => onChange({ ...node, children: [...node.children, newLeaf()] })}>Condition</Button>
           <Button size="small" startIcon={<AddIcon />} onClick={() => onChange({ ...node, children: [...node.children, newGroup('any')] })}>Group</Button>
-          {onRemove && <IconButton size="small" color="error" onClick={onRemove} sx={{ ml: 'auto' }}><DeleteOutlineIcon fontSize="small" /></IconButton>}
+          {onRemove && <IconButton size="small" color="error" aria-label="Remove group" onClick={onRemove} sx={{ ml: 'auto' }}><DeleteOutlineIcon fontSize="small" /></IconButton>}
         </Stack>
         <Stack spacing={1}>
           {node.children.length === 0 && <Typography variant="caption" color="text.secondary">No conditions — this group always matches.</Typography>}
@@ -117,7 +117,7 @@ function NodeEditor({ node, onChange, onRemove, depth }: {
         />
       )}
       {node.op === 'matches' && <TextField size="small" label="flags" value={node.flags ?? ''} onChange={(e) => onChange({ ...node, flags: e.target.value })} sx={{ width: 80 }} />}
-      {onRemove && <IconButton size="small" color="error" onClick={onRemove}><DeleteOutlineIcon fontSize="small" /></IconButton>}
+      {onRemove && <IconButton size="small" color="error" aria-label="Remove condition" onClick={onRemove}><DeleteOutlineIcon fontSize="small" /></IconButton>}
     </Stack>
   );
 }

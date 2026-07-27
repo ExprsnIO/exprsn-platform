@@ -91,10 +91,10 @@ function StreamsTab({ onToast }: { onToast: (m: string) => void }) {
                 align: 'right',
                 render: (s) => (
                   <>
-                    <Tooltip title="Start"><span><IconButton size="small" disabled={s.status === 'live'} onClick={() => act(() => liveAdminApi.startStream(s.id), 'Started')}><PlayArrowIcon fontSize="small" /></IconButton></span></Tooltip>
-                    <Tooltip title="Stop"><span><IconButton size="small" disabled={s.status !== 'live'} onClick={() => act(() => liveAdminApi.stopStream(s.id), 'Stopped')}><StopIcon fontSize="small" /></IconButton></span></Tooltip>
-                    <Tooltip title="Details"><IconButton size="small" onClick={() => setView(s)}>…</IconButton></Tooltip>
-                    <Tooltip title="Delete"><IconButton size="small" color="error" onClick={() => { if (confirm(`Delete “${s.title}”?`)) act(() => liveAdminApi.deleteStream(s.id), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Start"><span><IconButton size="small" aria-label="Start" disabled={s.status === 'live'} onClick={() => act(() => liveAdminApi.startStream(s.id), 'Started')}><PlayArrowIcon fontSize="small" /></IconButton></span></Tooltip>
+                    <Tooltip title="Stop"><span><IconButton size="small" aria-label="Stop" disabled={s.status !== 'live'} onClick={() => act(() => liveAdminApi.stopStream(s.id), 'Stopped')}><StopIcon fontSize="small" /></IconButton></span></Tooltip>
+                    <Tooltip title="Details"><IconButton aria-label="Details" size="small" onClick={() => setView(s)}>…</IconButton></Tooltip>
+                    <Tooltip title="Delete"><IconButton aria-label="Delete" size="small" color="error" onClick={() => { if (confirm(`Delete “${s.title}”?`)) act(() => liveAdminApi.deleteStream(s.id), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                   </>
                 ),
               },
@@ -126,7 +126,7 @@ function RoomsTab({ onToast }: { onToast: (m: string) => void }) {
             { key: 'status', header: 'Status', render: (r) => <StatusChip status={r.status} /> },
             { key: 'private', header: 'Private', render: (r) => (r.isPrivate ? 'yes' : 'no') },
             { key: 'participants', header: 'Participants', align: 'right', render: (r) => `${r.participantCount ?? 0}/${r.maxParticipants ?? '—'}` },
-            { key: 'del', header: '', align: 'right', render: (r) => <Tooltip title="Close room"><IconButton size="small" color="error" onClick={() => del(r.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip> },
+            { key: 'del', header: '', align: 'right', render: (r) => <Tooltip title="Close room"><IconButton aria-label="Close room" size="small" color="error" onClick={() => del(r.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip> },
           ]}
         />
       )}
@@ -173,7 +173,7 @@ function DestinationsTab({ onToast }: { onToast: (m: string) => void }) {
                   render: (x) => (
                     <>
                       <Button size="small" onClick={() => liveAdminApi.testDestination(x.id).then((v) => setView({ title: 'Test connection', value: v })).catch((e) => onToast((e as Error).message))}>Test</Button>
-                      <Tooltip title="Delete"><IconButton size="small" color="error" onClick={() => act(() => liveAdminApi.deleteDestination(x.id), 'Destination deleted')}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                      <Tooltip title="Delete"><IconButton aria-label="Delete" size="small" color="error" onClick={() => act(() => liveAdminApi.deleteDestination(x.id), 'Destination deleted')}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                     </>
                   ),
                 },

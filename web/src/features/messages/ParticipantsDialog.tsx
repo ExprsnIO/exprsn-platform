@@ -161,6 +161,7 @@ export function ParticipantsDialog({
                   <span>
                     <IconButton
                       color="primary"
+                      aria-label="Add"
                       disabled={toAdd.length === 0 || addMutation.isPending}
                       onClick={() => addMutation.mutate()}
                     >

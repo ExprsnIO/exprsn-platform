@@ -93,10 +93,10 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
                 align: 'right',
                 render: (t) => (
                   <>
-                    <Tooltip title="Anomalies"><IconButton size="small" onClick={() => vaultAdminApi.tokenAnomalies(t.id).then((v) => setView({ title: 'Anomalies', value: v })).catch((e) => onToast((e as Error).message))}>!</IconButton></Tooltip>
-                    <Tooltip title="Suspend"><IconButton size="small" onClick={() => act(() => vaultAdminApi.suspendToken(t.id), 'Suspended')}><PauseIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title="Reactivate"><IconButton size="small" onClick={() => act(() => vaultAdminApi.reactivateToken(t.id), 'Reactivated')}><PlayArrowIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title="Revoke"><IconButton size="small" color="error" onClick={() => { if (confirm('Revoke token?')) act(() => vaultAdminApi.revokeToken(t.id, 'Revoked from admin console'), 'Revoked'); }}><BlockIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Anomalies"><IconButton aria-label="Anomalies" size="small" onClick={() => vaultAdminApi.tokenAnomalies(t.id).then((v) => setView({ title: 'Anomalies', value: v })).catch((e) => onToast((e as Error).message))}>!</IconButton></Tooltip>
+                    <Tooltip title="Suspend"><IconButton aria-label="Suspend" size="small" onClick={() => act(() => vaultAdminApi.suspendToken(t.id), 'Suspended')}><PauseIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Reactivate"><IconButton aria-label="Reactivate" size="small" onClick={() => act(() => vaultAdminApi.reactivateToken(t.id), 'Reactivated')}><PlayArrowIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Revoke"><IconButton aria-label="Revoke" size="small" color="error" onClick={() => { if (confirm('Revoke token?')) act(() => vaultAdminApi.revokeToken(t.id, 'Revoked from admin console'), 'Revoked'); }}><BlockIcon fontSize="small" /></IconButton></Tooltip>
                   </>
                 ),
               },
@@ -259,7 +259,7 @@ function PoliciesTab({ onToast }: { onToast: (m: string) => void }) {
               { key: 'priority', header: 'Priority', align: 'right', render: (p) => p.priority ?? '—' },
               { key: 'enforcementMode', header: 'Mode', render: (p) => p.enforcementMode ?? '—' },
               { key: 'status', header: 'Status', render: (p) => <StatusChip status={p.status} /> },
-              { key: 'del', header: '', align: 'right', render: (p) => <IconButton size="small" color="error" onClick={() => del(p.id)}><DeleteIcon fontSize="small" /></IconButton> },
+              { key: 'del', header: '', align: 'right', render: (p) => <IconButton size="small" color="error" aria-label={`Delete policy ${p.name ?? p.id}`} onClick={() => del(p.id)}><DeleteIcon fontSize="small" /></IconButton> },
             ]}
           />
         )}

@@ -165,6 +165,7 @@ export function PostCard({
                 <IconButton
                   size="small"
                   color={liked ? 'error' : 'default'}
+                  aria-label={liked ? 'Unlike' : 'Like'}
                   onClick={() => onToggleLike(post)}
                 >
                   {liked ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
@@ -178,6 +179,7 @@ export function PostCard({
                 <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
                   <IconButton
                     size="small"
+                    aria-label={onComment ? 'Comment' : 'View thread'}
                     onClick={() => (onComment ? onComment(post) : onOpenDetail?.(post))}
                   >
                     <ChatBubbleOutlineIcon fontSize="small" />
@@ -198,6 +200,7 @@ export function PostCard({
                   <IconButton
                     size="small"
                     color={reposted ? 'success' : 'default'}
+                    aria-label={reposted ? 'Undo repost' : 'Repost'}
                     onClick={() => onToggleRepost(post)}
                   >
                     <RepeatIcon fontSize="small" />
@@ -218,6 +221,7 @@ export function PostCard({
                   <IconButton
                     size="small"
                     color={bookmarked ? 'primary' : 'default'}
+                    aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
                     onClick={() => onToggleBookmark(post)}
                   >
                     {bookmarked ? (
@@ -232,7 +236,7 @@ export function PostCard({
 
             <Tooltip title="Share to chat">
               <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>
-                <IconButton size="small" onClick={() => setShareOpen(true)}>
+                <IconButton size="small" aria-label="Share to chat" onClick={() => setShareOpen(true)}>
                   <SendOutlinedIcon fontSize="small" />
                 </IconButton>
               </Box>

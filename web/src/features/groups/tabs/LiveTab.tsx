@@ -102,7 +102,7 @@ function Field({
         </Button>
       )}
       <Tooltip title="Copy">
-        <IconButton size="small" onClick={() => onCopy(value)}>
+        <IconButton aria-label="Copy" size="small" onClick={() => onCopy(value)}>
           <ContentCopyIcon sx={{ fontSize: 15 }} />
         </IconButton>
       </Tooltip>
@@ -237,7 +237,7 @@ function StreamDetail({
   return (
     <Stack spacing={2}>
       <Stack direction="row" spacing={1} alignItems="center">
-        <IconButton size="small" onClick={onBack}>
+        <IconButton size="small" aria-label="Back" onClick={onBack}>
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h6" sx={{ flex: 1, minWidth: 0 }} noWrap>
@@ -549,7 +549,7 @@ export default function LiveTab({ groupId, ctx }: GroupTabProps) {
               </Button>
               {canGoLive && (
                 <Tooltip title="Delete">
-                  <IconButton
+                  <IconButton aria-label="Delete"
                     size="small"
                     color="error"
                     onClick={() => {

@@ -197,7 +197,7 @@ function LookupsTab({ onToast, onError }: TabProps) {
     { key: 'key', header: 'Key', mono: true, sortable: true, filter: { type: 'text' }, render: (l) => l.key },
     { key: 'source', header: 'Source', render: (l) => <Chip size="small" variant="outlined" label={l.source?.type === 'provider' ? `provider:${l.source.provider}` : 'static'} /> },
     { key: 'values', header: 'Values', align: 'right', sortable: true, filter: { type: 'number', accessor: (l) => (l.values ?? []).length }, render: (l) => (l.values ?? []).length },
-    { key: '__actions', header: '', align: 'right', render: (l) => <Tooltip title="Delete"><IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); setDel(l); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip> },
+    { key: '__actions', header: '', align: 'right', render: (l) => <Tooltip title="Delete"><IconButton aria-label="Delete" size="small" color="error" onClick={(e) => { e.stopPropagation(); setDel(l); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip> },
   ];
 
   return (
@@ -263,7 +263,7 @@ function FlowsTab({ onToast, onError }: TabProps) {
     { key: 'event', header: 'Event', sortable: true, filter: { type: 'text' }, render: (f) => f.event },
     { key: 'scopeType', header: 'Scope', filter: { type: 'enum', options: SCOPES.map((s) => ({ value: s, label: s })) }, render: (f) => <Chip size="small" variant="outlined" label={f.scopeType} /> },
     { key: 'enabled', header: 'Enabled', filter: { type: 'boolean', accessor: (f) => f.enabled }, render: (f) => <Switch size="small" checked={f.enabled} onClick={(e) => { e.stopPropagation(); toggle(f); }} /> },
-    { key: '__actions', header: '', align: 'right', render: (f) => <Tooltip title="Delete"><IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); setDel(f); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip> },
+    { key: '__actions', header: '', align: 'right', render: (f) => <Tooltip title="Delete"><IconButton aria-label="Delete" size="small" color="error" onClick={(e) => { e.stopPropagation(); setDel(f); }}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip> },
   ];
   return (
     <Stack spacing={2}>

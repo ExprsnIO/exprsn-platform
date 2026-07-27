@@ -236,7 +236,7 @@ function RevealDialog({
                   {value || '∅'}
                 </Box>
                 <Tooltip title="Copy">
-                  <IconButton size="small" onClick={copy}>
+                  <IconButton aria-label="Copy" size="small" onClick={copy}>
                     <ContentCopyIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
@@ -391,6 +391,7 @@ export default function SecretsTab({ groupId, ctx }: GroupTabProps) {
                           <span>
                             <IconButton
                               size="small"
+                              aria-label="Reveal plaintext"
                               disabled={expired}
                               onClick={() => setRevealTarget(s)}
                             >
@@ -403,6 +404,7 @@ export default function SecretsTab({ groupId, ctx }: GroupTabProps) {
                             <IconButton
                               size="small"
                               color="error"
+                              aria-label="Revoke group access"
                               disabled={isRevoking}
                               onClick={() => setRevokeTarget(s)}
                             >

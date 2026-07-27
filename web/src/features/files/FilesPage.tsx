@@ -565,12 +565,12 @@ export function FilesPage() {
                           </TableCell>
                           <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                             <Tooltip title="Rename">
-                              <IconButton size="small" onClick={() => setRenameTarget(d)}>
+                              <IconButton size="small" aria-label={`Rename folder “${d.name}”`} onClick={() => setRenameTarget(d)}>
                                 <DriveFileRenameOutlineIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Move">
-                              <IconButton size="small" onClick={() => setMoveTarget(d)}>
+                              <IconButton size="small" aria-label={`Move folder “${d.name}”`} onClick={() => setMoveTarget(d)}>
                                 <DriveFileMoveOutlinedIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -578,6 +578,7 @@ export function FilesPage() {
                               <IconButton
                                 size="small"
                                 color="error"
+                                aria-label={`Delete folder “${d.name}”`}
                                 onClick={() => {
                                   if (
                                     window.confirm(
@@ -650,7 +651,7 @@ export function FilesPage() {
                             <CircularProgress size={18} sx={{ mx: 1.5 }} />
                           ) : view === 'trash' ? (
                             <Tooltip title="Restore">
-                              <IconButton size="small" onClick={() => restoreFile.mutate(f.id)}>
+                              <IconButton size="small" aria-label={`Restore “${f.name}”`} onClick={() => restoreFile.mutate(f.id)}>
                                 <RestoreFromTrashIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -658,35 +659,35 @@ export function FilesPage() {
                             <>
                               {isEditable(f.mimetype, f.name) && (
                                 <Tooltip title="Edit">
-                                  <IconButton size="small" onClick={() => setEditorTarget(f)}>
+                                  <IconButton size="small" aria-label={`Edit “${f.name}”`} onClick={() => setEditorTarget(f)}>
                                     <EditOutlinedIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
                               )}
                               {isImageType(f.mimetype) && (
                                 <Tooltip title="Annotate">
-                                  <IconButton size="small" onClick={() => setAnnotateTarget(f)}>
+                                  <IconButton size="small" aria-label={`Annotate “${f.name}”`} onClick={() => setAnnotateTarget(f)}>
                                     <BrushOutlinedIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
                               )}
                               <Tooltip title="Rename">
-                                <IconButton size="small" onClick={() => setRenameFileTarget(f)}>
+                                <IconButton size="small" aria-label={`Rename “${f.name}”`} onClick={() => setRenameFileTarget(f)}>
                                   <DriveFileRenameOutlineIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title="Download">
-                                <IconButton size="small" onClick={() => download.mutate(f)}>
+                                <IconButton size="small" aria-label={`Download “${f.name}”`} onClick={() => download.mutate(f)}>
                                   <DownloadIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title="Versions">
-                                <IconButton size="small" onClick={() => setVersionTarget(f)}>
+                                <IconButton size="small" aria-label={`Version history for “${f.name}”`} onClick={() => setVersionTarget(f)}>
                                   <HistoryIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title="Share">
-                                <IconButton size="small" onClick={() => setShareTarget(f)}>
+                                <IconButton size="small" aria-label={`Share “${f.name}”`} onClick={() => setShareTarget(f)}>
                                   <ShareOutlinedIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
@@ -694,6 +695,7 @@ export function FilesPage() {
                                 <IconButton
                                   size="small"
                                   color="error"
+                                  aria-label={`Delete “${f.name}”`}
                                   onClick={() => {
                                     if (window.confirm(`Delete “${f.name}”? It moves to Trash.`)) {
                                       deleteFile.mutate(f.id, {

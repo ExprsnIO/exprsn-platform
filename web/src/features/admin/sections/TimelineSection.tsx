@@ -258,9 +258,9 @@ function QueuesTab({ onToast }: { onToast: (m: string) => void }) {
                   title={name}
                   actions={
                     <Stack direction="row" spacing={0.5}>
-                      <Tooltip title="Pause"><IconButton size="small" onClick={() => act(() => timelineJobsApi.pause(name), `Paused ${name}`)}><PauseIcon fontSize="small" /></IconButton></Tooltip>
-                      <Tooltip title="Resume"><IconButton size="small" onClick={() => act(() => timelineJobsApi.resume(name), `Resumed ${name}`)}><PlayArrowIcon fontSize="small" /></IconButton></Tooltip>
-                      <Tooltip title="Clean completed (>1h)"><IconButton size="small" onClick={() => act(() => timelineJobsApi.clean(name), `Cleaned ${name}`)}><CleaningServicesIcon fontSize="small" /></IconButton></Tooltip>
+                      <Tooltip title="Pause"><IconButton aria-label="Pause" size="small" onClick={() => act(() => timelineJobsApi.pause(name), `Paused ${name}`)}><PauseIcon fontSize="small" /></IconButton></Tooltip>
+                      <Tooltip title="Resume"><IconButton aria-label="Resume" size="small" onClick={() => act(() => timelineJobsApi.resume(name), `Resumed ${name}`)}><PlayArrowIcon fontSize="small" /></IconButton></Tooltip>
+                      <Tooltip title="Clean completed (>1h)"><IconButton aria-label="Clean completed (>1h)" size="small" onClick={() => act(() => timelineJobsApi.clean(name), `Cleaned ${name}`)}><CleaningServicesIcon fontSize="small" /></IconButton></Tooltip>
                     </Stack>
                   }
                 >
@@ -304,8 +304,8 @@ function QueuesTab({ onToast }: { onToast: (m: string) => void }) {
                     locked: true,
                     render: (j) => (
                       <>
-                        <Tooltip title="Retry"><IconButton size="small" onClick={() => act(() => timelineJobsApi.retry(activeQueue, String(j.id)), 'Retried')}><ReplayIcon fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Remove"><IconButton size="small" color="error" onClick={() => act(() => timelineJobsApi.remove(activeQueue, String(j.id)), 'Removed')}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                        <Tooltip title="Retry"><IconButton aria-label="Retry" size="small" onClick={() => act(() => timelineJobsApi.retry(activeQueue, String(j.id)), 'Retried')}><ReplayIcon fontSize="small" /></IconButton></Tooltip>
+                        <Tooltip title="Remove"><IconButton aria-label="Remove" size="small" color="error" onClick={() => act(() => timelineJobsApi.remove(activeQueue, String(j.id)), 'Removed')}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                       </>
                     ),
                   },

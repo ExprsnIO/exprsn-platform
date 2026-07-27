@@ -125,7 +125,7 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
               </TableCell>
               <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                 <Tooltip title="Download PEM">
-                  <IconButton size="small" onClick={() => downloadMutation.mutate(c)}>
+                  <IconButton aria-label="Download PEM" size="small" onClick={() => downloadMutation.mutate(c)}>
                     <DownloadIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
@@ -134,6 +134,7 @@ function CertificatesTab({ onToast }: { onToast: (m: string) => void }) {
                     <IconButton
                       size="small"
                       color="error"
+                      aria-label={`Revoke certificate “${c.commonName}”`}
                       disabled={c.status !== 'active'}
                       onClick={() => {
                         if (window.confirm(`Revoke certificate “${c.commonName}”?`)) revokeMutation.mutate(c);
@@ -207,6 +208,7 @@ function TokensTab({ onToast }: { onToast: (m: string) => void }) {
                     <IconButton
                       size="small"
                       color="error"
+                      aria-label={`Revoke token ${t.id.slice(0, 8)}…`}
                       disabled={t.status !== 'active'}
                       onClick={() => {
                         if (window.confirm(`Revoke token ${t.id.slice(0, 8)}…?`)) revokeMutation.mutate(t);

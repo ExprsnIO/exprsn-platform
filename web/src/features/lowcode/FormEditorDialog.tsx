@@ -131,7 +131,7 @@ export function FormEditorDialog({ open, form, entity, entities, appId, busy, on
                 <TextField label={steps ? `Step ${si + 1} title` : 'Section title (optional)'} size="small" value={s.title} onChange={(e) => patchSection(si, { title: e.target.value })} sx={{ flex: 1 }} />
                 {sections.length > 1 && (
                   <Tooltip title="Remove section">
-                    <IconButton size="small" color="error" onClick={() => setSections((ss) => ss.filter((_, j) => j !== si))}><DeleteOutlineIcon fontSize="small" /></IconButton>
+                    <IconButton aria-label="Remove section" size="small" color="error" onClick={() => setSections((ss) => ss.filter((_, j) => j !== si))}><DeleteOutlineIcon fontSize="small" /></IconButton>
                   </Tooltip>
                 )}
               </Stack>
@@ -145,9 +145,9 @@ export function FormEditorDialog({ open, form, entity, entities, appId, busy, on
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1, pr: 1 }}>
                           <Typography variant="body2" sx={{ flex: 1 }}>{def?.label || f.key}</Typography>
                           {f.visibleWhen != null && <Chip size="small" variant="outlined" label="conditional" />}
-                          <Tooltip title="Move up"><IconButton size="small" onClick={(e) => { e.stopPropagation(); moveField(si, fi, -1); }}><ArrowUpwardIcon fontSize="inherit" /></IconButton></Tooltip>
-                          <Tooltip title="Move down"><IconButton size="small" onClick={(e) => { e.stopPropagation(); moveField(si, fi, 1); }}><ArrowDownwardIcon fontSize="inherit" /></IconButton></Tooltip>
-                          <Tooltip title="Remove from form"><IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); patchSection(si, { fields: s.fields.filter((_, k) => k !== fi) }); }}><DeleteOutlineIcon fontSize="inherit" /></IconButton></Tooltip>
+                          <Tooltip title="Move up"><IconButton aria-label="Move up" size="small" onClick={(e) => { e.stopPropagation(); moveField(si, fi, -1); }}><ArrowUpwardIcon fontSize="inherit" /></IconButton></Tooltip>
+                          <Tooltip title="Move down"><IconButton aria-label="Move down" size="small" onClick={(e) => { e.stopPropagation(); moveField(si, fi, 1); }}><ArrowDownwardIcon fontSize="inherit" /></IconButton></Tooltip>
+                          <Tooltip title="Remove from form"><IconButton aria-label="Remove from form" size="small" color="error" onClick={(e) => { e.stopPropagation(); patchSection(si, { fields: s.fields.filter((_, k) => k !== fi) }); }}><DeleteOutlineIcon fontSize="inherit" /></IconButton></Tooltip>
                         </Stack>
                       </AccordionSummary>
                       <AccordionDetails>
@@ -203,7 +203,7 @@ export function FormEditorDialog({ open, form, entity, entities, appId, busy, on
                   <Stack direction="row" spacing={0.5} alignItems="center">
                     <Typography variant="caption" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>{publicUrl}</Typography>
                     <Tooltip title="Copy link">
-                      <IconButton size="small" onClick={() => navigator.clipboard.writeText(publicUrl)}><ContentCopyIcon fontSize="inherit" /></IconButton>
+                      <IconButton aria-label="Copy link" size="small" onClick={() => navigator.clipboard.writeText(publicUrl)}><ContentCopyIcon fontSize="inherit" /></IconButton>
                     </Tooltip>
                   </Stack>
                 ) : (

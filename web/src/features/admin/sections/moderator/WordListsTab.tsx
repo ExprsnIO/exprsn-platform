@@ -134,8 +134,8 @@ export function WordListsTab({ onToast }: { onToast: (m: string) => void }) {
                 align: 'right',
                 render: (l) => (
                   <>
-                    <Tooltip title="Edit"><IconButton size="small" onClick={() => setDialog({ list: l })}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                    <IconButton size="small" color="error" onClick={() => { if (confirm(`Delete word list “${l.name}”?`)) del(l.name); }}><DeleteIcon fontSize="small" /></IconButton>
+                    <Tooltip title="Edit"><IconButton aria-label="Edit" size="small" onClick={() => setDialog({ list: l })}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                    <IconButton size="small" color="error" aria-label={`Delete word list “${l.name}”`} onClick={() => { if (confirm(`Delete word list “${l.name}”?`)) del(l.name); }}><DeleteIcon fontSize="small" /></IconButton>
                   </>
                 ),
               },

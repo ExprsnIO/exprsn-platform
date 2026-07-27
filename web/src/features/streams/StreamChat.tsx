@@ -105,7 +105,7 @@ export function StreamChat({
             />
             <Tooltip title="Send">
               <span>
-                <IconButton color="primary" onClick={submit} disabled={!draft.trim()}>
+                <IconButton color="primary" aria-label="Send" onClick={submit} disabled={!draft.trim()}>
                   <SendIcon />
                 </IconButton>
               </span>

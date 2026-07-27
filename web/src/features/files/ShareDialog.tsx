@@ -192,12 +192,12 @@ export function ShareDialog({
                     secondaryAction={
                       <Stack direction="row" spacing={0.5}>
                         <Tooltip title="Copy link">
-                          <IconButton edge="end" size="small" onClick={() => copyLink(s)}>
+                          <IconButton aria-label="Copy link" edge="end" size="small" onClick={() => copyLink(s)}>
                             <ContentCopyIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Revoke">
-                          <IconButton
+                          <IconButton aria-label="Revoke"
                             edge="end"
                             size="small"
                             color="error"

@@ -125,7 +125,7 @@ export function NotificationsPage() {
                 onMouseEnter={() => !n.read && handleMarkRead(n.id)}
                 sx={{ bgcolor: n.read ? 'transparent' : 'action.hover', alignItems: 'flex-start' }}
                 secondaryAction={
-                  <IconButton edge="end" size="small" onClick={() => handleRemove(n.id)}>
+                  <IconButton edge="end" size="small" aria-label="Remove notification" onClick={() => handleRemove(n.id)}>
                     <CloseIcon fontSize="small" />
                   </IconButton>
                 }

@@ -157,7 +157,7 @@ export function GuardrailsTab({ toast }: { toast: ToastFn }) {
                       {g.enabled ? 'Disable' : 'Enable'}
                     </Button>
                     <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => setToDelete(g.name)}>
+                      <IconButton aria-label="Delete" size="small" color="error" onClick={() => setToDelete(g.name)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>

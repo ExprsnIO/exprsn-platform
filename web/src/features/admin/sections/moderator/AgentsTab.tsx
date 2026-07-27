@@ -467,9 +467,9 @@ export function AgentsTab({ onToast }: { onToast: (m: string) => void }) {
                 align: 'right',
                 render: (a) => (
                   <>
-                    <Tooltip title="Edit"><IconButton size="small" onClick={() => setDialog({ agent: a })}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Edit"><IconButton aria-label="Edit" size="small" onClick={() => setDialog({ agent: a })}><EditIcon fontSize="small" /></IconButton></Tooltip>
                     <Button size="small" onClick={() => act(() => (a.enabled ? moderatorAdminApi.disableAgent(a.id) : moderatorAdminApi.enableAgent(a.id)), 'Toggled')}>{a.enabled ? 'Disable' : 'Enable'}</Button>
-                    <IconButton size="small" color="error" onClick={() => { if (confirm('Delete agent?')) act(() => moderatorAdminApi.deleteAgent(a.id), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" aria-label="Delete agent" onClick={() => { if (confirm('Delete agent?')) act(() => moderatorAdminApi.deleteAgent(a.id), 'Deleted'); }}><DeleteIcon fontSize="small" /></IconButton>
                   </>
                 ),
               },

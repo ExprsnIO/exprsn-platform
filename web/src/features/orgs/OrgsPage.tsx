@@ -151,7 +151,7 @@ function MembersPanel({ orgId, canEdit }: { orgId: string; canEdit: boolean }) {
                   {canEdit && (
                     <TableCell align="right">
                       {m.role !== 'owner' && (
-                        <Tooltip title="Remove"><IconButton size="small" onClick={() => remove.mutate(m.userId)} disabled={remove.isPending}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
+                        <Tooltip title="Remove"><IconButton aria-label="Remove" size="small" onClick={() => remove.mutate(m.userId)} disabled={remove.isPending}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
                       )}
                     </TableCell>
                   )}

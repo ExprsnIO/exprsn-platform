@@ -229,7 +229,7 @@ function WebhookInfo({ flow, appKey }: { flow: Flow | null; appKey?: string }) {
         <Stack direction="row" spacing={0.5} alignItems="center">
           <Typography variant="caption">Header <code>X-Hook-Token</code>: <code>{secret.slice(0, 8)}…</code></Typography>
           <Tooltip title="Copy secret">
-            <IconButton size="small" onClick={() => navigator.clipboard.writeText(secret)}><ContentCopyIcon fontSize="inherit" /></IconButton>
+            <IconButton aria-label="Copy secret" size="small" onClick={() => navigator.clipboard.writeText(secret)}><ContentCopyIcon fontSize="inherit" /></IconButton>
           </Tooltip>
         </Stack>
       </Stack>
@@ -268,9 +268,9 @@ function ActionInspector({
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Typography variant="subtitle2">Action</Typography>
         <Stack direction="row">
-          <Tooltip title="Move up"><IconButton size="small" onClick={onMoveUp}><ArrowUpwardIcon fontSize="small" /></IconButton></Tooltip>
-          <Tooltip title="Move down"><IconButton size="small" onClick={onMoveDown}><ArrowDownwardIcon fontSize="small" /></IconButton></Tooltip>
-          <Tooltip title="Delete"><IconButton size="small" color="error" onClick={onDelete}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Move up"><IconButton aria-label="Move up" size="small" onClick={onMoveUp}><ArrowUpwardIcon fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Move down"><IconButton aria-label="Move down" size="small" onClick={onMoveDown}><ArrowDownwardIcon fontSize="small" /></IconButton></Tooltip>
+          <Tooltip title="Delete"><IconButton aria-label="Delete" size="small" color="error" onClick={onDelete}><DeleteOutlineIcon fontSize="small" /></IconButton></Tooltip>
         </Stack>
       </Stack>
 

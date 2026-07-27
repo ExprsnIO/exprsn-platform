@@ -70,7 +70,7 @@ export function WatchPage() {
   return (
     <Box sx={{ pb: 6 }}>
       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-        <IconButton size="small" onClick={() => navigate('/streams')}>
+        <IconButton size="small" aria-label="Back to streams" onClick={() => navigate('/streams')}>
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h6" sx={{ flexShrink: 1, minWidth: 0 }} noWrap>

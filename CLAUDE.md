@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A unified Node.js platform that consolidates ten formerly-standalone Exprsn microservices (CA, auth, spark/messaging, nexus/groups, filevault, vault/secrets, timeline, prefetch, moderator, live/streaming) into **one process behind one HTTPS port** (default 8443). The originals live untouched at `/Volumes/Storage/exprsn-<name>/`; this repo contains adapted copies under `services/`. Plain JavaScript (CommonJS), Express 4, Sequelize 6, Socket.IO 4. Under git (`main`, initial commit) with CI at `.github/workflows/ci.yml` — no remote wired yet (push + branch protection are pending; see STATUS.md R1).
+A unified Node.js platform that consolidates formerly-standalone Exprsn microservices into **one process behind one HTTPS port** (default 8443). The canonical module list is `src/modules/registry.js` — currently **14 modules**: the ten original services (CA, auth, spark/messaging, nexus/groups, filevault, vault/secrets, timeline, prefetch, moderator, live/streaming), plus `atproto` (Bluesky/AT-Proto bridge + labeler), and three **flag-gated** extensibility modules that load inert until enabled — `plugins` (`PLUGINS_ENABLED`), `lowcode` (`LOWCODE_ENABLED`), and `cortex` (local-LLM agents/guardrails, `CORTEX_ENABLED`), all default `false`. The originals live untouched at `/Volumes/Storage/exprsn-<name>/`; this repo contains adapted copies under `services/`. Plain JavaScript (CommonJS), Express 4, Sequelize 6, Socket.IO 4. Under git (`main`, initial commit) with CI at `.github/workflows/ci.yml` — no remote wired yet (push + branch protection are pending; see STATUS.md R1).
 
 ## Commands
 
@@ -87,9 +87,11 @@ docker exec -e PGPASSWORD=<pw> exprsn-postgres psql -U exprsn -d exprsn_nexus_te
 
 Note: unit tests must mock the **individual** model files (`require('../models/Event')`) — nexus services import models per-file, not via the `../models` index, so mocking the index has no effect. `groupService`/`moderationService` and a few `events` route assertions still have a pre-existing stale-test backlog.
 
-Bull queue workers are **not** part of the gateway process; run separately via the root aliases `npm run worker:timeline` (`node services/timeline/src/worker.js`) and `npm run worker:prefetch` (`PREFETCH_ROLE=worker node services/prefetch/src/worker.js`).
+Queue/background workers are **not** part of the gateway process; run each separately via its root alias. Beyond `worker:timeline` and `worker:prefetch` there are now: `worker:atproto`, `worker:live` (ffmpeg fanout/recording), `worker:cortex`, `worker:moderation`, and the async-moderation workers `worker:filevault-moderation`, `worker:video-moderation`, `worker:live-recording-moderation` (each sets `CORTEX_ASYNC_ROLE=worker`). See `package.json` scripts for the exact invocation.
 
 Runtime prerequisites: Postgres and Redis must be up **before** `npm start` — some modules (spark, vault) connect to Redis / build Bull queues / create ES indices at `require` time.
+
+**Run-blocker — `CA_BASE_URL` (BUG-036/037):** to run the gateway you must set `CA_BASE_URL=https://localhost:8443/ca` in `.env`. The nginx-edge default (`https://localhost/ca` on `:443`) makes node/axios hang on the loopback and every module's token validation fails platform-wide with `CA_UNAVAILABLE`. Point it at the in-process gateway port instead.
 
 ## Architecture
 

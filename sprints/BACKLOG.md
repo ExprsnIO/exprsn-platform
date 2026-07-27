@@ -10,8 +10,9 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. In-flight: `active/sprint-2026-07.md` (in-house/deploy-path slice)
-> and `active/sprint-2026-08.md` (user-safety P1 moderation slice — BUG-010 + FEAT-010).
+> active sprint. In-flight: `active/sprint-2026-09.md` (frontend/edge hardening —
+> security headers + accessibility). Prior sprints `sprint-2026-07.md` and
+> `sprint-2026-08.md` are closed and in `archive/`.
 
 ---
 
@@ -39,7 +40,7 @@ clobbering concurrent grooming). Full record: this session's handover.
 ## Features
 
 ### FEAT-075 — Threaded/markdown comments + advanced comment controls + persisted timeline prefs
-- **Type:** feature · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Type:** feature · **Status:** done · **Priority:** P2 · **Size:** M — reconciled 2026-07-27 — merged to `main` (`3e6f9a9`)
 - **Owner-role:** sr-developer · **Branch:** `worktree-feat-timeline-comments` (worktree, not yet merged)
 - **Cost/Benefit:** owner-directed (Rick, 2026-07-20) — implemented ahead of the CB gate at the owner's explicit request; record here for traceability rather than as a groomed backlog promotion.
 - **Description:** Upgrade the timeline comment experience end-to-end:
@@ -204,6 +205,24 @@ has not yet assessed them, so they cannot leave `backlog`.)*
   **schema change** → flag **dba** (a *new* table is created by sync `db:migrate`, but a
   *new column on an existing table* needs its migration `up()` run directly — the ALTER
   gap). Route M–L build to sr-developer once groomed/assessed.
+- **WebAuthn conformance (2026-07-20 W3C audit):** WebAuthn/passkeys confirmed
+  **greenfield** — no `navigator.credentials` code, no FIDO/`@simplewebauthn` dep;
+  `webauthn` is inert scaffolding (`mfaPolicyService.IMPLEMENTED_METHODS` floors it
+  out; admin row `available:false`). No non-conformant code to fix — adoption is
+  purely additive. A conformant **WebAuthn L3 + Credential Management L1** build must
+  add: a per-credential store (credential id, COSE public key, **signature counter**,
+  transports, AAGUID, user handle, backup-eligible/state flags); a CSPRNG **one-time
+  challenge** (short TTL, server-stored, not client-trusted); a strict **origin
+  allowlist + `rpId`** pinned to the browser-facing host (**not** internal
+  `localhost:8443` behind the nginx edge); `create`/`get` ceremony verification
+  (clientData type/origin/challenge, rpIdHash, UP/UV flags); an attestation policy
+  (`none` acceptable for passkeys); **discoverable credentials** + user handle for
+  usernameless login; `pubKeyCredParams` (ES256 `-7`, RS256 `-257`); and browser
+  `mediation:'conditional'` (Conditional UI) gated on
+  `isConditionalMediationAvailable()` / `isUserVerifyingPlatformAuthenticatorAvailable()`.
+  Reuse the existing MFA hygiene (CSPRNG, one-time codes hashed at rest, `strictLimiter`).
+  The analyzer's likely "scope to WebAuthn first" recommendation is reinforced by this
+  being self-contained with no external per-message cost.
 
 ### FEAT-007 — FileVault: real malware scanning (ClamAV) on the upload path
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
@@ -336,7 +355,7 @@ are cross-referenced, not re-filed.)*
   to sr-developer once assessed.
 
 ### FEAT-010 — User-facing report/flag UI wired to the existing `Report` backend *(Tier 1)*
-- **Type:** feature · **Status:** in-sprint → `active/sprint-2026-08.md` · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** done · **Priority:** P1 · **Size:** M — reconciled 2026-07-27 — merged to `main` (`55bae89`)
 - **Owner-role:** unassigned · **Blocked-by:** BUG-010 — the report-submit path must land on the Item-A `requireUser` gate with `reportedBy` bound to `req.userId`, **not** the current unauthenticated, body-trusted `POST /api/reports`. Sequence FEAT-010's submit after BUG-010 A1. *(Prior SPIKE-001 coordination is subsumed by BUG-010, the spike's implementation ticket.)*
 - **Legacy:** moderation gap analysis Tier 1 · SPIKE-001 (moderator `reports.js` auth posture) · relates to TASK-014 (rejection-notice emails)
 - **Cost/Benefit:** done — **proceed (timeline-first slice); best cost/value ratio of the four.** The `Report` model + `POST /api/reports` already exist, so this is mostly SPA work. **Hard prerequisite:** it must ship on top of the SPIKE-001 / design-doc Item A auth gate (`requireUser` + bind `reportedBy` to `req.userId`), NOT against today's unauthenticated, body-trusted reports endpoint. Independent of FEAT-009 — can run in parallel.
@@ -372,7 +391,7 @@ are cross-referenced, not re-filed.)*
   once assessed.
 
 ### FEAT-011 — Block/mute (baseline social safety) *(Tier 1)*
-- **Type:** feature · **Status:** backlog · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** done · **Priority:** P1 · **Size:** L — reconciled 2026-07-27 — merged to `main` (`9d9b48b`)
 - **Owner-role:** unassigned · **Blocked-by:** — *(architect + dba sign-off required before commit)*
 - **Legacy:** moderation gap analysis Tier 1
 - **Cost/Benefit:** done — **proceed (block-first, timeline-first slice).** Confirmed greenfield: no block/mute and no follow/social-graph model exists today, so this is new relationship storage + cross-module enforcement. **systems-architect must scope WHERE the relationship lives (shared queryable store vs per-module) before COMMIT** — that decision drives M vs L. Independent of FEAT-009.
@@ -1137,7 +1156,7 @@ are cross-referenced, not re-filed.)*
   the download path does; a test covers it.
 
 ### FEAT-023 — Cortex as an in-process LLM source for other modules (façade + moderator provider)
-- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** done · **Priority:** P1 · **Size:** M — reconciled 2026-07-27 — merged to `main` (`ee6e303`)
 - **Owner-role:** sr-developer · **Blocked-by:** — · **Legacy:** cross-links TASK-009 (in-process calls)
 - **Implemented (2026-07-09):** client placed at `services/cortex/src/client.js`
   (a cortex-owned façade), **not** `shared/utils/cortexClient.js` — per architect
@@ -1204,7 +1223,7 @@ are cross-referenced, not re-filed.)*
   (no schema/queue topology change). Blocking constraints must be met before VERIFY.
 
 ### FEAT-024 — Lowcode: cortex flow action + AI-backed field
-- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** done · **Priority:** P1 · **Size:** M — reconciled 2026-07-27 — merged to `main` (`b2cf804`)
 - **Implemented (2026-07-09):** `cortex` action added to `MODULE_ACTIONS`
   (capability `call:cortex.complete`, clamped timeout, truncated output) — picked
   up automatically by `knownActionTypes()`/`validateActions()`/`flowEngine`, and
@@ -1295,7 +1314,7 @@ are cross-referenced, not re-filed.)*
   `prompt_logs` table would persist message bodies.
 
 ### FEAT-029 — Router: multi-model residency (2+ resident) + a vision model
-- **Type:** feature · **Status:** in-review — **shipped as swap-first, NOT co-resident** · **Priority:** P1 · **Size:** S (was M)
+- **Type:** feature · **Status:** done — **shipped as swap-first, NOT co-resident** · **Priority:** P1 · **Size:** S (was M) — reconciled 2026-07-27 — merged to `main` (sole remainder is an operator action; see body)
 - **Resolution (2026-07-09):** Rick accepted both reviewers' recommendation against
   co-residency. `MODELS_MAX` stays **1** and the brain's `ctx-size` stays **16384** —
   no platform-wide context regression, no Metal-OOM exposure. The only change to the
@@ -1444,7 +1463,7 @@ are cross-referenced, not re-filed.)*
   in `src/config/index.js` + `.env.example`.
 
 ### FEAT-031 — FileVault upload chokepoint: async image moderation + tagging
-- **Type:** feature · **Status:** in-review — **QA RE-VERIFICATION COMPLETE 2026-07-10 (HEAD `22629ae`): PASS on all acceptance criteria.** Every previously-failed bullet now verified live: BUG-017 (group upload hidden-pending), BUG-018 (new version re-hidden), BUG-021 (restore re-hidden), BUG-019 (flagged image → `moderation_items` with the IMAGE's scores + `review_queue` row, `aiProvider=cortex`) — all → `done`. Plus the two dev-found follow-ons BUG-022 (worker TOCTOU) + BUG-023 (P0 verdict-forgery on `/batch`) verified → `done`. `db:check` no drift (all modules); touched files lint clean; filevault unit 26/26, cortex 124/124, moderator `precomputedVerdict`+`verdictInjection` green. **QA gate is satisfied.** Ticket stays `in-review` pending the two remaining NON-QA gates the ticket names: (1) systems-architect confirmation that the `precomputedResult` seam satisfies ADR 0002 constraint 5 (structural sign-off, not QA's to give — architect already reviewed the seam and surfaced BUG-023), and (2) TASK-023 (vision recall corpus) before any verdict drives *automation* (verdict is escalate-only today, so this gates future automation). Also fixed pre-merge: DBA-found FK cascade/NOT NULL (`1d58480`). Named out-of-scope live-disk gap tracked as BUG-024.
+- **Type:** feature · **Status:** done (reconciled 2026-07-27 — merged to `main`) — **QA RE-VERIFICATION COMPLETE 2026-07-10 (HEAD `22629ae`): PASS on all acceptance criteria.** Every previously-failed bullet now verified live: BUG-017 (group upload hidden-pending), BUG-018 (new version re-hidden), BUG-021 (restore re-hidden), BUG-019 (flagged image → `moderation_items` with the IMAGE's scores + `review_queue` row, `aiProvider=cortex`) — all → `done`. Plus the two dev-found follow-ons BUG-022 (worker TOCTOU) + BUG-023 (P0 verdict-forgery on `/batch`) verified → `done`. `db:check` no drift (all modules); touched files lint clean; filevault unit 26/26, cortex 124/124, moderator `precomputedVerdict`+`verdictInjection` green. **QA gate is satisfied.** Ticket stays `in-review` pending the two remaining NON-QA gates the ticket names: (1) systems-architect confirmation that the `precomputedResult` seam satisfies ADR 0002 constraint 5 (structural sign-off, not QA's to give — architect already reviewed the seam and surfaced BUG-023), and (2) TASK-023 (vision recall corpus) before any verdict drives *automation* (verdict is escalate-only today, so this gates future automation). Also fixed pre-merge: DBA-found FK cascade/NOT NULL (`1d58480`). Named out-of-scope live-disk gap tracked as BUG-024.
   Core user-upload path is solid; the in-scope chokepoint holes are now closed and re-verified. · **Priority:** P1 · **Size:** L
 - **QA verification (2026-07-10, branch `main` commit b56166e; real DB `exprsn`/schema `filevault`,
   resident `qwen2.5-vl-3b`):** filevault imageModeration Jest 19/19; live worker E2E on the real DB +
@@ -1556,7 +1575,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 **FEAT-034** (invite flow) ← **FEAT-035** (import invite emails).)*
 
 ### FEAT-032 — Organization provisioning engine + per-type templates (backend core)
-- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** done · **Priority:** P1 · **Size:** L — reconciled 2026-07-27 — merged to `main` (`8a8000a`)
 - **Owner-role:** sr-developer · **Blocked-by:** — *(systems-architect + dba sign-off required before commit — cross-module auth↔CA↔nexus writes + an ALTER on the existing auth `organizations` table)*
 - **Legacy:** — (productizes the batch seed path `scripts/seed/seed-main.js`; Rick approval 2026-07-10)
 - **Landed (sr-developer · 2026-07-11 · branch `feat/org-signup-provisioning`):** Provisioning engine shipped — `src/provisioning/engine.js` (saga S0–S9 with compensation) + `src/provisioning/templates.js` (per-type map) + `src/provisioning/ledger.js`, a new auth `ProvisioningRun` ledger, a CA directory service (`services/ca/services/directory.js`), and the `memberProvisioningService.provisionMemberCredentials` member-add hook (consumed by FEAT-034/035). **Slice 2 folded in:** nexus social group + spark channels (S7/S8) shipped in the same pass behind a per-template `nexus.create` flag (enterprise/team on) with compensation — decomposition completed in one pass, so **no separate slice-2 ticket is needed**. **ADR-0003** written (`docs/adr/0003-...`). **Migrations applied to `exprsn`:** `organizations.ca_group_id` ALTER (run directly per the sync-migrate trap) + `provisioning_runs` table; `db:check` clean. **Adversarial review (5 lenses) → fixed:** (crit) resume-after-compensation ledger corruption; (high) revoked-cert reuse in the member hook; (high) sibling `POST /organizations` mass-assignment; (med) migration index-guard. Two items **accepted as documented deviations in ADR-0003** — the engine open-codes some auth-model writes via a downward lazy require (acyclic; → TASK-027) and the template token `resourceValue '/'` is bounded by org scope. **Verification:** 37 provisioning tests green (happy×3, S1–S7 rollback matrix, compensation-fails, idempotency incl. retry-after-compensation, preflight aborts, linkage-token, mass-assignment, member hook). **Cross-cutting (whole branch):** full auth suites 103/103 (userImport + invite + signup-policy + equivalence + organization + session), provisioning 37/37, `web:build` green, `db:check` clean (auth 17 models, no drift), `lint` 0 errors. Follow-up filed: **TASK-027** (façade cleanup — ADR-0003 RC-1/RC-5 accepted deviation). Now **in-review** awaiting the human QA/merge gate (qa-specialist moves in-review→done).
@@ -1629,7 +1648,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   per README. Route to sr-developer once assessed.
 
 ### FEAT-033 — Org signup entry points: public self-service wizard + admin "provision organization" flow
-- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** done · **Priority:** P1 · **Size:** L — reconciled 2026-07-27 — merged to `main` (`c27c56d`/`8a8000a`)
 - **Owner-role:** sr-developer · **Blocked-by:** FEAT-032 (provisioning engine — both entry points compose it)
 - **Legacy:** — (Rick approval 2026-07-10 — entry points: BOTH)
 - **Landed (sr-developer · 2026-07-11 · branch `feat/org-signup-provisioning`):** Both approved entry points shipped over the one FEAT-032 engine. New `signupPolicyService` (fail-closed, platform-org scoped); public `POST /auth/api/auth/signup` + `GET /auth/api/auth/signup-policy` + `POST /auth/api/auth/provision-self` (converges the in-app `/orgs` create onto the same engine); verify-before-provision on verify-email; admin "Provision organization" structured form + public multi-step `SignupWizardPage` (`/signup`). **Single-code-path guarantee held:** admin, wizard, and `/orgs` all call the same engine (equivalence test). **Review (2 lenses) → fixed:** (CRIT) `toSafeObject` leaked `emailVerificationToken` in the signup 202 (self-verify bypass) — now stripped for all callers; (high) idempotency key was slug-only → cross-user org hijack, now **owner-scoped** in all provisioning routes; (med) verify-email missing rate limiter (added); (med) anonymous enterprise signup (restricted to team/personal); (med) signup-policy tenant-org fallback (removed → hard fail-closed); (med) orphaned user on failed signup (now deleted for retry); (med) verify-email recoverability. **Verification:** 29 tests green (signup-policy + equivalence + token-not-leaked + owner-scoped-key regressions); whole-branch cross-cutting verification recorded on FEAT-032. Now **in-review** awaiting the human QA/merge gate.
@@ -1679,7 +1698,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   sr-developer once assessed.
 
 ### FEAT-034 — Invite & activation token flow in auth (set-password / activation links)
-- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** done · **Priority:** P1 · **Size:** M — reconciled 2026-07-27 — merged to `main` (`c27c56d`)
 - **Owner-role:** sr-developer · **Blocked-by:** — *(dba sign-off — new invite table in the `auth` schema; new table only, safe under sync `db:migrate`)*
 - **Legacy:** — (Rick approval 2026-07-10 — prerequisite for import invite emails)
 - **Build (sr-developer · 2026-07-11 · branch `feat/FEAT-034-invite-flow`):** Implemented per plan. New `auth.invitations` table (single-use, sha256-hashed-at-rest, 72h-expiring, superseded-on-reinvite) + parity migration `20260711000001-create-invitations.js`; `inviteService` (`createInvite`/`resolveInvite`/`acceptInvite`/`listInvites`/`revokeInvite`); public `POST /auth/api/auth/accept-invite` (strictLimiter, token-gated — the only new unauthenticated surface); admin `POST`/`GET`/`DELETE /auth/api/users/invites` (CA-token + admin, literal-before-`:id`); `emailService.sendInvitationEmail`/`sendActivationEmail` + 4 templates; SPA `/accept-invite` set-password page; `acceptInvite` wraps user-upsert+status-flip in one txn, FEAT-032 `provisionMemberCredentials` hook called best-effort outside the txn when `organizationId` set. **Verification:** `npm run lint` 0 errors; `npm run db:migrate` + `npm run db:check` clean (auth 17 models, no drift); `tests/invite.test.js` **16/16 pass** (full token-state matrix T1–T12 + accept-route non-enumeration + weak-password) via `AUTH_DB_NAME=exprsn_auth_test`; `npm run web:build` green; API_SURFACE.md rows added. **QA:** token-state matrix + rate-limit on accept (strictLimiter is mocked-off in the auth Jest setup — verify the 429 in a live/un-mocked check).
@@ -1728,7 +1747,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   auth surface), or jr with sr review if the acceptance stays crisp.
 
 ### FEAT-035 — User import v2: server-side CSV, org-aware roles, queued large imports, invites + provisioning
-- **Type:** feature · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Type:** feature · **Status:** done · **Priority:** P1 · **Size:** L — reconciled 2026-07-27 — merged to `main` (`8a8000a`)
 - **Owner-role:** sr-developer · **Blocked-by:** FEAT-032 (per-member cert/token provisioning hook) · FEAT-034 (invite-email mode) — *the server-side CSV/validation core can start ahead of both, but the ticket is not `done` without them; dba sign-off — Bull queue + import-job state*
 - **Legacy:** — (Rick approval 2026-07-10 — user import: ALL upgrades)
 - **Landed — Slice A (sr-developer · 2026-07-11 · branch `feat/org-signup-provisioning`):** Server-side streamed CSV import shipped — `multer` (8MB) + `csv-parse` (2000-row synchronous cap), new `userImportService` (parse/validate/resolveImportContext/runImport), rewritten multipart `POST /auth/api/users/import`, org-aware per-row roles + org-admin authz boundary + owner-import policy (owner never assignable by org admins; platform-admin gated behind `allowOwner` and never mutates `Organization.ownerId`), `auth_group` assignment, and lazy flag-gated seams for invite-mode + `provisionCredentials` (FEAT-032 hook) + `nexus_group`; SPA switched to raw-file `ImportDialog`. Also **fixed the shared `addMember` always-org-member bug** (now role-appropriate). **Bull queue deferred** (documented >2k seam → TASK-029). **Review (2 lenses) → fixed:** (CRIT) platform-admin determination honored org-scoped `admin` roles → cross-tenant escalation; fixed **at the shared root** — `hasAdminRole` (`shared/middleware/requireAdmin.js`) + `isAdminUser` (`services/auth/src/routes/users.js`) now require GLOBAL-scoped role bindings; (med) post-create steps made best-effort (no false `failed`); (med) `provisionCredentials`+invite combination now rejected; (low) `nexus_group` cross-tenant hardening documented as a pre-enable requirement (→ TASK-028). **Verification:** 23 import tests green incl. the org-scoped-admin-no-bypass regression; whole-branch cross-cutting verification recorded on FEAT-032. Follow-ups filed: **TASK-028** (harden `nexus_group` authz before enabling `USER_IMPORT_NEXUS_ASSIGN`), **TASK-029** (Bull-queued >2k slice B), **TASK-030** (dedupe `isAdminUser` onto shared `hasAdminRole`). Now **in-review** awaiting the human QA/merge gate.
@@ -2374,6 +2393,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 
 ### FEAT-061 — Tokenization Slice: unified capability / share-link tokens
 - **Type:** feature · **Status:** in-review (**Pass 1 of 2 — FileVault + Live done; see Progress**) · **Priority:** P1 · **Size:** L
+- **Reconcile note (2026-07-27):** Pass 1 merged to `main` (`4b71df6`/`ff8bba3`, closes BUG-027); left `in-review` rather than `done` because this is an explicitly two-pass ticket and Pass 2 is still outstanding.
 - **Owner-role:** sr-developer · **Blocked-by:** — (independent of FEAT-060; can run in parallel)
 
 > **PASS 1 DONE 2026-07-14 — the share-grant model. Closes BUG-027.**
@@ -2569,7 +2589,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 - **Notes:** Cost/Benefit gate applies. Coordinate with TASK-028 (nexus_group import authz).
 
 ### FEAT-072 — Cortex backend driver abstraction + Ollama secondary backend (automatic failover, circuit breaker, queue-only enforcement)
-- **Type:** feature · **Status:** ready · **Priority:** P2 · **Size:** L
+- **Type:** feature · **Status:** done · **Priority:** P2 · **Size:** L — reconciled 2026-07-27 — merged to `main` (`1d60698`/`29a47a5`)
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** supersedes FEAT-016 · relates to FEAT-029 (llama.cpp router), FEAT-031 (image lane this generalizes), BUG-016/BUG-022 (requeue / compare-and-set patterns), TASK-023/TASK-026 (benchmark + shadow rung)
 - **Cost/Benefit:** done: proceed-with-slice — shadow-only, 2B model (qwen3.5:2b), enforce gated on TASK-042 + droplet decision
@@ -2626,7 +2646,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   `qwen3.5:*` may not be a real registry tag).
 
 ### FEAT-073 — Video moderation + AI tagging at the FileVault upload chokepoint
-- **Type:** feature · **Status:** ready · **Priority:** P2 · **Size:** L
+- **Type:** feature · **Status:** done · **Priority:** P2 · **Size:** L — reconciled 2026-07-27 — merged to `main` (`1d60698`/`29a47a5`)
 - **Owner-role:** unassigned · **Blocked-by:** FEAT-072, TASK-040
 - **Legacy:** supersedes FEAT-016 (video half) · extends FEAT-031 (FileVault image chokepoint) · relates to BUG-016/BUG-022 (requeue / compare-and-set)
 - **Cost/Benefit:** done: proceed-with-slice — shadow-only
@@ -2727,13 +2747,50 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   BUG-032 **and** TASK-041 both `done`. Route to sr-developer (XL critical path — break down further at
   grooming-for-commit if still large after the prereqs land).
 
+### FEAT-076 — Media captions/subtitles (WebVTT) pipeline + `<track>` in every player (parent epic)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** XL
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-20 W3C conformance review — WebVTT/WCAG 1.2 pass)
+- **Cost/Benefit:** pending
+- **Description:** **WebVTT is entirely absent from the platform** — no `.vtt` is
+  authored, generated, stored, served, or parsed anywhere, and every media surface
+  renders a bare native `<video>/<audio controls>` with **no `<track>` child** and no
+  caption affordance (`web/src/features/streams/HlsPlayer.tsx:47-53`,
+  `web/src/features/timeline/PostMedia.tsx:239-249`,
+  `web/src/features/files/viewers/MediaPlayer.tsx:31-47`,
+  `web/src/features/rooms/VideoTile.tsx:44-56`,
+  `web/src/features/messages/MessageAttachments.tsx:119`). The `/live` RTMP→ffmpeg→HLS
+  path emits video/audio only — no `EXT-X-MEDIA:TYPE=SUBTITLES` rendition, no `-c:s`,
+  no ASR (`services/live/src/services/ffmpeg.js:200-357`). Consequently **WCAG 2.2
+  SC 1.2.1–1.2.5 all fail categorically** (1.2.2 prerecorded captions, Level A, and
+  1.2.4 live captions, Level AA, most sharply) — a blocker for any accessibility
+  conformance claim. XL: **must be decomposed before `ready`.**
+- **Acceptance criteria:**
+  - Caption asset model + storage (fileId → language, `kind`, UTF-8 `.vtt` blob),
+    natural home FileVault; DBA sign-off on the schema (new-column ALTER gap applies).
+  - Server serves `.vtt` with `Content-Type: text/vtt` and CORS/headers that let
+    `<track src>` load; upload path validates the WEBVTT signature + `-->` cue timing
+    + UTF-8 before store.
+  - `<track kind="captions" srclang label default>` injected into all five players;
+    the native CC control appears wherever a track exists.
+  - `<track kind>` restricted to `captions`/`subtitles`/`descriptions` per WHATWG HTML;
+    a WEBVTT validator gates CI once `.vtt` artifacts exist.
+  - Later slices (tracked at decomposition): `/live` HLS `SUBTITLES` `EXT-X-MEDIA`
+    group + segmented WEBVTT + hls.js subtitle rendering (SC 1.2.4); optional ASR
+    worker (Bull/RabbitMQ pattern, cortex-hosted) auto-generating conformant `.vtt`.
+- **Notes:** FEAT — Cost/Benefit gate applies (stays `backlog` until assessed). Cheap
+  first slice = model + serve + upload + wire `<track>` into the five players (clears
+  SC 1.2.2 for prerecorded), deferring live-HLS captions and ASR. P2P WebRTC rooms
+  (`VideoTile`) are outside strict caption-file scope. Touches `web/` players +
+  FileVault + live edge → **dba** for the schema, sr-developer for the build.
+
 ## Bugs
 
 *(Security-hardening items triaged out of the `SP-11` review — filed, not
 must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)".)*
 
 ### BUG-036 — `CA_BASE_URL` points at the nginx edge; node/axios loopback to it hangs → platform-wide CA_UNAVAILABLE
-- **Type:** bug · **Status:** in-review (**FIXED 2026-07-20** on `worktree-feat-timeline-comments`) · **Priority:** P1 · **Size:** S
+- **Type:** bug · **Status:** done · **Priority:** P1 · **Size:** S — reconciled 2026-07-27 — merged to `main` (`2cd6bf5`)
 - **Owner-role:** systems-architect / dba
 - **Fix applied:** corrected the live `.env` CA URLs to the localhost loopback (backup at `.env.bak-ca-fix-20260720`; `.env.example` was already correct) **and** added a startup guard in `src/index.js` — the gateway now warns loudly (with the exact fix) at boot if `CA_BASE_URL`/`CA_URL` is a non-loopback host. Verified: authed writes return 200 with no override; guard fires on the edge value, silent on loopback.
 - **Found:** 2026-07-20 while runtime-verifying FEAT-075 on this machine.
@@ -2743,7 +2800,7 @@ must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)"
 - **Note:** this is env/config, not code; but worth a guard so an nginx-edge `CA_BASE_URL` can't silently wedge the platform (e.g. prefer loopback for in-process, or a startup self-check).
 
 ### BUG-037 — `logger.error is not a function` in CA `requireSessionOrService` catch → 500 (and can strand a request)
-- **Type:** bug · **Status:** in-review (**FIXED 2026-07-20** on `worktree-feat-timeline-comments`) · **Priority:** P3 · **Size:** XS
+- **Type:** bug · **Status:** done · **Priority:** P3 · **Size:** XS — reconciled 2026-07-27 — merged to `main` (`2cd6bf5`)
 - **Owner-role:** jr-developer
 - **Fix applied:** `services/ca/middleware/auth.js` imported `../config/logging` (a config object `{ level }`) instead of `../utils/logger` (the winston logger the other 12 CA files use) — so **all 8** `logger.*` calls in the file were broken, not just line 397. One-line import fix. Verified: a malformed `X-Service-Token` now returns a clean 401 instead of a 500.
 - **Found:** 2026-07-20 alongside BUG-036.
@@ -3000,7 +3057,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 `SPIKE-001` follow-up implementation ticket the spike's AC called for.)*
 
 ### BUG-010 — Auth-gate the 6 unauthenticated moderator REST routers (SPIKE-001 fix)
-- **Type:** bug · **Status:** in-sprint → `active/sprint-2026-08.md` · **Priority:** P1 · **Size:** M
+- **Type:** bug · **Status:** done · **Priority:** P1 · **Size:** M — reconciled 2026-07-27 — merged to `main` (`55bae89`)
 - **Owner-role:** unassigned · **Blocked-by:** — *(systems-architect sign-off already given in `sprints/moderation-routing-plan.md`; no DB migrations)*
 - **Legacy:** SPIKE-001 (architect review → this is its per-AC follow-up implementation ticket) · SP-11 security theme (unauthenticated read/write surface) · sibling to BUG-006 (unauthenticated mutation surface) · API_SURFACE.md L30 (see TASK-017 doc drift)
 - **Description:** Closes out the security finding from **SPIKE-001**, per the
@@ -3513,6 +3570,350 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   forged/replayed-under-other-id do not; admin e2e (23 sections) no longer 429s.
   Still wants architect sign-off at merge (auth surface).
 
+### BUG-038 — nginx SPA edge (`:443`) ships the app with zero security headers
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-27 (branch `s2609-sr` HEAD `a3ab48c`, merge-ready; not yet on `main`) · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-09 (2026-07-27).
+- **Legacy:** — (2026-07-20 W3C security-header review; relates R4 / TASK-004 TLS-at-edge)
+- **Description:** The Node gateway (`:8443`) applies a strong hand-tuned helmet CSP
+  (`src/gateway.js:98-106`) — but it only ever emits **JSON**. The browser's security
+  context for the actual application is established by the **document nginx serves on
+  `:443`** (`web/dist/index.html`), and `docker/nginx/nginx.conf` sets **no** security
+  response headers: no CSP, no HSTS, no Permissions-Policy, no `X-Content-Type-Options:
+  nosniff`, no `X-Frame-Options`/`frame-ancestors`, no Referrer-Policy on the UI origin.
+  So the gateway's discipline protects nothing the user renders. A strict SPA CSP is
+  currently blocked by two things in `web/index.html`: external Google Fonts
+  (`:9-14`) and an inline theme-bootstrap `<script>` (`:17-29`). CORS credentials logic
+  and mixed-content posture were both reviewed and **conform** — this is purely the edge.
+- **Acceptance criteria:**
+  - The nginx server block serving the SPA sets a CSP (target `default-src 'self'`
+    after fonts are self-hosted), `Strict-Transport-Security` (max-age ≥ 31536000),
+    `Permissions-Policy` scoping camera/microphone/display-capture to what `/live`
+    needs, `Referrer-Policy`, `X-Content-Type-Options: nosniff`, and frame protection.
+  - Google Fonts self-hosted in `web/` (removes the external dep, referrer leak, and
+    the `style-src`/`font-src` CSP exceptions); the inline theme script is nonce'd or
+    moved to a file so the CSP needs no `unsafe-inline` for scripts.
+  - SPA loads with no CSP violations in the console; headers verified with `curl -kI`.
+- **Notes:** Config-only, highest-value security gap from the review. `report-to`/CSP
+  reporting is a natural follow-on (ties to the Winston-only observability gap). Route
+  to sr-developer; no data changes.
+- **Resolution (done · 2026-07-27 · commit `f965236`, branch `s2609-sr`):** Server-level
+  security-header set in `docker/nginx/nginx.conf` (CSP `default-src 'self'` /
+  `script-src 'self'`; HSTS 31536000 incl. subdomains; Permissions-Policy
+  camera/mic/display-capture=(self); Referrer-Policy; nosniff; XFO DENY +
+  `frame-ancestors 'none'`), all `always`; `/docs/` redeclares the full set with a
+  scoped inline-script relaxation. Enablers: fonts self-hosted via `@fontsource/inter`
+  + `@fontsource/jetbrains-mono`; inline theme script externalized to
+  `web/public/theme-init.js` (no-flash preserved). `nginx -t` clean; built dist has no
+  external refs/inline scripts. systems-architect sign-off: **APPROVE-WITH-NOTES**
+  (2026-07-27) — required follow-up **TASK-053** (external image URLs now blocked by
+  `img-src 'self'`); note-level: HSTS `includeSubDomains` revisit at production-TLS
+  time, self-hosted STUN (fold into TASK-050), `frame-ancestors` revisit if form
+  embedding ever ships. Live `curl -kI` header check deferred to deploy (nginx
+  recreate + `web/dist` republish pending).
+
+### BUG-039 — Account menu is hover-only CSS: Sign out / Settings / Admin are keyboard-unreachable
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-27 (branch `s2609-sr` HEAD `a3ab48c`, merge-ready; not yet on `main`) · **Priority:** P1 · **Size:** S
+- **Owner-role:** jr-developer (rec., sr review) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-09 (2026-07-27).
+- **Legacy:** — (2026-07-20 WCAG 2.2 / WAI-ARIA review)
+- **Description:** `web/src/app/RootLayout.tsx:107-136` renders a
+  `<button class="user-menu-btn">` with **no `onClick`/handler**, followed by a
+  `.user-menu-dropdown` revealed **solely** by `.user-menu:hover` in
+  `styles/exprsn-unified.css:307-326` (`visibility:hidden` when closed also removes the
+  links from the tab order). There is **no keyboard path** to Settings, Admin console,
+  or **Sign out** from the primary shell, and the trigger lacks
+  `aria-haspopup`/`aria-expanded`/`aria-controls`. Fails WCAG 2.1.1 (A), 1.4.13 (AA),
+  4.1.2 (A). Most impactful single a11y defect — logout is keyboard/SR-unreachable.
+- **Acceptance criteria:**
+  - The menu opens/closes on click and Enter/Space and is fully keyboard-operable
+    (Escape closes, focus returns to the trigger); dropdown links are in the tab order
+    only when open.
+  - Trigger exposes `aria-haspopup="menu"`, `aria-expanded`, `aria-controls`; hover
+    reveal (if kept) is dismissible/persistent per 1.4.13.
+  - Sign out / Settings / Admin reachable and operable by keyboard and screen reader.
+- **Notes:** Prefer an MUI `Menu` (inherits the APG menu-button pattern) over the
+  hand-rolled markup. jr-developer with sr review.
+- **Resolution (done · 2026-07-27 · commit `8632200`, branch `s2609-sr`):** Hover
+  markup replaced with an MUI `<Menu>` (APG menu-button); trigger exposes
+  `aria-haspopup`/`aria-expanded`/`aria-controls`; Escape/outside-click close with
+  focus return; items out of the tab order when closed. sr-reviewed. Sibling defect in
+  `AdminLayout` filed as **BUG-047**.
+
+### BUG-040 — Alt text is discarded end-to-end; existing `alt_text` plumbing + AI descriptions never reach consumers
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-27 (branch `s2609-sr` HEAD `a3ab48c`, merge-ready; not yet on `main`) · **Priority:** P1 · **Size:** M
+- **Owner-role:** sr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-09 (2026-07-27).
+- **Legacy:** — (2026-07-20 ATAG 2.0 / WCAG 1.1.1 review)
+- **Description:** The backend already supports image alt text but the UI neither
+  authors nor renders it. `services/timeline/migrations/20241229000000-create-attachments.js:132`
+  defines an `alt_text` column and `services/timeline/src/routes/attachments.js:240-255`
+  accepts/stores `altText` via `PATCH /attachments/:id` — but the composer
+  (`web/src/features/timeline/Composer.tsx:42-75`) sends only `mediaIds`, the
+  `PostMedia` type has **no** `altText` field (`web/src/api/timeline.ts:25-35`), and the
+  render path emits `alt={item.title ?? ''}` (`PostMedia.tsx:141/226/259`) → empty alt
+  for consumers' screen readers. FileVault even auto-generates descriptions via
+  `cortex.describeImage` (`services/filevault/src/services/imageModerationService.js:214-248`,
+  stored `FileModeration.js:78-88`) that are **never surfaced to the author or
+  rendered**. Spark attachments have the same gap (`MessageAttachments.tsx:78`). Fails
+  WCAG 1.1.1 (A) and ATAG B.2.3 / B.1.2.4; the AI auto-alt without author review is a
+  B.2.3.2 process concern.
+- **Acceptance criteria:**
+  - The timeline composer (and Spark) exposes a per-image alt/description input; the
+    value is persisted through `createPost`/attachments (route verified against
+    `API_SURFACE.md`).
+  - `PostMedia` type carries `altText`; consumer render uses
+    `alt={item.altText ?? item.title ?? ''}`.
+  - The `cortex.describeImage` output is surfaced as a **pre-filled, editable**
+    suggestion the author can accept/change (satisfies B.2.3.2), not applied silently.
+- **Notes:** Near-free win — backend exists; mostly frontend wiring. sr-developer.
+- **Resolution (done · 2026-07-27 · commit `a0b19ac`, branch `s2609-sr`):** Composer
+  uploads eagerly with per-image alt fields; `POST /timeline/api/posts` accepts
+  validated `media:[{id,altText}]` persisted into the `Post.media` JSONB the feed
+  already serves (no schema change; legacy `mediaIds` kept); `PostMedia` / spark
+  `ChatAttachment` types + renderers use `altText ?? title/name ?? ''`; cortex
+  description surfaced as an editable pre-fill via new
+  `GET /filevault/api/files/:fileId/description` (null-safe when cortex is off);
+  `API_SURFACE.md` updated for both routes. Timeline Jest suite green at build time
+  (99/99). Runtime post-with-alt through the live gateway deferred to deploy check.
+
+### BUG-041 — Lowcode form builder can emit fields with an empty label (no accessible name)
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-27 (branch `s2609-sr` HEAD `a3ab48c`, merge-ready; not yet on `main`) · **Priority:** P2 · **Size:** S
+- **Owner-role:** jr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-09 (2026-07-27).
+- **Legacy:** — (2026-07-20 ATAG 2.0 B.1.1 / WCAG 4.1.2 review)
+- **Description:** `web/src/features/lowcode/EntityEditor.tsx:70` seeds
+  `label: ''` and the save validator `build()` (`:73-93`) validates only the field
+  **key** — **label is never required**. The generated public form passes the empty
+  label straight through (`web/src/features/lowcode/PublicFormPage.tsx:53-61`); MUI only
+  wires the `<label for>`/aria association when the label string is non-empty, so the
+  emitted input has **no accessible name** (WCAG 1.3.1/3.3.2/4.1.2 baked into authored
+  output). `FormEditorDialog` exposes placeholder/help but no label editing — and
+  placeholder-as-label is itself an anti-pattern.
+- **Acceptance criteria:**
+  - `EntityEditor.build()` requires a non-empty label per field (or falls back
+    key→label) so a saved entity cannot ship a nameless input.
+  - Generated forms always emit an input with a programmatic accessible name.
+- **Notes:** ATAG "accessible by default" (B.1.1). jr-developer.
+- **Resolution (done · 2026-07-27 · commit `5e0e593`, branch `s2609-sr`):**
+  `EntityEditor.build()` falls back empty labels to `humanizeKey(key)` with an info
+  notice; render-time fallback added in `PublicFormPage`. Pre-save advisory added
+  under TASK-048.
+
+### BUG-042 — Icon-only buttons lack accessible names (8 of 216 labeled; Tooltip ≠ name)
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-27 (branch `s2609-sr` HEAD `a3ab48c`, merge-ready; not yet on `main`) · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer sets pattern, jr-developer sweeps (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-09 (2026-07-27).
+- **Legacy:** — (2026-07-20 WCAG 4.1.2 / 2.4.4 review)
+- **Description:** Only **8 of 216** `<IconButton>` instances carry an inline
+  `aria-label`; the rest are icon-only and mostly rely on a wrapping MUI `<Tooltip>`,
+  which supplies `aria-describedby` (a *description*, exposed only on focus/hover) —
+  **not** the accessible *name*. So most icon buttons announce as bare "button".
+  Examples: `features/admin/ui.tsx:381/393` (Tooltip only); the lightbox Close/Prev/Next
+  in `features/timeline/PostMedia.tsx:293-308` have **neither** label nor Tooltip.
+  Good counter-pattern already in-repo: `app/ThemeToggle.tsx:13` sets both. Fails
+  WCAG 4.1.2 (A) and 2.4.4 (A).
+- **Acceptance criteria:**
+  - Every icon-only `IconButton` has an `aria-label` naming its action (Tooltip may
+    stay as supplementary description).
+  - The `ThemeToggle` label+Tooltip pattern is adopted as the standard; lightbox
+    controls are named.
+- **Notes:** Systemic — consider a lint rule / shared wrapper. sr-developer to set the
+  pattern, jr to sweep.
+- **Resolution (done · 2026-07-27 · commits `7649f08` + `f2628ad`, branch `s2609-sr`):**
+  Standard set: `web/src/components/LabeledIconButton.tsx` (required `label` prop →
+  aria-label + Tooltip) + "Accessibility conventions" section in `web/README.md`;
+  lightbox Close/Prev/Next named. Repo-wide sweep: **218/218** IconButton instances
+  now carry accessible names (state-dependent labels on toggles). QA re-scan: 0
+  missing.
+
+### BUG-043 — Clickable `<Box>`/`<div>` media tiles are not keyboard-operable
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-27 (branch `s2609-sr` HEAD `a3ab48c`, merge-ready; not yet on `main`) · **Priority:** P2 · **Size:** S
+- **Owner-role:** jr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-09 (2026-07-27).
+- **Legacy:** — (2026-07-20 WCAG 2.1.1 / 4.1.2 review)
+- **Description:** Timeline media uses non-interactive elements with click handlers and
+  no role/tabindex/key handling: `PostMedia.tsx:125` (`Thumb`), `:179` (`LiveCard`),
+  `:396` (the "+N" overflow tile) — none focusable, none with `role="button"` or
+  `onKeyDown`. Feed images/videos cannot be opened without a mouse. Good counter-pattern
+  in-repo: `components/EmojiPicker.tsx:28,51` uses `component="button"` (real, keyboard-
+  operable). Fails WCAG 2.1.1 (A), 4.1.2 (A).
+- **Acceptance criteria:**
+  - Clickable media tiles are real buttons (or have `role="button"` + `tabIndex={0}` +
+    Enter/Space handlers) and are keyboard-openable.
+  - Adopt the `EmojiPicker` `component="button"` pattern rather than `<Box onClick>`.
+- **Notes:** Likely repeats on unread pages (lowcode canvas, moderation builders) —
+  worth a repo-wide sweep of `<Box onClick`. jr-developer.
+- **Resolution (done · 2026-07-27 · commits `661273f` + `f98ca5d`, branch `s2609-sr`):**
+  Thumb/LiveCard/"+N" converted to real buttons (`component="button"` + style resets)
+  with media-kind-aware labels; sweep also fixed JsonView, GalleriesTab,
+  MessageAttachments, PinnedBar, RecordingsList, SignupWizardPage (inner radio made
+  presentational — no nested interactive) and ImageAnnotator. Skipped as design
+  questions: reactflow `CanvasNode`; two rows whose adjacent buttons already provide
+  the same action.
+
+### BUG-044 — atproto labeler `did:web` fallback serves a document with an invalid placeholder key
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-20 W3C DID-Core / CID review)
+- **Description:** `services/atproto/src/labeler/identityService.js:254-275`
+  (`getDidDocument`) — when no `LabelerIdentity` row exists yet but
+  `config.labeler.did` is set — serves a full `did:web` document publicly at
+  `GET /.well-known/did.json` (`services/atproto/src/wellknown.js:20-28`) whose
+  verification method carries
+  `publicKeyMultibase: 'z0000000000000000000000000000000000000000000000000'`
+  (`identityService.js:270`) — **not a valid secp256k1 Multikey**. Any relying party
+  resolving the labeler before provisioning receives a well-formed-looking document
+  whose key can verify nothing (or could be mistaken for a real key). Violates DID-Core
+  verification-material validity.
+- **Acceptance criteria:**
+  - Before provisioning completes, the endpoint returns **404** (as the no-`config`
+    branch already does at `:274`) instead of a placeholder-key document.
+  - No `z0000…` key is ever served.
+- **Notes:** Small correctness/security fix. sr-developer (atproto).
+
+### BUG-045 — Spark E2EE server legacy path retains a deprecated static-salt PBKDF2 fallback
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-20 Web Cryptography review; server-side Node-crypto path)
+- **Description:** The client WebCrypto E2EE path is clean, but the server-side legacy
+  keypair path in `services/spark/src/services/encryptionService.js:619-623` has a
+  `LEGACY_PBKDF2_SALT` **static-salt** fallback for old rows with no per-key salt (used
+  when a client sends `passwordHash` instead of a client-generated keypair). A static
+  PBKDF2 salt enables precomputation/rainbow-table attacks across all un-migrated keys
+  if the DB leaks — the one genuinely weak primitive in the crypto surface. Already
+  flagged deprecated in-code with a rotate warning.
+- **Acceptance criteria:**
+  - Confirm (query) no production rows still use the static-salt fallback; migrate any
+    that do to a per-key random salt.
+  - Remove the `LEGACY_PBKDF2_SALT` fallback once no rows depend on it.
+- **Notes:** dba to check row state before removal; sr-developer for the change.
+
+### BUG-046 — `/live` WebRTC rooms lack perfect-negotiation/glare handling and pre-SDP ICE buffering
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-20 W3C WebRTC 1.0 review)
+- **Description:** `web/src/features/rooms/useWebRtcRoom.ts` avoids glare only by
+  convention (newcomer offers, existing peers answer) with **no** perfect-negotiation
+  pattern: no `onnegotiationneeded`, no `makingOffer`/`ignoreOffer`/polite-vs-impolite,
+  no rollback. `onOffer` calls `setRemoteDescription` unconditionally regardless of
+  `signalingState` (`:273-279`), so two near-simultaneous joiners can dual-offer (glare)
+  and fail to connect — and the `onconnectionstatechange` handler is a **no-op**
+  (`:153-157`), so a `failed` PC is never recovered. Separately, there is **no
+  remote-ICE-candidate buffering** before `setRemoteDescription`: a candidate arriving
+  before the offer creates the PC is dropped (`:286-295`) — a real trickle-ICE ordering
+  hazard. Both are W3C-recommended robustness patterns whose absence causes rare,
+  unrecovered connect failures.
+- **Acceptance criteria:**
+  - Implement the perfect-negotiation pattern (polite/impolite, `makingOffer`,
+    rollback on glare) so simultaneous joiners connect reliably.
+  - Buffer remote ICE candidates that arrive before the remote description and flush
+    them after `setRemoteDescription`.
+  - `onconnectionstatechange` recreates/retries a `failed` peer connection.
+  - Low-sev cleanup folded in: drop the legacy `new RTCSessionDescription`/
+    `new RTCIceCandidate` wrappers (`:275/283/290`); differentiate `getUserMedia`
+    `DOMException`s (NotAllowed/NotFound/NotReadable/Overconstrained) in the error
+    message (`:223-230`).
+- **Notes:** Reliability, not strict API non-conformance. Separate TURN-server infra is
+  TASK-050. sr-developer.
+
+### BUG-047 — AdminLayout admin-shell a11y parity: hover-only account menu + missing skip link/`aria-current`
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (Sprint 2026-09 escalation; same defect classes as BUG-039 / TASK-046, which scoped `RootLayout` only)
+- **Description:** `web/src/features/admin/AdminLayout.tsx` (~189-214) renders the admin
+  console's own account menu with the identical hover-only CSS pattern BUG-039 removed
+  from `RootLayout` — the `.user-menu-dropdown` block is retained in
+  `web/src/styles/exprsn-unified.css` solely for this consumer (see the comment at
+  ~:326), so Sign out etc. are keyboard/screen-reader-unreachable inside the admin
+  shell. The admin shell's separate sidebar also lacks the TASK-046 treatment: no skip
+  link, no `aria-current` on the active nav item.
+- **Acceptance criteria:**
+  - AdminLayout's account menu uses the same MUI `Menu` pattern as landed BUG-039
+    (`aria-haspopup`/`aria-expanded`/`aria-controls`, Escape close + focus return); the
+    then-dead `.user-menu-dropdown` hover CSS is removed.
+  - The admin shell gets a skip link and `aria-current="page"` on active nav.
+- **Notes:** Direct port of the landed BUG-039 / TASK-046 patterns. jr-developer.
+
+### BUG-048 — Dark-mode primary too light for white text: contained buttons and filled primary chips fail WCAG 1.4.3
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** 2026-07-20 accessibility review; TASK-049 measurement (sprint 2026-09, branch s2609-sr)
+- **Description:** In dark mode `palette.primary.main` is `#3b82f6` with `contrastText: WHITE` (`web/src/app/theme.ts:18`, token `web/src/app/tokens.ts:65`). White-on-#3b82f6 measures **3.68:1** (needs 4.5:1; button labels are 14–15px/600 — not "large text"). Affects all 188 `variant="contained"` primary buttons, filled primary Chips, and any white-on-primary surface in dark mode. Related marginal fail: primary-colored text/links on `surface-raised` (#3b82f6 on #1f1f1f) = **4.48:1**.
+- **Acceptance criteria:**
+  - [ ] Dark-mode contained-primary button label contrast ≥ 4.5:1 (e.g. darker dark-primary token, or dark `contrastText` switched to near-black, or a dedicated `primary.contrastText` per mode) — verified by computed ratio.
+  - [ ] Dark-mode primary text on `surface-raised` ≥ 4.5:1 or the pairing is avoided.
+  - [ ] Light mode unchanged (currently 4.83:1, passing).
+  - [ ] `npm run web:test` green; no visual-token regression outside dark primary pairings.
+- **Notes:** Ratios from TASK-049 script (WCAG formula, MUI 5.16.7). This is the highest-traffic failure (every primary action in dark mode).
+
+### BUG-049 — Semantic Chip colors fail text contrast: filled success/error/info and outlined success/warning/error/info labels
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** 2026-07-20 accessibility review ("outlined chips" suspect — confirmed); TASK-049 measurement
+- **Description:** Colored MUI Chips (33 call sites) fail WCAG 1.4.3 at ~13px labels:
+  - Filled, both themes: success #fff/#10b981 = **2.54**, error #fff/#ef4444 = **3.76**, info #fff/#3b82f6 = **3.68** (theme.ts:20-23 sets `contrastText: WHITE`). E.g. `web/src/features/streams/StreamsPage.tsx:203` ("● LIVE"), `web/src/features/moderation/NotificationsPage.tsx:80` (unread count), `web/src/features/groups/tabs/EventsTab.tsx:272`.
+  - Outlined, light mode: warning label **2.15** (`web/src/features/admin/sections/ScopesSection.tsx:97`, `AtprotoSection.tsx:411`, `auth/RolesTab.tsx:101`, `moderator/QueuesTab.tsx:100`), success **2.54** (`cortex/shared.tsx:62`), error **3.76**, info **3.68**; outlined success/warning borders also fail 1.4.11 (2.15–2.54 < 3:1).
+  - Outlined, dark mode: error **4.38**, info/primary **4.48**.
+  - Filled warning (black text, 9.22) and secondary (5.70) PASS — leave as-is.
+- **Acceptance criteria:**
+  - [ ] All Chip label/background pairs ≥ 4.5:1 and outlined borders ≥ 3:1 in BOTH themes — via theme-level `MuiChip` overrides (e.g. darker text tokens on tinted fills, like the existing `--exprsn-*-text` values) rather than per-call-site fixes.
+  - [ ] No call-site behavior change; `npm run web:test` green.
+  - [ ] Spot-verify the six representative call sites above in both themes.
+- **Notes:** The design system already defines passing text-on-tint tokens (`--exprsn-success-text` #065f46 on #d1fae5 = 6.78 etc.) — mapping chips onto those is the natural remedy.
+
+### BUG-050 — Green-on-green sidebar system status (live on every page) + tint classes use base semantic color instead of the `-text` tokens
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** 2026-07-20 accessibility review (tinted badge backgrounds suspect — confirmed); TASK-049 measurement
+- **Description:** `web/src/app/RootLayout.tsx:204-206` renders `.system-status` ("All systems operational") in the sidebar footer of every page: `.system-status` bg `--exprsn-success-bg` (#d1fae5) with `.system-status-text` color `--exprsn-success` (#10b981), 13px/500 → **2.24:1** (needs 4.5:1). The tint tokens are not overridden in `[data-theme="dark"]` (`web/src/styles/exprsn-unified.css:91-98`), so it fails identically in dark. Root cause pattern: the CSS component classes pair `--exprsn-<sev>` (the saturated main color) with `--exprsn-<sev>-bg` instead of the purpose-built `--exprsn-<sev>-text` tokens, which all pass (6.4–7.2). Latent (currently unmounted) classes with the same defect: `.badge-success/-warning/-danger/-info/-primary` (css:1291-1314, 1.93–3.10), `.alert-success/-warning/-danger/-info` (css:1381-1401, 2.24–3.36), `.stat-icon.success/.warning` non-text 2.24/1.93 (css:739-749).
+- **Acceptance criteria:**
+  - [ ] `.system-status-text` ≥ 4.5:1 in both themes (e.g. `color: var(--exprsn-success-text)`).
+  - [ ] The `.badge-*`, `.alert-*`, `.stat-icon.*` classes either switch to the `-text` tokens or are removed if truly dead (grep: 0 TSX consumers today).
+  - [ ] Decision recorded on dark-mode tint tokens (add dark overrides for `--exprsn-*-bg`/`--exprsn-*-text`, or document them as theme-invariant).
+- **Notes:** One-line fixes per class; the passing token values already exist in the same file (css:35-38).
+
+### BUG-051 — Light-mode muted text fails on tertiary surfaces (4.35:1) and sits at the floor elsewhere
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** 2026-07-20 accessibility review (`--exprsn-text-muted` suspect — confirmed on tertiary only); TASK-049 measurement
+- **Description:** Light `--exprsn-text-muted` #737373 measures **4.35:1 on `--exprsn-bg-tertiary`** #f5f5f5 (needs 4.5). Concrete pairings: `.global-search .search-shortcut` kbd hint (`web/src/styles/exprsn-unified.css:218-230`), `.tree-badge` (css:1502-1508), plus any MUI `text.disabled` (= textMuted, theme.ts:25) rendered over gray fills (disabled text itself is 1.4.3-exempt, but the same value is used for non-disabled captions). On bg-primary/bg-secondary it passes but only just (4.74 / 4.54). Dark mode passes everywhere (6.00–7.85).
+- **Acceptance criteria:**
+  - [ ] Muted-on-tertiary pairings ≥ 4.5:1 in light mode — either darken the light token (≈#6f6f6f or darker keeps all current pairings ≥4.5) or forbid muted-on-tertiary and fix the two CSS classes.
+  - [ ] Re-run the TASK-049 pairing matrix; no other muted pairing drops below 4.5.
+- **Notes:** Smallest-blast-radius fix is the token nudge in `web/src/styles/exprsn-unified.css:49` + `web/src/app/tokens.ts:59` (keep the two mirrors in sync per tokens.ts header comment).
+
+### BUG-052 — Non-text UI contrast (1.4.11): input/control borders, MUI Switch track, Alert icons on tint
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** 2026-07-20 accessibility review; TASK-049 measurement
+- **Description:** UI-component boundaries fail the 3:1 non-text minimum in both themes:
+  - Input outlines: `MuiOutlinedInput.notchedOutline` uses `t.border` (`web/src/app/theme.ts:79`) → #e5e5e5 on #fff = **1.26** (light); #404040 on #1f1f1f = **1.59** / on #0a0a0a = **1.91** (dark). The border is the text field's only boundary indicator.
+  - `--exprsn-border-color-strong` (scrollbar thumb, theme.ts:94; strong borders) = **2.52 L / 2.53 D**.
+  - MUI Switch unchecked track (default, no override): **2.68** light (dark 3.53 passes) — 37 switches.
+  - MUI Alert success/warning severity icons on their light-mode tints: **2.35 / 2.02** (error/info pass; all pass in dark; adjacent Alert text passes, so information is not icon-only — mitigating).
+  - Focus ring, checkbox glyphs, offline status dot all PASS (measured).
+- **Acceptance criteria:**
+  - [ ] Interactive-control boundaries (text field outline, switch track) ≥ 3:1 against their surface in both themes (e.g. a dedicated `--exprsn-border-interactive` ≥ #767676-equivalent in light).
+  - [ ] Decorative/non-interactive borders (card outlines, dividers) explicitly documented as exempt, or bumped.
+  - [ ] Alert success/warning `iconMapping`/color meets 3:1 on the light tint or is accepted with the text-adjacency rationale recorded.
+- **Notes:** Do not fix by lightening focus ring or text tokens — those pass today. Purely additive border-token work.
+
+### BUG-053 — Target size (2.5.8): chip delete/copy icons are sub-24px targets; EntityEditor state chips fail outright
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** 2026-07-20 accessibility review; TASK-049 measurement
+- **Description:** MUI Chip delete icons are the clickable element and render 16×16 (small chip) / 22×22 (medium) vs the 24×24 minimum:
+  - **Fail:** `web/src/features/lowcode/EntityEditor.tsx:285-289` — medium chips with BOTH `onClick` (set initial state) and `onDelete` (remove state): the 24px circle centered on the 22px delete icon intersects the chip's own click target, so the spacing exception cannot apply, and the two actions are destructive-adjacent.
+  - **Fragile/conditional:** `web/src/features/messages/Composer.tsx:117-121` (attachment remove, 16×16 — currently passes only via the spacing exception; breaks if chips wrap tighter) and `web/src/features/rooms/RoomsPage.tsx:173-180` (copy-room-code implemented as a chip `deleteIcon` — a primary affordance on a 16×16 target).
+  - **Measured, passes (no action):** all 169 `size="small"` IconButtons compute to 30×30/34×34; DataTable dense toolbar (`web/src/features/admin/ui.tsx:367-421`) 30×30; small Checkbox ≥28×28; small Switch 40×24; TableSortLabel passes via spacing exception. CalendarTab 18px chips are non-interactive (tooltip only) — N/A.
+- **Acceptance criteria:**
+  - [ ] EntityEditor state chips: delete affordance ≥24×24 or restructured (e.g. select-then-delete-button) so undersized targets don't overlap another target.
+  - [ ] RoomsPage copy-code moved to a proper IconButton (≥24×24) or the chip target enlarged.
+  - [ ] Composer attachment chips keep ≥ the spacing-exception margin when wrapping (or delete target enlarged).
+  - [ ] No small IconButton regression below 24×24 (guard: no `p:0` overrides — none exist today).
+- **Notes:** MUI-level remedy exists: bump `MuiChip` deleteIcon hit area via theme `styleOverrides` (padding on `.MuiChip-deleteIcon`) instead of per-site edits.
+
 ## Tasks
 
 ### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
@@ -3871,7 +4272,7 @@ is the implementation of **FEAT-009** and stays blocked on FEAT-009's Cost/Benef
 sign-off.)*
 
 ### TASK-019 — Route filevault + timeline + spark UGC through the central `moderateContent` pipeline (implements FEAT-009)
-- **Type:** task · **Status:** blocked · **Priority:** P1 · **Size:** L
+- **Type:** task · **Status:** done · **Priority:** P1 · **Size:** L — reconciled 2026-07-27 — merged to `main` (`5815bd8`/`d17c69c`)
 - **Owner-role:** unassigned · **Blocked-by:** **FEAT-009 Cost/Benefit gate** (still `pending` — the parent FEAT this ticket implements cannot be promoted past `backlog`, and this ticket cannot reach `ready`/COMMIT, until the cost-benefit-analyzer attaches an assessment); **dba co-sign** required on schema/queue shape before COMMIT; four open design decisions (see Notes) must be resolved first
 - **Legacy:** implements **FEAT-009** (Tier-1 moderation gap analysis) · design `sprints/moderation-routing-plan.md` (Item B) · reference pattern `services/atproto/src/ingest/moderationBridge.js` · relates to BUG-006 (authenticated timeline sink), BUG-010 (the `requireService`-gated HTTP fallback contract), TASK-009 (in-process direction), FEAT-008/FEAT-016/FEAT-018/FEAT-019 (plug into this backbone)
 - **Description:** The **structural, cross-module implementation of FEAT-009** per the
@@ -4340,6 +4741,164 @@ FEAT.)*
   (`docs/adr/0005-cortex-backend-failover-and-video-moderation.md`) §5 (A1/A2), §7.2/§7.3, §8 finding 8,
   Required-change 12. Route to sr-developer (M, security review).
 
+### TASK-046 — SPA landmarks: add a skip link, a per-page `<h1>`, and `aria-current` on active nav
+- **Type:** task · **Status:** done — QA-VERIFIED 2026-07-27 (branch `s2609-sr` HEAD `a3ab48c`, merge-ready; not yet on `main`) · **Priority:** P2 · **Size:** S
+- **Owner-role:** jr-developer (rec.) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-09 (2026-07-27).
+- **Legacy:** — (2026-07-20 WCAG 2.4.1 / 1.3.1 / 4.1.2 review)
+- **Description:** Three systemic navigation/structure gaps from the accessibility pass:
+  (1) **No skip link** — `RootLayout.tsx` renders ~16 sidebar links + header controls
+  before `<main>` (`:170`) with no bypass (WCAG 2.4.1, A). (2) **No `<h1>` on
+  authenticated pages** — the only native `<h1>` is on `auth/LoginPage.tsx:139`; every
+  authed page derives its title from `SectionHeader` (`features/admin/ui.tsx:92`) as
+  `Typography variant="h5"`, so the outline jumps to level 5 (1.3.1/2.4.6). (3) **No
+  `aria-current`** — active route is marked by CSS class only (`RootLayout.tsx:148-155`;
+  zero `aria-current` in the codebase), so the current page isn't exposed to AT (4.1.2).
+- **Acceptance criteria:**
+  - A visible-on-focus "skip to content" link targets `<main>`.
+  - Each page renders exactly one `<h1>` for its title (SectionHeader emits h1 at the
+    top level); heading order no longer skips levels.
+  - The active nav item carries `aria-current="page"`.
+- **Notes:** Shared-component fix, propagates platform-wide. jr-developer.
+- **Resolution (done · 2026-07-27 · commits `941ec8e` + `f98ca5d`, branch `s2609-sr`):**
+  Skip link (first-focusable, visible on focus) targeting `#main-content`
+  (`tabIndex={-1}`); `SectionHeader` emits `<h1>` via a `level` prop (20 tab/detail
+  usages at `level={2}`); sr review extended the h1 fix to all ~23 non-admin routed
+  pages — every routed page now renders exactly one `<h1>`; sidebar nav switched to
+  `NavLink` → `aria-current="page"`. AdminLayout's separate shell excluded per scope —
+  filed as **BUG-047**.
+
+### TASK-047 — Raise Spark E2EE PBKDF2 iterations to ≥600k with a versioned wrap-blob migration
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-20 Web Cryptography review, LOW-2)
+- **Description:** `web/src/lib/crypto.ts:20` sets `PBKDF2_ITERATIONS = 100_000`
+  (SHA-256) to derive the AES-GCM key that wraps the exported private key before it is
+  stored server-side. Spec-conformant, but below current OWASP guidance (≥600,000 for
+  PBKDF2-HMAC-SHA-256) — and it guards an offline-attackable `encryptedPrivateKey` blob.
+  The wrap-blob already carries `v:1` (`:128`), so it is versioned for a clean bump.
+- **Acceptance criteria:**
+  - Iteration count raised to ≥600k (or a memory-hard KDF, e.g. argon2-wasm, evaluated)
+    behind a new wrap-blob version; `v:1` blobs still decrypt (lazy re-wrap on unlock).
+  - No regression to the "fresh content key per message" invariant.
+- **Notes:** Client-only change; coordinate with BUG-045 (server legacy path). Add a
+  code comment asserting the single-use-key invariant behind the random-IV safety.
+
+### TASK-048 — Non-blocking authoring accessibility warnings (missing alt / missing field label) — ATAG B.3 slice 1
+- **Type:** task · **Status:** done — QA-VERIFIED 2026-07-27 (branch `s2609-sr` HEAD `a3ab48c`, merge-ready; not yet on `main`) · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** BUG-040, BUG-041
+- **Sprint:** Sprint 2026-09 **stretch** (2026-07-27) — pull only if the sr track drains early; still blocked-by BUG-040 + BUG-041.
+- **Legacy:** — (2026-07-20 ATAG 2.0 B.3 review)
+- **Description:** A full-tree grep for `accessib|a11y|wcag|alt.?text` over
+  `web/src/features` returns **no** accessibility-checking code of any kind — ATAG B.3
+  (check + repair assistance) is entirely unmet. The cheapest meaningful slice is a
+  non-blocking authoring warning: flag an image inserted with no alt text and a form
+  field saved with no label, at author time. Depends on BUG-040/BUG-041 landing the
+  underlying alt/label affordances first.
+- **Acceptance criteria:**
+  - Composer/annotator show a dismissible, non-blocking warning when an image has no
+    alt text (B.3.1.1).
+  - The lowcode entity/form editor warns when a field has no label before save.
+  - Warnings are advisory (do not hard-block publish) and point at the offending item.
+- **Notes:** First step toward ATAG Part B; broader checker/repair is a later FEAT if
+  warranted. sr-developer.
+- **Resolution (done · 2026-07-27 · commit `a3ab48c`, branch `s2609-sr`):** Dismissible,
+  non-blocking no-alt warnings (naming the offending files, plus per-field warning
+  helpers) in the timeline and spark composers; `EntityEditor` pre-save empty-label
+  helper ahead of the BUG-041 save-time fallback. ImageAnnotator skipped — no alt
+  affordance exists there (documented, no new plumbing per ticket). Never blocks
+  post/send/save.
+
+### TASK-049 — Accessibility measurement pass: computed color-contrast (light+dark) + target-size (2.5.8)
+- **Type:** task · **Status:** done — measured 2026-07-27; findings filed as BUG-048…BUG-053 · **Priority:** P3 · **Size:** M
+- **Owner-role:** qa-specialist (rec., + jr) · **Blocked-by:** —
+- **Sprint:** Committed to Sprint 2026-09 (2026-07-27).
+- **Legacy:** — (2026-07-20 WCAG 1.4.3/1.4.11/2.5.8 — not-assessed items)
+- **Description:** The accessibility review did not measure two computed-value criteria
+  and flagged them for a dedicated pass: (1) **Color contrast** (1.4.3 text / 1.4.11
+  non-text, AA) across both `data-theme` modes — `--exprsn-text-muted` on tinted
+  chip/badge backgrounds, outlined chips, and disabled states are the suspect areas.
+  (2) **Target size** (2.5.8, AA) — MUI `size="small"` IconButtons and the `DataTable`
+  dense toolbar (`ui.tsx:358`) are candidates for sub-24×24 targets.
+- **Acceptance criteria:**
+  - Contrast ratios measured for representative text/non-text tokens in light and dark;
+    failures (< 4.5:1 text / 3:1 non-text) listed with the token and remedy.
+  - Interactive targets audited against the 24×24 minimum; sub-minimum targets listed.
+  - Findings filed as concrete follow-up BUG tickets (this task is the measurement).
+- **Notes:** Measurement/triage task; fixes become their own tickets. qa-specialist +
+  jr-developer.
+- **Resolution (done · 2026-07-27):** Contrast matrix (both themes, alpha-composited)
+  + target-size audit complete — methodology, full pairing tables, and the rerunnable
+  script are archived at `sprints/active/sprint-2026-09-task-049-findings.md`. 10 live
+  contrast failure clusters + 1 outright target-size failure → filed as
+  **BUG-048…BUG-053**. Cleared suspects recorded as passing: MUI Alert text, muted on
+  primary/secondary surfaces, focus ring, disabled states, all 169 small IconButtons
+  (≥30×30), dense DataTable toolbar.
+
+### TASK-050 — `/live` WebRTC: add a TURN server for symmetric-NAT / strict-firewall traversal
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-20 WebRTC review, interop reliability; complements BUG-046)
+- **Description:** `web/src/features/rooms/useWebRtcRoom.ts:21-23` configures only a
+  public STUN server (`stun:stun.l.google.com:19302`) and **no TURN**. Peers behind
+  symmetric NAT or restrictive firewalls will fail to establish a connection with no
+  relay fallback. This is infrastructure (not a W3C-API conformance issue) but is
+  required for real-world room reliability alongside BUG-046.
+- **Acceptance criteria:**
+  - A TURN server (e.g. coturn) is provisioned and its credentials are delivered to the
+    client `RTCConfiguration.iceServers` (short-lived/ephemeral credentials preferred).
+  - Rooms connect for peers where direct/STUN paths fail (verified behind a symmetric
+    NAT or with host-candidate filtering).
+- **Notes:** Infra + a small client-config change; secret handling via the managed
+  secret store (see TASK-003). sr-developer + ops.
+
+### TASK-051 — Resolve the duplicate `TASK-039` ID collision (two different tickets share it)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (convention precedent: BUG-035 "renumbered from BUG-032 … collided on main")
+- **Description:** `BACKLOG.md` currently has **two** tickets numbered `TASK-039`, which
+  breaks the "monotonic per type, never reused" ID rule (`sprints/README.md`): (a)
+  **"Admin interface refactor … (parent)"** — status `done`, merged to `main` at
+  `fe58d2c` — the original; and (b) **"Ollama Docker container (loopback-only) …"** —
+  status `ready`, supports FEAT-072 — the later collider. IDs collide because the two
+  were filed in separate sessions. A grep confirms **no other file (`active/`,
+  `archive/`) and no ticket body cross-references `TASK-039`**, so a renumber is
+  self-contained.
+- **Acceptance criteria:**
+  - The **done/merged** admin-refactor ticket **keeps `TASK-039`** (its acceptance note
+    already cites the merged commit — renaming it would orphan that history reference).
+  - The **Ollama** ticket is renumbered `TASK-039 → TASK-052` (next free id), with a
+    one-line renumber note on it (e.g. "renumbered from TASK-039: collided with the
+    admin-refactor parent") per the BUG-035 precedent.
+  - A repo-wide grep for `TASK-039` returns exactly **one** ticket heading afterward;
+    any references to the Ollama work (e.g. from FEAT-072 / ADR-0005) are updated to
+    `TASK-052`.
+- **Notes:** Pure bookkeeping, no code. Do it in the shared checkout is fine (doc-only,
+  no build). product-manager or jr-developer. Reserve `TASK-052` for the renamed Ollama
+  ticket so this fix doesn't itself create a new collision.
+
+### TASK-053 — External user-supplied image URLs are blocked by the strict SPA CSP (`img-src 'self'`)
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (BUG-038 systems-architect sign-off, required follow-up, 2026-07-27)
+- **Description:** BUG-038's edge CSP (`img-src 'self' blob: data:`) deliberately blocks
+  external image origins — but the SPA still lets users enter external image URLs:
+  profile avatar (`web/src/features/account/ProfileForm.tsx`), group avatar/cover
+  (`CreateGroupDialog.tsx` / `EditGroupDialog.tsx`), and markdown image links in
+  FEAT-075 comments. Existing data holding external avatar URLs now renders broken
+  images. The architect endorses the block itself (image-beacon/privacy win, consistent
+  with the in-house posture) but requires a deliberate path rather than an accidental
+  regression.
+- **Acceptance criteria:**
+  - Either (a) avatar/cover image fields migrate to uploaded, FileVault-hosted images,
+    or (b) a same-origin image proxy is added — decision recorded on this ticket.
+  - Until the fix lands, the affected forms state that external image URLs won't
+    render.
+- **Notes:** Cross-linked from BUG-038's resolution. Related note-level follow-ups from
+  the same sign-off: HSTS `includeSubDomains` revisit at production-TLS time (fold into
+  the R-track TLS ticket), self-hosted STUN/TURN (fold into TASK-050),
+  `frame-ancestors` revisit only if lowcode form embedding ever becomes a FEAT.
+
 ## Spikes
 
 File time-boxed research here (e.g. spinning `TASK-007` load findings into a
@@ -4347,7 +4906,8 @@ scaling investigation) as `SPIKE-002`, `SPIKE-003`, … when a question needs
 bounded exploration before it can be a task.
 
 ### SPIKE-001 — Architect review: should moderator's 6 unauthenticated REST routers be gated? (module surface / isolation)
-- **Type:** spike · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Type:** spike · **Status:** done · **Priority:** P2 · **Size:** S
+- **Closed:** done 2026-07-27 — resolved by `sprints/moderation-routing-plan.md` Item A, which shipped as the completed BUG-010 (6 moderator REST routers auth-gated).
 - **Owner-role:** unassigned · **Blocked-by:** — *(routed to systems-architect for review)*
 - **Legacy:** SP-11 security theme (unauthenticated read/write surface); API_SURFACE.md L30
 - **Description:** On branch `feature/lowcode-gap-closure`, moderator's `moderation` /
@@ -4380,6 +4940,34 @@ bounded exploration before it can be a task.
   new `requireUser` / new `requireService` surfaces, with the four unauthenticated-mutation
   paths flagged **P1**. Follow-up implementation ticket **BUG-010** (this spike's AC deliverable)
   filed and groomed to `ready`.
+
+### SPIKE-004 — Decide: pursue strict W3C DID/CID conformance, or stay AT-Proto-aligned?
+- **Type:** spike · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-20 W3C DID-Core / CID / DID-Resolution review)
+- **Description:** The atproto identity layer is AT-Proto/Bluesky-first and faithfully
+  mirrors Bluesky's DID/labeler conventions — which themselves diverge from current
+  W3C CID v1.0 / DID 1.1 normatives. The review found several deliberate deviations
+  (none a correctness bug — that's BUG-044): (a) `@context` uses the legacy
+  `w3id.org/security/multikey/v1` rather than `www.w3.org/ns/cid/v1`
+  (`didResolver.js:51-54`, `identityService.js:37-40`); (b) `type: 'Multikey'` on a
+  secp256k1 key is outside CID's normative Multikey key registry; (c) the
+  `#atproto_label` key has **no** `assertionMethod` verification relationship, which
+  CID's exclusive-use principle expects for signing; (d) the XRPC
+  `resolveDid` endpoint returns a bare DID document with **no** `didResolutionMetadata`
+  / `didDocumentMetadata` and ad-hoc error strings rather than the normative
+  resolution error codes (`xrpc/resolveDid.js:18-28`); (e) `did:exprsn` is an
+  unregistered custom method with no published method spec. Each is correct for Bluesky
+  interop. The question is whether general W3C interoperability is a product goal that
+  justifies changing (or dual-emitting) these.
+- **Acceptance criteria:**
+  - A written recommendation (architect): pursue W3C conformance, stay AT-Proto-aligned,
+    or dual-path — with the interop cost/benefit and any tickets it would spawn.
+  - If "pursue": follow-up TASK/FEAT tickets filed for the specific deltas (context,
+    `assertionMethod`, resolution-metadata wrapper, `did:exprsn` method-spec doc).
+  - If "stay aligned": document the deliberate deviations so they aren't re-flagged.
+- **Notes:** Decision/research only; BUG-044 (placeholder key) is the one item to fix
+  regardless of this outcome. systems-architect.
 
 ---
 
@@ -4454,6 +5042,9 @@ until their trigger fires.
   `shared/public/`, empty CA routers (`routes/{ca,certificates,tokens,users,
   groups,roles}.js`), and the 3 dead `rejectUnauthorized:false` in
   `services/ca/services/setup.js` (removed setup wizard).
+- **Fold-in (2026-07-27):** also delete the 7 stale `TODO(platform)` socket-wiring
+  markers — verified under STATUS `#3` — as part of this cosmetic batch (no new ticket
+  opened per the Sprint 2026-09 plan's housekeeping tail).
 - **Revisit trigger:** batch during a low-risk cleanup window.
 
 ### TASK-012 — Defensive migration↔schema `searchPath`

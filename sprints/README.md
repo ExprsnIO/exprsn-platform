@@ -30,7 +30,7 @@ Also read, before structural work: `ARCHITECTURE.md` (design), `API_SURFACE.md`
 sprints/
   README.md            this governance doc (convention + lifecycle + roles)
   BACKLOG.md           intake queue: every unscheduled feature/bug/task/spike
-  active/              one file per in-flight sprint, e.g. active/sprint-2026-07.md
+  active/              one file per in-flight sprint, e.g. active/sprint-2026-09.md
   archive/             closed sprints move here at close-out
   templates/
     ticket.md          copy-paste ticket template

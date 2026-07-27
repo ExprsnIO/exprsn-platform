@@ -3846,8 +3846,21 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Direct port of the landed BUG-039 / TASK-046 patterns. jr-developer.
 
 ### BUG-048 — Dark-mode primary too light for white text: contained buttons and filled primary chips fail WCAG 1.4.3
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Resolution notes (2026-07-27, branch s2610):** No blue can simultaneously pass
+  4.5:1 under white text AND as text on the dark surfaces, so dark mode now uses
+  near-black text on primary fills plus a nudged primary token: dark
+  `--exprsn-primary`/`tokens.dark.primary` #3b82f6 → **#4a8cf7**, new mode-aware
+  `primaryContrast`/`--exprsn-text-on-primary` (light #ffffff, dark #0a0a0a) consumed
+  by MUI `palette.primary.contrastText` and the CSS white-on-primary spots
+  (.skip-link, .nav-badge, .btn-outline-primary:hover, .filter-tag-close:hover,
+  .page-link.active). Dark `palette.primary.dark` (contained hover bg) now lightens
+  (→ primaryHover #60a5fa) since near-black on #0047b3 would be ~2.4:1.
+  Ratios (dark): contained label 3.68 → 6.02; hover-state label 7.79; primary text on
+  surface-raised 4.48 → 5.01; on bg-primary/secondary/tertiary 6.02/5.45/4.60; focus
+  ring ≥5.01 (non-text 3:1). Light unchanged: white-on-primary 4.83, primary-on-white
+  4.83. Verified by rerunning the TASK-049 WCAG script with the new values.
 - **Legacy:** 2026-07-20 accessibility review; TASK-049 measurement (sprint 2026-09, branch s2609-sr)
 - **Description:** In dark mode `palette.primary.main` is `#3b82f6` with `contrastText: WHITE` (`web/src/app/theme.ts:18`, token `web/src/app/tokens.ts:65`). White-on-#3b82f6 measures **3.68:1** (needs 4.5:1; button labels are 14–15px/600 — not "large text"). Affects all 188 `variant="contained"` primary buttons, filled primary Chips, and any white-on-primary surface in dark mode. Related marginal fail: primary-colored text/links on `surface-raised` (#3b82f6 on #1f1f1f) = **4.48:1**.
 - **Acceptance criteria:**

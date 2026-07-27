@@ -15,7 +15,15 @@ export function buildTheme(mode: ThemeMode): Theme {
     palette: {
       mode,
       common: { white: WHITE, black: BLACK },
-      primary: { main: t.primary, light: t.primaryLight, dark: t.primaryDark, contrastText: WHITE },
+      // BUG-048: contrastText is mode-aware (white in light, near-black in dark)
+      // and dark-mode `dark` (the contained-button hover bg) lightens instead of
+      // darkening — near-black on #0047b3 would be ~2.4:1.
+      primary: {
+        main: t.primary,
+        light: t.primaryLight,
+        dark: mode === 'dark' ? t.primaryHover : t.primaryDark,
+        contrastText: t.primaryContrast,
+      },
       secondary: { main: t.secondary, dark: t.secondaryHover, contrastText: WHITE },
       success: { main: t.success, contrastText: WHITE },
       error: { main: t.danger, contrastText: WHITE },

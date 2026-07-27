@@ -13,6 +13,9 @@
 :root {
   /* Primary */
   --exprsn-primary: #0066ff;
+  /* Text on solid primary fills (BUG-048): white passes in light (4.83:1);
+     dark mode overrides both this and --exprsn-primary below. */
+  --exprsn-text-on-primary: #ffffff;
   --exprsn-primary-hover: #0052cc;
   --exprsn-primary-light: #4d94ff;
   --exprsn-primary-dark: #0047b3;
@@ -89,7 +92,13 @@
 }
 
 [data-theme="dark"] {
-  --exprsn-primary: #3b82f6;
+  /* BUG-048: was #3b82f6 (white-on-primary 3.68:1; primary text on
+     surface-raised 4.48:1). #4a8cf7 keeps primary TEXT >=4.5:1 on every dark
+     surface, and solid primary fills take near-black text instead — no blue
+     can pass 4.5:1 with white text AND as text on the dark surfaces at once.
+     Keep in sync with src/app/tokens.ts (dark.primary / primaryContrast). */
+  --exprsn-primary: #4a8cf7;
+  --exprsn-text-on-primary: #0a0a0a;
   --exprsn-primary-hover: #60a5fa;
   --exprsn-bg-primary: #0a0a0a; --exprsn-bg-secondary: #171717; --exprsn-bg-tertiary: #262626;
   --exprsn-bg-hover: #1c1f23; --exprsn-bg-active: #2f3336; --exprsn-surface-raised: #1f1f1f;
@@ -126,7 +135,7 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
   z-index: 2000;
   padding: 0.75rem 1.25rem;
   background: var(--exprsn-primary);
-  color: var(--exprsn-white);
+  color: var(--exprsn-text-on-primary);
   font-weight: 600;
   font-size: 0.875rem;
   border-radius: var(--exprsn-radius-md);
@@ -414,7 +423,7 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
     font-size: 0.6875rem;
     font-weight: 600;
     background: var(--exprsn-primary);
-    color: white;
+    color: var(--exprsn-text-on-primary);
     border-radius: var(--exprsn-radius-full);
 }
 
@@ -560,7 +569,7 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
 
 .btn-outline-primary:hover {
     background: var(--exprsn-primary);
-    color: var(--exprsn-text-inverse);
+    color: var(--exprsn-text-on-primary);
 }
 
 .btn-success {
@@ -948,7 +957,7 @@ code, kbd, samp { font-family: var(--exprsn-font-family-mono); }
 
 .filter-tag-close:hover {
     background: var(--exprsn-primary);
-    color: white;
+    color: var(--exprsn-text-on-primary);
 }
 
 /* ============================================================================
@@ -1621,7 +1630,7 @@ input[type="time"] {
 
 .page-link.active {
     background: var(--exprsn-primary);
-    color: var(--exprsn-text-inverse);
+    color: var(--exprsn-text-on-primary);
     border-color: var(--exprsn-primary);
 }
 

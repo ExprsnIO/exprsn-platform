@@ -10,6 +10,8 @@ export type ThemeMode = 'light' | 'dark';
 
 interface ExprsnPalette {
   primary: string;
+  /** Text color on solid primary fills (mirrors --exprsn-text-on-primary). */
+  primaryContrast: string;
   primaryHover: string;
   primaryLight: string;
   primaryDark: string;
@@ -49,6 +51,7 @@ export const exprsnTokens: Record<ThemeMode, ExprsnPalette> = {
   light: {
     ...constants,
     primary: '#0066ff',
+    primaryContrast: WHITE, // white on #0066ff = 4.83:1
     primaryHover: '#0052cc',
     bgPrimary: '#ffffff',
     bgSecondary: '#fafafa',
@@ -62,7 +65,13 @@ export const exprsnTokens: Record<ThemeMode, ExprsnPalette> = {
   },
   dark: {
     ...constants,
-    primary: '#3b82f6',
+    // BUG-048: was #3b82f6 — white-on-primary measured 3.68:1 and primary text
+    // on surface-raised 4.48:1. #4a8cf7 keeps primary text ≥4.5:1 on every dark
+    // surface (5.01 on raised), and dark primary fills now take near-black text
+    // (primaryContrast, 6.02:1) since no blue can pass 4.5 with white text AND
+    // as text on the dark surfaces simultaneously.
+    primary: '#4a8cf7',
+    primaryContrast: BLACK,
     primaryHover: '#60a5fa',
     bgPrimary: '#0a0a0a',
     bgSecondary: '#171717',

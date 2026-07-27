@@ -60,6 +60,28 @@ src/
   (`/spark /timeline /live /vault /moderation /notifications /ca`). Added in
   Phase 3 (`lib/realtime.ts`).
 
+## Accessibility conventions
+
+- **Icon-only buttons MUST have an accessible name.** A MUI `Tooltip` only
+  provides `aria-describedby` — it is *not* the name, so a bare `IconButton`
+  with just an icon is announced as "button". The standard (see
+  `app/ThemeToggle.tsx` for the canonical example) is to set BOTH
+  `aria-label` (accessible name) and a `Tooltip` (hover affordance).
+  Prefer the shared wrapper `components/LabeledIconButton.tsx`, which requires
+  a `label` prop and wires both for you:
+
+  ```tsx
+  <LabeledIconButton label="Delete row" size="small" onClick={...}>
+    <DeleteIcon fontSize="small" />
+  </LabeledIconButton>
+  ```
+
+  When the visual tooltip should say more than the name, pass `tooltip`
+  separately; pass `tooltip={null}` to skip the tooltip but keep the name.
+- **Images carry alt text.** Timeline media renders
+  `alt={item.altText ?? item.title ?? ''}` (author-provided alt text first —
+  BUG-040); decorative images use `alt=""` explicitly, never a missing `alt`.
+
 ## Roadmap
 
 Phase 1 (done): scaffold + Health page through the proxy. Phase 2: auth

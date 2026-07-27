@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Chip, CircularProgress, Dialog, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Chip, CircularProgress, Dialog, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import BrokenImageOutlinedIcon from '@mui/icons-material/BrokenImageOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -290,27 +290,36 @@ function Lightbox({
   return (
     <Dialog open onClose={onClose} maxWidth="lg" fullWidth>
       <Box sx={{ position: 'relative', bgcolor: 'black' }}>
-        <IconButton
-          size="small"
-          onClick={onClose}
-          sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1, color: 'common.white' }}
-        >
-          <CloseIcon fontSize="small" />
-        </IconButton>
+        <Tooltip title="Close">
+          <IconButton
+            size="small"
+            onClick={onClose}
+            aria-label="Close media viewer"
+            sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1, color: 'common.white' }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
         {multi && (
           <>
-            <IconButton
-              onClick={prev}
-              sx={{ position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)', zIndex: 1, color: 'common.white' }}
-            >
-              <ChevronLeftIcon />
-            </IconButton>
-            <IconButton
-              onClick={next}
-              sx={{ position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)', zIndex: 1, color: 'common.white' }}
-            >
-              <ChevronRightIcon />
-            </IconButton>
+            <Tooltip title="Previous">
+              <IconButton
+                onClick={prev}
+                aria-label="Previous media"
+                sx={{ position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)', zIndex: 1, color: 'common.white' }}
+              >
+                <ChevronLeftIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Next">
+              <IconButton
+                onClick={next}
+                aria-label="Next media"
+                sx={{ position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)', zIndex: 1, color: 'common.white' }}
+              >
+                <ChevronRightIcon />
+              </IconButton>
+            </Tooltip>
           </>
         )}
         <Box sx={{ minHeight: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>

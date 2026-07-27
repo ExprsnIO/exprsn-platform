@@ -382,6 +382,7 @@ export function DataTable<R>({
                 size="small"
                 color={filtersOpen || activeFilters.length ? 'primary' : 'default'}
                 onClick={() => setFiltersOpen((o) => !o)}
+                aria-label={filtersOpen ? 'Hide filters' : 'Filter columns'}
               >
                 <FilterListIcon fontSize="small" />
               </IconButton>
@@ -390,7 +391,11 @@ export function DataTable<R>({
           {(
             <>
               <Tooltip title="Add / remove columns">
-                <IconButton size="small" onClick={(e) => setPickerAnchor(e.currentTarget)}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => setPickerAnchor(e.currentTarget)}
+                  aria-label="Add or remove columns"
+                >
                   <ViewColumnIcon fontSize="small" />
                 </IconButton>
               </Tooltip>

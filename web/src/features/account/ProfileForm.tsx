@@ -4,6 +4,7 @@ import { Alert, Button, Paper, Stack, TextField, Typography } from '@mui/materia
 import { accountApi, type AccountUser, type ProfileUpdate } from '@/api/account';
 import { useAppStore } from '@/app/store';
 import { toMessage } from '@/lib/errors';
+import { ImageUploadField } from '@/components/ImageUploadField';
 
 /**
  * Edit the editable profile fields (PUT /auth/api/users/:id — CA-bearer guarded).
@@ -67,12 +68,16 @@ export function ProfileForm({ user }: { user: AccountUser }) {
             <TextField label="Last name" value={form.lastName} onChange={set('lastName')} fullWidth />
           </Stack>
           <TextField label="Bio" value={form.bio} onChange={set('bio')} multiline minRows={2} fullWidth />
-          <TextField
-            label="Avatar URL"
-            value={form.avatarUrl}
-            onChange={set('avatarUrl')}
-            placeholder="https://…"
-            fullWidth
+          {/* TASK-053: uploaded, FileVault-hosted avatar instead of a free-text
+              external URL (the CSP only renders same-origin images). */}
+          <ImageUploadField
+            label="Avatar"
+            variant="avatar"
+            value={form.avatarUrl ?? ''}
+            onChange={(url) => {
+              setForm((f) => ({ ...f, avatarUrl: url }));
+              setDone(false);
+            }}
           />
 
           <Button type="submit" variant="contained" disabled={mutation.isPending} sx={{ alignSelf: 'flex-start' }}>

@@ -4926,8 +4926,29 @@ FEAT.)*
   ticket so this fix doesn't itself create a new collision.
 
 ### TASK-053 — External user-supplied image URLs are blocked by the strict SPA CSP (`img-src 'self'`)
-- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** M
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** task · **Status:** in-review · **Priority:** P2 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **DECISION (Rick, 2026-07-27):** option **(a)** — FileVault-hosted uploads; no image
+  proxy.
+- **Resolution notes (2026-07-27, branch s2610):** New
+  `web/src/components/ImageUploadField.tsx`: uploads via `filevaultApi.upload`, mints a
+  non-expiring read-only file-scoped CA access token
+  (`POST /filevault/api/share/files/:id/access-token`), and stores the resulting
+  SAME-ORIGIN absolute URL (`/filevault/api/share/file/:id/download?token=…`) in the
+  existing URL field — passes nexus's `Joi.string().uri()` and the CSP's
+  `img-src 'self'`; auth's `avatarUrl` has no format validator. Wired into
+  ProfileForm (avatar) and Create/EditGroupDialog (group avatar + cover via new
+  `avatarUrl`/`bannerUrl` inputs on Create/UpdateGroupInput; nexus create+update Joi
+  schemas already accept both). Existing EXTERNAL values render the required
+  "external image URLs won't render" notice; the plain-URL escape hatch validates
+  same-origin only; Remove clears (null on group update). Preview shown for
+  same-origin values (round avatar / cover strip). NOTE: `Content-Disposition:
+  attachment` on the download route does not affect `<img>` rendering.
+  OUT OF SCOPE (this slice): markdown image links in FEAT-075 comments — still
+  CSP-blocked for external origins; file separately if a deliberate path is wanted.
+  QA path: Account → Profile → upload avatar → save → avatar renders in AppBar/People;
+  Groups → New/Edit group → upload avatar/cover → GroupDetailPage avatar renders;
+  paste an external URL via the escape hatch → blocked with explanation.
 - **Legacy:** — (BUG-038 systems-architect sign-off, required follow-up, 2026-07-27)
 - **Description:** BUG-038's edge CSP (`img-src 'self' blob: data:`) deliberately blocks
   external image origins — but the SPA still lets users enter external image URLs:

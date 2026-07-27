@@ -79,7 +79,7 @@ export function PeoplePage() {
 
   return (
     <Stack spacing={2} sx={{ maxWidth: 760, mx: 'auto', pb: 6 }}>
-      <Typography variant="h5">People</Typography>
+      <Typography variant="h5" component="h1">People</Typography>
 
       <TextField
         placeholder="Search by name…"

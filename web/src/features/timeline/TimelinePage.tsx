@@ -189,7 +189,7 @@ export function TimelinePage() {
   return (
     <Stack spacing={feedSpacing} sx={{ maxWidth: 640, mx: 'auto', pb: 6 }}>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Typography variant="h5">Timeline</Typography>
+        <Typography variant="h5" component="h1">Timeline</Typography>
         <Chip size="small" color={CHIP_COLOR[conn]} label={conn === 'connected' ? 'live' : conn} />
         <Box sx={{ flex: 1 }} />
         <ToggleButtonGroup

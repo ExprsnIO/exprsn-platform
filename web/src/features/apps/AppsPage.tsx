@@ -65,7 +65,7 @@ export function AppsPage() {
     <Stack spacing={3}>
       <Stack direction="row" alignItems="center" spacing={1}>
         <Box>
-          <Typography variant="h5" gutterBottom>Apps</Typography>
+          <Typography variant="h5" component="h1" gutterBottom>Apps</Typography>
           <Typography variant="body2" color="text.secondary">Build and run low-code apps you administer.</Typography>
         </Box>
         <Box sx={{ flex: 1 }} />

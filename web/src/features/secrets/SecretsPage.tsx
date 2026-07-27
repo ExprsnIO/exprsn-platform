@@ -115,7 +115,7 @@ export function SecretsPage() {
   return (
     <Stack spacing={2} sx={{ maxWidth: 920, mx: 'auto', pb: 6 }}>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Typography variant="h5">Secrets</Typography>
+        <Typography variant="h5" component="h1">Secrets</Typography>
         <Box sx={{ flex: 1 }} />
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
           New secret

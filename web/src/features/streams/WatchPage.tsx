@@ -73,7 +73,7 @@ export function WatchPage() {
         <IconButton size="small" aria-label="Back to streams" onClick={() => navigate('/streams')}>
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h6" sx={{ flexShrink: 1, minWidth: 0 }} noWrap>
+        <Typography variant="h6" component="h1" sx={{ flexShrink: 1, minWidth: 0 }} noWrap>
           {s.title}
         </Typography>
         {liveBadge(s)}

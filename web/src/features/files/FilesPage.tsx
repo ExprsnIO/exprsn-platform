@@ -339,7 +339,7 @@ export function FilesPage() {
     <Stack spacing={2} sx={{ maxWidth: 1000, mx: 'auto', pb: 6 }}>
       {/* Header */}
       <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-        <Typography variant="h5">Files</Typography>
+        <Typography variant="h5" component="h1">Files</Typography>
         <ToggleButtonGroup
           size="small"
           exclusive

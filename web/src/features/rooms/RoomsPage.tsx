@@ -72,7 +72,7 @@ function Lobby({ onEnter }: { onEnter: (r: ActiveRoom) => void }) {
   return (
     <Stack spacing={3} sx={{ maxWidth: 560 }}>
       <Box>
-        <Typography variant="h5" gutterBottom>
+        <Typography variant="h5" component="h1" gutterBottom>
           Video rooms
         </Typography>
         <Typography variant="body2" color="text.secondary">

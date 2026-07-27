@@ -124,7 +124,7 @@ export function PostDetailPage() {
         <IconButton size="small" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h5">Post</Typography>
+        <Typography variant="h5" component="h1">Post</Typography>
       </Stack>
 
       {postQ.isLoading && <PostSkeleton />}

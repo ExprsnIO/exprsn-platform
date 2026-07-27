@@ -271,7 +271,7 @@ export function StreamsPage() {
       ) : (
         <>
           <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="h5">Live</Typography>
+            <Typography variant="h5" component="h1">Live</Typography>
             <Box sx={{ flex: 1 }} />
             {tab === 'mine' && (
               <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>New stream</Button>

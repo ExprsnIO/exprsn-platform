@@ -165,7 +165,7 @@ export function ProfilePage() {
             {personInitials(user.displayName, user.id)}
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
               {user.displayName || 'Unnamed user'}
             </Typography>
             {joined && (

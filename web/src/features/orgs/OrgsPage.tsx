@@ -181,7 +181,7 @@ export function OrgsPage() {
     <Stack spacing={3}>
       <Stack direction="row" alignItems="center">
         <Box>
-          <Typography variant="h5" gutterBottom>Organizations</Typography>
+          <Typography variant="h5" component="h1" gutterBottom>Organizations</Typography>
           <Typography variant="body2" color="text.secondary">Manage your organizations, members, and org-scoped apps.</Typography>
         </Box>
         <Box sx={{ flex: 1 }} />

@@ -30,7 +30,7 @@ export function AccountPage() {
 
   return (
     <Stack spacing={3}>
-      <Typography variant="h5">Account settings</Typography>
+      <Typography variant="h5" component="h1">Account settings</Typography>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)}>

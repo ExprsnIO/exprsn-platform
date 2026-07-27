@@ -41,7 +41,7 @@ export function HealthPage() {
   return (
     <Stack spacing={2}>
       <Stack direction="row" spacing={2} alignItems="center">
-        <Typography variant="h5">Platform health</Typography>
+        <Typography variant="h5" component="h1">Platform health</Typography>
         <Chip
           color={data?.status === 'ok' ? 'success' : 'warning'}
           label={`${data?.service} · ${data?.status} · ${data?.env}`}

@@ -285,7 +285,16 @@ export function SignupWizardPage() {
                       }}
                     >
                       <CardContent sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                        <Radio checked={orgType === t.key} value={t.key} sx={{ p: 0, mt: 0.25 }} />
+                        {/* Card itself is the interactive role="button" — keep the
+                            radio purely visual so we don't nest a second focusable
+                            control inside it. */}
+                        <Radio
+                          checked={orgType === t.key}
+                          value={t.key}
+                          tabIndex={-1}
+                          inputProps={{ 'aria-hidden': true, tabIndex: -1 }}
+                          sx={{ p: 0, mt: 0.25 }}
+                        />
                         <Box>
                           <Typography variant="body1">{t.label}</Typography>
                           <Typography variant="body2" color="text.secondary">{t.description}</Typography>

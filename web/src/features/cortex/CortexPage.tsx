@@ -25,7 +25,7 @@ export function CortexPage() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">AI (Cortex)</Typography>
+      <Typography variant="h5" component="h1">AI (Cortex)</Typography>
 
       {health.isLoading ? (
         <Loading />

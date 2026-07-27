@@ -136,7 +136,11 @@ function Thumb({
       component="button"
       type="button"
       onClick={onOpen}
-      aria-label={item.altText ? `Open ${item.altText}` : `Open image ${index + 1} of ${count}`}
+      aria-label={
+        item.altText
+          ? `Open ${item.altText}`
+          : `Open ${playable ? 'video' : 'image'} ${index + 1} of ${count}`
+      }
       sx={{
         position: 'relative',
         width: '100%',

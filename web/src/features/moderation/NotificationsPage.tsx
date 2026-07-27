@@ -75,7 +75,7 @@ export function NotificationsPage() {
   return (
     <Stack spacing={2} sx={{ maxWidth: 720, mx: 'auto', pb: 6 }}>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Typography variant="h5">Notifications</Typography>
+        <Typography variant="h5" component="h1">Notifications</Typography>
         <Chip size="small" color={CHIP_COLOR[conn]} label={conn === 'connected' ? 'live' : conn} />
         {unread > 0 && <Chip size="small" color="error" label={`${unread} unread`} />}
         <Box sx={{ flex: 1 }} />

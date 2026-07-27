@@ -36,7 +36,7 @@ export function MessagesPage() {
   return (
     <Stack spacing={2} sx={{ height: 'calc(100vh - 140px)' }}>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Typography variant="h5">Messages</Typography>
+        <Typography variant="h5" component="h1">Messages</Typography>
         <Chip size="small" color={CHIP_COLOR[conn]} label={conn === 'connected' ? 'live' : conn} />
         <Box sx={{ flex: 1 }} />
         <Button variant="contained" size="small" startIcon={<RateReviewOutlinedIcon />} onClick={() => setComposeOpen(true)}>

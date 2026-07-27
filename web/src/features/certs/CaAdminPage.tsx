@@ -241,7 +241,7 @@ export function CaAdminPage() {
 
   return (
     <Stack spacing={2} sx={{ maxWidth: 960, mx: 'auto', pb: 6 }}>
-      <Typography variant="h5">Certificate Authority</Typography>
+      <Typography variant="h5" component="h1">Certificate Authority</Typography>
       <Tabs value={tab} onChange={(_e, v) => setTab(v)}>
         <Tab value="certs" label="Certificates" />
         <Tab value="tokens" label="Tokens" />

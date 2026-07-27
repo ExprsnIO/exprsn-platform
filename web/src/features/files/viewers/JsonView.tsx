@@ -56,7 +56,6 @@ function Node({ name, value, depth }: { name?: string; value: Json; depth: numbe
         component="button"
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label={open ? 'Collapse' : 'Expand'}
         aria-expanded={open}
         sx={{
           display: 'flex',

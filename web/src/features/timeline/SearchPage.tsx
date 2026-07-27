@@ -127,7 +127,7 @@ export function SearchPage() {
 
   return (
     <Stack spacing={2} sx={{ maxWidth: 640, mx: 'auto', pb: 6 }}>
-      <Typography variant="h5">Search</Typography>
+      <Typography variant="h5" component="h1">Search</Typography>
 
       <TextField
         fullWidth

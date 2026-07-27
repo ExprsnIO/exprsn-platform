@@ -138,7 +138,7 @@ export function GroupsPage() {
   return (
     <Stack spacing={2} sx={{ maxWidth: 760, mx: 'auto', pb: 6 }}>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Typography variant="h5">Groups</Typography>
+        <Typography variant="h5" component="h1">Groups</Typography>
         <Box sx={{ flex: 1 }} />
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
           New group

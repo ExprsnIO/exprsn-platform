@@ -113,7 +113,7 @@ export function CortexTaskPage() {
         <>
           <Stack spacing={0.75}>
             <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Typography variant="h5" sx={{ wordBreak: 'break-word' }}>
+              <Typography variant="h5" component="h1" sx={{ wordBreak: 'break-word' }}>
                 {task.goal}
               </Typography>
               <TaskStatusChip status={task.status} />

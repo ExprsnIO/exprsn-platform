@@ -9,6 +9,7 @@ const express = require('express');
 const { asyncHandler, AppError, validateCAToken, validateRequired } = require('@exprsn/shared');
 const { Conversation, Participant, Message } = require('../models');
 const { Op } = require('sequelize');
+const contactPolicy = require('../services/contactPolicy');
 
 const router = express.Router();
 
@@ -23,6 +24,14 @@ router.post('/', validateCAToken({ requiredPermissions: ['write'] }), asyncHandl
   const { type, name, participantIds } = req.body;
 
   validateRequired({ type, participantIds }, ['type', 'participantIds']);
+
+  // FEAT-070 S1: starting a direct (1:1) conversation is contact initiation —
+  // reject when blocked either way. Placed BEFORE the reuse-existing branch so
+  // a frozen pair 403s on both the create and the reuse path. Group-type
+  // creation is exempt (ADR §3 — membership is the group admin's domain).
+  if (type === 'direct') {
+    await contactPolicy.assertCanContactUsers(req.userId, participantIds || []);
+  }
 
   // Direct conversations are 1:1 and unique per pair — reuse an existing one
   // rather than creating duplicates (e.g. repeated "Message" clicks from a
@@ -112,12 +121,24 @@ router.get('/', asyncHandler(async (req, res) => {
     order: [[{ model: Conversation, as: 'conversation' }, 'lastMessageAt', 'DESC']]
   });
 
-  const conversations = participants.map(p => ({
-    ...p.conversation.toJSON(),
-    userRole: p.role,
-    lastReadMessageId: p.lastReadMessageId,
-    lastReadAt: p.lastReadAt
-  }));
+  // FEAT-070 S4: hide frozen direct conversations — any 1:1 whose counterpart
+  // is in the viewer's suppression set (blocked either way ∪ unexpired mutes).
+  // Two set queries total; rows are frozen, not deleted, so the conversation
+  // reappears on unblock. NOTE: post-page filtering — a page may return fewer
+  // than `limit` entries when suppressed conversations are dropped.
+  const hidden = await contactPolicy.getHiddenConversationIds(
+    req.userId,
+    participants.map(p => p.conversation)
+  );
+
+  const conversations = participants
+    .filter(p => !hidden.has(p.conversation.id))
+    .map(p => ({
+      ...p.conversation.toJSON(),
+      userRole: p.role,
+      lastReadMessageId: p.lastReadMessageId,
+      lastReadAt: p.lastReadAt
+    }));
 
   res.json({ conversations });
 }));
@@ -261,6 +282,10 @@ router.post('/:id/participants', validateCAToken({ requiredPermissions: ['write'
   if (existing) {
     throw new AppError('Already a participant', 409, 'ALREADY_PARTICIPANT');
   }
+
+  // FEAT-070 S3: adding a user the adder is in a blocked pair with is contact
+  // initiation by the adder — reject (403, generic message).
+  await contactPolicy.assertCanContactUsers(req.userId, [userId]);
 
   await Participant.create({
     conversationId: id,

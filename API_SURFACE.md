@@ -359,11 +359,11 @@ adding `/forward`, `/pin`, `/settings`, etc.
 | DELETE | /spark/api/encryption/keys/:keyId | `keyId` | — | — | requireAuth; owner | deletes device keys |
 | POST | /spark/api/encryption/messages/:messageId/keys | `messageId`, `recipientKeys`(array `{userId,encryptedKey}`) | — | array ≥1 | requireAuth; sender | — |
 | GET | /spark/api/encryption/messages/:messageId/keys | `messageId` | — | — | requireAuth; participant | 404 if none |
-| POST | /spark/api/messages/:id/forward | `id`, `conversationIds`(array) | `content` | array non-empty | requireAuth; participant src+targets | emits message:new |
-| POST | /spark/api/messages/:id/pin, /unpin | `id` | — | — | requireAuth; owner/admin | emits message:pinned/unpinned |
+| POST | /spark/api/:id/forward | `id`, `conversationIds`(array) | `content` | array non-empty | requireAuth; participant src+targets | emits message:new; mounted via the `enhanced` router at `/api` (TASK-059) — not under `/messages` |
+| POST | /spark/api/:id/pin, /unpin | `id` | — | — | requireAuth; owner/admin | emits message:pinned/unpinned; `enhanced` router mount (TASK-059) |
 | GET | /spark/api/conversations/:id/pinned | `id` | — | — | requireAuth; participant | order pinnedAt DESC |
-| GET | /spark/api/messages/:id/thread | `id` | `limit`, `offset` | — | requireAuth; participant | `limit=50`, `offset=0` |
-| POST | /spark/api/messages/:id/reply | `id`, `content` | `contentType` | — | requireAuth; participant | `contentType='text'` |
+| GET | /spark/api/:id/thread | `id` | `limit`, `offset` | — | requireAuth; participant | `limit=50`, `offset=0`; `enhanced` router mount (TASK-059) |
+| POST | /spark/api/:id/reply | `id`, `content` | `contentType` | — | requireAuth; participant | `contentType='text'`; `enhanced` router mount (TASK-059) |
 | PUT | /spark/api/conversations/:id/settings | `id` | `muted`, `muteUntil`, `notificationsEnabled` | — | requireAuth; participant | — |
 | GET | /spark/api/conversations/:id/settings | `id` | — | — | requireAuth; participant | notificationsEnabled default true |
 | POST | /spark/api/conversations/:id/mute | `id` | `until` | — | requireAuth; participant | muteUntil=until\|null |

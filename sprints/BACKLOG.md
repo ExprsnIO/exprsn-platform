@@ -3010,8 +3010,8 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   growth/retention (TASK-064's sweeper should cover it).
 
 ### FEAT-080 — Cortex: DB-backed agent definitions with run history + NL agent builder
-- **Type:** feature · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 · **Size:** L
-- **Owner-role:** sr-developer (PM routing rec. — claiming dev confirms at BUILD) · **Blocked-by:** —
+- **Type:** feature · **Status:** in-progress (Sprint 2026-13; claimed at BUILD 2026-07-28, branch `s2613-sr`) · **Priority:** P2 · **Size:** L
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-entities` (M) + `agent-runs` (S) + `agent-builder-nl` (S)
 - **Cost/Benefit:** done — **APPROVE.** Keystone gating FEAT-081/082/091 + half of FEAT-095; new-tables-only. Condition: pin the enable gate as **deterministic spec validation + advisory smoke run** (LLM-judged tests on local models are flaky by construction); NL builder is a droppable tail. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
 - **Description:** Replace the 3 hard-coded personas with user-defined agents:
@@ -3279,8 +3279,8 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   `services/ca/services/token.js` before build.
 
 ### TASK-062 — Cortex: inbound service-token HMAC auth
-- **Type:** task · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 · **Size:** S
-- **Owner-role:** sr-developer (PM routing rec. — auth-surface; claiming dev confirms at BUILD) · **Blocked-by:** —
+- **Type:** task · **Status:** in-progress (Sprint 2026-13; claimed at BUILD 2026-07-28, branch `s2613-sr`) · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `inbound-service-hmac` (S)
 - **Description:** Accept `X-Service-ID`/`X-Service-Token` HMAC so other modules
   can call cortex over HTTP. Gap today: cortex uses service tokens outbound only

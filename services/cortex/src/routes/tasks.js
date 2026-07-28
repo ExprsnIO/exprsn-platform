@@ -5,11 +5,11 @@ const { asyncHandler } = require('@exprsn/shared');
 const { AgentTask } = require('../models');
 const { newId } = require('../lib/ids');
 const { queueTask } = require('../engine/jobs');
-const { caRead, caWrite, isAdminReq } = require('../middleware/auth');
+const { caReadOrService, caWriteOrService, isAdminReq } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.post('/', caWrite, asyncHandler(async (req, res) => {
+router.post('/', caWriteOrService, asyncHandler(async (req, res) => {
   const goal = String(req.body.goal ?? '').trim();
   if (!goal) return res.status(400).json({ error: 'goal required' });
   const task = await AgentTask.create({
@@ -25,7 +25,7 @@ router.post('/', caWrite, asyncHandler(async (req, res) => {
   res.status(202).json({ id: task.id, status: task.status });
 }));
 
-router.get('/', caRead, asyncHandler(async (req, res) => {
+router.get('/', caReadOrService, asyncHandler(async (req, res) => {
   const where = isAdminReq(req) ? {} : { userId: req.userId || null };
   const rows = await AgentTask.findAll({
     where, order: [['createdAt', 'DESC']], limit: 200,
@@ -34,9 +34,9 @@ router.get('/', caRead, asyncHandler(async (req, res) => {
   res.json({ tasks: rows });
 }));
 
-router.get('/:id', caRead, asyncHandler(async (req, res) => {
+router.get('/:id', caReadOrService, asyncHandler(async (req, res) => {
   const task = await AgentTask.findByPk(req.params.id);
-  if (!task || (!isAdminReq(req) && task.userId !== req.userId)) {
+  if (!task || (!isAdminReq(req) && (task.userId ?? null) !== (req.userId ?? null))) {
     return res.status(404).json({ error: 'not found' });
   }
   res.json(task);

@@ -1033,14 +1033,24 @@ marked *admin* additionally require a platform admin
 callers see only their own tasks/sessions/outbox rows (scoped by the token's
 `userId`). Registry enable stays test-gated in the engine regardless of caller.
 
+**Service HMAC (TASK-062):** rows whose Auth column says *or service HMAC*
+additionally accept `X-Service-ID`/`X-Service-Token` (per-service HMAC from
+`SERVICE_TOKEN_SECRET`, verified by the shared `authenticateService()`) **in
+lieu of** a CA bearer, so other modules can call cortex over HTTP. If either
+service header is present the request is authenticated as a service call —
+invalid/partial headers ⇒ 401 with no CA fallback. Service callers carry no
+user identity (owner-scoped queries resolve to `userId NULL` rows, i.e.
+service-created ones) and are never platform admins; admin-gated routes stay
+CA-bearer-only.
+
 ### REST endpoints
 
 | Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
 | GET | /cortex/health | — | — | — | none | reports enabled flag, router/cache/queue state |
 | GET | /cortex/api/v1/models | — | — | — | CA read | 502 if llama router unreachable |
-| POST | /cortex/api/v1/tasks | `goal` | model, tools, skills | — | CA write | 202 `{id,status:queued}`; runs via Bull worker |
-| GET | /cortex/api/v1/tasks[/:id] | — | — | limit 200 | CA read | own tasks; admin sees all; `:id` has transcript |
+| POST | /cortex/api/v1/tasks | `goal` | model, tools, skills | — | CA write *or service HMAC* | 202 `{id,status:queued}`; runs via Bull worker |
+| GET | /cortex/api/v1/tasks[/:id] | — | — | limit 200 | CA read *or service HMAC* | own tasks; admin sees all; `:id` has transcript |
 | POST | /cortex/api/v1/chat | `message` | session_id, model, skills | — | CA write | assistant turn; `attachments` → 400 (not ported) |
 | GET | /cortex/api/v1/chat[/:id] | — | — | limit 100 | CA read | own sessions; admin all |
 | POST | /cortex/api/v1/cs/chat | `message` | session_id | — | CA write | guarded customer chat turn |

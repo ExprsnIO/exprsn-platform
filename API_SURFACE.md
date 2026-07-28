@@ -1042,9 +1042,9 @@ callers see only their own tasks/sessions/outbox rows (scoped by the token's
 | POST | /cortex/api/v1/tasks | `goal` | model, tools, skills | — | CA write | 202 `{id,status:queued}`; runs via Bull worker |
 | GET | /cortex/api/v1/tasks[/:id] | — | — | limit 200 | CA read | own tasks; admin sees all; `:id` has transcript |
 | POST | /cortex/api/v1/chat | `message` | session_id, model, skills | — | CA write | assistant turn; `attachments` → 400 (not ported) |
-| GET | /cortex/api/v1/chat[/:id] | — | — | limit 100 | CA read | own sessions; admin all |
+| GET | /cortex/api/v1/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination — response carries `nextCursor` (opaque, null at end); `cursor` seeks strictly past the prior page (no dupes/gaps across a concurrent insert) |
 | POST | /cortex/api/v1/cs/chat | `message` | session_id | — | CA write | guarded customer chat turn |
-| GET | /cortex/api/v1/cs/chat[/:id] | — | — | limit 100 | CA read | own sessions; admin all |
+| GET | /cortex/api/v1/cs/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination, same `nextCursor` contract as /chat above |
 | POST | /cortex/api/v1/cs/email | `from`, `subject`, `body` | — | — | CA write | drafts reply → outbox (sent/pending_review/blocked) |
 | GET | /cortex/api/v1/outbox[/:id] | — | — | limit 200 | CA read | own entries; admin all |
 | GET | /cortex/api/v1/reviews | — | — | — | CA read + admin | pending human reviews (holds blocked drafts) |

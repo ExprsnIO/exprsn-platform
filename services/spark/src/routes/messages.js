@@ -13,6 +13,11 @@ const contactPolicy = require('../services/contactPolicy');
 
 const router = express.Router();
 
+// BUG-060 (sr review): upper bound on how many of the caller's conversations
+// feed the suggestions ES `terms` / DB `Op.in` scope when conversationId is
+// omitted — see GET /search/suggestions.
+const MAX_SUGGESTION_SCOPE = 500;
+
 // All message routes require authentication
 router.use(validateCAToken({ requiredPermissions: ['read'] }));
 
@@ -176,9 +181,16 @@ router.get('/search/suggestions', asyncHandler(async (req, res) => {
     }
     scopedConversationIds = [conversationId];
   } else {
+    // BUG-060 sr-review amendment: bound the scoped id set (most recently
+    // active memberships first) so a pathological participant count can't
+    // blow up the ES `terms` clause / DB `Op.in` list. 500 conversations is
+    // far beyond any real autocomplete need; older memberships simply drop
+    // out of suggestion scope — still fail-closed, never widened.
     const participantRows = await Participant.findAll({
       where: { userId: req.userId, active: true },
-      attributes: ['conversationId']
+      attributes: ['conversationId'],
+      order: [['updatedAt', 'DESC']],
+      limit: MAX_SUGGESTION_SCOPE
     });
     scopedConversationIds = [...new Set(participantRows.map((p) => p.conversationId))];
   }

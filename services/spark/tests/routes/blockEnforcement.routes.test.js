@@ -339,6 +339,26 @@ describe('FEAT-070 REST enforcement', () => {
       });
     });
 
+    it('bounds the omitted-conversationId scope query (sr-review amendment: recent-first, capped)', async () => {
+      searchService.getSuggestions.mockResolvedValue([]);
+      Participant.findAll.mockResolvedValue([{ conversationId: 'c1' }]);
+
+      await request(app)
+        .get('/api/messages/search/suggestions')
+        .query({ q: 'hello' })
+        .set('x-user-id', SENDER);
+
+      // BUG-060 sr review flag (c): the participant scope query must be
+      // bounded so a pathological membership count can't blow up the ES
+      // `terms` clause / DB `Op.in` list.
+      expect(Participant.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          order: [['updatedAt', 'DESC']],
+          limit: 500
+        })
+      );
+    });
+
     it('returns no suggestions (no DB/ES call) when the caller has no conversations', async () => {
       Participant.findAll.mockResolvedValue([]);
 

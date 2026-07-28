@@ -5158,6 +5158,28 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     upper bound was added on the number of conversations returned by
     `Participant.findAll` before they're used in the ES `terms`/DB `Op.in`
     clause — flag if that needs a cap.
+- **SR REVIEW VERDICT (2026-07-28, sr-developer, on `s2613-int`): APPROVE with
+  one small amendment applied in-place.** Per flag: **(a) ACCEPTED** — the
+  JS-side S5 post-filter on the ES path is fail-closed (suppressed senders can
+  only be *removed* after the query), and the alternative (an ES `must_not`
+  terms clause) would change `getSuggestions`'s public signature for an
+  autocomplete surface; the only cost is possible under-fill (suppressed hits
+  consume `size` slots), acceptable for suggestions. Note the in-code comment's
+  "cannot pre-filter" is really "not without a service-signature change" — left
+  as-is. **(b) ACCEPTED** — the omitted-`conversationId` scoping query hits the
+  `participants(userId)` index with `attributes: ['conversationId']`; one cheap
+  indexed query per keystroke-debounced autocomplete request is fine, matching
+  the per-request `getSuppressedIds` façade call every other route already
+  makes. **(c) AMENDED** — cap added: the scoping `Participant.findAll` now
+  takes `order: [['updatedAt','DESC']], limit: 500` (`MAX_SUGGESTION_SCOPE` in
+  `messages.js`) so a pathological membership count can't blow up the ES
+  `terms` clause / DB `Op.in` list; older memberships drop out of suggestion
+  scope (still fail-closed, never widened). Pinned by a new test in
+  `blockEnforcement.routes.test.js`. Also re-verified: route registered before
+  `/:conversationId/:messageId` and not capturable by `/:conversationId` (one
+  segment) or `/:conversationId/search` (literal second segment) — order
+  correct; scoping + S5 present on BOTH ES and DB-fallback paths; zero-scope
+  short-circuit means neither backend is ever queried unscoped.
 
 ### BUG-061 — spark Jest full run never exits: `blockEnforcement.socket.test.js` leaves undetectable open handles
 - **Type:** bug · **Status:** in-review (Sprint 2026-13, fix landed `s2613-jr` @ `109bcfb`) · **Priority:** P3 · **Size:** S

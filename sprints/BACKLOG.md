@@ -10,9 +10,12 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. **Sprint 2026-12 is in flight — see `active/sprint-2026-12.md`**
-> (committed 2026-07-28: TASK-057 anchor + BUG-058, BUG-055, TASK-055, TASK-059,
-> TASK-060; all TASK/BUG, no C/B gate this cycle). Sprint 2026-11 closed 2026-07-28
+> active sprint. No sprint currently in flight — **Sprint 2026-12 closed 2026-07-28
+> (6/6 done: TASK-057 anchor + BUG-058, BUG-055, TASK-055, TASK-059, TASK-060;
+> archived at `archive/sprint-2026-12.md`)**; new tickets from its build/QA:
+> BUG-060 (P2 spark suggestions leak, route stays shadowed), BUG-061 (P3 spark
+> socket-suite hang), BUG-062 (P2 db:check drift gate red at baseline, dba).
+> Sprint 2026-11 closed 2026-07-28
 > (all tickets done + infra smoke passed); its fresh-DB P1s **BUG-056/BUG-057 were
 > hotfixed on `main` post-close** (`21db94c`/`475a74d`/`6cc99b6`/`965de75`,
 > live-verified) and are reconciled `done` below — BUG-058 rolled into 2026-12.

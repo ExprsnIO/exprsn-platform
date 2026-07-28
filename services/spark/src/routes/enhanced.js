@@ -9,6 +9,7 @@ const { requireAuth } = require('../middleware/auth');
 const db = require('../models');
 const messageModeration = require('../services/messageModeration');
 const contactPolicy = require('../services/contactPolicy');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 const logger = createLogger('exprsn-spark:enhanced');
@@ -352,12 +353,26 @@ router.get('/:id/thread',
         return res.status(403).json({ error: 'Not authorized to view this thread' });
       }
 
+      // TASK-060 (FEAT-070 S5 extension): same suppressed-sender posture as
+      // GET /api/messages/:conversationId/:messageId — a thread rooted on a
+      // suppressed sender reads as absent (404, no oracle), and replies from
+      // a suppressed sender are filtered out via [Op.notIn].
+      const suppressedIds = await contactPolicy.getSuppressedIds(userId);
+      if (suppressedIds.includes(parentMessage.senderId)) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+
+      const repliesWhere = {
+        parentMessageId: id,
+        deleted: false
+      };
+      if (suppressedIds.length > 0) {
+        repliesWhere.senderId = { [Op.notIn]: suppressedIds };
+      }
+
       // Get thread replies
       const replies = await Message.findAll({
-        where: {
-          parentMessageId: id,
-          deleted: false
-        },
+        where: repliesWhere,
         order: [['createdAt', 'ASC']],
         limit: parseInt(limit),
         offset: parseInt(offset)

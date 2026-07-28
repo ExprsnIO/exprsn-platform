@@ -40,12 +40,6 @@ jest.mock('../src/services/notificationService', () => ({
   notifyReaction: jest.fn().mockResolvedValue(true)
 }));
 
-// @exprsn/shared's idempotencyHandler schedules a require-time setInterval
-// (hourly cache cleanup, not unref'd) that keeps Jest alive forever after any
-// suite imports @exprsn/shared (e.g. the socket handler tests). Spark never
-// uses the idempotency middleware — stub the module out entirely.
-jest.mock('@exprsn/shared/middleware/idempotencyHandler', () => ({}));
-
 // FEAT-070: spark suites must NEVER load timeline's real relationship façade
 // (it attaches timeline's Sequelize/models). Default is allow-all so existing
 // suites are unaffected; enforcement suites override this mock per-file with

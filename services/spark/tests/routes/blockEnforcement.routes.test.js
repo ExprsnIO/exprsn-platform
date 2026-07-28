@@ -6,6 +6,8 @@
  *   - POST /api/conversations/:id/participants (S3 → 403)
  *   - GET  /api/conversations             (S4 frozen 1:1 hidden)
  *   - GET  /api/messages/:conversationId  (S5 suppressed-sender filter)
+ *   - GET  /api/messages/:conversationId/search (TASK-060 — S5 extended to search)
+ *   - GET  /api/:id/thread                (TASK-060 — S5 extended to enhanced thread-read)
  *   - POST /api/messages/:id/reply        (S2 continue-a-DM → 403)
  *   - POST /api/messages/:id/forward      (S2 frozen target skipped)
  * plus the no-leak assertion: no 403/skip response ever says "block".
@@ -206,6 +208,65 @@ describe('FEAT-070 REST enforcement', () => {
 
       expect(res.status).toBe(404);
       expectNoBlockOracle(res);
+    });
+  });
+
+  describe('GET /api/messages/:conversationId/search (TASK-060)', () => {
+    it('filters suppressed senders with [Op.notIn]', async () => {
+      relationshipService.getSuppressedIds.mockResolvedValue([OTHER]);
+
+      const res = await request(app)
+        .get('/api/messages/c1/search')
+        .query({ q: 'hello' })
+        .set('x-user-id', SENDER);
+
+      expect(res.status).toBe(200);
+      const where = Message.findAll.mock.calls[0][0].where;
+      expect(where.senderId[Op.notIn]).toEqual([OTHER]);
+    });
+
+    it('does not filter by senderId when nothing is suppressed', async () => {
+      relationshipService.getSuppressedIds.mockResolvedValue([]);
+
+      const res = await request(app)
+        .get('/api/messages/c1/search')
+        .query({ q: 'hello' })
+        .set('x-user-id', SENDER);
+
+      expect(res.status).toBe(200);
+      const where = Message.findAll.mock.calls[0][0].where;
+      expect(where.senderId).toBeUndefined();
+    });
+  });
+
+  describe('GET /api/:id/thread (TASK-060 — enhanced thread-read)', () => {
+    it('404s a thread rooted on a suppressed sender (no oracle)', async () => {
+      relationshipService.getSuppressedIds.mockResolvedValue([OTHER]);
+      Message.findByPk.mockResolvedValue({
+        id: 'm1', conversationId: 'c1', senderId: OTHER, replyCount: 0
+      });
+
+      const res = await request(app)
+        .get('/api/m1/thread')
+        .set('x-user-id', SENDER);
+
+      expect(res.status).toBe(404);
+      expectNoBlockOracle(res);
+    });
+
+    it('filters replies from a suppressed sender with [Op.notIn]', async () => {
+      relationshipService.getSuppressedIds.mockResolvedValue([OTHER]);
+      Message.findByPk.mockResolvedValue({
+        id: 'm1', conversationId: 'c1', senderId: SENDER, replyCount: 2
+      });
+
+      const res = await request(app)
+        .get('/api/m1/thread')
+        .set('x-user-id', SENDER);
+
+      expect(res.status).toBe(200);
+      const where = Message.findAll.mock.calls[0][0].where;
+      expect(where.senderId[Op.notIn]).toEqual([OTHER]);
     });
   });
 

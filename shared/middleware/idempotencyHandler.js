@@ -260,10 +260,12 @@ function deduplicateRequests(options = {}) {
   };
 }
 
-// Schedule periodic cleanup of in-memory cache (every hour)
+// Schedule periodic cleanup of in-memory cache (every hour). `.unref()` so this
+// timer never keeps the Node event loop (or a Jest worker) alive on its own —
+// BUG-055: without it, any process that merely requires @exprsn/shared hangs.
 setInterval(() => {
   cleanupExpiredKeys();
-}, 60 * 60 * 1000);
+}, 60 * 60 * 1000).unref();
 
 module.exports = {
   idempotencyKey,

@@ -240,9 +240,29 @@ async function updateGroup(groupId, userId, data, options = {}) {
       }
     }
 
+    const previousAvatarUrl = group.avatarUrl;
+    const previousBannerUrl = group.bannerUrl;
+
     updates.updatedAt = Date.now();
 
     await group.update(updates);
+
+    // TASK-055: revoke the minted capability token (+ reap the superseded
+    // file) when the avatar/banner is replaced or removed. Best-effort —
+    // never blocks the group update. Required lazily (in-process FileVault
+    // façade, same pattern as services/live/src/routes/roomCollab.js) so
+    // groupService's own require graph stays untouched for callers/tests
+    // that never touch avatarUrl/bannerUrl.
+    if (updates.avatarUrl !== undefined || updates.bannerUrl !== undefined) {
+      // eslint-disable-next-line global-require
+      const displayImageService = require('../../../filevault/src/services/displayImageService');
+      if (updates.avatarUrl !== undefined) {
+        await displayImageService.reapDisplayImage(previousAvatarUrl, updates.avatarUrl, userId);
+      }
+      if (updates.bannerUrl !== undefined) {
+        await displayImageService.reapDisplayImage(previousBannerUrl, updates.bannerUrl, userId);
+      }
+    }
 
     // Invalidate cache
     await redis.del(`group:${groupId}:full`);

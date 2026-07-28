@@ -1,0 +1,345 @@
+{
+  "generatedBy": "scripts/cortex-features-tui.js",
+  "comparedAgainst": "/Volumes/Storage/exprsn-cortex (standalone Exprsn-Cortex)",
+  "stages": [
+    {
+      "key": "models",
+      "title": "Stage 1/6 — Models & Backends",
+      "selected": [
+        {
+          "id": "ollama-primary",
+          "label": "Ollama as first-class backend",
+          "effort": "M",
+          "deps": [],
+          "flags": [
+            "CORTEX_OLLAMA_ROLES=brain,judge,vision"
+          ],
+          "gap": "today Ollama registers only when CORTEX_ASYNC_ROLE=worker (backends/index.js:57)"
+        },
+        {
+          "id": "model-lifecycle",
+          "label": "Model lifecycle admin API",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "llama.js has load/unload but nothing is exposed as admin HTTP routes"
+        },
+        {
+          "id": "model-catalog",
+          "label": "Curated model catalog",
+          "effort": "M",
+          "deps": [
+            "model-lifecycle"
+          ],
+          "flags": [],
+          "gap": "standalone has ~25-model registry + catalog UI; module has none"
+        },
+        {
+          "id": "model-preflight",
+          "label": "Model preflight on /ready",
+          "effort": "S",
+          "deps": [],
+          "flags": [],
+          "gap": "standalone verifies on /ready; module only pings the router"
+        },
+        {
+          "id": "model-config",
+          "label": "Per-model config",
+          "effort": "S",
+          "deps": [],
+          "flags": [],
+          "gap": "standalone PUT /:name/config; module has no per-model settings"
+        }
+      ],
+      "skipped": []
+    },
+    {
+      "key": "agents",
+      "title": "Stage 2/6 — Agents & Orchestration",
+      "selected": [
+        {
+          "id": "agent-entities",
+          "label": "DB-backed agent definitions",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "module agents are 3 hard-coded personas in engine/agent.js:323"
+        },
+        {
+          "id": "agent-chaining",
+          "label": "Multi-step chaining engine",
+          "effort": "L",
+          "deps": [
+            "agent-entities"
+          ],
+          "flags": [],
+          "gap": "standalone agent builder has all 9 step types; module has only the flat tool loop"
+        },
+        {
+          "id": "agent-runs",
+          "label": "Persisted agent runs",
+          "effort": "S",
+          "deps": [
+            "agent-entities"
+          ],
+          "flags": [],
+          "gap": "AgentTask stores one transcript; no per-agent run ledger"
+        },
+        {
+          "id": "agent-builder-nl",
+          "label": "NL agent builder",
+          "effort": "S",
+          "deps": [
+            "agent-entities"
+          ],
+          "flags": [],
+          "gap": "tool/guardrail NL builders exist (registryFactory /build); agents have none"
+        },
+        {
+          "id": "agent-scheduling",
+          "label": "Scheduled agent runs",
+          "effort": "M",
+          "deps": [
+            "agent-entities"
+          ],
+          "flags": [],
+          "gap": "no scheduling anywhere in the module (on-demand enqueue only)"
+        },
+        {
+          "id": "agent-triggers",
+          "label": "Event triggers from modules",
+          "effort": "M",
+          "deps": [
+            "agent-entities"
+          ],
+          "flags": [],
+          "gap": "client.js is call-in only; no event subscription"
+        }
+      ],
+      "skipped": []
+    },
+    {
+      "key": "functions",
+      "title": "Stage 3/6 — Skills & Containerized Functions",
+      "selected": [
+        {
+          "id": "js-skills",
+          "label": "Sandboxed JavaScript skills",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "module skills are prompt packs only; standalone runs JS + Python code skills"
+        },
+        {
+          "id": "container-functions",
+          "label": "Containerized function runtime",
+          "effort": "L",
+          "deps": [],
+          "flags": [
+            "CORTEX_FUNCTIONS_ENABLED=false",
+            "CORTEX_FUNCTIONS_RUNTIME=docker",
+            "CORTEX_FUNCTIONS_CPU_LIMIT=1",
+            "CORTEX_FUNCTIONS_MEMORY_MB=512",
+            "CORTEX_FUNCTIONS_TIMEOUT_S=120",
+            "CORTEX_FUNCTIONS_NETWORK=none"
+          ],
+          "gap": "python tools use macOS sandbox-exec + ulimits (tools.js:198); no containers in either codebase"
+        },
+        {
+          "id": "function-registry",
+          "label": "Function registry + invoke API",
+          "effort": "M",
+          "deps": [
+            "container-functions"
+          ],
+          "flags": [],
+          "gap": "tools support only http|python kinds (engine/tools.js)"
+        },
+        {
+          "id": "repo-publish",
+          "label": "Versioned skill/function repository",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "standalone repository/ subsystem; module has seed-data JSON only"
+        },
+        {
+          "id": "warm-pools",
+          "label": "Warm container pools",
+          "effort": "M",
+          "deps": [
+            "container-functions"
+          ],
+          "flags": [],
+          "gap": "n/a — new with the container runtime"
+        }
+      ],
+      "skipped": [
+        "python-in-container"
+      ]
+    },
+    {
+      "key": "tokens",
+      "title": "Stage 4/6 — Token Gating & CA Integration",
+      "selected": [
+        {
+          "id": "use-metering",
+          "label": "Use-based token metering",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "CA fully supports use tokens (services/ca/services/token.js:547); cortex only checks read/write perms"
+        },
+        {
+          "id": "resource-tokens",
+          "label": "Per-model/agent resource tokens",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "CA matchesResource does wildcard/prefix; cortex passes only req.path"
+        },
+        {
+          "id": "inbound-service-hmac",
+          "label": "Inbound service-token auth",
+          "effort": "S",
+          "deps": [],
+          "flags": [],
+          "gap": "cortex uses service tokens outbound only (jobs.js:67); shared authenticateService() is ready"
+        },
+        {
+          "id": "scope-groups",
+          "label": "Group/org-scoped access",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "CA v1.1 implements scoping end-to-end; cortex ignores scope fields"
+        },
+        {
+          "id": "quotas",
+          "label": "Quota & budget accounting",
+          "effort": "M",
+          "deps": [
+            "use-metering"
+          ],
+          "flags": [],
+          "gap": "PromptLog records usage but nothing enforces limits"
+        },
+        {
+          "id": "token-admin-ui",
+          "label": "Cortex token admin UI",
+          "effort": "S",
+          "deps": [
+            "resource-tokens"
+          ],
+          "flags": [],
+          "gap": "CA SPA modals exist for generic tokens; no cortex-specific issuance flow"
+        }
+      ],
+      "skipped": [
+        "time-sessions"
+      ]
+    },
+    {
+      "key": "compat",
+      "title": "Stage 5/6 — API Compatibility & Streaming",
+      "selected": [
+        {
+          "id": "sse-streaming",
+          "label": "Token streaming (SSE + socket)",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "zero streaming today — socketNs:null, all responses buffered"
+        },
+        {
+          "id": "frontend-parity",
+          "label": "Exprsn-Cortex frontend parity",
+          "effort": "L",
+          "deps": [
+            "agent-entities"
+          ],
+          "flags": [],
+          "gap": "standalone console expects routes the module does not have"
+        },
+        {
+          "id": "mcp-per-model",
+          "label": "MCP server per model",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "standalone mounts one MCP surface per loaded model; module has none"
+        },
+        {
+          "id": "keyset-pagination",
+          "label": "Conversation keyset pagination",
+          "effort": "S",
+          "deps": [],
+          "flags": [],
+          "gap": "module lists cap at limit 100/200 with no cursor"
+        }
+      ],
+      "skipped": [
+        "openai-facade",
+        "ollama-facade"
+      ]
+    },
+    {
+      "key": "rag",
+      "title": "Stage 6/6 — Memory, RAG & Operations",
+      "selected": [
+        {
+          "id": "pgvector",
+          "label": "pgvector embedding store",
+          "effort": "M",
+          "deps": [],
+          "flags": [],
+          "gap": "no vectors anywhere in the module; KB is flat markdown inlined into prompts"
+        },
+        {
+          "id": "kb-ingest",
+          "label": "KB ingestion pipeline",
+          "effort": "L",
+          "deps": [
+            "pgvector"
+          ],
+          "flags": [],
+          "gap": "standalone rag/ subsystem; module has none"
+        },
+        {
+          "id": "kb-bind",
+          "label": "KB↔model binding + retrieve",
+          "effort": "M",
+          "deps": [
+            "pgvector",
+            "kb-ingest"
+          ],
+          "flags": [],
+          "gap": "standalone bind-kb + retrieve agent step"
+        },
+        {
+          "id": "cache-admin",
+          "label": "Cache stats & flush",
+          "effort": "S",
+          "deps": [],
+          "flags": [],
+          "gap": "lib/cache.js caches but exposes no stats or flush"
+        },
+        {
+          "id": "retention",
+          "label": "Data-retention sweeper",
+          "effort": "S",
+          "deps": [],
+          "flags": [
+            "CORTEX_MESSAGE_RETENTION_DAYS=90",
+            "CORTEX_AUDIT_RETENTION_DAYS=365",
+            "CORTEX_JOB_RETENTION_DAYS=30"
+          ],
+          "gap": "only Bull removeOnComplete ages out; DB rows live forever"
+        }
+      ],
+      "skipped": [
+        "metrics"
+      ]
+    }
+  ]
+}

@@ -2928,6 +2928,701 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 - **Notes:** **Must land before FEAT-047 album sharing starts** (FEAT-047's notes
   already require this). systems-architect sign-off on the façade shape.
 
+---
+
+**Cortex agentic build-out — filed 2026-07-28.** The 21 tickets below (FEAT-078…
+FEAT-095, TASK-062…TASK-064) convert Rick's approved 31-feature selection
+(95 pts) from `sprints/proposals/cortex-feature-plan.md` toward parity with the
+standalone Exprsn-Cortex platform (`/Volumes/Storage/exprsn-cortex`).
+**Cost/Benefit gate complete 2026-07-28** (three assessments under
+`sprints/assessments/`: `FEAT-078-082-…`, `FEAT-083-089-…`, `FEAT-090-095-…`):
+16 of 18 FEATs approved — 6 of them reduced/capped/resized in place below —
+and FEAT-086/FEAT-092 deferred with revisit triggers, for a net **≈75 pts of
+approved scope**; the C/B-carved follow-ups are filed as FEAT-096…FEAT-102
+below. No sprint has been assembled from this slate yet. **Sequencing:** four foundations
+gate everything — **FEAT-080** (agent entities) before chaining/scheduling/
+builder/frontend-parity; **FEAT-084** (container runtime) before function
+registry/warm pools; **FEAT-093** (pgvector) before KB ingestion/binding;
+**FEAT-090** (streaming) before FEAT-091 (frontend parity). **TASK-062**
+(inbound service HMAC) is cheap and early — it unlocks module→cortex HTTP calls
+including FEAT-082's webhook triggers. The token stack (FEAT-087/088 → 089) is
+independent of the agent track and can run in parallel. Explicitly deferred at
+selection (do not re-propose blind): see the note in **Deferred** below.
+
+### FEAT-078 — Cortex: Ollama as first-class gateway backend + model preflight on /ready
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `ollama-primary` (M) + `model-preflight` (S)
+- **Cost/Benefit:** done — **APPROVE (conditional).** Preflight half is an uncontested S; the ollama-primary half reverses the ADR-0005 two-layer queue-only invariant (`backends/index.js:59` + `SyncCallForbiddenError`) — **systems-architect must sign off the ADR supersession before COMMIT**; default-off flag preserves current behavior. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
+- **Description:** Drop the worker-only gate on the Ollama backend and route the
+  brain/judge/vision roles in the gateway process. Gap today: Ollama registers
+  only when `CORTEX_ASYNC_ROLE=worker` (`services/cortex/src/backends/index.js:57`).
+  Also add model preflight: verify required models are resident at startup and
+  surface residency on health — the standalone verifies on `/ready`; the module
+  only pings the router. New env flag: `CORTEX_OLLAMA_ROLES=brain,judge,vision`.
+- **Acceptance criteria:**
+  - With `CORTEX_OLLAMA_ROLES` set, the gateway process (no `CORTEX_ASYNC_ROLE`)
+    registers the Ollama backend and routes the listed roles to it; unset ⇒
+    current behavior unchanged (worker-only registration).
+  - Cortex health/ready reports per-required-model residency; a missing required
+    model yields not-ready naming the model; all-resident yields ready.
+  - Existing llama.cpp routing regression-free (module suite green).
+- **Notes:** Backend-selection logic only; no schema change.
+
+### FEAT-079 — Cortex: model lifecycle admin API + per-model config + curated catalog
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** — (FEAT-078 recommended first so lifecycle covers both backends)
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `model-lifecycle` (M) + `model-config` (S) + `model-catalog` (M)
+- **Cost/Benefit:** done — **APPROVE (capped).** Real operator value and FEAT-091 needs the shapes, but lifecycle must be backend-aware (pull/delete are Ollama-only — the llama.cpp router has no such ops) and the catalog is capped at a static/seeded registry, or the L stops being honest. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
+- **Description:** Expose model lifecycle as admin HTTP routes — **backend-aware**:
+  load/unload/reload on both backends; pull/delete on Ollama only (the llama.cpp
+  router has no such ops) — with per-model locking and an audit trail. Gap
+  today: `llama.js` has load/unload but nothing is exposed as admin routes. Add
+  per-model config (`PUT /models/:name/config` — ctx size, sampling defaults, KB
+  binding slot; standalone has `PUT /:name/config`, module has no per-model
+  settings) and a catalog **capped per the C/B at a static/seeded registry**
+  (browse/search/filter over a seeded port of the standalone's ~25-model
+  `catalog.js`, with pull-from-catalog; standalone has a registry + catalog UI,
+  module has none). A dynamic curation backend (admin CRUD on catalog entries,
+  remote metadata sync) is explicitly out of scope — that re-sizes the ticket
+  and needs re-grooming.
+- **Acceptance criteria:**
+  - Admin-gated routes perform load/unload/reload/pull/delete; concurrent ops on
+    the same model are serialized or 409 via per-model locking; every op writes
+    an audit row.
+  - Lifecycle is backend-aware: pull/delete against a llama.cpp-backed model
+    fail cleanly as unsupported (4xx, clear error) — Ollama-only ops; and
+    long-running pull/load ops (minutes — `llama.js` already uses a 300 s load
+    timeout) get async job semantics or generous route timeouts, not silent
+    route hangs.
+  - `PUT /models/:name/config` persists ctx/sampling/KB-slot and is applied on
+    next load; `GET` returns effective config.
+  - Catalog endpoint serves the static/seeded registry with
+    browse/search/filter; pulling from the catalog goes through the lifecycle
+    pull path (same locking + audit). No catalog-entry CRUD, no remote
+    metadata sync.
+  - All routes 401 without bearer, 403 without platform admin; `API_SURFACE.md`
+    updated.
+- **Notes:** Catalog data model lands in the `cortex` schema — new tables only,
+  so sync `db:migrate` suffices; `db:check` clean. dba glance on audit-table
+  growth/retention (TASK-064's sweeper should cover it).
+
+### FEAT-080 — Cortex: DB-backed agent definitions with run history + NL agent builder
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-entities` (M) + `agent-runs` (S) + `agent-builder-nl` (S)
+- **Cost/Benefit:** done — **APPROVE.** Keystone gating FEAT-081/082/091 + half of FEAT-095; new-tables-only. Condition: pin the enable gate as **deterministic spec validation + advisory smoke run** (LLM-judged tests on local models are flaky by construction); NL builder is a droppable tail. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
+- **Description:** Replace the 3 hard-coded personas with user-defined agents:
+  CRUD on `cortex.agents` with a draft → tests-pass → enabled lifecycle. Gap
+  today: module agents are hard-coded in `services/cortex/src/engine/agent.js:323`.
+  Include persisted per-agent run history (`GET /agents/:id/runs` with
+  transcripts — today `AgentTask` stores one transcript, no per-agent ledger)
+  and an NL builder (describe an agent in English → drafted spec saved
+  disabled — tool/guardrail NL builders already exist via `registryFactory
+  /build`; agents have none).
+- **Acceptance criteria:**
+  - `cortex.agents` CRUD (admin-gated mutations per FEAT-021 conventions);
+    disabled agents cannot run.
+  - Enable gate (pinned per the C/B condition): **deterministic spec
+    validation** is the hard gate — schema valid, referenced
+    tools/skills/guardrails exist, model resolvable; a recorded smoke run is
+    **advisory only**. No LLM-judged test suites in v1 (nondeterministic and
+    slow on local models — a flaky gate would make the feature feel broken).
+  - Runs persist per agent; `GET /agents/:id/runs` returns paginated history
+    with transcripts; a completed run is retrievable after process restart.
+  - `POST /agents/build` (NL) drafts a valid agent spec saved with
+    `status=disabled`, following the existing registryFactory `/build` pattern.
+  - The 3 legacy personas are seeded as agent rows; existing flows keep working.
+- **Notes:** **Keystone ticket** — gates FEAT-081/082/091 and the agent half of
+  FEAT-095. New tables only (sync migrate OK). The NL builder is a droppable
+  tail per the C/B — it can slip a sprint with zero downstream impact.
+  Seeded-persona regression: an explicit persona-parity test is an AC artifact.
+
+### FEAT-081 — Cortex: multi-step agent chaining engine (sequential, 8 step types)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-080
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-chaining` (L)
+- **Cost/Benefit:** done — **APPROVE-REDUCED (M/L).** Ship the sequential engine with 8 step types (`retrieve` as graceful no-op until FEAT-095); **defer the `parallel` step** to a follow-up — the single-resident-model semaphore serializes it anyway while it carries most of the failure-mode complexity. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
+- **Description:** Execute chained agent specs **sequentially** with 8 step
+  types — prompt · skill · retrieve · guardrail · moderate · transform ·
+  condition · tool_loop — and `{{var}}` context interpolation. Gap today: the
+  standalone agent builder has all 9 step types; the module has only the flat
+  tool loop. Per the C/B reduction, the 9th type — **`parallel`** — is split
+  out to FEAT-096 (the single-resident-model semaphore serializes parallel LLM
+  steps anyway, while `parallel` carries most of the engine's failure-mode
+  complexity); the spec format still accepts `parallel` from day one so no
+  agent definitions need rewriting later.
+- **Acceptance criteria:**
+  - All 8 step types execute sequentially; `{{var}}` values flow between
+    steps; condition branches work with a transcript showing each step.
+  - The spec format accepts and validates `parallel` but enable-time rejects
+    it with a clear "not yet supported" error (until FEAT-096).
+  - A guardrail step failure halts/escalates per the agent's configured policy;
+    moderate steps route through the existing moderation hook; guardrails are
+    added per-step, never bypassed.
+  - The `retrieve` step degrades gracefully (empty result, not error) until
+    FEAT-095 lands, then returns bound-KB chunks.
+  - Run transcripts (FEAT-080) record per-step inputs/outputs.
+- **Notes:** Soft dependency on FEAT-095 for real `retrieve` results.
+  `parallel` follow-up: FEAT-096. qa-specialist edge-case plan (condition on
+  missing var, guardrail-halt, step timeout) is the single largest test-cost
+  item in the track — the CI suite is non-blocking and won't catch these.
+
+### FEAT-082 — Cortex: scheduled agent runs + agent trigger primitives
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-080 (webhook trigger path also needs TASK-062)
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-scheduling` (M) + `agent-triggers` (M)
+- **Cost/Benefit:** done — **APPROVE-REDUCED (M/L).** Scheduling in full (Bull repeatable, persist repeat opts, keep attempts:1, per-agent overlap guard); triggers reduced to two primitives (in-process `triggerAgent` + TASK-062 HMAC webhook) — there is no platform event bus, so per-module call-site wiring files as follow-up S tickets. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
+- **Description:** Scheduling **in full**: cron / Bull repeatable jobs for
+  recurring runs plus one-shot delayed runs — gap today: no scheduling anywhere
+  in the module (on-demand enqueue only). Triggers **reduced per the C/B to two
+  primitives**: an in-process `triggerAgent()` on the client façade and an
+  HMAC-authenticated HTTP webhook (TASK-062) — gap today: `client.js` is
+  call-in only, no event subscription. There is no platform event bus, so
+  wiring any specific emitting module's events (timeline, spark, moderator…)
+  is **explicitly out of scope** — each is its own per-module follow-up
+  (FEAT-097 shape).
+- **Acceptance criteria:**
+  - Cron and one-shot delayed schedules CRUD-able per agent; schedules survive a
+    gateway/worker restart (Bull repeatable jobs); fired runs land in the
+    FEAT-080 run ledger with a `scheduled` origin.
+  - Bull hygiene: original repeat options are persisted on the schedule row so
+    repeatable jobs can be removed exactly; `attempts: 1` kept (agent runs are
+    non-idempotent); misfire policy is skip-not-backfill, documented.
+  - Per-agent overlap guard: a schedule fire is skipped when the previous run
+    is still active (protects the worker from runaway crons on
+    minutes-long local-LLM runs).
+  - An enabled agent can be triggered via the in-process façade; the HTTP
+    webhook path authenticates via service HMAC (TASK-062) — HMAC-only, never
+    a bare unauthenticated endpoint into agent execution.
+  - Disabling an agent halts its schedules and triggers (both fire paths); no
+    orphan repeatable jobs remain (verifiable via Bull).
+- **Notes:** DBA glance on the Bull repeatable-job usage (queue hygiene) before
+  commit, per data/queue convention. Per-module event wiring: FEAT-097.
+
+### FEAT-083 — Cortex: sandboxed JavaScript skills runtime
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** relates TASK-021 (python sandbox posture)
+- **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `js-skills` (M)
+- **Cost/Benefit:** done — **APPROVE-REDUCED (M).** Node `vm` is not a security boundary — acceptable only because skill mutations are admin+test-gated. First slice: **zero capabilities** (no fetch/fs), worker_threads + hard timeout, documented as not-a-hard-boundary; untrusted JS waits for FEAT-084 containers. Full detail: `sprints/assessments/FEAT-083-089-cortex-functions-tokens-cost-benefit.md`.
+- **Description:** Run JavaScript code skills in a worker_threads + vm isolate
+  with a hard timeout — **pure-compute first slice per the C/B**: zero
+  capability grants in v1 (no fetch, no fs, no net — nothing beyond
+  JSON/Math/Date-class builtins). Gap today: module skills are prompt packs
+  only; the standalone runs JS + Python code skills. Node `vm` is not a
+  security boundary — defensible only because skill mutations stay
+  admin+test-gated (admin-authored / LLM-drafted-then-human-reviewed code).
+- **Acceptance criteria:**
+  - A JS skill executes in a worker_threads + vm isolate with **zero granted
+    capabilities**: no ambient `require`, no network, no fs — pure compute
+    only. (Capability grants are later, one at a time; `net`/`fetch` only ever
+    via the existing `assertPublicHost` SSRF guard.)
+  - A runaway skill (infinite loop) is killed at the hard wall-clock timeout
+    via thread terminate; the gateway stays healthy.
+  - Skill enable stays test-gated per the existing registry convention;
+    admin-gated mutations.
+  - Module README documents the vm isolate as **not a hard security
+    boundary**; untrusted-user JS waits for the FEAT-084 container runtime.
+- **Notes:** Security-sensitive — same review posture as TASK-021
+  (systems-architect review of the vm-not-a-boundary posture). Python code
+  skills are NOT in scope (see deferred `python-in-container`).
+
+### FEAT-084 — Cortex: containerized function runtime (Docker/OCI)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `container-functions` (L)
+- **Cost/Benefit:** done — **APPROVE.** Highest-value ticket of the set: the seatbelt sandbox fails closed on the Linux release target, so this is the only path to prod code execution; Docker already operated. Hardening flags (cap-drop, no-new-privileges, digest-pinned images, never mount the socket) must be AC; **Docker socket lives in a worker, not the gateway** — architect sign-off covers both. Full detail: `sprints/assessments/FEAT-083-089-cortex-functions-tokens-cost-benefit.md`.
+- **Description:** Docker/OCI per-function images with CPU/mem/net limits,
+  Linux-safe (the current seatbelt approach is darwin-only; fail closed
+  elsewhere). Gap today: python tools use macOS `sandbox-exec` + ulimits
+  (`services/cortex/src/engine/tools.js:198`); no containers in either codebase.
+  New env flags: `CORTEX_FUNCTIONS_ENABLED=false`,
+  `CORTEX_FUNCTIONS_RUNTIME=docker`, `CORTEX_FUNCTIONS_CPU_LIMIT=1`,
+  `CORTEX_FUNCTIONS_MEMORY_MB=512`, `CORTEX_FUNCTIONS_TIMEOUT_S=120`,
+  `CORTEX_FUNCTIONS_NETWORK=none`.
+- **Acceptance criteria:**
+  - Default off (`CORTEX_FUNCTIONS_ENABLED=false` ⇒ runtime never invoked;
+    invoke attempts 503).
+  - Limits enforced and demonstrated: a `NETWORK=none` function cannot reach the
+    network; a memory-hog function is OOM-killed at `MEMORY_MB`; execution is
+    killed at `TIMEOUT_S`.
+  - Runtime-unavailable (no Docker daemon) fails closed with a clear error — no
+    host-exec fallback.
+  - Container hardening enforced (AC, not aspiration): containers run as a
+    non-root user with `--cap-drop ALL`, `--security-opt no-new-privileges`,
+    read-only rootfs, `--pids-limit`, network `none` by default; the Docker
+    socket is **never** mounted into a function container.
+  - Image provenance: invoke runs **digest-pinned local images only** — no
+    pull-by-tag from arbitrary registries at invoke time (image admission is
+    an admin act; FEAT-085's registry records the digest).
+  - The Docker socket lives in a **worker process**
+    (`worker:cortex-functions` pattern) — the internet-facing gateway never
+    holds it; gateway enqueues, worker executes.
+  - Works on Linux (release target), not just darwin — verified by a Linux
+    VM/droplet pass (qa-specialist; cannot be proven on the darwin dev box).
+- **Notes:** **Structural — systems-architect sign-off required** (new runtime
+  boundary); sign-off scope explicitly includes Docker-socket placement
+  (gateway vs worker) and the hardening flag set above. gVisor/Firecracker-class
+  hardening is out of scope — do not gold-plate. Gates FEAT-085.
+  `.env.example` + setup TUI schema updated for the new flags (TASK-045
+  convention).
+
+### FEAT-085 — Cortex: function registry + invoke API (`function` tool kind)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M (reduced from L per C/B — warm pools split to FEAT-098)
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-084
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `function-registry` (M) + `warm-pools` (M)
+- **Cost/Benefit:** done — **APPROVE-REDUCED (M, was L).** Registry/invoke/`function` tool kind is mechanical pattern-following on the tools registry and the delivery vehicle for FEAT-084; **warm pools are premature** (zero measured cold-start pain) — split into an evidence-gated follow-up; keep a cheap per-function concurrency cap (429). Full detail: `sprints/assessments/FEAT-083-089-cortex-functions-tokens-cost-benefit.md`.
+- **Description:** `cortex.functions` CRUD, `POST /functions/:name/invoke`, and
+  a `function` tool kind in the agent loop. Gap today: tools support only
+  `http|python` kinds (`services/cortex/src/engine/tools.js`). **Warm pools are
+  out of scope per the C/B** (premature — zero measured cold-start pain;
+  nothing invokes functions yet) and split to the evidence-gated FEAT-098; a
+  cheap per-function concurrency cap protects the host in the meantime.
+- **Acceptance criteria:**
+  - `cortex.functions` CRUD (admin-gated); `POST /functions/:name/invoke`
+    executes through the FEAT-084 runtime and returns output + exit metadata.
+  - Registry rows record the pinned **image digest** (provenance, per
+    FEAT-084's admission rule).
+  - Agents can call a `function`-kind tool inside the tool loop; transcript
+    records the invocation.
+  - Per-function concurrency cap enforced — excess invocations get **429**
+    (no queueing state in v1), documented.
+  - `API_SURFACE.md` updated.
+- **Notes:** New tables only (sync migrate OK). Warm pools: FEAT-098
+  (evidence-gated on a measured cold-start number).
+
+### FEAT-086 — Cortex: versioned skill/function repository (publish/install, sha256)
+- **Type:** feature · **Status:** deferred · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** — (most useful after FEAT-083/085 exist to publish)
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `repo-publish` (M)
+- **Cost/Benefit:** done — **DEFER (re-scope S).** Publish/install is a marketplace shape with one deployment and one admin population — publishing to yourself. The near-term value is portability: an S-sized **export/import + sha256** slice delivers it with no new tables. Full detail: `sprints/assessments/FEAT-083-089-cortex-functions-tokens-cost-benefit.md`.
+- **Description:** Publish/install skill and function bundles with sha256
+  verification. Gap today: the standalone has a `repository/` subsystem; the
+  module has seed-data JSON only.
+- **Acceptance criteria:**
+  - Publish produces an immutable versioned bundle with a recorded sha256;
+    versions are listable.
+  - Install verifies sha256 and rejects mismatched bundles; installed items
+    arrive `disabled` and must pass tests before enable (existing convention).
+  - Admin-gated publish/install; audit rows on both.
+- **Notes:** **Deferred 2026-07-28 per the C/B — superseded-by FEAT-099** (the
+  approved S export/import + sha256 re-scope, which delivers the near-term
+  portability value with no new tables). Revisit trigger for the full
+  publish/install registry: a second consumer exists (multi-tenant, community
+  sharing, or the plugins module wanting the same channel).
+
+### FEAT-087 — Cortex: use-based token metering + quota/budget enforcement
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M+M (two slices, reduced from L per C/B)
+- **Owner-role:** unassigned · **Blocked-by:** BUG-034 (CA validate one-bucket rate limiter — named prerequisite for production enforcement; shadow mode can proceed)
+- **Legacy:** CA token spec v1.1
+- **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `use-metering` (M) + `quotas` (M)
+- **Cost/Benefit:** done — **APPROVE-REDUCED (M+M, was L).** CA already decrements use tokens atomically on validate — metering is exactly-once discipline + propagating `TOKEN_NO_USES_REMAINING` through the shared validator (shared with FEAT-088); quotas ship **shadow-first**. **BUG-034 (one-bucket validate limiter) is a named prerequisite** — use tokens skip the cache, so metered inference can 429 all modules' auth platform-wide. Full detail: `sprints/assessments/FEAT-083-089-cortex-functions-tokens-cost-benefit.md`.
+- **Description:** Metering: decrement one use per inference call via CA's
+  atomic `usesRemaining` decrement; `TOKEN_NO_USES_REMAINING` ⇒ 402/403. Gap
+  today: CA fully supports use tokens (`services/ca/services/token.js:547`);
+  cortex only checks read/write perms. Quotas: per-user/group/model budgets
+  computed from PromptLog usage, enforced before dispatch — PromptLog records
+  usage but nothing enforces limits.
+- **Acceptance criteria:**
+  - Slice 1 — metering: a use-based bearer is decremented exactly once per
+    inference call (exactly-once discipline — no double middleware, no
+    re-validate on internal retry); exhausted token ⇒ distinct 402/403
+    (`TOKEN_NO_USES_REMAINING` propagated through the shared validator — this
+    shared-middleware error-propagation change is built **once, jointly with
+    FEAT-088**) and no backend dispatch.
+  - Slice 2 — quotas ship **shadow-first**: would-exceed is computed, logged,
+    and exposed on admin while blocking nothing; enforcement flips on via
+    config only after shadow numbers validate against real PromptLog data.
+    Budgets CRUD-able per user/group/model (admin-gated); enforced rejection
+    is pre-dispatch with a distinct error code.
+  - Non-use (persistent/time) tokens are unaffected; module suite green.
+  - Production enforcement does not ship until BUG-034 is fixed/scoped (use
+    tokens skip the validation cache — a busy metered client 429s every
+    module's auth through the one 127.0.0.1 bucket).
+- **Notes:** dba picks the quota accounting shape (PromptLog aggregate vs
+  Redis counters — a per-request `SUM` over a growing log table is a footgun);
+  budget tables are new-tables-only (sync migrate OK). Double-charging on
+  client retry after a 5xx is inherent CA decrement-on-validate behavior —
+  document, don't fix here.
+
+### FEAT-088 — Cortex: resource-scoped + group/org-scoped token enforcement
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M (resized from L per C/B — rides finished CA machinery)
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** CA token spec v1.1
+- **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `resource-tokens` (M) + `scope-groups` (M)
+- **Cost/Benefit:** done — **APPROVE (resize M, was L).** CA already implements matching, scope liveness, and bulk revoke with cache invalidation; cortex work is canonical resource strings + error-code passthrough. Build caveat: verify the cached-validation path re-checks `matchesResource` (cache key is per-token, not per-resource) before enabling. Full detail: `sprints/assessments/FEAT-083-089-cortex-functions-tokens-cost-benefit.md`.
+- **Description:** Resource tokens: tokens scoped to
+  `resourceValue /cortex/api/v1/models/<name>/*` gate which models/agents a
+  bearer may use — CA `matchesResource` already does wildcard/prefix matching;
+  cortex passes only `req.path`. Scoping: honor v1.1 `groupId`/`organizationId`
+  token scoping including `SCOPE_INACTIVE` and bulk revoke — CA implements
+  scoping end-to-end; cortex ignores the scope fields.
+- **Acceptance criteria:**
+  - A token resource-scoped to model A chats with model A and gets 403 on model
+    B (same for agent-scoped tokens); unscoped tokens behave as today.
+  - Group/org-scoped tokens are honored; a `SCOPE_INACTIVE` scope is rejected;
+    a bulk revoke by scope takes effect on the next validation.
+  - Error codes match the CA spec (no new ad-hoc codes) — requires the
+    shared-validator error-propagation change (today `tokenValidation.js`
+    collapses every CA failure to 403 `INVALID_TOKEN`), built **once, jointly
+    with FEAT-087**, with regression coverage on every module's auth path (CI
+    suite is non-blocking — qa-specialist owns a real check).
+  - Verified before enable: the cached (non-use) validation path re-checks
+    `matchesResource` — a per-token cached result is never replayed for a
+    different resource (else skip cache for resource-scoped validates).
+- **Notes:** Gates FEAT-089 (token admin UI). Cortex derives a canonical
+  resource string per route (model/agent name, not raw `req.path`).
+  sr-developer sanity-checks the cached-branch caveat against
+  `services/ca/services/token.js` before build.
+
+### TASK-062 — Cortex: inbound service-token HMAC auth
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `inbound-service-hmac` (S)
+- **Description:** Accept `X-Service-ID`/`X-Service-Token` HMAC so other modules
+  can call cortex over HTTP. Gap today: cortex uses service tokens outbound only
+  (`services/cortex/src/jobs.js:67`); the shared `authenticateService()`
+  middleware is ready to use.
+- **Acceptance criteria:**
+  - Designated cortex routes accept a valid service HMAC (derived from
+    `SERVICE_TOKEN_SECRET`) in lieu of a CA bearer; invalid/missing service
+    headers ⇒ 401.
+  - Existing CA-bearer auth path unchanged (regression tests).
+  - Which routes accept service auth is documented in `API_SURFACE.md`.
+- **Notes:** Cheap enabler — unlocks FEAT-082's webhook triggers and FEAT-023-style
+  module callers. Uses `shared/` middleware (edit `shared/`, both import styles
+  resolve to the same files).
+
+### FEAT-089 — Cortex: token admin UI in the SPA
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-088
+- **Legacy:** CA token spec v1.1
+- **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `token-admin-ui` (S)
+- **Cost/Benefit:** done — **APPROVE (S).** UI-only over FEAT-088, follows existing CA modals + the no-JSON-only-modals rule; makes FEAT-087/088 operable by an admin instead of curl. Sequence strictly after FEAT-088's contract settles. Full detail: `sprints/assessments/FEAT-083-089-cortex-functions-tokens-cost-benefit.md`.
+- **Description:** Issue/revoke cortex-scoped tokens in the SPA, including bulk
+  revoke by scope. Gap today: CA SPA modals exist for generic tokens; there is
+  no cortex-specific issuance flow.
+- **Acceptance criteria:**
+  - Admin can issue a token scoped to a specific model/agent resource with
+    group/org scope and use/time expiry via structured forms (no JSON-only
+    modals — Rick's rule); revoke and bulk-revoke-by-scope work from the UI.
+  - `web:build` + `web:test` green; 0 console errors on the new surfaces.
+- **Notes:** UI-only over FEAT-088's backend.
+
+### FEAT-090 — Cortex: token streaming — SSE on chat + /cortex Socket.IO namespace
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** FEAT-021 deliberate exclusion (streaming was deferred at the port)
+- **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `sse-streaming` (M)
+- **Cost/Benefit:** done — **APPROVE (build now).** Best value-per-point in the slate: ~135-LOC standalone reference, one real gotcha (gateway `compression()` buffers SSE), no schema/infra; upgrades the live SPA chat and gates FEAT-091. Architect sign-off on the registry `socketNs` change. Full detail: `sprints/assessments/FEAT-090-095-cortex-compat-rag-cost-benefit.md`.
+- **Description:** `stream:true` through llama.cpp/Ollama; SSE on the chat
+  route and a `/cortex` Socket.IO namespace on the shared io. Gap today: zero
+  streaming — registry `socketNs: null`, all responses buffered.
+- **Acceptance criteria:**
+  - Chat with `stream:true` emits SSE tokens incrementally (first token arrives
+    well before completion); non-streaming requests behave exactly as today.
+  - `/cortex` namespace attached via `registerSockets(io)` with CA token auth
+    middleware; unauthenticated socket connects are rejected.
+  - `src/modules/registry.js` socketNs updated — **systems-architect sign-off**
+    (registry change is structural); `API_SURFACE.md` updated.
+- **Notes:** Gates FEAT-091 (the standalone console expects streaming chat).
+  Single-gateway MVP: no redis-adapter concerns (STATUS #3 deferred).
+
+### FEAT-091 — Cortex: Exprsn-Cortex shape-compatible frontend API (reduced parity)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B — auth/session parity cut)
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-080, FEAT-090 (model catalog shapes need FEAT-079; KB shapes need FEAT-093/094/095)
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `frontend-parity` (L)
+- **Cost/Benefit:** done — **APPROVE-REDUCED (M/L).** Ship the shape-compatible JSON API (models/catalog, agents, skills, kb, streaming chat, **CA bearer only**) but cut auth/session/RBAC parity and any cookie→bearer bridge — the standalone console is server-rendered EJS with its own session auth (dev harness only); full parity in production re-sizes to XL. The no-auth-bridge boundary is a security-invariant line (architect). Full detail: `sprints/assessments/FEAT-090-095-cortex-compat-rag-cost-benefit.md`.
+- **Description:** Ship the standalone's API shapes as the module's first-party
+  JSON API — `/api/models` + catalog, `/api/agents`, `/api/skills`, `/api/kb`,
+  streaming `/api/chat` under `/cortex/*`, **CA bearer only**. Gap today: the
+  standalone console expects routes the module does not have. Per the C/B
+  reduction: **auth/session/RBAC/settings route parity is cut** (CA owns auth —
+  ~370 LOC of standalone surface out of scope) and there is **no cookie→bearer
+  auth bridge** — the standalone EJS console (server-rendered, own session
+  auth) is a dev-time smoke harness only, never a shipped/production consumer.
+  That boundary is a security-invariant line (CA token flow stays intact);
+  systems-architect confirms it before grooming. If the console must run
+  unmodified in production, this re-sizes to XL and needs re-assessment.
+- **Acceptance criteria:**
+  - The standalone console's core flows (model list/catalog, agent CRUD/run,
+    skills, KB browse, streaming chat) run against `/cortex/*` as a dev-harness
+    smoke check with a dev bearer, without console errors — no cookie/session
+    bridge introduced.
+  - No auth/session/RBAC/settings parity routes; shape-compat layer documented
+    in `API_SURFACE.md`; no module views/static serving introduced (JSON only —
+    frontend stays a separate artifact).
+- **Notes:** Last-in-sequence integration ticket for the parity track; re-check
+  remaining blockers at grooming time. Shipped-UI investment goes to `web/`
+  (the shapes here are ~90% what the SPA needs for FEAT-079/080/095 anyway).
+
+### FEAT-092 — Cortex: MCP server per model (Streamable HTTP)
+- **Type:** feature · **Status:** deferred · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** — (retrieve tool needs FEAT-095 to return data)
+- **Legacy:** FEAT-021 deliberate exclusion (MCP was deferred at the port)
+- **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `mcp-per-model` (M)
+- **Cost/Benefit:** done — **DEFER.** Chat/embed already have JSON routes and `retrieve` is empty until FEAT-095; cost is maintenance-shaped (new `@modelcontextprotocol/sdk` dep, evolving spec, new auth surface). Re-groom after FEAT-095 with a **named MCP consumer** (M when revived). Full detail: `sprints/assessments/FEAT-090-095-cortex-compat-rag-cost-benefit.md`.
+- **Description:** Streamable-HTTP MCP surface at `/cortex/mcp/models/:name`
+  exposing chat/embed/retrieve tools. Gap today: the standalone mounts one MCP
+  surface per loaded model; the module has none.
+- **Acceptance criteria:**
+  - An MCP client can connect to `/cortex/mcp/models/:name`, list the
+    chat/embed/retrieve tools, and complete a chat call against the named model.
+  - Auth: CA bearer (or service HMAC via TASK-062) required; unauthenticated ⇒
+    401; unknown/unloaded model ⇒ 404.
+  - `API_SURFACE.md` updated.
+- **Notes:** **Deferred 2026-07-28 per the C/B** — chat/embed already have JSON
+  routes and `retrieve` is empty until FEAT-095; the cost is maintenance-shaped
+  (new `@modelcontextprotocol/sdk` dep, evolving spec, new auth surface).
+  **Revisit trigger: re-groom after FEAT-095 lands, with a named MCP consumer**
+  (an honest M when revived). Interim if demand appears first: a local stdio
+  MCP shim over the existing JSON routes as a doc/example — zero platform code.
+
+### TASK-063 — Cortex: keyset pagination on sessions/messages
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `keyset-pagination` (S)
+- **Description:** Cursor-based paging on session/message lists instead of
+  limit-only. Gap today: module lists cap at limit 100/200 with no cursor.
+- **Acceptance criteria:**
+  - Sessions and messages endpoints accept `cursor` + `limit`, return a stable
+    ordering and a `nextCursor`; walking cursors yields no dupes/gaps across a
+    concurrent insert.
+  - SPA callers (chat session list/history) updated to page; no regression in
+    existing default-limit behavior.
+- **Notes:** Pure plumbing; jr-suitable.
+
+### FEAT-093 — Cortex: pgvector embedding store
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `pgvector` (M)
+- **Cost/Benefit:** done — **APPROVE (build now, dba pairing mandatory).** Code is tiny but the infra chain is real and verified: `postgis/postgis:16-3.4` does NOT ship pgvector → custom image + manual `CREATE EXTENSION` on the existing volume + raw migration `up()` (sync db:migrate can't do it). Keystone gating FEAT-094/095. Full detail: `sprints/assessments/FEAT-090-095-cortex-compat-rag-cost-benefit.md`.
+- **Description:** Embeddings in the `cortex` schema (nomic-embed-text) with the
+  pgvector extension + vector index. Gap today: no vectors anywhere in the
+  module; KB is flat markdown inlined into prompts.
+- **Acceptance criteria:**
+  - pgvector extension enabled; embeddings table + vector index live in the
+    `cortex` schema (not `public`); `npm run db:check` clean.
+  - Text can be embedded via nomic-embed-text and similarity-searched with a
+    ranked result; embed model absence fails with a clear error.
+- **Notes:** **DBA sign-off required — land the whole infra chain as one
+  dba-paired change.** Verified at C/B (2026-07-28): the shipped image
+  (`postgis/postgis:16-3.4`) does **not** include pgvector, and nexus/auth need
+  PostGIS so the image can't be swapped — the path is a custom Dockerfile on
+  the postgis base (`postgresql-16-pgvector` apt package) + an initdb addition
+  for fresh volumes + a manual `CREATE EXTENSION vector` on the existing
+  `pg_data` volume + the raw migration `up()` run directly (sync `db:migrate`
+  can do neither the extension nor a `vector(N)` column; memory:
+  db-migrate-cannot-add-columns). Defer the ANN index choice (HNSW/IVFFlat) to
+  the dba at measured scale — plain table first (<~100k chunks scans fine).
+  Query-time embedding needs Ollama reachable from the searching process —
+  sequence FEAT-078 first or accept a caller-supplied vector initially.
+  Gates FEAT-094/095.
+
+### FEAT-094 — Cortex: KB ingestion pipeline (chunk + embed workers, HTTP + JSON sources)
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M (reduced from L per C/B — connectors split to FEAT-100/101/102)
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-093
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `kb-ingest` (L)
+- **Cost/Benefit:** done — **APPROVE-REDUCED (M).** Build the hardened worker spine (Bull, SSRF guard, idempotency, DLQ, job status) with **HTTP + JSON sources only** — that's what downstream depends on; GitHub/HF/data.gov become three S follow-ups, avoiding a 5-connector maintenance annuity before any KB exists. Full detail: `sprints/assessments/FEAT-090-095-cortex-compat-rag-cost-benefit.md`.
+- **Description:** Source → chunk → embed pipeline run by ingestion workers —
+  **reduced per the C/B to HTTP + JSON/direct-upload sources only**, with the
+  full hardened worker spine built properly (that spine — Bull worker, SSRF
+  guard, retry/backoff + DLQ, idempotency, job status — is what FEAT-095/091
+  depend on). Gap today: the standalone has a `rag/` subsystem (no SSRF guard,
+  no idempotency, no retry/DLQ — the hardening delta is the real cost); the
+  module has none. GitHub / HuggingFace / data.gov connectors are split to
+  FEAT-100/101/102, riding the proven spine; GitHub raw URLs already work
+  through the HTTP source on day one.
+- **Acceptance criteria:**
+  - HTTP and JSON/direct-upload sources ingest end-to-end into pgvector rows
+    via a Bull-backed worker; job status (queued/running/done/failed + counts)
+    is queryable.
+  - Failures retry with backoff and dead-letter after exhaustion; re-ingesting
+    the same source is idempotent (content-hash dedupe — no duplicate chunks).
+  - HTTP-source fetching goes through the existing SSRF guard posture
+    (loopback/private-host rejection, cf. TASK-022).
+  - Bulk embedding runs worker-side against Ollama, off the gateway's
+    inference semaphore — a large ingest cannot starve interactive chat.
+- **Notes:** DBA glance on queue usage. Worker follows the existing
+  `worker:cortex` / `CORTEX_ASYNC_ROLE` pattern. Connector follow-ups are
+  **not** blockers for FEAT-095 (the reduced slice fully satisfies it).
+
+### FEAT-095 — Cortex: KB↔model/agent binding + retrieve step + /kb/:id/search
+- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-093, FEAT-094
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `kb-bind` (M)
+- **Cost/Benefit:** done — **APPROVE (after 093 + reduced 094).** The payoff ticket — retires the 8,000-char flat-file KB inline (`agent.js:357`) with ranked retrieval; reduced FEAT-094 fully satisfies its dependency, and agent-binding-first means FEAT-079's model slot never blocks it. Full detail: `sprints/assessments/FEAT-090-095-cortex-compat-rag-cost-benefit.md`.
+- **Description:** Bind KBs to models/agents; a retrieve step + tool in the
+  agent loop; `GET /kb/:id/search`. Gap today: the standalone has bind-kb + a
+  retrieve agent step; the module has neither.
+- **Acceptance criteria:**
+  - Bind/unbind a KB to a model or agent (admin-gated); `GET /kb/:id/search`
+    returns ranked chunks with scores.
+  - An agent with a bound KB gets real chunks from the retrieve step/tool
+    (upgrades FEAT-081's graceful no-op); no bound KB ⇒ empty result, no error.
+  - Per-model KB binding slot (FEAT-079 `model-config`) is honored when present.
+- **Notes:** Completes the RAG track; feeds FEAT-091's `/api/kb` shapes and
+  FEAT-092's retrieve tool.
+
+### TASK-064 — Cortex ops: cache stats/flush + data-retention sweeper
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `cache-admin` (S) + `retention` (S)
+- **Description:** Cache admin: `GET /cache/stats` + `POST /cache/flush` and a
+  hit-rate figure on the admin dashboard — gap today: `services/cortex/src/lib/cache.js`
+  caches but exposes no stats or flush. Retention: configurable TTLs for
+  messages/prompt-logs/tasks with scheduled + on-demand sweep — gap today: only
+  Bull `removeOnComplete` ages out; DB rows live forever. New env flags:
+  `CORTEX_MESSAGE_RETENTION_DAYS=90`, `CORTEX_AUDIT_RETENTION_DAYS=365`,
+  `CORTEX_JOB_RETENTION_DAYS=30`.
+- **Acceptance criteria:**
+  - `GET /cache/stats` returns hits/misses/hit-rate; `POST /cache/flush` clears
+    the cache; both admin-gated; hit-rate renders on `/admin/cortex` overview.
+  - Sweeper deletes only rows older than the per-type TTL, runs on schedule and
+    on demand, and logs deleted counts; TTL env unset ⇒ documented defaults.
+  - `.env.example` + setup TUI schema updated for the three flags.
+- **Notes:** Retention deletes are data work — dba glance at VERIFY.
+
+*(Cortex C/B-carved follow-ups — filed 2026-07-28 at grooming. Each is scope
+split out of an already-assessed FEAT above and **inherits that assessment**
+— same convention as FEAT-001's slices.)*
+
+### FEAT-096 — Cortex: `parallel` step type for the agent chaining engine
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S–M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-081 (sequential engine must land and soak first)
+- **Legacy:** split out of FEAT-081 per its C/B reduction
+- **Cost/Benefit:** done — covered by `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md` (FEAT-081 verdict: `parallel` deferred to a follow-up S/M).
+- **Description:** Add the `parallel` step type (fan-out/fan-in) to the
+  FEAT-081 chaining engine. FEAT-081 ships with the spec format already
+  accepting `parallel` (rejected at enable-time), so no agent definitions need
+  rewriting. Runtime caveat from the assessment: all LLM steps funnel through
+  the single-resident-model semaphore (`CORTEX_LLM_CONCURRENCY`), so parallel
+  LLM steps largely serialize today — the value is spec parity with the
+  standalone plus overlap of non-LLM steps.
+- **Acceptance criteria:**
+  - `parallel` steps fan out and fan in; enable-time validation accepts them
+    (removing FEAT-081's "not yet supported" rejection).
+  - Partial-failure semantics defined and tested (one failing branch ⇒ a
+    documented policy, never a hang); guardrail-halt mid-parallel and step
+    timeout covered by tests.
+  - Transcript interleaving: per-branch step entries recorded and readable in
+    the FEAT-080 run ledger.
+- **Notes:** qa-specialist edge-case plan required (same posture as FEAT-081).
+
+### FEAT-097 — Cortex: per-module event-trigger call-site wiring (first emitting module)
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-082, TASK-062
+- **Legacy:** split out of FEAT-082 per its C/B reduction (there is no platform event bus — each emitting module adds explicit call-sites)
+- **Cost/Benefit:** done — covered by `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md` (FEAT-082 verdict: emitting-module wiring is out of scope, files as per-module follow-up S tickets).
+- **Description:** Wire the first real emitting module (timeline, spark, or
+  moderator — pick at grooming against a named use-case) to trigger an enabled
+  cortex agent via FEAT-082's primitives (in-process `triggerAgent` façade or
+  the TASK-062 HMAC webhook). One S ticket per emitting module — clone this
+  shape for each subsequent module rather than widening this one.
+- **Acceptance criteria:**
+  - The chosen module's event fires an enabled agent; the run lands in the
+    FEAT-080 ledger with a trigger origin naming the source module/event.
+  - Disabled agent ⇒ no run; the webhook path stays service-HMAC-only.
+  - The emitting module's call-site is reviewed with that module's surface in
+    mind (cross-module coupling is the cost the C/B flagged).
+- **Notes:** Do not promote to `ready` until a real consumer/event is named —
+  this ticket exists so wiring work never creeps back into FEAT-082.
+
+### FEAT-098 — Cortex: warm container pools for the function runtime (evidence-gated)
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-085 (and FEAT-084 transitively)
+- **Legacy:** split out of FEAT-085 per its C/B reduction — proposal id `warm-pools`
+- **Cost/Benefit:** done — covered by `sprints/assessments/FEAT-083-089-cortex-functions-tokens-cost-benefit.md` (FEAT-085 verdict: warm pools split out, deferred until cold-start pain is measured).
+- **Description:** Pre-warmed container pools with per-function pool sizing to
+  cut function cold-start latency. Evidence-gated: nothing invokes functions
+  yet, so there is no measured cold-start pain (assessment ballpark ~0.5–2 s
+  for a small image; the dominant consumer — the async agent tool loop —
+  tolerates seconds by construction). Real distributed-systems upkeep: pool
+  health/recycling, orphan cleanup on worker crash, idle memory on the droplet.
+- **Acceptance criteria:**
+  - **Evidence gate (blocks `ready`):** the ticket records a measured
+    cold-start number from real FEAT-085 invocations and a target latency SLO
+    that warm pools must meet — no measurement ⇒ stays `backlog`.
+  - Configured functions keep N pre-warmed containers; warm invoke latency is
+    measurably below the recorded cold baseline.
+  - Pool hygiene: unhealthy containers recycled; orphan cleanup on worker
+    crash; idle-pool memory footprint bounded and documented.
+- **Notes:** Keep out of any sprint until the evidence gate is satisfied.
+
+### FEAT-099 — Cortex: skill/function export/import with sha256 manifest
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** — (useful once FEAT-083/085 exist to export)
+- **Legacy:** **supersedes FEAT-086 (deferred)** — this is the C/B-approved S re-scope of the versioned repository
+- **Cost/Benefit:** done — covered by `sprints/assessments/FEAT-083-089-cortex-functions-tokens-cost-benefit.md` (FEAT-086 verdict: DEFER the registry; re-scope to an S export/import slice for portability).
+- **Description:** `GET /skills/:name/export` (and the function equivalent) →
+  self-contained JSON bundle with an embedded sha256 manifest;
+  `POST /skills/import` → verify hash, save **disabled**, test-gate before
+  enable. Delivers the near-term portability value (standalone↔module moves,
+  dev→prod promotion, backup) with no new tables and no bundle-store decision.
+  The standalone installs items `status:'enabled'`
+  (`repositoryService.js:83`) — that must NOT be ported; the module's
+  disabled-until-tests-pass convention stands.
+- **Acceptance criteria:**
+  - Export produces a self-contained JSON bundle with a sha256 manifest;
+    import verifies the hash and rejects mismatched bundles.
+  - Imported items arrive `disabled` and must pass tests before enable
+    (existing registry convention); admin-gated in both directions; audit rows
+    on export and import.
+  - Docs note sha256 is integrity/tamper-evidence only, not authorship
+    provenance (no signing in scope).
+- **Notes:** If a second consumer for full publish/install ever appears,
+  revisit FEAT-086 — do not grow this ticket into a registry.
+
+### FEAT-100 — Cortex: KB source connector — GitHub
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-094 (rides the proven ingestion spine)
+- **Legacy:** split out of FEAT-094 per its C/B reduction
+- **Cost/Benefit:** done — covered by `sprints/assessments/FEAT-090-095-cortex-compat-rag-cost-benefit.md` (FEAT-094 verdict: connectors as S follow-ups, prioritized by demand).
+- **Description:** GitHub source for the FEAT-094 ingestion pipeline (repo
+  tree + raw fetch per the standalone's `providers.js`), riding the hardened
+  spine (SSRF guard, retry/DLQ, idempotency, job status). Handles API rate
+  limits, tree pagination, and optional auth tokens — the maintenance annuity
+  the C/B declined to front-load. Interim: GitHub raw URLs already work via
+  the HTTP source.
+- **Acceptance criteria:**
+  - A GitHub repo/path ingests end-to-end into pgvector rows through the
+    FEAT-094 worker spine; re-ingest is idempotent.
+  - Rate-limit responses back off and retry per the spine's policy; failures
+    dead-letter with a queryable status.
+  - Fetches respect the SSRF guard posture (API/raw hosts only).
+- **Notes:** Commit only on demonstrated demand (a real KB wanting it).
+
+### FEAT-101 — Cortex: KB source connector — HuggingFace datasets
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-094 (rides the proven ingestion spine)
+- **Legacy:** split out of FEAT-094 per its C/B reduction
+- **Cost/Benefit:** done — covered by `sprints/assessments/FEAT-090-095-cortex-compat-rag-cost-benefit.md` (FEAT-094 verdict: connectors as S follow-ups, prioritized by demand).
+- **Description:** HuggingFace datasets-server source for the FEAT-094
+  ingestion pipeline (per the standalone's `providers.js`), riding the
+  hardened spine. Watch datasets-server schema drift — the third-party-API
+  maintenance cost the C/B declined to front-load.
+- **Acceptance criteria:**
+  - A named HF dataset ingests end-to-end into pgvector rows through the
+    FEAT-094 worker spine; re-ingest is idempotent.
+  - Failures retry/dead-letter per the spine's policy with queryable status;
+    fetches respect the SSRF guard posture.
+- **Notes:** Commit only on demonstrated demand.
+
+### FEAT-102 — Cortex: KB source connector — data.gov (CKAN)
+- **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** FEAT-094 (rides the proven ingestion spine)
+- **Legacy:** split out of FEAT-094 per its C/B reduction
+- **Cost/Benefit:** done — covered by `sprints/assessments/FEAT-090-095-cortex-compat-rag-cost-benefit.md` (FEAT-094 verdict: connectors as S follow-ups, prioritized by demand).
+- **Description:** data.gov CKAN source for the FEAT-094 ingestion pipeline
+  (per the standalone's `providers.js`), riding the hardened spine.
+- **Acceptance criteria:**
+  - A CKAN dataset/resource ingests end-to-end into pgvector rows through the
+    FEAT-094 worker spine; re-ingest is idempotent.
+  - Failures retry/dead-letter per the spine's policy with queryable status;
+    fetches respect the SSRF guard posture.
+- **Notes:** Commit only on demonstrated demand.
+
 ## Bugs
 
 *(Security-hardening items triaged out of the `SP-11` review — filed, not
@@ -5797,6 +6492,22 @@ bounded exploration before it can be a task.
 
 Documented reason + revisit trigger for each. These stay out of active sprints
 until their trigger fires.
+
+### Cortex build-out — features explicitly deferred at selection (2026-07-28, no tickets filed)
+- **Type:** note · **Status:** deferred at Rick's feature selection
+  (`sprints/proposals/cortex-feature-plan.md` — 31 of 36 candidates selected).
+  Do **not** re-propose these blind; cite this note if one resurfaces.
+- **Deferred feature ids:**
+  - `python-in-container` — python code skills in the container runtime.
+    Revisit trigger: after FEAT-084/085 land and TASK-021's sandbox posture is
+    settled.
+  - `time-sessions` — time-boxed session tokens. Revisit trigger: demand after
+    FEAT-087/088 (use metering + resource/scope enforcement) ship.
+  - `openai-facade` / `ollama-facade` — API-compatibility façades for external
+    OpenAI/Ollama clients. Revisit trigger: a concrete external-client
+    integration need; FEAT-091 (frontend parity) covers the in-house console.
+  - `metrics` — cortex metrics/observability. Revisit trigger: fold into the
+    platform-wide observability work (R2) rather than a cortex-only build.
 
 ### FEAT-002 — ES-richer Post schema + search-by-hashtag
 - **Type:** feature · **Status:** deferred · **Priority:** P3 · **Size:** L

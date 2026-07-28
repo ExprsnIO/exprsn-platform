@@ -11,6 +11,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "setup": "node scripts/setup-tui.js",
+    "cortex:features": "node scripts/cortex-features-tui.js",
     "gen:certs": "node scripts/gen-certs.js",
     "pki:gen": "node scripts/gen-pki.js",
     "db:bootstrap": "node src/db/migrate.js",

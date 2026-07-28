@@ -13,6 +13,11 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 
 // Set test environment
 process.env.NODE_ENV = 'test';
+// @exprsn/shared's index requires stripeService, which constructs a Stripe
+// client at require time and throws without a key. Suites that import
+// @exprsn/shared (e.g. the socket handler tests) must not depend on a root
+// .env being present — supply a dummy test key when none is configured.
+process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
 process.env.PORT = '3999'; // Test port
 process.env.REDIS_ENABLED = 'false'; // Disable Redis for tests
 
@@ -33,6 +38,25 @@ jest.mock('../src/services/notificationService', () => ({
   notifyMessageEdit: jest.fn().mockResolvedValue(true),
   notifyMessageDelete: jest.fn().mockResolvedValue(true),
   notifyReaction: jest.fn().mockResolvedValue(true)
+}));
+
+// @exprsn/shared's idempotencyHandler schedules a require-time setInterval
+// (hourly cache cleanup, not unref'd) that keeps Jest alive forever after any
+// suite imports @exprsn/shared (e.g. the socket handler tests). Spark never
+// uses the idempotency middleware — stub the module out entirely.
+jest.mock('@exprsn/shared/middleware/idempotencyHandler', () => ({}));
+
+// FEAT-070: spark suites must NEVER load timeline's real relationship façade
+// (it attaches timeline's Sequelize/models). Default is allow-all so existing
+// suites are unaffected; enforcement suites override this mock per-file with
+// jest.fn implementations. Plain async functions on purpose — resetMocks:true
+// would strip jest.fn implementations between tests.
+jest.mock('../../timeline/src/services/relationshipService', () => ({
+  getSuppressedIds: async () => [],
+  getBlockedIds: async () => [],
+  getBlockedByIds: async () => [],
+  isBlockedEitherWay: async () => false,
+  canContact: async () => true
 }));
 
 // Mock Elasticsearch for search tests

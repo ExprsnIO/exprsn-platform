@@ -8,6 +8,7 @@ const { createLogger } = require('@exprsn/shared');
 const { requireAuth } = require('../middleware/auth');
 const db = require('../models');
 const messageModeration = require('../services/messageModeration');
+const contactPolicy = require('../services/contactPolicy');
 
 const router = express.Router();
 const logger = createLogger('exprsn-spark:enhanced');
@@ -64,6 +65,19 @@ router.post('/:id/forward',
 
         if (!participant) {
           logger.warn('User not participant in target conversation', {
+            userId,
+            conversationId
+          });
+          continue;
+        }
+
+        // FEAT-070 S2 (forward site): skip a frozen direct target the same way
+        // a non-participant target is skipped — the response's forwardedCount
+        // reflects it without an oracle about why. Also false (fail-closed) if
+        // the relationship lookup fails.
+        // eslint-disable-next-line no-await-in-loop
+        if (!(await contactPolicy.canContactInConversation(userId, conversationId))) {
+          logger.warn('Forward target rejected by contact policy', {
             userId,
             conversationId
           });
@@ -406,6 +420,19 @@ router.post('/:id/reply',
 
       if (!participant) {
         return res.status(403).json({ error: 'Not a participant in this conversation' });
+      }
+
+      // FEAT-070 S2 (thread-reply site): a reply is a send into the
+      // conversation — 403 with the generic contact message when the direct
+      // counterpart is blocked either way; lookup failure rethrows into the
+      // outer catch (generic 500, fail-closed).
+      try {
+        await contactPolicy.assertCanContact(userId, parentMessage.conversationId);
+      } catch (policyError) {
+        if (policyError instanceof contactPolicy.ContactForbiddenError) {
+          return res.status(403).json({ error: policyError.message });
+        }
+        throw policyError;
       }
 
       // Create reply

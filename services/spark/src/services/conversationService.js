@@ -4,6 +4,7 @@
 
 const { Conversation, Participant, Message } = require('../models');
 const { Op } = require('sequelize');
+const contactPolicy = require('./contactPolicy');
 
 class ConversationService {
   /**
@@ -14,6 +15,12 @@ class ConversationService {
 
     // Ensure creator is in participants
     const allParticipants = [...new Set([creatorId, ...participantIds])];
+
+    // FEAT-070 S1: a direct (1:1) conversation is contact initiation — reject
+    // when the pair is blocked either way. Group creation is exempt (ADR §3).
+    if (type === 'direct') {
+      await contactPolicy.assertCanContactUsers(creatorId, participantIds);
+    }
 
     const conversation = await Conversation.create({
       name,
@@ -57,7 +64,12 @@ class ConversationService {
       order: [['updatedAt', 'DESC']]
     });
 
-    return participations.map(p => p.Conversation);
+    const conversations = participations.map(p => p.Conversation).filter(Boolean);
+
+    // FEAT-070 S4: hide frozen direct conversations (counterpart in the
+    // viewer's suppression set). Frozen, not deleted — reappears on unblock.
+    const hidden = await contactPolicy.getHiddenConversationIds(userId, conversations);
+    return conversations.filter(c => !hidden.has(c.id));
   }
 
   /**
@@ -94,6 +106,10 @@ class ConversationService {
     if (existing) {
       throw new Error('User already in conversation');
     }
+
+    // FEAT-070 S3: adding a user you're in a blocked pair with is contact
+    // initiation by the adder — reject (403).
+    await contactPolicy.assertCanContactUsers(addedBy, [userId]);
 
     return Participant.create({
       conversationId,

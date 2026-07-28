@@ -9,6 +9,7 @@ const express = require('express');
 const { asyncHandler, AppError, validateCAToken, validatePagination } = require('@exprsn/shared');
 const { Message, Participant, Reaction } = require('../models');
 const messageModeration = require('../services/messageModeration');
+const contactPolicy = require('../services/contactPolicy');
 
 const router = express.Router();
 
@@ -41,6 +42,14 @@ router.get('/:conversationId', asyncHandler(async (req, res) => {
     conversationId,
     deleted: false
   };
+
+  // FEAT-070 S5: filter messages from suppressed senders (blocked either way
+  // ∪ viewer's unexpired mutes) — one set-returning façade call per request,
+  // then [Op.notIn] (the ADR read-path shape; no per-message checks).
+  const suppressed = await contactPolicy.getSuppressedIds(req.userId);
+  if (suppressed.length > 0) {
+    where.senderId = { [require('sequelize').Op.notIn]: suppressed };
+  }
 
   // Cursor-based pagination
   if (before) {
@@ -116,6 +125,13 @@ router.get('/:conversationId/:messageId', asyncHandler(async (req, res) => {
   });
 
   if (!message) {
+    throw new AppError('Message not found', 404, 'NOT_FOUND');
+  }
+
+  // FEAT-070 S5: a single suppressed-sender message reads as absent (404) —
+  // same shape as timeline's R9 post-detail, and no oracle about why.
+  const suppressedIds = await contactPolicy.getSuppressedIds(req.userId);
+  if (suppressedIds.includes(message.senderId)) {
     throw new AppError('Message not found', 404, 'NOT_FOUND');
   }
 

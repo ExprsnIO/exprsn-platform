@@ -239,6 +239,30 @@ describe('FEAT-070 REST enforcement', () => {
     });
   });
 
+  describe('GET /api/messages/search/suggestions (BUG-060 — intentionally shadowed)', () => {
+    it('is NOT reachable — shadowed by :messageId, 404s as a message lookup', async () => {
+      // Sr review of TASK-060: this route is deliberately left registered
+      // AFTER `/:conversationId/:messageId` (unsafe getSuggestions call
+      // signature + unscoped/un-S5-filtered DB fallback — BUG-060). Pin that
+      // it stays dead until BUG-060 lands: the request resolves as
+      // conversationId="search", messageId="suggestions" via the
+      // single-message handler, not the suggestions handler.
+      Message.findOne.mockResolvedValue(null);
+
+      const res = await request(app)
+        .get('/api/messages/search/suggestions')
+        .query({ q: 'hello' })
+        .set('x-user-id', SENDER);
+
+      expect(res.status).toBe(404);
+      expect(Message.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ conversationId: 'search', id: 'suggestions' })
+        })
+      );
+    });
+  });
+
   describe('GET /api/:id/thread (TASK-060 — enhanced thread-read)', () => {
     it('404s a thread rooted on a suppressed sender (no oracle)', async () => {
       relationshipService.getSuppressedIds.mockResolvedValue([OTHER]);

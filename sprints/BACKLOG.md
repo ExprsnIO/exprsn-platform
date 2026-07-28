@@ -4286,27 +4286,49 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     with the provisioned state intact) on mint failure; regression test.
 - **Notes:** jr-developer with sr review (org provisioning is the S1 façade surface).
 
-### BUG-060 — `db:check` is red on the live dev DB: 3 un-allowlisted NULLABILITY drifts on the moderation side tables
-- **Type:** bug · **Status:** backlog · **Priority:** P2 (QA recommendation — the drift gate is permanently red, masking any NEW drift) · **Size:** S
+### BUG-060 — spark `GET /api/messages/search/suggestions`: broken `getSuggestions` call signature + unscoped/un-S5-filtered DB fallback (cross-conversation content leak)
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
-- **Legacy:** — (found 2026-07-28 during Sprint 2026-12 QA; pre-existing — identical findings and exit 1 on `main` @ `1cdc0ca` BEFORE the sprint branch)
-- **Description:** `npm run db:check` exits non-zero against the live `exprsn` DB with
-  three NULLABILITY findings that are NOT in `scripts/drift-allow.json`:
-  `spark.message_moderation.message_id`, `filevault.file_moderation.file_id`, and
-  `timeline.post_moderation.post_id` — each "model NOT NULL, live nullable". Because
-  the gate is red at baseline, it can no longer catch new drift (this sprint has zero
-  schema changes; findings are byte-identical on main and on `s2612-sr` @ `02f3ed7`).
-- **Steps to reproduce:** infra up (`npm run infra:up`), root `.env` present →
-  `npm run db:check` → exit 1 with the three findings above.
-- **Expected:** exit 0 (drift resolved via migration to NOT NULL, or a documented
-  allowlist entry with reason + ticket per the drift-allow convention).
-- **Environment:** live dev DB `exprsn` (post BUG-056/057 hotfix state), Docker
-  Postgres; reproduced from both `/Volumes/Storage/exprsn-platform` (main) and the
-  QA worktree.
-- **Notes:** dba to root-cause (likely the moderation side-table sync/migration era —
-  sync `db:migrate` cannot ALTER existing columns to NOT NULL) and choose
-  migrate-vs-allowlist; then a developer applies it. Priority is a QA recommendation;
-  PM confirms at grooming.
+- **Legacy:** — (found by sr-developer review of TASK-060, 2026-07-28, branch `s2612-jr`)
+- **Description:** Found during sr review of TASK-060 (extending the FEAT-070 S5
+  suppressed-sender filter to spark's search routes). `services/spark/src/routes/messages.js`'s
+  `GET /search/suggestions` handler is unsafe as written:
+  1. It calls `searchService.getSuggestions(q, { userId, conversationId, limit })`,
+     but `searchService.getSuggestions`'s real signature is
+     `getSuggestions(query, conversationIds, limit)` — the options object lands
+     in the ES `terms` clause where an array is expected, throws, and every call
+     falls into the `catch` block's DB fallback (the ES path is effectively dead
+     code today).
+  2. That DB fallback, when `conversationId` is omitted from the query, searches
+     message `content` across **ALL conversations of ALL users** — no participant
+     scoping (unlike every other message route) and no FEAT-070 S5
+     suppressed-sender filter. This is a cross-conversation content leak: any
+     caller can read fragments of other users' private conversations via
+     autocomplete suggestions.
+  - The route is currently **registered after** `/:conversationId/:messageId` in
+    `messages.js` (intentionally, per the TASK-060 sr review — see the comment
+    above `router.get('/search/suggestions', ...)`), so it is shadowed/dead in
+    practice: `GET /search/suggestions` always matches `:messageId` first
+    (conversationId="search", messageId="suggestions") and 404s. **Do not
+    un-shadow it** (i.e. do not move it above `:messageId`) until this bug is
+    fixed — pinned by
+    `tests/routes/blockEnforcement.routes.test.js` → "GET /api/messages/search/suggestions
+    (BUG-060 — intentionally shadowed)".
+- **Acceptance criteria:**
+  - Fix the `searchService.getSuggestions` call to match its real signature (or
+    fix the signature, whichever is the smaller/safer change — this ticket
+    doesn't presuppose which side is "right").
+  - The DB fallback path (and/or the ES path once callable) is scoped to
+    conversations the caller participates in when `conversationId` is omitted —
+    no cross-user content leak either way.
+  - Apply the same FEAT-070 S5 suppressed-sender filter (`contactPolicy.getSuppressedIds`
+    → `[Op.notIn]`) used by the other message routes.
+  - Once fixed, move the route back above `/:conversationId/:messageId` (undoing
+    the "intentionally shadowed" placement) and remove/update the pinning test.
+- **Notes:** jr-developer with sr review (touches the FEAT-070 enforcement
+  surface, same as TASK-060). Cross-ref: TASK-060 (`b53d476`, sr
+  CHANGES-REQUIRED verdict that surfaced this), `services/spark/src/routes/messages.js`,
+  `services/spark/src/services/searchService.js`.
 
 ### BUG-061 — spark Jest full run never exits: `blockEnforcement.socket.test.js` leaves undetectable open handles
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
@@ -4332,6 +4354,29 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   8/8 green.
 - **Notes:** test-hygiene fix in `tests/socket/blockEnforcement.socket.test.js`
   teardown; jr-developer.
+
+### BUG-062 — `db:check` is red on the live dev DB: 3 un-allowlisted NULLABILITY drifts on the moderation side tables
+- **Type:** bug · **Status:** backlog · **Priority:** P2 (QA recommendation — the drift gate is permanently red, masking any NEW drift) · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found 2026-07-28 during Sprint 2026-12 QA; pre-existing — identical findings and exit 1 on `main` @ `1cdc0ca` BEFORE the sprint branch)
+- **Description:** `npm run db:check` exits non-zero against the live `exprsn` DB with
+  three NULLABILITY findings that are NOT in `scripts/drift-allow.json`:
+  `spark.message_moderation.message_id`, `filevault.file_moderation.file_id`, and
+  `timeline.post_moderation.post_id` — each "model NOT NULL, live nullable". Because
+  the gate is red at baseline, it can no longer catch new drift (this sprint has zero
+  schema changes; findings are byte-identical on main and on `s2612-sr` @ `02f3ed7`).
+- **Steps to reproduce:** infra up (`npm run infra:up`), root `.env` present →
+  `npm run db:check` → exit 1 with the three findings above.
+- **Expected:** exit 0 (drift resolved via migration to NOT NULL, or a documented
+  allowlist entry with reason + ticket per the drift-allow convention).
+- **Environment:** live dev DB `exprsn` (post BUG-056/057 hotfix state), Docker
+  Postgres; reproduced from both `/Volumes/Storage/exprsn-platform` (main) and the
+  QA worktree.
+- **Notes:** dba to root-cause (likely the moderation side-table sync/migration era —
+  sync `db:migrate` cannot ALTER existing columns to NOT NULL) and choose
+  migrate-vs-allowlist; then a developer applies it. Priority is a QA recommendation;
+  PM confirms at grooming.
+
 
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
@@ -5432,6 +5477,12 @@ FEAT.)*
   `session.test.js` 29/29 — both against the isolated `exprsn_auth_test` DB.
   Live avatar-upload E2E remains on the standing QA-runtime-debt list (not
   required this pass).
+- **Sr review observation (2026-07-28):** because `reapDisplayImage` is keyed
+  by the FileVault file id embedded in the URL (not by who is calling
+  `updateGroup`), a group admin's banner swap revokes all grants on the
+  PREVIOUS file even if a different admin originally uploaded it — accepted
+  as correct for this dedicated-display-upload flow (the old file is being
+  superseded platform-wide, not owned per-editor).
 
 ### TASK-056 — FileVault: clamp `file-access` token minting to read-only server-side (pre-existing)
 - **Type:** task · **Status:** done — QA-VERIFIED, merged 2026-07-28 (merge `dc5e2f0`; runtime smoke deferred until exprsn infra is up) · **Priority:** P3 · **Size:** S
@@ -5590,7 +5641,7 @@ FEAT.)*
   (doc-fix, not mount-move) recorded per AC.
 
 ### TASK-060 — Spark: apply the S5 suppressed-sender filter to conversation search and enhanced thread-read
-- **Type:** task · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28; **flagged for sr review per the ticket's standing note** · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** done — QA behavior-PASS + sr sign-off (change applied `08c4a51`), 2026-07-28 · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (FEAT-070 residual, 2026-07-28)
 - **Description:** FEAT-070's S5 read-filter covers message history and single-message
@@ -5642,6 +5693,30 @@ FEAT.)*
   (worktree npm-install artifact, matches the builder's "infra-unrelated"
   baseline class); post-run process hang is the pre-existing socket-suite
   handle, filed as **BUG-061**.
+- **Sr review verdict (2026-07-28): CHANGES-REQUIRED on the `/search/suggestions`
+  reorder only** — everything else in this ticket (the `GET
+  /:conversationId/search` reorder + both new S5 filters) **APPROVED**.
+  Un-shadowing `/search/suggestions` made a dead endpoint live and unsafe:
+  its `searchService.getSuggestions(q, {userId, conversationId, limit})` call
+  doesn't match the service's real `getSuggestions(query, conversationIds,
+  limit)` signature (throws, always falls to the DB fallback), and that
+  fallback has no participant scoping or S5 filter when `conversationId` is
+  omitted — a cross-conversation content leak. **Change applied**: moved
+  `GET /search/suggestions` back to AFTER `/:conversationId/:messageId` in
+  `messages.js` (restoring its pre-existing shadowed/dead state), with an
+  inline comment explaining why and pointing at the new bug; kept `GET
+  /:conversationId/search`'s reorder (approved, needed for this ticket's own
+  AC). Filed **BUG-060** for the broken call signature + unscoped fallback +
+  missing S5 filter, cross-referencing this ticket and the sr review; noted
+  there that the route must stay shadowed until BUG-060 lands. Added a
+  pinning test (`GET /api/messages/search/suggestions (BUG-060 —
+  intentionally shadowed)`) asserting the route resolves via `:messageId`
+  (404, no suggestions handler invoked) — regresses loudly if anyone moves
+  it back prematurely. Full enforcement-matrix suite now 16/16;
+  `npm run lint` clean.
+- **Close (2026-07-28, orchestrator):** sr sign-off satisfied — the sr's exact
+  prescribed change was applied verbatim (`08c4a51`) and re-tested (16/16);
+  QA behavior-PASS + sr approval on the amended diff → **done**.
 
 ## Spikes
 

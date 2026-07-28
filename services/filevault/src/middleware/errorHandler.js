@@ -4,6 +4,7 @@
  * ═══════════════════════════════════════════════════════════════════════
  */
 
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 const config = require('../config');
 
@@ -47,8 +48,11 @@ const errorMap = {
  * Global error handler
  */
 function errorHandler(err, req, res, next) {
-  // Log error
+  const correlationId = crypto.randomUUID();
+
+  // Log full error server-side with the correlation id
   logger.error('Request error:', {
+    correlationId,
     error: err.message,
     stack: err.stack,
     path: req.path,
@@ -56,16 +60,21 @@ function errorHandler(err, req, res, next) {
     userId: req.userId
   });
 
-  // Determine status code
-  const statusCode = errorMap[err.message] || err.statusCode || 500;
+  // A known operational error code (one of errorMap's keys) is safe to echo
+  // back verbatim. Anything else — Sequelize errors, unexpected bugs, etc. —
+  // must not leak its raw message to the client in ANY environment.
+  const isKnownErrorCode = Object.prototype.hasOwnProperty.call(errorMap, err.message);
+  const statusCode = (isKnownErrorCode ? errorMap[err.message] : err.statusCode) || 500;
+  const errorCode = isKnownErrorCode ? err.message : 'INTERNAL_SERVER_ERROR';
 
   // Prepare error response
   const errorResponse = {
-    error: err.message || 'INTERNAL_SERVER_ERROR',
-    message: getErrorMessage(err.message)
+    error: errorCode,
+    message: isKnownErrorCode ? getErrorMessage(errorCode) : 'An unexpected error occurred',
+    correlationId
   };
 
-  // Include stack trace in development
+  // Include stack trace/details in development only
   if (config.app.env === 'development') {
     errorResponse.stack = err.stack;
     errorResponse.details = err;

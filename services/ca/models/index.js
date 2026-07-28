@@ -57,14 +57,27 @@ const AcmeNonce = require('./AcmeNonce')(sequelize, Sequelize.DataTypes);
 // ═══════════════════════════════════════════════════════════════════════
 // Model Associations
 // ═══════════════════════════════════════════════════════════════════════
+// BUG-056: every association that touches User carries `constraints: false`.
+// The user ids stored in profiles/certificates/tokens/tickets/audit_logs/
+// password_resets/UserGroups are PLATFORM (auth.users) ids — ca.users is a
+// separate, vestigial identity store and the columns are bare UUIDs by design
+// (per-schema isolation forbids a cross-schema FK; see drift-allow.json's
+// "ca cross-schema user refs" entries). Without `constraints: false`, model
+// sync CREATES a real FK to ca.users on fresh installs, and every token mint
+// (and org provisioning via UserGroup.create) fails with an FK violation.
+// The navigation mixins (`as: 'user'`, `user.getGroups()`, …) still work.
+// Intra-ca FKs (certificates, groups, ACME chain) keep their constraints.
 
 // User <-> Profile (One-to-Many)
-User.hasMany(Profile, { foreignKey: 'userId', as: 'profiles', onDelete: 'CASCADE' });
-Profile.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+// BUG-056: no onDelete here — with constraints:false Sequelize 6 would still
+// inject attribute-level `references` when onDelete is set, recreating the
+// ca.users FK on fresh sync. There is no DB constraint for CASCADE to ride on.
+User.hasMany(Profile, { foreignKey: 'userId', as: 'profiles', constraints: false });
+Profile.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
 
 // User <-> Group (Many-to-Many, through UserGroup which carries the membership role)
-User.belongsToMany(Group, { through: UserGroup, as: 'groups', foreignKey: 'userId' });
-Group.belongsToMany(User, { through: UserGroup, as: 'users', foreignKey: 'groupId' });
+User.belongsToMany(Group, { through: UserGroup, as: 'groups', foreignKey: 'userId', constraints: false });
+Group.belongsToMany(User, { through: UserGroup, as: 'users', foreignKey: 'groupId', constraints: false });
 
 // User <-> Role (Many-to-Many)
 User.belongsToMany(Role, { through: 'UserRoles', as: 'roles', foreignKey: 'userId' });
@@ -79,8 +92,8 @@ Group.belongsToMany(RoleSet, { through: 'GroupRoleSets', as: 'roleSets', foreign
 RoleSet.belongsToMany(Group, { through: 'GroupRoleSets', as: 'groups', foreignKey: 'roleSetId' });
 
 // Certificate <-> User (Many-to-One)
-Certificate.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-User.hasMany(Certificate, { foreignKey: 'userId', as: 'certificates' });
+Certificate.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+User.hasMany(Certificate, { foreignKey: 'userId', as: 'certificates', constraints: false });
 
 // Certificate <-> Certificate (Self-referential for CA hierarchy)
 Certificate.belongsTo(Certificate, { foreignKey: 'issuerId', as: 'issuer' });
@@ -91,8 +104,8 @@ Token.belongsTo(Certificate, { foreignKey: 'certificateId', as: 'certificate' })
 Certificate.hasMany(Token, { foreignKey: 'certificateId', as: 'tokens' });
 
 // Token <-> User (Many-to-One)
-Token.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-User.hasMany(Token, { foreignKey: 'userId', as: 'tokens' });
+Token.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+User.hasMany(Token, { foreignKey: 'userId', as: 'tokens', constraints: false });
 
 // Token <-> Group scoping (spec v1.1): optional group / organization the token
 // was issued for; admins of either may invalidate the token.
@@ -100,16 +113,16 @@ Token.belongsTo(Group, { foreignKey: 'groupId', as: 'group' });
 Token.belongsTo(Group, { foreignKey: 'organizationId', as: 'organization' });
 
 // Ticket <-> User (Many-to-One)
-Ticket.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-User.hasMany(Ticket, { foreignKey: 'userId', as: 'tickets' });
+Ticket.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+User.hasMany(Ticket, { foreignKey: 'userId', as: 'tickets', constraints: false });
 
 // RevocationList <-> Certificate (Many-to-One)
 RevocationList.belongsTo(Certificate, { foreignKey: 'certificateId', as: 'certificate' });
 Certificate.hasMany(RevocationList, { foreignKey: 'certificateId', as: 'revocations' });
 
 // AuditLog <-> User (Many-to-One)
-AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-User.hasMany(AuditLog, { foreignKey: 'userId', as: 'auditLogs' });
+AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+User.hasMany(AuditLog, { foreignKey: 'userId', as: 'auditLogs', constraints: false });
 
 // Group <-> Group (Self-referential for group nesting)
 Group.belongsTo(Group, { foreignKey: 'parentId', as: 'parent' });
@@ -124,12 +137,12 @@ RateLimit.belongsTo(Group, { foreignKey: 'targetId', as: 'group', constraints: f
 Group.hasMany(RateLimit, { foreignKey: 'targetId', as: 'rateLimits', constraints: false });
 
 // PasswordReset <-> User (Many-to-One)
-PasswordReset.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-User.hasMany(PasswordReset, { foreignKey: 'userId', as: 'passwordResets' });
+PasswordReset.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+User.hasMany(PasswordReset, { foreignKey: 'userId', as: 'passwordResets', constraints: false });
 
 // PasswordReset <-> User (initiatedBy)
-PasswordReset.belongsTo(User, { foreignKey: 'initiatedBy', as: 'initiator' });
-User.hasMany(PasswordReset, { foreignKey: 'initiatedBy', as: 'initiatedResets' });
+PasswordReset.belongsTo(User, { foreignKey: 'initiatedBy', as: 'initiator', constraints: false });
+User.hasMany(PasswordReset, { foreignKey: 'initiatedBy', as: 'initiatedResets', constraints: false });
 
 // CrlCounter <-> Certificate (issuing CA)
 // BUG-025: a crl_counter is a strict dependent of its issuing certificate; it

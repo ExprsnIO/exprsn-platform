@@ -119,12 +119,15 @@ async function getDb() {
   // ═══════════════════════════════════════════════════════════════════════
 
   // User <-> Profile (One-to-Many)
-  User.hasMany(Profile, { foreignKey: 'userId', as: 'profiles', onDelete: 'CASCADE' });
-  Profile.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+  // BUG-056: no onDelete here — with constraints:false Sequelize 6 would still
+// inject attribute-level `references` when onDelete is set, recreating the
+// ca.users FK on fresh sync. There is no DB constraint for CASCADE to ride on.
+User.hasMany(Profile, { foreignKey: 'userId', as: 'profiles', constraints: false });
+  Profile.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
 
   // User <-> Group (Many-to-Many)
-  User.belongsToMany(Group, { through: 'UserGroups', as: 'groups', foreignKey: 'userId' });
-  Group.belongsToMany(User, { through: 'UserGroups', as: 'users', foreignKey: 'groupId' });
+  User.belongsToMany(Group, { through: 'UserGroups', as: 'groups', foreignKey: 'userId', constraints: false });
+  Group.belongsToMany(User, { through: 'UserGroups', as: 'users', foreignKey: 'groupId', constraints: false });
 
   // User <-> Role (Many-to-Many)
   User.belongsToMany(Role, { through: 'UserRoles', as: 'roles', foreignKey: 'userId' });
@@ -139,8 +142,8 @@ async function getDb() {
   RoleSet.belongsToMany(Group, { through: 'GroupRoleSets', as: 'groups', foreignKey: 'roleSetId' });
 
   // Certificate <-> User (Many-to-One)
-  Certificate.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-  User.hasMany(Certificate, { foreignKey: 'userId', as: 'certificates' });
+  Certificate.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+  User.hasMany(Certificate, { foreignKey: 'userId', as: 'certificates', constraints: false });
 
   // Certificate <-> Certificate (Self-referential for CA hierarchy)
   Certificate.belongsTo(Certificate, { foreignKey: 'issuerId', as: 'issuer' });
@@ -151,20 +154,20 @@ async function getDb() {
   Certificate.hasMany(Token, { foreignKey: 'certificateId', as: 'tokens' });
 
   // Token <-> User (Many-to-One)
-  Token.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-  User.hasMany(Token, { foreignKey: 'userId', as: 'tokens' });
+  Token.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+  User.hasMany(Token, { foreignKey: 'userId', as: 'tokens', constraints: false });
 
   // Ticket <-> User (Many-to-One)
-  Ticket.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-  User.hasMany(Ticket, { foreignKey: 'userId', as: 'tickets' });
+  Ticket.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+  User.hasMany(Ticket, { foreignKey: 'userId', as: 'tickets', constraints: false });
 
   // RevocationList <-> Certificate (Many-to-One)
   RevocationList.belongsTo(Certificate, { foreignKey: 'certificateId', as: 'certificate' });
   Certificate.hasMany(RevocationList, { foreignKey: 'certificateId', as: 'revocations' });
 
   // AuditLog <-> User (Many-to-One)
-  AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-  User.hasMany(AuditLog, { foreignKey: 'userId', as: 'auditLogs' });
+  AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+  User.hasMany(AuditLog, { foreignKey: 'userId', as: 'auditLogs', constraints: false });
 
   // Group <-> Group (Self-referential for group nesting)
   Group.belongsTo(Group, { foreignKey: 'parentId', as: 'parent' });
@@ -179,12 +182,12 @@ async function getDb() {
   Group.hasMany(RateLimit, { foreignKey: 'targetId', as: 'rateLimits', constraints: false });
 
   // PasswordReset <-> User (Many-to-One)
-  PasswordReset.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-  User.hasMany(PasswordReset, { foreignKey: 'userId', as: 'passwordResets' });
+  PasswordReset.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+  User.hasMany(PasswordReset, { foreignKey: 'userId', as: 'passwordResets', constraints: false });
 
   // PasswordReset <-> User (initiatedBy)
-  PasswordReset.belongsTo(User, { foreignKey: 'initiatedBy', as: 'initiator' });
-  User.hasMany(PasswordReset, { foreignKey: 'initiatedBy', as: 'initiatedResets' });
+  PasswordReset.belongsTo(User, { foreignKey: 'initiatedBy', as: 'initiator', constraints: false });
+  User.hasMany(PasswordReset, { foreignKey: 'initiatedBy', as: 'initiatedResets', constraints: false });
 
   const db = {
     sequelize,

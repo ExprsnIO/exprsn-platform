@@ -26,11 +26,10 @@ module.exports = (sequelize, DataTypes) => {
     userId: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'user_id',
-      references: {
-        model: 'users',
-        key: 'id'
-      }
+      field: 'user_id'
+      // BUG-056: no FK to ca.users — the principal is a platform/auth user id
+      // (auth.users), never mirrored into ca.users (vestigial). Same reasoning
+      // as Token.userId; see drift-allow.json 'ca cross-schema user refs'.
     },
     issuerId: {
       type: DataTypes.UUID,

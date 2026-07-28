@@ -2643,7 +2643,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 
 
 ### FEAT-070 — Spark block enforcement (block/mute for messaging) *(Tier 1)*
-- **Type:** feature · **Status:** in-sprint — Committed to Sprint 2026-11 (2026-07-27), full ADR scope; C/B-approved fallback slice available if it runs long · **Priority:** P1 · **Size:** M
+- **Type:** feature · **Status:** done — QA-VERIFIED, merged 2026-07-28 (merge `dc5e2f0`; runtime smoke deferred until exprsn infra is up) · **Priority:** P1 · **Size:** M
 - **Owner-role:** sr-developer · **Relates:** FEAT-011 (mandatory sibling per its ADR)
 - **Description:** FEAT-011 shipped block/mute in timeline (`timeline.user_relationships` + `relationshipService`
   façade). A block that does not stop a DM is incomplete: the ADR (`sprints/feat-011-blockmute-adr.md`) decomposed
@@ -2665,6 +2665,20 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   write-rejection + N2 now, S4/S5 read-filter as an explicit follow-up TASK. Full
   assessment: `sprints/assessments/feat-070-blockmute-cb.md`. Status may move
   `backlog → ready` at 2026-11 grooming.
+- **Resolution (done · 2026-07-28 · commits `186ec53`/`6235f7f`/`24df16d`/`98c0cd3`, branch `s2611-sr`):**
+  **Full ADR scope (S1–S5 + N2) — fallback not needed.** One audited helper
+  (`services/spark/src/services/contactPolicy.js`, lazy in-process require of timeline's
+  `relationshipService` — no cross-schema SQL, no HTTP hop) guards all 5 message-create
+  sites (socket `send:message`, `messageService.sendMessage`, forward, thread reply;
+  group-channel exempt per ADR §3 with in-code comment) plus S1 create-direct (before the
+  reuse branch), S3 add-participant, S4 conversation-list hiding, S5 history `Op.notIn` +
+  single-message 404, N2 recipient-side notification suppression, and a typing-presence
+  gate. Fail-closed with split signals: block → generic 403 (never the word "block");
+  façade outage → non-operational error, so an outage never masquerades as a block.
+  48/48 new enforcement tests; timeline untouched and green. QA adversarial pass PASS.
+  Residuals filed: TASK-059 (API_SURFACE stale spark `enhanced` mounts — pre-existing),
+  TASK-060 (S5 filter for conversation search + thread read), BUG-055 (shared
+  idempotencyHandler `setInterval` without `.unref()` hangs Jest — pre-existing).
 
 ### FEAT-071 — Org-admin-runnable user import/invite route (strict org-binding) *(deferred slice)*
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
@@ -2876,7 +2890,7 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
   FileVault + live edge → **dba** for the schema, sr-developer for the build.
 
 ### FEAT-077 — Capability façade (FEAT-061 Pass 2): reconcile ShareLink + RoomFile behind one shared mechanism
-- **Type:** feature · **Status:** in-sprint — Committed to Sprint 2026-11 (2026-07-27), **slice-scoped**: 2026-11 commits the **FileVault-backend-only slice** (façade interface + ShareLink/CA-token backend + `revokeByResource`, per the C/B's approved single-implementer alternative); the **RoomFile adapter is split to TASK-057** (backlog, P2, target 2026-12, must still land ahead of FEAT-047). Architect Shape-A sign-off on the façade interface scheduled week-1 day 1–2 · **Priority:** P1 · **Size:** M (2026-11 slice ~S/M)
+- **Type:** feature · **Status:** done — 2026-11 slice QA-VERIFIED + merged 2026-07-28 (`dc5e2f0`); remainder = TASK-057 · **Priority:** P1 · **Size:** M (2026-11 slice ~S/M)
 - **Owner-role:** unassigned *(route to sr-developer at BUILD; architect-paired)* · **Relates:** FEAT-061 (Pass 1, done), FEAT-047/048/049 (blocked-before), FEAT-039, FEAT-055, BUG-020/026/027 lineage
 - **Cost/Benefit: APPROVED (2026-07-27)** — build-now for sprint 2026-11, size **M
   conditional on Shape A** (interface unification: façade with ShareLink/CA-token +
@@ -2914,6 +2928,19 @@ assessment lands. Dependency chain: **FEAT-032** (engine) ← **FEAT-033**
 
 *(Security-hardening items triaged out of the `SP-11` review — filed, not
 must-fix this cycle. See `STATUS.md` → "Security review of the branch (SP-11)".)*
+- **Resolution (2026-11 slice · done · 2026-07-28 · commits `0260094`/`3d9deaf`/`feb4cd9`):**
+  Shape-A implemented exactly per the architect contract (archived alongside the C/B):
+  `services/filevault/src/services/capabilityService.js` — frozen resource-type registry
+  (`file` live; `roomFile`/`album` reserved, zero code behind them), `registerBackend`
+  adapter map (wiring-time throws, runtime fail-closed `CAP_NOT_FOUND`), provenance
+  derived from the verified File row (both mint paths owner-enforced →
+  `mintedAsOwner=true` constant, NO schema change), CA-unreachable-≠-deny exception
+  preserved by delegation, `share.js`/`roomCollab.js`/API_SURFACE byte-untouched, no new
+  routes. CA service-layer additions only: `findTokensByData` (empty-match rejected) +
+  `revokeTokensByData` (bulk + cache invalidation + audit). `revokeByResource` confirmed
+  as TASK-055's one-call fix (ShareLink rows + CA tokens + standalone file-access sweep;
+  `{revoked:0}` = success). filevault 14 suites/168 green; ca 12/12. QA PASS,
+  contract-conformant, no re-sign-off triggers hit.
 
 ### BUG-036 — `CA_BASE_URL` points at the nginx edge; node/axios loopback to it hangs → platform-wide CA_UNAVAILABLE
 - **Type:** bug · **Status:** done · **Priority:** P1 · **Size:** S — reconciled 2026-07-27 — merged to `main` (`2cd6bf5`)
@@ -4100,7 +4127,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** MUI-level remedy exists: bump `MuiChip` deleteIcon hit area via theme `styleOverrides` (padding on `.MuiChip-deleteIcon`) instead of per-site edits.
 
 ### BUG-054 — live `roomFiles.test.js` stale after FEAT-061 Pass 1 (exact-arg assertions miss the provenance argument)
-- **Type:** bug · **Status:** in-sprint — Committed to Sprint 2026-11 (2026-07-27) as fill; pairs naturally with façade-adjacent work but is standalone-safe · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED, merged 2026-07-28 (merge `dc5e2f0`; runtime smoke deferred until exprsn infra is up) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (QA in-review closeout 2026-07-27, main `64a9f7a`; relates FEAT-061, BUG-027)
 - **Description:** `cd services/live && npx jest tests/roomFiles.test.js` — the
@@ -4115,7 +4142,24 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     load-bearing part of BUG-027).
 - **Notes:** jr-developer.
 
+### BUG-055 — shared `idempotencyHandler` runs a require-time `setInterval` without `.unref()` — hangs every Jest suite that imports @exprsn/shared
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found during FEAT-070 build, 2026-07-28; pre-existing)
+- **Description:** `shared/middleware/idempotencyHandler.js:264` starts a cleanup
+  `setInterval` at require time without `.unref()`, so any Jest suite importing
+  `@exprsn/shared` never exits (spark's test setup now stubs it locally; filevault/live
+  suites work around with `--forceExit`).
+- **Acceptance criteria:**
+  - The interval is `.unref()`ed (or created lazily on first use); affected module
+    suites exit cleanly without `--forceExit` or local stubs.
+- **Notes:** One-line shared fix + remove the spark test stub. jr-developer.
+
 ## Tasks
+- **Resolution (done · 2026-07-28 · commit `b2d3925`):** Both assertions updated to the
+  3-arg shapes as POSITIVE provenance assertions (`{sharedAsOwner:true}` /
+  `ownerSharedIds` containment); `STRIPE_SECRET_KEY` guard added matching sibling live
+  test files. 12/12 green.
 
 ### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
 - **Type:** task · **Status:** done (merged to `main` `fe58d2c`; IA restructure + config store + live updates, e2e-verified) · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)
@@ -5157,9 +5201,13 @@ FEAT.)*
   acceptable today; this is hardening, not a security defect. jr-developer.
   Groomed 2026-07-27: blocked-by FEAT-077 — pull into a sprint only if FEAT-077's
   `revokeByResource` lands early enough to leave runway.
+- **Unblocked (2026-07-28):** the FEAT-077 slice landed `revokeByResource('file', fileId)`
+  — this ticket is now the promised one-call fix (call it from the avatar/cover
+  replace/remove paths). Also extend scope per the simplify-pass efficiency review:
+  delete/reap the orphaned FileVault FILE as well as the token when superseded.
 
 ### TASK-056 — FileVault: clamp `file-access` token minting to read-only server-side (pre-existing)
-- **Type:** task · **Status:** in-sprint — Committed to Sprint 2026-11 (2026-07-27); lands FIRST as the warm-up, independent of the façade branch · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** done — QA-VERIFIED, merged 2026-07-28 (merge `dc5e2f0`; runtime smoke deferred until exprsn infra is up) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned *(route to jr-developer at BUILD)* · **Blocked-by:** —
 - **Legacy:** — (QA finding during TASK-053 verification, 2026-07-27 — pre-existing, not introduced by Sprint 2026-10)
 - **Description:** `shareService.createFileAccessToken` spreads `options.permissions`
@@ -5174,6 +5222,11 @@ FEAT.)*
   2026-07-27): land this BEFORE and independently of FEAT-077** — do not fold it into
   the façade branch. ~1-line clamp on `createFileAccessToken` + one regression test;
   the façade then inherits the clamp and its test. Good sprint warm-up ticket.
+- **Resolution (done · 2026-07-28 · commit `1762697`):** `createFileAccessToken` hard-clamps
+  `{read:true, write:false, delete:false}` for every `file-access` mint (spread of
+  `options.permissions` removed); regression suite `fileAccessTokenClamp.test.js` covers
+  write/delete/read:false. QA verified no path reintroduces caller permissions (the
+  FEAT-077 adapter forwards only `expiresIn`).
 
 ### TASK-057 — RoomFile adapter behind the capability façade (FEAT-077 remainder)
 - **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S/M
@@ -5198,6 +5251,51 @@ FEAT.)*
 - **Notes:** Inherits FEAT-077's architect involvement — the Shape-A interface
   sign-off from the 2026-11 slice governs this adapter; flag the architect if the
   RoomFile adapter pressures the interface. Sequencing: ahead of FEAT-047/048/049.
+
+### TASK-058 — /simplify quality pass over the Sprint 2026-10 diff
+- **Type:** task · **Status:** done — merged + deployed 2026-07-28 (branch `s2610-opt`, 5 commits `419b9d7..10fee57`) · **Priority:** P3 · **Size:** M
+- **Owner-role:** sr-developer · **Blocked-by:** —
+- **Legacy:** — (owner-ordered 2026-07-27; recorded retroactively per the ticket convention)
+- **Description:** Four-angle review (reuse/simplification/efficiency/altitude) of the
+  2026-10 range `64a9f7a..619ed02`, fixes applied.
+- **Resolution:** Shared `UserMenu` component replaces the ~60-line duplicated account
+  menu in both layouts (+ collapsed duplicate `initials()`); missed sixth BUG-048
+  consumer fixed (`.page-item.active .page-link`, 6.02:1 dark) with the forbidden
+  text-inverse-on-primary pair documented; single active-link predicate in AdminLayout
+  (`matchPath`); `filevaultApi.uploadForDisplayUrl` api-layer helper; `isSameOriginUrl`
+  → `lib/url.ts`; local-file previews (no post-upload re-download; object URLs revoked);
+  `DARK_CHIP_EMPHASIS` promoted to first-class per-mode emphasis tokens (byte-identical
+  colors, verified); assorted dedups. Net **+6 LOC** (263+/257−, 11 files); tsc/build/
+  vitest 16/16/eslint green; all sprint contrast pairings re-verified unchanged.
+
+### TASK-059 — API_SURFACE.md: spark `enhanced` router paths documented at the wrong mount
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found during FEAT-070 build, 2026-07-28; pre-existing)
+- **Description:** API_SURFACE.md documents `/spark/api/messages/:id/forward|reply`, but
+  `services/spark/src/index.js` mounts the `enhanced` router at `/api`, so the live
+  paths are `/spark/api/:id/forward|reply`. The SPA is unaffected (it uses its own E2EE
+  send helper). Decide: fix the doc, or move the mount to match the doc (the doc'd
+  shape is the saner URL) — moving the mount is a breaking change to any external
+  caller, so document-first is the default.
+- **Acceptance criteria:**
+  - API_SURFACE.md and the actual mount agree; decision (doc-fix vs mount-move)
+    recorded here.
+- **Notes:** jr-developer.
+
+### TASK-060 — Spark: apply the S5 suppressed-sender filter to conversation search and enhanced thread-read
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (FEAT-070 residual, 2026-07-28)
+- **Description:** FEAT-070's S5 read-filter covers message history and single-message
+  GET, but `/api/messages/:conversationId/search` and the enhanced thread-read route
+  don't apply the suppressed-sender filter. Marginal today: in a direct 1:1 the whole
+  conversation is already hidden/frozen; this matters only for user-mutes inside group
+  conversations.
+- **Acceptance criteria:**
+  - Both routes apply the same `Op.notIn` suppression filter as `getMessages`;
+    enforcement-matrix tests extended to cover them.
+- **Notes:** jr-developer; reuse `contactPolicy`/`getSuppressedIds`.
 
 ## Spikes
 

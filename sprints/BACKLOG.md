@@ -4144,8 +4144,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** jr-developer.
 
 ### BUG-055 — shared `idempotencyHandler` runs a require-time `setInterval` without `.unref()` — hangs every Jest suite that imports @exprsn/shared
-- **Type:** bug · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 (jr track FIRST — restores clean Jest exits for the other suites) · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28 · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (found during FEAT-070 build, 2026-07-28; pre-existing)
 - **Description:** `shared/middleware/idempotencyHandler.js:264` starts a cleanup
   `setInterval` at require time without `.unref()`, so any Jest suite importing
@@ -4155,6 +4155,17 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - The interval is `.unref()`ed (or created lazily on first use); affected module
     suites exit cleanly without `--forceExit` or local stubs.
 - **Notes:** One-line shared fix + remove the spark test stub. jr-developer.
+- **Resolution (in-review · 2026-07-28):** Added `.unref()` to the interval
+  (`shared/middleware/idempotencyHandler.js`); removed spark's
+  `jest.mock('@exprsn/shared/middleware/idempotencyHandler', ...)` stub from
+  `services/spark/tests/setup.js` — the real module now loads without hanging.
+  Verified `tests/routes/blockEnforcement.routes.test.js` (imports
+  `@exprsn/shared`) exits cleanly with no `--forceExit`. Note: a SEPARATE
+  pre-existing open-handle warning on `tests/socket/blockEnforcement.socket.test.js`
+  was confirmed present on the pre-fix baseline too (unrelated to
+  idempotencyHandler — not in this ticket's scope). auth's `jest.config.js`
+  `forceExit:true` also left untouched (unrelated — auth's own DB/session
+  teardown, not idempotencyHandler). `npm run lint` clean.
 
 ### BUG-056 — Fresh-bootstrap DB cannot register/login: CA token mint violates `ca.audit_logs` FK
 - **Type:** bug · **Status:** done — hotfix merged + LIVE-VERIFIED 2026-07-28 (register/login/upload all green on the fresh DB) · **Priority:** P1 · **Size:** S
@@ -4219,8 +4230,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   non-transactional either side of commit) — filed as **TASK-061**.
 
 ### BUG-058 — filevault module error handler leaks raw internal error messages in all environments, no correlationId
-- **Type:** bug · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28 · **Priority:** P2 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (2026-07-28 infra smoke; pre-existing)
 - **Description:** `services/filevault/src/middleware/errorHandler.js:64` sets
   `error: err.message` ungated by environment — production clients would receive raw
@@ -4231,6 +4242,16 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - filevault adopts the shared error handler (or matches its posture): operational
     messages only, dev-gated internals, correlationId present.
 - **Notes:** jr-developer.
+- **Resolution (in-review · 2026-07-28):** `errorMap`'s keys are now the ONLY
+  error codes ever echoed back verbatim; anything else (Sequelize errors,
+  unexpected bugs) returns a generic `INTERNAL_SERVER_ERROR` message in every
+  environment, matching `shared/middleware/errorHandler.js` /
+  `src/gateway.js`'s posture. Every response now carries a `correlationId`;
+  `stack`/`details` stay dev-gated. New regression suite
+  `services/filevault/tests/unit/errorHandler.test.js` (3 tests: known-code
+  echo, unmapped-error-never-leaks in production, dev-gate still applies but
+  never leaks the raw message). Full filevault suite: 17 suites / 187 tests
+  green. `npm run lint` clean.
 
 ### BUG-059 — /signup (org signup) mints the CA token after org provisioning with no compensation on failure
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
@@ -5289,8 +5310,8 @@ FEAT.)*
 - **Notes:** dba review for the storage shape. jr-developer.
 
 ### TASK-055 — FileVault: revoke the minted capability token when an avatar/cover is replaced or removed
-- **Type:** task · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 (blocked-by satisfied: FEAT-077 slice landed `revokeByResource`, live-verified at the 2026-11 smoke) · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** FEAT-077 **2026-11 slice** (per its C/B: the façade's `revokeByResource(fileId)` makes this a one-call trivial-S fix — do not build it standalone first). Note the 2026-07-27 split: `revokeByResource` is IN the FileVault-backend-only slice committed to Sprint 2026-11 — this ticket does NOT wait on the TASK-057 RoomFile-adapter remainder, and becomes pullable (conditional pull, only if the sprint drains early) as soon as the slice lands.
+- **Type:** task · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28 · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** FEAT-077 **2026-11 slice** (per its C/B: the façade's `revokeByResource(fileId)` makes this a one-call trivial-S fix — do not build it standalone first). Note the 2026-07-27 split: `revokeByResource` is IN the FileVault-backend-only slice committed to Sprint 2026-11 — this ticket does NOT wait on the TASK-057 RoomFile-adapter remainder, and becomes pullable (conditional pull, only if the sprint drains early) as soon as the slice lands.
 - **Legacy:** — (QA follow-up from TASK-053 verification, 2026-07-27)
 - **Description:** TASK-053's `ImageUploadField` mints a non-expiring read-only
   file-scoped access token and embeds it in the stored avatar/cover URL. Remove/replace
@@ -5308,6 +5329,32 @@ FEAT.)*
   — this ticket is now the promised one-call fix (call it from the avatar/cover
   replace/remove paths). Also extend scope per the simplify-pass efficiency review:
   delete/reap the orphaned FileVault FILE as well as the token when superseded.
+- **Resolution (in-review · 2026-07-28):** New
+  `services/filevault/src/services/displayImageService.js` —
+  `reapDisplayImage(oldUrl, newUrl, ownerId)`: parses the FileVault file id out
+  of the stored tokened display URL, calls
+  `capabilityService.revokeByResource('file', fileId)`, then best-effort
+  reaps (soft-deletes via `fileService.deleteFile`) the superseded file;
+  no-op when the old value is unchanged or not a FileVault display URL; never
+  throws (a revoke/reap failure must not block the profile/group save it's
+  cleaning up after). Wired in-process (same pattern as
+  `services/live/src/routes/roomCollab.js`'s FileVault require) into:
+  - `services/auth/src/routes/users.js` `PUT /:id` (profile `avatarUrl`)
+  - `services/nexus/src/services/groupService.js` `updateGroup`
+    (`avatarUrl` + `bannerUrl`) — required LAZILY inside `updateGroup` (only
+    when those fields actually change) so groupService's own require graph,
+    and its existing unit tests, stay untouched for every other caller.
+  "Existing avatar/cover URLs keep working through the transition" AC is
+  satisfied by construction — only the OLD value on an actual replace/remove
+  is touched. Tests: `filevault/tests/unit/displayImageService.test.js` (11
+  cases incl. no-op/failure-swallowing), `nexus` `groupService.test.js` (2
+  new cases, façade required via `jest.doMock` + `virtual:true` since the
+  require is lazy), `auth` `tests/task055-avatarReap.test.js` (3
+  supertest cases against the real `PUT /api/users/:id` route, isolated
+  `exprsn_auth_test` DB, `validateCAToken` stubbed per the
+  `provision-equivalence.test.js` precedent). All green; filevault 17/187,
+  nexus groupService 21/21, auth 3/3 (+ session.test.js 29/29 unaffected).
+  `npm run lint` clean.
 
 ### TASK-056 — FileVault: clamp `file-access` token minting to read-only server-side (pre-existing)
 - **Type:** task · **Status:** done — QA-VERIFIED, merged 2026-07-28 (merge `dc5e2f0`; runtime smoke deferred until exprsn infra is up) · **Priority:** P3 · **Size:** S
@@ -5372,8 +5419,8 @@ FEAT.)*
   vitest 16/16/eslint green; all sprint contrast pairings re-verified unchanged.
 
 ### TASK-059 — API_SURFACE.md: spark `enhanced` router paths documented at the wrong mount
-- **Type:** task · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 (doc-first default per the ticket; record the decision in the ticket) · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** task · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28 · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (found during FEAT-070 build, 2026-07-28; pre-existing)
 - **Description:** API_SURFACE.md documents `/spark/api/messages/:id/forward|reply`, but
   `services/spark/src/index.js` mounts the `enhanced` router at `/api`, so the live
@@ -5385,10 +5432,19 @@ FEAT.)*
   - API_SURFACE.md and the actual mount agree; decision (doc-fix vs mount-move)
     recorded here.
 - **Notes:** jr-developer.
+- **Resolution (in-review · 2026-07-28):** **Decision: doc-fix** (per the
+  ticket's stated default — moving the mount would be a breaking change to
+  any external caller, and the SPA doesn't use these paths). Updated
+  API_SURFACE.md's `forward`/`pin`/`unpin`/`thread`/`reply` rows to
+  `/spark/api/:id/<action>` (dropping the incorrect `/messages` segment) and
+  annotated each as an `enhanced` router mount. `conversations/:id/pinned` and
+  `conversations/:id/settings|mute|unmute` were already documented correctly
+  (those router paths already include `/conversations`) — left unchanged.
+  Docs-only diff; no code/test changes.
 
 ### TASK-060 — Spark: apply the S5 suppressed-sender filter to conversation search and enhanced thread-read
-- **Type:** task · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 (jr-routable; sr review at in-review — FEAT-070 enforcement surface) · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** task · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28; **flagged for sr review per the ticket's standing note** · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (FEAT-070 residual, 2026-07-28)
 - **Description:** FEAT-070's S5 read-filter covers message history and single-message
   GET, but `/api/messages/:conversationId/search` and the enhanced thread-read route
@@ -5399,6 +5455,29 @@ FEAT.)*
   - Both routes apply the same `Op.notIn` suppression filter as `getMessages`;
     enforcement-matrix tests extended to cover them.
 - **Notes:** jr-developer; reuse `contactPolicy`/`getSuppressedIds`.
+- **Resolution (in-review · 2026-07-28):** Added the same
+  `contactPolicy.getSuppressedIds` → `[Op.notIn]` filter to
+  `GET /api/messages/:conversationId/search`
+  (`services/spark/src/routes/messages.js`) and to
+  `GET /api/:id/thread` (`services/spark/src/routes/enhanced.js` — a thread
+  rooted on a suppressed sender now 404s as absent, same posture as the
+  single-message GET; replies from a suppressed sender are filtered from the
+  thread). **Adjacent pre-existing bug found and fixed while building the
+  test for this**: `GET /:conversationId/search` and
+  `GET /search/suggestions` are two-segment paths that were registered
+  AFTER `/:conversationId/:messageId` (GET/PUT/DELETE) in
+  `messages.js` — Express matches by registration order, not
+  literal-vs-param specificity, so both search routes were always shadowed
+  by `:messageId` and silently 404'd on any real traffic (confirmed present
+  on the pre-change baseline via a throwaway repro script). Reordered both
+  above `:messageId` (route bodies unchanged apart from the new S5 filter)
+  — without this, this ticket's own fix would be unreachable. **Flagging
+  this specifically for sr review** alongside the ticket's standing
+  FEAT-070-enforcement-surface flag. `tests/routes/blockEnforcement.routes.test.js`
+  extended with 4 new cases (search filtered/unfiltered, thread 404 + replies
+  filtered) — 15/15 green; full spark suite unaffected (same 3 pre-existing,
+  infra-unrelated failures as the pre-change baseline, confirmed by diff).
+  `npm run lint` clean.
 
 ## Spikes
 

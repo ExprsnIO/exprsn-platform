@@ -3382,8 +3382,8 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   MCP shim over the existing JSON routes as a doc/example — zero platform code.
 
 ### TASK-063 — Cortex: keyset pagination on sessions/messages
-- **Type:** task · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P3 · **Size:** S
-- **Owner-role:** jr-developer (PM routing rec. — claiming dev confirms at BUILD) · **Blocked-by:** —
+- **Type:** task · **Status:** in-review (Sprint 2026-13, fix landed `s2613-jr` @ `00a91ae`) · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `keyset-pagination` (S)
 - **Description:** Cursor-based paging on session/message lists instead of
   limit-only. Gap today: module lists cap at limit 100/200 with no cursor.
@@ -3394,6 +3394,51 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   - SPA callers (chat session list/history) updated to page; no regression in
     existing default-limit behavior.
 - **Notes:** Pure plumbing; jr-suitable.
+- **Resolution (in-review · 2026-07-28 · commit `00a91ae`, branch `s2613-jr`):**
+  Scoped to the two endpoint pairs the ticket names — `services/cortex/src/routes/chat.js`
+  (assistant channel) and `cs.js` (cs channel), both session list + message
+  history. (`tasks.js`/`outbox.js` also cap at limit 100/200 but are a
+  different domain — "sessions/messages" — left as-is; flag if the intent was
+  broader.)
+  - New `services/cortex/src/lib/keysetPagination.js`: opaque
+    `base64url(JSON({createdAt, id}))` cursor, `fetchKeysetPage` seeks
+    strictly past the prior page keyed on `(createdAt, id)` — the id
+    tie-break is what makes it dupe/gap-safe under a concurrent insert at the
+    exact same `createdAt`, which plain OFFSET paging (and a createdAt-only
+    cursor) both get wrong. Model-agnostic (`ChatSession` string ids vs
+    `ChatMessage` UUIDs share one helper).
+  - Session lists: `cursor`+`limit` accepted, cap/default **unchanged at
+    100** (AC's "no regression in existing default-limit behavior").
+  - Message history (`GET .../:id`): previously **fully unbounded** (no cap
+    at all) — introduced a 200-message default/cap. Interpreted "no
+    regression" as applying to the session list's pre-existing 100 default,
+    not as a mandate to keep history unbounded forever; flag at review if
+    that reading is wrong.
+  - `nextCursor: null` at the end of a list (both endpoint families).
+  - SPA (`web/src/api/cortex.ts`, `AssistantTab.tsx`, `CustomerServiceTab.tsx`):
+    `chatSessions`/`chatSession`/`csChats`/`csChat` take an optional
+    `{cursor, limit}` (omitted call is byte-identical to the pre-ticket
+    request); both tabs switched to `useInfiniteQuery` with a "Load more"
+    button for the session list and a "Load more messages" button for
+    history.
+  - `API_SURFACE.md` rows for `/chat[/:id]` and `/cs/chat[/:id]` updated with
+    the new query params/response/cap shape.
+  - **Tests:** `tests/unit/keysetPagination.test.js` (cursor round-trip,
+    malformed-cursor handling, seek-direction/tie-break correctness, full
+    desc/asc walks with no dupes/gaps across paging, and an explicit
+    concurrent-insert-ahead-of-cursor case proving the old row never
+    reappears) + `tests/routes/chatPagination.test.js` (route-level: the
+    default no-cursor/no-limit call is byte-identical to pre-ticket
+    behavior, `nextCursor` present/absent correctly, cursor threads into the
+    Sequelize `where`, limit clamps at the cap, a full multi-page history
+    walk with no dupes/gaps, and the 404 short-circuit does zero
+    `ChatMessage` queries).
+  - **Verified:** full cortex suite 9/9 suites, 173/173 tests (confirmed via
+    a before/after comparison that a pre-existing "worker did not exit
+    gracefully" warning is present on the unmodified baseline too — NOT
+    introduced by this ticket, out of scope to fix here); `npx tsc --noEmit`
+    clean; `npm run web:build` clean; `npm run lint` clean (0 errors, same
+    176 pre-existing warnings as the pre-ticket baseline).
 
 ### FEAT-093 — Cortex: pgvector embedding store
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M

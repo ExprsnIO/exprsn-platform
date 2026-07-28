@@ -2939,7 +2939,9 @@ standalone Exprsn-Cortex platform (`/Volumes/Storage/exprsn-cortex`).
 16 of 18 FEATs approved — 6 of them reduced/capped/resized in place below —
 and FEAT-086/FEAT-092 deferred with revisit triggers, for a net **≈75 pts of
 approved scope**; the C/B-carved follow-ups are filed as FEAT-096…FEAT-102
-below. No sprint has been assembled from this slate yet. **Sequencing:** four foundations
+below. **Sprint 2026-13 (committed 2026-07-28) opens this slate foundations-first:
+FEAT-080 + TASK-062 + TASK-063 are `in-sprint`; everything else below stays queued
+per the sequencing note.** **Sequencing:** four foundations
 gate everything — **FEAT-080** (agent entities) before chaining/scheduling/
 builder/frontend-parity; **FEAT-084** (container runtime) before function
 registry/warm pools; **FEAT-093** (pgvector) before KB ingestion/binding;
@@ -3008,8 +3010,8 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   growth/retention (TASK-064's sweeper should cover it).
 
 ### FEAT-080 — Cortex: DB-backed agent definitions with run history + NL agent builder
-- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** L
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** feature · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 · **Size:** L
+- **Owner-role:** sr-developer (PM routing rec. — claiming dev confirms at BUILD) · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-entities` (M) + `agent-runs` (S) + `agent-builder-nl` (S)
 - **Cost/Benefit:** done — **APPROVE.** Keystone gating FEAT-081/082/091 + half of FEAT-095; new-tables-only. Condition: pin the enable gate as **deterministic spec validation + advisory smoke run** (LLM-judged tests on local models are flaky by construction); NL builder is a droppable tail. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
 - **Description:** Replace the 3 hard-coded personas with user-defined agents:
@@ -3277,8 +3279,8 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   `services/ca/services/token.js` before build.
 
 ### TASK-062 — Cortex: inbound service-token HMAC auth
-- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** task · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 · **Size:** S
+- **Owner-role:** sr-developer (PM routing rec. — auth-surface; claiming dev confirms at BUILD) · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `inbound-service-hmac` (S)
 - **Description:** Accept `X-Service-ID`/`X-Service-Token` HMAC so other modules
   can call cortex over HTTP. Gap today: cortex uses service tokens outbound only
@@ -3380,8 +3382,8 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   MCP shim over the existing JSON routes as a doc/example — zero platform code.
 
 ### TASK-063 — Cortex: keyset pagination on sessions/messages
-- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** task · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer (PM routing rec. — claiming dev confirms at BUILD) · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `keyset-pagination` (S)
 - **Description:** Cursor-based paging on session/message lists instead of
   limit-only. Gap today: module lists cap at limit 100/200 with no cursor.
@@ -4985,8 +4987,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** jr-developer with sr review (org provisioning is the S1 façade surface).
 
 ### BUG-060 — spark `GET /api/messages/search/suggestions`: broken `getSuggestions` call signature + unscoped/un-S5-filtered DB fallback (cross-conversation content leak)
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 · **Size:** S
+- **Owner-role:** jr-developer, sr review mandatory at in-review (PM routing rec.) · **Blocked-by:** —
 - **Legacy:** — (found by sr-developer review of TASK-060, 2026-07-28, branch `s2612-jr`)
 - **Description:** Found during sr review of TASK-060 (extending the FEAT-070 S5
   suppressed-sender filter to spark's search routes). `services/spark/src/routes/messages.js`'s
@@ -5029,8 +5031,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   `services/spark/src/services/searchService.js`.
 
 ### BUG-061 — spark Jest full run never exits: `blockEnforcement.socket.test.js` leaves undetectable open handles
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer (PM routing rec.) · **Blocked-by:** —
 - **Legacy:** — (pre-existing; noted at the BUG-055 build 2026-07-28 as present on the
   pre-fix baseline; filed by QA at Sprint 2026-12 verification instead of being
   silently skipped)
@@ -5054,8 +5056,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   teardown; jr-developer.
 
 ### BUG-062 — `db:check` is red on the live dev DB: 3 un-allowlisted NULLABILITY drifts on the moderation side tables
-- **Type:** bug · **Status:** backlog · **Priority:** P2 (QA recommendation — the drift gate is permanently red, masking any NEW drift) · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 (PM confirmed QA's recommendation at 2026-13 grooming — the drift gate must be green before the cortex new-table wave lands) · **Size:** S
+- **Owner-role:** dba (root-cause + migrate-vs-allowlist call; a developer applies) · **Blocked-by:** —
 - **Legacy:** — (found 2026-07-28 during Sprint 2026-12 QA; pre-existing — identical findings and exit 1 on `main` @ `1cdc0ca` BEFORE the sprint branch)
 - **Description:** `npm run db:check` exits non-zero against the live `exprsn` DB with
   three NULLABILITY findings that are NOT in `scripts/drift-allow.json`:

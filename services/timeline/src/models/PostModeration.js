@@ -134,11 +134,18 @@ module.exports = (sequelize) => {
     // takes its moderation row with it and post_id can stay NOT NULL. The
     // fix-post-moderation-fk-cascade migration enforces this at the DB level
     // because sync emits SET NULL regardless of what associate() declares.
+    // BUG-062: foreignKey MUST be the object form naming the model's own
+    // attribute (`postId`). The old string form ('post_id') did not match the
+    // camelCase attribute, so Sequelize injected a SECOND, NULLABLE attribute on
+    // the same column — a fresh `db:migrate` sync then CREATEd post_id nullable,
+    // contradicting allowNull:false (the drift db:check flagged).
     PostModeration.belongsTo(models.Post, {
-      foreignKey: 'post_id', as: 'post', onDelete: 'CASCADE', onUpdate: 'CASCADE'
+      foreignKey: { name: 'postId', field: 'post_id', allowNull: false },
+      as: 'post', onDelete: 'CASCADE', onUpdate: 'CASCADE'
     });
     models.Post.hasOne(PostModeration, {
-      foreignKey: 'post_id', as: 'moderation', onDelete: 'CASCADE', onUpdate: 'CASCADE'
+      foreignKey: { name: 'postId', field: 'post_id', allowNull: false },
+      as: 'moderation', onDelete: 'CASCADE', onUpdate: 'CASCADE'
     });
   };
 

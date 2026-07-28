@@ -41,6 +41,23 @@ module.exports = {
       `ALTER TABLE "${SCHEMA}"."post_moderation" DROP CONSTRAINT IF EXISTS "${FK}";`
     );
 
+    // BUG-062: repeated create-era runs left Postgres-suffixed duplicates of the
+    // same FK ("..._fkey1" … "..._fkey5") on the live dev DB. Drop every extra
+    // post_id FK so exactly one canonical constraint (re-added below) remains.
+    await queryInterface.sequelize.query(`
+      DO $$
+      DECLARE c record;
+      BEGIN
+        FOR c IN
+          SELECT conname FROM pg_constraint
+          WHERE conrelid = '"${SCHEMA}"."post_moderation"'::regclass
+            AND contype = 'f' AND conname LIKE '${FK}%'
+        LOOP
+          EXECUTE format('ALTER TABLE "${SCHEMA}"."post_moderation" DROP CONSTRAINT %I', c.conname);
+        END LOOP;
+      END $$;
+    `);
+
     await queryInterface.changeColumn(TABLE, 'post_id', {
       type: Sequelize.UUID,
       allowNull: false,

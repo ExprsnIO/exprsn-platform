@@ -230,6 +230,63 @@ describe('GroupService', () => {
       expect(redis.del).toHaveBeenCalledWith('group:group-123:info');
     });
 
+    it('TASK-055: reaps the superseded avatar/banner via the FileVault façade when they change', async () => {
+      const mockDisplayImageService = {
+        reapDisplayImage: jest.fn().mockResolvedValue(undefined)
+      };
+      jest.doMock('../../../../filevault/src/services/displayImageService', () => mockDisplayImageService, {
+        virtual: true
+      });
+
+      const mockGroup = {
+        id: 'group-123',
+        creatorId: 'user-123',
+        avatarUrl: '/filevault/api/share/file/old-avatar/download?token=t1',
+        bannerUrl: '/filevault/api/share/file/old-banner/download?token=t2',
+        update: jest.fn().mockResolvedValue(true)
+      };
+
+      Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
+      GroupMembership.findOne = jest.fn().mockResolvedValue({ role: 'owner' });
+
+      await groupService.updateGroup('group-123', 'user-123', {
+        avatarUrl: '/filevault/api/share/file/new-avatar/download?token=t3',
+        bannerUrl: ''
+      });
+
+      expect(mockDisplayImageService.reapDisplayImage).toHaveBeenCalledWith(
+        '/filevault/api/share/file/old-avatar/download?token=t1',
+        '/filevault/api/share/file/new-avatar/download?token=t3',
+        'user-123'
+      );
+      expect(mockDisplayImageService.reapDisplayImage).toHaveBeenCalledWith(
+        '/filevault/api/share/file/old-banner/download?token=t2',
+        '',
+        'user-123'
+      );
+
+      jest.dontMock('../../../../filevault/src/services/displayImageService');
+    });
+
+    it('TASK-055: does NOT touch the façade when avatar/banner are untouched by the update', async () => {
+      const mockGroup = {
+        id: 'group-123',
+        creatorId: 'user-123',
+        avatarUrl: '/filevault/api/share/file/old-avatar/download?token=t1',
+        update: jest.fn().mockResolvedValue(true)
+      };
+
+      Group.findByPk = jest.fn().mockResolvedValue(mockGroup);
+      GroupMembership.findOne = jest.fn().mockResolvedValue({ role: 'owner' });
+
+      // No avatarUrl/bannerUrl in the update payload — should not require the
+      // façade module at all (this would throw if it tried to reach the real
+      // filevault chain, since nothing mocks it in this test).
+      await expect(
+        groupService.updateGroup('group-123', 'user-123', { description: 'Updated' })
+      ).resolves.toBeDefined();
+    });
+
     it('should allow a platform admin to update without group membership', async () => {
       const mockGroup = {
         id: 'group-123',

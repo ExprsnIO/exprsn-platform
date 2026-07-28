@@ -15,6 +15,11 @@ const { requireAdminAfterCA } = require('../middleware/requireAdmin');
 const inviteService = require('../services/inviteService');
 const { getEmailService } = require('../services/emailService');
 const userImportService = require('../services/userImportService');
+// In-process FileVault façade (same pattern as
+// services/live/src/routes/roomCollab.js -> filevault/src/services/fileService).
+// TASK-055: revoke the minted capability token (+ reap the superseded file)
+// when the profile avatar is replaced or removed.
+const displayImageService = require('../../../filevault/src/services/displayImageService');
 
 const router = express.Router();
 
@@ -432,6 +437,8 @@ router.put('/:id', validateCAToken({ requiredPermissions: ['update'] }), asyncHa
     throw new AppError('User not found', 404, 'USER_NOT_FOUND');
   }
 
+  const previousAvatarUrl = user.avatarUrl;
+
   // Update allowed fields
   if (displayName !== undefined) user.displayName = displayName;
   if (firstName !== undefined) user.firstName = firstName;
@@ -440,6 +447,11 @@ router.put('/:id', validateCAToken({ requiredPermissions: ['update'] }), asyncHa
   if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
 
   await user.save();
+
+  if (avatarUrl !== undefined) {
+    // TASK-055: best-effort, never blocks the profile save.
+    await displayImageService.reapDisplayImage(previousAvatarUrl, avatarUrl, id);
+  }
 
   res.json({
     message: 'Profile updated successfully',

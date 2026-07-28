@@ -4266,6 +4266,50 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     with the provisioned state intact) on mint failure; regression test.
 - **Notes:** jr-developer with sr review (org provisioning is the S1 façade surface).
 
+### BUG-060 — spark `GET /api/messages/search/suggestions`: broken `getSuggestions` call signature + unscoped/un-S5-filtered DB fallback (cross-conversation content leak)
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by sr-developer review of TASK-060, 2026-07-28, branch `s2612-jr`)
+- **Description:** Found during sr review of TASK-060 (extending the FEAT-070 S5
+  suppressed-sender filter to spark's search routes). `services/spark/src/routes/messages.js`'s
+  `GET /search/suggestions` handler is unsafe as written:
+  1. It calls `searchService.getSuggestions(q, { userId, conversationId, limit })`,
+     but `searchService.getSuggestions`'s real signature is
+     `getSuggestions(query, conversationIds, limit)` — the options object lands
+     in the ES `terms` clause where an array is expected, throws, and every call
+     falls into the `catch` block's DB fallback (the ES path is effectively dead
+     code today).
+  2. That DB fallback, when `conversationId` is omitted from the query, searches
+     message `content` across **ALL conversations of ALL users** — no participant
+     scoping (unlike every other message route) and no FEAT-070 S5
+     suppressed-sender filter. This is a cross-conversation content leak: any
+     caller can read fragments of other users' private conversations via
+     autocomplete suggestions.
+  - The route is currently **registered after** `/:conversationId/:messageId` in
+    `messages.js` (intentionally, per the TASK-060 sr review — see the comment
+    above `router.get('/search/suggestions', ...)`), so it is shadowed/dead in
+    practice: `GET /search/suggestions` always matches `:messageId` first
+    (conversationId="search", messageId="suggestions") and 404s. **Do not
+    un-shadow it** (i.e. do not move it above `:messageId`) until this bug is
+    fixed — pinned by
+    `tests/routes/blockEnforcement.routes.test.js` → "GET /api/messages/search/suggestions
+    (BUG-060 — intentionally shadowed)".
+- **Acceptance criteria:**
+  - Fix the `searchService.getSuggestions` call to match its real signature (or
+    fix the signature, whichever is the smaller/safer change — this ticket
+    doesn't presuppose which side is "right").
+  - The DB fallback path (and/or the ES path once callable) is scoped to
+    conversations the caller participates in when `conversationId` is omitted —
+    no cross-user content leak either way.
+  - Apply the same FEAT-070 S5 suppressed-sender filter (`contactPolicy.getSuppressedIds`
+    → `[Op.notIn]`) used by the other message routes.
+  - Once fixed, move the route back above `/:conversationId/:messageId` (undoing
+    the "intentionally shadowed" placement) and remove/update the pinning test.
+- **Notes:** jr-developer with sr review (touches the FEAT-070 enforcement
+  surface, same as TASK-060). Cross-ref: TASK-060 (`b53d476`, sr
+  CHANGES-REQUIRED verdict that surfaced this), `services/spark/src/routes/messages.js`,
+  `services/spark/src/services/searchService.js`.
+
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
@@ -5355,6 +5399,12 @@ FEAT.)*
   `provision-equivalence.test.js` precedent). All green; filevault 17/187,
   nexus groupService 21/21, auth 3/3 (+ session.test.js 29/29 unaffected).
   `npm run lint` clean.
+- **Sr review observation (2026-07-28):** because `reapDisplayImage` is keyed
+  by the FileVault file id embedded in the URL (not by who is calling
+  `updateGroup`), a group admin's banner swap revokes all grants on the
+  PREVIOUS file even if a different admin originally uploaded it — accepted
+  as correct for this dedicated-display-upload flow (the old file is being
+  superseded platform-wide, not owned per-editor).
 
 ### TASK-056 — FileVault: clamp `file-access` token minting to read-only server-side (pre-existing)
 - **Type:** task · **Status:** done — QA-VERIFIED, merged 2026-07-28 (merge `dc5e2f0`; runtime smoke deferred until exprsn infra is up) · **Priority:** P3 · **Size:** S
@@ -5477,6 +5527,27 @@ FEAT.)*
   extended with 4 new cases (search filtered/unfiltered, thread 404 + replies
   filtered) — 15/15 green; full spark suite unaffected (same 3 pre-existing,
   infra-unrelated failures as the pre-change baseline, confirmed by diff).
+  `npm run lint` clean.
+- **Sr review verdict (2026-07-28): CHANGES-REQUIRED on the `/search/suggestions`
+  reorder only** — everything else in this ticket (the `GET
+  /:conversationId/search` reorder + both new S5 filters) **APPROVED**.
+  Un-shadowing `/search/suggestions` made a dead endpoint live and unsafe:
+  its `searchService.getSuggestions(q, {userId, conversationId, limit})` call
+  doesn't match the service's real `getSuggestions(query, conversationIds,
+  limit)` signature (throws, always falls to the DB fallback), and that
+  fallback has no participant scoping or S5 filter when `conversationId` is
+  omitted — a cross-conversation content leak. **Change applied**: moved
+  `GET /search/suggestions` back to AFTER `/:conversationId/:messageId` in
+  `messages.js` (restoring its pre-existing shadowed/dead state), with an
+  inline comment explaining why and pointing at the new bug; kept `GET
+  /:conversationId/search`'s reorder (approved, needed for this ticket's own
+  AC). Filed **BUG-060** for the broken call signature + unscoped fallback +
+  missing S5 filter, cross-referencing this ticket and the sr review; noted
+  there that the route must stay shadowed until BUG-060 lands. Added a
+  pinning test (`GET /api/messages/search/suggestions (BUG-060 —
+  intentionally shadowed)`) asserting the route resolves via `:messageId`
+  (404, no suggestions handler invoked) — regresses loudly if anyone moves
+  it back prematurely. Full enforcement-matrix suite now 16/16;
   `npm run lint` clean.
 
 ## Spikes

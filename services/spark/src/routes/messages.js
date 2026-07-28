@@ -140,76 +140,6 @@ router.get('/:conversationId/search', asyncHandler(async (req, res) => {
 }));
 
 /**
- * GET /api/messages/search/suggestions
- * Get autocomplete suggestions for message search
- *
- * Same registration-order note as above: `/search/suggestions` is also a
- * two-segment path and would otherwise be shadowed by `:messageId`.
- */
-router.get('/search/suggestions', asyncHandler(async (req, res) => {
-  const { q, conversationId, limit = 10 } = req.query;
-
-  if (!q || q.length < 2) {
-    return res.json({ suggestions: [] });
-  }
-
-  // If conversationId provided, check participation
-  if (conversationId) {
-    const participant = await Participant.findOne({
-      where: {
-        conversationId,
-        userId: req.userId,
-        active: true
-      }
-    });
-
-    if (!participant) {
-      throw new AppError('Not a participant in this conversation', 403, 'FORBIDDEN');
-    }
-  }
-
-  // Use search service if available
-  try {
-    const searchService = require('../services/searchService');
-
-    const suggestions = await searchService.getSuggestions(q, {
-      userId: req.userId,
-      conversationId,
-      limit: parseInt(limit)
-    });
-
-    res.json({ suggestions });
-  } catch (error) {
-    // Fallback to basic database search
-    const where = {
-      content: {
-        [require('sequelize').Op.iLike]: `%${q}%`
-      },
-      deleted: false
-    };
-
-    if (conversationId) {
-      where.conversationId = conversationId;
-    }
-
-    const messages = await Message.findAll({
-      where,
-      attributes: ['id', 'content', 'conversationId'],
-      order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      group: ['content']
-    });
-
-    const suggestions = messages.map(m => ({
-      text: m.content.substring(0, 100),
-      conversationId: m.conversationId
-    }));
-
-    res.json({ suggestions });
-  }
-}));
-
-/**
  * GET /api/messages/:conversationId/:messageId
  * Get single message
  */
@@ -337,6 +267,87 @@ router.delete('/:conversationId/:messageId', validateCAToken({ requiredPermissio
   }
 
   res.json({ message: 'Message deleted successfully' });
+}));
+
+/**
+ * GET /api/messages/search/suggestions
+ * Get autocomplete suggestions for message search
+ *
+ * INTENTIONALLY registered AFTER `/:conversationId/:messageId` above, so this
+ * route stays SHADOWED (dead — `GET /search/suggestions` always matches
+ * `:messageId` first, treating "search" as a conversationId and
+ * "suggestions" as a messageId, and 404s) until BUG-060 is fixed. Do not
+ * move this above `:messageId` without fixing BUG-060 first: as written,
+ * this handler (a) calls `searchService.getSuggestions(q, { userId,
+ * conversationId, limit })`, but the service's real signature is
+ * `getSuggestions(query, conversationIds, limit)` — the options object lands
+ * in the ES terms clause, throws, and every call falls into the DB fallback
+ * below; and (b) that fallback, when `conversationId` is omitted, searches
+ * message content across ALL conversations of ALL users with no participant
+ * scoping and no FEAT-070 S5 suppressed-sender filter — a cross-conversation
+ * content leak. See BUG-060 (sr review of TASK-060, 2026-07-28).
+ */
+router.get('/search/suggestions', asyncHandler(async (req, res) => {
+  const { q, conversationId, limit = 10 } = req.query;
+
+  if (!q || q.length < 2) {
+    return res.json({ suggestions: [] });
+  }
+
+  // If conversationId provided, check participation
+  if (conversationId) {
+    const participant = await Participant.findOne({
+      where: {
+        conversationId,
+        userId: req.userId,
+        active: true
+      }
+    });
+
+    if (!participant) {
+      throw new AppError('Not a participant in this conversation', 403, 'FORBIDDEN');
+    }
+  }
+
+  // Use search service if available
+  try {
+    const searchService = require('../services/searchService');
+
+    const suggestions = await searchService.getSuggestions(q, {
+      userId: req.userId,
+      conversationId,
+      limit: parseInt(limit)
+    });
+
+    res.json({ suggestions });
+  } catch (error) {
+    // Fallback to basic database search
+    const where = {
+      content: {
+        [require('sequelize').Op.iLike]: `%${q}%`
+      },
+      deleted: false
+    };
+
+    if (conversationId) {
+      where.conversationId = conversationId;
+    }
+
+    const messages = await Message.findAll({
+      where,
+      attributes: ['id', 'content', 'conversationId'],
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      group: ['content']
+    });
+
+    const suggestions = messages.map(m => ({
+      text: m.content.substring(0, 100),
+      conversationId: m.conversationId
+    }));
+
+    res.json({ suggestions });
+  }
 }));
 
 module.exports = router;

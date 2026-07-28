@@ -4987,7 +4987,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** jr-developer with sr review (org provisioning is the S1 façade surface).
 
 ### BUG-060 — spark `GET /api/messages/search/suggestions`: broken `getSuggestions` call signature + unscoped/un-S5-filtered DB fallback (cross-conversation content leak)
-- **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-review — MANDATORY SR REVIEW PENDING (Sprint 2026-13, fix landed `s2613-jr` @ `1d0a302`) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer, sr review mandatory at in-review (PM routing rec.) · **Blocked-by:** —
 - **Legacy:** — (found by sr-developer review of TASK-060, 2026-07-28, branch `s2612-jr`)
 - **Description:** Found during sr review of TASK-060 (extending the FEAT-070 S5
@@ -5029,6 +5029,51 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   surface, same as TASK-060). Cross-ref: TASK-060 (`b53d476`, sr
   CHANGES-REQUIRED verdict that surfaced this), `services/spark/src/routes/messages.js`,
   `services/spark/src/services/searchService.js`.
+- **Resolution (in-review, SR REVIEW MANDATORY BEFORE MERGE · 2026-07-28 ·
+  commit `1d0a302`, branch `s2613-jr`):**
+  1. **Signature:** kept the smaller/safer side — fixed the *caller* to match
+     `searchService.getSuggestions`'s real `(query, conversationIds, limit)`
+     signature (array, not an options object). Also added `senderId` to the ES
+     `_source`/returned suggestion shape (only caller of `getSuggestions`,
+     verified via grep) so the S5 filter below has something to filter on —
+     autocomplete can't pre-filter by sender the way a plain `[Op.notIn]` WHERE
+     clause does for the DB paths.
+  2. **Scoping:** when `conversationId` is supplied, verified via the existing
+     `Participant.findOne` check (unchanged pattern) and narrowed to that one
+     conversation; when omitted, resolved to every conversation the caller
+     actively participates in via `Participant.findAll`. Zero conversations
+     short-circuits to `{ suggestions: [] }` with no DB/ES call at all.
+  3. **S5 filter:** `contactPolicy.getSuppressedIds(req.userId)` — JS-side
+     `.filter()` on the ES path's returned `senderId` (can't be done in the ES
+     query itself without another round-trip), `[Op.notIn]` on the DB fallback
+     (same shape as every other message route).
+  4. **Un-shadowed:** moved the route back above `/:conversationId/:messageId`.
+     Replaced the shadowed-route pinning test in
+     `tests/routes/blockEnforcement.routes.test.js` with 6 real tests:
+     reachability, conversation scoping (both the omitted- and
+     supplied-`conversationId` call shapes), the 403 on a non-participant
+     `conversationId`, the S5 filter applied to ES suggestions, the
+     scoped+filtered DB fallback when ES throws, and the zero-conversations
+     short-circuit. Also added a `jest.mock('../../src/services/searchService')`
+     so no unit test touches a live Elasticsearch instance.
+  5. `API_SURFACE.md` row annotated with the new scoping/filtering contract
+     (query params/response shape unchanged).
+  - **Verified:** full spark suite 8 suites / 122 tests green (incl. the 6 new
+    BUG-060 tests + the pre-existing 21/21 in the routes file); `npm run lint`
+    clean (0 errors, only pre-existing unrelated warnings elsewhere in the
+    repo).
+  - **MANDATORY SR REVIEW FLAG:** per the ticket's own posture (same as
+    TASK-060, whose sr review originally surfaced this bug) — **do not merge
+    without sr-developer sign-off.** Specifically worth a second look: (a) the
+    JS-side S5 filter on the ES path (vs. a WHERE-clause filter on the DB
+    paths) is a different enforcement *shape* than the ADR's usual
+    `[Op.notIn]` pattern — confirm that's acceptable for an autocomplete
+    surface; (b) the `Participant.findAll` scoping call when `conversationId`
+    is omitted is a new per-request query on this route (no caching/limit) —
+    confirm that's an acceptable cost at this route's traffic profile; (c) no
+    upper bound was added on the number of conversations returned by
+    `Participant.findAll` before they're used in the ES `terms`/DB `Op.in`
+    clause — flag if that needs a cap.
 
 ### BUG-061 — spark Jest full run never exits: `blockEnforcement.socket.test.js` leaves undetectable open handles
 - **Type:** bug · **Status:** in-review (Sprint 2026-13, fix landed `s2613-jr` @ `109bcfb`) · **Priority:** P3 · **Size:** S

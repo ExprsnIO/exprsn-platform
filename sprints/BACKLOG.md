@@ -10,12 +10,10 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. **Active sprint: `active/sprint-2026-11.md`** — committed
-> 2026-07-27 on the owner's LIGHT single-track steer (TASK-056, FEAT-070,
-> FEAT-077 FileVault-only slice, BUG-054). Closed sprints —
-> `sprint-2026-07.md`, `sprint-2026-08.md`, `sprint-2026-09.md`, and
-> `sprint-2026-10.md` (A11y/CSP follow-through, closed 2026-07-27) — are in
-> `archive/`.
+> active sprint. No sprint currently in flight — Sprint 2026-11 closed 2026-07-28
+> (all tickets done + infra smoke passed; fresh-DB defects BUG-056/057/058 filed as
+> next-cycle P1/P2 candidates). Closed sprints `sprint-2026-07.md` …
+> `sprint-2026-11.md` are in `archive/`.
 
 ---
 
@@ -4154,6 +4152,57 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - The interval is `.unref()`ed (or created lazily on first use); affected module
     suites exit cleanly without `--forceExit` or local stubs.
 - **Notes:** One-line shared fix + remove the spark test stub. jr-developer.
+
+### BUG-056 — Fresh-bootstrap DB cannot register/login: CA token mint violates `ca.audit_logs` FK
+- **Type:** bug · **Status:** backlog · **Priority:** P1 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-28 infra smoke on a fresh `db:bootstrap`+`db:migrate` DB; pre-existing, masked by legacy `ca.users` rows on the old dev DB)
+- **Description:** `POST /auth/api/auth/register` (and every login) 500s on a fresh DB:
+  the CA token mint writes `ca.audit_logs.user_id`, whose FK references `ca.users(id)`,
+  but auth users live in `auth.users` and are never mirrored — so token issuance fails
+  platform-wide until `ca.users` has matching rows. Second facet: registration is
+  non-transactional — the `auth.users` row persists after the 500, so a retry hits
+  "email exists" with the user never having received a token.
+- **Acceptance criteria:**
+  - Register + login succeed on a fresh-bootstrapped DB (audit row written with NULL /
+    omitted `user_id` for non-CA-local principals, or users mirrored — dba glance on
+    the choice; `user_id` is already nullable with ON DELETE SET NULL).
+  - Registration is transactional: a failed mint leaves no orphaned `auth.users` row.
+- **Notes:** sr-developer (auth/CA) + dba glance. Found while smoke-verifying FEAT-070.
+
+### BUG-057 — All FileVault uploads 500: `hasMany` FK named by column while the model attribute is `fileId`
+- **Type:** bug · **Status:** backlog · **Priority:** P1 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-28 infra smoke; code-level, DB-independent; regression suspect: the BUG-025 association fix, migration 20260710000002 era)
+- **Description:** `services/filevault/src/models/File.js:136` declares
+  `File.hasMany(models.FileVersion, { foreignKey: { name: 'file_id', allowNull: false } })`
+  naming the FK by **column** while the model attribute is `fileId` (`field: 'file_id'`).
+  Sequelize registers a duplicate attribute literally named `file_id`; code sets
+  `fileId`, the duplicate stays null → `notNull Violation: FileVersion.file_id cannot
+  be null` at `fileService.js:64` on every upload. Same pattern on the ShareLink
+  hasMany (`File.js:142`) — audit all `foreignKey: { name: 'file_id' }` uses. Side
+  effect: blob bytes are written to disk BEFORE the transaction, so failed uploads
+  leak orphan blobs.
+- **Acceptance criteria:**
+  - Uploads 201 on a fresh DB; fix shape ≈ `foreignKey: { name: 'fileId', field:
+    'file_id', allowNull: false }` across the audited associations; regression test.
+  - Orphan-blob leak on failed upload addressed or ticketed separately.
+- **Notes:** sr-developer. Blocks TASK-053's avatar-upload flow and FEAT-077's upload
+  leg on fresh installs.
+
+### BUG-058 — filevault module error handler leaks raw internal error messages in all environments, no correlationId
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (2026-07-28 infra smoke; pre-existing)
+- **Description:** `services/filevault/src/middleware/errorHandler.js:64` sets
+  `error: err.message` ungated by environment — production clients would receive raw
+  Sequelize/internal strings. `stack`/`details` are correctly dev-gated, but the
+  response carries no correlationId, unlike the shared handler and the gateway central
+  handler (both safe/generic).
+- **Acceptance criteria:**
+  - filevault adopts the shared error handler (or matches its posture): operational
+    messages only, dev-gated internals, correlationId present.
+- **Notes:** jr-developer.
 
 ## Tasks
 - **Resolution (done · 2026-07-28 · commit `b2d3925`):** Both assertions updated to the

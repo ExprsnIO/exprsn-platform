@@ -150,6 +150,20 @@ function registerSockets(io) {
  */
 async function init(ctx) {
   try {
+    // TASK-057 / FEAT-077: register live's RoomFile adapter as a peer backend
+    // behind the FileVault-hosted capability façade (Shape A — the room_files
+    // row IS the capability; no storage migration). Dependency direction is
+    // one-way per the architect contract: live requires filevault's façade
+    // in-process (the roomCollab.js → fileService precedent); filevault
+    // requires nothing from live. Registered here (not at require time) so the
+    // façade backend map is populated exactly once, at module init.
+    const capabilityService = require('../../filevault/src/services/capabilityService');
+    capabilityService.registerBackend(
+      capabilityService.RESOURCE_TYPES.ROOM_FILE,
+      require('./services/roomFileCapabilityAdapter')
+    );
+    logger.info('RoomFile capability backend registered with the FileVault façade');
+
     // Initialize FFmpeg
     logger.info('Initializing FFmpeg...');
     const ffmpegReady = await ffmpegService.initialize();

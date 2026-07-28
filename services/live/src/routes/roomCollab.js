@@ -9,7 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const router = express.Router();
-const { Room, RoomInvite, RoomJoinRequest, RoomFile, Recording, RecordingModeration, Participant } = require('../models');
+const { Room, RoomInvite, RoomJoinRequest, RoomFile, Recording, RecordingModeration } = require('../models');
 const { requireAuth } = require('../middleware/auth');
 const liveQueue = require('../services/liveQueue');
 const recordingModeration = require('../services/recordingModeration');
@@ -20,6 +20,14 @@ const logger = require('../utils/logger');
 // FEAT-031 image-moderation chokepoint (moderation row, hold-until-verdict,
 // encrypted/non-image skip, escalation) instead of hitting local disk unchecked.
 const fileService = require('../../../filevault/src/services/fileService');
+// TASK-057 / FEAT-077: RoomFile grants are resolved/enforced through the ONE
+// capability façade. The backend for 'roomFile' is live's own adapter
+// (../services/roomFileCapabilityAdapter), registered from live's init(). The
+// routes here dispatch and serialize; enforcement (membership + provenance +
+// moderation) lives in the adapter — no second enforcement path.
+const capability = require('../../../filevault/src/services/capabilityService');
+const { ROOM_FILE } = capability.RESOURCE_TYPES;
+const { isRoomMember } = require('../services/roomMembership');
 
 // Retained only for (a) recording output paths and (b) reading any pre-existing
 // legacy `ephemeral` rows still on disk. New uploads never write here.
@@ -46,14 +54,9 @@ function requireHost(req, res, next) {
  */
 async function requireRoomMember(req, res, next) {
   try {
-    const uid = req.user.id;
-    if (isHost(req.room, uid)) return next();
-    const [participant, invite, joinReq] = await Promise.all([
-      Participant.findOne({ where: { room_id: req.room.id, user_id: uid } }),
-      RoomInvite.findOne({ where: { room_id: req.room.id, invitee_id: uid, status: ['pending', 'accepted'] } }),
-      RoomJoinRequest.findOne({ where: { room_id: req.room.id, user_id: uid, status: 'approved' } })
-    ]);
-    if (participant || invite || joinReq) return next();
+    // TASK-057: the predicate itself lives in services/roomMembership so this
+    // middleware and the RoomFile capability adapter enforce the identical rule.
+    if (await isRoomMember(req.room, req.user.id)) return next();
     return res.status(403).json({ error: 'NOT_A_MEMBER', message: 'Room membership required' });
   } catch (e) {
     logger.error('room membership check failed', { error: e.message });
@@ -104,22 +107,26 @@ router.post('/:id/join-requests/:reqId/:decision(approve|deny)', requireAuth, lo
 router.get('/:id/files', requireAuth, loadRoom, requireRoomMember, async (req, res) => {
   try {
     const files = await RoomFile.findAll({ where: { room_id: req.room.id }, order: [['created_at', 'DESC']] });
-    // FEAT-031: a held image must not be enumerable to a non-uploader. Every
-    // FileVault-backed row (`vault`) is filtered through the moderation gate;
-    // legacy `ephemeral` disk rows have no FileVault moderation state and are
-    // left as-is (pre-existing rows only — no new ones are created).
-    const vaultIds = files.filter((f) => f.kind === 'vault' && f.file_id).map((f) => String(f.file_id));
-    // FEAT-061: the listing applies the SAME grant rule as the download path. Without
-    // the provenance set, a file whose share died on a private-flip would still be
-    // listed — leaking its name, size, and existence while its bytes 404.
-    const ownerSharedIds = new Set(
-      files.filter((f) => f.kind === 'vault' && f.file_id && f.shared_as_owner).map((f) => String(f.file_id))
-    );
-    const servable = await fileService.servableFileIds(vaultIds, req.user.id, { ownerSharedIds });
-    const visible = files.filter((f) => {
-      if (f.kind === 'vault' && f.file_id) return servable.has(String(f.file_id));
-      return true;
-    });
+    // TASK-057: the listing applies EXACTLY the download path's rule by asking
+    // the capability façade per vault-backed row — one enforcement point, so a
+    // row the download would 404 (held image / provenance-dead share, FEAT-031
+    // + FEAT-061) is never enumerable here either (the BUG-020 leak shape).
+    // Denials are filtered, not surfaced. Legacy `ephemeral` disk rows are out
+    // of the façade and left as-is (pre-existing rows only).
+    const visible = [];
+    for (const f of files) {
+      if (f.kind !== 'vault' || !f.file_id) {
+        visible.push(f);
+        continue;
+      }
+      try {
+        await capability.authorize(ROOM_FILE, { roomFileId: f.id }, {
+          requesterId: req.user.id,
+          roomId: req.room.id
+        });
+        visible.push(f);
+      } catch (_) { /* CAP_NOT_FOUND — not enumerable, fail closed */ }
+    }
     res.json({ success: true, files: visible });
   } catch (e) {
     logger.error('room file list failed', { error: e.message });
@@ -131,35 +138,25 @@ router.post('/:id/files/share', requireAuth, loadRoom, requireRoomMember, async 
     const { fileId, name } = req.body;
     if (!fileId) return res.status(400).json({ error: 'FILE_REQUIRED' });
 
-    // BUG-026: the sharer MUST be able to access the file they are sharing in.
-    // Without this, an attacker could share a victim's private FileVault file by
-    // UUID into a room they control, then download it via the member-download
-    // route (which deliberately skips the ownership check, trusting that the
-    // share was legitimate). getFile() enforces the private-visibility owner
-    // check AND the moderation gate and throws if the caller can't access it.
-    // Metadata comes from the VERIFIED file, never the request body (no spoofing).
-    let vaultFile;
+    // TASK-057: minting is capability.grant. The adapter preserves BUG-026
+    // verbatim — it verifies the sharer can access the file via
+    // fileService.getFile (same 404 whether missing or forbidden; never an
+    // existence oracle) and derives shared_as_owner + all metadata from the
+    // VERIFIED file, never the request body (FEAT-061 provenance).
+    let credential;
     try {
-      vaultFile = await fileService.getFile(fileId, req.user.id);
+      ({ credential } = await capability.grant(ROOM_FILE, fileId, req.user.id, {
+        roomId: req.room.id,
+        name
+      }));
     } catch (e) {
-      // Same 404 whether the file is missing or the caller isn't allowed to see
-      // it — never confirm existence of a file the caller can't access.
-      return res.status(404).json({ error: 'FILE_NOT_FOUND' });
+      if (e.code === 'CAP_NOT_FOUND' && e.cause === 'FILE_NOT_FOUND') {
+        return res.status(404).json({ error: 'FILE_NOT_FOUND' });
+      }
+      return res.status(500).json({ error: 'SHARE_FAILED', message: e.cause || e.message });
     }
-
-    // FEAT-061: record the capability's provenance. A share is only ever as strong as
-    // the visibility it was minted under — UNLESS the owner is the one who shared it,
-    // in which case a later private-flip must not revoke the room's access (that is the
-    // flow the download path's visibility-skip was built to protect). Deriving this from
-    // the VERIFIED file, never the request body.
-    const sharedAsOwner = String(vaultFile.userId) === String(req.user.id);
-
-    const file = await RoomFile.create({
-      room_id: req.room.id, user_id: req.user.id, kind: 'vault',
-      file_id: vaultFile.id, name: name || vaultFile.name,
-      mimetype: vaultFile.mimetype || null, size: vaultFile.size || null,
-      shared_as_owner: sharedAsOwner
-    });
+    // Serialization only (today's response shape) — not an enforcement path.
+    const file = await RoomFile.findByPk(credential.roomFileId);
     res.status(201).json({ success: true, file });
   } catch (e) { res.status(500).json({ error: 'SHARE_FAILED', message: e.message }); }
 });
@@ -183,48 +180,50 @@ router.post('/:id/files/upload', requireAuth, loadRoom, requireRoomMember, uploa
       path: `/live-rooms/${req.room.id}/${req.file.originalname}`,
       metadata: { source: 'live-room', roomId: String(req.room.id) }
     });
-    const file = await RoomFile.create({
-      room_id: req.room.id, user_id: req.user.id, kind: 'vault',
-      file_id: vaultFile.id, name: req.file.originalname,
-      mimetype: req.file.mimetype, size: req.file.size,
-      // The uploader IS the owner — uploadFile() created the file under req.user.id.
-      shared_as_owner: true
+    // TASK-057: the row-create is capability.grant. The uploader IS the owner —
+    // uploadFile() created the file under req.user.id, so the adapter's
+    // verified-file derivation yields shared_as_owner: true.
+    const { credential } = await capability.grant(ROOM_FILE, vaultFile.id, req.user.id, {
+      roomId: req.room.id,
+      name: req.file.originalname
     });
+    // Serialization only (today's response shape) — not an enforcement path.
+    const file = await RoomFile.findByPk(credential.roomFileId);
     res.status(201).json({ success: true, file });
-  } catch (e) { logger.error('room upload failed', { error: e.message }); res.status(500).json({ error: 'UPLOAD_FAILED', message: e.message }); }
+  } catch (e) { logger.error('room upload failed', { error: e.message }); res.status(500).json({ error: 'UPLOAD_FAILED', message: e.cause || e.message }); }
 });
 router.get('/:id/files/:fileId/download', requireAuth, loadRoom, requireRoomMember, async (req, res) => {
   const file = await RoomFile.findOne({ where: { id: req.params.fileId, room_id: req.room.id } });
   if (!file) return res.status(404).json({ error: 'NOT_FOUND' });
 
-  // FileVault-backed rows: stream via FileVault. Room membership authorizes the
-  // requester (verified above); the FEAT-031 gate still applies to them as a
-  // non-uploader, so a held (pending/rejected) image 404s exactly like a
-  // missing file and is never served.
-  //
-  // FEAT-061 / BUG-027: room membership is no longer sufficient on its own. The share
-  // carries provenance — a non-owner's share of a then-public file stops serving the
-  // moment the owner flips it private, while an owner's share of their own file
-  // survives. Passing `shared_as_owner` is what lets FileVault tell the two apart.
+  // TASK-057: FileVault-backed rows are authorized through the capability
+  // façade — the ONE enforcement point (row scope, membership via the shared
+  // predicate, FEAT-061/BUG-027 provenance, FEAT-031 moderation). Every denial
+  // is the same 404 as a missing file. After authorize, streaming follows the
+  // share.js post-authorize precedent: downloadFileStream as the file's owner —
+  // the capability, not ownership, is what authorized the requester.
   if (file.kind === 'vault' && file.file_id) {
     try {
-      const { stream, file: vaultFile } = await fileService.downloadFileStreamForMember(
-        file.file_id,
-        req.user.id,
-        { sharedAsOwner: file.shared_as_owner === true }
+      const { resource: vaultFile } = await capability.authorize(
+        ROOM_FILE,
+        { roomFileId: file.id },
+        { requesterId: req.user.id, roomId: req.room.id }
       );
+      const { stream } = await fileService.downloadFileStream(vaultFile.id, vaultFile.userId);
       res.setHeader('Content-Type', (vaultFile && vaultFile.mimetype) || file.mimetype || 'application/octet-stream');
       res.setHeader('Content-Disposition', `inline; filename="${file.name}"`);
       return stream.pipe(res);
     } catch (e) {
-      if (e.message === 'FILE_NOT_FOUND') return res.status(404).json({ error: 'NOT_FOUND' });
+      if (e.code === 'CAP_NOT_FOUND' || e.message === 'FILE_NOT_FOUND') return res.status(404).json({ error: 'NOT_FOUND' });
       logger.error('room file download failed', { error: e.message });
       return res.status(500).json({ error: 'DOWNLOAD_FAILED' });
     }
   }
 
   // Legacy `ephemeral` rows written before BUG-024 still stream from disk. No
-  // new rows of this kind are created.
+  // new rows of this kind are created. LEGACY / OUT-OF-FAÇADE: kept verbatim
+  // behind the requireRoomMember gate (TASK-057); their revocation cleanup
+  // lives in the RoomFile capability adapter.
   if (file.kind === 'ephemeral' && file.storage_key) {
     const p = path.join(UPLOAD_DIR, req.room.id, file.storage_key);
     if (!fs.existsSync(p)) return res.status(404).json({ error: 'GONE' });
@@ -236,15 +235,20 @@ router.get('/:id/files/:fileId/download', requireAuth, loadRoom, requireRoomMemb
   return res.status(404).json({ error: 'NOT_FOUND' });
 });
 router.delete('/:id/files/:fileId', requireAuth, loadRoom, async (req, res) => {
+  // URL-scope dispatch only (a row outside this room's URL stays today's 404) —
+  // the actor check (host OR sharer), the row destroy, and the legacy-ephemeral
+  // disk unlink all live in the capability adapter (TASK-057).
   const file = await RoomFile.findOne({ where: { id: req.params.fileId, room_id: req.room.id } });
   if (!file) return res.status(404).json({ error: 'NOT_FOUND' });
-  if (!isHost(req.room, req.user.id) && String(file.user_id) !== String(req.user.id)) {
-    return res.status(403).json({ error: 'FORBIDDEN' });
+  try {
+    await capability.revoke(ROOM_FILE, file.id, req.user.id);
+  } catch (e) {
+    // cause is route-compat mapping only: keep today's 403-vs-404 split.
+    if (e.code === 'CAP_NOT_FOUND' && e.cause === 'FORBIDDEN') {
+      return res.status(403).json({ error: 'FORBIDDEN' });
+    }
+    return res.status(404).json({ error: 'NOT_FOUND' });
   }
-  if (file.kind === 'ephemeral' && file.storage_key) {
-    try { fs.unlinkSync(path.join(UPLOAD_DIR, req.room.id, file.storage_key)); } catch (_) { /* gone */ }
-  }
-  await file.destroy();
   res.json({ success: true });
 });
 

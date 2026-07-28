@@ -5332,8 +5332,8 @@ FEAT.)*
   FEAT-077 adapter forwards only `expiresIn`).
 
 ### TASK-057 — RoomFile adapter behind the capability façade (FEAT-077 remainder)
-- **Type:** task · **Status:** in-sprint — Sprint 2026-12 anchor, committed 2026-07-28 (blocked-by satisfied: 2026-11 slice done; architect Shape-A conformance glance scheduled week-1 day 1–2; Shape A only — no RoomFile→token storage migration) · **Priority:** P2 · **Size:** S/M
-- **Owner-role:** unassigned *(route to sr-developer at BUILD — façade-adjacent)* · **Blocked-by:** FEAT-077 2026-11 slice (the FileVault-backend-only façade must land first)
+- **Type:** task · **Status:** in-review — built 2026-07-28 on branch `s2612-sr` (architect Shape-A conformance glance received 2026-07-28 with binding directives; Shape A only — no RoomFile→token storage migration) · **Priority:** P2 · **Size:** S/M
+- **Owner-role:** sr-developer · **Blocked-by:** FEAT-077 2026-11 slice (satisfied)
 - **Legacy:** — (split from FEAT-077 at the 2026-11 COMMIT, 2026-07-27, per the owner's LIGHT single-track steer + the FEAT-077 C/B's single-implementer alternative)
 - **Description:** Sprint 2026-11 commits only FEAT-077's FileVault-backend-only
   slice (façade interface + ShareLink/CA-token backend + `revokeByResource`). This
@@ -5354,6 +5354,45 @@ FEAT.)*
 - **Notes:** Inherits FEAT-077's architect involvement — the Shape-A interface
   sign-off from the 2026-11 slice governs this adapter; flag the architect if the
   RoomFile adapter pressures the interface. Sequencing: ahead of FEAT-047/048/049.
+- **Build notes (sr-developer, 2026-07-28, branch `s2612-sr` — for QA):**
+  - **Shape A exactly:** no DDL, no route delta (API_SURFACE.md untouched), no
+    façade-internal change — the `room_files` row IS the capability. New adapter
+    `services/live/src/services/roomFileCapabilityAdapter.js` (backend
+    `live-roomfile`, kind `room-grant`, read-only, provenance from the row),
+    registered from live's `init()` (`services/live/src/index.js`); dependency
+    stays one-way live→filevault.
+  - `roomCollab.js` rewired: share/upload row-create → `capability.grant`
+    (BUG-026 getFile verification + FEAT-061 `shared_as_owner` derivation moved
+    into the adapter, verbatim semantics); download → `capability.authorize`
+    then post-authorize owner stream (`fileService.downloadFileStream`, the
+    share.js precedent); listing → per-row `authorize` (no `servableFileIds`
+    call — single enforcement path); DELETE → `capability.revoke` (host-or-
+    sharer rule + legacy-ephemeral disk unlink moved into the adapter), cause-
+    mapped to today's 403/404. Membership predicate extracted to
+    `services/live/src/services/roomMembership.js`, shared by the
+    `requireRoomMember` middleware and the adapter. Legacy `ephemeral`
+    disk-stream branch left verbatim behind the membership gate (out-of-façade).
+  - **Compatibility:** URLs, bearer-auth, and response shapes unchanged
+    (`{success:true, file(s)}`, 400 FILE_REQUIRED, 401, 403 NOT_A_MEMBER /
+    FORBIDDEN, 404 FILE_NOT_FOUND / NOT_FOUND, 202/500 codes untouched).
+  - **Test evidence:** new façade-level suite
+    `services/live/tests/roomFileCapability.test.js` (29 tests — grant/authorize
+    incl. the provenance private-flip matrix both ways, moderation hold, revoke
+    actor rules + ephemeral unlink, revokeByResource `{revoked:0}` success,
+    owner-only listByResource) runs the REAL capabilityService + adapter +
+    fileService.shareGrantAllows + imageModerationService over mocked models.
+    Route suite `services/live/tests/roomFiles.test.js` updated to the new
+    wiring (same behavioral matrix — this is the rewire's route contract, not a
+    stale-fix fold-in; it did NOT go red for pre-existing stale reasons, so no
+    separate P3 BUG was needed). Full live suite 11/11 suites, 142/142 tests.
+    Filevault parity suites green UNMODIFIED: full filevault unit run 15/15
+    suites, 173/173 tests (incl. roomMemberDownload, shareGate,
+    capabilityService, capabilityFilevaultAdapter, fileAccessTokenClamp).
+  - **QA path:** in a live room as host/member — share a vault file (owner +
+    non-owner), upload, list, download, delete; flip the shared file private and
+    confirm the non-owner-shared copy 404s on download AND disappears from the
+    listing while an owner-shared one keeps serving; held image 404s for a
+    non-uploader; non-member gets 403 NOT_A_MEMBER on every file route.
 
 ### TASK-058 — /simplify quality pass over the Sprint 2026-10 diff
 - **Type:** task · **Status:** done — merged + deployed 2026-07-28 (branch `s2610-opt`, 5 commits `419b9d7..10fee57`) · **Priority:** P3 · **Size:** M

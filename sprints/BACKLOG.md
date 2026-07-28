@@ -4144,7 +4144,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** jr-developer.
 
 ### BUG-055 — shared `idempotencyHandler` runs a require-time `setInterval` without `.unref()` — hangs every Jest suite that imports @exprsn/shared
-- **Type:** bug · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28 · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-28 on `s2612-sr` @ `02f3ed7` · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (found during FEAT-070 build, 2026-07-28; pre-existing)
 - **Description:** `shared/middleware/idempotencyHandler.js:264` starts a cleanup
@@ -4166,6 +4166,18 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   idempotencyHandler — not in this ticket's scope). auth's `jest.config.js`
   `forceExit:true` also left untouched (unrelated — auth's own DB/session
   teardown, not idempotencyHandler). `npm run lint` clean.
+- **QA (done · 2026-07-28, qa-specialist, `s2612-sr` @ `02f3ed7`):** PASS.
+  `.unref()` confirmed in `shared/middleware/idempotencyHandler.js`; spark stub
+  removed from `tests/setup.js`; no `forceExit` in filevault/live/spark jest
+  configs. Measured clean exits with NO `--forceExit`: filevault full suite
+  17/187 (~2s wall, also with `--coverage=false`), live full suite 11/142,
+  spark `blockEnforcement.routes.test.js` 15/15 (~1.1s wall — imports
+  @exprsn/shared with the REAL idempotencyHandler). Residual: the spark FULL
+  run still hangs after "88 passed" — differential attribution shows it is the
+  SOCKET suite's own handles (routes suite with the identical shared import
+  exits cleanly; hang persists with `--detectOpenHandles` reporting nothing),
+  i.e. the pre-existing issue the builder noted, NOT idempotencyHandler.
+  Filed as **BUG-061** rather than silently skipped.
 
 ### BUG-056 — Fresh-bootstrap DB cannot register/login: CA token mint violates `ca.audit_logs` FK
 - **Type:** bug · **Status:** done — hotfix merged + LIVE-VERIFIED 2026-07-28 (register/login/upload all green on the fresh DB) · **Priority:** P1 · **Size:** S
@@ -4230,7 +4242,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   non-transactional either side of commit) — filed as **TASK-061**.
 
 ### BUG-058 — filevault module error handler leaks raw internal error messages in all environments, no correlationId
-- **Type:** bug · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28 · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done — QA-VERIFIED 2026-07-28 on `s2612-sr` @ `02f3ed7` · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (2026-07-28 infra smoke; pre-existing)
 - **Description:** `services/filevault/src/middleware/errorHandler.js:64` sets
@@ -4252,6 +4264,14 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   echo, unmapped-error-never-leaks in production, dev-gate still applies but
   never leaks the raw message). Full filevault suite: 17 suites / 187 tests
   green. `npm run lint` clean.
+- **QA (done · 2026-07-28, qa-specialist, `s2612-sr` @ `02f3ed7`):** PASS.
+  Code inspection of `src/middleware/errorHandler.js`: `errorMap` keys are the
+  only messages echoed; everything else → `INTERNAL_SERVER_ERROR` + generic
+  message in every environment; `correlationId` (crypto.randomUUID) on every
+  response and in the server-side log line; `stack`/`details` dev-gated —
+  matches the shared/gateway posture (no security invariant regressed).
+  Regression suite `tests/unit/errorHandler.test.js` green inside the full
+  filevault run 17 suites / 187 tests, clean exit.
 
 ### BUG-059 — /signup (org signup) mints the CA token after org provisioning with no compensation on failure
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
@@ -4265,6 +4285,53 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - Org signup either compensates (rolls back user+org) or recovers (retry-able mint
     with the provisioned state intact) on mint failure; regression test.
 - **Notes:** jr-developer with sr review (org provisioning is the S1 façade surface).
+
+### BUG-060 — `db:check` is red on the live dev DB: 3 un-allowlisted NULLABILITY drifts on the moderation side tables
+- **Type:** bug · **Status:** backlog · **Priority:** P2 (QA recommendation — the drift gate is permanently red, masking any NEW drift) · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found 2026-07-28 during Sprint 2026-12 QA; pre-existing — identical findings and exit 1 on `main` @ `1cdc0ca` BEFORE the sprint branch)
+- **Description:** `npm run db:check` exits non-zero against the live `exprsn` DB with
+  three NULLABILITY findings that are NOT in `scripts/drift-allow.json`:
+  `spark.message_moderation.message_id`, `filevault.file_moderation.file_id`, and
+  `timeline.post_moderation.post_id` — each "model NOT NULL, live nullable". Because
+  the gate is red at baseline, it can no longer catch new drift (this sprint has zero
+  schema changes; findings are byte-identical on main and on `s2612-sr` @ `02f3ed7`).
+- **Steps to reproduce:** infra up (`npm run infra:up`), root `.env` present →
+  `npm run db:check` → exit 1 with the three findings above.
+- **Expected:** exit 0 (drift resolved via migration to NOT NULL, or a documented
+  allowlist entry with reason + ticket per the drift-allow convention).
+- **Environment:** live dev DB `exprsn` (post BUG-056/057 hotfix state), Docker
+  Postgres; reproduced from both `/Volumes/Storage/exprsn-platform` (main) and the
+  QA worktree.
+- **Notes:** dba to root-cause (likely the moderation side-table sync/migration era —
+  sync `db:migrate` cannot ALTER existing columns to NOT NULL) and choose
+  migrate-vs-allowlist; then a developer applies it. Priority is a QA recommendation;
+  PM confirms at grooming.
+
+### BUG-061 — spark Jest full run never exits: `blockEnforcement.socket.test.js` leaves undetectable open handles
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (pre-existing; noted at the BUG-055 build 2026-07-28 as present on the
+  pre-fix baseline; filed by QA at Sprint 2026-12 verification instead of being
+  silently skipped)
+- **Description:** After BUG-055 removed the idempotencyHandler hang, the spark FULL
+  suite still prints its summary ("Jest did not exit one second after the test run
+  has completed") and the process stays alive indefinitely. Attribution: the routes
+  suite imports @exprsn/shared (real idempotencyHandler) and exits cleanly in ~1s,
+  so the residual hang is the socket suite's own resources (socket.io server/timers);
+  `--detectOpenHandles` reports NOTHING while the process still hangs — the handle is
+  detection-invisible (child process or unref-trickery), so it needs explicit
+  teardown in the suite's afterAll.
+- **Steps to reproduce:** `cd services/spark && npx jest` (or just
+  `npx jest tests/socket/blockEnforcement.socket.test.js`) — tests pass, process
+  never exits (kill required). Also hangs `scripts/test-all.js`'s spark leg
+  (CI test job is non-blocking, so this currently burns the job's timeout).
+- **Expected:** spark full suite exits cleanly with no `--forceExit`, matching
+  BUG-055's posture for filevault/live.
+- **Environment:** `s2612-sr` @ `02f3ed7`, QA worktree, macOS local; suite itself
+  8/8 green.
+- **Notes:** test-hygiene fix in `tests/socket/blockEnforcement.socket.test.js`
+  teardown; jr-developer.
 
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
@@ -5310,7 +5377,7 @@ FEAT.)*
 - **Notes:** dba review for the storage shape. jr-developer.
 
 ### TASK-055 — FileVault: revoke the minted capability token when an avatar/cover is replaced or removed
-- **Type:** task · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28 · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** done — QA-VERIFIED 2026-07-28 on `s2612-sr` @ `02f3ed7` · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** FEAT-077 **2026-11 slice** (per its C/B: the façade's `revokeByResource(fileId)` makes this a one-call trivial-S fix — do not build it standalone first). Note the 2026-07-27 split: `revokeByResource` is IN the FileVault-backend-only slice committed to Sprint 2026-11 — this ticket does NOT wait on the TASK-057 RoomFile-adapter remainder, and becomes pullable (conditional pull, only if the sprint drains early) as soon as the slice lands.
 - **Legacy:** — (QA follow-up from TASK-053 verification, 2026-07-27)
 - **Description:** TASK-053's `ImageUploadField` mints a non-expiring read-only
@@ -5355,6 +5422,16 @@ FEAT.)*
   `provision-equivalence.test.js` precedent). All green; filevault 17/187,
   nexus groupService 21/21, auth 3/3 (+ session.test.js 29/29 unaffected).
   `npm run lint` clean.
+- **QA (done · 2026-07-28, qa-specialist, `s2612-sr` @ `02f3ed7`):** PASS.
+  Code review: relative requires resolve correctly from auth/nexus into
+  filevault's `displayImageService`; `reapDisplayImage` is best-effort (never
+  throws), no-ops on unchanged/non-FileVault URLs (URL-transition AC holds by
+  construction), calls `revokeByResource('file', id)` then soft-delete reap.
+  Re-ran: filevault 17/187 (incl. `displayImageService.test.js` 11 cases),
+  nexus `groupService.test.js` 21/21, auth `task055-avatarReap.test.js` 3/3 +
+  `session.test.js` 29/29 — both against the isolated `exprsn_auth_test` DB.
+  Live avatar-upload E2E remains on the standing QA-runtime-debt list (not
+  required this pass).
 
 ### TASK-056 — FileVault: clamp `file-access` token minting to read-only server-side (pre-existing)
 - **Type:** task · **Status:** done — QA-VERIFIED, merged 2026-07-28 (merge `dc5e2f0`; runtime smoke deferred until exprsn infra is up) · **Priority:** P3 · **Size:** S
@@ -5379,7 +5456,7 @@ FEAT.)*
   FEAT-077 adapter forwards only `expiresIn`).
 
 ### TASK-057 — RoomFile adapter behind the capability façade (FEAT-077 remainder)
-- **Type:** task · **Status:** in-review — built 2026-07-28 on branch `s2612-sr` (architect Shape-A conformance glance received 2026-07-28 with binding directives; Shape A only — no RoomFile→token storage migration) · **Priority:** P2 · **Size:** S/M
+- **Type:** task · **Status:** done — QA-VERIFIED 2026-07-28 on `s2612-sr` @ `02f3ed7` (architect Shape-A conformance glance received 2026-07-28 with binding directives; Shape A only — no RoomFile→token storage migration) · **Priority:** P2 · **Size:** S/M
 - **Owner-role:** sr-developer · **Blocked-by:** FEAT-077 2026-11 slice (satisfied)
 - **Legacy:** — (split from FEAT-077 at the 2026-11 COMMIT, 2026-07-27, per the owner's LIGHT single-track steer + the FEAT-077 C/B's single-implementer alternative)
 - **Description:** Sprint 2026-11 commits only FEAT-077's FileVault-backend-only
@@ -5440,6 +5517,29 @@ FEAT.)*
     confirm the non-owner-shared copy 404s on download AND disappears from the
     listing while an owner-shared one keeps serving; held image 404s for a
     non-uploader; non-member gets 403 NOT_A_MEMBER on every file route.
+- **QA (done · 2026-07-28, qa-specialist, `s2612-sr` @ `02f3ed7`):** PASS on
+  all four ACs. (1) Single enforcement path: zero non-test callers of
+  `servableFileIds`/`downloadFileStreamForMember` remain (grep; only the
+  fileService definitions + a migration comment); roomCollab.js dispatches
+  every vault-backed list/share/upload/download/delete through
+  `capability.grant/authorize/revoke` with `RESOURCE_TYPES.ROOM_FILE`. Adapter
+  exports exactly the five Shape-A methods with contract-matching signatures
+  (`mint/authorize/revoke/revokeByResource/listByResource`), registered from
+  live's `init()`; dependency stays one-way live→filevault; no DDL, no route
+  delta. (2) Parity: filevault suite green UNMODIFIED by TASK-057 (commit
+  `8eb8bee` touches only live + sprints files) — full run 17 suites/187 tests
+  incl. roomMemberDownload/shareGate/capability suites; live full suite 11
+  suites/142 tests green incl. the new `roomFileCapability.test.js` (grant
+  BUG-026 matrix, room-scope, membership, moderation hold, read-only clamp,
+  revoke actor rules + ephemeral unlink, `{revoked:0}` success, owner-only
+  listByResource). (3) Compatibility: response shapes/status codes preserved
+  in roomCollab.js (400 FILE_REQUIRED, 403 NOT_A_MEMBER/FORBIDDEN, 404
+  FILE_NOT_FOUND/NOT_FOUND/GONE, 201/202/500) and asserted by the rewired
+  `roomFiles.test.js`; legacy `ephemeral` disk rows served verbatim behind
+  the membership gate. (4) Invalidation: provenance private-flip both ways +
+  owner-always-reads covered in the façade suite. Runtime in-room E2E not
+  required for this gate (static + suite evidence per sprint QA scope);
+  noted as an optional follow-on smoke.
 
 ### TASK-058 — /simplify quality pass over the Sprint 2026-10 diff
 - **Type:** task · **Status:** done — merged + deployed 2026-07-28 (branch `s2610-opt`, 5 commits `419b9d7..10fee57`) · **Priority:** P3 · **Size:** M
@@ -5458,7 +5558,7 @@ FEAT.)*
   vitest 16/16/eslint green; all sprint contrast pairings re-verified unchanged.
 
 ### TASK-059 — API_SURFACE.md: spark `enhanced` router paths documented at the wrong mount
-- **Type:** task · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28 · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** done — QA-VERIFIED 2026-07-28 on `s2612-sr` @ `02f3ed7` · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (found during FEAT-070 build, 2026-07-28; pre-existing)
 - **Description:** API_SURFACE.md documents `/spark/api/messages/:id/forward|reply`, but
@@ -5480,6 +5580,14 @@ FEAT.)*
   `conversations/:id/settings|mute|unmute` were already documented correctly
   (those router paths already include `/conversations`) — left unchanged.
   Docs-only diff; no code/test changes.
+- **QA (done · 2026-07-28, qa-specialist, `s2612-sr` @ `02f3ed7`):** PASS.
+  Verified against `services/spark/src/index.js:103` (`app.use('/api',
+  enhancedRoutes)`) and every route in `routes/enhanced.js`: doc rows now read
+  `/spark/api/:id/forward|pin|unpin|thread|reply` and the
+  `conversations/:id/pinned|settings|mute|unmute` rows (whose router paths
+  already carry `/conversations`) were correctly left as-is. No stale
+  `/spark/api/messages/:id/...` reference remains (grep clean). Decision
+  (doc-fix, not mount-move) recorded per AC.
 
 ### TASK-060 — Spark: apply the S5 suppressed-sender filter to conversation search and enhanced thread-read
 - **Type:** task · **Status:** in-review — built on branch `s2612-jr`, 2026-07-28; **flagged for sr review per the ticket's standing note** · **Priority:** P3 · **Size:** S
@@ -5517,6 +5625,23 @@ FEAT.)*
   filtered) — 15/15 green; full spark suite unaffected (same 3 pre-existing,
   infra-unrelated failures as the pre-change baseline, confirmed by diff).
   `npm run lint` clean.
+- **QA (2026-07-28, qa-specialist, `s2612-sr` @ `02f3ed7`):** **PASS on
+  behavior — held at in-review pending the flagged sr review** (no sr
+  sign-off is recorded on this ticket yet; the s2612-jr→s2612-sr merge is
+  integration, not review). Evidence: code review confirms the identical
+  `getSuppressedIds` → `[Op.notIn]` shape on `GET /:conversationId/search`
+  (messages.js) and suppressed-root-404 + suppressed-reply filtering on
+  `GET /:id/thread` (enhanced.js). Route-reorder sanity: registration order
+  is now `/:conversationId` → `/:conversationId/search` →
+  `/search/suggestions` → `/:conversationId/:messageId` (GET/PUT/DELETE);
+  no other route is shadowed (`/search/suggestions`' second segment cannot
+  match the `/search` literal of the preceding param route).
+  `blockEnforcement.routes.test.js` 15/15 green incl. the 4 new cases, clean
+  exit. Full spark run in the QA worktree: 88/88 tests pass; 2 suites fail
+  to RUN on an env-local ESM parse of `sanitize-html`'s nested `htmlparser2`
+  (worktree npm-install artifact, matches the builder's "infra-unrelated"
+  baseline class); post-run process hang is the pre-existing socket-suite
+  handle, filed as **BUG-061**.
 
 ## Spikes
 

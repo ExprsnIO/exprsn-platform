@@ -340,7 +340,7 @@ adding `/forward`, `/pin`, `/settings`, etc.
 | PUT | /spark/api/messages/:conversationId/:messageId | `conversationId`, `messageId`, `content` | — | — | CA `update`; sender | emits message:edited |
 | DELETE | /spark/api/messages/:conversationId/:messageId | `conversationId`, `messageId` | — | — | CA `delete`; sender | soft delete |
 | GET | /spark/api/messages/:conversationId/search | `conversationId`, `q` | `limit` | — | CA `read` (participant) | `limit=20` |
-| GET | /spark/api/messages/search/suggestions | `q` | `conversationId`, `limit` | `q` ≥2 | CA `read` | `limit=10` |
+| GET | /spark/api/messages/search/suggestions | `q` | `conversationId`, `limit` | `q` ≥2 | CA `read` (participant; scoped to caller's own conversations, FEAT-070 S5-filtered — BUG-060) | `limit=10` |
 | POST | /spark/api/attachments/upload | multipart `file`, `messageId` | `conversationId` | file ≤100 MB; rate-limited | requireAuth; participant | video/audio queued |
 | GET | /spark/api/attachments/:id | `id` | — | — | requireAuth; participant | — |
 | GET | /spark/api/attachments/:id/download | `id` | — | — | requireAuth; participant | signed URL expiresIn=3600s |

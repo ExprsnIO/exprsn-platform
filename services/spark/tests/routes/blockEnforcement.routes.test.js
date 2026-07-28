@@ -58,12 +58,20 @@ jest.mock('../../../timeline/src/services/relationshipService', () => ({
   canContact: jest.fn()
 }));
 
+// BUG-060: GET /api/messages/search/suggestions lazily requires the real ES
+// client — mock it so the ES/DB-fallback branch is deterministic and no unit
+// test ever touches a live Elasticsearch instance.
+jest.mock('../../src/services/searchService', () => ({
+  getSuggestions: jest.fn()
+}));
+
 const express = require('express');
 const request = require('supertest');
 const { Op } = require('sequelize');
 const { errorHandler } = require('@exprsn/shared');
 const { Message, Conversation, Participant } = require('../../src/models');
 const relationshipService = require('../../../timeline/src/services/relationshipService');
+const searchService = require('../../src/services/searchService');
 
 const SENDER = 'aaaaaaaa-0000-0000-0000-000000000001';
 const OTHER = 'bbbbbbbb-0000-0000-0000-000000000002';
@@ -239,27 +247,110 @@ describe('FEAT-070 REST enforcement', () => {
     });
   });
 
-  describe('GET /api/messages/search/suggestions (BUG-060 — intentionally shadowed)', () => {
-    it('is NOT reachable — shadowed by :messageId, 404s as a message lookup', async () => {
-      // Sr review of TASK-060: this route is deliberately left registered
-      // AFTER `/:conversationId/:messageId` (unsafe getSuggestions call
-      // signature + unscoped/un-S5-filtered DB fallback — BUG-060). Pin that
-      // it stays dead until BUG-060 lands: the request resolves as
-      // conversationId="search", messageId="suggestions" via the
-      // single-message handler, not the suggestions handler.
-      Message.findOne.mockResolvedValue(null);
+  describe('GET /api/messages/search/suggestions (BUG-060 — now scoped + S5-filtered)', () => {
+    it('is reachable — no longer shadowed by :messageId', async () => {
+      searchService.getSuggestions.mockResolvedValue([]);
+      Participant.findAll.mockResolvedValue([{ conversationId: 'c1' }]);
 
       const res = await request(app)
         .get('/api/messages/search/suggestions')
         .query({ q: 'hello' })
         .set('x-user-id', SENDER);
 
-      expect(res.status).toBe(404);
-      expect(Message.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ conversationId: 'search', id: 'suggestions' })
-        })
+      expect(res.status).toBe(200);
+      expect(Message.findOne).not.toHaveBeenCalled();
+      expect(res.body).toEqual({ suggestions: [] });
+    });
+
+    it('scopes the ES call to the caller\'s own conversations when conversationId is omitted', async () => {
+      searchService.getSuggestions.mockResolvedValue([]);
+      Participant.findAll.mockResolvedValue([
+        { conversationId: 'c1' },
+        { conversationId: 'c2' }
+      ]);
+
+      await request(app)
+        .get('/api/messages/search/suggestions')
+        .query({ q: 'hello' })
+        .set('x-user-id', SENDER);
+
+      // Real signature: (query, conversationIds, limit) — an array, not an
+      // options object (the BUG-060 call-signature bug).
+      expect(searchService.getSuggestions).toHaveBeenCalledWith(
+        'hello',
+        expect.arrayContaining(['c1', 'c2']),
+        10
       );
+    });
+
+    it('403s when a supplied conversationId is not one of the caller\'s own', async () => {
+      Participant.findOne.mockResolvedValue(null);
+
+      const res = await request(app)
+        .get('/api/messages/search/suggestions')
+        .query({ q: 'hello', conversationId: 'other-convo' })
+        .set('x-user-id', SENDER);
+
+      expect(res.status).toBe(403);
+      expect(searchService.getSuggestions).not.toHaveBeenCalled();
+    });
+
+    it('applies the FEAT-070 S5 suppressed-sender filter to ES suggestions', async () => {
+      relationshipService.getSuppressedIds.mockResolvedValue([OTHER]);
+      Participant.findAll.mockResolvedValue([{ conversationId: 'c1' }]);
+      searchService.getSuggestions.mockResolvedValue([
+        { messageId: 'm1', senderId: SENDER, content: 'from sender' },
+        { messageId: 'm2', senderId: OTHER, content: 'from suppressed other' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/messages/search/suggestions')
+        .query({ q: 'hello' })
+        .set('x-user-id', SENDER);
+
+      expect(res.status).toBe(200);
+      expect(res.body.suggestions).toEqual([
+        { messageId: 'm1', senderId: SENDER, content: 'from sender' }
+      ]);
+      expectNoBlockOracle(res);
+    });
+
+    it('falls back to a conversation-scoped, S5-filtered DB search when the ES path throws', async () => {
+      relationshipService.getSuppressedIds.mockResolvedValue([OTHER]);
+      Participant.findAll.mockResolvedValue([{ conversationId: 'c1' }]);
+      searchService.getSuggestions.mockRejectedValue(new Error('ES unreachable'));
+      Message.findAll.mockResolvedValue([
+        { content: 'hello world', conversationId: 'c1' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/messages/search/suggestions')
+        .query({ q: 'hello' })
+        .set('x-user-id', SENDER);
+
+      expect(res.status).toBe(200);
+      const where = Message.findAll.mock.calls[0][0].where;
+      // Never unscoped: bounded to the caller's own conversations.
+      expect(where.conversationId[Op.in]).toEqual(['c1']);
+      // Never un-S5-filtered: excludes the suppressed sender's messages too.
+      expect(where.senderId[Op.notIn]).toEqual([OTHER]);
+      expect(res.body).toEqual({
+        suggestions: [{ text: 'hello world', conversationId: 'c1' }]
+      });
+    });
+
+    it('returns no suggestions (no DB/ES call) when the caller has no conversations', async () => {
+      Participant.findAll.mockResolvedValue([]);
+
+      const res = await request(app)
+        .get('/api/messages/search/suggestions')
+        .query({ q: 'hello' })
+        .set('x-user-id', SENDER);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ suggestions: [] });
+      expect(searchService.getSuggestions).not.toHaveBeenCalled();
+      expect(Message.findAll).not.toHaveBeenCalled();
     });
   });
 

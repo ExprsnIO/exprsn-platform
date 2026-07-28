@@ -5,7 +5,7 @@
  * drafts a reply into the outbox and shows the guardrail verdict.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Button,
@@ -40,10 +40,18 @@ function CsChatCard({ onError }: { onError: (e: unknown) => void }) {
   const [pending, setPending] = useState<string | null>(null);
   const [lastTurn, setLastTurn] = useState<ChatTurnResult | null>(null);
 
-  const chatsQuery = useQuery({ queryKey: ['cortex', 'cs', 'chats'], queryFn: cortexApi.csChats });
-  const detailQuery = useQuery({
+  // TASK-063: keyset-paged (first page = same default limit as before).
+  const chatsQuery = useInfiniteQuery({
+    queryKey: ['cortex', 'cs', 'chats'],
+    queryFn: ({ pageParam }) => cortexApi.csChats(pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+  const detailQuery = useInfiniteQuery({
     queryKey: ['cortex', 'cs', 'chat', selectedId],
-    queryFn: () => cortexApi.csChat(selectedId!),
+    queryFn: ({ pageParam }) => cortexApi.csChat(selectedId!, pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: !!selectedId,
   });
 
@@ -63,7 +71,7 @@ function CsChatCard({ onError }: { onError: (e: unknown) => void }) {
   });
 
   const messages = useMemo(() => {
-    const list = detailQuery.data?.messages ?? [];
+    const list = (detailQuery.data?.pages ?? []).flatMap((p) => p.messages);
     return [...list].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }, [detailQuery.data]);
 
@@ -72,7 +80,10 @@ function CsChatCard({ onError }: { onError: (e: unknown) => void }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, pending]);
 
-  const chats = chatsQuery.data?.chats ?? [];
+  const chats = useMemo(
+    () => (chatsQuery.data?.pages ?? []).flatMap((p) => p.chats),
+    [chatsQuery.data],
+  );
 
   return (
     <Card title="CS chat (guarded)">
@@ -107,6 +118,17 @@ function CsChatCard({ onError }: { onError: (e: unknown) => void }) {
             New chat
           </Button>
         </Stack>
+        {chatsQuery.hasNextPage && (
+          <Box sx={{ mb: 1 }}>
+            <Button
+              size="small"
+              onClick={() => chatsQuery.fetchNextPage()}
+              disabled={chatsQuery.isFetchingNextPage}
+            >
+              {chatsQuery.isFetchingNextPage ? 'Loading…' : 'Load more chats'}
+            </Button>
+          </Box>
+        )}
         <Divider />
 
         <Box sx={{ flex: 1, overflowY: 'auto', py: 1.5 }}>
@@ -122,6 +144,17 @@ function CsChatCard({ onError }: { onError: (e: unknown) => void }) {
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', pt: 4 }}>
                   Write as the customer — replies are drafted by the CS agent behind guardrails.
                 </Typography>
+              )}
+              {detailQuery.hasNextPage && (
+                <Box sx={{ textAlign: 'center' }}>
+                  <Button
+                    size="small"
+                    onClick={() => detailQuery.fetchNextPage()}
+                    disabled={detailQuery.isFetchingNextPage}
+                  >
+                    {detailQuery.isFetchingNextPage ? 'Loading…' : 'Load more messages'}
+                  </Button>
+                </Box>
               )}
               {messages.map((m, i) => {
                 const mine = m.role === 'customer';

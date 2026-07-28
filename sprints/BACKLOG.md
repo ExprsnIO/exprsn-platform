@@ -3421,8 +3421,8 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   MCP shim over the existing JSON routes as a doc/example — zero platform code.
 
 ### TASK-063 — Cortex: keyset pagination on sessions/messages
-- **Type:** task · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P3 · **Size:** S
-- **Owner-role:** jr-developer (PM routing rec. — claiming dev confirms at BUILD) · **Blocked-by:** —
+- **Type:** task · **Status:** in-review (Sprint 2026-13, fix landed `s2613-jr` @ `00a91ae`) · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `keyset-pagination` (S)
 - **Description:** Cursor-based paging on session/message lists instead of
   limit-only. Gap today: module lists cap at limit 100/200 with no cursor.
@@ -3433,6 +3433,51 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   - SPA callers (chat session list/history) updated to page; no regression in
     existing default-limit behavior.
 - **Notes:** Pure plumbing; jr-suitable.
+- **Resolution (in-review · 2026-07-28 · commit `00a91ae`, branch `s2613-jr`):**
+  Scoped to the two endpoint pairs the ticket names — `services/cortex/src/routes/chat.js`
+  (assistant channel) and `cs.js` (cs channel), both session list + message
+  history. (`tasks.js`/`outbox.js` also cap at limit 100/200 but are a
+  different domain — "sessions/messages" — left as-is; flag if the intent was
+  broader.)
+  - New `services/cortex/src/lib/keysetPagination.js`: opaque
+    `base64url(JSON({createdAt, id}))` cursor, `fetchKeysetPage` seeks
+    strictly past the prior page keyed on `(createdAt, id)` — the id
+    tie-break is what makes it dupe/gap-safe under a concurrent insert at the
+    exact same `createdAt`, which plain OFFSET paging (and a createdAt-only
+    cursor) both get wrong. Model-agnostic (`ChatSession` string ids vs
+    `ChatMessage` UUIDs share one helper).
+  - Session lists: `cursor`+`limit` accepted, cap/default **unchanged at
+    100** (AC's "no regression in existing default-limit behavior").
+  - Message history (`GET .../:id`): previously **fully unbounded** (no cap
+    at all) — introduced a 200-message default/cap. Interpreted "no
+    regression" as applying to the session list's pre-existing 100 default,
+    not as a mandate to keep history unbounded forever; flag at review if
+    that reading is wrong.
+  - `nextCursor: null` at the end of a list (both endpoint families).
+  - SPA (`web/src/api/cortex.ts`, `AssistantTab.tsx`, `CustomerServiceTab.tsx`):
+    `chatSessions`/`chatSession`/`csChats`/`csChat` take an optional
+    `{cursor, limit}` (omitted call is byte-identical to the pre-ticket
+    request); both tabs switched to `useInfiniteQuery` with a "Load more"
+    button for the session list and a "Load more messages" button for
+    history.
+  - `API_SURFACE.md` rows for `/chat[/:id]` and `/cs/chat[/:id]` updated with
+    the new query params/response/cap shape.
+  - **Tests:** `tests/unit/keysetPagination.test.js` (cursor round-trip,
+    malformed-cursor handling, seek-direction/tie-break correctness, full
+    desc/asc walks with no dupes/gaps across paging, and an explicit
+    concurrent-insert-ahead-of-cursor case proving the old row never
+    reappears) + `tests/routes/chatPagination.test.js` (route-level: the
+    default no-cursor/no-limit call is byte-identical to pre-ticket
+    behavior, `nextCursor` present/absent correctly, cursor threads into the
+    Sequelize `where`, limit clamps at the cap, a full multi-page history
+    walk with no dupes/gaps, and the 404 short-circuit does zero
+    `ChatMessage` queries).
+  - **Verified:** full cortex suite 9/9 suites, 173/173 tests (confirmed via
+    a before/after comparison that a pre-existing "worker did not exit
+    gracefully" warning is present on the unmodified baseline too — NOT
+    introduced by this ticket, out of scope to fix here); `npx tsc --noEmit`
+    clean; `npm run web:build` clean; `npm run lint` clean (0 errors, same
+    176 pre-existing warnings as the pre-ticket baseline).
 
 ### FEAT-093 — Cortex: pgvector embedding store
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
@@ -5026,7 +5071,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** jr-developer with sr review (org provisioning is the S1 façade surface).
 
 ### BUG-060 — spark `GET /api/messages/search/suggestions`: broken `getSuggestions` call signature + unscoped/un-S5-filtered DB fallback (cross-conversation content leak)
-- **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-review — MANDATORY SR REVIEW PENDING (Sprint 2026-13, fix landed `s2613-jr` @ `1d0a302`) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer, sr review mandatory at in-review (PM routing rec.) · **Blocked-by:** —
 - **Legacy:** — (found by sr-developer review of TASK-060, 2026-07-28, branch `s2612-jr`)
 - **Description:** Found during sr review of TASK-060 (extending the FEAT-070 S5
@@ -5068,10 +5113,55 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   surface, same as TASK-060). Cross-ref: TASK-060 (`b53d476`, sr
   CHANGES-REQUIRED verdict that surfaced this), `services/spark/src/routes/messages.js`,
   `services/spark/src/services/searchService.js`.
+- **Resolution (in-review, SR REVIEW MANDATORY BEFORE MERGE · 2026-07-28 ·
+  commit `1d0a302`, branch `s2613-jr`):**
+  1. **Signature:** kept the smaller/safer side — fixed the *caller* to match
+     `searchService.getSuggestions`'s real `(query, conversationIds, limit)`
+     signature (array, not an options object). Also added `senderId` to the ES
+     `_source`/returned suggestion shape (only caller of `getSuggestions`,
+     verified via grep) so the S5 filter below has something to filter on —
+     autocomplete can't pre-filter by sender the way a plain `[Op.notIn]` WHERE
+     clause does for the DB paths.
+  2. **Scoping:** when `conversationId` is supplied, verified via the existing
+     `Participant.findOne` check (unchanged pattern) and narrowed to that one
+     conversation; when omitted, resolved to every conversation the caller
+     actively participates in via `Participant.findAll`. Zero conversations
+     short-circuits to `{ suggestions: [] }` with no DB/ES call at all.
+  3. **S5 filter:** `contactPolicy.getSuppressedIds(req.userId)` — JS-side
+     `.filter()` on the ES path's returned `senderId` (can't be done in the ES
+     query itself without another round-trip), `[Op.notIn]` on the DB fallback
+     (same shape as every other message route).
+  4. **Un-shadowed:** moved the route back above `/:conversationId/:messageId`.
+     Replaced the shadowed-route pinning test in
+     `tests/routes/blockEnforcement.routes.test.js` with 6 real tests:
+     reachability, conversation scoping (both the omitted- and
+     supplied-`conversationId` call shapes), the 403 on a non-participant
+     `conversationId`, the S5 filter applied to ES suggestions, the
+     scoped+filtered DB fallback when ES throws, and the zero-conversations
+     short-circuit. Also added a `jest.mock('../../src/services/searchService')`
+     so no unit test touches a live Elasticsearch instance.
+  5. `API_SURFACE.md` row annotated with the new scoping/filtering contract
+     (query params/response shape unchanged).
+  - **Verified:** full spark suite 8 suites / 122 tests green (incl. the 6 new
+    BUG-060 tests + the pre-existing 21/21 in the routes file); `npm run lint`
+    clean (0 errors, only pre-existing unrelated warnings elsewhere in the
+    repo).
+  - **MANDATORY SR REVIEW FLAG:** per the ticket's own posture (same as
+    TASK-060, whose sr review originally surfaced this bug) — **do not merge
+    without sr-developer sign-off.** Specifically worth a second look: (a) the
+    JS-side S5 filter on the ES path (vs. a WHERE-clause filter on the DB
+    paths) is a different enforcement *shape* than the ADR's usual
+    `[Op.notIn]` pattern — confirm that's acceptable for an autocomplete
+    surface; (b) the `Participant.findAll` scoping call when `conversationId`
+    is omitted is a new per-request query on this route (no caching/limit) —
+    confirm that's an acceptable cost at this route's traffic profile; (c) no
+    upper bound was added on the number of conversations returned by
+    `Participant.findAll` before they're used in the ES `terms`/DB `Op.in`
+    clause — flag if that needs a cap.
 
 ### BUG-061 — spark Jest full run never exits: `blockEnforcement.socket.test.js` leaves undetectable open handles
-- **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P3 · **Size:** S
-- **Owner-role:** jr-developer (PM routing rec.) · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review (Sprint 2026-13, fix landed `s2613-jr` @ `109bcfb`) · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (pre-existing; noted at the BUG-055 build 2026-07-28 as present on the
   pre-fix baseline; filed by QA at Sprint 2026-12 verification instead of being
   silently skipped)
@@ -5093,6 +5183,28 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   8/8 green.
 - **Notes:** test-hygiene fix in `tests/socket/blockEnforcement.socket.test.js`
   teardown; jr-developer.
+- **Resolution (in-review · 2026-07-28 · commit `109bcfb`, branch `s2613-jr`):**
+  Root cause was NOT the socket.io server/timers as suspected — it was
+  `send:message`'s fire-and-forget plugin-hook fan-out
+  (`services/spark/src/socket/index.js`) lazily `require`-ing the REAL
+  `plugins/src/services/pluginHost` and calling `.emit(...)` without awaiting
+  it. With `PLUGINS_ENABLED=true` (this repo's dev `.env`), `pluginHost.emit`
+  opens a genuine unmocked Sequelize connection to query
+  `plugins.plugin_installations` — a live TCP handle created AFTER the test's
+  own assertions finish, so `--detectOpenHandles` never sees it (confirmed via
+  `process._getActiveHandles()` instrumentation + `pg_stat_activity`: two
+  ESTABLISHED sockets per test run, opened ~immediately after `Message.create`,
+  matching the plugin fan-out's timing exactly). Fix: (1) mock
+  `plugins/src/services/pluginHost` in the test file, matching the existing
+  lazily-required-service mock pattern (`groupChannelService`,
+  `relationshipService`, etc.); (2) separately, `.unref()` the typing-indicator
+  auto-clear `setTimeout` in `src/socket/index.js` (a real, un-refed 5s timer
+  was adding a bounded ~5s tail even after the pluginHost fix — harmless in
+  production, but worth closing per the ticket's "no `--forceExit`" bar).
+  Verified: full spark suite (8 suites / 117 tests) exits cleanly in ~8.7s, no
+  `--forceExit`, no "Jest did not exit" warning (was: indefinite hang, manual
+  kill required). `npm run lint` clean (0 errors; 1 pre-existing unrelated
+  warning at `socket/index.js:516`). Handed to qa-specialist for verification.
 
 ### BUG-062 — `db:check` is red on the live dev DB: 3 un-allowlisted NULLABILITY drifts on the moderation side tables
 - **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 (PM confirmed QA's recommendation at 2026-13 grooming — the drift gate must be green before the cortex new-table wave lands) · **Size:** S

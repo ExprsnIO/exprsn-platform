@@ -9,9 +9,17 @@ const { ChatSession, ChatMessage } = require('../models');
 const { newId } = require('../lib/ids');
 const { assistantChatTurn } = require('../engine/jobs');
 const { caRead, caWrite, isAdminReq } = require('../middleware/auth');
+const { clampLimit, decodeCursor, fetchKeysetPage } = require('../lib/keysetPagination');
 
 const router = express.Router();
 const ID_RE = /^[\w-]+$/;
+
+// TASK-063: session-list default/cap unchanged from the pre-pagination limit
+// (100) so an unqualified `GET /` keeps its existing behavior; message
+// history previously had NO cap at all (full transcript every time), so 200
+// is a new, generous default rather than a lowered one.
+const SESSIONS_LIMIT = { max: 100, def: 100 };
+const MESSAGES_LIMIT = { max: 200, def: 200 };
 
 async function ownedSession(req, id, channel) {
   const session = await ChatSession.findByPk(id);
@@ -39,24 +47,39 @@ router.post('/', caWrite, asyncHandler(async (req, res) => {
 
 router.get('/', caRead, asyncHandler(async (req, res) => {
   const where = { channel: 'assistant', ...(isAdminReq(req) ? {} : { userId: req.userId || null }) };
-  const rows = await ChatSession.findAll({
-    where, order: [['createdAt', 'DESC']], limit: 100,
-    include: [{ model: ChatMessage, as: 'messages', attributes: ['content'], separate: true, order: [['createdAt', 'ASC']] }],
+  const limit = clampLimit(req.query.limit, SESSIONS_LIMIT);
+  const cursor = decodeCursor(req.query.cursor);
+  const { rows, nextCursor } = await fetchKeysetPage({
+    cursor, limit, direction: 'desc', baseWhere: where,
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    findAll: (pageWhere, order, pageLimit) => ChatSession.findAll({
+      where: pageWhere, order, limit: pageLimit,
+      include: [{ model: ChatMessage, as: 'messages', attributes: ['content'], separate: true, order: [['createdAt', 'ASC']] }],
+    }),
   });
-  res.json({ sessions: rows.map((s) => ({
-    id: s.id, created: s.createdAt, turns: s.messages.length,
-    skills: s.skills ?? null, model: s.model ?? null,
-    preview: s.messages.length ? String(s.messages[0].content).slice(0, 80) : '',
-  })) });
+  res.json({
+    sessions: rows.map((s) => ({
+      id: s.id, created: s.createdAt, turns: s.messages.length,
+      skills: s.skills ?? null, model: s.model ?? null,
+      preview: s.messages.length ? String(s.messages[0].content).slice(0, 80) : '',
+    })),
+    nextCursor,
+  });
 }));
 
 router.get('/:id', caRead, asyncHandler(async (req, res) => {
   const session = await ownedSession(req, req.params.id, 'assistant');
   if (!session) return res.status(404).json({ error: 'not found' });
-  const messages = await ChatMessage.findAll({
-    where: { sessionId: session.id }, order: [['createdAt', 'ASC'], ['id', 'ASC']],
+  const limit = clampLimit(req.query.limit, MESSAGES_LIMIT);
+  const cursor = decodeCursor(req.query.cursor);
+  const { rows: messages, nextCursor } = await fetchKeysetPage({
+    cursor, limit, direction: 'asc', baseWhere: { sessionId: session.id },
+    order: [['createdAt', 'ASC'], ['id', 'ASC']],
+    findAll: (pageWhere, order, pageLimit) => ChatMessage.findAll({
+      where: pageWhere, order, limit: pageLimit,
+    }),
   });
-  res.json({ ...session.get({ plain: true }), messages });
+  res.json({ ...session.get({ plain: true }), messages, nextCursor });
 }));
 
 module.exports = router;

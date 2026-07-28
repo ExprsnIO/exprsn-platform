@@ -340,7 +340,7 @@ adding `/forward`, `/pin`, `/settings`, etc.
 | PUT | /spark/api/messages/:conversationId/:messageId | `conversationId`, `messageId`, `content` | — | — | CA `update`; sender | emits message:edited |
 | DELETE | /spark/api/messages/:conversationId/:messageId | `conversationId`, `messageId` | — | — | CA `delete`; sender | soft delete |
 | GET | /spark/api/messages/:conversationId/search | `conversationId`, `q` | `limit` | — | CA `read` (participant) | `limit=20` |
-| GET | /spark/api/messages/search/suggestions | `q` | `conversationId`, `limit` | `q` ≥2 | CA `read` | `limit=10` |
+| GET | /spark/api/messages/search/suggestions | `q` | `conversationId`, `limit` | `q` ≥2 | CA `read` (participant; scoped to caller's own conversations, FEAT-070 S5-filtered — BUG-060) | `limit=10` |
 | POST | /spark/api/attachments/upload | multipart `file`, `messageId` | `conversationId` | file ≤100 MB; rate-limited | requireAuth; participant | video/audio queued |
 | GET | /spark/api/attachments/:id | `id` | — | — | requireAuth; participant | — |
 | GET | /spark/api/attachments/:id/download | `id` | — | — | requireAuth; participant | signed URL expiresIn=3600s |
@@ -1064,9 +1064,9 @@ CA-bearer-only.
 | GET | /cortex/api/v1/agents/:idOrName/runs | — | limit, offset | limit ≤200 (default 50) | CA read *or service HMAC* | paginated run ledger with transcripts; own runs; admin sees all |
 | GET | /cortex/api/v1/agents/:idOrName/runs/:runId | — | — | — | CA read *or service HMAC* | single run incl. transcript/guardrail verdict |
 | POST | /cortex/api/v1/chat | `message` | session_id, model, skills | — | CA write | assistant turn; `attachments` → 400 (not ported) |
-| GET | /cortex/api/v1/chat[/:id] | — | — | limit 100 | CA read | own sessions; admin all |
+| GET | /cortex/api/v1/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination — response carries `nextCursor` (opaque, null at end); `cursor` seeks strictly past the prior page (no dupes/gaps across a concurrent insert) |
 | POST | /cortex/api/v1/cs/chat | `message` | session_id | — | CA write | guarded customer chat turn |
-| GET | /cortex/api/v1/cs/chat[/:id] | — | — | limit 100 | CA read | own sessions; admin all |
+| GET | /cortex/api/v1/cs/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination, same `nextCursor` contract as /chat above |
 | POST | /cortex/api/v1/cs/email | `from`, `subject`, `body` | — | — | CA write | drafts reply → outbox (sent/pending_review/blocked) |
 | GET | /cortex/api/v1/outbox[/:id] | — | — | limit 200 | CA read | own entries; admin all |
 | GET | /cortex/api/v1/reviews | — | — | — | CA read + admin | pending human reviews (holds blocked drafts) |

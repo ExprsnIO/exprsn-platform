@@ -41,6 +41,19 @@ jest.mock('../../../timeline/src/services/relationshipService', () => ({
   canContact: jest.fn()
 }));
 
+// BUG-061: send:message's plugin-hook fan-out (src/socket/index.js) lazily
+// requires the REAL plugins module and fires `pluginHost.emit(...)` without
+// awaiting it. With PLUGINS_ENABLED=true (this repo's dev .env), the real
+// pluginHost opens a genuine Sequelize connection to query PluginInstallation
+// — an unmocked, un-awaited DB call that outlives the test run and leaves an
+// undetectable open TCP handle (`--detectOpenHandles` reports nothing because
+// the handle is created after the test's own assertions complete). Mock it
+// like every other lazily-required service in this file so the suite never
+// touches live infra.
+jest.mock('../../../plugins/src/services/pluginHost', () => ({
+  emit: jest.fn().mockResolvedValue(undefined)
+}));
+
 const axios = require('axios');
 const { Message, Conversation, Participant } = require('../../src/models');
 const { authorizeConversationAccess, ensureParticipant } =

@@ -882,6 +882,104 @@ class TokenService {
   }
 
   /**
+   * Find tokens whose tokenData (JSONB) contains the given key/values.
+   *
+   * Service-layer only, no route (FEAT-077): FileVault's capability façade
+   * uses this to locate standalone 'file-access' capability tokens — which
+   * have no local ShareLink row — by the data they were minted with
+   * (`data: { fileId, sharedBy, shareType }`). Callers are responsible for
+   * authorizing the lookup; this method does no actor check.
+   *
+   * @param {Object} dataMatch - Non-empty subset of tokenData to match (JSONB containment)
+   * @param {Object} [options] - { status: 'active' (default; pass null for any), limit }
+   * @returns {Promise<Token[]>}
+   */
+  async findTokensByData(dataMatch, options = {}) {
+    if (!dataMatch || typeof dataMatch !== 'object' || Array.isArray(dataMatch) ||
+        Object.keys(dataMatch).length === 0) {
+      throw serviceError('DATA_MATCH_REQUIRED', 'A non-empty tokenData match object is required', 400);
+    }
+
+    const where = {
+      tokenData: { [require('sequelize').Op.contains]: dataMatch }
+    };
+    const status = 'status' in options ? options.status : 'active';
+    if (status) {
+      where.status = status;
+    }
+
+    return await Token.findAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      limit: options.limit || 500
+    });
+  }
+
+  /**
+   * Revoke ALL active tokens whose tokenData contains the given key/values.
+   *
+   * Service-layer only, no route (FEAT-077): the capability façade's
+   * `revokeByResource` sweep — e.g. revoke every standalone file-access token
+   * for a replaced/deleted file via `{ fileId, shareType: 'file-access' }`.
+   * Mirrors revokeTokensByCertificateId: best-effort cache invalidation (DB
+   * rows are the source of truth; validateToken re-reads them).
+   *
+   * @param {Object} dataMatch - Non-empty subset of tokenData to match
+   * @param {string} [reason='resource_revoked'] - Recorded on each token
+   * @param {Object} [options] - { revokedBy }
+   * @returns {Promise<number>} Number of tokens transitioned to 'revoked'
+   */
+  async revokeTokensByData(dataMatch, reason = 'resource_revoked', options = {}) {
+    const affected = await this.findTokensByData(dataMatch, { status: 'active' });
+    if (affected.length === 0) {
+      return 0;
+    }
+
+    const ids = affected.map((t) => t.id);
+    const [count] = await Token.update(
+      {
+        status: 'revoked',
+        revokedAt: Date.now(),
+        revokedReason: reason,
+        revokedBy: options.revokedBy || null
+      },
+      { where: { id: ids, status: 'active' } }
+    );
+
+    // Best-effort cache invalidation (mirror the certificate cascade).
+    await Promise.all(
+      affected.map(async (t) => {
+        try {
+          await redisClient.del(`token:validation:${t.id}`);
+        } catch (cacheError) {
+          logger.warn('Token cache invalidation failed during data-scoped revoke', {
+            tokenId: t.id,
+            error: cacheError.message
+          });
+        }
+      })
+    );
+
+    await AuditLog.log({
+      userId: options.revokedBy || null,
+      action: 'token.revoke.byData',
+      resourceType: 'token',
+      status: 'success',
+      severity: 'warning',
+      message: `Data-scoped token revocation (${count} token(s)): ${reason}`,
+      details: { dataMatch, reason, revokedTokenCount: count }
+    });
+
+    logger.info('Data-scoped token revocation complete', {
+      dataMatch,
+      revokedTokenCount: count,
+      reason
+    });
+
+    return count;
+  }
+
+  /**
    * List tokens for user (or, when userId is null, by scope filters only —
    * callers are responsible for authorizing scope-wide listings).
    */

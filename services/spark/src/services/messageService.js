@@ -7,6 +7,7 @@ const { Op } = require('sequelize');
 const sanitizeHtml = require('sanitize-html');
 const logger = require('../utils/logger');
 const messageModeration = require('./messageModeration');
+const contactPolicy = require('./contactPolicy');
 
 class MessageService {
   /**
@@ -31,6 +32,12 @@ class MessageService {
     if (!participant) {
       throw new Error('Not a participant');
     }
+
+    // FEAT-070 S2: reject the send when the direct (1:1) counterpart is
+    // blocked either way. Group conversations are exempt inside the guard
+    // (ADR §3). Throws ContactForbiddenError (403) / ContactCheckError
+    // (fail-closed on lookup failure).
+    await contactPolicy.assertCanContact(senderId, conversationId);
 
     // Prepare message data
     const messageData = {
@@ -99,6 +106,15 @@ class MessageService {
     }
 
     const where = { conversationId };
+
+    // FEAT-070 S5: filter messages from suppressed senders (blocked either
+    // way ∪ viewer's unexpired mutes) — one set-returning façade call per
+    // request, then [Op.notIn] (the ADR's read-path shape). History is
+    // frozen, not deleted: rows persist and reappear on unblock.
+    const suppressed = await contactPolicy.getSuppressedIds(userId);
+    if (suppressed.length > 0) {
+      where.senderId = { [Op.notIn]: suppressed };
+    }
 
     if (before) {
       where.createdAt = { [Op.lt]: before };

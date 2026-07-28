@@ -10,10 +10,13 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. No sprint currently in flight — Sprint 2026-11 closed 2026-07-28
-> (all tickets done + infra smoke passed; fresh-DB defects BUG-056/057/058 filed as
-> next-cycle P1/P2 candidates). Closed sprints `sprint-2026-07.md` …
-> `sprint-2026-11.md` are in `archive/`.
+> active sprint. **Sprint 2026-12 is in flight — see `active/sprint-2026-12.md`**
+> (committed 2026-07-28: TASK-057 anchor + BUG-058, BUG-055, TASK-055, TASK-059,
+> TASK-060; all TASK/BUG, no C/B gate this cycle). Sprint 2026-11 closed 2026-07-28
+> (all tickets done + infra smoke passed); its fresh-DB P1s **BUG-056/BUG-057 were
+> hotfixed on `main` post-close** (`21db94c`/`475a74d`/`6cc99b6`/`965de75`,
+> live-verified) and are reconciled `done` below — BUG-058 rolled into 2026-12.
+> Closed sprints `sprint-2026-07.md` … `sprint-2026-11.md` are in `archive/`.
 
 ---
 
@@ -4141,7 +4144,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** jr-developer.
 
 ### BUG-055 — shared `idempotencyHandler` runs a require-time `setInterval` without `.unref()` — hangs every Jest suite that imports @exprsn/shared
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 (jr track FIRST — restores clean Jest exits for the other suites) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found during FEAT-070 build, 2026-07-28; pre-existing)
 - **Description:** `shared/middleware/idempotencyHandler.js:264` starts a cleanup
@@ -4216,7 +4219,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   non-transactional either side of commit) — filed as **TASK-061**.
 
 ### BUG-058 — filevault module error handler leaks raw internal error messages in all environments, no correlationId
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 · **Priority:** P2 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (2026-07-28 infra smoke; pre-existing)
 - **Description:** `services/filevault/src/middleware/errorHandler.js:64` sets
@@ -5286,7 +5289,7 @@ FEAT.)*
 - **Notes:** dba review for the storage shape. jr-developer.
 
 ### TASK-055 — FileVault: revoke the minted capability token when an avatar/cover is replaced or removed
-- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 (blocked-by satisfied: FEAT-077 slice landed `revokeByResource`, live-verified at the 2026-11 smoke) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** FEAT-077 **2026-11 slice** (per its C/B: the façade's `revokeByResource(fileId)` makes this a one-call trivial-S fix — do not build it standalone first). Note the 2026-07-27 split: `revokeByResource` is IN the FileVault-backend-only slice committed to Sprint 2026-11 — this ticket does NOT wait on the TASK-057 RoomFile-adapter remainder, and becomes pullable (conditional pull, only if the sprint drains early) as soon as the slice lands.
 - **Legacy:** — (QA follow-up from TASK-053 verification, 2026-07-27)
 - **Description:** TASK-053's `ImageUploadField` mints a non-expiring read-only
@@ -5329,7 +5332,7 @@ FEAT.)*
   FEAT-077 adapter forwards only `expiresIn`).
 
 ### TASK-057 — RoomFile adapter behind the capability façade (FEAT-077 remainder)
-- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S/M
+- **Type:** task · **Status:** in-sprint — Sprint 2026-12 anchor, committed 2026-07-28 (blocked-by satisfied: 2026-11 slice done; architect Shape-A conformance glance scheduled week-1 day 1–2; Shape A only — no RoomFile→token storage migration) · **Priority:** P2 · **Size:** S/M
 - **Owner-role:** unassigned *(route to sr-developer at BUILD — façade-adjacent)* · **Blocked-by:** FEAT-077 2026-11 slice (the FileVault-backend-only façade must land first)
 - **Legacy:** — (split from FEAT-077 at the 2026-11 COMMIT, 2026-07-27, per the owner's LIGHT single-track steer + the FEAT-077 C/B's single-implementer alternative)
 - **Description:** Sprint 2026-11 commits only FEAT-077's FileVault-backend-only
@@ -5369,7 +5372,7 @@ FEAT.)*
   vitest 16/16/eslint green; all sprint contrast pairings re-verified unchanged.
 
 ### TASK-059 — API_SURFACE.md: spark `enhanced` router paths documented at the wrong mount
-- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 (doc-first default per the ticket; record the decision in the ticket) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found during FEAT-070 build, 2026-07-28; pre-existing)
 - **Description:** API_SURFACE.md documents `/spark/api/messages/:id/forward|reply`, but
@@ -5384,7 +5387,7 @@ FEAT.)*
 - **Notes:** jr-developer.
 
 ### TASK-060 — Spark: apply the S5 suppressed-sender filter to conversation search and enhanced thread-read
-- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** in-sprint — Sprint 2026-12, committed 2026-07-28 (jr-routable; sr review at in-review — FEAT-070 enforcement surface) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (FEAT-070 residual, 2026-07-28)
 - **Description:** FEAT-070's S5 read-filter covers message history and single-message

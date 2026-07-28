@@ -26,7 +26,8 @@ const agent = require('./agent');
 const { GuardrailEngine } = require('./guardrails');
 const { ToolRegistry } = require('./tools');
 const { SkillRegistry } = require('./skills');
-const { AgentTask, ChatSession, ChatMessage, OutboxEntry, Review } = require('../models');
+const { AgentTask, Agent, AgentRun, ChatSession, ChatMessage, OutboxEntry, Review } = require('../models');
+const { personaPrompt } = require('./agents');
 const { newId } = require('../lib/ids');
 const { logPrompt } = require('../lib/promptLog');
 const { initQueues, queues } = require('../queues');
@@ -127,7 +128,8 @@ async function runTask(taskId) {
   const workspace = path.join(WORKSPACES_DIR, taskId);
   const [schemas, impls] = agent.taskTools(
     workspace, await TOOLS.agentTools(task.tools ?? null));
-  const system = agent.TASK_SYSTEM + await SKILLS.promptBlock(task.skills);
+  const system = await personaPrompt('task', agent.TASK_SYSTEM) +
+    await SKILLS.promptBlock(task.skills);
   const started = Date.now();
   const update = {};
   try {
@@ -174,6 +176,76 @@ async function queueTask(taskId) {
   }
 }
 
+// Execute a DB-defined agent's run (FEAT-080). Mirrors runTask: per-run
+// workspace, spec-scoped custom tools + skills, guardrails on the spec's
+// channel, output guardrails on the final text, transcript persisted on the
+// run row. The AGENT's spec is read at run time — model resolvability was
+// checked at enable time but the router can differ now; a run-time failure
+// fails the RUN (status 'failed'), never the agent's lifecycle status.
+async function runAgentRun(runId) {
+  const run = await AgentRun.findByPk(runId);
+  if (!run) throw new Error(`agent run not found: ${runId}`);
+  const agentRow = await Agent.findByPk(run.agentId);
+  if (!agentRow) {
+    await run.update({ status: 'failed', error: 'agent no longer exists', finishedAt: new Date() });
+    return run;
+  }
+  const spec = agentRow.spec || {};
+  const channel = spec.channel || 'task';
+  await run.update({ status: 'running' });
+  const workspace = path.join(WORKSPACES_DIR, runId);
+  const [schemas, impls] = agent.taskTools(
+    workspace, await TOOLS.agentTools(spec.tools ?? null));
+  const system = String(spec.system_prompt || agent.TASK_SYSTEM) +
+    await SKILLS.promptBlock(spec.skills);
+  const model = run.model || spec.model || null;
+  const started = Date.now();
+  const update = {};
+  try {
+    const { text, transcript, commitCache } = await agent.runAgent(
+      system, [{ role: 'user', content: run.input }],
+      schemas, impls, ENGINE, channel,
+      { model, maxIterations: spec.max_iterations || undefined });
+    const [action, verdict] = await applyOutputGuardrails(text, channel);
+    let result = text;
+    if (action === 'block') {
+      result = 'Result withheld: it violated guardrail(s) ' +
+               verdict.hits.map((h) => h.guardrail).join(', ');
+    } else if (action !== 'escalate' && commitCache) {
+      await commitCache();
+    }
+    Object.assign(update, { status: 'done', result, transcript,
+                            guardrails: verdict, finishedAt: new Date() });
+  } catch (e) {
+    Object.assign(update, { status: 'failed', error: `${e.name || 'Error'}: ${e.message}`,
+                            finishedAt: new Date() });
+  }
+  await run.update(update);
+  logPrompt({
+    channel: 'task', sessionId: runId,
+    model: model || agent.BRAIN_MODEL,
+    prompt: { agent: agentRow.name, input: run.input, origin: run.origin },
+    response: { status: run.status, result: run.result, error: run.error },
+    guardrails: run.guardrails, latencyMs: Date.now() - started,
+  });
+  return run;
+}
+
+// Enqueue an agent run on the Bull queue; if Redis is down, fall back to an
+// in-process fire-and-forget run so the run still completes (queueTask twin).
+async function queueAgentRun(runId) {
+  try {
+    initQueues();
+    await queues.tasks.add('run-agent', { runId });
+  } catch (e) {
+    logger.warn('run-agent enqueue failed; running in-process', {
+      runId, error: e.message,
+    });
+    runAgentRun(runId).catch((err) =>
+      logger.error('in-process agent run failed', { runId, error: err.message }));
+  }
+}
+
 // Owner-facing assistant chat: full tool access (session workspace, delegate,
 // enabled custom tools) + selected skills; same guardrail flow as the
 // customer channels, on channel 'chat'.
@@ -204,7 +276,8 @@ async function assistantChatTurn(sessionId, message, model = null,
     const history = await sessionHistory(sessionId, 'user');
     const workspace = path.join(WORKSPACES_DIR, sessionId);
     const [schemas, impls] = agent.taskTools(workspace, await TOOLS.agentTools());
-    const system = agent.CHAT_SYSTEM + await SKILLS.promptBlock(session.skills);
+    const system = await personaPrompt('assistant', agent.CHAT_SYSTEM) +
+      await SKILLS.promptBlock(session.skills);
     const { text: draft, commitCache } = await agent.runAgent(
       system, history, schemas, impls, ENGINE, 'chat', { model: session.model });
     let [action, vOut] = await applyOutputGuardrails(draft, 'chat');
@@ -267,7 +340,8 @@ async function csChatTurn(sessionId, message, userId = null) {
     const history = await sessionHistory(sessionId, 'customer');
     const [schemas, impls] = agent.csTools();
     const { text: draft, commitCache } = await agent.runAgent(
-      agent.csSystemPrompt(), history, schemas, impls, ENGINE, 'cs_chat');
+      agent.csSystemPrompt(await personaPrompt('cs', agent.CS_SYSTEM)),
+      history, schemas, impls, ENGINE, 'cs_chat');
     let [action, vOut] = await applyOutputGuardrails(draft, 'cs_chat');
     const modOut = await moderatorScreen(draft, 'cs_chat', sessionId);
     action = combinedAction(action, modOut);
@@ -322,7 +396,8 @@ async function csEmail(sender, subject, body, userId = null) {
   const prompt = `Customer email from ${sender}\nSubject: ${subject}\n\n${body}\n\n` +
     'Write the reply email body (plain text, no subject line).';
   const { text: draft, commitCache } = await agent.runAgent(
-    agent.csSystemPrompt(), [{ role: 'user', content: prompt }],
+    agent.csSystemPrompt(await personaPrompt('cs', agent.CS_SYSTEM)),
+    [{ role: 'user', content: prompt }],
     schemas, impls, ENGINE, 'cs_email');
   let [action, vOut] = await applyOutputGuardrails(draft, 'cs_email');
   const modOut = await moderatorScreen(draft, 'cs_email', mailId);
@@ -380,5 +455,6 @@ module.exports = {
   BLOCKED_REPLY, HELD_REPLY, WORKSPACES_DIR,
   combinedAction, moderatorScreen,
   runTask, queueTask,
+  runAgentRun, queueAgentRun,
   assistantChatTurn, csChatTurn, csEmail, resolveReview,
 };

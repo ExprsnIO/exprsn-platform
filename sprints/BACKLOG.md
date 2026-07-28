@@ -3010,7 +3010,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   growth/retention (TASK-064's sweeper should cover it).
 
 ### FEAT-080 — Cortex: DB-backed agent definitions with run history + NL agent builder
-- **Type:** feature · **Status:** in-progress (Sprint 2026-13; claimed at BUILD 2026-07-28, branch `s2613-sr`) · **Priority:** P2 · **Size:** L
+- **Type:** feature · **Status:** in-review (Sprint 2026-13; built 2026-07-28 on branch `s2613-sr`) · **Priority:** P2 · **Size:** L
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-entities` (M) + `agent-runs` (S) + `agent-builder-nl` (S)
 - **Cost/Benefit:** done — **APPROVE.** Keystone gating FEAT-081/082/091 + half of FEAT-095; new-tables-only. Condition: pin the enable gate as **deterministic spec validation + advisory smoke run** (LLM-judged tests on local models are flaky by construction); NL builder is a droppable tail. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
@@ -3039,6 +3039,32 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   FEAT-095. New tables only (sync migrate OK). The NL builder is a droppable
   tail per the C/B — it can slip a sprint with zero downstream impact.
   Seeded-persona regression: an explicit persona-parity test is an AC artifact.
+- **Build notes (sr, 2026-07-28, `s2613-sr`):** NL builder SHIPPED (tail not
+  dropped). Architect glance outcome (CHANGES-NEEDED → applied → APPROVE):
+  spec carries `version:1`; non-empty `steps` are saveable on drafts but
+  rejected at the validate/enable gate with the FEAT-081 error; `agent_runs`
+  got lifecycle columns up front (`status/finished_at/error/result/user_id` +
+  generic `trigger_ref` STRING(64), origin as STRING not ENUM) plus a
+  composite `(agent_id, created_at)` index so FEAT-082 lands with zero ALTERs;
+  agent delete is refused while runs exist (RESTRICT + app guard). One
+  architect delta corrected against live code: the spec `channel` vocabulary
+  is the guardrail engine's RUNTIME set `task|chat|cs_chat|cs_email` (jobs.js
+  evaluates assistant flows on `'chat'`; PromptLog's `assistant` is
+  telemetry-only) — a `channel:'assistant'` would silently match no guardrail.
+  Surfaces: `cortex.agents`/`cortex.agent_runs` (synced, `db:check` green);
+  routes under `/cortex/api/v1/agents` (see API_SURFACE.md); worker processes
+  `run-agent` on the cortex-tasks queue with the queueTask in-process
+  fallback; personas seeded idempotently at init as `builtin` enabled rows
+  through the SAME deterministic gate (model:null ⇒ offline-safe), and the
+  chat/cs/task flows now read their system prompt from the enabled persona
+  row with the legacy constant as fallback. Per-agent `guardrails` list is
+  ADVISORY until FEAT-081 (labeled in the GET response); enforcement remains
+  global enabled-guardrails-per-channel. QA path: jest suites
+  `tests/unit/agentSpec.test.js`, `tests/unit/personaParity.test.js`,
+  `tests/routes/agentsLifecycle.test.js` (241/241 green); live-DB persistence
+  probed cross-process (seed + run row readable from a second process);
+  end-to-end run transcript needs the llama router up (`POST
+  /agents/task/run` as any token holder, then `GET /agents/task/runs`).
 
 ### FEAT-081 — Cortex: multi-step agent chaining engine (sequential, 8 step types)
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
@@ -3279,7 +3305,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   `services/ca/services/token.js` before build.
 
 ### TASK-062 — Cortex: inbound service-token HMAC auth
-- **Type:** task · **Status:** in-progress (Sprint 2026-13; claimed at BUILD 2026-07-28, branch `s2613-sr`) · **Priority:** P2 · **Size:** S
+- **Type:** task · **Status:** in-review (Sprint 2026-13; built 2026-07-28 on branch `s2613-sr`) · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `inbound-service-hmac` (S)
 - **Description:** Accept `X-Service-ID`/`X-Service-Token` HMAC so other modules
@@ -3295,6 +3321,19 @@ selection (do not re-propose blind): see the note in **Deferred** below.
 - **Notes:** Cheap enabler — unlocks FEAT-082's webhook triggers and FEAT-023-style
   module callers. Uses `shared/` middleware (edit `shared/`, both import styles
   resolve to the same files).
+- **Build notes (sr, 2026-07-28, `s2613-sr`):** `caReadOrService`/
+  `caWriteOrService` composites in `services/cortex/src/middleware/auth.js`
+  (no `shared/` edits needed — `authenticateService()` consumed as-is from
+  `@exprsn/shared/middleware/auth`, same import as spark/timeline moderation
+  sinks). Designated routes: `POST/GET /api/v1/tasks[/:id]` plus FEAT-080's
+  `POST /agents/:idOrName/run` and `GET /agents/:idOrName/runs[/:runId]`.
+  Fail-closed routing: any service header present ⇒ service auth only,
+  invalid/partial ⇒ 401 with NO CA fallback; no headers ⇒ CA path unchanged
+  (regression-pinned). Service callers have no user identity (owner scoping ⇒
+  `userId NULL` rows) and are never admins; admin routes stay CA-only. Also
+  fixed a latent `undefined !== null` ownership miscompare on
+  `GET /tasks/:id`. QA path: `tests/routes/serviceAuth.test.js`;
+  API_SURFACE.md documents the *or service HMAC* rows.
 
 ### FEAT-089 — Cortex: token admin UI in the SPA
 - **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S

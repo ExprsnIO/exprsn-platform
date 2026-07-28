@@ -70,6 +70,28 @@ router.post('/register',
 
   logger.info('User registered', { userId: user.id, email: user.email });
 
+  // BUG-056: mint the CA token BEFORE any side effects (plugin emit, emails),
+  // and compensate on failure. The CA runs on its own Sequelize connection in
+  // another schema, so the mint cannot share auth's transaction — instead a
+  // failed mint hard-deletes the just-created user row so registration is
+  // atomic from the caller's view: no orphaned auth.users row, and an
+  // immediate retry does not hit USER_EXISTS for an account that never got
+  // a token.
+  let token;
+  try {
+    token = await tokenService.generateToken(user);
+  } catch (mintErr) {
+    try {
+      await user.destroy({ force: true });
+    } catch (cleanupErr) {
+      logger.error('Failed to roll back user row after token mint failure', {
+        userId: user.id,
+        error: cleanupErr.message
+      });
+    }
+    throw mintErr;
+  }
+
   // Emit onto the plugin hook bus (fire-and-forget, best-effort, guarded).
   try {
     const pluginHost = require('../../../plugins/src/services/pluginHost');
@@ -102,9 +124,6 @@ router.post('/register',
     });
     // Don't fail registration if email fails
   }
-
-  // Generate CA token
-  const token = await tokenService.generateToken(user);
 
   // Persist a session row for the bearer issued on registration (best-effort —
   // a session-row write must never fail an otherwise-successful registration).

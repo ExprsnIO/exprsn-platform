@@ -159,6 +159,36 @@ module.exports = (sequelize, DataTypes) => {
     // Hash-chain each entry to its predecessor for tamper evidence.
     // A transaction with a row lock on the latest entry serializes
     // concurrent writers so the chain does not fork.
+    // BUG-056: audit_logs.user_id FKs ca.users(id), but most principals on
+    // the platform are AUTH users (auth.users) that are never mirrored into
+    // ca.users — cross-schema FKs would violate per-schema isolation, and the
+    // token subject being an auth id is a permanent design constraint (see
+    // Token.userId, which had its FK dropped for the same reason). Write the
+    // FK column only when the principal is CA-local; otherwise keep the id in
+    // details.principalUserId so no audit value is lost. Resolved OUTSIDE the
+    // chain transaction (a failed lookup must not abort it) and BEFORE the
+    // entry hash is computed so the hash chain matches the stored row.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let resolvedUserId = data.userId || null;
+    let resolvedDetails = data.details || {};
+    if (resolvedUserId) {
+      let caLocal = null;
+      if (UUID_RE.test(String(resolvedUserId))) {
+        try {
+          const User = sequelize.models.User;
+          caLocal = User
+            ? await User.findByPk(resolvedUserId, { attributes: ['id'] })
+            : null;
+        } catch (_) {
+          caLocal = null; // lookup failure — fail toward NULL, never toward FK violation
+        }
+      }
+      if (!caLocal) {
+        resolvedDetails = { ...resolvedDetails, principalUserId: resolvedUserId };
+        resolvedUserId = null;
+      }
+    }
+
     return sequelize.transaction(async (transaction) => {
       const last = await this.findOne({
         order: [['createdAt', 'DESC']],
@@ -167,7 +197,7 @@ module.exports = (sequelize, DataTypes) => {
       });
 
       const entry = {
-        userId: data.userId || null,
+        userId: resolvedUserId,
         action: data.action,
         resourceType: data.resourceType || null,
         resourceId: data.resourceId || null,
@@ -177,7 +207,7 @@ module.exports = (sequelize, DataTypes) => {
         ipAddress: data.ipAddress || null,
         userAgent: data.userAgent || null,
         requestId: data.requestId || null,
-        details: data.details || {},
+        details: resolvedDetails,
         changes: data.changes || null,
         createdAt: new Date(),
         prevHash: last ? last.entryHash : null

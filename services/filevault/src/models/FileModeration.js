@@ -133,13 +133,16 @@ module.exports = (sequelize, DataTypes) => {
     // file_id nullable, contradicting the model's allowNull:false, and (b) leave
     // orphan rows pointing at nothing. CASCADE keeps NOT NULL and the 1:1
     // invariant intact. See migration 20260710000001.
+    // BUG-057: FK named by attribute (fileId), column stays file_id via `field`.
     FileModeration.belongsTo(models.File, {
-      foreignKey: 'file_id', as: 'file', onDelete: 'CASCADE', onUpdate: 'CASCADE',
+      foreignKey: { name: 'fileId', field: 'file_id', allowNull: false },
+      as: 'file', onDelete: 'CASCADE', onUpdate: 'CASCADE',
     });
     // The reverse side lives here too: `File` is a plain model file that knows
     // nothing about moderation, and every serve path eager-loads `moderation`.
     models.File.hasOne(FileModeration, {
-      foreignKey: 'file_id', as: 'moderation', onDelete: 'CASCADE', onUpdate: 'CASCADE',
+      foreignKey: { name: 'fileId', field: 'file_id', allowNull: false },
+      as: 'moderation', onDelete: 'CASCADE', onUpdate: 'CASCADE',
     });
   };
 

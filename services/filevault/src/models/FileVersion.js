@@ -76,8 +76,9 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   FileVersion.associate = function(models) {
+    // BUG-057: FK named by attribute (fileId), column stays file_id via `field`.
     FileVersion.belongsTo(models.File, {
-      foreignKey: { name: 'file_id', allowNull: false },
+      foreignKey: { name: 'fileId', field: 'file_id', allowNull: false },
       onDelete: 'CASCADE',
       onUpdate: 'CASCADE',
       as: 'file'

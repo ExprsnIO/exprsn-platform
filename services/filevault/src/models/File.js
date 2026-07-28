@@ -126,21 +126,26 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   File.associate = function(models) {
+    // BUG-057: foreignKey.name must be the model ATTRIBUTE (camelCase), not the
+    // DB column. Naming it by column made Sequelize register a duplicate literal
+    // snake_case attribute alongside the model's camelCase one; code set the
+    // camelCase attribute, the duplicate stayed null, and every insert died on
+    // `notNull Violation: <col> cannot be null`. `field` keeps the column name.
     File.belongsTo(models.Directory, {
-      foreignKey: 'directory_id',
+      foreignKey: { name: 'directoryId', field: 'directory_id' },
       as: 'directory'
     });
     // BUG-025: file_id NOT NULL + ON DELETE CASCADE (see migration
     // 20260710000002). Sequelize's hasMany default was SET NULL, which forced
     // the column nullable and would orphan versions/share-links on a hard delete.
     File.hasMany(models.FileVersion, {
-      foreignKey: { name: 'file_id', allowNull: false },
+      foreignKey: { name: 'fileId', field: 'file_id', allowNull: false },
       onDelete: 'CASCADE',
       onUpdate: 'CASCADE',
       as: 'versions'
     });
     File.hasMany(models.ShareLink, {
-      foreignKey: { name: 'file_id', allowNull: false },
+      foreignKey: { name: 'fileId', field: 'file_id', allowNull: false },
       onDelete: 'CASCADE',
       onUpdate: 'CASCADE',
       as: 'shareLinks'

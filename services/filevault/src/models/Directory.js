@@ -80,16 +80,17 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Directory.associate = function(models) {
+    // BUG-057: FKs named by attribute (camelCase), columns unchanged via `field`.
     Directory.belongsTo(Directory, {
-      foreignKey: 'parent_id',
+      foreignKey: { name: 'parentId', field: 'parent_id' },
       as: 'parent'
     });
     Directory.hasMany(Directory, {
-      foreignKey: 'parent_id',
+      foreignKey: { name: 'parentId', field: 'parent_id' },
       as: 'subdirectories'
     });
     Directory.hasMany(models.File, {
-      foreignKey: 'directory_id',
+      foreignKey: { name: 'directoryId', field: 'directory_id' },
       as: 'files'
     });
   };

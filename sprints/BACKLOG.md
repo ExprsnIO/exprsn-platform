@@ -5031,8 +5031,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   `services/spark/src/services/searchService.js`.
 
 ### BUG-061 — spark Jest full run never exits: `blockEnforcement.socket.test.js` leaves undetectable open handles
-- **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P3 · **Size:** S
-- **Owner-role:** jr-developer (PM routing rec.) · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review (Sprint 2026-13, fix landed `s2613-jr` @ `109bcfb`) · **Priority:** P3 · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (pre-existing; noted at the BUG-055 build 2026-07-28 as present on the
   pre-fix baseline; filed by QA at Sprint 2026-12 verification instead of being
   silently skipped)
@@ -5054,6 +5054,28 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   8/8 green.
 - **Notes:** test-hygiene fix in `tests/socket/blockEnforcement.socket.test.js`
   teardown; jr-developer.
+- **Resolution (in-review · 2026-07-28 · commit `109bcfb`, branch `s2613-jr`):**
+  Root cause was NOT the socket.io server/timers as suspected — it was
+  `send:message`'s fire-and-forget plugin-hook fan-out
+  (`services/spark/src/socket/index.js`) lazily `require`-ing the REAL
+  `plugins/src/services/pluginHost` and calling `.emit(...)` without awaiting
+  it. With `PLUGINS_ENABLED=true` (this repo's dev `.env`), `pluginHost.emit`
+  opens a genuine unmocked Sequelize connection to query
+  `plugins.plugin_installations` — a live TCP handle created AFTER the test's
+  own assertions finish, so `--detectOpenHandles` never sees it (confirmed via
+  `process._getActiveHandles()` instrumentation + `pg_stat_activity`: two
+  ESTABLISHED sockets per test run, opened ~immediately after `Message.create`,
+  matching the plugin fan-out's timing exactly). Fix: (1) mock
+  `plugins/src/services/pluginHost` in the test file, matching the existing
+  lazily-required-service mock pattern (`groupChannelService`,
+  `relationshipService`, etc.); (2) separately, `.unref()` the typing-indicator
+  auto-clear `setTimeout` in `src/socket/index.js` (a real, un-refed 5s timer
+  was adding a bounded ~5s tail even after the pluginHost fix — harmless in
+  production, but worth closing per the ticket's "no `--forceExit`" bar).
+  Verified: full spark suite (8 suites / 117 tests) exits cleanly in ~8.7s, no
+  `--forceExit`, no "Jest did not exit" warning (was: indefinite hang, manual
+  kill required). `npm run lint` clean (0 errors; 1 pre-existing unrelated
+  warning at `socket/index.js:516`). Handed to qa-specialist for verification.
 
 ### BUG-062 — `db:check` is red on the live dev DB: 3 un-allowlisted NULLABILITY drifts on the moderation side tables
 - **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 (PM confirmed QA's recommendation at 2026-13 grooming — the drift gate must be green before the cortex new-table wave lands) · **Size:** S

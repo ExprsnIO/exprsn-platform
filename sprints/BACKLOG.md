@@ -4154,7 +4154,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** One-line shared fix + remove the spark test stub. jr-developer.
 
 ### BUG-056 — Fresh-bootstrap DB cannot register/login: CA token mint violates `ca.audit_logs` FK
-- **Type:** bug · **Status:** backlog · **Priority:** P1 · **Size:** S
+- **Type:** bug · **Status:** done — hotfix merged + LIVE-VERIFIED 2026-07-28 (register/login/upload all green on the fresh DB) · **Priority:** P1 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (2026-07-28 infra smoke on a fresh `db:bootstrap`+`db:migrate` DB; pre-existing, masked by legacy `ca.users` rows on the old dev DB)
 - **Description:** `POST /auth/api/auth/register` (and every login) 500s on a fresh DB:
@@ -4169,9 +4169,25 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     the choice; `user_id` is already nullable with ON DELETE SET NULL).
   - Registration is transactional: a failed mint leaves no orphaned `auth.users` row.
 - **Notes:** sr-developer (auth/CA) + dba glance. Found while smoke-verifying FEAT-070.
+- **Resolution (done · 2026-07-28 · commits `21db94c` + `475a74d`, branch `hotfix-fresh-db`):**
+  Two layers. (1) `AuditLog.log` writes NULL `user_id` for non-CA-local principals
+  (real id preserved in `details.principalUserId`; lookup outside the hash-chain
+  transaction, before `computeEntryHash`). (2) Amendment: Sequelize regenerates
+  cross-schema FKs from the ASSOCIATION channel even with attribute `references`
+  removed — 9 FKs onto `ca.users` on a fresh sync (8 wrong incl. `tokens.user_id`
+  which still blocked mints, and `UserGroups.user_id` which would have broken org
+  provisioning). Fixed with `constraints:false` on all 16 User-touching associations
+  (+ the `onDelete` gotcha), attribute `references` removed on 5 models, idempotent
+  drop migration `20260728000001` (applied to the live DB — 8 constraints dropped;
+  `UserRoles.user_id` correctly kept). Register made transactional via compensation
+  (`user.destroy` on mint failure) — verified live (failed register left no orphan,
+  retry 201). drift-allow.json unchanged (checker reads associations regardless of
+  `constraints:false` — findings still match). Structural guard test
+  `crossSchemaUserRefs.test.js`; ca 28, auth 31 green. Residual filed as **BUG-059**
+  (/signup org flow mints after provisioning — same compensation gap).
 
 ### BUG-057 — All FileVault uploads 500: `hasMany` FK named by column while the model attribute is `fileId`
-- **Type:** bug · **Status:** backlog · **Priority:** P1 · **Size:** S
+- **Type:** bug · **Status:** done — hotfix merged + LIVE-VERIFIED 2026-07-28 (upload 201 on the fresh DB) · **Priority:** P1 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (2026-07-28 infra smoke; code-level, DB-independent; regression suspect: the BUG-025 association fix, migration 20260710000002 era)
 - **Description:** `services/filevault/src/models/File.js:136` declares
@@ -4189,6 +4205,15 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - Orphan-blob leak on failed upload addressed or ticketed separately.
 - **Notes:** sr-developer. Blocks TASK-053's avatar-upload flow and FEAT-077's upload
   leg on fresh installs.
+- **Resolution (done · 2026-07-28 · commit `6cc99b6`, branch `hotfix-fresh-db`):**
+  Association FKs renamed by ATTRIBUTE with `field` kept snake_case across all
+  camelCase-attribute models (File↔FileVersion/ShareLink/FileModeration/Directory
+  chains); snake-native models (Download/Thumbnail/FileBlob) deliberately untouched
+  and consumer `where:{file_id}` usages confirmed to sit only on those. Regression
+  suite `associationForeignKeys.test.js` (fails pre-fix with the exact notNull
+  violation; asserts SQL column names unchanged). filevault 15 suites/173 green.
+  Orphan-blob-on-failed-upload: no trivial ordering fix exists (blob storage is
+  non-transactional either side of commit) — filed as **TASK-061**.
 
 ### BUG-058 — filevault module error handler leaks raw internal error messages in all environments, no correlationId
 - **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
@@ -4203,6 +4228,32 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - filevault adopts the shared error handler (or matches its posture): operational
     messages only, dev-gated internals, correlationId present.
 - **Notes:** jr-developer.
+
+### BUG-059 — /signup (org signup) mints the CA token after org provisioning with no compensation on failure
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (BUG-056 residual, 2026-07-28)
+- **Description:** `services/auth/src/routes/auth.js` (~:697) org-signup flow mints the
+  CA token after user + org provisioning; a mint failure leaves user+org persisted
+  with no token (the plain register path got compensation under BUG-056). Much less
+  likely post-BUG-056, but the same class of gap.
+- **Acceptance criteria:**
+  - Org signup either compensates (rolls back user+org) or recovers (retry-able mint
+    with the provisioned state intact) on mint failure; regression test.
+- **Notes:** jr-developer with sr review (org provisioning is the S1 façade surface).
+
+### TASK-061 — FileVault: reap orphaned blobs from failed uploads
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (BUG-057 side effect, 2026-07-28)
+- **Description:** Upload writes blob bytes to storage before the DB transaction; a
+  failed upload leaves an orphan blob on disk/S3. No trivial ordering fix exists
+  (writing after commit inverts the failure into a row pointing at missing bytes).
+- **Acceptance criteria:**
+  - A reconcile-style sweep (mirroring the TASK-025 pattern) deletes blobs with no
+    referencing `file_versions`/`file_blobs` row past a grace window; metrics/log line
+    per reap.
+- **Notes:** dba glance on the query; jr-developer.
 
 ## Tasks
 - **Resolution (done · 2026-07-28 · commit `b2d3925`):** Both assertions updated to the

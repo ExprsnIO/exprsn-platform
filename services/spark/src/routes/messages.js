@@ -88,6 +88,128 @@ router.get('/:conversationId', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/messages/:conversationId/search
+ * Search messages in conversation
+ *
+ * BUG (found while building TASK-060): this MUST be registered before the
+ * `/:conversationId/:messageId` routes below — Express matches routes in
+ * REGISTRATION order, not by literal-vs-param specificity, so a two-segment
+ * path like `/c1/search` would otherwise match `:messageId` first (treating
+ * "search" as a message id) and this handler — along with its S5 filter —
+ * would never run.
+ */
+router.get('/:conversationId/search', asyncHandler(async (req, res) => {
+  const { conversationId } = req.params;
+  const { q, limit = 20 } = req.query;
+
+  // Check if user is participant
+  const participant = await Participant.findOne({
+    where: {
+      conversationId,
+      userId: req.userId,
+      active: true
+    }
+  });
+
+  if (!participant) {
+    throw new AppError('Not a participant in this conversation', 403, 'FORBIDDEN');
+  }
+
+  const where = {
+    conversationId,
+    content: {
+      [require('sequelize').Op.iLike]: `%${q}%`
+    },
+    deleted: false
+  };
+
+  // TASK-060 (FEAT-070 S5 extension): same suppressed-sender filter as
+  // GET /:conversationId — [Op.notIn], one façade call per request.
+  const suppressed = await contactPolicy.getSuppressedIds(req.userId);
+  if (suppressed.length > 0) {
+    where.senderId = { [require('sequelize').Op.notIn]: suppressed };
+  }
+
+  const messages = await Message.findAll({
+    where,
+    order: [['createdAt', 'DESC']],
+    limit: parseInt(limit)
+  });
+
+  res.json({ messages });
+}));
+
+/**
+ * GET /api/messages/search/suggestions
+ * Get autocomplete suggestions for message search
+ *
+ * Same registration-order note as above: `/search/suggestions` is also a
+ * two-segment path and would otherwise be shadowed by `:messageId`.
+ */
+router.get('/search/suggestions', asyncHandler(async (req, res) => {
+  const { q, conversationId, limit = 10 } = req.query;
+
+  if (!q || q.length < 2) {
+    return res.json({ suggestions: [] });
+  }
+
+  // If conversationId provided, check participation
+  if (conversationId) {
+    const participant = await Participant.findOne({
+      where: {
+        conversationId,
+        userId: req.userId,
+        active: true
+      }
+    });
+
+    if (!participant) {
+      throw new AppError('Not a participant in this conversation', 403, 'FORBIDDEN');
+    }
+  }
+
+  // Use search service if available
+  try {
+    const searchService = require('../services/searchService');
+
+    const suggestions = await searchService.getSuggestions(q, {
+      userId: req.userId,
+      conversationId,
+      limit: parseInt(limit)
+    });
+
+    res.json({ suggestions });
+  } catch (error) {
+    // Fallback to basic database search
+    const where = {
+      content: {
+        [require('sequelize').Op.iLike]: `%${q}%`
+      },
+      deleted: false
+    };
+
+    if (conversationId) {
+      where.conversationId = conversationId;
+    }
+
+    const messages = await Message.findAll({
+      where,
+      attributes: ['id', 'content', 'conversationId'],
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      group: ['content']
+    });
+
+    const suggestions = messages.map(m => ({
+      text: m.content.substring(0, 100),
+      conversationId: m.conversationId
+    }));
+
+    res.json({ suggestions });
+  }
+}));
+
+/**
  * GET /api/messages/:conversationId/:messageId
  * Get single message
  */
@@ -215,109 +337,6 @@ router.delete('/:conversationId/:messageId', validateCAToken({ requiredPermissio
   }
 
   res.json({ message: 'Message deleted successfully' });
-}));
-
-/**
- * GET /api/messages/:conversationId/search
- * Search messages in conversation
- */
-router.get('/:conversationId/search', asyncHandler(async (req, res) => {
-  const { conversationId } = req.params;
-  const { q, limit = 20 } = req.query;
-
-  // Check if user is participant
-  const participant = await Participant.findOne({
-    where: {
-      conversationId,
-      userId: req.userId,
-      active: true
-    }
-  });
-
-  if (!participant) {
-    throw new AppError('Not a participant in this conversation', 403, 'FORBIDDEN');
-  }
-
-  const messages = await Message.findAll({
-    where: {
-      conversationId,
-      content: {
-        [require('sequelize').Op.iLike]: `%${q}%`
-      },
-      deleted: false
-    },
-    order: [['createdAt', 'DESC']],
-    limit: parseInt(limit)
-  });
-
-  res.json({ messages });
-}));
-
-/**
- * GET /api/messages/search/suggestions
- * Get autocomplete suggestions for message search
- */
-router.get('/search/suggestions', asyncHandler(async (req, res) => {
-  const { q, conversationId, limit = 10 } = req.query;
-
-  if (!q || q.length < 2) {
-    return res.json({ suggestions: [] });
-  }
-
-  // If conversationId provided, check participation
-  if (conversationId) {
-    const participant = await Participant.findOne({
-      where: {
-        conversationId,
-        userId: req.userId,
-        active: true
-      }
-    });
-
-    if (!participant) {
-      throw new AppError('Not a participant in this conversation', 403, 'FORBIDDEN');
-    }
-  }
-
-  // Use search service if available
-  try {
-    const searchService = require('../services/searchService');
-
-    const suggestions = await searchService.getSuggestions(q, {
-      userId: req.userId,
-      conversationId,
-      limit: parseInt(limit)
-    });
-
-    res.json({ suggestions });
-  } catch (error) {
-    // Fallback to basic database search
-    const where = {
-      content: {
-        [require('sequelize').Op.iLike]: `%${q}%`
-      },
-      deleted: false
-    };
-
-    if (conversationId) {
-      where.conversationId = conversationId;
-    }
-
-    const messages = await Message.findAll({
-      where,
-      attributes: ['id', 'content', 'conversationId'],
-      order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      group: ['content']
-    });
-
-    const suggestions = messages.map(m => ({
-      text: m.content.substring(0, 100),
-      conversationId: m.conversationId
-    }));
-
-    res.json({ suggestions });
-  }
 }));
 
 module.exports = router;

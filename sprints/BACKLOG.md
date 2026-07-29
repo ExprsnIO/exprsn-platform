@@ -5463,7 +5463,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   showing a Sort node).
 
 ### BUG-064 — cortex dev-boot `sync({ alter: true })` accretes duplicate constraints on cortex tables every gateway start (`agents_name_key1..3`, tripled `agent_runs` FKs)
-- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
+- **Type:** bug · **Status:** in-review (branch `s2614-jr`) · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist at Sprint 2026-13 FEAT-080/BUG-062 verification; same defect family as the create-era `post_moderation_post_id_fkey1..5` residue BUG-062 swept)
 - **Description:** `services/cortex/src/index.js` `init()` runs
@@ -5487,6 +5487,62 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** dba glance recommended on the chosen fix (constraint drops on a
   live table). Cross-ref: BUG-062 resolution (duplicate-FK sweep in timeline
   migration `20260714000001`), `services/cortex/src/index.js` init.
+- **Owner-role set at BUILD:** jr-developer. **dba glance: DONE (2026-07-29,
+  APPROVE WITH CHANGES — all applied before anything touched the live DB).**
+- **Scale was far worse than filed.** The ticket recorded `agents_name_key1..3`
+  and tripled FKs; measured live at BUILD it was **110 redundant constraints
+  across 6 groups** — 21 identical `UNIQUE(name)` on each of `guardrails`,
+  `skills`, `tools`; 21 identical FKs on `chat_messages`; 16 each on `agents`
+  and `agent_runs`.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-jr`), both halves:**
+  - **Accretion stopped:** `services/cortex/src/index.js` dev boot now runs
+    plain `sequelize.sync()`. Verified by booting the gateway twice after the
+    sweep — constraint count stayed at 6, 6.
+  - **Existing duplicates swept:** new migration
+    `services/cortex/migrations/20260729000001-drop-duplicate-constraints.js`,
+    applied via `up()` directly (cortex has no sequelize-cli wiring or
+    `SequelizeMeta`, so **nothing in the DB records that it ran** — hence these
+    numbers live here). **Applied 2026-07-29.** Before → after:
+    **constraints 116 → 6**, **internal RI triggers 148 → 8**, **indexes
+    107 → 32**; duplicate groups remaining **0**, unvalidated constraints **0**.
+    The trigger delta is the real win the dba predicted: 21 duplicate FKs meant
+    ~21× the referential-integrity trigger work on every write to
+    `chat_messages` *and* every delete/update of `chat_sessions`.
+  - **Idempotent:** a second `up()` swept 0.
+- **dba required changes, all applied:**
+  1. **Only drop PG-generated names.** Definition-identity alone was not a safe
+     drop criterion — a deliberately named constraint (`uniq_agents_name`) can be
+     definition-identical to a generated one, and "shortest name wins" would have
+     silently dropped the intentional one, breaking any
+     `ON CONFLICT ON CONSTRAINT`. Now a name must ALSO match `_(key|fkey)\d+$`
+     with the same base as the keeper; anything else is logged and left. This is
+     also what makes the migration safe to reuse on unaudited schemas (BUG-071).
+  2. **Orphan-index pass would have hard-errored.** `pg_indexes` lists
+     constraint-backing indexes and the regex matched them; for any group whose
+     unsuffixed original had previously been dropped, `DROP INDEX` would fail
+     with "cannot drop index … because constraint … requires it" and abort the
+     sweep mid-run. Now excludes constraint-owned and primary/replica-identity
+     indexes explicitly.
+  3. **One transaction + `SET LOCAL lock_timeout = '5s'`**, so a dependency error
+     rolls the whole sweep back instead of leaving the schema half-swept.
+- **Production caveat recorded in the migration header:** these are
+  ACCESS EXCLUSIVE locks (readers too, and FK drops lock BOTH ends), catalog-only
+  so sub-millisecond — but one transaction over 7 tables would queue behind any
+  in-flight long read while blocking everything behind it. In prod: per-table
+  transactions, keep the lock_timeout, retry on timeout.
+- **Bug found and fixed during the run (worth reading):** the first `up()` swept
+  **0** and logged garbage — `array_agg(conname)` returns `name[]` (OID 1003),
+  which node-postgres has no array parser for, so the driver handed back the raw
+  `'{a,b,c}'` literal as a STRING and destructuring walked it character by
+  character. **The dba's required change #1 is what made this harmless**: single
+  characters failed the generated-name test, so the migration refused to drop
+  anything rather than dropping the wrong thing. Fixed with `::text` (OID 1009)
+  plus an `Array.isArray` guard so it can never regress silently.
+- **Two follow-ups from the dba review:** **BUG-071** (the same alter-sync
+  pattern in timeline/plugins/lowcode, ~380 more redundant constraints — with
+  the important caveat that the `sync()` flip is NOT safe as a one-liner for
+  plugins/lowcode, which have no migrations directory at all) and **TASK-071**
+  (`db:check` blind spots — dba volunteered to own it).
 
 ### BUG-065 — cortex jest full run trips "worker did not exit gracefully" force-exit warning (pre-existing 5s `setTimeout` in `tests/unit/client.test.js`)
 - **Type:** bug · **Status:** in-review (branch `s2614-jr`) · **Priority:** P3 · **Size:** S
@@ -5602,7 +5658,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   Not urgent at dev-DB scale — the tables are small today. Cross-ref: BUG-063,
   TASK-063, `services/cortex/src/lib/keysetPagination.js`.
 
-### BUG-068 — timeline jest run trips the same force-exit warning as BUG-065, but from an unclosed handle rather than a leaked timer
+### BUG-070 — timeline jest run trips the same force-exit warning as BUG-065, but from an unclosed handle rather than a leaked timer
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (split out of BUG-065 at BUILD, 2026-07-29, branch `s2614-jr`)
@@ -5624,7 +5680,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   `afterAll(() => sequelize.close())` in `tests/setup.js` is the likely shape,
   matching the BUG-055/061/065 teardown posture. Cross-ref: BUG-065.
 
-### BUG-069 — timeline / plugins / lowcode dev-boot alter-sync accretes duplicate constraints (~380 redundant), same defect as BUG-064
+### BUG-071 — timeline / plugins / lowcode dev-boot alter-sync accretes duplicate constraints (~380 redundant), same defect as BUG-064
 - **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S–M · **Needs:** dba glance (live-table constraint drops)
 - **Owner-role:** unassigned · **Blocked-by:** — (BUG-064 lands the cortex fix + the reusable sweep first)
 - **Legacy:** — (found at the BUG-064 BUILD, 2026-07-29, branch `s2614-jr`)
@@ -5642,13 +5698,27 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   PM plus a second dba pass, not something to slip in silently.
 - **Expected:** exactly one constraint per model definition per schema,
   regardless of boot count, in all four modules.
-- **Notes:** the fix is the same shape twice over — flip each module's init to
-  plain `sync()`, then run the sweep. BUG-064 lands a **reusable, schema-scoped**
-  sweep migration (`services/cortex/migrations/20260729000001-…`, groups by
-  `pg_get_constraintdef` and keeps the shortest/first name) that should be
-  parameterised by schema rather than copy-pasted. Confirm per module that
-  nothing depends on alter-sync adding columns at dev boot before flipping it.
+- **Notes (dba-reviewed 2026-07-29 — the one-liner is NOT uniformly safe):**
+  BUG-064's sweep migration (`services/cortex/migrations/20260729000001-…`) is
+  written to be reused verbatim — it groups by `pg_get_constraintdef` AND
+  requires a PG-generated `_(key|fkey)\d+$` name, so it is safe on schemas whose
+  constraint names have not been audited; parameterise `SCHEMA` rather than
+  copy-pasting. But the **`sync()` flip differs per module**:
+  - `services/timeline/src/index.js:216` — **safe**: timeline has 7 migration
+    files and a `migrate:pg` runner, so it has a real column-adding path.
+  - `services/plugins/src/index.js:83` and `services/lowcode/src/index.js:60` —
+    **NOT safe as a one-liner**: neither module has a `migrations/` directory at
+    all, so alter-sync is currently their ONLY way to add a column to an existing
+    table (lowcode especially has been evolving its entity/field model). Dropping
+    it strands them — a model change would silently not apply and every query on
+    the changed table 500s. This ticket must therefore pair the sync flip for
+    those two with establishing a migrations dir + runner, or land the first
+    migration alongside under a documented "author a migration and run `up()`"
+    convention.
   Cross-ref: BUG-064, BUG-062 (the same defect family on `post_moderation`).
+- **Filed as 069 originally; renumbered to 071** — a concurrent QA session filed
+  its own BUG-068/069 on `s2614-feat090` in the same window. Ticket ids are
+  monotonic and never reused, so the later-committed pair moved.
 
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
@@ -5760,6 +5830,34 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     named in the ticket rather than "env-limited".
 - **Notes:** Belongs to the known auth pre-existing-failure backlog (STATUS.md
   #9 note) — a red result is an acceptable, informative outcome here.
+
+### TASK-071 — `db:check` blind spots: three flag-gated modules unchecked + no duplicate-constraint detection
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** dba (volunteered at the BUG-064 review) · **Blocked-by:** —
+- **Legacy:** — (found by the dba during the BUG-064 glance, 2026-07-29)
+- **Description:** Two gaps, one ticket, because the fix is in the same file.
+  (1) `scripts/check-drift.js` hardcodes its module list in the `MODELS` map and
+  that map contains **only the ten non-gated modules** — `cortex`, `plugins` and
+  `lowcode` are absent entirely. The dba ran `db:check` with all three flags
+  enabled and it still only checked ca/auth/spark/nexus/filevault/vault/timeline/
+  moderator/live/atproto, reporting "No drift found". So those three schemas have
+  **zero** drift coverage of any kind, not merely a missing check.
+  (2) `db:check` has no duplicate-constraint detection, which is why BUG-064
+  accreted 110 redundant constraints silently and BUG-071's ~380 still are.
+- **Acceptance criteria:**
+  - `cortex`, `plugins` and `lowcode` are checked by `db:check` when their flags
+    are enabled, and their absence when disabled is deliberate and documented.
+  - `db:check` reports duplicate constraints as drift — group by
+    `(conrelid, contype, pg_get_constraintdef(oid))`, `HAVING count(*) > 1`
+    (the query already exists in BUG-064's sweep migration).
+  - Exits non-zero on either finding, consistent with the existing gate.
+- **Notes:** raised to **P2** because it is the regression gate for BUG-064 and
+  BUG-071 — without it, the sweep's success is eyeballed rather than
+  machine-verified, and the accretion can silently return. It also mitigates the
+  one real cost of BUG-064's `sync()` flip: plain sync no-ops on a missing
+  column, and the symptom is a 500 on every query against that table, which
+  nothing currently catches for cortex. Catalog-only queries, cheap.
+  Cross-ref: BUG-064, BUG-071, BUG-062.
 
 ### TASK-070 — Sweep QA fixture residue (clean or document as durable)
 - **Type:** task · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S

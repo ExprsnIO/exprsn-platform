@@ -23,6 +23,13 @@ jest.mock('@exprsn/shared/middleware/socketAuth', () => ({
 
 jest.mock('../../src/engine/jobs', () => ({ assistantChatTurn: jest.fn() }));
 
+jest.mock('../../src/models', () => ({ ChatSession: { findByPk: jest.fn(async () => null) } }));
+
+const mockIsPlatformAdmin = jest.fn(() => false);
+jest.mock('@exprsn/shared/utils/platformAdmin', () => ({
+  isPlatformAdmin: (...a) => mockIsPlatformAdmin(...a),
+}));
+
 const config = require('../../src/config');
 const { assistantChatTurn } = require('../../src/engine/jobs');
 const { registerSockets, NAMESPACE } = require('../../src/sockets');
@@ -160,6 +167,81 @@ describe('chat:send', () => {
     const socket = connected();
     await socket.fire('chat:send', { message: 'hi' });
     expect(socket.events()).toEqual(['chat:start', 'chat:token', 'chat:reset', 'chat:done']);
+  });
+
+  it('refuses attachments, matching the HTTP twin', async () => {
+    const socket = connected();
+    await socket.fire('chat:send', { message: 'hi', attachments: [{ id: 'x' }] });
+    expect(socket.last().data.message).toMatch(/attachments not supported/);
+    expect(assistantChatTurn).not.toHaveBeenCalled();
+  });
+
+  it('refuses a session_id owned by a different user', async () => {
+    // The gap the architect gate caught: assistantChatTurn loads the session's
+    // full history into the prompt and never re-checks ownership, so without
+    // this any authenticated write principal could read another user's
+    // transcript through an enumerable session id.
+    const { ChatSession } = require('../../src/models');
+    ChatSession.findByPk.mockResolvedValueOnce({
+      id: 'asst-someone-else', channel: 'assistant', userId: 'user-2',
+    });
+    const socket = connected();
+    await socket.fire('chat:send', { message: 'hi', session_id: 'asst-someone-else' });
+    expect(socket.last().evt).toBe('chat:error');
+    expect(socket.last().data.error).toBe('NOT_FOUND');
+    expect(assistantChatTurn).not.toHaveBeenCalled();
+  });
+
+  it('allows a session_id the caller owns', async () => {
+    const { ChatSession } = require('../../src/models');
+    ChatSession.findByPk.mockResolvedValueOnce({
+      id: 'asst-mine', channel: 'assistant', userId: 'user-1',
+    });
+    assistantChatTurn.mockResolvedValue({ status: 'sent' });
+    const socket = connected();
+    await socket.fire('chat:send', { message: 'hi', session_id: 'asst-mine' });
+    expect(assistantChatTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows a platform admin into any session, matching isAdminReq on HTTP', async () => {
+    const { ChatSession } = require('../../src/models');
+    ChatSession.findByPk.mockResolvedValueOnce({
+      id: 'asst-other', channel: 'assistant', userId: 'user-2',
+    });
+    mockIsPlatformAdmin.mockReturnValueOnce(true);
+    assistantChatTurn.mockResolvedValue({ status: 'sent' });
+    const socket = connected();
+    await socket.fire('chat:send', { message: 'hi', session_id: 'asst-other' });
+    expect(assistantChatTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a cs-channel session on the assistant namespace', async () => {
+    const { ChatSession } = require('../../src/models');
+    ChatSession.findByPk.mockResolvedValueOnce({
+      id: 'asst-cs', channel: 'cs', userId: 'user-1',
+    });
+    const socket = connected();
+    await socket.fire('chat:send', { message: 'hi', session_id: 'asst-cs' });
+    expect(socket.last().data.error).toBe('NOT_FOUND');
+    expect(assistantChatTurn).not.toHaveBeenCalled();
+  });
+
+  it('allows a brand-new session id (the turn creates it)', async () => {
+    const { ChatSession } = require('../../src/models');
+    ChatSession.findByPk.mockResolvedValueOnce(null);
+    assistantChatTurn.mockResolvedValue({ status: 'sent' });
+    const socket = connected();
+    await socket.fire('chat:send', { message: 'hi', session_id: 'asst-brand-new' });
+    expect(assistantChatTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when the ownership lookup throws', async () => {
+    const { ChatSession } = require('../../src/models');
+    ChatSession.findByPk.mockRejectedValueOnce(new Error('db down'));
+    const socket = connected();
+    await socket.fire('chat:send', { message: 'hi', session_id: 'asst-x' });
+    expect(socket.last().data.error).toBe('NOT_FOUND');
+    expect(assistantChatTurn).not.toHaveBeenCalled();
   });
 
   it('passes the authenticated userId, never a client-supplied one', async () => {

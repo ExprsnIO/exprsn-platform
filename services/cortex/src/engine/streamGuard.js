@@ -37,7 +37,13 @@
 
 // Release at sentence ends and hard line breaks. The trailing lookahead keeps
 // "3.14" or "e.g. this" from being treated as a sentence end.
-const BOUNDARY_RE = /([.!?…]["'’”)\]]?(?=\s)|\n)/g;
+//
+// Built fresh per scan rather than shared at module scope: a `/g` regex carries
+// mutable `lastIndex`, and one shared instance across concurrent guards is a
+// cross-stream data dependency waiting to bite the moment a scan stops being
+// synchronous.
+const BOUNDARY_SOURCE = "([.!?…][\"'’”)\\]]?(?=\\s)|\\n)";
+const newBoundaryRe = () => new RegExp(BOUNDARY_SOURCE, 'g');
 
 // If a model writes a long unbroken run (a URL, a code block, a table) with no
 // boundary in sight, release anyway at this length so streaming doesn't stall
@@ -54,16 +60,17 @@ const HALTING_ACTIONS = new Set(['block', 'escalate']);
  * Index just past the last releasable boundary at or after `from`, or -1 when
  * the tail holds no boundary and is shorter than MAX_HOLD_CHARS.
  */
-function lastBoundaryEnd(text, from) {
-  BOUNDARY_RE.lastIndex = from;
+function lastBoundaryEnd(text, from, maxHold = MAX_HOLD_CHARS) {
+  const re = newBoundaryRe();
+  re.lastIndex = from;
   let end = -1;
-  let m = BOUNDARY_RE.exec(text);
+  let m = re.exec(text);
   while (m) {
     end = m.index + m[0].length;
-    m = BOUNDARY_RE.exec(text);
+    m = re.exec(text);
   }
   if (end === -1) {
-    return text.length - from >= MAX_HOLD_CHARS ? text.length : -1;
+    return text.length - from >= maxHold ? text.length : -1;
   }
   // Carry the whitespace that follows the terminator into the same release, so
   // a chunk never arrives at the client with a stray leading space and the
@@ -111,10 +118,7 @@ function createStreamGuard(evaluate, channel, maxHoldChars = MAX_HOLD_CHARS) {
       if (halted) return { text: '', halted: true, verdict: haltVerdict };
       if (!delta) return { text: '', halted: false, verdict: null };
       buf += delta;
-      const from = releasedTo;
-      BOUNDARY_RE.lastIndex = 0;
-      let end = lastBoundaryEnd(buf, from);
-      if (end === -1 && buf.length - from >= maxHoldChars) end = buf.length;
+      const end = lastBoundaryEnd(buf, releasedTo, maxHoldChars);
       if (end === -1) return { text: '', halted: false, verdict: null };
       return screenAndRelease(end);
     },

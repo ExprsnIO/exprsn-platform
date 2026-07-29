@@ -62,6 +62,28 @@ function registerSockets(io) {
     const { assistantChatTurn } = require('./engine/jobs');
     // eslint-disable-next-line global-require
     const { newId } = require('./lib/ids');
+    // eslint-disable-next-line global-require
+    const { ChatSession } = require('./models');
+    // eslint-disable-next-line global-require
+    const { isPlatformAdmin } = require('@exprsn/shared/utils/platformAdmin');
+
+    /**
+     * Session-ownership check, mirroring `ownedSession` in routes/chat.js.
+     *
+     * This MUST exist on both transports. `assistantChatTurn` loads the full
+     * session history into the prompt and never re-checks `ChatSession.userId`,
+     * so without it any authenticated `write` principal could post into someone
+     * else's assistant session — getting a reply conditioned on that user's
+     * whole transcript, and mutating the session's model/skills. Session ids are
+     * `asst-<unix-seconds>-<3 random bytes>`, i.e. enumerable.
+     */
+    async function ownsSession(id) {
+      const session = await ChatSession.findByPk(id);
+      if (!session) return true; // a brand-new id — the turn will create it
+      if (session.channel !== 'assistant') return false;
+      if (isPlatformAdmin(socket.tokenData && socket.tokenData.email)) return true;
+      return session.userId === (socket.userId || null);
+    }
 
     let controller = null;
 
@@ -69,6 +91,12 @@ function registerSockets(io) {
       const message = String(payload.message ?? '').trim();
       if (!message) {
         socket.emit('chat:error', { error: 'BAD_REQUEST', message: 'message required' });
+        return;
+      }
+      if (payload.attachments) {
+        // Parity with routes/chat.js: the dataset subsystem is a deliberate
+        // exclusion from the port (FEAT-021), so this is refused, not ignored.
+        socket.emit('chat:error', { error: 'BAD_REQUEST', message: 'attachments not supported' });
         return;
       }
       if (controller) {
@@ -82,6 +110,19 @@ function registerSockets(io) {
       if (!ID_RE.test(sid)) {
         socket.emit('chat:error', { error: 'BAD_REQUEST', message: 'bad session_id' });
         return;
+      }
+      if (payload.session_id) {
+        let owned = false;
+        try {
+          owned = await ownsSession(sid);
+        } catch (err) {
+          logger.warn('cortex socket session ownership check failed', { error: err.message });
+        }
+        if (!owned) {
+          // Same shape as the HTTP twin's 404: existence is not disclosed.
+          socket.emit('chat:error', { error: 'NOT_FOUND', message: 'not found' });
+          return;
+        }
       }
       controller = new AbortController();
       const ctl = controller;

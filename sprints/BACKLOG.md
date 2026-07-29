@@ -3559,6 +3559,25 @@ selection (do not re-propose blind): see the note in **Deferred** below.
     Authorization header only — nothing here creates a cookie→bearer bridge, and
     `credentials:'include'` in `web/src/lib/http.ts` is inert server-side and
     matches the existing `request()` helper.
+- **Blocking condition cleared (2026-07-29, same branch):** the architect gate's
+  one blocking finding — **session-ownership parity on `chat:send`** — is fixed.
+  `services/cortex/src/sockets.js` now runs an `ownsSession()` check mirroring
+  `ownedSession()` in `routes/chat.js` before calling `assistantChatTurn`:
+  wrong-owner ⇒ `chat:error NOT_FOUND` (same non-disclosing shape as the HTTP
+  404), platform admin bypasses (matching `isAdminReq`), a brand-new id passes
+  through (the turn creates it), a `cs`-channel session is refused on the
+  assistant namespace, and a lookup failure **fails closed**. This mattered
+  because `assistantChatTurn` loads the session's full history into the prompt
+  and never re-checks `ChatSession.userId`, while session ids
+  (`asst-<unix-seconds>-<3 random bytes>`) are enumerable. 7 new tests pin it.
+  Also applied from the advisory list: `attachments` now refused on the socket
+  path (parity with the HTTP 400 rather than silently ignored), the
+  `streamGuard` `/g` boundary regex is built per-scan instead of shared at
+  module scope (no cross-guard `lastIndex` coupling), and `lastBoundaryEnd`
+  honours the injected hold ceiling rather than the constant. Cortex suite
+  **18 suites / 339 tests** green; root lint 0 errors. Remaining advisory item
+  — no per-socket event rate limit — is transport parity, not a regression, and
+  is filed as a follow-up rather than fixed here.
 
 ### FEAT-091 — Cortex: Exprsn-Cortex shape-compatible frontend API (reduced parity)
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B — auth/session parity cut)

@@ -291,6 +291,26 @@ describe('chat:send', () => {
     await socket.fire('chat:send', { message: 'hi' });
     expect(socket.last().evt).toBe('chat:error');
     expect(socket.last().data.error).toBe('LLM_UNAVAILABLE');
+    expect(socket.last().data.message).toBe('boom');   // development: real detail
+    expect(socket.last().data.correlationId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('redacts a 5xx chat:error in production, matching the buffered route (BUG-068)', async () => {
+    const real = config.env;
+    config.env = 'production';
+    try {
+      assistantChatTurn.mockRejectedValue(Object.assign(
+        new Error('chat-stream(no-such-model) -> 404: {"error":"model not found"}'),
+        { code: 'LLM_UNAVAILABLE' },
+      ));
+      const socket = connected();
+      await socket.fire('chat:send', { message: 'hi' });
+      expect(socket.last().data.message).toBe('An error occurred');
+      expect(socket.last().data.message).not.toContain('no-such-model');
+      expect(socket.last().data.correlationId).toMatch(/^[0-9a-f-]{36}$/);
+    } finally {
+      config.env = real;
+    }
   });
 });
 

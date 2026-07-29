@@ -34,6 +34,7 @@
 const { createLogger } = require('@exprsn/shared');
 const { authenticateSocket } = require('@exprsn/shared/middleware/socketAuth');
 const config = require('./config');
+const { toClientError } = require('./lib/clientError');
 
 const logger = createLogger('exprsn-cortex');
 
@@ -150,11 +151,11 @@ function registerSockets(io) {
       } catch (err) {
         if (ctl.signal.aborted) socket.emit('chat:cancelled', {});
         else {
-          logger.warn('cortex socket chat failed', { error: err.message });
-          socket.emit('chat:error', {
-            error: err.errorCode || err.code || 'INTERNAL_ERROR',
-            message: err.message,
-          });
+          // BUG-068: same shared helper as the SSE and buffered paths, so the
+          // production redaction cannot apply to one transport and miss another.
+          socket.emit('chat:error', toClientError(err, logger, {
+            transport: 'socket', userId: socket.userId, sessionId: sid,
+          }));
         }
       } finally {
         if (controller === ctl) controller = null;

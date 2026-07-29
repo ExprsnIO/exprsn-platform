@@ -11,7 +11,10 @@ const { assistantChatTurn } = require('../engine/jobs');
 const { caRead, caWrite, isAdminReq } = require('../middleware/auth');
 const { clampLimit, decodeCursor, fetchKeysetPage, createdAtUsAttribute } = require('../lib/keysetPagination');
 const { openSSE } = require('../lib/sse');
+const { toClientError } = require('../lib/clientError');
+const { createLogger } = require('@exprsn/shared');
 
+const logger = createLogger('exprsn-cortex');
 const router = express.Router();
 const ID_RE = /^[\w-]+$/;
 
@@ -67,10 +70,10 @@ router.post('/', caWrite, asyncHandler(async (req, res) => {
     sse.close('done', result);
   } catch (err) {
     if (ctl.signal.aborted) return sse.close('cancelled', {});
-    sse.close('error', {
-      error: err.errorCode || err.code || 'INTERNAL_ERROR',
-      message: err.message,
-    });
+    // BUG-068: the headers already went out as 200, so this never reaches the
+    // module error handler — build the payload through the shared helper so the
+    // production redaction and the correlation id match the buffered route.
+    sse.close('error', toClientError(err, logger, { path: req.path, transport: 'sse' }));
   }
 }));
 

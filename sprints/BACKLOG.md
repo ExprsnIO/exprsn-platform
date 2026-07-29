@@ -5883,7 +5883,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   TASK-063, `services/cortex/src/lib/keysetPagination.js`.
 
 ### BUG-068 — cortex streaming transports bypass the module error handler's production redaction (SSE `error` / `chat:error` echo raw upstream errors)
-- **Type:** bug · **Status:** backlog · **Priority:** P2 (QA recommendation; PM confirms at grooming) · **Size:** S
+- **Type:** bug · **Status:** in-review (branch `s2614-feat090`) · **Priority:** P2 (QA recommendation; PM confirms at grooming) · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist verifying FEAT-090, branch `s2614-feat090` @ `5b396c3`)
 - **Description:** The cortex module's Express error handler
@@ -5931,9 +5931,31 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   `:8545`, `NODE_ENV=development`, Docker Postgres/Redis, Ollama
   `qwen2.5:0.5b`, macOS local. Cross-ref: FEAT-090, `services/cortex/src/index.js`,
   `services/cortex/src/routes/chat.js`, `services/cortex/src/sockets.js`.
+- **Owner-role set at BUILD:** sr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-feat090`):** fixed by
+  removing the *shape* that caused it, not by adding the missing check twice.
+  The redaction rule now lives in one place — `services/cortex/src/lib/clientError.js`
+  — and **all three** transports build their payload through it: the module
+  Express handler, the SSE route, and the socket namespace. Adding an
+  `if (config.env === 'production')` to the two streaming paths would have fixed
+  today's bug while leaving the next transport free to diverge again, which is
+  exactly how this one happened.
+  - Redaction rule unchanged and now single-sourced: production **5xx only**. A
+    4xx keeps its message in production (the caller needs to know why), and
+    development keeps full detail.
+  - **Correlation ids added**, closing the second half of the ticket: streaming
+    failures never reached the gateway handler so they carried none. Every error
+    now returns one, and the **real** message is always logged server-side
+    against it — a redacted client message stays diagnosable.
+  - **Tests: +18 (341 → 359, 19 suites).** `clientError.test.js` pins the rule
+    (env × status matrix, 4xx-keeps-message, real-message-always-logged, fresh
+    id per call) and — the part that matters — **cross-transport agreement**:
+    identical payload shape and no transport able to leak what another redacts.
+    Plus transport-level assertions on the actual SSE `error` event and
+    `chat:error` payload in both production and development.
 
 ### BUG-069 — `API_SURFACE.md`: the FEAT-090 streaming section splits the cortex route table, orphaning 18 rows from their header
-- **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation) · **Size:** S
+- **Type:** bug · **Status:** in-review (branch `s2614-feat090`) · **Priority:** P3 (QA recommendation) · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist verifying FEAT-090 AC3, branch `s2614-feat090` @ `5b396c3`)
 - **Description:** FEAT-090 inserted its "Streaming assistant chat — SSE" prose,
@@ -5958,6 +5980,15 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Severity/impact:** documentation only; no runtime effect. Cheap to fix —
   move the two new subsections below the final route row of the cortex table.
 - **Environment:** branch `s2614-feat090` @ `5b396c3`. Cross-ref: FEAT-090 AC3.
+- **Owner-role set at BUILD:** sr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-feat090`):** my own
+  insertion defect from the FEAT-090 docs pass — the streaming prose, the SSE
+  event table and the `/cortex` namespace table were spliced into the MIDDLE of
+  the cortex HTTP route table, orphaning the 18 rows below from their header.
+  The whole streaming section now sits **after** the route table ends. Verified
+  structurally rather than by eye: the cortex section parses as exactly 3 table
+  runs — 38 route rows, 8 SSE event rows, 10 socket event rows — each with its
+  own header + separator row. Content unchanged; placement only.
 
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S

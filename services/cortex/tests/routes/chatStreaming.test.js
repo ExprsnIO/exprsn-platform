@@ -187,6 +187,38 @@ describe('streaming path', () => {
     expect(events[events.length - 1].data.error).toBe('LLM_UNAVAILABLE');
   });
 
+  it('redacts a 5xx error event in production and carries a correlation id (BUG-068)', async () => {
+    // The streaming paths never reach the module error handler, so before
+    // BUG-068 they echoed the upstream router body verbatim in production while
+    // the buffered twin of the same call said "An error occurred".
+    const config = require('../../src/config');
+    const real = config.env;
+    config.env = 'production';
+    try {
+      assistantChatTurn.mockRejectedValue(Object.assign(
+        new Error('chat-stream(no-such-model) -> 404: {"error":"model not found"}'),
+        { code: 'LLM_UNAVAILABLE' },
+      ));
+      const res = await request(buildApp()).post('/api/v1/chat').send({ message: 'hi', stream: true });
+      const last = parseSSE(res.text).pop();
+      expect(last.event).toBe('error');
+      expect(last.data.error).toBe('LLM_UNAVAILABLE');
+      expect(last.data.message).toBe('An error occurred');
+      expect(last.data.message).not.toContain('no-such-model');
+      expect(last.data.correlationId).toMatch(/^[0-9a-f-]{36}$/);
+    } finally {
+      config.env = real;
+    }
+  });
+
+  it('still reports the real message in development', async () => {
+    assistantChatTurn.mockRejectedValue(
+      Object.assign(new Error('router down'), { code: 'LLM_UNAVAILABLE' }));
+    const res = await request(buildApp()).post('/api/v1/chat').send({ message: 'hi', stream: true });
+    const last = parseSSE(res.text).pop();
+    expect(last.data.message).toBe('router down');
+  });
+
   it('reports a cancelled generation as cancelled, not error', async () => {
     assistantChatTurn.mockImplementation(async (sid, msg, model, skills, userId, stream) => {
       stream.abort();

@@ -28,6 +28,7 @@ const { ToolRegistry } = require('./tools');
 const { SkillRegistry } = require('./skills');
 const { AgentTask, Agent, AgentRun, ChatSession, ChatMessage, OutboxEntry, Review } = require('../models');
 const { personaPrompt } = require('./agents');
+const { runChain } = require('./chain');
 const { newId } = require('../lib/ids');
 const { logPrompt } = require('../lib/promptLog');
 const { initQueues, queues } = require('../queues');
@@ -182,6 +183,102 @@ async function queueTask(taskId) {
 // run row. The AGENT's spec is read at run time — model resolvability was
 // checked at enable time but the router can differ now; a run-time failure
 // fails the RUN (status 'failed'), never the agent's lifecycle status.
+/**
+ * FEAT-081 — execute a multi-step agent spec.
+ *
+ * This function is the ONLY place the chaining engine is bound to real I/O; the
+ * engine itself (engine/chain.js) is dependency-injected and side-effect-free,
+ * which is what makes the step semantics unit-testable without a router or a DB.
+ *
+ * Note what is deliberately reused rather than reimplemented: the same
+ * `applyOutputGuardrails` the single-loop path uses screens every model-producing
+ * step, the same `moderatorScreen` backs `moderate` steps, and `tool_loop` steps
+ * call `agent.runAgent` unchanged — so per-tool-call guardrail screening still
+ * happens inside them. A chain adds steps; it does not add a second, weaker
+ * enforcement path.
+ */
+async function runAgentChain(spec, run, { system, schemas, impls, channel, model, workspace }) {
+  const reviews = [];
+  const deps = {
+    runPrompt: async (prompt, { model: stepModel } = {}) => agent.simpleChat(
+      system, prompt, { model: stepModel || model || null }),
+
+    runToolLoop: async (goal, { model: stepModel, maxIterations, tools } = {}) => {
+      // A step may narrow the tool set; null means "the agent's own tools".
+      const [stepSchemas, stepImpls] = tools
+        ? agent.taskTools(workspace, await TOOLS.agentTools(tools))
+        : [schemas, impls];
+      const { text, transcript } = await agent.runAgent(
+        system, [{ role: 'user', content: goal }],
+        stepSchemas, stepImpls, ENGINE, channel,
+        { model: stepModel || model || null,
+          maxIterations: maxIterations || spec.max_iterations || undefined });
+      return { text, transcript };
+    },
+
+    // The global channel screen — identical to the single-loop path's.
+    screenOutput: async (text) => {
+      const [, verdict] = await applyOutputGuardrails(text, channel);
+      return verdict;
+    },
+
+    // A `guardrail` step's named subset, evaluated against the same engine.
+    evaluateGuardrails: async (text, names) => {
+      const specs = (await ENGINE.enabledSpecs()).filter((g) => names.includes(g.name));
+      return ENGINE.evaluate(text, 'output', channel, specs);
+    },
+
+    moderate: async (text) => moderatorScreen(text, channel, run.id),
+
+    skillBlock: async (name) => SKILLS.promptBlock([name]),
+
+    // FEAT-095 will bind a real KB here. Until then an empty result, never a
+    // throw — a chain containing a retrieve step has to run today (AC).
+    retrieve: async () => '',
+
+    onEscalate: async (reason, { step, verdict, draft }) => {
+      const review = await Review.create({
+        id: newId('rev'), kind: 'agent_step',
+        sessionId: run.id, draft: String(draft ?? '').slice(0, 32000),
+        customerMessage: run.input, guardrails: verdict ?? null,
+        status: 'pending',
+      });
+      reviews.push({ id: review.id, step, reason });
+    },
+  };
+
+  const { output, transcript, halted, haltReason } = await runChain(
+    spec.steps, run.input, deps);
+
+  if (halted) {
+    // A halted chain is a completed run with a withheld result, not a crash —
+    // the transcript carries exactly which step stopped it and why.
+    return {
+      status: 'done',
+      result: haltReason.action === 'escalate'
+        ? 'Held for human review: ' + haltReason.message
+        : 'Result withheld: ' + haltReason.message,
+      transcript,
+      guardrails: haltReason.verdict ?? null,
+      finishedAt: new Date(),
+      ...(reviews.length && { error: null }),
+    };
+  }
+
+  // The chain's own per-step screening already cleared every model output, so
+  // this final screen is belt-and-braces over the value actually returned.
+  const [action, verdict] = await applyOutputGuardrails(output, channel);
+  return {
+    status: 'done',
+    result: action === 'block'
+      ? 'Result withheld: it violated guardrail(s) ' + verdict.hits.map((h) => h.guardrail).join(', ')
+      : output,
+    transcript,
+    guardrails: verdict,
+    finishedAt: new Date(),
+  };
+}
+
 async function runAgentRun(runId) {
   const run = await AgentRun.findByPk(runId);
   if (!run) throw new Error(`agent run not found: ${runId}`);
@@ -202,20 +299,30 @@ async function runAgentRun(runId) {
   const started = Date.now();
   const update = {};
   try {
-    const { text, transcript, commitCache } = await agent.runAgent(
-      system, [{ role: 'user', content: run.input }],
-      schemas, impls, ENGINE, channel,
-      { model, maxIterations: spec.max_iterations || undefined });
-    const [action, verdict] = await applyOutputGuardrails(text, channel);
-    let result = text;
-    if (action === 'block') {
-      result = 'Result withheld: it violated guardrail(s) ' +
-               verdict.hits.map((h) => h.guardrail).join(', ');
-    } else if (action !== 'escalate' && commitCache) {
-      await commitCache();
+    // FEAT-081: a spec with steps runs the sequential chain; an empty steps
+    // list keeps the classic single tool-loop behavior byte-for-byte, so every
+    // agent that exists today is unaffected.
+    if (Array.isArray(spec.steps) && spec.steps.length) {
+      const chain = await runAgentChain(spec, run, {
+        system, schemas, impls, channel, model, workspace,
+      });
+      Object.assign(update, chain);
+    } else {
+      const { text, transcript, commitCache } = await agent.runAgent(
+        system, [{ role: 'user', content: run.input }],
+        schemas, impls, ENGINE, channel,
+        { model, maxIterations: spec.max_iterations || undefined });
+      const [action, verdict] = await applyOutputGuardrails(text, channel);
+      let result = text;
+      if (action === 'block') {
+        result = 'Result withheld: it violated guardrail(s) ' +
+                 verdict.hits.map((h) => h.guardrail).join(', ');
+      } else if (action !== 'escalate' && commitCache) {
+        await commitCache();
+      }
+      Object.assign(update, { status: 'done', result, transcript,
+                              guardrails: verdict, finishedAt: new Date() });
     }
-    Object.assign(update, { status: 'done', result, transcript,
-                            guardrails: verdict, finishedAt: new Date() });
   } catch (e) {
     Object.assign(update, { status: 'failed', error: `${e.name || 'Error'}: ${e.message}`,
                             finishedAt: new Date() });
@@ -454,7 +561,7 @@ module.exports = {
   ENGINE, TOOLS, SKILLS,
   BLOCKED_REPLY, HELD_REPLY, WORKSPACES_DIR,
   combinedAction, moderatorScreen,
-  runTask, queueTask,
+  runTask, queueTask, runAgentChain,
   runAgentRun, queueAgentRun,
   assistantChatTurn, csChatTurn, csEmail, resolveReview,
 };

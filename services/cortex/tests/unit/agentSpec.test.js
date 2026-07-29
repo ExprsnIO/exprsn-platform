@@ -74,8 +74,27 @@ describe('validateSpec (schema / save gate)', () => {
     }
   });
 
-  test('non-empty steps are SAVEABLE on drafts (schema-valid)', () => {
-    expect(validateSpec(valid({ steps: [{ type: 'prompt' }] }))).toEqual([]);
+  test('steps now carry a real grammar — an incomplete step fails the save gate', () => {
+    // FEAT-080 accepted ANY array here (steps were reserved authoring space).
+    // FEAT-081 gives them a grammar, so a step missing its required field is
+    // caught at SAVE time rather than surviving to the enable gate.
+    const problems = validateSpec(valid({ steps: [{ type: 'prompt' }] }));
+    expect(problems.join('; ')).toMatch(/steps\[0\]\.prompt: required/);
+  });
+
+  test('a well-formed step list is saveable', () => {
+    expect(validateSpec(valid({
+      steps: [{ type: 'prompt', prompt: 'Summarize {{input}}', as: 'draft' }],
+    }))).toEqual([]);
+  });
+
+  test('a `parallel` step is SAVEABLE — deferred, not forbidden (FEAT-096)', () => {
+    // Load-bearing: an author must be able to write and save a parallel step
+    // today and have it start working when FEAT-096 lands, with no spec
+    // rewrite. Rejecting it here would break that forward-compatibility promise.
+    expect(validateSpec(valid({
+      steps: [{ type: 'parallel', steps: [{ type: 'prompt', prompt: 'a' }] }],
+    }))).toEqual([]);
   });
 });
 
@@ -102,9 +121,36 @@ describe('gateProblems (deterministic validate/enable gate)', () => {
     expect(gateProblems(valid(over), REFS).join('; ')).toMatch(re);
   });
 
-  test('non-empty steps are rejected AT THE GATE with the FEAT-081 error', () => {
-    const problems = gateProblems(valid({ steps: [{ type: 'parallel' }] }), REFS);
-    expect(problems).toContain('multi-step agent specs are not yet supported (FEAT-081)');
+  test('a valid multi-step spec now PASSES the gate (FEAT-081)', () => {
+    expect(gateProblems(valid({
+      steps: [
+        { type: 'prompt', prompt: 'Draft: {{input}}', as: 'draft' },
+        { type: 'guardrail', guardrails: ['no-pii'], value: '{{draft}}' },
+        { type: 'tool_loop', goal: '{{draft}}', tools: ['weather'] },
+      ],
+    }), REFS)).toEqual([]);
+  });
+
+  test('a `parallel` step is rejected AT THE GATE, and only there', () => {
+    const spec = valid({
+      steps: [{ type: 'parallel', steps: [{ type: 'prompt', prompt: 'a' }] }],
+    });
+    expect(validateSpec(spec)).toEqual([]);            // saveable
+    const problems = gateProblems(spec, REFS);          // not enableable
+    expect(problems.join('; ')).toMatch(/not yet supported \(deferred to FEAT-096\)/);
+  });
+
+  test('the gate checks per-step references', () => {
+    const problems = gateProblems(valid({
+      steps: [
+        { type: 'skill', skill: 'nope', prompt: 'x' },
+        { type: 'guardrail', guardrails: ['ghost'], value: '{{input}}' },
+        { type: 'tool_loop', goal: 'g', tools: ['missing-tool'] },
+      ],
+    }), REFS).join('; ');
+    expect(problems).toMatch(/skill not found: nope/);
+    expect(problems).toMatch(/guardrail not found: ghost/);
+    expect(problems).toMatch(/tool not found: missing-tool/);
   });
 
   test('the gate is pure — no I/O, deterministic across calls', () => {

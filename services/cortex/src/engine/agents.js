@@ -16,12 +16,15 @@
  *       "model": null,                    // null = brain model; else router model id
  *       "tools": null,                    // null = all enabled custom tools; else name subset
  *       "skills": [],                     // skill names injected into the system prompt
- *       "guardrails": null,               // ADVISORY until FEAT-081: must exist, but
- *                                         // enforcement stays the global enabled-
- *                                         // guardrails-per-channel engine
+ *       "guardrails": null,               // names must exist; the global enabled-
+ *                                         // guardrails-per-channel engine always applies.
+ *                                         // FEAT-081 `guardrail` steps ADD named checks
+ *                                         // on top — they never replace the global screen.
  *       "max_iterations": 12,             // 1..50 tool-loop bound
- *       "steps": []                       // reserved for FEAT-081; saveable on drafts,
- *                                         // rejected by the enable/validate gate
+ *       "steps": []                       // FEAT-081: sequential chain (see engine/steps.js).
+ *                                         // Empty = the classic single tool-loop agent.
+ *                                         // A `parallel` step validates and saves but is
+ *                                         // refused by the enable gate until FEAT-096.
  *     }
  *
  * Lifecycle (per the FEAT-080 C/B condition, pinned as AC): the
@@ -37,6 +40,7 @@
  */
 
 const { namedError, TASK_SYSTEM, CHAT_SYSTEM, CS_SYSTEM } = require('./agent');
+const { validateSteps, stepGateProblems } = require('./steps');
 const { Agent } = require('../models');
 
 const NAME_RE = /^[\w-]{1,64}$/;
@@ -88,7 +92,13 @@ function validateSpec(spec) {
     problems.push(`max_iterations must be an integer 1..${MAX_ITER_LIMIT}`);
   }
   if (spec.steps != null && !Array.isArray(spec.steps)) {
-    problems.push('steps must be an array (reserved for FEAT-081)');
+    problems.push('steps must be an array');
+  } else if (Array.isArray(spec.steps) && spec.steps.length) {
+    // FEAT-081: steps now have a real grammar. This is the SAVE gate, so a
+    // `parallel` step VALIDATES here and is rejected only at enable time —
+    // that asymmetry is what lets an author write a parallel step today and
+    // have it start working when FEAT-096 lands, with no spec rewrite.
+    problems.push(...validateSteps(spec.steps));
   }
   return problems;
 }
@@ -105,9 +115,6 @@ function validateSpec(spec) {
 //   }
 function gateProblems(spec, refs) {
   const problems = validateSpec(spec);
-  if (Array.isArray(spec?.steps) && spec.steps.length) {
-    problems.push('multi-step agent specs are not yet supported (FEAT-081)');
-  }
   if (problems.length) return problems; // reference checks need a sane shape
   const missing = (names, set, noun) => {
     for (const n of names ?? []) {
@@ -117,6 +124,11 @@ function gateProblems(spec, refs) {
   missing(spec.tools, refs.toolNames, 'tool');
   missing(spec.skills, refs.skillNames, 'skill');
   missing(spec.guardrails, refs.guardrailNames, 'guardrail');
+  // FEAT-081: per-step reference checks + rejection of deferred step types
+  // (`parallel` → FEAT-096). This is the ONLY place a deferred type is refused.
+  if (Array.isArray(spec.steps) && spec.steps.length) {
+    problems.push(...stepGateProblems(spec.steps, refs));
+  }
   if (spec.model != null) {
     if (!refs.modelIds) {
       problems.push('model list unavailable; cannot verify model is resolvable');

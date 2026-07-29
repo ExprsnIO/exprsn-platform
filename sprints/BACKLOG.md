@@ -3100,7 +3100,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   named). Re-verify the run transcript once a model backend is up.
 
 ### FEAT-081 — Cortex: multi-step agent chaining engine (sequential, 8 step types)
-- **Type:** feature · **Status:** in-sprint (2026-14, anchor) · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
+- **Type:** feature · **Status:** in-review (branch `s2614-feat081`) · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
 - **Owner-role:** unassigned · **Blocked-by:** FEAT-080
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-chaining` (L)
 - **Cost/Benefit:** done — **APPROVE-REDUCED (M/L).** Ship the sequential engine with 8 step types (`retrieve` as graceful no-op until FEAT-095); **defer the `parallel` step** to a follow-up — the single-resident-model semaphore serializes it anyway while it carries most of the failure-mode complexity. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
@@ -3128,6 +3128,70 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   `parallel` follow-up: FEAT-096. qa-specialist edge-case plan (condition on
   missing var, guardrail-halt, step timeout) is the single largest test-cost
   item in the track — the CI suite is non-blocking and won't catch these.
+- **Owner-role set at BUILD:** sr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-feat081`):** all ACs met.
+  - **8 step types execute sequentially with `{{var}}` threading.** New
+    `engine/steps.js` (pure grammar + interpolation + the enable gate) and
+    `engine/chain.js` (the executor, fully dependency-injected so step semantics
+    are testable without a DB, router or queue). `engine/jobs.js#runAgentChain`
+    is the only place the engine binds to real I/O. A spec with an EMPTY steps
+    list keeps the classic single tool-loop path byte-for-byte — every agent
+    that exists today is unaffected.
+  - **`parallel` accepted at save, rejected at enable.** The C/B reduction's
+    forward-compatibility promise is now the most-tested behaviour in the
+    ticket: `parallel` validates fully (including its nested steps) at SAVE, and
+    is refused ONLY by `stepGateProblems` with `not yet supported (deferred to
+    FEAT-096)` — including when nested inside a condition branch. FEAT-080's
+    blanket "multi-step specs are not yet supported" rejection is gone.
+  - **Guardrails added per-step, never bypassed.** Every model-producing step
+    (`prompt`/`skill`/`tool_loop`) has its output screened by the global channel
+    guardrails **before the value can enter the context**, so no later step can
+    consume text the engine would have refused; `tool_loop` keeps its own
+    per-tool-call screening inside `agent.runAgent`. A `guardrail` step ADDS
+    named checks and never replaces the global screen. `block` halts;
+    `escalate` files a `cortex.reviews` row (kind `agent_step`) and halts;
+    `on_fail: continue` records and proceeds. A halted chain is a **completed
+    run with a withheld result**, not a crash — the transcript names the
+    halting step; a step that throws is a real `failed`.
+  - **`retrieve` degrades to an empty result**, never an error, until FEAT-095 —
+    a chain containing one runs today.
+  - **Per-step inputs/outputs land in the FEAT-080 run transcript**, including
+    the inner tool-loop transcript folded in under the step path.
+  - **Tests: +95 (274 → 369), 16 suites, stable across 3 consecutive runs.**
+    `steps.test.js` (44) covers interpolation, every type's required fields,
+    nesting-depth and length bounds, and the `parallel` contract from both sides;
+    `chain.test.js` (38) covers sequencing, all 9 transform ops, all 9 condition
+    ops, the C/B-named edge cases (condition-on-missing-var, guardrail-halt,
+    step failure), and the "blocked text never reaches a later step" invariant;
+    `agentChainRun.test.js` (13) drives the real `runAgentRun` path. FEAT-080's
+    two step-placeholder tests were rewritten (they pinned the behaviour this
+    ticket replaces) plus a save-time-rejection case added.
+  - **Docs:** `API_SURFACE.md` gains a step-chain table (per-type required /
+    optional / produces), the transform + condition op lists, the limits, the
+    `parallel` asymmetry with an explicit "do not fix by rejecting at save
+    time", and the guardrail/halt semantics.
+  - **Live smoke (gateway :8544 + `worker:cortex`, Ollama `qwen2.5:0.5b`, real
+    CA bearer):** (1) a 3-step chain (prompt → transform → **nested** condition
+    branch) saved, validated, enabled, ran through Bull, and returned
+    `picked: RED.` with a complete 5-entry per-step transcript incl.
+    `branch: then` and the `steps[2].then[0]` path. (2) A `parallel` step saved
+    as `draft` and enable refused with exactly
+    `steps[0]: step type 'parallel' is not yet supported (deferred to
+    FEAT-096)…` — the contract confirmed from both sides against the real gate.
+    (3) **Guardrail halt mid-chain:** with a `contains` block rule armed, the
+    run finished `status: done` /
+    `Result withheld: step steps[0] (prompt) output blocked by guardrail(s)`,
+    the second step **never executed** (its marker string absent from the
+    result), and the transcript carried the `halt` system entry naming the step.
+    All fixtures removed (2 agents + their runs, 1 guardrail; 0 residual).
+  - **Bug caught BY the live smoke, not by the unit tests:** `validateStep`
+    required `value` for every `transform` op, which made every `concat` step
+    (which reads `values`) unsaveable — the first live save 400'd on it. Fixed
+    and pinned with a regression test. Worth noting for QA: the unit suite was
+    green and structurally couldn't catch it, because every transform fixture
+    happened to carry a `value`.
+  - **Gates:** cortex **16 suites / 370 tests** green, stable across 3
+    consecutive runs; `npx eslint` clean on the module.
 
 ### FEAT-082 — Cortex: scheduled agent runs + agent trigger primitives
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)

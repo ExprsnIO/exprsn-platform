@@ -1052,7 +1052,7 @@ CA-bearer-only.
 | POST | /cortex/api/v1/tasks | `goal` | model, tools, skills | — | CA write *or service HMAC* | 202 `{id,status:queued}`; runs via Bull worker |
 | GET | /cortex/api/v1/tasks[/:id] | — | — | limit 200 | CA read *or service HMAC* | own tasks; admin sees all; `:id` has transcript |
 | GET | /cortex/api/v1/agents | — | — | — | CA read | agent-definition briefs (FEAT-080): id/name/status/channel/model |
-| POST | /cortex/api/v1/agents | spec (`name`,`description`,`system_prompt`) | channel, model, tools, skills, guardrails, max_iterations, steps | — | CA write + admin | upsert by name; ALWAYS lands `status:draft` (validated/enabled must be re-earned) |
+| POST | /cortex/api/v1/agents | spec (`name`,`description`,`system_prompt`) | channel, model, tools, skills, guardrails, max_iterations, **steps** | — | CA write + admin | upsert by name; ALWAYS lands `status:draft` (validated/enabled must be re-earned). FEAT-081: `steps` are schema-validated at SAVE (a malformed step ⇒ 400) — see the step-chain table below |
 | POST | /cortex/api/v1/agents/build | `description` | name | — | CA write + admin | NL builder (registryFactory `/build` pattern); saves a draft; 422 on invalid draft |
 | GET | /cortex/api/v1/agents/:idOrName | — | — | — | CA read | full spec + status + last_validation; per-agent guardrail list is advisory until FEAT-081 |
 | DELETE | /cortex/api/v1/agents/:idOrName | — | — | — | CA write + admin | 409 for builtin personas or agents with recorded runs |
@@ -1063,6 +1063,54 @@ CA-bearer-only.
 | POST | /cortex/api/v1/agents/:idOrName/run | `input` | model | — | CA write *or service HMAC* | 202 `{id,status:queued}`; 409 unless status `enabled`; runs via Bull worker (`run-agent`) |
 | GET | /cortex/api/v1/agents/:idOrName/runs | — | limit, offset | limit ≤200 (default 50) | CA read *or service HMAC* | paginated run ledger with transcripts; own runs; admin sees all |
 | GET | /cortex/api/v1/agents/:idOrName/runs/:runId | — | — | — | CA read *or service HMAC* | single run incl. transcript/guardrail verdict |
+
+#### Agent step chains (FEAT-081)
+
+`spec.steps` is a **sequential** chain. An empty/absent list keeps the classic
+single tool-loop agent, unchanged. Values flow between steps through a flat
+`{{var}}` context: `{{input}}` is the run input, and a step writes its result
+under its `as` (and/or `id`). An unknown `{{var}}` renders empty rather than
+erroring — branch on it with a `condition` step using `empty` / `not_empty`.
+
+| Step type | Required | Optional | Produces |
+|-----------|----------|----------|----------|
+| `prompt` | `prompt` | `model`, `as`, `id` | model reply |
+| `skill` | `skill`, `prompt` | `model`, `as`, `id` | model reply, with the skill's guidance block prepended |
+| `retrieve` | `query` | `top_k` (1–50), `as` | KB chunks — **empty until FEAT-095**, never an error |
+| `guardrail` | `guardrails[]`, `value` | `on_fail` (`halt`\|`escalate`\|`continue`) | the value, unchanged |
+| `moderate` | `value` | `on_fail` | the value, unchanged |
+| `transform` | `op`, `value` | op-specific (`start`/`end`, `pattern`/`flags`, `values`/`separator`, `replacement`) | transformed text |
+| `condition` | `op`, `when`, plus `then` and/or `else` | `value` (not needed for `empty`/`not_empty`), `flags` | nothing — branches only |
+| `tool_loop` | `goal` | `model`, `max_iterations`, `tools[]`, `as` | the loop's final text |
+
+`transform` ops: `trim`, `lower`, `upper`, `slice`, `json_parse`,
+`json_stringify`, `regex_extract`, `concat`, `replace`. A `json_parse` failure
+returns `{error: "invalid JSON: …"}` as a **value** rather than failing the run,
+so it can be branched on. `condition` ops: `contains`, `not_contains`, `equals`,
+`not_equals`, `matches`, `empty`, `not_empty`, `gt`, `lt`. Limits: 50 steps per
+list, nesting depth 5.
+
+**`parallel` — accepted, not yet executable.** A `parallel` step **validates and
+saves** today and is refused **only by the enable gate**, with
+`… not yet supported (deferred to FEAT-096)`. This asymmetry is deliberate: an
+author can write a `parallel` step now and have it start working when FEAT-096
+lands, with no spec rewrite and no migration. Do not "fix" it by rejecting at
+save time.
+
+**Guardrails are added per-step, never bypassed.** Every model-producing step
+(`prompt`, `skill`, `tool_loop`) has its output screened by the global channel
+guardrails *before* the value enters the context, so no later step can consume
+text the engine would have refused; `tool_loop` additionally keeps its own
+per-tool-call screening. A `guardrail` step **adds** named checks on top. A
+`block` halts the chain and the run completes with
+`Result withheld: …`; an `escalate` files a `cortex.reviews` row and the run
+completes with `Held for human review: …`. Both are `status: done` runs with a
+withheld result, not failures — the transcript names the halting step. A step
+that *throws* is a real failure (`status: failed`).
+
+Enable-gate reference checks now cover steps: `skill`, `guardrails[]` and
+`tool_loop.tools[]` names must exist, and problems are reported with a path
+(`steps[2].then[0].skill: skill not found: …`).
 | POST | /cortex/api/v1/chat | `message` | session_id, model, skills | — | CA write | assistant turn; `attachments` → 400 (not ported) |
 | GET | /cortex/api/v1/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination — response carries `nextCursor` (opaque, null at end); `cursor` seeks strictly past the prior page (no dupes/gaps across a concurrent insert) |
 | POST | /cortex/api/v1/cs/chat | `message` | session_id | — | CA write | guarded customer chat turn |

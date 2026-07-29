@@ -112,15 +112,20 @@ Attachment.belongsTo(Message, {
 // CASCADE (not Sequelize's hasOne SET NULL default) so a purged message takes its
 // moderation row with it and message_id stays NOT NULL (companion migration
 // 20260714000001 enforces this at the DB level). See MessageModeration model.
+// BUG-062: foreignKey MUST be the object form naming the model's own attribute
+// (`messageId`). The old string form ('message_id') did not match the camelCase
+// attribute, so Sequelize injected a SECOND, NULLABLE attribute on the same
+// column — and a fresh `db:migrate` sync then CREATEd the column nullable,
+// contradicting the model's allowNull:false (the drift db:check flagged).
 Message.hasOne(MessageModeration, {
-  foreignKey: 'message_id',
+  foreignKey: { name: 'messageId', field: 'message_id', allowNull: false },
   as: 'moderation',
   onDelete: 'CASCADE',
   onUpdate: 'CASCADE'
 });
 
 MessageModeration.belongsTo(Message, {
-  foreignKey: 'message_id',
+  foreignKey: { name: 'messageId', field: 'message_id', allowNull: false },
   as: 'message',
   onDelete: 'CASCADE',
   onUpdate: 'CASCADE'

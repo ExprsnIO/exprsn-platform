@@ -82,6 +82,60 @@ const Tool = sequelize.define('Tool', {
   indexes: [{ fields: ['enabled'] }],
 });
 
+// ── Agents: DB-backed agent definitions (FEAT-080) ──────────────────────────
+// The JSON `spec` is versioned ({version:1, system_prompt, channel, model,
+// tools, skills, guardrails, max_iterations, steps}) so future validators
+// (FEAT-081 step types) can branch deterministically. Lifecycle lives in
+// `status`: draft → validated → enabled; the draft→validated/enabled gate is
+// deterministic spec validation ONLY (schema, referenced tools/skills/
+// guardrails exist, model resolvable) — smoke runs are advisory, never a gate.
+const Agent = sequelize.define('Agent', {
+  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  name: { type: DataTypes.STRING(64), allowNull: false, unique: true, validate: NAME_VALIDATE },
+  description: { type: DataTypes.TEXT, allowNull: true },
+  status: { type: DataTypes.ENUM('draft', 'validated', 'enabled'), allowNull: false, defaultValue: 'draft' },
+  spec: { type: DataTypes.JSONB, allowNull: false },
+  // Seeded legacy personas (task/assistant/cs) — protected from deletion.
+  builtin: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  lastValidation: { type: DataTypes.JSONB, allowNull: true, field: 'last_validation' }, // {ok, problems, at}
+  builtFrom: { type: DataTypes.TEXT, allowNull: true, field: 'built_from' },
+  createdBy: { type: DataTypes.UUID, allowNull: true, field: 'created_by' },
+}, {
+  tableName: 'agents',
+  underscored: true,
+  timestamps: true,
+  indexes: [{ fields: ['status'] }],
+});
+
+// ── Agent runs: per-agent run ledger with transcripts (FEAT-080) ────────────
+// origin is a plain STRING (not ENUM) so FEAT-082 can add 'scheduled'/
+// 'webhook' without an ALTER; trigger_ref is its generic slot (schedule id /
+// webhook id). Lifecycle columns mirror AgentTask so FEAT-082's overlap guard
+// ("skip while the previous run is still active") reads straight off status.
+const AgentRun = sequelize.define('AgentRun', {
+  id: { type: DataTypes.STRING(64), primaryKey: true }, // run-<epoch>-<hex>
+  agentId: { type: DataTypes.UUID, allowNull: false, field: 'agent_id' },
+  status: { type: DataTypes.ENUM('queued', 'running', 'done', 'failed'), allowNull: false, defaultValue: 'queued' },
+  origin: { type: DataTypes.STRING(32), allowNull: false, defaultValue: 'manual' }, // manual|smoke (FEAT-082: scheduled|webhook)
+  triggerRef: { type: DataTypes.STRING(64), allowNull: true, field: 'trigger_ref' },
+  input: { type: DataTypes.TEXT, allowNull: false },
+  model: { type: DataTypes.STRING(128), allowNull: true }, // effective model override (null = spec/brain)
+  result: { type: DataTypes.TEXT, allowNull: true },
+  error: { type: DataTypes.TEXT, allowNull: true },
+  transcript: { type: DataTypes.JSONB, allowNull: true },
+  guardrails: { type: DataTypes.JSONB, allowNull: true }, // final output verdict {action, hits}
+  userId: { type: DataTypes.UUID, allowNull: true, field: 'user_id' },
+  finishedAt: { type: DataTypes.DATE, allowNull: true, field: 'finished_at' },
+}, {
+  tableName: 'agent_runs',
+  underscored: true,
+  timestamps: true,
+  indexes: [
+    { fields: ['agent_id', 'created_at'] },
+    { fields: ['status'] },
+  ],
+});
+
 // ── Agent tasks (long-running, executed by the Bull worker) ─────────────────
 const AgentTask = sequelize.define('AgentTask', {
   id: { type: DataTypes.STRING(64), primaryKey: true }, // task-<epoch>-<hex>
@@ -207,11 +261,18 @@ const PromptLog = sequelize.define('PromptLog', {
 ChatSession.hasMany(ChatMessage, { foreignKey: 'session_id', as: 'messages' });
 ChatMessage.belongsTo(ChatSession, { foreignKey: 'session_id', as: 'session' });
 
+// RESTRICT (the app also guards): agent delete is refused while runs exist so
+// run-history attribution is never orphaned.
+Agent.hasMany(AgentRun, { foreignKey: 'agent_id', as: 'runs', onDelete: 'RESTRICT' });
+AgentRun.belongsTo(Agent, { foreignKey: 'agent_id', as: 'agent' });
+
 module.exports = {
   sequelize,
   Guardrail,
   Skill,
   Tool,
+  Agent,
+  AgentRun,
   AgentTask,
   ChatSession,
   ChatMessage,

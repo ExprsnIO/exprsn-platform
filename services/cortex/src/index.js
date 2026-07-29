@@ -49,6 +49,7 @@ const api = express.Router();
 api.use(requireEnabled);
 api.use('/models', require('./routes/models'));
 api.use('/tasks', require('./routes/tasks'));
+api.use('/agents', require('./routes/agents'));
 api.use('/chat', require('./routes/chat'));
 api.use('/cs', require('./routes/cs'));
 api.use('/outbox', require('./routes/outbox'));
@@ -95,6 +96,9 @@ async function init() {
     initQueues();
     fs.mkdirSync(path.join(config.cortex.dataDir, 'workspaces'), { recursive: true });
     fs.mkdirSync(path.join(config.cortex.dataDir, 'kb'), { recursive: true });
+    // FEAT-080: the 3 legacy personas live as (builtin) agent rows; idempotent,
+    // never overwrites admin edits.
+    await require('./engine/agents').seedLegacyAgents(logger);
     logger.info('Cortex module initialized', {
       llmBaseUrl: config.cortex.llmBaseUrl,
       brain: config.cortex.brainModel,

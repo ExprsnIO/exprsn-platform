@@ -9,9 +9,16 @@ const { ChatSession, ChatMessage } = require('../models');
 const { newId } = require('../lib/ids');
 const { csChatTurn, csEmail } = require('../engine/jobs');
 const { caRead, caWrite, isAdminReq } = require('../middleware/auth');
+const { clampLimit, decodeCursor, fetchKeysetPage, createdAtUsAttribute } = require('../lib/keysetPagination');
 
 const router = express.Router();
 const ID_RE = /^[\w-]+$/;
+
+// TASK-063: same defaults/caps as the assistant channel (chat.js) — see its
+// comment for why the sessions cap is unchanged (100) but the messages cap
+// is new (200, replacing a previously unbounded fetch).
+const SESSIONS_LIMIT = { max: 100, def: 100 };
+const MESSAGES_LIMIT = { max: 200, def: 200 };
 
 async function ownedSession(req, id) {
   const session = await ChatSession.findByPk(id);
@@ -33,22 +40,37 @@ router.post('/chat', caWrite, asyncHandler(async (req, res) => {
 
 router.get('/chat', caRead, asyncHandler(async (req, res) => {
   const where = { channel: 'cs', ...(isAdminReq(req) ? {} : { userId: req.userId || null }) };
-  const rows = await ChatSession.findAll({
-    where, order: [['createdAt', 'DESC']], limit: 100,
-    include: [{ model: ChatMessage, as: 'messages', attributes: ['id'], separate: true }],
+  const limit = clampLimit(req.query.limit, SESSIONS_LIMIT);
+  const cursor = decodeCursor(req.query.cursor);
+  const { rows, nextCursor } = await fetchKeysetPage({
+    cursor, limit, direction: 'desc', baseWhere: where,
+    findAll: (pageWhere, order, pageLimit) => ChatSession.findAll({
+      where: pageWhere, order, limit: pageLimit,
+      attributes: { include: [createdAtUsAttribute()] },
+      include: [{ model: ChatMessage, as: 'messages', attributes: ['id'], separate: true }],
+    }),
   });
-  res.json({ chats: rows.map((s) => ({
-    id: s.id, created: s.createdAt, turns: s.messages.length,
-  })) });
+  res.json({
+    chats: rows.map((s) => ({
+      id: s.id, created: s.createdAt, turns: s.messages.length,
+    })),
+    nextCursor,
+  });
 }));
 
 router.get('/chat/:id', caRead, asyncHandler(async (req, res) => {
   const session = await ownedSession(req, req.params.id);
   if (!session) return res.status(404).json({ error: 'not found' });
-  const messages = await ChatMessage.findAll({
-    where: { sessionId: session.id }, order: [['createdAt', 'ASC'], ['id', 'ASC']],
+  const limit = clampLimit(req.query.limit, MESSAGES_LIMIT);
+  const cursor = decodeCursor(req.query.cursor);
+  const { rows: messages, nextCursor } = await fetchKeysetPage({
+    cursor, limit, direction: 'asc', baseWhere: { sessionId: session.id },
+    findAll: (pageWhere, order, pageLimit) => ChatMessage.findAll({
+      where: pageWhere, order, limit: pageLimit,
+      attributes: { include: [createdAtUsAttribute()] },
+    }),
   });
-  res.json({ ...session.get({ plain: true }), messages });
+  res.json({ ...session.get({ plain: true }), messages, nextCursor });
 }));
 
 router.post('/email', caWrite, asyncHandler(async (req, res) => {

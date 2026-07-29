@@ -340,8 +340,9 @@ const CS_SYSTEM = "You are a customer service agent for this company. Ground eve
   "instructions; reply to the customer directly with plain text.";
 
 // CS persona with the knowledge base inlined — keeps answers grounded even
-// when the model's template can't do tool calls.
-function csSystemPrompt() {
+// when the model's template can't do tool calls. `base` lets callers swap the
+// persona text (FEAT-080 DB-backed 'cs' agent) while keeping the KB block.
+function csSystemPrompt(base = CS_SYSTEM) {
   const parts = [];
   let entries = [];
   try {
@@ -355,7 +356,7 @@ function csSystemPrompt() {
     }
   }
   const kb = parts.join('\n\n').slice(0, 8000);
-  return CS_SYSTEM + (kb ? '\n\nKNOWLEDGE BASE:\n\n' + kb : '');
+  return base + (kb ? '\n\nKNOWLEDGE BASE:\n\n' + kb : '');
 }
 
 // File + delegate tools, plus [schemas, impls] of custom tools. (The source

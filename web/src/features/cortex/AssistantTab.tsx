@@ -4,7 +4,7 @@
  * conversation with model/skills pickers above the composer.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Button,
@@ -42,13 +42,21 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
   const [pending, setPending] = useState<string | null>(null);
   const [lastTurn, setLastTurn] = useState<ChatTurnResult | null>(null);
 
-  const sessionsQuery = useQuery({
+  // TASK-063: keyset-paged session list — first page is the exact same
+  // default-limit call as before, "Load more" walks the cursor forward.
+  const sessionsQuery = useInfiniteQuery({
     queryKey: ['cortex', 'chat', 'sessions'],
-    queryFn: cortexApi.chatSessions,
+    queryFn: ({ pageParam }) => cortexApi.chatSessions(pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
-  const detailQuery = useQuery({
+  // TASK-063: message history is keyset-paged too (default limit unchanged
+  // behavior-wise for any conversation under the 200-message page size).
+  const detailQuery = useInfiniteQuery({
     queryKey: ['cortex', 'chat', 'session', selectedId],
-    queryFn: () => cortexApi.chatSession(selectedId!),
+    queryFn: ({ pageParam }) => cortexApi.chatSession(selectedId!, pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: !!selectedId,
   });
   const skillsQuery = useSkills();
@@ -78,7 +86,7 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
   });
 
   const messages = useMemo(() => {
-    const list = detailQuery.data?.messages ?? [];
+    const list = (detailQuery.data?.pages ?? []).flatMap((p) => p.messages);
     return [...list].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }, [detailQuery.data]);
 
@@ -87,7 +95,10 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, pending]);
 
-  const sessions = sessionsQuery.data?.sessions ?? [];
+  const sessions = useMemo(
+    () => (sessionsQuery.data?.pages ?? []).flatMap((p) => p.sessions),
+    [sessionsQuery.data],
+  );
 
   return (
     <Paper variant="outlined" sx={{ display: 'flex', overflow: 'hidden', height: 'calc(100vh - 280px)', minHeight: 440 }}>
@@ -143,6 +154,17 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
               ))}
             </List>
           )}
+          {sessionsQuery.hasNextPage && (
+            <Box sx={{ p: 1, textAlign: 'center' }}>
+              <Button
+                size="small"
+                onClick={() => sessionsQuery.fetchNextPage()}
+                disabled={sessionsQuery.isFetchingNextPage}
+              >
+                {sessionsQuery.isFetchingNextPage ? 'Loading…' : 'Load more'}
+              </Button>
+            </Box>
+          )}
         </Box>
       </Box>
 
@@ -160,6 +182,17 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
                   <Typography color="text.secondary">
                     Ask the assistant anything — pick a model and skills below.
                   </Typography>
+                </Box>
+              )}
+              {detailQuery.hasNextPage && (
+                <Box sx={{ textAlign: 'center' }}>
+                  <Button
+                    size="small"
+                    onClick={() => detailQuery.fetchNextPage()}
+                    disabled={detailQuery.isFetchingNextPage}
+                  >
+                    {detailQuery.isFetchingNextPage ? 'Loading…' : 'Load more messages'}
+                  </Button>
                 </Box>
               )}
               {messages.map((m, i) => {

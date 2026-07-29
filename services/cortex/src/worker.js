@@ -33,13 +33,19 @@ async function startWorker() {
 
     // Required late so the engine (which touches models/cache at import time
     // of its dependencies) initializes after DB/Redis are up.
-    const { runTask } = require('./engine/jobs');
+    const { runTask, runAgentRun } = require('./engine/jobs');
 
     const concurrency = Math.max(1, config.cortex.taskConcurrency);
     queues.tasks.process('run-task', concurrency, async (job) => {
       logger.info('Running agent task', { taskId: job.data.taskId });
       const task = await runTask(job.data.taskId);
       logger.info('Agent task finished', { taskId: job.data.taskId, status: task.status });
+    });
+    // FEAT-080: DB-defined agent runs share the cortex-tasks queue/concurrency.
+    queues.tasks.process('run-agent', concurrency, async (job) => {
+      logger.info('Running agent run', { runId: job.data.runId });
+      const run = await runAgentRun(job.data.runId);
+      logger.info('Agent run finished', { runId: job.data.runId, status: run.status });
     });
 
     logger.info('Cortex Worker started', {

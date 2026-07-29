@@ -441,10 +441,12 @@ module.exports = function(io) {
           displayName: socket.tokenData?.displayName || 'User'
         });
 
-        // Auto-clear after timeout
+        // Auto-clear after timeout. unref()'d so a pending indicator timer
+        // never keeps the process (or a Jest worker — BUG-061) alive; it
+        // still fires normally as long as the event loop has other work.
         setTimeout(() => {
           clearTypingIndicator(conversationId, socket.userId);
-        }, config.messaging.typingIndicatorTimeout);
+        }, config.messaging.typingIndicatorTimeout).unref();
       } catch (error) {
         logger.error('Error with typing indicator', { error: error.message });
       }

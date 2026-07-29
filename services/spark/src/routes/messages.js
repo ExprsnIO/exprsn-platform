@@ -13,6 +13,11 @@ const contactPolicy = require('../services/contactPolicy');
 
 const router = express.Router();
 
+// BUG-060 (sr review): upper bound on how many of the caller's conversations
+// feed the suggestions ES `terms` / DB `Op.in` scope when conversationId is
+// omitted — see GET /search/suggestions.
+const MAX_SUGGESTION_SCOPE = 500;
+
 // All message routes require authentication
 router.use(validateCAToken({ requiredPermissions: ['read'] }));
 
@@ -137,6 +142,117 @@ router.get('/:conversationId/search', asyncHandler(async (req, res) => {
   });
 
   res.json({ messages });
+}));
+
+/**
+ * GET /api/messages/search/suggestions
+ * Get autocomplete suggestions for message search
+ *
+ * BUG-060: registered here (BEFORE `/:conversationId/:messageId` below) now
+ * that the handler is scoped/filtered and safe — see the route's own doc
+ * comment for the two fixes. Express matches by REGISTRATION order, so this
+ * MUST stay ahead of `:messageId` or a two-segment `/search/suggestions`
+ * path resolves as conversationId="search", messageId="suggestions" instead.
+ */
+router.get('/search/suggestions', asyncHandler(async (req, res) => {
+  const { q, conversationId, limit = 10 } = req.query;
+
+  if (!q || q.length < 2) {
+    return res.json({ suggestions: [] });
+  }
+
+  // FEAT-070/BUG-060: scope to conversations the caller actually participates
+  // in — never search across other users' conversations. A supplied
+  // conversationId is verified and narrowed to just that one (matching every
+  // other route above); omitted, it's every conversation the caller is an
+  // active participant of.
+  let scopedConversationIds;
+  if (conversationId) {
+    const participant = await Participant.findOne({
+      where: {
+        conversationId,
+        userId: req.userId,
+        active: true
+      }
+    });
+
+    if (!participant) {
+      throw new AppError('Not a participant in this conversation', 403, 'FORBIDDEN');
+    }
+    scopedConversationIds = [conversationId];
+  } else {
+    // BUG-060 sr-review amendment: bound the scoped id set (most recently
+    // active memberships first) so a pathological participant count can't
+    // blow up the ES `terms` clause / DB `Op.in` list. 500 conversations is
+    // far beyond any real autocomplete need; older memberships simply drop
+    // out of suggestion scope — still fail-closed, never widened.
+    const participantRows = await Participant.findAll({
+      where: { userId: req.userId, active: true },
+      attributes: ['conversationId'],
+      order: [['updatedAt', 'DESC']],
+      limit: MAX_SUGGESTION_SCOPE
+    });
+    scopedConversationIds = [...new Set(participantRows.map((p) => p.conversationId))];
+  }
+
+  if (scopedConversationIds.length === 0) {
+    return res.json({ suggestions: [] });
+  }
+
+  // FEAT-070 S5: same suppressed-sender filter (blocked either way ∪ viewer's
+  // unexpired mutes) as every other message route — one façade call per
+  // request.
+  const suppressed = await contactPolicy.getSuppressedIds(req.userId);
+
+  // Use search service if available
+  try {
+    const searchService = require('../services/searchService');
+
+    // BUG-060: the real signature is (query, conversationIds, limit) — an
+    // array, not an options object (the options object silently landed in
+    // the ES `terms` clause where an array is expected, threw, and every call
+    // fell into the DB fallback below).
+    const rawSuggestions = await searchService.getSuggestions(
+      q,
+      scopedConversationIds,
+      parseInt(limit)
+    );
+
+    const suggestions = suppressed.length > 0
+      ? rawSuggestions.filter((s) => !suppressed.includes(s.senderId))
+      : rawSuggestions;
+
+    res.json({ suggestions });
+  } catch (error) {
+    // Fallback to basic database search — same conversation scoping + S5
+    // filter as the ES path above (never unscoped, never unfiltered).
+    const { Op } = require('sequelize');
+    const where = {
+      conversationId: { [Op.in]: scopedConversationIds },
+      content: {
+        [Op.iLike]: `%${q}%`
+      },
+      deleted: false
+    };
+
+    if (suppressed.length > 0) {
+      where.senderId = { [Op.notIn]: suppressed };
+    }
+
+    const messages = await Message.findAll({
+      where,
+      attributes: ['id', 'content', 'conversationId'],
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit)
+    });
+
+    const suggestions = messages.map(m => ({
+      text: m.content.substring(0, 100),
+      conversationId: m.conversationId
+    }));
+
+    res.json({ suggestions });
+  }
 }));
 
 /**
@@ -267,87 +383,6 @@ router.delete('/:conversationId/:messageId', validateCAToken({ requiredPermissio
   }
 
   res.json({ message: 'Message deleted successfully' });
-}));
-
-/**
- * GET /api/messages/search/suggestions
- * Get autocomplete suggestions for message search
- *
- * INTENTIONALLY registered AFTER `/:conversationId/:messageId` above, so this
- * route stays SHADOWED (dead — `GET /search/suggestions` always matches
- * `:messageId` first, treating "search" as a conversationId and
- * "suggestions" as a messageId, and 404s) until BUG-060 is fixed. Do not
- * move this above `:messageId` without fixing BUG-060 first: as written,
- * this handler (a) calls `searchService.getSuggestions(q, { userId,
- * conversationId, limit })`, but the service's real signature is
- * `getSuggestions(query, conversationIds, limit)` — the options object lands
- * in the ES terms clause, throws, and every call falls into the DB fallback
- * below; and (b) that fallback, when `conversationId` is omitted, searches
- * message content across ALL conversations of ALL users with no participant
- * scoping and no FEAT-070 S5 suppressed-sender filter — a cross-conversation
- * content leak. See BUG-060 (sr review of TASK-060, 2026-07-28).
- */
-router.get('/search/suggestions', asyncHandler(async (req, res) => {
-  const { q, conversationId, limit = 10 } = req.query;
-
-  if (!q || q.length < 2) {
-    return res.json({ suggestions: [] });
-  }
-
-  // If conversationId provided, check participation
-  if (conversationId) {
-    const participant = await Participant.findOne({
-      where: {
-        conversationId,
-        userId: req.userId,
-        active: true
-      }
-    });
-
-    if (!participant) {
-      throw new AppError('Not a participant in this conversation', 403, 'FORBIDDEN');
-    }
-  }
-
-  // Use search service if available
-  try {
-    const searchService = require('../services/searchService');
-
-    const suggestions = await searchService.getSuggestions(q, {
-      userId: req.userId,
-      conversationId,
-      limit: parseInt(limit)
-    });
-
-    res.json({ suggestions });
-  } catch (error) {
-    // Fallback to basic database search
-    const where = {
-      content: {
-        [require('sequelize').Op.iLike]: `%${q}%`
-      },
-      deleted: false
-    };
-
-    if (conversationId) {
-      where.conversationId = conversationId;
-    }
-
-    const messages = await Message.findAll({
-      where,
-      attributes: ['id', 'content', 'conversationId'],
-      order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      group: ['content']
-    });
-
-    const suggestions = messages.map(m => ({
-      text: m.content.substring(0, 100),
-      conversationId: m.conversationId
-    }));
-
-    res.json({ suggestions });
-  }
 }));
 
 module.exports = router;

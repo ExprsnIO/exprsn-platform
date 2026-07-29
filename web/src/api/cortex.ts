@@ -103,6 +103,23 @@ export interface ChatSessionDetail {
   userId?: string | null;
   createdAt: string;
   messages: ChatMessage[];
+  /** TASK-063: opaque keyset cursor for the next page of messages, or null at the end. */
+  nextCursor?: string | null;
+}
+
+/** TASK-063: keyset-pagination params shared by the session-list/history calls. */
+export interface PageParams {
+  cursor?: string;
+  limit?: number;
+}
+
+function pageQuery(opts?: PageParams): string {
+  if (!opts) return '';
+  const params = new URLSearchParams();
+  if (opts.cursor) params.set('cursor', opts.cursor);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
 }
 
 // ---------------------------------------------------------------- tasks
@@ -173,8 +190,12 @@ export const cortexApi = {
   // owner-facing assistant chat (full tool access + selected skills)
   chatTurn: (message: string, opts?: { session_id?: string; model?: string; skills?: string[] }) =>
     http.post<ChatTurnResult>('/cortex/api/v1/chat', { message, ...opts }),
-  chatSessions: () => http.get<{ sessions: ChatSessionBrief[] }>('/cortex/api/v1/chat'),
-  chatSession: (id: string) => http.get<ChatSessionDetail>(`/cortex/api/v1/chat/${encodeURIComponent(id)}`),
+  // TASK-063: `opts` is optional and defaults to the pre-pagination page size
+  // (100 sessions / 200 messages) when omitted — existing callers are unaffected.
+  chatSessions: (opts?: PageParams) =>
+    http.get<{ sessions: ChatSessionBrief[]; nextCursor?: string | null }>(`/cortex/api/v1/chat${pageQuery(opts)}`),
+  chatSession: (id: string, opts?: PageParams) =>
+    http.get<ChatSessionDetail>(`/cortex/api/v1/chat/${encodeURIComponent(id)}${pageQuery(opts)}`),
 
   // long-running agent tasks (Bull worker; poll task() for progress)
   createTask: (goal: string, opts?: { model?: string; tools?: string[]; skills?: string[] }) =>
@@ -185,8 +206,12 @@ export const cortexApi = {
   // guarded customer-service channels
   csChatTurn: (message: string, session_id?: string) =>
     http.post<ChatTurnResult>('/cortex/api/v1/cs/chat', { message, ...(session_id && { session_id }) }),
-  csChats: () => http.get<{ chats: { id: string; created: string; turns: number }[] }>('/cortex/api/v1/cs/chat'),
-  csChat: (id: string) => http.get<ChatSessionDetail>(`/cortex/api/v1/cs/chat/${encodeURIComponent(id)}`),
+  csChats: (opts?: PageParams) =>
+    http.get<{ chats: { id: string; created: string; turns: number }[]; nextCursor?: string | null }>(
+      `/cortex/api/v1/cs/chat${pageQuery(opts)}`,
+    ),
+  csChat: (id: string, opts?: PageParams) =>
+    http.get<ChatSessionDetail>(`/cortex/api/v1/cs/chat/${encodeURIComponent(id)}${pageQuery(opts)}`),
   csEmail: (from: string, subject: string, body: string) =>
     http.post<OutboxDetail>('/cortex/api/v1/cs/email', { from, subject, body }),
 

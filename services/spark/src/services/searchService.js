@@ -316,15 +316,21 @@ async function getSuggestions(query, conversationIds, limit = 5) {
             ]
           }
         },
-        _source: ['content', 'messageId'],
+        _source: ['content', 'messageId', 'senderId'],
         sort: [
           { createdAt: { order: 'desc' } }
         ]
       }
     });
 
+    // BUG-060: senderId is returned alongside content/messageId so the caller
+    // (GET /api/messages/search/suggestions) can apply the FEAT-070 S5
+    // suppressed-sender filter — this is an autocomplete surface, so the ES
+    // query itself cannot pre-filter per-viewer suppression the way a plain
+    // [Op.notIn] WHERE clause does for the DB paths.
     const suggestions = response.hits.hits.map(hit => ({
       messageId: hit._source.messageId,
+      senderId: hit._source.senderId,
       content: hit._source.content.substring(0, 100)
     }));
 

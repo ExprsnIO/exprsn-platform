@@ -340,7 +340,7 @@ adding `/forward`, `/pin`, `/settings`, etc.
 | PUT | /spark/api/messages/:conversationId/:messageId | `conversationId`, `messageId`, `content` | — | — | CA `update`; sender | emits message:edited |
 | DELETE | /spark/api/messages/:conversationId/:messageId | `conversationId`, `messageId` | — | — | CA `delete`; sender | soft delete |
 | GET | /spark/api/messages/:conversationId/search | `conversationId`, `q` | `limit` | — | CA `read` (participant) | `limit=20` |
-| GET | /spark/api/messages/search/suggestions | `q` | `conversationId`, `limit` | `q` ≥2 | CA `read` | `limit=10` |
+| GET | /spark/api/messages/search/suggestions | `q` | `conversationId`, `limit` | `q` ≥2 | CA `read` (participant; scoped to caller's own conversations, FEAT-070 S5-filtered — BUG-060) | `limit=10` |
 | POST | /spark/api/attachments/upload | multipart `file`, `messageId` | `conversationId` | file ≤100 MB; rate-limited | requireAuth; participant | video/audio queued |
 | GET | /spark/api/attachments/:id | `id` | — | — | requireAuth; participant | — |
 | GET | /spark/api/attachments/:id/download | `id` | — | — | requireAuth; participant | signed URL expiresIn=3600s |
@@ -1033,18 +1033,40 @@ marked *admin* additionally require a platform admin
 callers see only their own tasks/sessions/outbox rows (scoped by the token's
 `userId`). Registry enable stays test-gated in the engine regardless of caller.
 
+**Service HMAC (TASK-062):** rows whose Auth column says *or service HMAC*
+additionally accept `X-Service-ID`/`X-Service-Token` (per-service HMAC from
+`SERVICE_TOKEN_SECRET`, verified by the shared `authenticateService()`) **in
+lieu of** a CA bearer, so other modules can call cortex over HTTP. If either
+service header is present the request is authenticated as a service call —
+invalid/partial headers ⇒ 401 with no CA fallback. Service callers carry no
+user identity (owner-scoped queries resolve to `userId NULL` rows, i.e.
+service-created ones) and are never platform admins; admin-gated routes stay
+CA-bearer-only.
+
 ### REST endpoints
 
 | Method | Path | Required Fields | Optional Fields | Min/Max | Auth | Defaults |
 |---|---|---|---|---|---|---|
 | GET | /cortex/health | — | — | — | none | reports enabled flag, router/cache/queue state |
 | GET | /cortex/api/v1/models | — | — | — | CA read | 502 if llama router unreachable |
-| POST | /cortex/api/v1/tasks | `goal` | model, tools, skills | — | CA write | 202 `{id,status:queued}`; runs via Bull worker |
-| GET | /cortex/api/v1/tasks[/:id] | — | — | limit 200 | CA read | own tasks; admin sees all; `:id` has transcript |
+| POST | /cortex/api/v1/tasks | `goal` | model, tools, skills | — | CA write *or service HMAC* | 202 `{id,status:queued}`; runs via Bull worker |
+| GET | /cortex/api/v1/tasks[/:id] | — | — | limit 200 | CA read *or service HMAC* | own tasks; admin sees all; `:id` has transcript |
+| GET | /cortex/api/v1/agents | — | — | — | CA read | agent-definition briefs (FEAT-080): id/name/status/channel/model |
+| POST | /cortex/api/v1/agents | spec (`name`,`description`,`system_prompt`) | channel, model, tools, skills, guardrails, max_iterations, steps | — | CA write + admin | upsert by name; ALWAYS lands `status:draft` (validated/enabled must be re-earned) |
+| POST | /cortex/api/v1/agents/build | `description` | name | — | CA write + admin | NL builder (registryFactory `/build` pattern); saves a draft; 422 on invalid draft |
+| GET | /cortex/api/v1/agents/:idOrName | — | — | — | CA read | full spec + status + last_validation; per-agent guardrail list is advisory until FEAT-081 |
+| DELETE | /cortex/api/v1/agents/:idOrName | — | — | — | CA write + admin | 409 for builtin personas or agents with recorded runs |
+| POST | /cortex/api/v1/agents/:idOrName/validate | — | — | — | CA write + admin | deterministic gate (schema + refs exist + model resolvable); pass ⇒ `validated` |
+| POST | /cortex/api/v1/agents/:idOrName/enable | — | — | — | CA write + admin | re-runs the deterministic gate; fail ⇒ 400 `{problems}` + back to draft. NO LLM-judged gate (C/B condition) |
+| POST | /cortex/api/v1/agents/:idOrName/disable | — | — | — | CA write + admin | enabled ⇒ `validated` |
+| POST | /cortex/api/v1/agents/:idOrName/smoke | — | input, model | — | CA write + admin | ADVISORY smoke run (origin `smoke`, any status); 202; never gates enable |
+| POST | /cortex/api/v1/agents/:idOrName/run | `input` | model | — | CA write *or service HMAC* | 202 `{id,status:queued}`; 409 unless status `enabled`; runs via Bull worker (`run-agent`) |
+| GET | /cortex/api/v1/agents/:idOrName/runs | — | limit, offset | limit ≤200 (default 50) | CA read *or service HMAC* | paginated run ledger with transcripts; own runs; admin sees all |
+| GET | /cortex/api/v1/agents/:idOrName/runs/:runId | — | — | — | CA read *or service HMAC* | single run incl. transcript/guardrail verdict |
 | POST | /cortex/api/v1/chat | `message` | session_id, model, skills | — | CA write | assistant turn; `attachments` → 400 (not ported) |
-| GET | /cortex/api/v1/chat[/:id] | — | — | limit 100 | CA read | own sessions; admin all |
+| GET | /cortex/api/v1/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination — response carries `nextCursor` (opaque, null at end); `cursor` seeks strictly past the prior page (no dupes/gaps across a concurrent insert) |
 | POST | /cortex/api/v1/cs/chat | `message` | session_id | — | CA write | guarded customer chat turn |
-| GET | /cortex/api/v1/cs/chat[/:id] | — | — | limit 100 | CA read | own sessions; admin all |
+| GET | /cortex/api/v1/cs/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination, same `nextCursor` contract as /chat above |
 | POST | /cortex/api/v1/cs/email | `from`, `subject`, `body` | — | — | CA write | drafts reply → outbox (sent/pending_review/blocked) |
 | GET | /cortex/api/v1/outbox[/:id] | — | — | limit 200 | CA read | own entries; admin all |
 | GET | /cortex/api/v1/reviews | — | — | — | CA read + admin | pending human reviews (holds blocked drafts) |

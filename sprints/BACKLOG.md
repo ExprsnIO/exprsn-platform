@@ -3100,7 +3100,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   named). Re-verify the run transcript once a model backend is up.
 
 ### FEAT-081 — Cortex: multi-step agent chaining engine (sequential, 8 step types)
-- **Type:** feature · **Status:** in-review (branch `s2614-feat081`) · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
+- **Type:** feature · **Status:** in-progress (QA FAIL 2026-07-29 — branch `s2614-feat081`) · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
 - **Owner-role:** unassigned · **Blocked-by:** FEAT-080
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-chaining` (L)
 - **Cost/Benefit:** done — **APPROVE-REDUCED (M/L).** Ship the sequential engine with 8 step types (`retrieve` as graceful no-op until FEAT-095); **defer the `parallel` step** to a follow-up — the single-resident-model semaphore serializes it anyway while it carries most of the failure-mode complexity. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
@@ -3192,6 +3192,90 @@ selection (do not re-propose blind): see the note in **Deferred** below.
     happened to carry a `value`.
   - **Gates:** cortex **16 suites / 370 tests** green, stable across 3
     consecutive runs; `npx eslint` clean on the module.
+- **QA verdict (FAIL · 2026-07-29 · qa-specialist, `s2614-feat081` @ `c9fc3a6`):**
+  **4 of 5 ACs pass; AC3 fails on its `escalate` clause.** Back to
+  `in-progress`. Verified live end-to-end (isolated gateway `:8546` +
+  `worker:cortex`, Ollama `qwen2.5:0.5b`, real CA bearer, live `exprsn` DB), not
+  just against the suites.
+  - **AC1 PASS.** All 8 step types executed sequentially. One 21-step
+    deterministic chain exercised **all 9 transform ops and all 9 condition ops**
+    in a single run with correct results, including `{{var}}` threading through
+    every step; nested condition branches ran and the transcript named the branch
+    plus the path (`steps[10].then[0]`, `steps[13].else[0]`). A second chain ran
+    `prompt`/`skill`/`retrieve`/`guardrail`/`moderate`/`transform`/`condition`/
+    `tool_loop` together end-to-end.
+  - **AC2 PASS — attacked from six directions, contract intact.** `parallel`
+    saved as `draft` and was refused ONLY at validate/enable, path-accurate, when
+    flat, alongside valid steps, nested in `then`, nested in `else`, at depth 4,
+    and nested inside another `parallel` (both levels reported). Nested steps are
+    fully validated at save. No sneak path: re-saving an already-**enabled**
+    agent with a `parallel` step added returns it to `draft` (run → 409); and the
+    advisory `/smoke` route, which runs regardless of status, degrades to
+    `Result withheld: step steps[0]: type 'parallel' is not executable` rather
+    than executing anything.
+  - **AC3 FAIL.** `halt` and `on_fail: continue` are correct, but **`escalate`
+    throws instead of holding** — `onEscalate` writes `Review.create({kind:
+    'agent_step'})` and `Review.kind`'s ENUM has no such member, so the run lands
+    `status: failed` with `SequelizeDatabaseError: invalid input value for enum
+    cortex.enum_reviews_kind: "agent_step"`, no `cortex.reviews` row is written,
+    and nothing is held. Reproduced on **both** escalate paths (global output
+    screen on a model step; a `guardrail` step's `on_fail: escalate`).
+    → **BUG-068** (P2). This directly contradicts the resolution note above
+    ("`escalate` files a `cortex.reviews` row (kind `agent_step`) and halts").
+    - Rest of AC3 verified: `on_fail: continue` genuinely continues (later step
+      ran; transcript carries the hit + `note: on_fail=continue`); default policy
+      halts (`Result withheld: step steps[1] (guardrail) halted: block`);
+      `moderate` steps do call the existing `moderatorScreen` hook (outbound call
+      observed). A positive moderator verdict was **not** observable in this env —
+      `POST /moderator/api/moderate/content` returns 500 `No AI providers
+      configured` — so only the documented fail-open null path ran; re-check that
+      limb wherever a moderator AI provider is configured.
+    - **"Guardrails added per-step, never bypassed" — held under deliberate
+      attack.** With a guardrail armed to block any model output, chains were
+      built to smuggle refused text forward through `prompt`, `skill` and
+      `tool_loop`. All three halted at the producing step; the refused text never
+      entered the `{{var}}` context, never reached the next step's prompt, and
+      never appeared in the transcript (only the verdict and halt entries do);
+      the marker proving the later step ran was absent in every case. The
+      residual reassembly path (splicing two individually-clean model outputs
+      with `transform`) is closed at the exit — the final screen withheld an
+      author-constructed blocked value with `Result withheld: it violated
+      guardrail(s) …`.
+  - **AC4 PASS.** `retrieve` returns empty and the chain continues
+    (`note: 'no KB bound (FEAT-095)'`); a `not_empty` condition on it took `else`.
+  - **AC5 PASS (nit).** Per-step entries carry path, type and outputs;
+    `prompt`/`skill`/`retrieve`/`tool_loop` also carry `input`, and the inner
+    tool-loop transcript folds in under the step path. Nit, not filed:
+    `transform`/`condition` entries record no resolved input, so an interpolated
+    `concat`'s operands must be inferred.
+  - **Edge cases + regressions, all clean:** condition-on-missing-var → empty →
+    `then`; guardrail-halt is a **completed** run (`status: done`) with a withheld
+    result; a throwing step is a real `status: failed`; an **empty** steps list
+    keeps the classic single tool-loop path (classic `assistant` transcript);
+    enable-gate reference problems carry paths (`steps[2].then[0].skill: …`,
+    `steps[0].guardrails: …`, `steps[0].tools: …`); limits exact (50 OK / 51
+    rejected; depth 5 OK / depth 8 rejected); `json_parse` on bad JSON returns a
+    branchable `{error: …}` **value**; the `concat` `values`-vs-`value`
+    regression saves and enables.
+  - **Suites/gates:** cortex **16 suites / 370 tests green, 7 consecutive runs,
+    zero failures** — the non-reproducing suite failure seen during build did not
+    recur; treat it as environmental unless it returns. Root `npm run lint`
+    **0 errors / 176 warnings** (baseline). `npm run db:check` exit 0, no drift —
+    but see **TASK-071**: the drift tool has no `cortex` entry at all, so that
+    green says nothing about this module. FEAT-080's two rewritten
+    step-placeholder tests were read and are **honest, not weakened**.
+  - **Also filed:** BUG-069 (P3, `API_SURFACE.md` step-chain section inserted
+    mid-table, orphaning ~20 endpoint rows + two stale "advisory until FEAT-081"
+    strings), BUG-070 (P3, a `guardrail` step naming a *disabled* guardrail
+    silently passes), TASK-071 (P2, `db:check` has no cortex/plugins/lowcode/
+    prefetch coverage).
+  - **Fixtures removed:** 27 `qa081-*` agents, 21 `agent_runs`, 23 orphaned
+    `prompt_logs`, 5 guardrails, 1 skill — `cortex.agents` back to the 3 builtin
+    personas; the single remaining run is the pre-existing 2026-13 residue
+    already tracked in TASK-070.
+  - **To re-verify after the fix:** BUG-068's repro (both escalate paths, review
+    row present, `status: done` + `Held for human review: …`) — everything else
+    on this ticket is proven and does not need a full re-run.
 
 ### FEAT-082 — Cortex: scheduled agent runs + agent trigger primitives
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
@@ -5624,6 +5708,108 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   Not urgent at dev-DB scale — the tables are small today. Cross-ref: BUG-063,
   TASK-063, `services/cortex/src/lib/keysetPagination.js`.
 
+### BUG-068 — Cortex chain `escalate` fails the run: `Review.kind` ENUM has no `agent_step` value
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by FEAT-081 QA, 2026-07-29)
+- **Description:** `services/cortex/src/engine/jobs.js#runAgentChain` files the
+  human-review row with `Review.create({ kind: 'agent_step', … })`, but the
+  `Review` model (`services/cortex/src/models/index.js:216-219`) declares
+  `kind: DataTypes.ENUM('assistant_reply','cs_chat_input','cs_chat_reply','cs_email')`
+  — `agent_step` is not a member, and the live `cortex.enum_reviews_kind` type
+  does not carry it either. Every `escalate` outcome in a step chain therefore
+  throws instead of holding: the run lands `status: failed` with
+  `error: SequelizeDatabaseError: invalid input value for enum
+  cortex.enum_reviews_kind: "agent_step"`, **no `cortex.reviews` row is written**,
+  and the "held for human review" contract in FEAT-081's AC3 / `API_SURFACE.md`
+  never happens. Both escalate paths are affected: the global output screen on a
+  model-producing step (`chain.js#screenAndBind`) and the `guardrail`/`moderate`
+  step `on_fail: escalate` policy (`chain.js#applyPolicy`). Note `db:check`
+  cannot catch this — model and live DB agree; it is the *code* that writes an
+  undeclared value (and see TASK-071: the drift tool does not cover cortex at all).
+- **Steps to reproduce** (worktree `s2614-feat081` @ `c9fc3a6`, gateway :8546 +
+  `worker:cortex`, Ollama `qwen2.5:0.5b`, DB `exprsn`):
+  1. `POST /cortex/api/v1/guardrails` a guardrail `{scope:['output'],
+     channels:['task'], action:'escalate', rules:[{type:'regex',pattern:'e'}]}`
+     and enable it.
+  2. Save + enable an agent on `channel: task` with
+     `steps:[{type:'prompt',prompt:'Reply with exactly: the elephant sees me',as:'s'},
+     {type:'transform',op:'concat',values:['MARKER:','{{s}}'],as:'f'}]`.
+  3. `POST /agents/:name/run` → `GET /agents/:name/runs/:runId`.
+  - Variant (same failure): a `guardrail` step with `on_fail:'escalate'` naming an
+    enabled `action:'block'` guardrail — no model step required.
+- **Expected:** `status: done`, `result: 'Held for human review: …'`, one
+  `cortex.reviews` row with `kind='agent_step'`, `status='pending'`, and the
+  chain halted at the named step.
+- **Actual:** `status: failed`, `result: null`,
+  `error: 'SequelizeDatabaseError: invalid input value for enum
+  cortex.enum_reviews_kind: "agent_step"'`, `GET /cortex/api/v1/reviews` still
+  returns 0 rows. Observed on both escalate paths.
+- **Acceptance criteria:**
+  - `Review.kind` accepts `agent_step` (model ENUM extended **and** the live
+    `cortex.enum_reviews_kind` type altered — `db:migrate` sync will not ALTER an
+    existing ENUM, so the migration must be run explicitly; dba glance).
+  - A chain that escalates lands `status: done` with
+    `result: 'Held for human review: …'`, the chain halted, and exactly one
+    pending `cortex.reviews` row readable via `GET /cortex/api/v1/reviews`.
+  - Covered by a test that exercises the real `Review.create` path (the current
+    `chain.test.js` injects `onEscalate` as a stub and `agentChainRun.test.js`
+    mocks the models, which is why the unit suite is green against this bug).
+  - `POST /cortex/api/v1/reviews/:id` approve/reject works on an `agent_step` row.
+- **Notes:** Not a security leak — the failure is fail-closed (no result is
+  emitted) — but escalated content is silently dropped instead of queued, and the
+  raw DB error string is surfaced in the run's `error` field. Cross-ref: FEAT-081
+  AC3, `API_SURFACE.md` "Agent step chains (FEAT-081)".
+
+### BUG-069 — `API_SURFACE.md`: the FEAT-081 step-chain section is inserted mid-table, orphaning ~20 cortex endpoint rows
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by FEAT-081 QA, 2026-07-29)
+- **Description:** The `#### Agent step chains (FEAT-081)` block was inserted
+  between the `GET /cortex/api/v1/agents/:idOrName/runs/:runId` row and the
+  `POST /cortex/api/v1/chat` row of the single cortex endpoint table. Everything
+  from `/chat` down to `/models` is now a header-less table fragment and will not
+  render as a table. Secondary: two lines still describe per-agent guardrails as
+  "advisory until FEAT-081" — the `GET /cortex/api/v1/agents/:idOrName` row in
+  `API_SURFACE.md` and the `guardrail_binding` string returned by
+  `services/cortex/src/routes/agents.js#fullView` — which now reads as stale even
+  though the *behaviour* (per-agent lists advisory, per-step `guardrail` steps
+  enforced) is unchanged and correct.
+- **Expected:** one contiguous cortex endpoint table; the prose section after it.
+- **Actual:** table split; trailing rows orphaned.
+- **Acceptance criteria:**
+  - The step-chain section is moved below the complete endpoint table (or the
+    table is re-headered), and the whole cortex table renders.
+  - The two "advisory until FEAT-081" strings are reworded to state the standing
+    rule without the resolved-ticket reference.
+- **Notes:** Docs + one response string only; no behaviour change.
+
+### BUG-070 — Cortex `guardrail` step naming a **disabled** guardrail silently passes
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by FEAT-081 QA, 2026-07-29)
+- **Description:** `jobs.js#runAgentChain`'s `evaluateGuardrails` dep filters
+  `ENGINE.enabledSpecs()` by the step's names, so a `guardrail` step referencing a
+  guardrail that exists but is **disabled** evaluates against an empty spec list
+  and returns `{action: null, hits: []}` — a silent pass. The enable gate
+  (`steps.js#stepGateProblems`) only checks that the *name exists*, not that it is
+  enabled, so an author can enable an agent whose explicit guardrail step does
+  nothing. Reproduced live: agent `qa081-all8` step `steps[4]` naming the disabled
+  `qa081-warn` transcribed as `{"action": null, "hits": []}` and the chain
+  continued.
+- **Expected:** either the enable gate rejects/warns on a disabled referenced
+  guardrail, or the transcript entry says so explicitly (e.g.
+  `note: 'guardrail disabled — not evaluated'`).
+- **Actual:** indistinguishable from a clean pass in both the API and the transcript.
+- **Acceptance criteria:**
+  - A `guardrail` step naming a disabled guardrail is surfaced — at the enable
+    gate as a problem with a path, or in the run transcript as an explicit
+    "not evaluated" note (product-manager picks which).
+  - A step naming an enabled guardrail is unchanged.
+- **Notes:** Low severity — the global channel screen still runs on every
+  model-producing step, so nothing is *un*screened; the risk is an author
+  believing an extra check is armed when it is not.
+
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
@@ -5751,6 +5937,30 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - The durable list lives somewhere QA will actually find it next cycle.
 - **Notes:** Cheap, and it stops each cycle's verification from silting up the
   dev DB. Worth doing before the RAG track starts writing embeddings.
+
+### TASK-071 — `db:check` has no coverage for `cortex` (nor `plugins` / `lowcode` / `prefetch`)
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by FEAT-081 QA, 2026-07-29)
+- **Description:** `scripts/check-drift.js`'s `MODELS` map (lines 28–39) lists 10
+  schemas: `ca, auth, spark, nexus, filevault, vault, timeline, moderator, live,
+  atproto`. The four remaining registry modules — `cortex`, `plugins`, `lowcode`,
+  `prefetch` — are absent, so `npm run db:check` reports "No drift found" and
+  exits 0 while never loading their models. That is the entire Cortex agentic
+  build-out (FEAT-078…FEAT-102) landing new tables, columns and ENUMs behind a
+  drift gate that structurally cannot see them, and it is exactly the class of
+  problem the gate exists for (see the `db:migrate` "creates tables but never
+  ALTERs" note in CLAUDE.md; BUG-068 is a live example of an ENUM the gate would
+  not have flagged either way).
+- **Acceptance criteria:**
+  - `MODELS` is derived from (or reconciled against) `src/modules/registry.js`, so
+    a new module cannot be added without drift coverage.
+  - `npm run db:check` reports a per-schema line for `cortex`, `plugins`,
+    `lowcode` and `prefetch`, and still exits 0 on a clean DB.
+  - Flag-gated modules that are disabled are reported as skipped, not silently
+    omitted.
+- **Notes:** dba owns the drift gate; pairs naturally with any Cortex-slate
+  schema ticket. Pre-existing, not introduced by FEAT-081.
 
 - **Resolution (done · 2026-07-28 · commit `b2d3925`):** Both assertions updated to the
   3-arg shapes as POSITIVE provenance assertions (`{sharedAsOwner:true}` /

@@ -79,10 +79,19 @@ function registerSockets(io) {
      */
     async function ownsSession(id) {
       const session = await ChatSession.findByPk(id);
-      if (!session) return true; // a brand-new id — the turn will create it
+      // Exact parity with routes/chat.js:27 — an id with no row is REFUSED, not
+      // adopted. Letting a client choose its own ChatSession primary key enables
+      // a session-id squat: pre-create rows at guessed
+      // `asst-<unix-second>-<6 hex>` ids, and if a victim's server-minted id
+      // collides, assistantChatTurn finds the attacker-owned row, does not
+      // re-check ownership, and appends the victim's transcript to a session the
+      // attacker can then read back. Low probability, but the permissive branch
+      // buys nothing: a legitimate client omits `session_id` entirely and gets a
+      // server-minted one back in `chat:start`.
+      if (!session) return false;
       if (session.channel !== 'assistant') return false;
       if (isPlatformAdmin(socket.tokenData && socket.tokenData.email)) return true;
-      return session.userId === (socket.userId || null);
+      return session.userId === socket.userId;
     }
 
     let controller = null;

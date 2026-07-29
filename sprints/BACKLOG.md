@@ -3618,6 +3618,24 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   `sockets.js:96-101`, per-scan `newBoundaryRe()` at `streamGuard.js:43-44`, and
   `lastBoundaryEnd(text, from, maxHold)` now honouring the injected ceiling with
   the duplicate check in `push()` removed (`streamGuard.js:63-73,121`).
+- **Architect advisories closed out in-branch (2026-07-29):** the re-verify
+  cleared the blocking condition (**APPROVE**, `3720cbc`) and recommended two
+  further one-liners, both landed here rather than deferred. (1) `ownsSession()`
+  now REFUSES an id with no row, exact parity with `routes/chat.js:27`. Adopting
+  an unknown id let a client choose its own `ChatSession` primary key, enabling a
+  session-id squat: pre-create rows at guessed `asst-<unix-second>-<6 hex>` ids,
+  and a colliding server-minted id would have `assistantChatTurn` append the
+  victim's transcript to an attacker-owned row readable via
+  `GET /chat/:id`. Low probability (2^24 per second bucket, each squat costing a
+  semaphore acquire), and the permissive branch bought nothing — a legitimate
+  client omits `session_id` and is handed one back in `chat:start`.
+  (2) Ownership now compares `session.userId === socket.userId` strictly, so a
+  null-owner row is no longer "owned" by a caller with a falsy userId. Cortex
+  suite **18 suites / 341 tests** green.
+- **Status: ready for QA.** All three ACs met, architect gate APPROVED and its
+  blocking + advisory findings closed. Remaining follow-up (per-principal rate
+  limiting, both transports) filed separately at the architect's suggested
+  wording — it is pre-existing transport parity, not a FEAT-090 regression.
 
 ### FEAT-091 — Cortex: Exprsn-Cortex shape-compatible frontend API (reduced parity)
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B — auth/session parity cut)

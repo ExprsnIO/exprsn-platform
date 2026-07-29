@@ -226,13 +226,35 @@ describe('chat:send', () => {
     expect(assistantChatTurn).not.toHaveBeenCalled();
   });
 
-  it('allows a brand-new session id (the turn creates it)', async () => {
+  it('refuses a session_id with no row — parity with the HTTP 404', async () => {
+    // Adopting an unknown id would let a client choose its own ChatSession
+    // primary key, which is the session-id squat described in the architect
+    // re-verify. A legitimate client omits session_id and is handed one back.
     const { ChatSession } = require('../../src/models');
     ChatSession.findByPk.mockResolvedValueOnce(null);
+    const socket = connected();
+    await socket.fire('chat:send', { message: 'hi', session_id: 'asst-guessed' });
+    expect(socket.last().data.error).toBe('NOT_FOUND');
+    expect(assistantChatTurn).not.toHaveBeenCalled();
+  });
+
+  it('still starts a new session when session_id is omitted', async () => {
     assistantChatTurn.mockResolvedValue({ status: 'sent' });
     const socket = connected();
-    await socket.fire('chat:send', { message: 'hi', session_id: 'asst-brand-new' });
+    await socket.fire('chat:send', { message: 'hi' });
     expect(assistantChatTurn).toHaveBeenCalledTimes(1);
+    expect(socket.emitted[0].evt).toBe('chat:start');
+    expect(socket.emitted[0].data.session_id).toMatch(/^asst-/);
+  });
+
+  it('refuses a null-owner row for a caller with no userId (strict comparison)', async () => {
+    const { ChatSession } = require('../../src/models');
+    ChatSession.findByPk.mockResolvedValueOnce({ id: 'asst-orphan', channel: 'assistant', userId: null });
+    const socket = connected();
+    delete socket.userId;
+    await socket.fire('chat:send', { message: 'hi', session_id: 'asst-orphan' });
+    expect(socket.last().data.error).toBe('NOT_FOUND');
+    expect(assistantChatTurn).not.toHaveBeenCalled();
   });
 
   it('fails closed when the ownership lookup throws', async () => {

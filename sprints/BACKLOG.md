@@ -3395,7 +3395,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
 - **Notes:** UI-only over FEAT-088's backend.
 
 ### FEAT-090 — Cortex: token streaming — SSE on chat + /cortex Socket.IO namespace
-- **Type:** feature · **Status:** in-review (branch `s2614-feat090`) · **Priority:** P2 · **Size:** M
+- **Type:** feature · **Status:** done (QA-verified 2026-07-29, branch `s2614-feat090` @ `5b396c3`) · **Priority:** P2 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** FEAT-021 deliberate exclusion (streaming was deferred at the port)
 - **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `sse-streaming` (M)
@@ -3636,6 +3636,104 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   blocking + advisory findings closed. Remaining follow-up (per-principal rate
   limiting, both transports) filed separately at the architect's suggested
   wording — it is pre-existing transport parity, not a FEAT-090 regression.
+- **qa-specialist verdict (2026-07-29): PASS — 3/3 acceptance criteria met ·
+  `in-review → done`.** Verified against a live gateway on `:8545` from the
+  worktree at `5b396c3`, real CA bearer, real model (Ollama `qwen2.5:0.5b` via
+  `CORTEX_LLM_BASE_URL=http://localhost:11434/v1`), `CORTEX_LLM_CONCURRENCY=1`
+  for the cancellation probes. Automated layer: cortex suite **18 suites / 341
+  tests green**, root `npm run lint` **0 errors / 176 pre-existing warnings**,
+  `web` `tsc --noEmit` clean + `vitest` **16/16**, `npm run db:check` **no drift**
+  (no model touched by this branch — run as a gate, not a suspicion).
+  - **AC1 — incremental SSE, non-streaming unchanged: PASS.** `stream:true`
+    answers `200 text/event-stream` with `Cache-Control: no-cache, no-store,
+    no-transform`, `X-Accel-Buffering: no` and **no `Content-Encoding`** — the
+    gateway `compression()` opt-out demonstrably works end-to-end. Measured:
+    **first screened text at 0.260s, `done` at 2.229s**, against a **4.12s**
+    buffered-control TTFB on a comparable prompt — first paint arrives at ~6% of
+    the buffered wait. Released text concatenated **exactly equal** to the `done`
+    payload's `reply` on every non-halted run. Compression regression checked the
+    other way too: `/health` and the buffered `POST /chat` still return
+    `Content-Encoding: gzip`. **Non-streaming matrix** — `stream` absent,
+    `"true"`, `1`, `{}`, `false`, `[true]`: all six returned
+    `200 application/json; charset=utf-8` with the identical
+    `{session_id, reply, status, skills, guardrails}` shape and no SSE framing.
+    **Assistant-channel-only holds:** `POST /cortex/api/v1/cs/chat` with
+    `stream:true` returned buffered JSON, not SSE.
+  - **AC2 — `/cortex` namespace + CA auth: PASS.** No token ⇒ handshake rejected
+    `MISSING_TOKEN`; bogus token ⇒ `AUTHENTICATION_ERROR`; valid CA bearer ⇒
+    connected and streamed (`chat:start` → `chat:token` → `chat:done`). **Flag-gate
+    ordering verified live** by rebooting with `CORTEX_ENABLED=false`: an
+    unauthenticated handshake still gets `MISSING_TOKEN` (no flag-state
+    disclosure) and only an *authenticated* one gets `CORTEX_DISABLED` — the
+    ordering the architect required. `BUSY` on a second concurrent `chat:send`
+    confirmed.
+  - **AC3 — registry + docs: PASS with a docs defect filed.** Live `/health`
+    reports `cortex … "socketNamespaces": ["/cortex"]`, so the registry entry is
+    truthful at runtime; architect sign-off is recorded above (`3720cbc`).
+    `API_SURFACE.md` documents the SSE event table, the screened-prefix
+    guarantee and the namespace — but the insertion **split the cortex route
+    table**, orphaning 18 pre-existing rows from their header (**BUG-069**, P3,
+    docs-only).
+  - **Settled decisions — both hold, tested hard.** *Screened-prefix streaming:*
+    with a `contains`/`block` rule armed on `output`/`chat`, a count-to-ten
+    generation released `…6. six\n7. ` and then **stopped** — `reset`, then
+    `done` with `status: blocked_output` and the canned reply. The trigger word
+    never left the process. The `escalate` variant behaved identically
+    (`status: escalated_output`, HELD_REPLY) **and still filed the `Review` row**,
+    whose `draft` column holds the full offending text server-side — exact parity
+    with the buffered path. Both reproduced on the socket transport (`chat:reset`
+    → `chat:done`). *Assistant-channel only:* confirmed above.
+  - **Retract path — attacked, holds.** After a `reset` the authoritative reply
+    is always the terminal `done`/`chat:done` payload; `reset` is emitted on
+    every `status !== 'sent'` outcome, and the SPA's `chatTurnStream` clears the
+    provisional bubble on `reset` *and* on `onSettled`, so a dropped connection
+    mid-stream cannot leave blocked/escalated draft text on screen (`streamSSE`
+    rejects with "stream ended without a result"). One residual exposure, which
+    is the **documented, owner-accepted** cost of the design rather than a
+    defect: `llm_judge` rules and the moderator screen run only over the FINAL
+    text, so a draft they later refuse is released in full first and retracted
+    afterwards. Measured with an always-FAIL `llm_judge` block rule: the whole
+    reply was visible for **~3.1s** (first token 2.66s → `reset` 5.75s) before
+    retraction. The deterministic guarantee Rick specified is unaffected — no
+    `token` ever carried text the deterministic rules had not passed.
+  - **Cancellation — real, not cosmetic.** With `CORTEX_LLM_CONCURRENCY=1` and a
+    28.5s baseline generation: **control** (no cancel) — a following short
+    request queued **19.6s** behind it. **SSE client disconnect** — same short
+    request completed in **0.283s**. **`chat:cancel`** — `chat:cancelled`
+    delivered at 1.234s, follow-up **0.270s**. **Socket hard disconnect** —
+    follow-up **0.263s**. The `withSlot` semaphore is genuinely released; a
+    closed tab does not burn a slot.
+  - **Cross-transport parity — 7/7 refusals agree.** Driven as a non-admin
+    principal (a purpose-made user, so the `isPlatformAdmin` bypass was not in
+    play) against a second user's sessions: wrong owner ⇒ HTTP `404 {"error":"not
+    found"}` / socket `chat:error NOT_FOUND "not found"`; unknown id ⇒ 404 /
+    `NOT_FOUND`; `cs`-channel session on the assistant path ⇒ 404 / `NOT_FOUND`;
+    malformed `session_id` (`../../etc/passwd`) ⇒ `400 bad session_id` /
+    `BAD_REQUEST`; `attachments` ⇒ `400 attachments not supported` /
+    `BAD_REQUEST`; empty message ⇒ `400 message required` / `BAD_REQUEST`;
+    missing message ⇒ same. No divergence.
+  - **One new defect: BUG-068 (P2).** The SSE and socket paths emit
+    `err.message` verbatim, bypassing the cortex error handler's
+    `NODE_ENV=production` redaction that the buffered route goes through — so in
+    production the streamed transports would disclose upstream LLM-router error
+    bodies where the JSON route says "An error occurred". Dev-mode parity was
+    verified live (both echoed the router's 404 body); the divergence is
+    production-only and is a genuine FEAT-090 regression, but it is not an
+    acceptance-criteria bullet, so it is filed rather than blocking.
+  - **Security invariants:** no regression observed. Socket auth is fail-closed
+    in both orderings; ownership is fail-closed on DB error (verified by reading
+    `sockets.js:114-121` — the architect's re-verify covers it); no CORS,
+    DEV_BYPASS or token-revocation surface is touched by this branch.
+  - **Not verified (stated, not assumed):** the 15s `:` keep-alive frame was not
+    observed live — every generation produced deltas faster than the heartbeat
+    interval, so no idle gap ever opened. It is covered by `lib/sse.js` and the
+    `chatStreaming` unit tests only. `npm run test:all` was **not** re-run by QA:
+    the auth suite force-syncs a real Postgres and the only DB reachable from
+    this worktree is the live `exprsn` DB, so running it would have risked the
+    shared database; the developer's stash-and-rerun baseline comparison stands
+    unchallenged, and the owning module's suite was run directly.
+  - **Fixtures:** all removed — see the sprint progress log for the itemised
+    sweep.
 
 ### FEAT-091 — Cortex: Exprsn-Cortex shape-compatible frontend API (reduced parity)
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B — auth/session parity cut)
@@ -5783,6 +5881,83 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   indexes but must preserve BUG-063's guarantee that seek and sort agree exactly.
   Not urgent at dev-DB scale — the tables are small today. Cross-ref: BUG-063,
   TASK-063, `services/cortex/src/lib/keysetPagination.js`.
+
+### BUG-068 — cortex streaming transports bypass the module error handler's production redaction (SSE `error` / `chat:error` echo raw upstream errors)
+- **Type:** bug · **Status:** backlog · **Priority:** P2 (QA recommendation; PM confirms at grooming) · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist verifying FEAT-090, branch `s2614-feat090` @ `5b396c3`)
+- **Description:** The cortex module's Express error handler
+  (`services/cortex/src/index.js:70-81`) deliberately redacts 5xx detail in
+  production — `message: config.env === 'production' && status >= 500 ? 'An error
+  occurred' : err.message`. FEAT-090's two streaming transports never reach that
+  handler: the SSE route catches its own failures and writes
+  `sse.close('error', { error: …, message: err.message })`
+  (`services/cortex/src/routes/chat.js:70-73`), and the socket namespace does the
+  same in `socket.emit('chat:error', { …, message: err.message })`
+  (`services/cortex/src/sockets.js:154-157`). Both are unconditional — there is
+  no `config.env` check on either path. The result is a production-only
+  cross-transport divergence: the buffered route says "An error occurred" while
+  the streamed twin of the *same* call discloses the raw upstream message,
+  including the LLM router's response body. (SSE also never reaches the gateway
+  handler, so these failures carry **no correlation id** either.)
+- **Steps to reproduce:** (dev, showing the shared raw shape; the divergence is
+  what appears once `NODE_ENV=production`)
+  1. Boot the gateway with `CORTEX_ENABLED=true` and a reachable
+     `CORTEX_LLM_BASE_URL`; obtain a CA bearer.
+  2. Buffered: `POST /cortex/api/v1/chat` `{"message":"hi","model":"no-such-model-xyz"}`
+     → `500 {"error":"INTERNAL_ERROR","message":"chat(no-such-model-xyz) -> 404:
+     {\"error\":{\"message\":\"model 'no-such-model-xyz' not found\",…}}"}`.
+  3. Streamed: same body plus `"stream":true`, `Accept: text/event-stream`
+     → `200 text/event-stream`, then
+     `event: error` / `data: {"error":"INTERNAL_ERROR","message":"chat-stream(no-such-model-xyz) -> 404: {…upstream body…}"}`.
+  4. Socket: connect to `/cortex` with the bearer and emit the same `chat:send`
+     → `chat:error` with the identical raw message.
+  5. Re-read step 2 against `NODE_ENV=production`: the JSON body becomes
+     `"An error occurred"`; steps 3 and 4 are unchanged.
+- **Expected:** the streaming transports apply the same redaction the buffered
+  route gets — a production 5xx yields a generic message (ideally plus a
+  correlation id logged server-side), and the two transports agree.
+- **Actual:** SSE `error` and `chat:error` always carry `err.message` verbatim,
+  regardless of `NODE_ENV`.
+- **Severity/impact:** information disclosure of upstream backend detail to any
+  authenticated `write` principal, production only. Mitigated by cortex being
+  flag-gated `CORTEX_ENABLED=false` by default and by the platform being
+  pre-public. Not an FEAT-090 acceptance-criteria failure — filed rather than
+  bounced — but it *is* a regression introduced by that branch, and the fix is a
+  one-liner per transport (route the message through the same
+  `config.env === 'production'` test, or a small shared `publicMessage(err)`
+  helper used by the handler and both transports).
+- **Environment:** worktree of branch `s2614-feat090` @ `5b396c3`, gateway on
+  `:8545`, `NODE_ENV=development`, Docker Postgres/Redis, Ollama
+  `qwen2.5:0.5b`, macOS local. Cross-ref: FEAT-090, `services/cortex/src/index.js`,
+  `services/cortex/src/routes/chat.js`, `services/cortex/src/sockets.js`.
+
+### BUG-069 — `API_SURFACE.md`: the FEAT-090 streaming section splits the cortex route table, orphaning 18 rows from their header
+- **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation) · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist verifying FEAT-090 AC3, branch `s2614-feat090` @ `5b396c3`)
+- **Description:** FEAT-090 inserted its "Streaming assistant chat — SSE" prose,
+  the SSE event table and the "Socket.IO events (namespace /cortex)" table
+  **into the middle of** the cortex HTTP route table in `API_SURFACE.md` —
+  between the `POST/GET /cortex/api/v1/chat` rows and the `POST
+  /cortex/api/v1/cs/chat` row. The content added is accurate and useful; the
+  placement is the defect. The 18 route rows that follow (`cs/chat`, `cs/email`,
+  `outbox`, `reviews`, `guardrails`, `skills`, `tools`, `models`, `prompts`, …)
+  now begin immediately after a paragraph with no `|---|` header row, so every
+  Markdown renderer emits them as literal pipe-delimited text instead of a table.
+- **Steps to reproduce:** open `API_SURFACE.md` at the cortex section (around
+  lines 1066–1147 on `s2614-feat090`) in any Markdown renderer; the rows from
+  `| POST | /cortex/api/v1/cs/chat |` onward render unformatted. Or:
+  `awk 'NR>=1129 && /^\|/ {n++} NR>=1129 && !/^\|/ && n>0 {print n; exit}' API_SURFACE.md`
+  → `18`.
+- **Expected:** the cortex route table stays contiguous; the SSE/namespace
+  subsections sit **after** it (or the remaining rows get their own repeated
+  header).
+- **Actual:** 18 pre-existing route rows are orphaned from their table header
+  and render as plain text.
+- **Severity/impact:** documentation only; no runtime effect. Cheap to fix —
+  move the two new subsections below the final route row of the cortex table.
+- **Environment:** branch `s2614-feat090` @ `5b396c3`. Cross-ref: FEAT-090 AC3.
 
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S

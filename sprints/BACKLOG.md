@@ -3450,7 +3450,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   MCP shim over the existing JSON routes as a doc/example — zero platform code.
 
 ### TASK-063 — Cortex: keyset pagination on sessions/messages
-- **Type:** task · **Status:** in-review (BUG-063 fix landed `s2613-int` @ `9089886` — resubmitting for the "no dupes/gaps" AC re-verdict) · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** done (QA PASS 2026-07-28, `s2613-int` @ `9089886`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `keyset-pagination` (S)
 - **Description:** Cursor-based paging on session/message lists instead of
@@ -3533,6 +3533,20 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   tests; `npm run lint` 0 errors. Resubmitting for the "no dupes/gaps across
   a concurrent insert" AC re-verdict — everything else in the ticket was
   already confirmed good at the first QA pass.
+- **QA re-verdict (done · 2026-07-28 · commit `9089886`, branch `s2613-int`):**
+  **PASS.** The bounced AC ("walking cursors yields no dupes/gaps") is now
+  satisfied under an independently-authored live walk — see BUG-063's QA verdict
+  note for the full method and numbers (15 rows across 5 ms buckets / 15 µs
+  values; DESC, ASC, and limit-1 worst case all 15/15 unique, 0 dupes, 0 gaps;
+  pre-fix cursor degrades to page 1; cursor payload carries 6 fractional
+  digits). Remaining ACs were already confirmed at the first pass and are
+  unchanged by the fix (`cursor` + `limit` accepted, stable ordering,
+  `nextCursor` returned, opaque cursor, malformed-cursor fail-safe, SPA session
+  list/history paging). Cortex suite 13/13 suites / 268/268 tests. Two
+  non-blocking residuals filed as **BUG-066** (internal `__createdAtUs` alias
+  leaks into the message-history JSON body) and **BUG-067** (`to_char(...)`
+  ORDER BY defeats the `(session_id, created_at)` index) — neither touches this
+  ticket's ACs; both are follow-ups on the surface it introduced.
 
 ### FEAT-093 — Cortex: pgvector embedding store
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
@@ -5335,7 +5349,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 
 
 ### BUG-063 — cortex keyset cursor truncates `createdAt` to milliseconds: live cursor walks duplicate (ASC) or drop (DESC) rows against Postgres µs timestamps
-- **Type:** bug · **Status:** in-review (fix landed `s2613-int` @ `9089886`) · **Priority:** P3 (QA recommendation — user-visible duplicate on effectively every "load more messages" boundary; silent row loss in session lists needs same-ms rows; PM confirms) · **Size:** S
+- **Type:** bug · **Status:** done (QA PASS 2026-07-28, `s2613-int` @ `9089886`) · **Priority:** P3 (QA recommendation — user-visible duplicate on effectively every "load more messages" boundary; silent row loss in session lists needs same-ms rows; PM confirms) · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist verifying TASK-063, Sprint 2026-13, `s2613-int` @ `632afbd`)
 - **Description:** `services/cortex/src/lib/keysetPagination.js` builds the seek
@@ -5412,6 +5426,27 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     still present, still unrelated, still out of scope); `npm run lint` 0
     errors (same 176 pre-existing warnings baseline).
   - Unblocks TASK-063 — see its own resolution note for the re-verdict ask.
+- **QA verdict (done · 2026-07-28 · commit `9089886`, branch `s2613-int`):**
+  **PASS — independently re-verified live**, not taken on the dev's report. QA
+  ran its own throwaway walk against the real dev `exprsn` Postgres with a
+  deliberately hostile seed shape: 15 `cortex.chat_sessions` + 15
+  `cortex.chat_messages` across only **5 distinct millisecond buckets but 15
+  distinct microsecond values** (3 same-ms siblings per bucket — denser than
+  the original repro), walked through the actual `fetchKeysetPage` +
+  `ChatSession`/`ChatMessage.findAll` path. Results: sessions DESC @ limit 4 →
+  15/15 unique, 0 dupes; messages ASC @ limit 4 → 15/15 unique, 0 dupes;
+  sessions DESC @ **limit 1** (worst case — every row is a page boundary, so
+  every same-ms sibling transition is exercised) → 15/15 unique, 0 dupes. A
+  pre-BUG-063-shaped cursor (`{createdAt,id}`) decodes to `null` → page 1, no
+  error, as designed. Emitted cursor payload confirmed µs-precision
+  (`"createdAtUs":"2026-07-29T03:00:01.000011"`, 6 fractional digits, no Date
+  round-trip). All seeded rows deleted; 0 residual. Cortex suite re-run by QA:
+  13/13 suites, 268/268 tests. Two **non-blocking** residuals observed during
+  verification and filed separately, neither affecting this ticket's ACs:
+  **BUG-066** (the internal `__createdAtUs` alias leaks into the message-history
+  JSON response) and **BUG-067** (the `to_char(...)` ORDER BY cannot use the
+  `chat_messages_session_id_created_at` btree index — confirmed by `EXPLAIN`
+  showing a Sort node).
 
 ### BUG-064 — cortex dev-boot `sync({ alter: true })` accretes duplicate constraints on cortex tables every gateway start (`agents_name_key1..3`, tripled `agent_runs` FKs)
 - **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
@@ -5457,6 +5492,59 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   test's timeout, matching the BUG-055/BUG-061 teardown posture.
 - **Environment:** `s2613-int` @ `632afbd`, macOS local.
 - **Notes:** test hygiene only; jr-suitable. Cross-ref: BUG-055, BUG-061.
+
+### BUG-066 — cortex message-history responses leak the internal `__createdAtUs` keyset alias into the JSON body
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist at the BUG-063 re-verdict, Sprint 2026-13, `s2613-int` @ `9089886`)
+- **Description:** BUG-063's fix adds a raw µs-precision sort key to the
+  SELECT via `createdAtUsAttribute()` (alias `__createdAtUs`). The session-list
+  handlers map rows to an explicit projection so the alias is dropped there, but
+  the **message-history** handlers — `GET /cortex/api/v1/chat/:id` and
+  `GET /cortex/api/v1/cs/chat/:id` — serialize the `ChatMessage` instances
+  directly (`res.json({ ...session, messages, nextCursor })`), so Sequelize's
+  `dataValues` carries the alias into the response. Confirmed live: serialized
+  message keys include `__createdAtUs`.
+- **Steps to reproduce:** `GET /cortex/api/v1/chat/:id` on a session with
+  messages → each element of `messages` carries a `__createdAtUs` field.
+- **Expected:** the alias is an internal paging key; strip it from the response
+  (explicit `attributes`-based projection at the mapping step, or delete the key
+  when serializing) so it isn't an accidental public API field.
+- **Environment:** `s2613-int` @ `9089886`, live dev `exprsn` DB, macOS local.
+- **Notes:** cosmetic/API-hygiene only — the value is the row's own `createdAt`
+  at higher precision, so no information is disclosed that `createdAt` doesn't
+  already carry. Worth fixing before anything documents or depends on the shape.
+  Cross-ref: BUG-063, TASK-063, `services/cortex/src/routes/chat.js` + `cs.js`.
+
+### BUG-067 — cortex keyset `ORDER BY to_char(created_at …)` cannot use the `(session_id, created_at)` index — every page sorts the full match set
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned (dba glance) · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist at the BUG-063 re-verdict, Sprint 2026-13, `s2613-int` @ `9089886`)
+- **Description:** BUG-063's fix orders and seeks on the expression
+  `to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US')`. It is
+  correct (verified live) but opaque to the planner: the existing
+  `cortex.chat_messages_session_id_created_at` btree cannot satisfy the ordering,
+  so Postgres materializes and sorts every row matching the base WHERE on each
+  page fetch. `EXPLAIN` on the message-history query shape confirms a `Sort` node
+  with `Sort Key: (to_char((created_at AT TIME ZONE 'UTC'), …)), id`. That
+  undercuts the point of keyset paging — the cost stops being per-page and
+  becomes per-matching-set — once sessions accumulate long histories.
+- **Steps to reproduce:** `EXPLAIN SELECT id, to_char(created_at AT TIME ZONE
+  'UTC','YYYY-MM-DD"T"HH24:MI:SS.US') FROM cortex.chat_messages WHERE
+  session_id = '…' ORDER BY to_char(created_at AT TIME ZONE 'UTC',
+  'YYYY-MM-DD"T"HH24:MI:SS.US'), id LIMIT 51;`
+- **Expected:** the page fetch is index-ordered (no Sort node) at realistic
+  history sizes.
+- **Environment:** `s2613-int` @ `9089886`, Docker Postgres 16, macOS local.
+- **Notes:** two candidate fixes, dba's call — (a) add matching **expression
+  indexes** (`(session_id, to_char(...), id)` on `chat_messages`;
+  `(channel, user_id, to_char(...), id)` or similar on `chat_sessions`), which
+  keeps the code unchanged; or (b) keep the plain `created_at` column in the
+  ORDER BY and cast only the **cursor** side into the comparison
+  (`created_at > :cursor::timestamptz`), which restores index usage without new
+  indexes but must preserve BUG-063's guarantee that seek and sort agree exactly.
+  Not urgent at dev-DB scale — the tables are small today. Cross-ref: BUG-063,
+  TASK-063, `services/cortex/src/lib/keysetPagination.js`.
 
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S

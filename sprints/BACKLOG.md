@@ -5489,7 +5489,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   migration `20260714000001`), `services/cortex/src/index.js` init.
 
 ### BUG-065 — cortex jest full run trips "worker did not exit gracefully" force-exit warning (pre-existing 5s `setTimeout` in `tests/unit/client.test.js`)
-- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** in-review (branch `s2614-jr`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (noted by sr-developer at the FEAT-080 build, filed by qa-specialist at Sprint 2026-13 verification per the BUG-055/061 no-silent-skip posture)
 - **Description:** the full cortex suite (13 suites / 261 tests, all green)
@@ -5506,9 +5506,26 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   test's timeout, matching the BUG-055/BUG-061 teardown posture.
 - **Environment:** `s2613-int` @ `632afbd`, macOS local.
 - **Notes:** test hygiene only; jr-suitable. Cross-ref: BUG-055, BUG-061.
+- **Owner-role set at BUILD:** jr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-jr`):** `.unref()` on the
+  5s timer in `tests/unit/client.test.js`. The stub exists precisely to NOT
+  resolve within the client's 30ms timeout, so once the assertion passes the
+  timer is dead weight — referenced, it kept the jest worker alive past the run.
+  `.unref()` lets the process exit while the promise stays pending, which is
+  exactly the behaviour under test. Same posture as BUG-055/BUG-061.
+  **Verified:** cortex suite exits cleanly with no force-exit warning, twice in a
+  row (13 suites / 273 tests at the time of the fix).
+- **Timeline sweep — deliberately NOT done, cause does not match.** The ticket
+  said to sweep timeline "in the same pass **if the cause matches**". It does
+  not: timeline's test tree has no un-`unref`'d timer (`tests/setup.js`'s only
+  `setTimeout` is awaited and self-clearing), and its `setup.js` has no
+  `afterAll` closing the Sequelize connection — so its identical-looking warning
+  is an unclosed handle, a different defect. Forcing it into this ticket would
+  have meant an unrelated fix under a green-looking heading. **Filed separately
+  as BUG-068** so it is not lost.
 
 ### BUG-066 — cortex message-history responses leak the internal `__createdAtUs` keyset alias into the JSON body
-- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** in-review (branch `s2614-jr`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist at the BUG-063 re-verdict, Sprint 2026-13, `s2613-int` @ `9089886`)
 - **Description:** BUG-063's fix adds a raw µs-precision sort key to the
@@ -5529,6 +5546,31 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   at higher precision, so no information is disclosed that `createdAt` doesn't
   already carry. Worth fixing before anything documents or depends on the shape.
   Cross-ref: BUG-063, TASK-063, `services/cortex/src/routes/chat.js` + `cs.js`.
+- **Owner-role set at BUILD:** jr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-jr`):** fixed one level
+  DOWN from where the ticket pointed. The ticket suggested patching the two
+  message-history handlers; instead `fetchKeysetPage` now strips the alias from
+  every row before returning (`stripKeysetAlias`, exported for reuse), so every
+  consumer is clean **by construction** — including handlers written later, which
+  is the failure mode that produced this bug in the first place (the session-list
+  handlers happened to project explicitly, the message handlers happened not to).
+  - **Ordering is load-bearing:** the strip runs AFTER `encodeCursor`, which is
+    the last reader of the alias. Stripping earlier would silently break paging
+    instead of leaking — pinned by a test that asserts `nextCursor` still decodes
+    to the right µs key.
+  - Handles both Sequelize instances (deletes from `dataValues`, so `toJSON()`
+    and `res.json()` stop emitting it) and the plain objects the unit tests use.
+  - **Tests:** +5 in `keysetPagination.test.js` (22 total) — instance and plain
+    shapes, no-op on rows without the alias and on null, `fetchKeysetPage` output
+    clean through a real `JSON.stringify` round-trip, and the cursor-still-correct
+    ordering guard.
+  - **Live-verified** against the dev DB through the real query path: message
+    keys on the wire are `id/sessionId/role/content/status/createdAt/session_id`
+    with no `__createdAtUs`, and `nextCursor` still carries the 26-char
+    µs-precision key. Fixture rows removed.
+  - Note for the merge: `routes/chat.js` is also touched by FEAT-090 on
+    `s2614-feat090`. No conflict expected — this fix is entirely inside
+    `lib/keysetPagination.js` and touches no route file.
 
 ### BUG-067 — cortex keyset `ORDER BY to_char(created_at …)` cannot use the `(session_id, created_at)` index — every page sorts the full match set
 - **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
@@ -5559,6 +5601,54 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   indexes but must preserve BUG-063's guarantee that seek and sort agree exactly.
   Not urgent at dev-DB scale — the tables are small today. Cross-ref: BUG-063,
   TASK-063, `services/cortex/src/lib/keysetPagination.js`.
+
+### BUG-068 — timeline jest run trips the same force-exit warning as BUG-065, but from an unclosed handle rather than a leaked timer
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (split out of BUG-065 at BUILD, 2026-07-29, branch `s2614-jr`)
+- **Description:** BUG-065 fixed cortex's "A worker process has failed to exit
+  gracefully" warning by `.unref()`-ing a leaked 5s timer. Timeline prints the
+  identical warning (11 suites / 129 tests, all green) and BUG-065 said to sweep
+  it "if the cause matches" — **it does not.** `services/timeline/tests/` has no
+  un-`unref`'d timer: the only `setTimeout` is `tests/setup.js`'s awaited 100ms
+  poll, which self-clears. What `tests/setup.js` lacks is any `afterAll` closing
+  the Sequelize connection, so the likely cause is an open DB pool handle — a
+  different defect wearing the same warning text. Filed separately rather than
+  folded into BUG-065, where it would have ridden along under a heading that
+  said "leaked timer".
+- **Steps to reproduce:** `cd services/timeline && npx jest --coverage=false` →
+  green summary plus the force-exit warning.
+- **Expected:** clean worker exit with no warning.
+- **Notes:** start with `npx jest --detectOpenHandles` (slow — budget several
+  minutes) to confirm the handle before fixing. If it is the connection pool, an
+  `afterAll(() => sequelize.close())` in `tests/setup.js` is the likely shape,
+  matching the BUG-055/061/065 teardown posture. Cross-ref: BUG-065.
+
+### BUG-069 — timeline / plugins / lowcode dev-boot alter-sync accretes duplicate constraints (~380 redundant), same defect as BUG-064
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S–M · **Needs:** dba glance (live-table constraint drops)
+- **Owner-role:** unassigned · **Blocked-by:** — (BUG-064 lands the cortex fix + the reusable sweep first)
+- **Legacy:** — (found at the BUG-064 BUILD, 2026-07-29, branch `s2614-jr`)
+- **Description:** BUG-064 is scoped to cortex, but the `sync({ alter: true })`
+  dev-boot pattern that causes it is **not cortex-only** —
+  `services/timeline/src/index.js:216`, `services/plugins/src/index.js:83` and
+  `services/lowcode/src/index.js:60` all do it, and all three schemas have
+  accreted. Measured on the live dev DB 2026-07-29, by schema
+  (redundant constraints, i.e. duplicates beyond the one that should exist):
+  **lowcode 160, plugins 140, cortex 110, timeline 80 — 490 total**, and cortex's
+  110 are the only ones BUG-064 removes. Every duplicate is a real index Postgres
+  maintains on each write, so this is write amplification and disk, not tidiness.
+  Deliberately NOT folded into BUG-064: that ticket is P3/S and scoped to one
+  module, and sweeping three more modules' live tables is a scope decision for the
+  PM plus a second dba pass, not something to slip in silently.
+- **Expected:** exactly one constraint per model definition per schema,
+  regardless of boot count, in all four modules.
+- **Notes:** the fix is the same shape twice over — flip each module's init to
+  plain `sync()`, then run the sweep. BUG-064 lands a **reusable, schema-scoped**
+  sweep migration (`services/cortex/migrations/20260729000001-…`, groups by
+  `pg_get_constraintdef` and keeps the shortest/first name) that should be
+  parameterised by schema rather than copy-pasted. Confirm per module that
+  nothing depends on alter-sync adding columns at dev boot before flipping it.
+  Cross-ref: BUG-064, BUG-062 (the same defect family on `post_moderation`).
 
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S

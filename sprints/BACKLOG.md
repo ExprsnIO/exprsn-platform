@@ -3578,6 +3578,46 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   **18 suites / 339 tests** green; root lint 0 errors. Remaining advisory item
   — no per-socket event rate limit — is transport parity, not a regression, and
   is filed as a follow-up rather than fixed here.
+- **systems-architect re-verify (2026-07-29) — BLOCKING CONDITION CLEARED ·
+  APPROVE.** Verified at `fa7e235`. The ownership gap is closed correctly and
+  FEAT-090 may move `in-review → done`; the structural sign-off recorded above
+  (registry `socketNs`, the `/cortex` namespace, the gateway `compression()`
+  filter) stands unchanged. **Both halves of the permissive/restrictive pair
+  check out.** *Fail-closed:* `owned` is initialised `false` and the `catch`
+  only logs (`sockets.js:114-121`), so a lookup failure falls through to
+  `NOT_FOUND` — a DB outage refuses rather than admits, which is the correct
+  direction and is stricter than the HTTP twin (where a throw becomes a 500).
+  *Unknown-id passthrough:* `!session ⇒ true` (`sockets.js:82`) is sound as
+  written — `ID_RE` (`/^[\w-]+$/`) excludes `.` and `/`, so a client-chosen id
+  cannot traverse out of `WORKSPACES_DIR` (`engine/jobs.js:306`), and the id is
+  not a capability anywhere else. **Abuse analysis of the permissive branch
+  (asked for explicitly):** there is a narrow session-id *squat* vector, not a
+  race. Victim ids are minted server-side by `newId('asst')` at turn time and
+  never announced in advance, so there is no known-but-uncreated id to race —
+  an attacker must guess `asst-<unix-second>-<6 hex>` (2^24 per second bucket).
+  If a guess lands, the victim's turn finds the attacker-owned row
+  (`jobs.js:283`), does **not** create and does **not** re-check ownership, and
+  appends the victim's transcript there; the attacker then reads it via
+  `GET /cortex/api/v1/chat/:id/messages`. Cost per squatted row is one
+  `ChatSession.create` **plus** a semaphore acquire on the shared model — the
+  row is persisted before generation, so `chat:cancel` makes it cheap-ish, but
+  grinding enough rows to matter is both GPU-bound and loud. Net: real,
+  very low probability, and the branch buys nothing — the socket already mints
+  its own id when `session_id` is absent (`sockets.js:81`) and returns it in
+  `chat:start`, so no legitimate client ever supplies an id that does not exist
+  yet. **Recommended (NOT blocking `done`):** flip `sockets.js:82` to
+  `if (!session) return false;` for exact parity with `routes/chat.js:27`
+  (unknown id ⇒ 404), and flip the corresponding test. One line; land it in this
+  branch if it is still open, otherwise it must land before FEAT-091 starts.
+  *Second advisory:* `sockets.js:85` compares `session.userId === (socket.userId
+  || null)`, so a null-owner row is owned by a caller whose `socket.userId` is
+  falsy; `routes/chat.js:28` refuses that. Prefer the strict comparison.
+  *Rate limit:* agreed, **not** blocking — both transports share the gap, so it
+  is parity rather than a regression; file it (see TASK below). *Advisories (b),
+  (c), (d) from the gate are confirmed applied* — `attachments` refused at
+  `sockets.js:96-101`, per-scan `newBoundaryRe()` at `streamGuard.js:43-44`, and
+  `lastBoundaryEnd(text, from, maxHold)` now honouring the injected ceiling with
+  the duplicate check in `push()` removed (`streamGuard.js:63-73,121`).
 
 ### FEAT-091 — Cortex: Exprsn-Cortex shape-compatible frontend API (reduced parity)
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B — auth/session parity cut)

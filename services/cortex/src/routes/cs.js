@@ -9,7 +9,7 @@ const { ChatSession, ChatMessage } = require('../models');
 const { newId } = require('../lib/ids');
 const { csChatTurn, csEmail } = require('../engine/jobs');
 const { caRead, caWrite, isAdminReq } = require('../middleware/auth');
-const { clampLimit, decodeCursor, fetchKeysetPage } = require('../lib/keysetPagination');
+const { clampLimit, decodeCursor, fetchKeysetPage, createdAtUsAttribute } = require('../lib/keysetPagination');
 
 const router = express.Router();
 const ID_RE = /^[\w-]+$/;
@@ -44,9 +44,9 @@ router.get('/chat', caRead, asyncHandler(async (req, res) => {
   const cursor = decodeCursor(req.query.cursor);
   const { rows, nextCursor } = await fetchKeysetPage({
     cursor, limit, direction: 'desc', baseWhere: where,
-    order: [['createdAt', 'DESC'], ['id', 'DESC']],
     findAll: (pageWhere, order, pageLimit) => ChatSession.findAll({
       where: pageWhere, order, limit: pageLimit,
+      attributes: { include: [createdAtUsAttribute()] },
       include: [{ model: ChatMessage, as: 'messages', attributes: ['id'], separate: true }],
     }),
   });
@@ -65,9 +65,9 @@ router.get('/chat/:id', caRead, asyncHandler(async (req, res) => {
   const cursor = decodeCursor(req.query.cursor);
   const { rows: messages, nextCursor } = await fetchKeysetPage({
     cursor, limit, direction: 'asc', baseWhere: { sessionId: session.id },
-    order: [['createdAt', 'ASC'], ['id', 'ASC']],
     findAll: (pageWhere, order, pageLimit) => ChatMessage.findAll({
       where: pageWhere, order, limit: pageLimit,
+      attributes: { include: [createdAtUsAttribute()] },
     }),
   });
   res.json({ ...session.get({ plain: true }), messages, nextCursor });

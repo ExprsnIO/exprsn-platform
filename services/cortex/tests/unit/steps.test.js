@@ -21,7 +21,8 @@ const {
 
 const REFS = {
   skillNames: new Set(['concise-writing']),
-  guardrailNames: new Set(['no-pii']),
+  guardrailNames: new Set(['no-pii', 'switched-off']),
+  enabledGuardrailNames: new Set(['no-pii']),
   toolNames: new Set(['weather']),
 };
 
@@ -243,6 +244,31 @@ describe('stepGateProblems — the ENABLE gate', () => {
   it('short-circuits on a schema problem rather than reporting phantom refs', () => {
     expect(stepGateProblems([{ type: 'skill', skill: 'ghost' }], REFS).join('; '))
       .toMatch(/prompt: required/);
+  });
+
+  it('refuses a guardrail step naming a DISABLED guardrail (BUG-070)', () => {
+    // Existence is not enough: the engine evaluates ENABLED specs only, so such
+    // a step silently never fires. That is worse than omitting it, because the
+    // spec reads as though the value is screened.
+    expect(stepGateProblems([
+      { type: 'guardrail', guardrails: ['switched-off'], value: '{{input}}' },
+    ], REFS).join('; ')).toMatch(/guardrail is disabled, so this step would never fire: switched-off/);
+  });
+
+  it('accepts an enabled guardrail, and reports only the disabled one in a mixed list', () => {
+    const problems = stepGateProblems([
+      { type: 'guardrail', guardrails: ['no-pii', 'switched-off'], value: '{{input}}' },
+    ], REFS).join('; ');
+    expect(problems).toMatch(/switched-off/);
+    expect(problems).not.toMatch(/no-pii/);
+  });
+
+  it('falls back to existence-only when enabled state is not supplied', () => {
+    // Older callers pass no enabledGuardrailNames — better to under-report than
+    // to fail every spec.
+    expect(stepGateProblems([
+      { type: 'guardrail', guardrails: ['switched-off'], value: '{{input}}' },
+    ], { guardrailNames: new Set(['switched-off']) })).toEqual([]);
   });
 
   it('treats absent refs as empty sets rather than crashing', () => {

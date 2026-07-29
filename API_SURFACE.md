@@ -1054,7 +1054,7 @@ CA-bearer-only.
 | GET | /cortex/api/v1/agents | — | — | — | CA read | agent-definition briefs (FEAT-080): id/name/status/channel/model |
 | POST | /cortex/api/v1/agents | spec (`name`,`description`,`system_prompt`) | channel, model, tools, skills, guardrails, max_iterations, **steps** | — | CA write + admin | upsert by name; ALWAYS lands `status:draft` (validated/enabled must be re-earned). FEAT-081: `steps` are schema-validated at SAVE (a malformed step ⇒ 400) — see the step-chain table below |
 | POST | /cortex/api/v1/agents/build | `description` | name | — | CA write + admin | NL builder (registryFactory `/build` pattern); saves a draft; 422 on invalid draft |
-| GET | /cortex/api/v1/agents/:idOrName | — | — | — | CA read | full spec + status + last_validation; per-agent guardrail list is advisory until FEAT-081 |
+| GET | /cortex/api/v1/agents/:idOrName | — | — | — | CA read | full spec + status + last_validation; `spec.guardrails` (the agent-level list) stays advisory — enforcement is the global enabled-guardrails-per-channel engine, plus any FEAT-081 `guardrail` STEP the chain declares |
 | DELETE | /cortex/api/v1/agents/:idOrName | — | — | — | CA write + admin | 409 for builtin personas or agents with recorded runs |
 | POST | /cortex/api/v1/agents/:idOrName/validate | — | — | — | CA write + admin | deterministic gate (schema + refs exist + model resolvable); pass ⇒ `validated` |
 | POST | /cortex/api/v1/agents/:idOrName/enable | — | — | — | CA write + admin | re-runs the deterministic gate; fail ⇒ 400 `{problems}` + back to draft. NO LLM-judged gate (C/B condition) |
@@ -1063,7 +1063,26 @@ CA-bearer-only.
 | POST | /cortex/api/v1/agents/:idOrName/run | `input` | model | — | CA write *or service HMAC* | 202 `{id,status:queued}`; 409 unless status `enabled`; runs via Bull worker (`run-agent`) |
 | GET | /cortex/api/v1/agents/:idOrName/runs | — | limit, offset | limit ≤200 (default 50) | CA read *or service HMAC* | paginated run ledger with transcripts; own runs; admin sees all |
 | GET | /cortex/api/v1/agents/:idOrName/runs/:runId | — | — | — | CA read *or service HMAC* | single run incl. transcript/guardrail verdict |
-
+| POST | /cortex/api/v1/chat | `message` | session_id, model, skills | — | CA write | assistant turn; `attachments` → 400 (not ported) |
+| GET | /cortex/api/v1/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination — response carries `nextCursor` (opaque, null at end); `cursor` seeks strictly past the prior page (no dupes/gaps across a concurrent insert) |
+| POST | /cortex/api/v1/cs/chat | `message` | session_id | — | CA write | guarded customer chat turn |
+| GET | /cortex/api/v1/cs/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination, same `nextCursor` contract as /chat above |
+| POST | /cortex/api/v1/cs/email | `from`, `subject`, `body` | — | — | CA write | drafts reply → outbox (sent/pending_review/blocked) |
+| GET | /cortex/api/v1/outbox[/:id] | — | — | limit 200 | CA read | own entries; admin all |
+| GET | /cortex/api/v1/reviews | — | — | — | CA read + admin | pending human reviews (holds blocked drafts) |
+| POST | /cortex/api/v1/reviews/:id | `action`(approve\|reject) | note | — | CA write + admin | 409 if already resolved; approve releases content |
+| GET | /cortex/api/v1/guardrails[/:name] | — | — | — | CA read | list is brief; `:name` full spec |
+| POST | /cortex/api/v1/guardrails | spec | — | — | CA write + admin | save-as-enabled requires passing tests |
+| POST | /cortex/api/v1/guardrails/build | `description` | name, action | — | CA write + admin | LLM-drafted, always saved disabled |
+| POST | /cortex/api/v1/guardrails/:name/test,/enable,/disable | — | — | — | CA write + admin | enable requires full test-suite pass |
+| DELETE | /cortex/api/v1/guardrails/:name | — | — | — | CA write + admin | — |
+| GET | /cortex/api/v1/tools[/:name] | — | — | — | CA read | — |
+| POST | /cortex/api/v1/tools[,/build,/:name/test,/run,/enable,/disable] | varies | — | — | CA write + admin | `run` executes tool code; python kind needs `CORTEX_PYTHON_TOOLS_ENABLED` |
+| DELETE | /cortex/api/v1/tools/:name | — | — | — | CA write + admin | — |
+| GET | /cortex/api/v1/skills[/:name] | — | — | — | CA read | — |
+| POST | /cortex/api/v1/skills[,/build,/:name/enable,/disable] | varies | — | — | CA write + admin | skills are prompt packs (no test gate) |
+| DELETE | /cortex/api/v1/skills/:name | — | — | — | CA write + admin | — |
+| GET | /cortex/api/v1/prompts | — | channel, session, q, limit, offset | limit ≤500 | CA read + admin | prompt/response telemetry query |
 #### Agent step chains (FEAT-081)
 
 `spec.steps` is a **sequential** chain. An empty/absent list keeps the classic
@@ -1111,26 +1130,6 @@ that *throws* is a real failure (`status: failed`).
 Enable-gate reference checks now cover steps: `skill`, `guardrails[]` and
 `tool_loop.tools[]` names must exist, and problems are reported with a path
 (`steps[2].then[0].skill: skill not found: …`).
-| POST | /cortex/api/v1/chat | `message` | session_id, model, skills | — | CA write | assistant turn; `attachments` → 400 (not ported) |
-| GET | /cortex/api/v1/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination — response carries `nextCursor` (opaque, null at end); `cursor` seeks strictly past the prior page (no dupes/gaps across a concurrent insert) |
-| POST | /cortex/api/v1/cs/chat | `message` | session_id | — | CA write | guarded customer chat turn |
-| GET | /cortex/api/v1/cs/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination, same `nextCursor` contract as /chat above |
-| POST | /cortex/api/v1/cs/email | `from`, `subject`, `body` | — | — | CA write | drafts reply → outbox (sent/pending_review/blocked) |
-| GET | /cortex/api/v1/outbox[/:id] | — | — | limit 200 | CA read | own entries; admin all |
-| GET | /cortex/api/v1/reviews | — | — | — | CA read + admin | pending human reviews (holds blocked drafts) |
-| POST | /cortex/api/v1/reviews/:id | `action`(approve\|reject) | note | — | CA write + admin | 409 if already resolved; approve releases content |
-| GET | /cortex/api/v1/guardrails[/:name] | — | — | — | CA read | list is brief; `:name` full spec |
-| POST | /cortex/api/v1/guardrails | spec | — | — | CA write + admin | save-as-enabled requires passing tests |
-| POST | /cortex/api/v1/guardrails/build | `description` | name, action | — | CA write + admin | LLM-drafted, always saved disabled |
-| POST | /cortex/api/v1/guardrails/:name/test,/enable,/disable | — | — | — | CA write + admin | enable requires full test-suite pass |
-| DELETE | /cortex/api/v1/guardrails/:name | — | — | — | CA write + admin | — |
-| GET | /cortex/api/v1/tools[/:name] | — | — | — | CA read | — |
-| POST | /cortex/api/v1/tools[,/build,/:name/test,/run,/enable,/disable] | varies | — | — | CA write + admin | `run` executes tool code; python kind needs `CORTEX_PYTHON_TOOLS_ENABLED` |
-| DELETE | /cortex/api/v1/tools/:name | — | — | — | CA write + admin | — |
-| GET | /cortex/api/v1/skills[/:name] | — | — | — | CA read | — |
-| POST | /cortex/api/v1/skills[,/build,/:name/enable,/disable] | varies | — | — | CA write + admin | skills are prompt packs (no test gate) |
-| DELETE | /cortex/api/v1/skills/:name | — | — | — | CA write + admin | — |
-| GET | /cortex/api/v1/prompts | — | channel, session, q, limit, offset | limit ≤500 | CA read + admin | prompt/response telemetry query |
 
 ### Things to note
 - Inference: external OpenAI-compatible llama.cpp router (`CORTEX_LLM_BASE_URL`);

@@ -214,7 +214,11 @@ const OutboxEntry = sequelize.define('OutboxEntry', {
 const Review = sequelize.define('Review', {
   id: { type: DataTypes.STRING(64), primaryKey: true }, // rev-…
   kind: {
-    type: DataTypes.ENUM('assistant_reply', 'cs_chat_input', 'cs_chat_reply', 'cs_email'),
+    // FEAT-081 adds 'agent_step': a chained agent run escalated at a specific
+    // step. Sequelize cannot ALTER an existing Postgres enum, so an existing DB
+    // needs migration 20260729000002 — without it, escalating a chained run
+    // throws `invalid input value for enum cortex.enum_reviews_kind`.
+    type: DataTypes.ENUM('assistant_reply', 'cs_chat_input', 'cs_chat_reply', 'cs_email', 'agent_step'),
     allowNull: false,
   },
   sessionId: { type: DataTypes.STRING(64), allowNull: true, field: 'session_id' },

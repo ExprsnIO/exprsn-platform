@@ -35,11 +35,16 @@ const mutate = [caWrite, requireCortexAdmin];
 // Reference sets for the deterministic gate. The router is consulted ONLY
 // when the spec names a model (null model = brain model, resolvable by
 // definition) — so personas and offline specs validate with the router down.
+/** Does this agent row carry a FEAT-081 step chain? */
+function spec_has_steps(row) {
+  return Array.isArray(row?.spec?.steps) && row.spec.steps.length > 0;
+}
+
 async function gateRefs(spec) {
   const [tools, skills, guardrails] = await Promise.all([
     Tool.findAll({ attributes: ['name'] }),
     Skill.findAll({ attributes: ['name'] }),
-    Guardrail.findAll({ attributes: ['name'] }),
+    Guardrail.findAll({ attributes: ['name', 'enabled'] }),
   ]);
   let modelIds = null;
   if (spec.model != null) {
@@ -50,6 +55,11 @@ async function gateRefs(spec) {
     toolNames: new Set(tools.map((r) => r.name)),
     skillNames: new Set(skills.map((r) => r.name)),
     guardrailNames: new Set(guardrails.map((r) => r.name)),
+    // FEAT-081/BUG-070: a `guardrail` STEP that names a disabled guardrail
+    // would pass an existence-only gate and then silently do nothing at
+    // runtime, because the engine only evaluates enabled specs. The author
+    // would believe they had added a check.
+    enabledGuardrailNames: new Set(guardrails.filter((r) => r.enabled).map((r) => r.name)),
     modelIds,
   };
 }
@@ -63,9 +73,14 @@ function fullView(row) {
     spec: row.spec,
     builtin: row.builtin,
     last_validation: row.lastValidation ?? null,
-    // Per-agent guardrail lists are ADVISORY until FEAT-081 — enforcement is
-    // the global enabled-guardrails-per-channel engine.
-    guardrail_binding: 'advisory (enforcement is global enabled guardrails per channel until FEAT-081)',
+    // `spec.guardrails` (the agent-level LIST) remains advisory: enforcement is
+    // the global enabled-guardrails-per-channel engine. FEAT-081 did NOT change
+    // that — what it added is the `guardrail` STEP type, which enforces a named
+    // subset at a chosen point in a chain. Both are additive to the global
+    // screen; neither replaces it.
+    guardrail_binding: spec_has_steps(row)
+      ? 'advisory list; enforced per-step where the chain declares a `guardrail` step (FEAT-081), on top of the global enabled guardrails per channel'
+      : 'advisory (enforcement is the global enabled guardrails per channel)',
     created_at: row.createdAt,
     updated_at: row.updatedAt,
   };

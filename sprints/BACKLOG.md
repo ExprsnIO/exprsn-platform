@@ -3100,7 +3100,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   named). Re-verify the run transcript once a model backend is up.
 
 ### FEAT-081 — Cortex: multi-step agent chaining engine (sequential, 8 step types)
-- **Type:** feature · **Status:** in-progress (QA FAIL 2026-07-29 — branch `s2614-feat081`) · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
+- **Type:** feature · **Status:** in-review (branch `s2614-feat081`) · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
 - **Owner-role:** unassigned · **Blocked-by:** FEAT-080
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-chaining` (L)
 - **Cost/Benefit:** done — **APPROVE-REDUCED (M/L).** Ship the sequential engine with 8 step types (`retrieve` as graceful no-op until FEAT-095); **defer the `parallel` step** to a follow-up — the single-resident-model semaphore serializes it anyway while it carries most of the failure-mode complexity. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
@@ -3220,7 +3220,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
     cortex.enum_reviews_kind: "agent_step"`, no `cortex.reviews` row is written,
     and nothing is held. Reproduced on **both** escalate paths (global output
     screen on a model step; a `guardrail` step's `on_fail: escalate`).
-    → **BUG-068** (P2). This directly contradicts the resolution note above
+    → **BUG-072** (P2). This directly contradicts the resolution note above
     ("`escalate` files a `cortex.reviews` row (kind `agent_step`) and halts").
     - Rest of AC3 verified: `on_fail: continue` genuinely continues (later step
       ran; transcript carries the hit + `note: on_fail=continue`); default policy
@@ -3276,7 +3276,31 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   - **To re-verify after the fix:** BUG-068's repro (both escalate paths, review
     row present, `status: done` + `Held for human review: …`) — everything else
     on this ticket is proven and does not need a full re-run.
-
+- **QA FAIL addressed → resubmitted for re-verdict (2026-07-29, branch
+  `s2614-feat081`).** QA passed 4/5 ACs and failed **AC3's escalate limb**:
+  `runAgentChain` wrote `Review.create({kind:'agent_step'})` against an ENUM
+  that had no such value, so every escalate threw instead of holding — the
+  guardrail asked to hold a draft for a human and the run failed instead, with
+  no `cortex.reviews` row. Fixed as **BUG-072** (model enum + migration
+  `20260729000002`, applied and verified live) with a **structural** regression
+  guard, since the existing suites were architecturally incapable of catching
+  it (both stub or mock the escalate path): `tests/unit/reviewKind.test.js`
+  asserts every `kind` literal in `src/` is declared on the model, and was
+  verified non-vacuous by reverting the enum and watching it fail.
+  Also fixed from the same QA pass: **BUG-073** (my mid-table `API_SURFACE.md`
+  insertion + two stale "advisory until FEAT-081" strings) and **BUG-074** (a
+  `guardrail` step naming a *disabled* guardrail passed the gate and would then
+  silently never fire).
+  - **The two properties QA was asked to attack both survived**, which is the
+    reassuring part: the `parallel` contract held across six shapes (flat,
+    alongside valid steps, nested in then/else, at depth 4, nested inside
+    another parallel), including the advisory `/smoke` route degrading rather
+    than executing; and QA could not get blocked text into a later step or the
+    final result through `prompt`, `skill`, `tool_loop`, or a two-clean-outputs
+    reassembly via `transform`.
+  - Cortex **17 suites / 377 tests** (+1 suite, +7 tests); eslint clean.
+  - **Resubmitting for the AC3 re-verdict specifically** — the other four ACs
+    were confirmed at the first pass and are untouched by these fixes.
 ### FEAT-082 — Cortex: scheduled agent runs + agent trigger primitives
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
 - **Owner-role:** unassigned · **Blocked-by:** FEAT-080 (webhook trigger path also needs TASK-062)
@@ -5708,8 +5732,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   Not urgent at dev-DB scale — the tables are small today. Cross-ref: BUG-063,
   TASK-063, `services/cortex/src/lib/keysetPagination.js`.
 
-### BUG-068 — Cortex chain `escalate` fails the run: `Review.kind` ENUM has no `agent_step` value
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+### BUG-072 — Cortex chain `escalate` fails the run: `Review.kind` ENUM has no `agent_step` value
+- **Type:** bug · **Status:** in-review (branch `s2614-feat081`) · **Priority:** P2 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by FEAT-081 QA, 2026-07-29)
 - **Description:** `services/cortex/src/engine/jobs.js#runAgentChain` files the
@@ -5760,9 +5784,26 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   emitted) — but escalated content is silently dropped instead of queued, and the
   raw DB error string is surfaced in the run's `error` field. Cross-ref: FEAT-081
   AC3, `API_SURFACE.md` "Agent step chains (FEAT-081)".
-
-### BUG-069 — `API_SURFACE.md`: the FEAT-081 step-chain section is inserted mid-table, orphaning ~20 cortex endpoint rows
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role set at BUILD:** sr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-feat081`):** `agent_step`
+  added to the `Review.kind` ENUM on the model, plus migration
+  `20260729000002-add-agent-step-review-kind.js` (`ALTER TYPE … ADD VALUE IF NOT
+  EXISTS`, idempotent, deliberately outside a transaction because Postgres
+  refuses to USE a newly added enum value in the transaction that added it).
+  Applied to the live dev DB and verified: the enum now reads
+  `assistant_reply, cs_chat_input, cs_chat_reply, cs_email, agent_step`, and the
+  `INSERT … kind='agent_step'` that previously threw now succeeds.
+- **Why the suite missed it, and what now catches it.** QA's diagnosis was
+  right and is the important part: `chain.test.js` injects `onEscalate` as a
+  stub and `agentChainRun.test.js` mocks `../../src/models`, so neither ever met
+  the real column definition — adding another mocked test would have been blind
+  the same way. New `tests/unit/reviewKind.test.js` instead asserts the
+  invariant directly and without a DB: **every `kind` literal written anywhere
+  under `src/` must be declared in the model's ENUM.** It also guards its own
+  scan (so the check cannot silently become vacuous). Verified non-vacuous by
+  reverting the enum and confirming the test fails, then restoring.
+### BUG-073 — `API_SURFACE.md`: the FEAT-081 step-chain section is inserted mid-table, orphaning ~20 cortex endpoint rows
+- **Type:** bug · **Status:** in-review (branch `s2614-feat081`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by FEAT-081 QA, 2026-07-29)
 - **Description:** The `#### Agent step chains (FEAT-081)` block was inserted
@@ -5783,9 +5824,23 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - The two "advisory until FEAT-081" strings are reworded to state the standing
     rule without the resolved-ticket reference.
 - **Notes:** Docs + one response string only; no behaviour change.
-
-### BUG-070 — Cortex `guardrail` step naming a **disabled** guardrail silently passes
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role set at BUILD:** sr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-feat081`):** my own
+  insertion defect — the step-chain section was spliced into the middle of the
+  cortex route table, orphaning ~20 rows from their header. Moved below the
+  table. Verified structurally rather than by eye: the cortex section now parses
+  as exactly 2 well-formed table runs (38 route rows, 10 step-type rows), each
+  with its own header + separator. The two stale "advisory until FEAT-081"
+  strings are corrected too — `spec.guardrails` (the agent-level list) genuinely
+  does stay advisory; what FEAT-081 added is the `guardrail` STEP, which
+  enforces a named subset at a chosen point. `GET /agents/:idOrName` now reports
+  `guardrail_binding` accordingly depending on whether the spec has steps.
+- **Note:** this is the SECOND time this exact mistake was made in one day (see
+  BUG-069 on `s2614-feat090`). Both were mid-table insertions into
+  `API_SURFACE.md`. Worth a convention: new prose/tables go AFTER the route
+  table for that module, never between its rows.
+### BUG-074 — Cortex `guardrail` step naming a **disabled** guardrail silently passes
+- **Type:** bug · **Status:** in-review (branch `s2614-feat081`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by FEAT-081 QA, 2026-07-29)
 - **Description:** `jobs.js#runAgentChain`'s `evaluateGuardrails` dep filters
@@ -5809,7 +5864,17 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Low severity — the global channel screen still runs on every
   model-producing step, so nothing is *un*screened; the risk is an author
   believing an extra check is armed when it is not.
-
+- **Owner-role set at BUILD:** sr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-feat081`):** the enable
+  gate now refuses a `guardrail` step naming a disabled guardrail.
+  `gateRefs` supplies `enabledGuardrailNames` alongside `guardrailNames`, and
+  `stepGateProblems` reports
+  `guardrail is disabled, so this step would never fire: <name>`. Existence
+  alone was the wrong test: the engine evaluates ENABLED specs only, so such a
+  step silently never fires — strictly worse than omitting it, because the spec
+  reads as though the value is screened. A caller that supplies no enabled-state
+  falls back to existence-only rather than failing every spec. 3 tests
+  (disabled refused, mixed list reports only the disabled one, fallback).
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
@@ -5938,34 +6003,35 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Cheap, and it stops each cycle's verification from silting up the
   dev DB. Worth doing before the RAG track starts writing embeddings.
 
-### TASK-071 — `db:check` has no coverage for `cortex` (nor `plugins` / `lowcode` / `prefetch`)
+### TASK-071 — `db:check` blind spots: flag-gated modules unchecked + no duplicate-constraint detection
 - **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
-- **Legacy:** — (found by FEAT-081 QA, 2026-07-29)
-- **Description:** `scripts/check-drift.js`'s `MODELS` map (lines 28–39) lists 10
-  schemas: `ca, auth, spark, nexus, filevault, vault, timeline, moderator, live,
-  atproto`. The four remaining registry modules — `cortex`, `plugins`, `lowcode`,
-  `prefetch` — are absent, so `npm run db:check` reports "No drift found" and
-  exits 0 while never loading their models. That is the entire Cortex agentic
-  build-out (FEAT-078…FEAT-102) landing new tables, columns and ENUMs behind a
-  drift gate that structurally cannot see them, and it is exactly the class of
-  problem the gate exists for (see the `db:migrate` "creates tables but never
-  ALTERs" note in CLAUDE.md; BUG-068 is a live example of an ENUM the gate would
-  not have flagged either way).
+- **Owner-role:** dba (volunteered at the BUG-064 review) · **Blocked-by:** —
+- **Legacy:** — (filed twice independently on 2026-07-29: by the dba during the
+  BUG-064 glance on `s2614-jr`, and by qa-specialist verifying FEAT-081 on
+  `s2614-feat081`. Merged here — same defect, same file, one ticket.)
+- **Description:** `scripts/check-drift.js` hardcodes its module list in the
+  `MODELS` map, and that map contains only the ten non-gated modules — **cortex,
+  plugins, lowcode** (and, per QA, **prefetch**) are absent entirely. The dba ran
+  `db:check` with all three feature flags enabled and it still checked only
+  ca/auth/spark/nexus/filevault/vault/timeline/moderator/live/atproto, reporting
+  "No drift found". So those schemas have **zero** drift coverage of any kind,
+  not merely a missing check — and the entire Cortex slate (FEAT-078…095) is
+  landing behind a gate that cannot see it. Separately, `db:check` has no
+  duplicate-constraint detection, which is why BUG-064 accreted 110 redundant
+  constraints silently and BUG-071's ~380 still are.
 - **Acceptance criteria:**
-  - `MODELS` is derived from (or reconciled against) `src/modules/registry.js`, so
-    a new module cannot be added without drift coverage.
-  - `npm run db:check` reports a per-schema line for `cortex`, `plugins`,
-    `lowcode` and `prefetch`, and still exits 0 on a clean DB.
-  - Flag-gated modules that are disabled are reported as skipped, not silently
-    omitted.
-- **Notes:** dba owns the drift gate; pairs naturally with any Cortex-slate
-  schema ticket. Pre-existing, not introduced by FEAT-081.
-
-- **Resolution (done · 2026-07-28 · commit `b2d3925`):** Both assertions updated to the
-  3-arg shapes as POSITIVE provenance assertions (`{sharedAsOwner:true}` /
-  `ownerSharedIds` containment); `STRIPE_SECRET_KEY` guard added matching sibling live
-  test files. 12/12 green.
+  - `cortex`, `plugins`, `lowcode` and `prefetch` are checked when their flags
+    are enabled; their absence when disabled is deliberate and documented.
+  - Duplicate constraints are reported as drift — group by
+    `(conrelid, contype, pg_get_constraintdef(oid))` `HAVING count(*) > 1`
+    (the query already exists in BUG-064's sweep migration).
+  - Exits non-zero on either finding, consistent with the existing gate.
+- **Notes:** **P2** because it is the regression gate for BUG-064 and BUG-071 —
+  without it the sweep's success is eyeballed, and the accretion can silently
+  return. It also mitigates the one real cost of BUG-064's `sync()` flip: plain
+  sync no-ops on a missing column and the symptom is a 500 on every query
+  against that table, which nothing currently catches for cortex. Catalog-only
+  queries, cheap. Cross-ref: BUG-064, BUG-071, BUG-062.
 
 ### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
 - **Type:** task · **Status:** done (merged to `main` `fe58d2c`; IA restructure + config store + live updates, e2e-verified) · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)

@@ -276,7 +276,9 @@ function walkSteps(steps, fn, path = 'steps') {
  * here, so authoring stays open.
  *
  * `refs` mirrors FEAT-080's `gateProblems` shape: Sets of existing
- * `skillNames` / `guardrailNames` / `toolNames`.
+ * `skillNames` / `guardrailNames` / `toolNames`, plus `enabledGuardrailNames`
+ * (BUG-070 — a guardrail step naming a DISABLED guardrail is refused, since the
+ * engine evaluates enabled specs only and the step would silently never fire).
  */
 function stepGateProblems(steps, refs = {}) {
   const problems = validateSteps(steps);
@@ -284,6 +286,9 @@ function stepGateProblems(steps, refs = {}) {
 
   const skillNames = refs.skillNames ?? new Set();
   const guardrailNames = refs.guardrailNames ?? new Set();
+  // Absent (older callers) means "cannot tell" — fall back to existence-only
+  // rather than failing every spec.
+  const enabledGuardrailNames = refs.enabledGuardrailNames ?? null;
   const toolNames = refs.toolNames ?? new Set();
 
   walkSteps(steps, (step, path) => {
@@ -298,7 +303,16 @@ function stepGateProblems(steps, refs = {}) {
     }
     if (step.type === 'guardrail') {
       for (const g of step.guardrails ?? []) {
-        if (!guardrailNames.has(g)) problems.push(`${path}.guardrails: guardrail not found: ${g}`);
+        if (!guardrailNames.has(g)) {
+          problems.push(`${path}.guardrails: guardrail not found: ${g}`);
+        } else if (enabledGuardrailNames && !enabledGuardrailNames.has(g)) {
+          // BUG-070: existence is not enough. The engine evaluates ENABLED
+          // specs only, so a step naming a disabled guardrail is a check that
+          // silently never fires — strictly worse than no step at all, because
+          // the spec reads as though the output is screened.
+          problems.push(`${path}.guardrails: guardrail is disabled, so this step `
+            + `would never fire: ${g}`);
+        }
       }
     }
     if (step.type === 'tool_loop') {

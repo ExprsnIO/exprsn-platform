@@ -3493,6 +3493,72 @@ selection (do not re-propose blind): see the note in **Deferred** below.
     `npm run test:all` — auth/moderator/spark fail **identically at the
     unmodified baseline** (verified by stashing the change and re-running), all
     other modules green.
+- **systems-architect sign-off (2026-07-29): APPROVE WITH CONDITIONS — one
+  BLOCKING.** *ADR — context:* FEAT-090 adds the platform's first SSE surface and
+  the first new Socket.IO namespace since `live`, touching three sign-off
+  surfaces: `src/modules/registry.js:45` (`socketNs: null → ['/cortex']`),
+  `src/gateway.js:106-120` (app-wide `compression()` filter), and a new
+  module-owned namespace. *Decision:* the structural shape is **approved**.
+  `['/cortex']` is the correct shape — array-of-leading-slash-strings matching
+  `ca`/`spark`/`vault`/`timeline`/`live`/`moderator`, and the one namespace the
+  module actually opens (`services/cortex/src/sockets.js:40,44`). Nothing derives
+  behavior from `socketNs`: the only consumers are the boot log
+  (`src/gateway.js:223`) and the `/health` report (`src/health.js:293`), both
+  descriptive — the namespace is created by `registerSockets(io)`, so the entry
+  is documentation and must stay truthful, which it now is. `registerSockets` is
+  exported from `services/cortex/src/index.js` and invoked by the gateway's
+  single `io` (`src/gateway.js:220-225`) — no `listen()`, no views/static, module
+  stays a JSON/socket API. The engine require is lazy inside `connection`, so a
+  dark module still costs nothing at boot. Auth ordering is **right**:
+  `authenticateSocket({requiredPermissions:['write']})` first, `CORTEX_ENABLED`
+  gate second (`sockets.js:49-56`) — reversing it would turn a dark module into an
+  unauthenticated existence oracle, and `'write'` is the correct permission (exact
+  parity with `caWrite` on `POST /cortex/api/v1/chat`, `routes/chat.js:32`, and
+  the namespace performs that same operation). The `compression()` filter is
+  correctly scoped: it inspects only `res`'s `Content-Type`, short-circuits solely
+  on `text/event-stream`, and delegates every other response to
+  `compression.filter` unchanged — blast radius is exactly the new SSE
+  content-type, no existing module emits it. *Alternatives rejected:* a
+  gateway-owned `/cortex` namespace (breaks module ownership of its own socket
+  surface); per-route `res.removeHeader`/no-compression hacks in cortex (leaves
+  the trap for the next SSE author); flag-gate-before-auth (leaks flag state to
+  unauthenticated clients). *Multi-instance:* no new assumption and STATUS #3 is
+  not made worse — the namespace holds no cross-socket state, no rooms, no
+  broadcast, no adapter; the only state is one `AbortController` per connection,
+  owned by the socket that created it, so `chat:cancel` is inherently
+  same-process. *Consequences / conditions:*
+  - **BLOCKING — session-ownership parity on `chat:send`.** `sockets.js:81-91`
+    accepts a client-supplied `session_id` and calls `assistantChatTurn` with only
+    an `ID_RE` format check. The HTTP twin gates the identical call on
+    `ownedSession()` (`routes/chat.js:42`, with a platform-admin bypass). Because
+    `assistantChatTurn` loads `sessionHistory(sessionId)` into the prompt
+    (`engine/jobs.js:305`) and `ChatSession.userId` is never re-checked, any
+    authenticated `write` principal can post into another user's assistant session,
+    condition the model on that user's full transcript, and mutate the session's
+    `model`/`skills`. Session ids are `asst-<unix-seconds>-<3 random bytes>`
+    (`lib/ids.js`) — enumerable, and the namespace has no per-event rate limit.
+    This is a cross-transport authorization gap, not a policy question, so the
+    ticket cannot move to `done` on it. Fix in-branch (an ownership check
+    equivalent to `routes/chat.js:25-30`, keyed on `socket.userId` with the
+    `isPlatformAdmin(socket.tokenData?.email)` bypass) and return for re-verify;
+    if it is split out instead it must be a **P1 BUG that lands before FEAT-091
+    starts**, since FEAT-091 is the ticket that puts real users on this namespace.
+  - *Advisory (non-blocking, file as follow-ups):* (a) no per-socket event rate
+    limit — `@exprsn/shared`'s `socketRateLimit` exists and one generation per
+    socket is not a cap on sockets per user; both transports share this gap, so it
+    is parity, not a regression; (b) `sockets.js` does not reject `attachments`,
+    which `routes/chat.js:35-39` 400s — harmless today (the field is ignored) but a
+    silent divergence; (c) `engine/streamGuard.js:40` `BOUNDARY_RE` is a
+    module-level `/g` regex whose `lastIndex` is mutated per call and shared across
+    all concurrent guards — safe only because the scan is synchronous, and worth a
+    local regex; (d) `streamGuard.js:66` uses the module constant `MAX_HOLD_CHARS`
+    while `push()` uses the injected `maxHoldChars`, so an injected ceiling above
+    240 is silently ignored (test-surface only). *FEAT-091 boundary intact:* both
+    transports take the bearer from `handshake.auth`/`Authorization` only
+    (`shared/middleware/socketAuth.js:73-77`) and `validateCAToken` reads the
+    Authorization header only — nothing here creates a cookie→bearer bridge, and
+    `credentials:'include'` in `web/src/lib/http.ts` is inert server-side and
+    matches the existing `request()` helper.
 
 ### FEAT-091 — Cortex: Exprsn-Cortex shape-compatible frontend API (reduced parity)
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B — auth/session parity cut)

@@ -7,7 +7,7 @@
  * should catch that and render a "module disabled" state, not a raw error.
  * /cortex/health is public and answers even when disabled.
  */
-import { http, ApiError } from '@/lib/http';
+import { http, streamSSE, ApiError } from '@/lib/http';
 
 // ---------------------------------------------------------------- shared
 
@@ -190,6 +190,37 @@ export const cortexApi = {
   // owner-facing assistant chat (full tool access + selected skills)
   chatTurn: (message: string, opts?: { session_id?: string; model?: string; skills?: string[] }) =>
     http.post<ChatTurnResult>('/cortex/api/v1/chat', { message, ...opts }),
+
+  /**
+   * Streaming variant of `chatTurn` (FEAT-090). Resolves with the same
+   * `ChatTurnResult` the buffered call returns — the callbacks are progressive
+   * enhancement, so a caller that only awaits the promise still behaves exactly
+   * as before.
+   *
+   * `onChunk` receives SCREENED text, not raw model tokens: the server releases
+   * a prefix only once the guardrails have passed over it. `onReset` means the
+   * text so far was superseded (a tool step, or a final verdict that replaced
+   * the draft) and the provisional buffer must be cleared — the authoritative
+   * reply is always the resolved result.
+   */
+  chatTurnStream: (
+    message: string,
+    opts: {
+      session_id?: string; model?: string; skills?: string[];
+      onChunk?: (text: string) => void;
+      onReset?: () => void;
+      signal?: AbortSignal;
+    } = {},
+  ): Promise<ChatTurnResult> => {
+    const { onChunk, onReset, signal, ...body } = opts;
+    return streamSSE<ChatTurnResult>('/cortex/api/v1/chat', { message, ...body, stream: true }, {
+      signal,
+      onEvent: (event, data) => {
+        if (event === 'token') onChunk?.((data as { text: string }).text);
+        else if (event === 'reset') onReset?.();
+      },
+    });
+  },
   // TASK-063: `opts` is optional and defaults to the pre-pagination page size
   // (100 sessions / 200 messages) when omitted — existing callers are unaffected.
   chatSessions: (opts?: PageParams) =>

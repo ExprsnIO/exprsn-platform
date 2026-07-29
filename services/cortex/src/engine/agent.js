@@ -17,7 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
-const { chatComplete } = require('../lib/llama');
+const { chatComplete, chatCompleteStream } = require('../lib/llama');
 const { chatCacheKey, cacheGet, cacheSet } = require('../lib/cache');
 
 const BRAIN_MODEL = config.cortex.brainModel;
@@ -102,6 +102,41 @@ async function complete(model, messages, { tools = null, temperature = 0.7, maxT
   const commit = () => cacheSet(key, message, CACHE_TTL);
   if (!defer) await commit();
   return { message, commit: defer ? commit : null };
+}
+
+/**
+ * Streaming twin of `complete()` (FEAT-090) — same return shape
+ * ({ message, commit }) so `runAgent`'s loop logic is identical either way.
+ *
+ * Cache parity is deliberate: a cache HIT still replays through `onDelta` as a
+ * single chunk, so a cached answer streams (instantly) rather than arriving by
+ * a different code path with different client-visible events. Cache WRITES keep
+ * the same defer/commit discipline — a streamed reply is only cached once
+ * guardrails have cleared it, exactly as the buffered path does.
+ */
+async function completeStreaming(model, messages,
+                                 { tools = null, temperature = 0.7, maxTokens = 2048 } = {},
+                                 { signal = null, onDelta = null } = {}) {
+  const opts = { temperature, max_tokens: maxTokens };
+  const run = async () => {
+    const { text, toolCalls } = await chatCompleteStream(
+      model, messages, tools ? { ...opts, tools } : opts, { signal, onDelta });
+    const message = { role: 'assistant', content: text };
+    if (toolCalls && toolCalls.length) message.tool_calls = toolCalls;
+    return message;
+  };
+
+  if (tools) return { message: await run(), commit: null };
+
+  const key = chatCacheKey(model, messages, opts);
+  const cached = await cacheGet(key);
+  if (cached) {
+    if (onDelta && cached.content) onDelta({ content: cached.content });
+    return { message: cached, commit: null };
+  }
+  const message = await run();
+  if (message.tool_calls) return { message, commit: null };
+  return { message, commit: () => cacheSet(key, message, CACHE_TTL) };
 }
 
 async function chatCompletion(model, messages, opts = {}) {
@@ -250,16 +285,35 @@ function toolsUnsupported(err) {
 // clear the result, so escalated/blocked replies are never cached.
 async function runAgent(systemPrompt, messages, toolSchemas, toolImpls,
                         guardEngine, channel,
-                        { model = null, maxIterations = MAX_ITERATIONS } = {}) {
+                        { model = null, maxIterations = MAX_ITERATIONS,
+                          onDelta = null, signal = null } = {}) {
   let schemas = toolSchemas;
   const convo = [{ role: 'system', content: systemPrompt }, ...messages];
   const transcript = [];
+  let emittedThisRun = false;
   for (let i = 0; i < maxIterations; i++) {
     let msg, commit;
+    // FEAT-090 streaming: only the FINAL iteration — the one that comes back
+    // with no tool calls — carries the user-visible answer. We can't know that
+    // in advance, so content deltas are forwarded optimistically and suppressed
+    // the moment a tool-call delta appears in the same message. If an iteration
+    // already emitted and then turns out to be superseded, `reset` tells the
+    // consumer to drop the provisional text (models rarely mix prose with tool
+    // calls, but "rarely" is not "never", and silently leaving stale text on
+    // screen would be worse than a retract).
+    let sawToolCalls = false;
+    const iterDelta = onDelta ? (d) => {
+      if (d.toolCalls) { sawToolCalls = true; return; }
+      if (sawToolCalls || !d.content) return;
+      emittedThisRun = true;
+      onDelta(d);
+    } : null;
     try {
-      ({ message: msg, commit } = await complete(
-        model || BRAIN_MODEL, convo,
-        { tools: schemas && schemas.length ? schemas : null }, true));
+      const args = [model || BRAIN_MODEL, convo,
+        { tools: schemas && schemas.length ? schemas : null }];
+      ({ message: msg, commit } = onDelta
+        ? await completeStreaming(...args, { signal, onDelta: iterDelta })
+        : await complete(...args, true));
     } catch (e) {
       if (schemas && schemas.length && toolsUnsupported(e)) {
         transcript.push({ role: 'system', note: `tools disabled for this model: ${e.message}` });
@@ -273,6 +327,11 @@ async function runAgent(systemPrompt, messages, toolSchemas, toolImpls,
       const text = (msg.content || '').trim();
       transcript.push({ role: 'assistant', content: text });
       return { text, transcript, commitCache: commit };
+    }
+    // This iteration is a tool step, so anything it streamed is superseded.
+    if (onDelta && emittedThisRun) {
+      emittedThisRun = false;
+      onDelta({ reset: true });
     }
     convo.push(Object.fromEntries(Object.entries(msg).filter(([, v]) => v != null)));
     transcript.push({ role: 'assistant', tool_calls: calls.map((c) => ({
@@ -380,7 +439,7 @@ function csTools() {
 module.exports = {
   BRAIN_MODEL, JUDGE_MODEL, MAX_ITERATIONS, MAX_TOOL_RESULT,
   namedError, pyDumps,
-  chatCompletion, judge, simpleChat,
+  chatCompletion, judge, simpleChat, completeStreaming,
   safePath, makeFileTools, makeDelegateTool,
   runAgent,
   TASK_SYSTEM, CHAT_SYSTEM, CS_SYSTEM, csSystemPrompt,

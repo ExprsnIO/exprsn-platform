@@ -105,6 +105,88 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
   return data as T;
 }
 
+/**
+ * POST a JSON body and consume a Server-Sent Events response (FEAT-090).
+ *
+ * `EventSource` can't be used here: it is GET-only and cannot carry the bearer
+ * header, so the stream is read off `fetch`'s body reader instead. Frames are
+ * reassembled across network chunks — a frame is not guaranteed to arrive whole.
+ *
+ * Resolves with the payload of the terminal `done` event; rejects on `error`,
+ * and on `cancelled` (as an AbortError) so callers can tell a user-cancelled
+ * stream from a failed one.
+ */
+export async function streamSSE<T>(
+  path: string,
+  body: unknown,
+  opts: {
+    onEvent?: (event: string, data: unknown) => void;
+    signal?: AbortSignal;
+  } = {},
+): Promise<T> {
+  const headers = new Headers({ 'Content-Type': 'application/json', Accept: 'text/event-stream' });
+  const token = tokenStore.get();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const res = await fetch(`${config.apiBase}${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    credentials: 'include',
+    signal: opts.signal,
+  });
+
+  if (!res.ok || !res.body) {
+    const isJson = res.headers.get('content-type')?.includes('application/json');
+    const data = isJson ? await res.json().catch(() => ({})) : { message: await res.text() };
+    if (res.status === 401 && !path.startsWith('/auth/api/auth/')) onUnauthorized?.();
+    throw new ApiError(res.status, data as ApiErrorBody);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result: T | undefined;
+  let failure: ApiError | Error | null = null;
+
+  const handleBlock = (block: string) => {
+    const event = /^event: (.+)$/m.exec(block)?.[1];
+    const raw = /^data: (.+)$/m.exec(block)?.[1];
+    if (!event) return;
+    let data: unknown = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      return;
+    }
+    if (event === 'done') result = data as T;
+    else if (event === 'error') {
+      const d = data as ApiErrorBody;
+      failure = new ApiError(500, d);
+    } else if (event === 'cancelled') {
+      failure = Object.assign(new Error('cancelled'), { name: 'AbortError' });
+    } else opts.onEvent?.(event, data);
+  };
+
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep = buffer.indexOf('\n\n');
+    while (sep !== -1) {
+      handleBlock(buffer.slice(0, sep));
+      buffer = buffer.slice(sep + 2);
+      sep = buffer.indexOf('\n\n');
+    }
+  }
+  if (buffer.trim()) handleBlock(buffer);
+
+  if (failure) throw failure;
+  if (result === undefined) throw new Error('stream ended without a result');
+  return result;
+}
+
 export const http = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'GET' }),
   post: <T>(path: string, body?: unknown, opts?: RequestOptions) =>

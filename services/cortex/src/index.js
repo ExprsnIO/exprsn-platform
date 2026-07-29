@@ -111,8 +111,11 @@ async function init() {
   }
 }
 
+const { registerSockets } = require('./sockets');
+
 module.exports = {
   name: 'cortex',
   app,
+  registerSockets,
   init,
 };

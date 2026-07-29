@@ -3395,7 +3395,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
 - **Notes:** UI-only over FEAT-088's backend.
 
 ### FEAT-090 — Cortex: token streaming — SSE on chat + /cortex Socket.IO namespace
-- **Type:** feature · **Status:** in-sprint (2026-14, sr warm-up) · **Priority:** P2 · **Size:** M
+- **Type:** feature · **Status:** in-review (branch `s2614-feat090`) · **Priority:** P2 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** FEAT-021 deliberate exclusion (streaming was deferred at the port)
 - **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `sse-streaming` (M)
@@ -3412,6 +3412,87 @@ selection (do not re-propose blind): see the note in **Deferred** below.
     (registry change is structural); `API_SURFACE.md` updated.
 - **Notes:** Gates FEAT-091 (the standalone console expects streaming chat).
   Single-gateway MVP: no redis-adapter concerns (STATUS #3 deferred).
+- **Owner-role set at BUILD:** sr-developer.
+- **Design decision taken at BUILD (owner steer, 2026-07-29) — screened-prefix
+  streaming, assistant channel only.** The C/B sized this against the
+  standalone's 135-LOC realtime layer, but that reference streams RAW tokens and
+  emits `chat:moderated` only afterwards
+  (`/Volumes/Storage/exprsn-cortex/src/realtime/chatNamespace.js:56-59`) — the
+  client has rendered the whole reply before any verdict exists. The module's
+  contract is the opposite: `engine/jobs.js` replaces a `block` verdict with
+  BLOCKED_REPLY and an `escalate` verdict with HELD_REPLY + a Review row, and the
+  module header states escalations "land in a human-review queue instead of
+  going out". Copying the reference would have silently downgraded the output
+  guardrail to an after-the-fact notification, against the track invariant
+  FEAT-081 states as "guardrails are added per-step, never bypassed". **Rick's
+  call:** stream SCREENED PREFIXES — deltas accumulate, the cheap deterministic
+  guardrails (`regex`/`contains`/`max_length`) run over the whole accumulated
+  buffer at sentence boundaries, and only passed text is released; `block` or
+  `escalate` halts generation mid-flight and releases nothing further.
+  `llm_judge` rules and the moderator screen stay on the final text (too
+  expensive per chunk) and can still retract via a `reset` event. **Second
+  call:** streaming is **assistant-channel only** — `/cortex/api/v1/cs/*` stays
+  buffered, because a held `cs` reply must not reach a customer before a human
+  reviews it. Cost of the safety: first visible text is a sentence rather than a
+  single token (measured at 0.19s live — see below).
+- **Resolution (in-review · 2026-07-29 · branch `s2614-feat090`):** all three ACs
+  met, live-verified against a real local model.
+  - **AC1 — incremental SSE, non-streaming unchanged.** `POST /cortex/api/v1/chat`
+    with `stream:true` answers `text/event-stream`
+    (`start`/`token`/`reset`/`done`/`error`/`cancelled`, 15s `:` keep-alives);
+    anything else — absent, `"true"`, `1` — keeps the byte-identical JSON
+    response. New `lib/llama.js#chatCompleteStream` speaks OpenAI SSE, reassembles
+    frames across network chunks, assembles tool-call deltas by index, and holds
+    the `withSlot` semaphore for the whole generation so a streamed call costs the
+    router exactly what a buffered one does.
+  - **AC2 — `/cortex` namespace with CA auth.** `services/cortex/src/sockets.js`
+    via `registerSockets(io)`, using the shared
+    `authenticateSocket({requiredPermissions:['write']})` — the same middleware the
+    gateway runs on `/_admin`. A second middleware rejects `CORTEX_DISABLED` when
+    flag-off, applied AFTER auth so a dark module is not an unauthenticated probe.
+    One generation per socket; `chat:cancel` and disconnect both abort.
+  - **AC3 — registry + docs.** `socketNs: null → ['/cortex']`
+    (**architect sign-off outstanding — the one gate left before this can close**);
+    `API_SURFACE.md` documents the SSE event table, the screened-prefix guarantee,
+    and the namespace, and notes `/cortex` as the authed-namespace pattern to
+    follow rather than the unauthenticated `live`/`moderator`/`ca` ones.
+  - **The compression gotcha, solved once at the source.** `src/gateway.js`'s
+    app-wide `compression()` now carries a filter skipping `text/event-stream`, so
+    any future SSE route on any module inherits it. Belt-and-braces per response:
+    `Cache-Control: no-transform`, `X-Accel-Buffering: no` (nginx), `flushHeaders()`.
+  - **Bug found and fixed during build (would have shipped broken):** SSE liveness
+    must be tracked on the RESPONSE, not the request. `req`'s `'close'` fires as
+    soon as a POST body is fully read — i.e. immediately — so the first
+    implementation marked every stream dead before the first token and never ended
+    the response. Pinned by two regression tests.
+  - **Tests:** +5 suites / +64 tests (cortex now **18 suites, 332 tests, all
+    green**) — `streamGuard` (release discipline, whole-buffer screening,
+    block/escalate halts, warn passes through), `llamaStream` (frame reassembly
+    incl. split frames, tool-call assembly, abort-is-not-an-availability-error,
+    slot release on failure), `streamingTurn` (guard wired through the real turn:
+    buffered/streamed parity, retract-on-verdict, Review still filed on escalate,
+    no `llm_judge` mid-stream), `chatStreaming` (opt-in, headers, event order,
+    the req-vs-res regression), `cortexSockets` (auth rejection, flag gate
+    ordering, cancel/disconnect, BUSY).
+  - **Live smoke (gateway on :8543, Ollama `qwen2.5:0.5b`, real CA bearer;
+    `:8080` is an LLM-Studio UI, not a router — which is what QA hit in 2026-13):**
+    buffered control 3.48s to first byte of reply; streamed **first screened text
+    at 0.19s**, then incremental through to `done` at 1.45s — so the compression
+    opt-out demonstrably works through the real gateway. **Guardrail halt verified
+    live:** with a `contains` block rule armed, the stream emitted **zero `token`
+    events**, sent `reset`, and delivered `status:blocked_output` with the canned
+    reply at 0.91s — the offending text never left the process. **Socket auth
+    verified live:** no token ⇒ `MISSING_TOKEN`, bogus token ⇒
+    `AUTHENTICATION_ERROR`, valid CA bearer ⇒ connected and streamed. All smoke
+    fixtures removed (guardrail deleted, 4 sessions + 8 messages purged; 0 residual).
+  - **SPA:** `web/src/lib/http.ts#streamSSE` (EventSource can't carry the bearer,
+    so the body reader is used) + `cortexApi.chatTurnStream`; `AssistantTab`
+    renders released text in a provisional bubble that honours `reset`. `tsc
+    --noEmit` clean, vitest 16/16.
+  - **Gates:** root `npm run lint` 0 errors (176 pre-existing warnings);
+    `npm run test:all` — auth/moderator/spark fail **identically at the
+    unmodified baseline** (verified by stashing the change and re-running), all
+    other modules green.
 
 ### FEAT-091 — Cortex: Exprsn-Cortex shape-compatible frontend API (reduced parity)
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B — auth/session parity cut)

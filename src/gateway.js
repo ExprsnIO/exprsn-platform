@@ -106,7 +106,18 @@ function buildGateway(loadedModules, logger) {
   }));
   const corsOrigin = resolveCorsOrigin(config.http.corsOrigin);
   app.use(cors({ origin: corsOrigin, credentials: true }));
-  app.use(compression());
+  // Never compress Server-Sent Events (FEAT-090). `text/event-stream` is
+  // `compressible`, so the default filter would buffer every frame in the gzip
+  // window and the client would see nothing until the stream ended — which
+  // looks exactly like a broken backend. The opt-out lives here, once, so any
+  // SSE route on any module inherits it rather than rediscovering the trap.
+  app.use(compression({
+    filter: (req, res) => {
+      const type = String(res.getHeader('Content-Type') || '');
+      if (type.startsWith('text/event-stream')) return false;
+      return compression.filter(req, res);
+    },
+  }));
 
   // Record request metrics for every route (incl. /health). Mounted before the
   // routes so the timer wraps the whole handler chain.

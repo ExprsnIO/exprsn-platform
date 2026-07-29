@@ -10,12 +10,23 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. No sprint currently in flight — **Sprint 2026-12 closed 2026-07-28
+> active sprint. No sprint currently in flight — **Sprint 2026-13 closed 2026-07-28
+> (6/6 done: FEAT-080 anchor + TASK-062, TASK-063, BUG-060, BUG-061, BUG-062;
+> merged to `main` @ `908e478`, archived at `archive/sprint-2026-13.md`)**. It
+> opened the C/B-approved Cortex agentic build-out foundations-first and cleared
+> the three bugs carried out of 2026-12; the `db:check` drift gate is green again.
+> New tickets from its build/QA, all P3, none blocking: BUG-064 (dev-boot
+> `sync({alter:true})` accretes duplicate constraints), BUG-065 (cortex jest
+> force-exit warning), BUG-066 (`__createdAtUs` alias leaks into cortex
+> message-history responses), BUG-067 (`to_char` ORDER BY defeats the
+> `created_at` index — dba glance). **Next-grooming carry-ins recorded in the
+> archived sprint file's close-out:** the standing QA-runtime debt table (six
+> items, unburned a third cycle) and the deferred Cortex-slate gates —
+> FEAT-078's ADR-0005 supersession sign-off and FEAT-093's dba infra pairing,
+> both explicitly slated to be fronted at 2027-01 grooming.
+> Sprint 2026-12 closed 2026-07-28
 > (6/6 done: TASK-057 anchor + BUG-058, BUG-055, TASK-055, TASK-059, TASK-060;
-> archived at `archive/sprint-2026-12.md`)**; new tickets from its build/QA:
-> BUG-060 (P2 spark suggestions leak, route stays shadowed), BUG-061 (P3 spark
-> socket-suite hang), BUG-062 (P2 db:check drift gate red at baseline, dba).
-> Sprint 2026-11 closed 2026-07-28
+> archived at `archive/sprint-2026-12.md`). Sprint 2026-11 closed 2026-07-28
 > (all tickets done + infra smoke passed); its fresh-DB P1s **BUG-056/BUG-057 were
 > hotfixed on `main` post-close** (`21db94c`/`475a74d`/`6cc99b6`/`965de75`,
 > live-verified) and are reconciled `done` below — BUG-058 rolled into 2026-12.

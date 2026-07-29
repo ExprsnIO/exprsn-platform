@@ -5650,7 +5650,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   `afterAll` closing the Sequelize connection — so its identical-looking warning
   is an unclosed handle, a different defect. Forcing it into this ticket would
   have meant an unrelated fix under a green-looking heading. **Filed separately
-  as BUG-068** so it is not lost.
+  as BUG-070** so it is not lost.
 - **QA verdict: PASS (2026-07-29, qa-specialist, `s2614-jr` @ `9eca06f`) → `done`.**
   - **Clean exit, three consecutive runs:** `cd services/cortex && npx jest` →
     13 suites / 273 tests passed, and **no** "A worker process has failed to exit
@@ -5680,6 +5680,16 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     but the ticket that was actually filed is **BUG-070** (renumbered for the
     same-day id collision noted in the sprint log). Left as written; the live
     ticket is BUG-070.
+- **Correction (2026-07-29, post-QA):** my recorded *cause* for the timeline half
+  was wrong, and QA caught it. I wrote that `services/timeline/tests/setup.js`
+  "has no `afterAll` closing the Sequelize connection" — it does, at lines 60–66.
+  I inferred that from a partial read rather than running
+  `--detectOpenHandles` (I had killed that run for being slow). The real cause is
+  **9 `TCPWRAP` handles from `shared/ipc/IPCWorker.js:35`**, which creates live
+  ioredis clients even with `REDIS_ENABLED=false`. The *decision* to split was
+  still correct — timeline's warning genuinely is not a leaked timer — but the
+  ticket carried a false diagnosis that would have sent the next developer to the
+  wrong file. BUG-070 now records the verified cause and fix shape.
 
 ### BUG-066 — cortex message-history responses leak the internal `__createdAtUs` keyset alias into the JSON body
 - **Type:** bug · **Status:** done (QA-verified 2026-07-29, branch `s2614-jr`) · **Priority:** P3 · **Size:** S

@@ -40,7 +40,7 @@
  *      silently drop the intentional one — breaking anything doing
  *      `ON CONFLICT ON CONSTRAINT`. Anything that fails this test is logged and
  *      left alone, which also makes this migration safe to reuse verbatim on
- *      schemas whose constraint names have not been audited (BUG-069).
+ *      schemas whose constraint names have not been audited (BUG-071).
  *
  * ── Locking ────────────────────────────────────────────────────────────────
  * `ALTER TABLE … DROP CONSTRAINT` takes ACCESS EXCLUSIVE — it blocks readers,

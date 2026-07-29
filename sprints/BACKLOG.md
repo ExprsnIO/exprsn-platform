@@ -3010,7 +3010,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   growth/retention (TASK-064's sweeper should cover it).
 
 ### FEAT-080 — Cortex: DB-backed agent definitions with run history + NL agent builder
-- **Type:** feature · **Status:** in-review (Sprint 2026-13; built 2026-07-28 on branch `s2613-sr`) · **Priority:** P2 · **Size:** L
+- **Type:** feature · **Status:** done (Sprint 2026-13; built 2026-07-28 on branch `s2613-sr`; QA PASS 2026-07-28 on `s2613-int` @ `632afbd`) · **Priority:** P2 · **Size:** L
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-entities` (M) + `agent-runs` (S) + `agent-builder-nl` (S)
 - **Cost/Benefit:** done — **APPROVE.** Keystone gating FEAT-081/082/091 + half of FEAT-095; new-tables-only. Condition: pin the enable gate as **deterministic spec validation + advisory smoke run** (LLM-judged tests on local models are flaky by construction); NL builder is a droppable tail. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
@@ -3065,6 +3065,25 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   probed cross-process (seed + run row readable from a second process);
   end-to-end run transcript needs the llama router up (`POST
   /agents/task/run` as any token holder, then `GET /agents/task/runs`).
+- **QA verdict (PASS · 2026-07-28 · qa-specialist, `s2613-int` @ `632afbd`):**
+  cortex jest 13 suites / 261 tests green (incl. agentSpec, personaParity,
+  agentsLifecycle); lint 0 errors; `db:check` exit 0 (new `cortex.agents` /
+  `agent_runs` tables vouched). Live against the gateway (worktree boot,
+  :8543): unauth GET agents 401; non-admin (fresh registered user) POST
+  /agents and /enable both 403; 3 personas seeded enabled (task/assistant/cs);
+  draft referencing a nonexistent tool saves as `draft` then `enable` fails
+  400 with named problem `tool not found: definitely_not_a_real_tool_xyz`;
+  run on the draft 409; advisory smoke 202 → run row queued → processed by a
+  separately-started `worker:cortex` (status/error/finished_at persisted) →
+  run retrievable by id via `GET /agents/task/runs[/:id]` from a genuinely
+  fresh gateway process (restart persistence proven); ledger response is
+  paginated (`total/limit/offset`). **Known gaps (recorded, non-blocking —
+  all deterministic ACs pass):** end-to-end real-LLM run and a live NL-build
+  draft save were not exercisable — the configured llmBaseUrl
+  (`http://127.0.0.1:8080/v1`) 404s on `/chat/completions` (no llama
+  router/Ollama running; not installed per QA policy). NL builder is covered
+  by route tests; live call failed gracefully (dev-mode error echo, upstream
+  named). Re-verify the run transcript once a model backend is up.
 
 ### FEAT-081 — Cortex: multi-step agent chaining engine (sequential, 8 step types)
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
@@ -3305,7 +3324,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   `services/ca/services/token.js` before build.
 
 ### TASK-062 — Cortex: inbound service-token HMAC auth
-- **Type:** task · **Status:** in-review (Sprint 2026-13; built 2026-07-28 on branch `s2613-sr`) · **Priority:** P2 · **Size:** S
+- **Type:** task · **Status:** done (Sprint 2026-13; built 2026-07-28 on branch `s2613-sr`; QA PASS 2026-07-28 on `s2613-int` @ `632afbd`) · **Priority:** P2 · **Size:** S
 - **Owner-role:** sr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `inbound-service-hmac` (S)
 - **Description:** Accept `X-Service-ID`/`X-Service-Token` HMAC so other modules
@@ -3334,6 +3353,16 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   fixed a latent `undefined !== null` ownership miscompare on
   `GET /tasks/:id`. QA path: `tests/routes/serviceAuth.test.js`;
   API_SURFACE.md documents the *or service HMAC* rows.
+- **QA verdict (PASS · 2026-07-28 · qa-specialist, `s2613-int` @ `632afbd`):**
+  `serviceAuth.test.js` green in the 261-test cortex run. Live on the
+  worktree gateway: `GET /api/v1/tasks` with a valid derived HMAC
+  (`X-Service-ID: timeline` + HMAC-SHA256(secret, id)) → 200; wrong token →
+  401 `INVALID_SERVICE_TOKEN`; service-id only (partial) → 401
+  `MISSING_SERVICE_CREDENTIALS` with no CA fallback; valid service HMAC on
+  the admin-only `POST /agents` → 401 `MISSING_TOKEN` (admin routes stay
+  CA-only, service identity never escalates). CA-bearer path regression-free
+  (all FEAT-080/TASK-063 live calls ran over CA bearers on the same routes).
+  API_SURFACE.md rows confirmed.
 
 ### FEAT-089 — Cortex: token admin UI in the SPA
 - **Type:** feature · **Status:** backlog · **Priority:** P3 · **Size:** S
@@ -3421,7 +3450,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   MCP shim over the existing JSON routes as a doc/example — zero platform code.
 
 ### TASK-063 — Cortex: keyset pagination on sessions/messages
-- **Type:** task · **Status:** in-review (Sprint 2026-13, fix landed `s2613-jr` @ `00a91ae`) · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** in-progress (Sprint 2026-13 — QA FAIL 2026-07-28: live cursor walks show dupes/gaps, see BUG-063; fix landed `s2613-jr` @ `00a91ae`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `keyset-pagination` (S)
 - **Description:** Cursor-based paging on session/message lists instead of
@@ -3478,6 +3507,22 @@ selection (do not re-propose blind): see the note in **Deferred** below.
     introduced by this ticket, out of scope to fix here); `npx tsc --noEmit`
     clean; `npm run web:build` clean; `npm run lint` clean (0 errors, same
     176 pre-existing warnings as the pre-ticket baseline).
+- **QA verdict (FAIL · 2026-07-28 · qa-specialist, `s2613-int` @ `632afbd`):**
+  failing AC bullet: *"walking cursors yields no dupes/gaps across a
+  concurrent insert."* Automated layer is green (unit + route suites, tsc,
+  lint) and the default call shape is unchanged (no-cursor `GET /chat`
+  returned all rows, keys `sessions`/`nextCursor`; malformed cursor is
+  treated as "no cursor" per the documented fail-safe, 200 page 1, no 500).
+  But a LIVE multi-page walk against seeded Postgres rows fails: a
+  12-session DESC walk at limit 5 returned only 10 unique sessions (2 rows
+  sharing a `created_at` silently dropped — gaps), and a 12-message ASC
+  history walk returned 14 items with 2 duplicates (boundary row repeated on
+  every "load more"). Root cause: the cursor's `createdAt` round-trips
+  through a JS `Date` (millisecond precision) while Postgres `timestamptz`
+  keys carry microseconds — the strict seek then re-matches (ASC) or skips
+  (DESC) rows inside the truncated millisecond; the unit suite can't see it
+  because JS Dates never carry µs. Filed as **BUG-063**; ticket back to
+  in-progress. Everything else about the implementation verified good.
 
 ### FEAT-093 — Cortex: pgvector embedding store
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
@@ -5071,7 +5116,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** jr-developer with sr review (org provisioning is the S1 façade surface).
 
 ### BUG-060 — spark `GET /api/messages/search/suggestions`: broken `getSuggestions` call signature + unscoped/un-S5-filtered DB fallback (cross-conversation content leak)
-- **Type:** bug · **Status:** in-review — MANDATORY SR REVIEW PENDING (Sprint 2026-13, fix landed `s2613-jr` @ `1d0a302`) · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** done (Sprint 2026-13; fix `s2613-jr` @ `1d0a302`, sr APPROVE w/ scope-cap amendment @ `632afbd`; QA PASS 2026-07-28) · **Priority:** P2 · **Size:** S
 - **Owner-role:** jr-developer, sr review mandatory at in-review (PM routing rec.) · **Blocked-by:** —
 - **Legacy:** — (found by sr-developer review of TASK-060, 2026-07-28, branch `s2612-jr`)
 - **Description:** Found during sr review of TASK-060 (extending the FEAT-070 S5
@@ -5180,9 +5225,18 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   segment) or `/:conversationId/search` (literal second segment) — order
   correct; scoping + S5 present on BOTH ES and DB-fallback paths; zero-scope
   short-circuit means neither backend is ever queried unscoped.
+- **QA verdict (PASS · 2026-07-28 · qa-specialist, `s2613-int` @ `632afbd`):**
+  independently re-ran the full spark suite: 8 suites / 123 tests green, incl.
+  all 7 suggestion tests in `blockEnforcement.routes.test.js` (reachable /
+  ES scoped to caller's conversations when `conversationId` omitted / 403 on
+  a non-participant `conversationId` / S5 filter on ES suggestions /
+  scoped+S5 DB fallback when ES throws / zero-conversation short-circuit /
+  the sr-amendment scope-cap test). Source-verified: route registered at
+  `messages.js:157` ahead of `/:conversationId/:messageId` (:262) and
+  `MAX_SUGGESTION_SCOPE = 500` in force. Lint 0 errors.
 
 ### BUG-061 — spark Jest full run never exits: `blockEnforcement.socket.test.js` leaves undetectable open handles
-- **Type:** bug · **Status:** in-review (Sprint 2026-13, fix landed `s2613-jr` @ `109bcfb`) · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done (Sprint 2026-13; fix `s2613-jr` @ `109bcfb`; QA PASS 2026-07-28 on `s2613-int` @ `632afbd`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (pre-existing; noted at the BUG-055 build 2026-07-28 as present on the
   pre-fix baseline; filed by QA at Sprint 2026-12 verification instead of being
@@ -5227,9 +5281,14 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   `--forceExit`, no "Jest did not exit" warning (was: indefinite hang, manual
   kill required). `npm run lint` clean (0 errors; 1 pre-existing unrelated
   warning at `socket/index.js:516`). Handed to qa-specialist for verification.
+- **QA verdict (PASS · 2026-07-28 · qa-specialist, `s2613-int` @ `632afbd`):**
+  independently re-ran `cd services/spark && npx jest` (no `--forceExit`
+  anywhere in the jest config): 8 suites / 123 tests green, wall-clock exit
+  ~0.6s after the Jest summary (11.0s total vs 10.4s test time), no "Jest did
+  not exit" warning — was an indefinite hang before the fix.
 
 ### BUG-062 — `db:check` is red on the live dev DB: 3 un-allowlisted NULLABILITY drifts on the moderation side tables
-- **Type:** bug · **Status:** in-sprint (Sprint 2026-13, committed 2026-07-28) · **Priority:** P2 (PM confirmed QA's recommendation at 2026-13 grooming — the drift gate must be green before the cortex new-table wave lands) · **Size:** S
+- **Type:** bug · **Status:** done (Sprint 2026-13; dba fix on `s2613-dba`, merged `3112613`; QA PASS 2026-07-28 on `s2613-int` @ `632afbd`) · **Priority:** P2 (PM confirmed QA's recommendation at 2026-13 grooming — the drift gate must be green before the cortex new-table wave lands) · **Size:** S
 - **Owner-role:** dba (root-cause + migrate-vs-allowlist call; a developer applies) · **Blocked-by:** —
 - **Legacy:** — (found 2026-07-28 during Sprint 2026-12 QA; pre-existing — identical findings and exit 1 on `main` @ `1cdc0ca` BEFORE the sprint branch)
 - **Description:** `npm run db:check` exits non-zero against the live `exprsn` DB with
@@ -5248,8 +5307,102 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** dba to root-cause (likely the moderation side-table sync/migration era —
   sync `db:migrate` cannot ALTER existing columns to NOT NULL) and choose
   migrate-vs-allowlist; then a developer applies it. Priority is a QA recommendation;
-  PM confirms at grooming.
+  PM confirms at grooming. Resolution detail (root cause = string-form
+  `foreignKey` injecting a second nullable attribute; migrate-to-NOT-NULL, no
+  allowlisting; duplicate-FK sweep added to timeline migration
+  `20260714000001`) is recorded in the Sprint 2026-13 progress log.
+- **QA verdict (PASS · 2026-07-28 · qa-specialist, `s2613-int` @ `632afbd`):**
+  `npm run db:check` exit 0, "No drift found", on the live dev `exprsn` DB
+  (the three NULLABILITY findings gone; only documented allowlist rows
+  report). Idempotency proven live: re-ran the timeline migration
+  `20260714000001` `up()` directly against the live DB — completes cleanly,
+  exactly one canonical `post_moderation_post_id_fkey` (ON DELETE CASCADE)
+  remains, `post_id` stays NOT NULL, and `db:check` is still exit 0 after.
+  Timeline jest 11 suites / 129 green; spark suite green (see BUG-061).
+  Related observation filed as BUG-064: the same duplicate-constraint
+  accretion family now shows on the new `cortex` tables via dev-boot
+  `sync({ alter: true })`.
 
+
+### BUG-063 — cortex keyset cursor truncates `createdAt` to milliseconds: live cursor walks duplicate (ASC) or drop (DESC) rows against Postgres µs timestamps
+- **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation — user-visible duplicate on effectively every "load more messages" boundary; silent row loss in session lists needs same-ms rows; PM confirms) · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist verifying TASK-063, Sprint 2026-13, `s2613-int` @ `632afbd`)
+- **Description:** `services/cortex/src/lib/keysetPagination.js` builds the seek
+  cursor from `new Date(row.createdAt).toISOString()` — a JS `Date`, i.e.
+  millisecond precision — while the Postgres `timestamptz` values it is compared
+  against carry microseconds. The strict seek (`createdAt > cursor` ASC /
+  `< cursor` DESC, tie-break on `id` at exact equality) then misbehaves for any
+  row whose `created_at` has a nonzero sub-millisecond component: ASC walks
+  re-match the page-boundary row (duplicate on every subsequent page), and DESC
+  walks skip rows that share the truncated millisecond with the cursor row
+  (gap — the row is silently unreachable via paging). The exact-equality
+  tie-break never fires live because the ms-truncated cursor never equals a µs
+  DB value. The unit suite (`tests/unit/keysetPagination.test.js`) cannot catch
+  this: JS Dates never carry µs, so in-memory fixtures behave perfectly.
+- **Steps to reproduce:** seed 12 `cortex.chat_sessions` for one user via SQL
+  (`now()`-derived timestamps; give 3 rows an identical `created_at`) and 12
+  `chat_messages` in one session, then walk `GET /cortex/api/v1/chat?limit=5`
+  (DESC) and `GET /cortex/api/v1/chat/:id?limit=5` (ASC) following `nextCursor`
+  to the end.
+- **Expected:** every row exactly once per walk. **Actual (QA run 2026-07-28):**
+  session walk returned 10 of 12 unique rows (2 same-ms rows dropped); message
+  walk returned 14 items with 2 duplicates (boundary row repeated at each of
+  the 2 page boundaries).
+- **Environment:** `s2613-int` @ `632afbd`, worktree gateway on :8543, live dev
+  `exprsn` DB (Docker Postgres 16), macOS local.
+- **Notes:** fix ideas (dev's call): compare on ms-truncated SQL expressions
+  (`date_trunc('milliseconds', created_at)` + widen the tie-break to
+  `>=`/`<=` at the truncated value with id filtering), or carry the exact µs
+  value in the cursor (encode the raw string via a CAST/raw attribute instead
+  of the JS Date). Blocks TASK-063 (returned to in-progress citing its
+  "no dupes/gaps" AC). Cross-ref: `services/cortex/src/lib/keysetPagination.js`
+  (`encodeCursor`/`seekWhere`), TASK-063 QA verdict.
+
+### BUG-064 — cortex dev-boot `sync({ alter: true })` accretes duplicate constraints on cortex tables every gateway start (`agents_name_key1..3`, tripled `agent_runs` FKs)
+- **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist at Sprint 2026-13 FEAT-080/BUG-062 verification; same defect family as the create-era `post_moderation_post_id_fkey1..5` residue BUG-062 swept)
+- **Description:** `services/cortex/src/index.js` `init()` runs
+  `db.sequelize.sync({ alter: true })` on every development boot. Sequelize's
+  alter-sync re-adds UNIQUE/FK constraints it does not recognize by name, so
+  each dev gateway start appends Postgres-suffixed duplicates. Observed live
+  after a handful of boots: `cortex.agents` has `agents_name_key` +
+  `agents_name_key1..3` (4 identical UNIQUE(name) constraints/indexes),
+  `cortex.agent_runs` has `agent_runs_agent_id_fkey` ×3, and
+  `cortex.chat_messages` has `chat_messages_session_id_fkey` ×2. Unbounded
+  growth (index bloat + slower writes), and `db:check` does not flag
+  duplicate constraints, so it accretes silently — exactly the family the
+  BUG-062 timeline sweep cleaned up on `post_moderation`.
+- **Steps to reproduce:** boot the gateway with `CORTEX_ENABLED=true` in
+  development N times → `\d cortex.agents` shows N-ish `agents_name_key*`
+  constraints.
+- **Expected:** exactly one constraint per model definition regardless of boot
+  count (drop alter-sync in favor of plain `sync()` + real migrations, or add
+  an idempotent duplicate sweep per the BUG-062 pattern).
+- **Environment:** `s2613-int` @ `632afbd`, live dev `exprsn` DB.
+- **Notes:** dba glance recommended on the chosen fix (constraint drops on a
+  live table). Cross-ref: BUG-062 resolution (duplicate-FK sweep in timeline
+  migration `20260714000001`), `services/cortex/src/index.js` init.
+
+### BUG-065 — cortex jest full run trips "worker did not exit gracefully" force-exit warning (pre-existing 5s `setTimeout` in `tests/unit/client.test.js`)
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (noted by sr-developer at the FEAT-080 build, filed by qa-specialist at Sprint 2026-13 verification per the BUG-055/061 no-silent-skip posture)
+- **Description:** the full cortex suite (13 suites / 261 tests, all green)
+  prints "A worker process has failed to exit gracefully and has been force
+  exited" — attributed at the FEAT-080 build to a pre-existing 5s `setTimeout`
+  in `tests/unit/client.test.js` (not introduced this sprint; present on the
+  unmodified TASK-063 baseline per that ticket's before/after check). Jest
+  itself exits (unlike BUG-061's spark hang) but the leaked timer forces a
+  worker kill on every run. The timeline suite prints the same warning class
+  (11 suites / 129 green) — sweep it in the same pass if the cause matches.
+- **Steps to reproduce:** `cd services/cortex && npx jest` → green summary +
+  the force-exit warning.
+- **Expected:** clean worker exit, no warning — `.unref()` or fake-timer the
+  test's timeout, matching the BUG-055/BUG-061 teardown posture.
+- **Environment:** `s2613-int` @ `632afbd`, macOS local.
+- **Notes:** test hygiene only; jr-suitable. Cross-ref: BUG-055, BUG-061.
 
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S

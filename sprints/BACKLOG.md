@@ -10,7 +10,10 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. No sprint currently in flight — **Sprint 2026-13 closed 2026-07-28
+> active sprint. **Sprint 2026-14 is in flight — see `active/sprint-2026-14.md`**
+> (committed 2026-07-28: FEAT-090 sr warm-up → FEAT-081 anchor, both C/B-approved
+> from the Cortex slate; BUG-066/064/065 on the jr track; BUG-067 dba-owned;
+> TASK-068/069/070 on the qa track). **Sprint 2026-13 closed 2026-07-28
 > (6/6 done: FEAT-080 anchor + TASK-062, TASK-063, BUG-060, BUG-061, BUG-062;
 > merged to `main` @ `908e478`, archived at `archive/sprint-2026-13.md`)**. It
 > opened the C/B-approved Cortex agentic build-out foundations-first and cleared
@@ -3097,7 +3100,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   named). Re-verify the run transcript once a model backend is up.
 
 ### FEAT-081 — Cortex: multi-step agent chaining engine (sequential, 8 step types)
-- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
+- **Type:** feature · **Status:** in-sprint (2026-14, anchor) · **Priority:** P2 · **Size:** M–L (reduced from L per C/B)
 - **Owner-role:** unassigned · **Blocked-by:** FEAT-080
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `agent-chaining` (L)
 - **Cost/Benefit:** done — **APPROVE-REDUCED (M/L).** Ship the sequential engine with 8 step types (`retrieve` as graceful no-op until FEAT-095); **defer the `parallel` step** to a follow-up — the single-resident-model semaphore serializes it anyway while it carries most of the failure-mode complexity. Full detail: `sprints/assessments/FEAT-078-082-cortex-models-agents-cost-benefit.md`.
@@ -3392,7 +3395,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
 - **Notes:** UI-only over FEAT-088's backend.
 
 ### FEAT-090 — Cortex: token streaming — SSE on chat + /cortex Socket.IO namespace
-- **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
+- **Type:** feature · **Status:** in-sprint (2026-14, sr warm-up) · **Priority:** P2 · **Size:** M
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** FEAT-021 deliberate exclusion (streaming was deferred at the port)
 - **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `sse-streaming` (M)
@@ -5460,7 +5463,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   showing a Sort node).
 
 ### BUG-064 — cortex dev-boot `sync({ alter: true })` accretes duplicate constraints on cortex tables every gateway start (`agents_name_key1..3`, tripled `agent_runs` FKs)
-- **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
+- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist at Sprint 2026-13 FEAT-080/BUG-062 verification; same defect family as the create-era `post_moderation_post_id_fkey1..5` residue BUG-062 swept)
 - **Description:** `services/cortex/src/index.js` `init()` runs
@@ -5486,7 +5489,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   migration `20260714000001`), `services/cortex/src/index.js` init.
 
 ### BUG-065 — cortex jest full run trips "worker did not exit gracefully" force-exit warning (pre-existing 5s `setTimeout` in `tests/unit/client.test.js`)
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (noted by sr-developer at the FEAT-080 build, filed by qa-specialist at Sprint 2026-13 verification per the BUG-055/061 no-silent-skip posture)
 - **Description:** the full cortex suite (13 suites / 261 tests, all green)
@@ -5505,7 +5508,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** test hygiene only; jr-suitable. Cross-ref: BUG-055, BUG-061.
 
 ### BUG-066 — cortex message-history responses leak the internal `__createdAtUs` keyset alias into the JSON body
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist at the BUG-063 re-verdict, Sprint 2026-13, `s2613-int` @ `9089886`)
 - **Description:** BUG-063's fix adds a raw µs-precision sort key to the
@@ -5528,7 +5531,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   Cross-ref: BUG-063, TASK-063, `services/cortex/src/routes/chat.js` + `cs.js`.
 
 ### BUG-067 — cortex keyset `ORDER BY to_char(created_at …)` cannot use the `(session_id, created_at)` index — every page sorts the full match set
-- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned (dba glance) · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist at the BUG-063 re-verdict, Sprint 2026-13, `s2613-int` @ `9089886`)
 - **Description:** BUG-063's fix orders and seeks on the expression
@@ -5571,6 +5574,120 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** dba glance on the query; jr-developer.
 
 ## Tasks
+
+> **QA-runtime debt converted to tickets (2026-07-28, at the Sprint 2026-13
+> close).** TASK-065…TASK-070 below are the six items that had been carried as a
+> free-text "standing QA-runtime debts" table in the sprint files since the
+> 2026-10 close. They rolled three consecutive cycles unburned because a footnote
+> table is not schedulable — no id, no size, no priority, so the PM could never
+> commit them and QA always deprioritized them against committed tickets (the
+> documented and correct call each time). Owner decision at the 2026-13 close:
+> **file them properly and schedule them.** The table is retired; these tickets
+> replace it. TASK-068/069/070 are committed into Sprint 2026-14.
+
+### TASK-065 — `/admin` keyboard-only walkthrough (full click-path a11y pass)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** M
+- **Owner-role:** qa-specialist · **Blocked-by:** —
+- **Legacy:** standing QA-runtime debt, deferred since the 2026-10 close
+- **Description:** Walk the entire `/admin` surface keyboard-only — every
+  section and tab, every dialog open/close, every DataTable sort/filter/row
+  activation — and record what is unreachable, what traps focus, and what has no
+  visible focus ring. `/admin` grew substantially through TASK-039's restructure
+  and the later builder UIs (moderation rules/workflows/queues, lowcode studio,
+  Live RoomPanel) without a keyboard pass.
+- **Acceptance criteria:**
+  - Every interactive control in `/admin` is reachable and operable by keyboard
+    alone; no focus trap outside an intentionally modal dialog (which must
+    return focus to its trigger on close).
+  - Findings filed as individual `BUG` tickets with the section + control named;
+    this ticket is the audit, not the fixes.
+- **Notes:** Pairs naturally with BUG-051/052/053 (the P3 a11y residue that has
+  also rolled repeatedly) — consider working them as one a11y mini-theme.
+
+### TASK-066 — Dark-theme visual spot-check across chips/buttons/surfaces
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** qa-specialist · **Blocked-by:** —
+- **Legacy:** standing QA-runtime debt, opened after BUG-048/049/050
+- **Description:** Verify chips, buttons, and elevated surfaces render correctly
+  in **both** themes after the BUG-048/049/050 fixes. The Exprsn Unified design
+  system drives light/dark from `--exprsn-*` tokens plus `data-theme`; regressions
+  there are invisible in whichever theme the developer happened to be using.
+- **Acceptance criteria:**
+  - Each primary surface (timeline, spark, groups, filevault, live, `/admin`,
+    `/cortex`) checked in light and dark; contrast failures and token-miss
+    fallbacks recorded with screenshots.
+  - Findings filed as individual `BUG` tickets; this ticket is the sweep.
+
+### TASK-067 — Live avatar-upload end-to-end verification (+ the fail-closed 404-until-cleared UX call)
+- **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** qa-specialist · **Blocked-by:** — (unblocked by the BUG-057 hotfix)
+- **Legacy:** standing QA-runtime debt, unblocked at the 2026-11 close
+- **Description:** Run the avatar/cover upload path end to end now that BUG-057
+  is hotfixed on `main`: upload → moderation → display → replace → remove,
+  including TASK-055's capability-token revoke and superseded-file reap.
+- **Acceptance criteria:**
+  - Full replace/remove cycle verified live; the superseded file is reaped and
+    its minted token revoked (403 on the old URL).
+  - **Open product question answered and recorded:** images are fail-closed per
+    the FEAT-009 policy, so a freshly uploaded avatar 404s until moderation
+    clears it. Confirm whether that is the intended UX or whether it needs a
+    pending-state placeholder — if the latter, file the `FEAT`.
+- **Notes:** The UX question is the real deliverable here; the E2E is the
+  cheap part. Cross-ref: BUG-057, TASK-055, FEAT-009 policy note.
+
+### TASK-068 — Verify spark block enforcement over the **socket** send path
+- **Type:** task · **Status:** in-sprint (2026-14) · **Priority:** P2 · **Size:** S
+- **Owner-role:** qa-specialist · **Blocked-by:** —
+- **Legacy:** standing QA-runtime debt — FEAT-070's smoke covered REST only
+- **Description:** FEAT-070's block/mute enforcement was smoke-verified over the
+  REST send path only. The socket namespace is a second, independent send path
+  into the same conversation surface, and it is the one the SPA actually uses for
+  live sends — an enforcement gap there is a real block-bypass, not a test gap.
+- **Acceptance criteria:**
+  - A blocked pair attempting a send over the spark socket namespace is rejected
+    (403-equivalent error event, message not persisted, not delivered).
+  - The S5 suppressed-sender filter applies to socket-delivered messages the same
+    way it applies on the REST read paths.
+  - If enforcement is missing or partial on the socket path, file a `BUG` at P1/P2
+    per impact — do not fix it under this ticket.
+- **Notes:** **Priority raised P3 → P2 at filing** — this is the one item in the
+  retired debt table with a plausible security impact rather than hygiene or
+  polish, and it has been deferred three cycles. BUG-061's teardown fix makes the
+  socket suite pleasant to run now. Cross-ref: FEAT-070, BUG-060, BUG-061.
+
+### TASK-069 — Re-run auth `oauth2.test.js` (env-limited skip from the 2026-10 closeout)
+- **Type:** task · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
+- **Owner-role:** qa-specialist · **Blocked-by:** —
+- **Legacy:** standing QA-runtime debt — skipped at the 2026-10 closeout for missing infra
+- **Description:** The suite was skipped because the infra it needs wasn't up.
+  Postgres and Redis have been running as containers since; the skip has outlived
+  its reason.
+- **Acceptance criteria:**
+  - Suite runs against the isolated `exprsn_auth_test` DB (never the real
+    `exprsn`) and its result is recorded — green, or each failure filed as a
+    `BUG` and cross-linked to the auth stabilization backlog.
+  - If it is still genuinely env-blocked, the specific missing dependency is
+    named in the ticket rather than "env-limited".
+- **Notes:** Belongs to the known auth pre-existing-failure backlog (STATUS.md
+  #9 note) — a red result is an acceptable, informative outcome here.
+
+### TASK-070 — Sweep QA fixture residue (clean or document as durable)
+- **Type:** task · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
+- **Owner-role:** qa-specialist · **Blocked-by:** —
+- **Legacy:** standing QA-runtime debt, plus new residue from the 2026-13 verification
+- **Description:** Accumulated verification fixtures across the dev DB need a
+  decision each: delete, or document as intentionally durable. Known residue:
+  the smoke-report `qa-smoke-a`/`qa-smoke-b` users, their conversation, the
+  revoked-token fixture, the `exprsn_spark_test` DB, and from the 2026-13 close —
+  the failed smoke run `run-1785283486-e4f76a` on the task persona's agent ledger
+  and the non-admin user `qa2613@exprsn.io`.
+- **Acceptance criteria:**
+  - Every listed fixture is either removed or recorded in a durable-fixtures list
+    with the reason it must persist; no undocumented residue remains.
+  - The durable list lives somewhere QA will actually find it next cycle.
+- **Notes:** Cheap, and it stops each cycle's verification from silting up the
+  dev DB. Worth doing before the RAG track starts writing embeddings.
+
 - **Resolution (done · 2026-07-28 · commit `b2d3925`):** Both assertions updated to the
   3-arg shapes as POSITIVE provenance assertions (`{sharedAsOwner:true}` /
   `ownerSharedIds` containment); `STRIPE_SECRET_KEY` guard added matching sibling live

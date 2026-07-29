@@ -3450,7 +3450,7 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   MCP shim over the existing JSON routes as a doc/example — zero platform code.
 
 ### TASK-063 — Cortex: keyset pagination on sessions/messages
-- **Type:** task · **Status:** in-progress (Sprint 2026-13 — QA FAIL 2026-07-28: live cursor walks show dupes/gaps, see BUG-063; fix landed `s2613-jr` @ `00a91ae`) · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** in-review (BUG-063 fix landed `s2613-int` @ `9089886` — resubmitting for the "no dupes/gaps" AC re-verdict) · **Priority:** P3 · **Size:** S
 - **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — · **Proposal:** `sprints/proposals/cortex-feature-plan.md` — covers `keyset-pagination` (S)
 - **Description:** Cursor-based paging on session/message lists instead of
@@ -3523,6 +3523,16 @@ selection (do not re-propose blind): see the note in **Deferred** below.
   (DESC) rows inside the truncated millisecond; the unit suite can't see it
   because JS Dates never carry µs. Filed as **BUG-063**; ticket back to
   in-progress. Everything else about the implementation verified good.
+- **Re-submission (in-review · 2026-07-28 · commit `9089886`, branch
+  `s2613-int`):** BUG-063 fixed — see its own resolution note for the
+  root-cause/fix detail. The seek key now runs on a raw µs-precision TEXT
+  expression end to end (never a JS Date), re-verified live against seeded
+  Postgres rows including same-millisecond/different-microsecond pairs (the
+  exact shape that failed QA's original walk): 15/15 unique, 0 missing, 0
+  duplicates, both directions. Full cortex suite 13/13 suites, 268/268
+  tests; `npm run lint` 0 errors. Resubmitting for the "no dupes/gaps across
+  a concurrent insert" AC re-verdict — everything else in the ticket was
+  already confirmed good at the first QA pass.
 
 ### FEAT-093 — Cortex: pgvector embedding store
 - **Type:** feature · **Status:** backlog · **Priority:** P2 · **Size:** M
@@ -5325,8 +5335,8 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 
 
 ### BUG-063 — cortex keyset cursor truncates `createdAt` to milliseconds: live cursor walks duplicate (ASC) or drop (DESC) rows against Postgres µs timestamps
-- **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation — user-visible duplicate on effectively every "load more messages" boundary; silent row loss in session lists needs same-ms rows; PM confirms) · **Size:** S
-- **Owner-role:** unassigned · **Blocked-by:** —
+- **Type:** bug · **Status:** in-review (fix landed `s2613-int` @ `9089886`) · **Priority:** P3 (QA recommendation — user-visible duplicate on effectively every "load more messages" boundary; silent row loss in session lists needs same-ms rows; PM confirms) · **Size:** S
+- **Owner-role:** jr-developer · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist verifying TASK-063, Sprint 2026-13, `s2613-int` @ `632afbd`)
 - **Description:** `services/cortex/src/lib/keysetPagination.js` builds the seek
   cursor from `new Date(row.createdAt).toISOString()` — a JS `Date`, i.e.
@@ -5358,6 +5368,50 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   of the JS Date). Blocks TASK-063 (returned to in-progress citing its
   "no dupes/gaps" AC). Cross-ref: `services/cortex/src/lib/keysetPagination.js`
   (`encodeCursor`/`seekWhere`), TASK-063 QA verdict.
+- **Resolution (in-review · 2026-07-28 · commit `9089886`, branch `s2613-int`):**
+  Took the "carry the exact µs value" fix idea, generalized: the seek key
+  never touches a JS Date at all, anywhere. New `createdAtUsAttribute()`
+  selects `to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US')`
+  — a fixed-width, UTC, µs-precision TEXT projection — alongside the existing
+  attributes in `chat.js`/`cs.js`'s `ChatSession`/`ChatMessage.findAll` calls.
+  `seekWhere`/`keysetOrder` compare/sort on that same raw expression via
+  `sequelize.where(literal(expr), ...)` (both the WHERE seek and the ORDER BY
+  use the identical expression now — they can never disagree). The cursor's
+  `createdAtUs` field is a plain string carried through byte-for-byte;
+  `encodeCursor`/`decodeCursor` never call `new Date(...)` anywhere in the
+  file. Cursor field renamed `createdAt` -> `createdAtUs` (opaque per the AC)
+  so a pre-fix cursor degrades gracefully to "no cursor" (page 1) rather than
+  silently misbehaving.
+  - Default call shape, malformed-cursor fail-safe, and cursor opacity all
+    unchanged (verified by test + inspection).
+  - **Tests:** `tests/unit/keysetPagination.test.js` reworked for the new
+    `seekWhere`/`keysetOrder`/attribute shape + 2 new regression cases (a
+    DESC and an ASC full walk over rows sharing an identical millisecond but
+    differing microseconds — the exact QA repro shape, represented as plain
+    strings so the test doesn't need a live Postgres connection to prove the
+    logic itself never round-trips through a Date) + an explicit "µs value
+    preserved exactly, never Date-coerced" assertion.
+    `tests/routes/chatPagination.test.js` reworked the same way at the route
+    level (order/attributes/where assertions updated to the µs-expression
+    shape) plus the same same-ms/different-µs walk for both `GET /chat` and
+    `GET /chat/:id`.
+  - **Live verification (throwaway script against the real dev Postgres, not
+    committed):** seeded 15 `cortex.chat_sessions` rows (9 distinct
+    timestamps + 3 same-millisecond/different-microsecond pairs, one member
+    each at `.xxx100`/`.xxx900` within the shared millisecond) and 15
+    `cortex.chat_messages` rows in one session with the same shape, then
+    walked DESC (sessions) / ASC (messages) at `limit=5` through the actual
+    `fetchKeysetPage` + `ChatSession`/`ChatMessage.findAll` query path (same
+    code the routes call, real Postgres, real driver) — **15/15 unique, 0
+    missing, 0 duplicates in both directions.** Same-ms pairs correctly
+    ordered by microsecond (e.g. DESC visited `.xxx900` before `.xxx100`
+    within a shared millisecond) and both members survived. All seeded rows
+    deleted afterward; confirmed 0 residual rows post-cleanup.
+  - **Verified:** full cortex suite 13/13 suites, 268/268 tests (same
+    pre-existing "worker did not exit gracefully" warning noted at TASK-063 —
+    still present, still unrelated, still out of scope); `npm run lint` 0
+    errors (same 176 pre-existing warnings baseline).
+  - Unblocks TASK-063 — see its own resolution note for the re-verdict ask.
 
 ### BUG-064 — cortex dev-boot `sync({ alter: true })` accretes duplicate constraints on cortex tables every gateway start (`agents_name_key1..3`, tripled `agent_runs` FKs)
 - **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S

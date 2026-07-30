@@ -7078,6 +7078,62 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   TASK-071, BUG-064, `services/cortex/src/models/index.js` (ChatMessage,
   AgentRun, and the two association declarations).
 
+### BUG-079 — Exprsn's RabbitMQ is unreachable from the host: the running container publishes no ports and host `:5672` belongs to a different project's broker
+- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** unassigned (dba glance on the queue topology) · **Blocked-by:** —
+- **Legacy:** — (surfaced during an infrastructure survey at the BUG-067 QA pass, 2026-07-30; **diagnosis corrected on verification — see below**)
+- **Description:** Every host-run Exprsn RabbitMQ flow currently cannot connect.
+  Verified facts:
+  1. The running `exprsn-rabbitmq` container has a **malformed** port binding —
+     `docker inspect` shows `PortBindings: map[5672/tcp:[{invalid IP 5672}]
+     15672/tcp:[{invalid IP 15672}]]` — so it publishes **nothing** on the host
+     (`docker port exprsn-rabbitmq` is empty; `docker ps` shows bare
+     `5672/tcp, 15672/tcp`).
+  2. The current `docker-compose.yml` is **correct** — `docker compose config`
+     renders `published: "5672", target: 5672`. So the *running* container
+     (created 2026-07-28) has drifted from the spec; this is not a compose bug.
+  3. Host `:5672` is owned by **`llm-studio-rabbitmq-1`**, an unrelated project's
+     broker (up 5 days), whose only user is `llmstudio`.
+  4. `.env` points Exprsn at `RABBITMQ_HOST=localhost`, `RABBITMQ_PORT=5672`,
+     `RABBITMQ_USER=exprsn`.
+- **It fails CLOSED, not silently — the initial report had this backwards.** The
+  survey flagged this as Exprsn messages "landing in the wrong cluster", i.e.
+  silent cross-project corruption. That is **not** what happens: an actual
+  `amqplib` connect with the real `.env` credentials returns
+  **`403 ACCESS-REFUSED`** ("Login was refused"), because the broker that owns
+  host `:5672` has no `exprsn` user. So the failure is loud and no Exprsn
+  message can reach LLM-Studio's cluster. Recorded explicitly because the
+  difference matters for triage: this is broken-and-obvious, not
+  working-but-wrong.
+- **Impact:** any rabbit-backed flow started from the host cannot connect —
+  moderator queue buckets + per-bucket consumers/DLQ, the prefetch rabbit
+  backend, atproto DID dead-lettering, and `worker:live`'s ffmpeg
+  fanout/recording. All of these are documented in `CLAUDE.md` as working, so the
+  gap is between docs and the running environment rather than in the code.
+  Secondary: `docker compose up -d --force-recreate rabbitmq` would now **fail to
+  bind** `:5672` because of the collision, so the obvious remedy makes it worse.
+- **Steps to reproduce:** `docker port exprsn-rabbitmq` (empty) ·
+  `docker ps --format '{{.Names}}\t{{.Ports}}' | grep 5672` (llm-studio owns the
+  host mapping) · connect with amqplib using `.env`'s credentials → 403.
+- **Expected:** Exprsn's broker is reachable at the configured host/port, and no
+  host-port collision exists with co-resident stacks.
+- **Notes on the fix (dba's call):** `RABBITMQ_PORT` is already parameterised
+  (`"${RABBITMQ_PORT:-5672}:5672"`), so the cheapest correct fix is a
+  **non-colliding host port** in `.env` (e.g. `5673`) plus a container recreate;
+  the alternative is running the workers inside the compose network so they
+  resolve `exprsn-rabbitmq` by service name and no host publishing is needed.
+  Whichever is chosen, note that `exprsn-rabbitmq` also currently reports
+  **unhealthy**, which should be diagnosed in the same pass rather than assumed
+  to be a side effect. **This will silently invalidate the next queue-path
+  verification if it is not fixed or deliberately understood first** — a QA pass
+  that "confirms queues work" against an unreachable broker proves nothing.
+- **Also observed in the same survey (not defects, recorded for whoever picks
+  this up):** no Exprsn Bull workers are running on the box at all, so anything
+  queue-backed on the shared `:8443` gateway will accept a job and never
+  complete it; and `:8080` is LLM-Studio's UI, which is why
+  `CORTEX_LLM_BASE_URL` must point at `:11434` — `main`'s committed `.env` still
+  points at `:8080` and 404s on `/v1/chat/completions`.
+
 ### BUG-078 — cortex keyset cursor: the `id` half is never validated, so a tampered cursor 500s on the message-history routes instead of failing safe to page 1
 - **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —

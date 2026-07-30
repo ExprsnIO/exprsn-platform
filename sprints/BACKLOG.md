@@ -6437,15 +6437,59 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     `user_id IS NULL` still sorts — an `IS NULL` on a middle index column does
     not fix pathkeys for the trailing ones. The scan stays index-bounded and
     `caRead` means `req.userId` is set in practice; a partial index is the fix
-    if that changes. `chat.js`'s session list also uses `include … separate:true`
-    and selects `skills`/`model`, so expect `Index Scan` rather than
-    `Index Only Scan` there — the absence of `Sort` is what matters.
+    if that changes. **all three** routes are `Index Scan`, not
+    `Index Only Scan` — the real select lists carry
+    `role`/`content`/`status`/`model`/`skills`, so heap access is unavoidable
+    everywhere here, not just where `chat.js` uses `include … separate:true`.
+    (Corrected at the dba sign-off — the original wording blamed `separate:true`
+    for something simply true of every route.) Heap access is bounded by the
+    `LIMIT`, which is the whole win; the absence of `Sort` is what matters.
   - **Production note in the migration header:** dev tables are tiny so plain
     `CREATE INDEX` is used; a non-trivial deployment wants
     `CREATE INDEX CONCURRENTLY` outside any transaction, which is why the
     migration opens none.
 - **Next:** routed back to the **dba for data sign-off** (items 1–3) before QA,
   per their ruling.
+- **dba data sign-off: PASS (2026-07-30), items 1-3 verified independently.**
+  They re-ran all three themselves rather than accept my summary, and **closed a
+  gap neither my tests nor their own ruling had covered**: every `EXPLAIN` in the
+  chain up to that point — mine and theirs — was against **hand-written SQL**,
+  and because the cortex tests are fully mocked, nothing had verified that
+  *Sequelize's actual generated SQL* preserves the plan. That was the one link
+  that mattered. Their harness (`scratchpad/realsql.js`) drives the **real models
+  + real `fetchKeysetPage`**, captures the emitted SQL, and EXPLAINs that exact
+  string. All three route shapes pass: `Index Scan [Backward]` on the correct
+  index each time, full `ROW(created_at, id)` cond, **no `Sort`, no
+  `Incremental Sort`**.
+  - **Applied from the sign-off:** (1) a note in `keysetOrder` recording that
+    Sequelize renders the first ORDER BY term as the output *alias* and the
+    second as the qualified column, while the seek uses `("created_at","id")` —
+    so the identical-key invariant holds via alias resolution rather than
+    textually. Verified benign: all four spellings produce identical plans, and
+    any future divergence would be a hard Postgres ambiguity **error**, not
+    silent wrongness. Recorded precisely because it looks like a bug at review
+    and someone would otherwise "fix" it blind. (2) Two `down()` header notes —
+    on a fresh DB it creates prefixes that never existed (so it is not a strict
+    inverse there), and **correctness never depended on these indexes**, so a
+    failed rollback must not be misread as a data-integrity event. (3) Migration
+    renamed `20260730000001` → `20260729000003` to match its siblings and avoid
+    a future-dated filename.
+  - **`down()` approved as written** — create-before-drop is the correct
+    ordering; unlike BUG-064's no-op there is a meaningful inverse here.
+  - **`escape` confirmed as the right shape, and required:** `literal` never
+    binds; `where()`/`Op` cannot express a `ROW(...)` left-hand side, so no
+    operator-level form yields an Index Cond; `replacements` on `findAll`
+    substitutes client-side with the *same* escaper (zero safety gain); true
+    server-side binds exist only on `sequelize.query`, not `Model.findAll`.
+  - **Benchmark DB `exprsn_bug067` dropped** at the dba's instruction. It was
+    kept only so they could inspect the plans first-hand (which is how item 3
+    got extended), but an unlabelled non-test database alongside `exprsn`,
+    `exprsn_auth_test` and `exprsn_spark_test` violates the rule that
+    force-sync suites must never find an ambiguous target. **Follow-up recorded,
+    not filed as a stray artifact:** if repeatable perf verification is wanted,
+    it belongs as a scripted seeder attached to **TASK-071**'s cortex
+    `db:check` coverage.
+  - **Status: data aspects signed off → hand to qa-specialist.**
 ### BUG-068 — cortex streaming transports bypass the module error handler's production redaction (SSE `error` / `chat:error` echo raw upstream errors)
 - **Type:** bug · **Status:** in-review (branch `s2614-feat090`) · **Priority:** P2 (QA recommendation; PM confirms at grooming) · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —

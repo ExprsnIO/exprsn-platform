@@ -46,6 +46,19 @@
  * why nothing here opens one.
  *
  * Idempotent both ways (`IF NOT EXISTS` / `IF EXISTS`).
+ *
+ * ── Notes on `down()` (dba, 2026-07-30) ───────────────────────────────────
+ * It recreates the two prefix indexes BEFORE dropping the composites, so a
+ * rollback never leaves paging with no usable index. Two caveats:
+ *
+ *   - On a FRESH database the prefixes never existed — sync creates only the
+ *     composites from the model definitions — so `down()` there CREATES two
+ *     indexes that were never present. Harmless, but it means `down()` is not a
+ *     strict inverse on that path.
+ *   - **Correctness never depended on these indexes.** A DB-only rollback
+ *     against the new code still returns correct pages; it just reintroduces an
+ *     `Incremental Sort`. Stated explicitly so a failed rollback is not
+ *     misread as a data-integrity event.
  */
 
 const SCHEMA = 'cortex';

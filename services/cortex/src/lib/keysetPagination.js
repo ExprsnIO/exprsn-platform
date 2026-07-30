@@ -164,6 +164,16 @@ function seekWhere(cursor, direction, escape) {
  */
 function keysetOrder(direction) {
   const dir = direction === 'asc' ? 'ASC' : 'DESC';
+  // NOTE (dba, verified 2026-07-30): Sequelize renders these as
+  // `ORDER BY "createdAt" ASC, "ChatMessage"."id" ASC` — the first term as the
+  // output ALIAS, the second as the qualified physical column — while the seek
+  // in `seekWhere` uses `("created_at", "id")`. That asymmetry is real but
+  // BENIGN: the alias projects the raw column, all four spellings
+  // ('createdAt', 'created_at', col(), literal()) produce identical plans, and
+  // any future divergence (e.g. a join projecting a second `createdAt`) would be
+  // a hard Postgres ambiguity ERROR, not silent wrongness. Left as-is
+  // deliberately — it looks like a bug at review and is not one, so do not
+  // "fix" it blind.
   return [['createdAt', dir], ['id', dir]];
 }
 

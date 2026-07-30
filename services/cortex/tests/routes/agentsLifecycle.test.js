@@ -214,15 +214,37 @@ describe('FEAT-080 agents lifecycle over REST', () => {
       .toMatch(/tool not found: ghost-tool.*model not resolvable on the router: ghost-13b/);
   });
 
-  test('non-empty steps pass save but fail the gate (FEAT-081 posture)', async () => {
+  test('a valid multi-step spec saves AND enables (FEAT-081)', async () => {
+    const save = await request(app).post('/api/v1/agents').set(ADMIN)
+      .send({ ...SPEC, name: 'chained', model: null, tools: null, skills: [],
+              steps: [
+                { type: 'prompt', prompt: 'Draft: {{input}}', as: 'draft' },
+                { type: 'transform', op: 'trim', value: '{{draft}}', as: 'clean' },
+              ] });
+    expect(save.status).toBe(200);
+    expect((await request(app).post('/api/v1/agents/chained/validate').set(ADMIN)).status).toBe(200);
+    const enabled = await request(app).post('/api/v1/agents/chained/enable').set(ADMIN);
+    expect(enabled.status).toBe(200);
+    expect(enabled.body).toEqual({ enabled: 'chained' });
+  });
+
+  test('a `parallel` step saves but cannot be enabled until FEAT-096', async () => {
+    // The forward-compatibility contract: authoring stays open, running does not.
     const save = await request(app).post('/api/v1/agents').set(ADMIN)
       .send({ ...SPEC, name: 'stepped', model: null, tools: null, skills: [],
-              steps: [{ type: 'parallel' }] });
-    expect(save.status).toBe(200); // drafts may hold step-bearing specs
+              steps: [{ type: 'parallel', steps: [{ type: 'prompt', prompt: 'a' }] }] });
+    expect(save.status).toBe(200); // drafts may hold deferred step types
     const res = await request(app).post('/api/v1/agents/stepped/enable').set(ADMIN);
     expect(res.status).toBe(400);
-    expect(res.body.problems)
-      .toContain('multi-step agent specs are not yet supported (FEAT-081)');
+    expect(res.body.problems.join('; '))
+      .toMatch(/not yet supported \(deferred to FEAT-096\)/);
+  });
+
+  test('a malformed step is refused at SAVE, not deferred to the gate', async () => {
+    const save = await request(app).post('/api/v1/agents').set(ADMIN)
+      .send({ ...SPEC, name: 'badsteps', steps: [{ type: 'prompt' }] });
+    expect(save.status).toBe(400);
+    expect(String(save.body.error)).toMatch(/steps\[0\]\.prompt: required/);
   });
 
   test('delete: refused while runs exist; clean agents delete', async () => {

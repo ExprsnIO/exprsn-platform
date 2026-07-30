@@ -98,7 +98,17 @@ describe('cortex client — enabled path', () => {
     await withEnv({ CORTEX_ENABLED: 'true' }, async () => {
       await jest.isolateModulesAsync(async () => {
         jest.doMock(AGENT, () => ({
-          simpleChat: () => new Promise((resolve) => setTimeout(() => resolve('too late'), 5000)),
+          // BUG-065: the point of this stub is that it NEVER resolves within the
+          // client's timeout — so the 5s timer is dead weight the moment the
+          // assertion passes, and left referenced it kept the jest worker alive
+          // past the run ("worker process has failed to exit gracefully").
+          // .unref() lets the process exit while the promise stays pending,
+          // which is exactly the behaviour under test. Same posture as
+          // BUG-055/BUG-061.
+          simpleChat: () => new Promise((resolve) => {
+            const t = setTimeout(() => resolve('too late'), 5000);
+            if (typeof t.unref === 'function') t.unref();
+          }),
           judge: jest.fn(),
         }));
         const client = require(CLIENT);

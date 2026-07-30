@@ -90,7 +90,21 @@ async function init() {
   try {
     await db.sequelize.authenticate();
     if (config.env === 'development') {
-      await db.sequelize.sync({ alter: true });
+      // BUG-064: plain sync, NOT sync({ alter: true }).
+      //
+      // Alter-sync re-adds UNIQUE/FK constraints it cannot match by name, so
+      // every dev gateway start appended a Postgres-suffixed duplicate —
+      // `agents_name_key1..15`, `chat_messages_session_id_fkey1..20` and so on,
+      // growing without bound. `db:check` inspects columns and indexes, not
+      // duplicate constraints, so it accreted silently. Same defect family as
+      // the `post_moderation_post_id_fkey1..5` residue BUG-062 swept.
+      //
+      // Plain sync still creates missing tables on a fresh DB, which is all
+      // dev boot needs. It does NOT add columns to existing tables — but
+      // neither does the repo's `npm run db:migrate` (it is sync-based too), so
+      // this does not remove a capability anyone had: a new column has always
+      // required running a migration's up() directly.
+      await db.sequelize.sync();
     }
     initCache();
     initQueues();

@@ -314,3 +314,70 @@ describe('fetchKeysetPage', () => {
     expect(seen).toEqual(rows.map((r) => r.id));
   });
 });
+
+describe('BUG-066 — the internal keyset alias never reaches a client', () => {
+  const { stripKeysetAlias, CREATED_AT_US_ALIAS } = require('../../src/lib/keysetPagination');
+
+  /** A stand-in for a Sequelize instance: the alias lives in dataValues and
+   * res.json() serializes from there. */
+  function fakeInstance(id, us) {
+    const dataValues = { id, content: 'hi', [CREATED_AT_US_ALIAS]: us };
+    return {
+      dataValues,
+      id,
+      get(k) { return k === undefined ? dataValues : dataValues[k]; },
+      toJSON() { return { ...dataValues }; },
+    };
+  }
+
+  it('strips the alias from a Sequelize-shaped row so toJSON() omits it', () => {
+    const row = fakeInstance('m1', '2026-07-29T03:00:01.000011');
+    expect(row.toJSON()).toHaveProperty(CREATED_AT_US_ALIAS);
+    stripKeysetAlias(row);
+    expect(row.toJSON()).not.toHaveProperty(CREATED_AT_US_ALIAS);
+  });
+
+  it('strips the alias from a plain object row', () => {
+    const row = { id: 'm1', [CREATED_AT_US_ALIAS]: 'x' };
+    stripKeysetAlias(row);
+    expect(row).not.toHaveProperty(CREATED_AT_US_ALIAS);
+  });
+
+  it('is a no-op on a row that never carried the alias, and on null', () => {
+    const row = { id: 'm1' };
+    expect(stripKeysetAlias(row)).toEqual({ id: 'm1' });
+    expect(stripKeysetAlias(null)).toBeNull();
+  });
+
+  it('fetchKeysetPage returns rows with the alias already gone', async () => {
+    const rows = [
+      fakeInstance('m1', '2026-07-29T03:00:01.000011'),
+      fakeInstance('m2', '2026-07-29T03:00:01.000022'),
+    ];
+    const { rows: page } = await fetchKeysetPage({
+      cursor: null, limit: 5, direction: 'asc', baseWhere: {},
+      findAll: async () => rows,
+    });
+    for (const r of page) {
+      expect(JSON.parse(JSON.stringify(r.toJSON()))).not.toHaveProperty(CREATED_AT_US_ALIAS);
+    }
+  });
+
+  it('still produces a correct nextCursor — stripping happens AFTER encoding', async () => {
+    // The ordering matters: encodeCursor is the last reader of the alias, so
+    // stripping too early would silently break paging instead of leaking.
+    const rows = [
+      fakeInstance('m1', '2026-07-29T03:00:01.000011'),
+      fakeInstance('m2', '2026-07-29T03:00:01.000022'),
+      fakeInstance('m3', '2026-07-29T03:00:01.000033'),
+    ];
+    const { rows: page, nextCursor } = await fetchKeysetPage({
+      cursor: null, limit: 2, direction: 'asc', baseWhere: {},
+      findAll: async () => rows,
+    });
+    expect(page).toHaveLength(2);
+    expect(nextCursor).toBeTruthy();
+    const payload = JSON.parse(Buffer.from(nextCursor, 'base64url').toString('utf8'));
+    expect(payload).toEqual({ createdAtUs: '2026-07-29T03:00:01.000022', id: 'm2' });
+  });
+});

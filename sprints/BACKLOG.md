@@ -5463,7 +5463,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   showing a Sort node).
 
 ### BUG-064 — cortex dev-boot `sync({ alter: true })` accretes duplicate constraints on cortex tables every gateway start (`agents_name_key1..3`, tripled `agent_runs` FKs)
-- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
+- **Type:** bug · **Status:** done (QA-verified 2026-07-29, branch `s2614-jr`) · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist at Sprint 2026-13 FEAT-080/BUG-062 verification; same defect family as the create-era `post_moderation_post_id_fkey1..5` residue BUG-062 swept)
 - **Description:** `services/cortex/src/index.js` `init()` runs
@@ -5487,9 +5487,137 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** dba glance recommended on the chosen fix (constraint drops on a
   live table). Cross-ref: BUG-062 resolution (duplicate-FK sweep in timeline
   migration `20260714000001`), `services/cortex/src/index.js` init.
+- **Owner-role set at BUILD:** jr-developer. **dba glance: DONE (2026-07-29,
+  APPROVE WITH CHANGES — all applied before anything touched the live DB).**
+- **Scale was far worse than filed.** The ticket recorded `agents_name_key1..3`
+  and tripled FKs; measured live at BUILD it was **110 redundant constraints
+  across 6 groups** — 21 identical `UNIQUE(name)` on each of `guardrails`,
+  `skills`, `tools`; 21 identical FKs on `chat_messages`; 16 each on `agents`
+  and `agent_runs`.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-jr`), both halves:**
+  - **Accretion stopped:** `services/cortex/src/index.js` dev boot now runs
+    plain `sequelize.sync()`. Verified by booting the gateway twice after the
+    sweep — constraint count stayed at 6, 6.
+  - **Existing duplicates swept:** new migration
+    `services/cortex/migrations/20260729000001-drop-duplicate-constraints.js`,
+    applied via `up()` directly (cortex has no sequelize-cli wiring or
+    `SequelizeMeta`, so **nothing in the DB records that it ran** — hence these
+    numbers live here). **Applied 2026-07-29.** Before → after:
+    **constraints 116 → 6**, **internal RI triggers 148 → 8**, **indexes
+    107 → 32**; duplicate groups remaining **0**, unvalidated constraints **0**.
+    The trigger delta is the real win the dba predicted: 21 duplicate FKs meant
+    ~21× the referential-integrity trigger work on every write to
+    `chat_messages` *and* every delete/update of `chat_sessions`.
+  - **Idempotent:** a second `up()` swept 0.
+- **dba required changes, all applied:**
+  1. **Only drop PG-generated names.** Definition-identity alone was not a safe
+     drop criterion — a deliberately named constraint (`uniq_agents_name`) can be
+     definition-identical to a generated one, and "shortest name wins" would have
+     silently dropped the intentional one, breaking any
+     `ON CONFLICT ON CONSTRAINT`. Now a name must ALSO match `_(key|fkey)\d+$`
+     with the same base as the keeper; anything else is logged and left. This is
+     also what makes the migration safe to reuse on unaudited schemas (BUG-071).
+  2. **Orphan-index pass would have hard-errored.** `pg_indexes` lists
+     constraint-backing indexes and the regex matched them; for any group whose
+     unsuffixed original had previously been dropped, `DROP INDEX` would fail
+     with "cannot drop index … because constraint … requires it" and abort the
+     sweep mid-run. Now excludes constraint-owned and primary/replica-identity
+     indexes explicitly.
+  3. **One transaction + `SET LOCAL lock_timeout = '5s'`**, so a dependency error
+     rolls the whole sweep back instead of leaving the schema half-swept.
+- **Production caveat recorded in the migration header:** these are
+  ACCESS EXCLUSIVE locks (readers too, and FK drops lock BOTH ends), catalog-only
+  so sub-millisecond — but one transaction over 7 tables would queue behind any
+  in-flight long read while blocking everything behind it. In prod: per-table
+  transactions, keep the lock_timeout, retry on timeout.
+- **Bug found and fixed during the run (worth reading):** the first `up()` swept
+  **0** and logged garbage — `array_agg(conname)` returns `name[]` (OID 1003),
+  which node-postgres has no array parser for, so the driver handed back the raw
+  `'{a,b,c}'` literal as a STRING and destructuring walked it character by
+  character. **The dba's required change #1 is what made this harmless**: single
+  characters failed the generated-name test, so the migration refused to drop
+  anything rather than dropping the wrong thing. Fixed with `::text` (OID 1009)
+  plus an `Array.isArray` guard so it can never regress silently.
+- **Two follow-ups from the dba review:** **BUG-071** (the same alter-sync
+  pattern in timeline/plugins/lowcode, ~380 more redundant constraints — with
+  the important caveat that the `sync()` flip is NOT safe as a one-liner for
+  plugins/lowcode, which have no migrations directory at all) and **TASK-071**
+  (`db:check` blind spots — dba volunteered to own it).
+- **QA verdict: PASS (2026-07-29, qa-specialist, `s2614-jr` @ `9eca06f`, live dev
+  `exprsn` DB + a throwaway `exprsn_cortex_qa`) → `done`.** The "116 → 6" numbers
+  could not be re-observed (the migration had already run and records nothing in
+  the DB), so QA verified the *effect* instead — and got a fresh before/after by
+  accident, see the caveat below. Every check below is QA's own measurement.
+  - **The sweep did not break uniqueness.** A duplicate `name` insert is still
+    rejected on all four tables — `guardrails`, `skills`, `tools`, `agents` —
+    before the sweep (via `*_name_key4`) and after (via `*_name_key`). Identical
+    behaviour, one constraint instead of five.
+  - **The sweep did not break referential integrity.** Run identically pre- and
+    post-sweep, all in rolled-back transactions:
+    `chat_messages.session_id` → invalid value **refused**; `ON UPDATE CASCADE`
+    **fires** (renaming a session rewrites the message's `session_id`);
+    `ON DELETE SET NULL` **fires**. `agent_runs.agent_id` → invalid value
+    **refused**; `ON UPDATE CASCADE` **fires**; and its action is `ON DELETE
+    **RESTRICT**` (not SET NULL) — matching the model's
+    `Agent.hasMany(AgentRun, {onDelete:'RESTRICT'})` — which correctly **refuses**
+    to delete an agent that has runs. Every result byte-identical before and after.
+  - **Nothing was dropped that should not have been.** Post-sweep the cortex
+    schema has 6 UNIQUE/FK + 11 PK constraints, **0 unvalidated** (`convalidated`
+    true on all), **0 duplicate-definition groups**, and 32 indexes. Cross-checked
+    the 32 against `services/cortex/src/models/index.js` line by line: 11 PKs
+    (11 tables) + 4 `UNIQUE(name)` + **17 declared secondary indexes** = 32 exactly.
+    Every model-declared index is present; there are no extras and **no index
+    disappeared with a dropped UNIQUE**.
+  - **The dba's "only drop PG-generated names" guard actually works** — tested
+    empirically, not just read. On a throwaway DB seeded with duplicates, QA added
+    two deliberately named, definition-identical constraints
+    (`uniq_agents_name`, `tools_name_unique_hand`); the sweep dropped the generated
+    duplicates, **kept both hand-named ones**, and logged
+    `NOT dropping non-generated duplicate(s): …` plus
+    `left 2 non-generated duplicate(s) in place`. This is the check that makes the
+    migration reusable on the unaudited schemas in BUG-071.
+  - **Idempotent:** a second `up()` immediately after logged `swept 0` and changed
+    nothing (counts identical).
+  - **Accretion is genuinely stopped — verified independently, and the mechanism
+    proved causally.** Two full gateway boots from this branch (:8548, cortex
+    enabled): constraints stayed **6 / 6**, indexes 32, internal RI triggers 8.
+    Then, on an isolated throwaway DB: **plain `sync()` created all 11 tables and
+    held at 6 constraints across 3 consecutive runs**, while
+    `sync({ alter: true })` on that same fresh DB went **6 → 12 → 18 → 24**
+    (+6 per boot). That is the defect and the fix, demonstrated end to end — and
+    it also confirms the code comment's claim that plain sync still creates
+    missing tables on a fresh DB.
+  - **CAVEAT THAT MUST BE ACTED ON AT MERGE (not a defect in this fix).** When QA
+    picked the ticket up, the live `exprsn` cortex schema had **re-accreted to 30
+    UNIQUE/FK constraints (24 redundant, 5 per group), 48 indexes, 40 internal RI
+    triggers** — the sweep's result had been undone. Cause is environmental, not
+    this branch: `main` (`/Volumes/Storage/exprsn-platform`) and the two sibling
+    worktrees `wt-feat081` / `wt-feat090` all still run
+    `sync({ alter: true })` at `services/cortex/src/index.js:93`, and each of
+    their dev boots adds one duplicate per group to the shared dev DB. QA re-ran
+    `up()` (safe, idempotent): **30 → 6 UNIQUE/FK, indexes 48 → 32, internal RI
+    triggers 40 → 8, 0 dupe groups, 0 unvalidated** — which incidentally gave a
+    genuine QA-observed before/after and reconfirms the dba's trigger-count claim
+    (~5× the RI trigger work on every `chat_messages` write and every
+    `chat_sessions` delete/update). **Consequence:** the sweep must be re-run once
+    after this merges, and the cortex schema will keep re-accreting from any
+    checkout that has not taken the `sync()` flip until BUG-071 lands. Recommend
+    noting that in BUG-071 and re-running `up()` at deploy.
+  - Gates: root `npm run lint` 0 errors / 176 pre-existing warnings; cortex
+    13 suites / 273 tests green; `npm run db:check` exit 0 — **but that is not
+    evidence about cortex**: `scripts/check-drift.js` has no cortex coverage at
+    all (confirmed — cortex appears in neither the script nor its module output),
+    exactly the blind spot TASK-071 exists to close. All cortex schema claims here
+    are hand-verified against `pg_constraint`/`pg_indexes`/`pg_trigger`.
+  - One pre-existing defect surfaced by the post-sweep RI audit, filed not fixed:
+    **BUG-077** (both FK columns are `allowNull:false` in the model but NULLABLE
+    in the DB, so a session delete leaves NULL-session orphan messages). Not
+    caused by the sweep.
+  - Doc nit for the migration header: it cites "(BUG-069)" where it means
+    **BUG-071**. Product-code comment, left for the developer/merge to correct.
 
 ### BUG-065 — cortex jest full run trips "worker did not exit gracefully" force-exit warning (pre-existing 5s `setTimeout` in `tests/unit/client.test.js`)
-- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done (QA-verified 2026-07-29, branch `s2614-jr`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (noted by sr-developer at the FEAT-080 build, filed by qa-specialist at Sprint 2026-13 verification per the BUG-055/061 no-silent-skip posture)
 - **Description:** the full cortex suite (13 suites / 261 tests, all green)
@@ -5506,9 +5634,65 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   test's timeout, matching the BUG-055/BUG-061 teardown posture.
 - **Environment:** `s2613-int` @ `632afbd`, macOS local.
 - **Notes:** test hygiene only; jr-suitable. Cross-ref: BUG-055, BUG-061.
+- **Owner-role set at BUILD:** jr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-jr`):** `.unref()` on the
+  5s timer in `tests/unit/client.test.js`. The stub exists precisely to NOT
+  resolve within the client's 30ms timeout, so once the assertion passes the
+  timer is dead weight — referenced, it kept the jest worker alive past the run.
+  `.unref()` lets the process exit while the promise stays pending, which is
+  exactly the behaviour under test. Same posture as BUG-055/BUG-061.
+  **Verified:** cortex suite exits cleanly with no force-exit warning, twice in a
+  row (13 suites / 273 tests at the time of the fix).
+- **Timeline sweep — deliberately NOT done, cause does not match.** The ticket
+  said to sweep timeline "in the same pass **if the cause matches**". It does
+  not: timeline's test tree has no un-`unref`'d timer (`tests/setup.js`'s only
+  `setTimeout` is awaited and self-clearing), and its `setup.js` has no
+  `afterAll` closing the Sequelize connection — so its identical-looking warning
+  is an unclosed handle, a different defect. Forcing it into this ticket would
+  have meant an unrelated fix under a green-looking heading. **Filed separately
+  as BUG-070** so it is not lost.
+- **QA verdict: PASS (2026-07-29, qa-specialist, `s2614-jr` @ `9eca06f`) → `done`.**
+  - **Clean exit, three consecutive runs:** `cd services/cortex && npx jest` →
+    13 suites / 273 tests passed, and **no** "A worker process has failed to exit
+    gracefully" line in any run. No `--forceExit` anywhere: the module's jest
+    config is `{testEnvironment:'node', testMatch:['**/tests/**/*.test.js']}` and
+    the script is a bare `jest`.
+  - **The test still tests what it claims — proved by mutation, not by reading.**
+    A throwaway copy of the test with the client's timeout guard disabled
+    (`timeoutMs: 0`, which makes `withTimeout` return the raw promise — exactly
+    the regression the test exists to catch) **FAILED** with "Received promise
+    resolved instead of rejected / Resolved to value: 'too late'". So `.unref()`
+    did not neuter the assertion: the timer still fires and still resolves, only
+    the event-loop keepalive changed. Scaffolding deleted after the run
+    (`tests/unit/qa065-mutation.test.js`, untracked, removed — `git status` clean).
+  - **The timeline judgement call: RIGHT to split, WRONG stated reason — BUG-070
+    amended.** Confirmed timeline still prints the warning (11 suites / 129 tests
+    green), and confirmed there is no un-`unref`'d timer, so folding it in here
+    would indeed have been a different fix under a "leaked timer" heading. But
+    the *cause* recorded on BUG-070 is not right: `services/timeline/tests/setup.js`
+    **does** close the connection (`afterAll` → `db.sequelize.close()`, lines
+    60–66). QA ran `--detectOpenHandles`: the real leak is **9 open `TCPWRAP`
+    handles from `shared/ipc/IPCWorker.js:35`**, which constructs live `ioredis`
+    clients at construction time despite `REDIS_ENABLED=false`. Corrected on
+    BUG-070 so the next developer does not start from the wrong hypothesis. Net:
+    the split was the correct call and is what let the real cause be found.
+  - Cross-ref bookkeeping: this resolution says "filed separately as **BUG-068**",
+    but the ticket that was actually filed is **BUG-070** (renumbered for the
+    same-day id collision noted in the sprint log). Left as written; the live
+    ticket is BUG-070.
+- **Correction (2026-07-29, post-QA):** my recorded *cause* for the timeline half
+  was wrong, and QA caught it. I wrote that `services/timeline/tests/setup.js`
+  "has no `afterAll` closing the Sequelize connection" — it does, at lines 60–66.
+  I inferred that from a partial read rather than running
+  `--detectOpenHandles` (I had killed that run for being slow). The real cause is
+  **9 `TCPWRAP` handles from `shared/ipc/IPCWorker.js:35`**, which creates live
+  ioredis clients even with `REDIS_ENABLED=false`. The *decision* to split was
+  still correct — timeline's warning genuinely is not a leaked timer — but the
+  ticket carried a false diagnosis that would have sent the next developer to the
+  wrong file. BUG-070 now records the verified cause and fix shape.
 
 ### BUG-066 — cortex message-history responses leak the internal `__createdAtUs` keyset alias into the JSON body
-- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done (QA-verified 2026-07-29, branch `s2614-jr`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist at the BUG-063 re-verdict, Sprint 2026-13, `s2613-int` @ `9089886`)
 - **Description:** BUG-063's fix adds a raw µs-precision sort key to the
@@ -5529,6 +5713,63 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   at higher precision, so no information is disclosed that `createdAt` doesn't
   already carry. Worth fixing before anything documents or depends on the shape.
   Cross-ref: BUG-063, TASK-063, `services/cortex/src/routes/chat.js` + `cs.js`.
+- **Owner-role set at BUILD:** jr-developer.
+- **Resolution (in-review · 2026-07-29 · branch `s2614-jr`):** fixed one level
+  DOWN from where the ticket pointed. The ticket suggested patching the two
+  message-history handlers; instead `fetchKeysetPage` now strips the alias from
+  every row before returning (`stripKeysetAlias`, exported for reuse), so every
+  consumer is clean **by construction** — including handlers written later, which
+  is the failure mode that produced this bug in the first place (the session-list
+  handlers happened to project explicitly, the message handlers happened not to).
+  - **Ordering is load-bearing:** the strip runs AFTER `encodeCursor`, which is
+    the last reader of the alias. Stripping earlier would silently break paging
+    instead of leaking — pinned by a test that asserts `nextCursor` still decodes
+    to the right µs key.
+  - Handles both Sequelize instances (deletes from `dataValues`, so `toJSON()`
+    and `res.json()` stop emitting it) and the plain objects the unit tests use.
+  - **Tests:** +5 in `keysetPagination.test.js` (22 total) — instance and plain
+    shapes, no-op on rows without the alias and on null, `fetchKeysetPage` output
+    clean through a real `JSON.stringify` round-trip, and the cursor-still-correct
+    ordering guard.
+  - **Live-verified** against the dev DB through the real query path: message
+    keys on the wire are `id/sessionId/role/content/status/createdAt/session_id`
+    with no `__createdAtUs`, and `nextCursor` still carries the 26-char
+    µs-precision key. Fixture rows removed.
+  - Note for the merge: `routes/chat.js` is also touched by FEAT-090 on
+    `s2614-feat090`. No conflict expected — this fix is entirely inside
+    `lib/keysetPagination.js` and touches no route file.
+- **QA verdict: PASS (2026-07-29, qa-specialist, `s2614-jr` @ `9eca06f`,
+  live gateway on :8548 against the dev `exprsn` DB) → `done`.**
+  - **Alias gone on the wire** (real HTTPS, not a unit test): `GET
+    /cortex/api/v1/chat/:id` and `GET /cortex/api/v1/cs/chat/:id` across page
+    sizes 1/2/3/4/9/50 — **zero** occurrences of `__createdAtUs` in any raw
+    response body. Message keys on the wire are exactly
+    `content, createdAt, id, role, sessionId, session_id, status`. Session-list
+    endpoints (`/chat`, `/cs/chat`) re-checked and also clean.
+  - **The strip is load-bearing, and the alias is still selected.** Verified at
+    the model level: the same query run WITHOUT `fetchKeysetPage` still yields
+    `__createdAtUs` in `dataValues` and in `JSON.stringify` (so BUG-063's µs sort
+    key is untouched); run THROUGH `fetchKeysetPage` the key is absent and the
+    `nextCursor` still decodes to a 26-char µs key. The fix removes the leak, not
+    the mechanism.
+  - **TASK-063's core AC re-run (the ordering risk the fix introduced).**
+    Fixture: 9 messages per session in 3 groups of 3 sharing a millisecond and
+    differing only in **microseconds** (`.111001/.111002/.111003`, etc.) — BUG-063's
+    exact failure shape. Walked cursors to the end on both endpoints at limits
+    1/2/3/4/9/50: **no dupes, no gaps**, order exact (`m01…m09` / `c01…c09`), and
+    every `nextCursor.createdAtUs` was 26 chars (µs preserved). Paging did not
+    regress — the post-`encodeCursor` ordering holds.
+  - Fail-safe re-checked: a non-base64 cursor and a valid-base64/garbage-payload
+    cursor both restart at page 1 (no 500, no stack).
+  - Gates: cortex 13 suites / 273 tests green (incl. the +5 keysetPagination
+    tests, 22 in that file); root `npm run lint` 0 errors / 176 pre-existing
+    warnings; `npm run db:check` exit 0.
+  - Two unrelated observations from this run, filed not fixed: **BUG-076**
+    (invalid bearer → 500 instead of 401 on cortex routes) and **BUG-077**
+    (cortex model↔DB nullability drift). Neither is caused by this change.
+  - Not a defect, recorded: message rows serialize both `sessionId` and
+    `session_id` (Sequelize `underscored` + explicit `field`). Pre-existing and
+    already listed in this ticket's own key list; cosmetic.
 
 ### BUG-067 — cortex keyset `ORDER BY to_char(created_at …)` cannot use the `(session_id, created_at)` index — every page sorts the full match set
 - **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
@@ -5560,6 +5801,95 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   Not urgent at dev-DB scale — the tables are small today. Cross-ref: BUG-063,
   TASK-063, `services/cortex/src/lib/keysetPagination.js`.
 
+### BUG-070 — timeline jest run trips the same force-exit warning as BUG-065, but from an unclosed handle rather than a leaked timer
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (split out of BUG-065 at BUILD, 2026-07-29, branch `s2614-jr`)
+- **Description:** BUG-065 fixed cortex's "A worker process has failed to exit
+  gracefully" warning by `.unref()`-ing a leaked 5s timer. Timeline prints the
+  identical warning (11 suites / 129 tests, all green) and BUG-065 said to sweep
+  it "if the cause matches" — **it does not.** `services/timeline/tests/` has no
+  un-`unref`'d timer: the only `setTimeout` is `tests/setup.js`'s awaited 100ms
+  poll, which self-clears. What `tests/setup.js` lacks is any `afterAll` closing
+  the Sequelize connection, so the likely cause is an open DB pool handle — a
+  different defect wearing the same warning text. Filed separately rather than
+  folded into BUG-065, where it would have ridden along under a heading that
+  said "leaked timer".
+- **Steps to reproduce:** `cd services/timeline && npx jest --coverage=false` →
+  green summary plus the force-exit warning.
+- **Expected:** clean worker exit with no warning.
+- **Notes:** start with `npx jest --detectOpenHandles` (slow — budget several
+  minutes) to confirm the handle before fixing. If it is the connection pool, an
+  `afterAll(() => sequelize.close())` in `tests/setup.js` is the likely shape,
+  matching the BUG-055/061/065 teardown posture. Cross-ref: BUG-065.
+- **QA amendment — ROOT CAUSE IDENTIFIED, and the description above is wrong on
+  two points (2026-07-29, qa-specialist, at the BUG-065 verdict, `s2614-jr` @
+  `9eca06f`).** Correct before anyone picks this up:
+  1. **`tests/setup.js` DOES close the Sequelize connection** —
+     `afterAll(async () => { const db = require('../src/models'); if (db.sequelize) await db.sequelize.close(); })`
+     at lines 60–66. The "no `afterAll` closing the connection" premise is false,
+     so "it is probably the DB pool" is the wrong starting point.
+  2. **The actual leak is `ioredis`, and QA already ran the slow step.**
+     `npx jest --coverage=false --detectOpenHandles` reports **9 open `TCPWRAP`
+     handles**, every one traced to `shared/ipc/IPCWorker.js:35`
+     (`this.redisPub = new Redis({ host: REDIS_HOST … })`) — real Redis sockets
+     opened at construction time and never closed, despite `tests/setup.js`
+     setting `REDIS_ENABLED=false`. Nine handles ≈ one per suite that pulls
+     IPCWorker into its graph.
+  - The warning still reproduces (11 suites / 129 tests green + the warning), so
+    the ticket is still valid — and the BUG-065 split was the right call: the
+    cause is neither a timer nor the DB pool.
+  - **Fix shape is therefore different from what the Notes suggest** and is
+    riskier than a test-only change: `IPCWorker` is in `shared/`, so it is
+    reachable from every module (both `@exprsn/shared` and `../shared/...`
+    resolve to the same files). Options: honour `REDIS_ENABLED=false` in
+    `IPCWorker`'s constructor (best — fixes the class of problem, but is product
+    code and needs an architect glance), a `lazyConnect`/close-on-teardown hook,
+    or mock `ioredis` in `services/timeline/tests/setup.js` (cheapest, test-only,
+    contains the blast radius — matches the nexus setup.js posture). Recommend
+    the mock for this P3 and a separate ticket for the shared-code behaviour if
+    that is wanted. Size still S. Cross-ref: BUG-065, BUG-061, `shared/ipc/IPCWorker.js`.
+
+### BUG-071 — timeline / plugins / lowcode dev-boot alter-sync accretes duplicate constraints (~380 redundant), same defect as BUG-064
+- **Type:** bug · **Status:** backlog · **Priority:** P3 · **Size:** S–M · **Needs:** dba glance (live-table constraint drops)
+- **Owner-role:** unassigned · **Blocked-by:** — (BUG-064 lands the cortex fix + the reusable sweep first)
+- **Legacy:** — (found at the BUG-064 BUILD, 2026-07-29, branch `s2614-jr`)
+- **Description:** BUG-064 is scoped to cortex, but the `sync({ alter: true })`
+  dev-boot pattern that causes it is **not cortex-only** —
+  `services/timeline/src/index.js:216`, `services/plugins/src/index.js:83` and
+  `services/lowcode/src/index.js:60` all do it, and all three schemas have
+  accreted. Measured on the live dev DB 2026-07-29, by schema
+  (redundant constraints, i.e. duplicates beyond the one that should exist):
+  **lowcode 160, plugins 140, cortex 110, timeline 80 — 490 total**, and cortex's
+  110 are the only ones BUG-064 removes. Every duplicate is a real index Postgres
+  maintains on each write, so this is write amplification and disk, not tidiness.
+  Deliberately NOT folded into BUG-064: that ticket is P3/S and scoped to one
+  module, and sweeping three more modules' live tables is a scope decision for the
+  PM plus a second dba pass, not something to slip in silently.
+- **Expected:** exactly one constraint per model definition per schema,
+  regardless of boot count, in all four modules.
+- **Notes (dba-reviewed 2026-07-29 — the one-liner is NOT uniformly safe):**
+  BUG-064's sweep migration (`services/cortex/migrations/20260729000001-…`) is
+  written to be reused verbatim — it groups by `pg_get_constraintdef` AND
+  requires a PG-generated `_(key|fkey)\d+$` name, so it is safe on schemas whose
+  constraint names have not been audited; parameterise `SCHEMA` rather than
+  copy-pasting. But the **`sync()` flip differs per module**:
+  - `services/timeline/src/index.js:216` — **safe**: timeline has 7 migration
+    files and a `migrate:pg` runner, so it has a real column-adding path.
+  - `services/plugins/src/index.js:83` and `services/lowcode/src/index.js:60` —
+    **NOT safe as a one-liner**: neither module has a `migrations/` directory at
+    all, so alter-sync is currently their ONLY way to add a column to an existing
+    table (lowcode especially has been evolving its entity/field model). Dropping
+    it strands them — a model change would silently not apply and every query on
+    the changed table 500s. This ticket must therefore pair the sync flip for
+    those two with establishing a migrations dir + runner, or land the first
+    migration alongside under a documented "author a migration and run `up()`"
+    convention.
+  Cross-ref: BUG-064, BUG-062 (the same defect family on `post_moderation`).
+- **Filed as 069 originally; renumbered to 071** — a concurrent QA session filed
+  its own BUG-068/069 on `s2614-feat090` in the same window. Ticket ids are
+  monotonic and never reused, so the later-committed pair moved.
+
 ### TASK-061 — FileVault: reap orphaned blobs from failed uploads
 - **Type:** task · **Status:** backlog · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
@@ -5572,6 +5902,79 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     referencing `file_versions`/`file_blobs` row past a grace window; metrics/log line
     per reap.
 - **Notes:** dba glance on the query; jr-developer.
+
+### BUG-076 — an invalid/unknown bearer token on cortex routes returns HTTP 500 `VALIDATION_ERROR` instead of 401, and a non-UUID token makes the CA raise a Postgres `22P02` on every request
+- **Type:** bug · **Status:** backlog · **Priority:** P2 (QA recommendation; PM confirms) · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist while verifying BUG-066 on branch `s2614-jr`, 2026-07-29; NOT introduced by that branch — `shared/middleware/tokenValidation.js` and `services/ca/routes/api.js` are untouched by it)
+- **Description:** two stacked defects on the invalid-credential path:
+  1. `shared/middleware/tokenValidation.js` calls the CA over axios, which
+     **throws** on any non-2xx. The CA's own 401 (`valid:false`) therefore never
+     reaches the `if (…valid === false) → 401 INVALID_TOKEN` branch: it lands in
+     the `catch`, which only special-cases `ECONNREFUSED`/`ETIMEDOUT` and
+     otherwise returns **500 `VALIDATION_ERROR`**. So on every module using this
+     middleware (cortex does; timeline and moderator use a different path and
+     correctly return 401) a bad, unknown, expired or revoked token is reported
+     as a server error.
+  2. `POST /ca/api/tokens/validate` looks the token id up as a UUID with no
+     shape check, so a non-UUID bearer raises
+     `SequelizeDatabaseError 22P02 invalid input syntax for type uuid` and the CA
+     answers 500 — i.e. any client can force a DB exception + error-level log
+     line per request with a 8-byte header.
+- **Steps to reproduce:** boot the gateway with `CORTEX_ENABLED=true`, then
+  `curl -k -H 'Authorization: Bearer deadbeef' https://localhost:<port>/cortex/api/v1/chat/<id>`
+  → `500 {"error":"VALIDATION_ERROR","message":"Failed to validate token"}` and a
+  `22P02` in the CA log. Same 500 for a well-formed-but-unknown UUID, and for a
+  token that was just revoked by `POST /auth/api/auth/logout`. Contrast:
+  `-H 'Authorization: Bearer deadbeef' …/timeline/api/posts` → 401.
+- **Expected:** 401 (or 403) for an invalid/unknown/revoked credential; 500
+  reserved for genuine server faults. A malformed token id is rejected before it
+  reaches SQL.
+- **Actual:** 500 `VALIDATION_ERROR` from the module, `22P02` DB error inside the CA.
+- **Severity/impact:** access is still correctly **refused** (no bypass — verified
+  0 successful reads with a bogus and with a post-logout token), and the body
+  leaks nothing (generic message; the SQL stays in the server log). So this is
+  not a security hole but it is a real defect: it misreports auth failures as
+  outages (breaks client retry/re-login logic and any error-rate alerting), and
+  half of it is an unauthenticated path to a DB exception.
+- **Environment:** `s2614-jr` @ `9eca06f`, live dev `exprsn` DB, gateway on :8548,
+  macOS local.
+- **Notes:** shared-middleware fix, so it changes behaviour for every module on
+  that path — architect glance recommended on the status-code contract. Cross-ref:
+  BUG-066 (the verification that surfaced it), `shared/middleware/tokenValidation.js`
+  (~line 105–140), `services/ca/routes/api.js` (~line 215–235).
+
+### BUG-077 — cortex model↔DB nullability drift on both FK columns; deleting a chat session silently leaves NULL-session orphan messages the model forbids
+- **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist during the BUG-064 post-sweep RI audit, 2026-07-29, branch `s2614-jr`; pre-existing, NOT caused by the sweep)
+- **Description:** `services/cortex/src/models/index.js` declares
+  `ChatMessage.sessionId` and `AgentRun.agentId` as `allowNull: false`, but both
+  live columns are **NULLABLE** (`information_schema.columns.is_nullable = YES`).
+  The consequence is not cosmetic on `chat_messages`: because the column is
+  nullable, the FK was created `ON UPDATE CASCADE ON DELETE SET NULL`, so
+  deleting a `chat_sessions` row does not delete or block — it rewrites every
+  message's `session_id` to NULL, producing rows that violate the model's own
+  contract, are unreachable through every message-history route (all of which
+  filter by `sessionId`), and are invisible to any cleanup keyed on the session.
+  Verified live: delete a session with 1 message → the message survives with
+  `session_id IS NULL`. (`agent_runs.agent_id` is `ON DELETE RESTRICT`, so it
+  writes no nulls — that half is drift only.)
+- **Steps to reproduce:**
+  `BEGIN; INSERT INTO cortex.chat_sessions(id,channel,created_at,updated_at) VALUES ('x','assistant',now(),now()); INSERT INTO cortex.chat_messages(id,session_id,role,content,created_at) VALUES (gen_random_uuid(),'x','user','m',now()); DELETE FROM cortex.chat_sessions WHERE id='x'; SELECT session_id FROM cortex.chat_messages WHERE content='m'; ROLLBACK;`
+  → one row, `session_id = NULL`.
+- **Expected:** model and DB agree. Either the columns are `NOT NULL` and the FK
+  is `ON DELETE CASCADE` (messages die with their session — the shape the model
+  implies), or the model is corrected to `allowNull: true` and the orphan state
+  is deliberate and handled.
+- **Environment:** `s2614-jr` @ `9eca06f`, live dev `exprsn` DB, Docker PG 16.
+- **Notes:** invisible to `npm run db:check` today because that script has **no
+  cortex coverage at all** — this is a concrete example of what TASK-071 is for,
+  and a good regression test for it. The ALTER also cannot ride `db:migrate`
+  (sync-based; won't alter existing tables), so it needs a real migration
+  `up()`. dba glance recommended on the CASCADE-vs-allowNull call. Cross-ref:
+  TASK-071, BUG-064, `services/cortex/src/models/index.js` (ChatMessage,
+  AgentRun, and the two association declarations).
 
 ## Tasks
 
@@ -5670,6 +6073,34 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     named in the ticket rather than "env-limited".
 - **Notes:** Belongs to the known auth pre-existing-failure backlog (STATUS.md
   #9 note) — a red result is an acceptable, informative outcome here.
+
+### TASK-071 — `db:check` blind spots: three flag-gated modules unchecked + no duplicate-constraint detection
+- **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Owner-role:** dba (volunteered at the BUG-064 review) · **Blocked-by:** —
+- **Legacy:** — (found by the dba during the BUG-064 glance, 2026-07-29)
+- **Description:** Two gaps, one ticket, because the fix is in the same file.
+  (1) `scripts/check-drift.js` hardcodes its module list in the `MODELS` map and
+  that map contains **only the ten non-gated modules** — `cortex`, `plugins` and
+  `lowcode` are absent entirely. The dba ran `db:check` with all three flags
+  enabled and it still only checked ca/auth/spark/nexus/filevault/vault/timeline/
+  moderator/live/atproto, reporting "No drift found". So those three schemas have
+  **zero** drift coverage of any kind, not merely a missing check.
+  (2) `db:check` has no duplicate-constraint detection, which is why BUG-064
+  accreted 110 redundant constraints silently and BUG-071's ~380 still are.
+- **Acceptance criteria:**
+  - `cortex`, `plugins` and `lowcode` are checked by `db:check` when their flags
+    are enabled, and their absence when disabled is deliberate and documented.
+  - `db:check` reports duplicate constraints as drift — group by
+    `(conrelid, contype, pg_get_constraintdef(oid))`, `HAVING count(*) > 1`
+    (the query already exists in BUG-064's sweep migration).
+  - Exits non-zero on either finding, consistent with the existing gate.
+- **Notes:** raised to **P2** because it is the regression gate for BUG-064 and
+  BUG-071 — without it, the sweep's success is eyeballed rather than
+  machine-verified, and the accretion can silently return. It also mitigates the
+  one real cost of BUG-064's `sync()` flip: plain sync no-ops on a missing
+  column, and the symptom is a 500 on every query against that table, which
+  nothing currently catches for cortex. Catalog-only queries, cheap.
+  Cross-ref: BUG-064, BUG-071, BUG-062.
 
 ### TASK-070 — Sweep QA fixture residue (clean or document as durable)
 - **Type:** task · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S

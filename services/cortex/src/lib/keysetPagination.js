@@ -115,6 +115,23 @@ function keysetOrder(direction) {
 }
 
 /**
+ * Remove the internal µs sort key from a fetched row (BUG-066).
+ *
+ * Works for both real Sequelize instances (delete from `dataValues`, so
+ * `toJSON()`/`res.json()` no longer emit it) and the plain objects the unit
+ * tests use. Returns the row for convenience.
+ */
+function stripKeysetAlias(row) {
+  if (!row) return row;
+  if (row.dataValues && Object.prototype.hasOwnProperty.call(row.dataValues, CREATED_AT_US_ALIAS)) {
+    delete row.dataValues[CREATED_AT_US_ALIAS];
+  } else if (Object.prototype.hasOwnProperty.call(row, CREATED_AT_US_ALIAS)) {
+    delete row[CREATED_AT_US_ALIAS];
+  }
+  return row;
+}
+
+/**
  * Fetch one page via keyset pagination: queries `limit + 1` rows to detect a
  * next page, trims back to `limit`, and returns `{ rows, nextCursor }`.
  *
@@ -131,6 +148,14 @@ async function fetchKeysetPage({ cursor, limit, direction, baseWhere, findAll })
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
   const nextCursor = hasMore ? encodeCursor(page[page.length - 1]) : null;
+  // BUG-066: the µs sort key is an INTERNAL paging detail. It has to be
+  // SELECTed (Postgres does the comparison), but it must not ride out to
+  // clients — handlers that serialize rows directly (the message-history
+  // routes) would otherwise expose `__createdAtUs` as an accidental API field.
+  // Stripping here rather than in each route makes every consumer clean by
+  // construction, including ones written later. Done AFTER encodeCursor, which
+  // is the last reader of the alias.
+  page.forEach(stripKeysetAlias);
   return { rows: page, nextCursor };
 }
 
@@ -141,6 +166,7 @@ module.exports = {
   seekWhere,
   keysetOrder,
   fetchKeysetPage,
+  stripKeysetAlias,
   createdAtUsAttribute,
   CREATED_AT_US_ALIAS,
   CREATED_AT_US_EXPR,

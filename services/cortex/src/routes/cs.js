@@ -44,6 +44,9 @@ router.get('/chat', caRead, asyncHandler(async (req, res) => {
   const cursor = decodeCursor(req.query.cursor);
   const { rows, nextCursor } = await fetchKeysetPage({
     cursor, limit, direction: 'desc', baseWhere: where,
+    // BUG-067: `seekWhere` builds an escaped literal, so it needs the
+    // connection's escaper. Required, not optional, by design.
+    escape: (v) => ChatSession.sequelize.escape(v),
     findAll: (pageWhere, order, pageLimit) => ChatSession.findAll({
       where: pageWhere, order, limit: pageLimit,
       attributes: { include: [createdAtUsAttribute()] },
@@ -65,6 +68,7 @@ router.get('/chat/:id', caRead, asyncHandler(async (req, res) => {
   const cursor = decodeCursor(req.query.cursor);
   const { rows: messages, nextCursor } = await fetchKeysetPage({
     cursor, limit, direction: 'asc', baseWhere: { sessionId: session.id },
+    escape: (v) => ChatMessage.sequelize.escape(v),
     findAll: (pageWhere, order, pageLimit) => ChatMessage.findAll({
       where: pageWhere, order, limit: pageLimit,
       attributes: { include: [createdAtUsAttribute()] },

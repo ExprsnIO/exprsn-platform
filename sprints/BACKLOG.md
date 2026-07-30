@@ -6333,7 +6333,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     already listed in this ticket's own key list; cosmetic.
 
 ### BUG-067 — cortex keyset `ORDER BY to_char(created_at …)` cannot use the `(session_id, created_at)` index — every page sorts the full match set
-- **Type:** bug · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
+- **Type:** bug · **Status:** done (QA-verified 2026-07-30, branch `s2614-bug067` @ `c8cef49`) · **Priority:** P3 · **Size:** S
 - **Owner-role:** unassigned (dba glance) · **Blocked-by:** —
 - **Legacy:** — (found by qa-specialist at the BUG-063 re-verdict, Sprint 2026-13, `s2613-int` @ `9089886`)
 - **Description:** BUG-063's fix orders and seeks on the expression
@@ -6361,7 +6361,259 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   indexes but must preserve BUG-063's guarantee that seek and sort agree exactly.
   Not urgent at dev-DB scale — the tables are small today. Cross-ref: BUG-063,
   TASK-063, `services/cortex/src/lib/keysetPagination.js`.
-
+- **Owner-role set at BUILD:** sr-developer (dev applies; **dba decided the
+  approach — ruling 2026-07-29, APPROVE option (b) with two amendments**).
+- **Option (a) is not merely worse, it is impossible.** The dba proved
+  `to_char(timestamptz, text)` is **STABLE, not IMMUTABLE** (both variants;
+  `AT TIME ZONE 'UTC'` does not rescue it), so an expression index on it errors
+  with *"functions in index expression must be marked IMMUTABLE"*. An IMMUTABLE
+  SQL wrapper would compile but asserts a guarantee the underlying function does
+  not make. Option (a) is closed, not deferred.
+- **Resolution (in-review · 2026-07-30 · branch `s2614-bug067`):** the µs
+  projection is now **emission-only** — it builds the cursor, nothing else —
+  while the seek and the ORDER BY both run on the physical `created_at` column.
+  That makes BUG-063's "seek and sort must use the identical key" invariant
+  *structural* (one column, referenced once in each function) instead of two
+  copies of a 60-character expression that could silently diverge.
+  - **Amendment 1 — row-wise, not OR-form.** The old
+    `(key > c) OR (key = c AND id > c.id)` gets **no index bound at all**:
+    Postgres uses the index for the `session_id` equality prefix and drops the
+    entire seek into a `Filter:`. Without this change (b) would not have fixed
+    BUG-067. Now `("created_at","id") > (…::timestamptz, …)` → a real
+    `Index Cond` over both columns.
+  - **Amendment 2 — the cursor literal MUST carry `Z`.** The emitted cursor is
+    UTC wall-clock, so an offset-less cast is read in the *session's* TimeZone.
+    Appended at seek-build time (not emission) so pre-existing cursors keep
+    working byte-identically.
+  - `escape` is a **required** parameter, not optional — `literal` does not
+    bind, and an optional escaper invites someone to inline unvalidated input
+    later. `decodeCursor` additionally enforces
+    `/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}$/` as defence in depth: a
+    tampered cursor yields `null` → page 1, never a query.
+  - **Three indexes** via migration `20260730000001` (schema-qualified,
+    idempotent, reversible): `chat_messages(session_id, created_at, id)`,
+    `chat_sessions(channel, created_at, id)`,
+    `chat_sessions(channel, user_id, created_at, id)`; the two strict prefixes
+    dropped, `chat_sessions_user_id` deliberately kept. **`id` in each index is
+    load-bearing** — without it the pathkeys stop one column short and Postgres
+    adds an `Incremental Sort` to every page. Model `indexes:` updated with
+    explicit `name:` so Sequelize auto-naming cannot drift from the DDL.
+- **Verification — all six dba items:**
+  1. **Index placement:** the three new names present on the live dev DB, both
+     old prefixes gone, **0 leaked into `public`**.
+  2. **`db:check` exit 0** (no collateral drift). Stated plainly: this does
+     **not** confirm cortex index parity — `db:check` has *no cortex coverage*
+     (TASK-071), so item 1 is the only real check.
+  3. **EXPLAIN, planner UNAIDED** on a purpose-built 255k-row benchmark
+     (`exprsn_bug067`: 2,000 sessions / 250,080 messages, incl. exact-duplicate
+     and µs-sibling shapes). All three query paths:
+     `Index Only Scan [Backward]`, full `ROW(created_at, id)` in the
+     `Index Cond`, **no `Sort` and no `Incremental Sort`**, `Heap Fetches: 0`.
+     Message history went **135 buffers → 4**, and stopped sorting 205 rows to
+     return 51. Session list stopped sorting 533 to return 101. Also re-checked
+     on the live dev DB with `enable_seqscan=off` (2 rows there, so the planner
+     must be forced).
+  4. **BUG-063 non-regression, functionally:** a session of **5,000 rows all
+     inside one millisecond**, µs apart, walked through the real cursor
+     round-trip: `pages=136 collected=5000 distinct=5000 total=5000` — in
+     **both** directions (the DESC drop was BUG-063's silent half). Matches the
+     dba's own lab figure exactly.
+  5. **Timezone hostility — and proof the `Z` is load-bearing.** The walk passes
+     identically under `UTC`, `America/New_York` and `Asia/Kolkata`. Then a
+     mutation test with the `Z` removed: UTC still **passed** while
+     `America/New_York` **collected 37 of 5,000 rows** — silently losing 4,963.
+     That is exactly the defect the ticket's original version of (b) would have
+     shipped, and it would have survived review because this dev box is
+     `Etc/UTC`.
+  6. **Cursor validation:** 7 tampered-cursor cases (SQL metacharacters, ms
+     precision, offset already present, bare date, space-for-T, empty) all
+     decode to `null`, and a rejected cursor provably issues **no seek
+     fragment** at all.
+  - **BUG-066 non-regression:** `__createdAtUs` still absent from the
+    message-history body after the `escape` threading; cursor still 26-char µs.
+  - **Tests:** cortex **23 suites / 486 tests** green (+9); eslint clean (0 new
+    warnings — I removed the three dead references the rework left behind).
+  - **Recorded, not fixed (dba-accepted):** a session-list query with
+    `user_id IS NULL` still sorts — an `IS NULL` on a middle index column does
+    not fix pathkeys for the trailing ones. The scan stays index-bounded and
+    `caRead` means `req.userId` is set in practice; a partial index is the fix
+    if that changes. **all three** routes are `Index Scan`, not
+    `Index Only Scan` — the real select lists carry
+    `role`/`content`/`status`/`model`/`skills`, so heap access is unavoidable
+    everywhere here, not just where `chat.js` uses `include … separate:true`.
+    (Corrected at the dba sign-off — the original wording blamed `separate:true`
+    for something simply true of every route.) Heap access is bounded by the
+    `LIMIT`, which is the whole win; the absence of `Sort` is what matters.
+  - **Production note in the migration header:** dev tables are tiny so plain
+    `CREATE INDEX` is used; a non-trivial deployment wants
+    `CREATE INDEX CONCURRENTLY` outside any transaction, which is why the
+    migration opens none.
+- **Next:** routed back to the **dba for data sign-off** (items 1–3) before QA,
+  per their ruling.
+- **dba data sign-off: PASS (2026-07-30), items 1-3 verified independently.**
+  They re-ran all three themselves rather than accept my summary, and **closed a
+  gap neither my tests nor their own ruling had covered**: every `EXPLAIN` in the
+  chain up to that point — mine and theirs — was against **hand-written SQL**,
+  and because the cortex tests are fully mocked, nothing had verified that
+  *Sequelize's actual generated SQL* preserves the plan. That was the one link
+  that mattered. Their harness (`scratchpad/realsql.js`) drives the **real models
+  + real `fetchKeysetPage`**, captures the emitted SQL, and EXPLAINs that exact
+  string. All three route shapes pass: `Index Scan [Backward]` on the correct
+  index each time, full `ROW(created_at, id)` cond, **no `Sort`, no
+  `Incremental Sort`**.
+  - **Applied from the sign-off:** (1) a note in `keysetOrder` recording that
+    Sequelize renders the first ORDER BY term as the output *alias* and the
+    second as the qualified column, while the seek uses `("created_at","id")` —
+    so the identical-key invariant holds via alias resolution rather than
+    textually. Verified benign: all four spellings produce identical plans, and
+    any future divergence would be a hard Postgres ambiguity **error**, not
+    silent wrongness. Recorded precisely because it looks like a bug at review
+    and someone would otherwise "fix" it blind. (2) Two `down()` header notes —
+    on a fresh DB it creates prefixes that never existed (so it is not a strict
+    inverse there), and **correctness never depended on these indexes**, so a
+    failed rollback must not be misread as a data-integrity event. (3) Migration
+    renamed `20260730000001` → `20260729000003` to match its siblings and avoid
+    a future-dated filename.
+  - **`down()` approved as written** — create-before-drop is the correct
+    ordering; unlike BUG-064's no-op there is a meaningful inverse here.
+  - **`escape` confirmed as the right shape, and required:** `literal` never
+    binds; `where()`/`Op` cannot express a `ROW(...)` left-hand side, so no
+    operator-level form yields an Index Cond; `replacements` on `findAll`
+    substitutes client-side with the *same* escaper (zero safety gain); true
+    server-side binds exist only on `sequelize.query`, not `Model.findAll`.
+  - **Benchmark DB `exprsn_bug067` dropped** at the dba's instruction. It was
+    kept only so they could inspect the plans first-hand (which is how item 3
+    got extended), but an unlabelled non-test database alongside `exprsn`,
+    `exprsn_auth_test` and `exprsn_spark_test` violates the rule that
+    force-sync suites must never find an ambiguous target. **Follow-up recorded,
+    not filed as a stray artifact:** if repeatable perf verification is wanted,
+    it belongs as a scripted seeder attached to **TASK-071**'s cortex
+    `db:check` coverage.
+  - **Status: data aspects signed off → hand to qa-specialist.**
+- **QA verdict: PASS (2026-07-30, qa-specialist, `s2614-bug067` @ `c8cef49`,
+  isolated worktree gateway on `:8550`, live dev `exprsn` DB @ Docker PG 16).**
+  The data half (index placement / `db:check` / `EXPLAIN`) was already dba-signed
+  off, so QA attacked the behavioural half: BUG-063 non-regression, timezone
+  correctness, and the new `escape` surface. All numbers below are QA's own,
+  derived on QA's own fixtures (5,000 messages: 3,000 µs-siblings packed 1,000
+  per millisecond across 3 consecutive ms, plus 400 groups of 5 sharing an
+  **exact** `created_at` to force the `id` tie-break; 300 sessions at 100
+  distinct timestamps × 3 exact duplicates, all inside one millisecond).
+  - **1. BUG-063 has NOT come back — the headline check.** Full cursor walks to
+    exhaustion over real HTTP, every page round-tripping through the real
+    `encodeCursor`/`decodeCursor`:
+    - `GET /cortex/api/v1/chat/:id` (ASC): `limit=37` → **pages=136
+      collected=5000 distinct=5000**; `limit=200` → pages=25, 5000/5000;
+      `limit=3` → pages=1667, 5000/5000; **`limit=1` → pages=5000, 5000/5000**
+      (every single row is a page boundary — the harshest form of the
+      duplicate/drop failure mode, and it is clean).
+    - `GET /cortex/api/v1/cs/chat/:id` (ASC): `limit=11` → pages=46, 500/500.
+    - `GET /cortex/api/v1/chat` and `/cortex/api/v1/cs/chat` (DESC): 44 pages,
+      302/302 distinct on the owner path, 303/303 on the admin path (the extra
+      row is a foreign-owned session QA inserted specifically so the two paths
+      would produce *different* answers and neither could be passing by accident).
+    - Ordering asserted monotone (non-decreasing ASC / non-increasing DESC)
+      across every collected row on every walk, and every walk terminated with
+      `nextCursor: null` rather than looping (a cursor-repeat guard was armed and
+      never fired).
+    - Both directions were then re-walked on the **real models + real
+      `fetchKeysetPage`** (not the mocks): ChatMessage ASC and DESC both
+      136 pages / 5000 / 5000; ChatSession ASC, DESC (owner) and DESC (admin)
+      all 44 pages / 302-303 distinct. The DESC direction is the half BUG-063
+      failed *silently*, so it was walked over the same µs-sibling and
+      exact-duplicate rows as ASC.
+  - **2. Timezone correctness confirmed, and QA's own mutation test proves the
+    check is sensitive.** The same real-model walks were repeated with the
+    session TimeZone forced to `America/New_York`, `Asia/Kolkata` and
+    `Pacific/Kiritimati` (`SHOW TIME ZONE` asserted per run, not assumed):
+    every direction, both models, **identical** page/collected/distinct counts.
+    The `Z` was verified present on **every** seek programmatically rather than
+    by eye — the emitted SQL was captured and counted: `seeks=135
+    seeksWithZ=135` (messages) and `seeks=43 seeksWithZ=43` (sessions), in every
+    direction and every timezone, i.e. no seek anywhere in a 136-page walk
+    lacked it. Then QA stripped the `Z` **at the escape boundary** (no product
+    code touched) and re-walked under `America/New_York`: ASC collected
+    **37 of 5,000** — independently reproducing the dev's figure to the row —
+    and DESC did not merely lose rows, it **failed to terminate** (runaway
+    paging, guard tripped at 20,000 pages). So the `Z` is load-bearing in a
+    strictly worse way than recorded, and the control/mutant pair means the
+    passing timezone result is evidence rather than a tautology.
+  - **3. The `escape` surface held under genuine attack.** 23 crafted cursors ×
+    all four routes (92 requests). Every malformed **timestamp** — SQL
+    metacharacters, a full `'::timestamptz, '...') --` break-out attempt,
+    ms precision, `+00`, a trailing `Z`, bare date, space-for-`T`, nanoseconds,
+    leading space, trailing newline, a JSON *number* in the field, the
+    pre-BUG-063 `{createdAt}` shape, non-base64, base64 garbage, a JSON array,
+    and empty — returned **byte-identical page 1**, never a seek. The injection
+    payloads that *do* reach SQL (via the id field, below) come back quoted
+    verbatim inside a Postgres type error, which is positive proof they arrived
+    as inert literals and not as syntax. **No injection got through, and no
+    tampered key ever reached a query.**
+  - **4. Regressions and adjacent checks.** BUG-066 non-regression:
+    `__createdAtUs` absent from every row of every page of every walk on both
+    `GET /cortex/api/v1/chat/:id` and `GET /cortex/api/v1/cs/chat/:id` (checked
+    per row, ~11k rows total, plus directly on a returned instance's `toJSON()`).
+    TASK-063 ACs re-verified end to end: `cursor`+`limit` accepted, ordering
+    stable, `nextCursor` opaque and null at the end, the pre-BUG-063 cursor shape
+    degrades to page 1, and limits clamp correctly (`999`→200/100, `0`/`-5`/
+    `abc`/empty→default). Per-user isolation holds (`404` on a foreign-owned
+    session as a non-admin); an unauthenticated request still `401`s. Cortex
+    **23 suites / 486 tests** green, `npm run lint` **0 errors / 176
+    pre-existing warnings**, `npm run db:check` **exit 0** — the last one
+    restated as worthless for this ticket, since it has no cortex coverage
+    (TASK-071).
+  - **5. QA's own plan spot-check (not a re-derivation of the signed-off work).**
+    EXPLAIN (ANALYZE, BUFFERS) of the SQL the real models actually emitted for a
+    seek page, on QA's fixtures: message history →
+    `Index Scan using chat_messages_session_id_created_at_id`, `Index Cond`
+    carrying the full `ROW(created_at, id) > ROW(...)`, 6 buffers to return 201
+    rows; session list → `Index Scan Backward using
+    chat_sessions_channel_created_at_id`, full `ROW(...)` cond, 3 buffers.
+    **No `Sort`, no `Incremental Sort`** in either. (The owner-path query chose
+    the `channel`-only composite with `user_id` as a `Filter` — the planner's
+    call, still no Sort, not a defect.)
+  - **6. Migration exercised both ways.** `down()` then `up()` against the live
+    dev DB: `down()` reintroduced both prefixes before dropping the composites
+    as designed, `up()` restored the forward index set **byte-identically**
+    (`indexdef` compared, not just names), a second `up()` was a true no-op, and
+    **0 indexes leaked into `public`** at any point. **Forward state restored and
+    left that way** — the dev DB ends with exactly the three composites plus
+    `chat_sessions_user_id`.
+  - **7. Model↔DDL parity, since `db:check` cannot do it.** A fresh
+    `sync({force:true})` of both models on a throwaway DB produced the three
+    composite indexes with **identical names and identical column orders** to
+    the migration's DDL, and nothing in `public`. This is what makes the
+    explicit `name:` in the model worth having; it is now measured, not asserted.
+    Throwaway DB dropped — cluster ends at four (`exprsn`, `exprsn_auth_test`,
+    `exprsn_spark_test`, `postgres`).
+  - **One defect found, filed as BUG-078, and it is NOT a regression from this
+    fix — it is pre-existing from TASK-063/BUG-063.** `decodeCursor` validates
+    the timestamp half of the cursor and passes the **`id` half through
+    unvalidated**; against `chat_messages.id` (`uuid`) any non-UUID id yields
+    HTTP **500** (`22P02 invalid input syntax for type uuid`) instead of failing
+    safe to page 1, on both message-history routes. Proven pre-existing rather
+    than assumed: the pre-fix `seekWhere` built `{ id: { [Op.gt]: cursor.id } }`,
+    and QA confirmed in psql that the old `"id" > 'not-a-uuid'` form and the new
+    `ROW(created_at, id) > ROW(..., 'not-a-uuid')` form raise the *same* error.
+    It is therefore not grounds to bounce BUG-067 — this fix neither introduced
+    it nor made it worse — but it does mean TASK-063's "malformed cursor fails
+    safe to page 1" bullet is only true of half the cursor. Session-list routes
+    are unaffected (`chat_sessions.id` is `varchar`).
+  - **Observation, not filed (pre-dates this ticket, PM's call):** message rows
+    carry a duplicate raw `session_id` field alongside `sessionId` in the API
+    body, because the model's association adds a second attribute over the same
+    column. Cosmetic, visible in the emitted select list, unrelated to the
+    keyset work.
+  - **Not re-derived, by instruction:** the dba's index-placement, `db:check`
+    and 255k-row `EXPLAIN` items (1-3) and their `realsql.js` harness result.
+    The two recorded non-defects (`user_id IS NULL` still sorts; all three routes
+    are `Index Scan` not `Index Only Scan`) were left as accepted and were not
+    re-filed.
+  - **Fixtures removed:** all 5,500 seeded messages and 303 seeded sessions
+    deleted (`%qa67%` prefix, verified 0 remaining; cortex is back to its
+    pre-existing 1 session / 2 messages). No agents or agent runs were created
+    (no LLM turns were needed for this ticket), so no SQL-only agent cleanup was
+    required. Worktree gateway on `:8550` stopped; **`:8443` was never touched.**
 ### BUG-068 — cortex streaming transports bypass the module error handler's production redaction (SSE `error` / `chat:error` echo raw upstream errors)
 - **Type:** bug · **Status:** in-review (branch `s2614-feat090`) · **Priority:** P2 (QA recommendation; PM confirms at grooming) · **Size:** S
 - **Owner-role:** unassigned · **Blocked-by:** —
@@ -6825,6 +7077,63 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   `up()`. dba glance recommended on the CASCADE-vs-allowNull call. Cross-ref:
   TASK-071, BUG-064, `services/cortex/src/models/index.js` (ChatMessage,
   AgentRun, and the two association declarations).
+
+### BUG-078 — cortex keyset cursor: the `id` half is never validated, so a tampered cursor 500s on the message-history routes instead of failing safe to page 1
+- **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist while attacking the cursor/escape surface at the BUG-067 verdict, 2026-07-30, branch `s2614-bug067` @ `c8cef49`; **pre-existing from TASK-063/BUG-063, NOT introduced by BUG-067**)
+- **Description:** `decodeCursor` in
+  `services/cortex/src/lib/keysetPagination.js` validates the timestamp half of
+  the cursor strictly (`CREATED_AT_US_RE`) and returns `null` — page 1 — on any
+  deviation. The `id` half is checked only for `typeof … !== 'undefined'`, so
+  **any** JSON value passes: a string, a number, `null`, an object, an array.
+  `seekWhere` then does `escape(String(cursor.id))`. The escaping is correct and
+  no injection is possible (verified: payloads arrive as inert quoted literals),
+  but on `chat_messages.id`, which is `uuid`, Postgres cannot cast the literal
+  and raises `22P02` → the request returns **HTTP 500** with the offending value
+  echoed in the message, instead of the documented fail-safe restart at page 1.
+  Session-list routes are unaffected because `chat_sessions.id` is `varchar(64)`.
+- **Steps to reproduce:** with a valid bearer, against a running gateway:
+  ```
+  # cursor = base64url({"createdAtUs":"2026-03-01T12:00:00.000500","id":"not-a-uuid"})
+  curl -sk -H "Authorization: Bearer $TOK" \
+    "https://localhost:8443/cortex/api/v1/chat/<session-id>?limit=3&cursor=eyJjcmVhdGVkQXRVcyI6IjIwMjYtMDMtMDFUMTI6MDA6MDAuMDAwNTAwIiwiaWQiOiJub3QtYS11dWlkIn0"
+  ```
+  → `500 {"error":"INTERNAL_ERROR","message":"invalid input syntax for type
+  uuid: \"not-a-uuid\"","correlationId":"…"}`. Reproduced on both
+  `GET /cortex/api/v1/chat/:id` and `GET /cortex/api/v1/cs/chat/:id`, with
+  `id` set to a non-UUID string, a SQL payload, a number, `null`, an object and
+  an array (6/6 → 500). The same six on the two session-list routes correctly
+  page.
+- **Expected:** a cursor whose `id` cannot possibly match the target column
+  fails safe to page 1, exactly as a malformed timestamp does — TASK-063's
+  acceptance bullet ("malformed cursor fails safe to page 1") should hold for
+  the whole cursor, not half of it.
+- **Environment:** `s2614-bug067` @ `c8cef49`, worktree gateway on `:8550`, live
+  dev `exprsn` DB, Docker PG 16, `NODE_ENV=development`.
+- **Notes:**
+  - **Pre-existing, proven not assumed.** The pre-BUG-067 `seekWhere` built
+    `{ id: { [Op.gt]: cursor.id } }`, which renders `"id" > 'not-a-uuid'`;
+    confirmed in psql that both the old form and the new
+    `ROW(created_at, id) > ROW(…, 'not-a-uuid')` raise the identical `22P02`.
+    BUG-067 neither introduced this nor widened it, which is why BUG-067 passed
+    QA rather than being bounced.
+  - Impact is low: the caller must tamper with its own opaque cursor, no data is
+    exposed and nothing is corrupted. What it costs is a fail-open→fail-safe
+    guarantee and an authenticated attacker-triggerable 500 (one correlation id
+    and one error log per request). In `development` the body also echoes the raw
+    Postgres text, which is the same class of surface BUG-068 addresses for SSE —
+    worth confirming the production redaction covers this path when it is fixed.
+  - **Suggested fix shape (developer's call):** validate `id` in `decodeCursor`
+    the same way the timestamp is — reject anything that is not a string, and
+    have the caller supply the expected id shape (the two models differ: `uuid`
+    vs `varchar(64)`), so an unusable cursor is rejected in Node rather than by
+    Postgres. Do **not** solve it by catching the DB error — that hides the
+    class rather than closing it.
+  - The cortex suite cannot catch this: it mocks `findAll`, so no cursor id ever
+    meets a real column type. Another instance of the TASK-072 gap.
+  - Cross-ref: BUG-067, BUG-063, TASK-063, BUG-068, TASK-072,
+    `services/cortex/src/lib/keysetPagination.js` (`decodeCursor`, `seekWhere`).
 
 ## Tasks
 

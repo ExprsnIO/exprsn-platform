@@ -24,7 +24,7 @@
 const { Op } = require('sequelize');
 const {
   clampLimit, encodeCursor, decodeCursor, seekWhere, keysetOrder, fetchKeysetPage,
-  CREATED_AT_US_ALIAS, CREATED_AT_US_EXPR,
+  CREATED_AT_US_ALIAS,
 } = require('../../src/lib/keysetPagination');
 
 describe('clampLimit', () => {
@@ -89,40 +89,103 @@ describe('encodeCursor / decodeCursor', () => {
   });
 });
 
-describe('seekWhere / keysetOrder', () => {
-  test('null cursor -> null (no seek fragment)', () => {
-    expect(seekWhere(null, 'desc')).toBeNull();
+// A stand-in for the connection escaper. Single-quotes and doubles embedded
+// quotes, which is what pg does — so a test can prove escaping actually happens.
+const fakeEscape = (v) => `'${String(v).replace(/'/g, "''")}'`;
+
+describe('BUG-067 — decodeCursor structurally validates the µs field', () => {
+  // The seek interpolates this value into a SQL literal (escaped). The regex is
+  // defence-in-depth on top of the escaper: a validated cursor is incapable of
+  // carrying anything but a fixed-width UTC µs timestamp, so a tampered one
+  // restarts at page 1 and never reaches a query.
+  const enc = (payload) => Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+
+  it.each([
+    ['SQL metacharacters',   "2026-07-29T03:00:01.000011'; DROP TABLE x;--"],
+    ['wrong precision (ms)', '2026-07-29T03:00:01.000'],
+    ['offset already present', '2026-07-29T03:00:01.000011Z'],
+    ['explicit +00 offset',  '2026-07-29T03:00:01.000011+00'],
+    ['a bare date',          '2026-07-29'],
+    ['space instead of T',   '2026-07-29 03:00:01.000011'],
+    ['empty',                ''],
+  ])('rejects %s', (_label, createdAtUs) => {
+    expect(decodeCursor(enc({ createdAtUs, id: 'm-1' }))).toBeNull();
   });
 
-  test('desc direction seeks strictly BEFORE the cursor on the raw µs expression (Op.lt), tie-broken by id', () => {
-    const cursor = { createdAtUs: '2026-07-28T12:00:00.500000', id: 'c2' };
-    const where = seekWhere(cursor, 'desc');
-    const [strict, tie] = where[Op.or];
-    expect(strict.attribute.val).toBe(CREATED_AT_US_EXPR); // compares the µs expr, not the ms-precision `createdAt` attribute
-    const [ltSym] = Object.getOwnPropertySymbols(strict.logic);
-    expect(ltSym).toBe(Op.lt);
-    expect(strict.logic[Op.lt]).toBe('2026-07-28T12:00:00.500000');
-    const [eqClause, idClause] = tie[Op.and];
-    expect(eqClause.logic).toBe('2026-07-28T12:00:00.500000'); // exact equality, still on the raw µs expr
-    expect(idClause.id[Op.lt]).toBe('c2');
+  test('accepts exactly the format the projection emits', () => {
+    const good = { createdAtUs: '2026-07-29T03:00:01.000011', id: 'm-1' };
+    expect(decodeCursor(enc(good))).toEqual(good);
   });
 
-  test('asc direction seeks strictly AFTER the cursor on the raw µs expression (Op.gt), tie-broken by id', () => {
-    const cursor = { createdAtUs: '2026-07-28T12:00:00.500000', id: 'm2' };
-    const where = seekWhere(cursor, 'asc');
-    const [strict, tie] = where[Op.or];
-    const [gtSym] = Object.getOwnPropertySymbols(strict.logic);
-    expect(gtSym).toBe(Op.gt);
-    expect(strict.logic[Op.gt]).toBe('2026-07-28T12:00:00.500000');
-    const [, idClause] = tie[Op.and];
-    expect(idClause.id[Op.gt]).toBe('m2');
+  test('a rejected cursor means page 1, never a query with a tampered key', async () => {
+    const findAll = jest.fn(async () => []);
+    const bad = decodeCursor(enc({ createdAtUs: "x'--", id: 'm-1' }));
+    expect(bad).toBeNull();
+    await fetchKeysetPage({
+      cursor: bad, limit: 5, direction: 'asc', baseWhere: { sessionId: 's' },
+      findAll, escape: (v) => `'${v}'`,
+    });
+    // no seek fragment at all — the base filter only
+    expect(JSON.stringify(findAll.mock.calls[0][0])).not.toContain('created_at');
+  });
+});
+
+describe('seekWhere / keysetOrder (BUG-067 row-wise form)', () => {
+  const cursor = { createdAtUs: '2026-07-29T03:00:01.000011', id: 'm-7' };
+
+  test('asc seeks strictly AFTER the cursor, row-wise on (created_at, id)', () => {
+    const w = seekWhere(cursor, 'asc', fakeEscape);
+    expect(w.val).toBe(
+      `("created_at", "id") > ('2026-07-29T03:00:01.000011Z'::timestamptz, 'm-7')`);
   });
 
-  test('keysetOrder sorts on the SAME raw µs expression as seekWhere, never the plain createdAt attribute', () => {
-    const [first, second] = keysetOrder('desc');
-    expect(first[0].val).toBe(CREATED_AT_US_EXPR);
-    expect(first[1]).toBe('DESC');
-    expect(second).toEqual(['id', 'DESC']);
+  test('desc seeks strictly BEFORE the cursor, row-wise', () => {
+    expect(seekWhere(cursor, 'desc', fakeEscape).val).toBe(
+      `("created_at", "id") < ('2026-07-29T03:00:01.000011Z'::timestamptz, 'm-7')`);
+  });
+
+  test('the cursor literal ALWAYS carries an explicit Z', () => {
+    // Load-bearing. Without the offset Postgres reads the string in the SESSION
+    // TimeZone, not UTC, so on a non-UTC connection the seek key silently skews
+    // (measured: 4h under America/New_York). This test is what fails if the
+    // append is ever dropped, and it is the amendment the ticket's original
+    // version of this fix would have gotten wrong.
+    for (const dir of ['asc', 'desc']) {
+      expect(seekWhere(cursor, dir, fakeEscape).val).toContain("000011Z'::timestamptz");
+    }
+  });
+
+  test('is row-wise, NOT the OR form — the OR form gets no index bound', () => {
+    // Measured: the OR shape leaves the whole seek in a Filter: and uses the
+    // index for the equality prefix only, i.e. BUG-067 unfixed.
+    const val = seekWhere(cursor, 'asc', fakeEscape).val;
+    expect(val).not.toMatch(/\bOR\b/i);
+    expect(val.startsWith('("created_at", "id")')).toBe(true);
+  });
+
+  test('escapes both cursor components through the supplied escaper', () => {
+    const nasty = { createdAtUs: "2026-07-29T03:00:01.000011", id: "m'); DROP TABLE x;--" };
+    const val = seekWhere(nasty, 'asc', fakeEscape).val;
+    expect(val).toContain("'m''); DROP TABLE x;--'");   // doubled quote, inert
+  });
+
+  test('REFUSES to build without an escaper rather than falling back', () => {
+    // literal() does not bind, so an optional escaper would be an invitation to
+    // inline unvalidated input here later.
+    expect(() => seekWhere(cursor, 'asc')).toThrow(/requires an escape function/);
+    expect(() => seekWhere(cursor, 'asc', 'not-a-fn')).toThrow(/requires an escape function/);
+  });
+
+  test('returns null without a cursor (page 1)', () => {
+    expect(seekWhere(null, 'asc', fakeEscape)).toBeNull();
+  });
+
+  test('keysetOrder sorts on the PLAIN createdAt attribute, not the µs expression', () => {
+    // This is what makes the composite index usable — ordering by the to_char
+    // expression is exactly what produced BUG-067's per-match-set Sort.
+    expect(keysetOrder('asc')).toEqual([['createdAt', 'ASC'], ['id', 'ASC']]);
+    expect(keysetOrder('desc')).toEqual([['createdAt', 'DESC'], ['id', 'DESC']]);
+    expect(JSON.stringify(keysetOrder('asc'))).not.toContain('to_char');
   });
 });
 
@@ -132,19 +195,25 @@ describe('fetchKeysetPage', () => {
   // STRING exactly the way Postgres would compare the real µs-precision TEXT
   // expression, so this exercises the real seek semantics (string
   // comparison), not just a canned response.
+  // A tiny in-memory "table" standing in for Sequelize/Postgres. `seekWhere`
+  // now emits a row-wise SQL literal, so the harness parses it and applies the
+  // SAME semantics Postgres would: compare the first column, and only on a tie
+  // compare the second. Comparing the fixed-width µs strings is equivalent to
+  // comparing the timestamps they render.
+  const ROWWISE = /^\("created_at", "id"\) ([<>]) \('([^']+)'::timestamptz, '(.*)'\)$/;
+
   function evalCond(row, cond) {
     if (cond == null) return true;
     if (cond[Op.and]) return cond[Op.and].every((c) => evalCond(row, c));
-    if (cond[Op.or]) return cond[Op.or].some((c) => evalCond(row, c));
-    if (cond.attribute && cond.attribute.val === CREATED_AT_US_EXPR) {
-      const { logic } = cond;
-      if (logic && typeof logic === 'object') {
-        const [sym] = Object.getOwnPropertySymbols(logic);
-        if (sym === Op.gt) return row[CREATED_AT_US_ALIAS] > logic[Op.gt];
-        if (sym === Op.lt) return row[CREATED_AT_US_ALIAS] < logic[Op.lt];
-        throw new Error(`unsupported comparator in test mock: ${String(sym)}`);
-      }
-      return row[CREATED_AT_US_ALIAS] === logic;
+    if (cond.val && typeof cond.val === 'string') {
+      const m = ROWWISE.exec(cond.val);
+      if (!m) throw new Error(`test harness cannot evaluate literal: ${cond.val}`);
+      const [, cmp, ts, id] = m;
+      const rowKey = [`${row[CREATED_AT_US_ALIAS]}Z`, String(row.id)];
+      const curKey = [ts, id.replace(/''/g, "'")];
+      const c = rowKey[0] < curKey[0] ? -1 : rowKey[0] > curKey[0] ? 1
+        : rowKey[1] < curKey[1] ? -1 : rowKey[1] > curKey[1] ? 1 : 0;
+      return cmp === '>' ? c > 0 : c < 0;
     }
     return Object.entries(cond).every(([k, v]) => {
       if (v && typeof v === 'object') {
@@ -159,7 +228,11 @@ describe('fetchKeysetPage', () => {
 
   function makeStore(rows) {
     return async (where, order, limit) => {
-      const filtered = rows.filter((r) => evalCond(r, where));
+      // Hand back COPIES, as a real query does. fetchKeysetPage strips the µs
+      // alias from the rows it returns (BUG-066), so a harness that reused the
+      // same objects would see them already stripped on the next page and the
+      // walk would never advance — an artifact of the double, not of the code.
+      const filtered = rows.filter((r) => evalCond(r, where)).map((r) => ({ ...r }));
       const desc = order[0][1] === 'DESC';
       const sorted = [...filtered].sort((a, b) => {
         if (a[CREATED_AT_US_ALIAS] !== b[CREATED_AT_US_ALIAS]) {
@@ -197,7 +270,7 @@ describe('fetchKeysetPage', () => {
     for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const { rows: page, nextCursor } = await fetchKeysetPage({
-        cursor, limit: 10, direction: 'desc', baseWhere: {}, findAll,
+        cursor, limit: 10, direction: 'desc', baseWhere: {}, findAll, escape: fakeEscape,
       });
       seen.push(...page.map((r) => r.id));
       pages += 1;
@@ -221,7 +294,7 @@ describe('fetchKeysetPage', () => {
     for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const { rows: page, nextCursor } = await fetchKeysetPage({
-        cursor, limit: 7, direction: 'asc', baseWhere: {}, findAll,
+        cursor, limit: 7, direction: 'asc', baseWhere: {}, findAll, escape: fakeEscape,
       });
       seen.push(...page.map((r) => r.id));
       if (!nextCursor) break;
@@ -238,7 +311,7 @@ describe('fetchKeysetPage', () => {
     const findAll = makeStore(rows);
 
     const page1 = await fetchKeysetPage({
-      cursor: null, limit: 2, direction: 'desc', baseWhere: {}, findAll,
+      cursor: null, limit: 2, direction: 'desc', baseWhere: {}, findAll, escape: fakeEscape,
     });
     expect(page1.rows.map((r) => r.id)).toEqual(['row-004', 'row-003']);
 
@@ -247,7 +320,7 @@ describe('fetchKeysetPage', () => {
 
     const cursor = decodeCursor(page1.nextCursor);
     const page2 = await fetchKeysetPage({
-      cursor, limit: 2, direction: 'desc', baseWhere: {}, findAll,
+      cursor, limit: 2, direction: 'desc', baseWhere: {}, findAll, escape: fakeEscape,
     });
     expect(page2.rows.map((r) => r.id)).toEqual(['row-002', 'row-001']);
   });
@@ -281,7 +354,7 @@ describe('fetchKeysetPage', () => {
     for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const { rows: page, nextCursor } = await fetchKeysetPage({
-        cursor, limit: 5, direction: 'desc', baseWhere: {}, findAll,
+        cursor, limit: 5, direction: 'desc', baseWhere: {}, findAll, escape: fakeEscape,
       });
       seen.push(...page.map((r) => r.id));
       if (!nextCursor) break;
@@ -302,7 +375,7 @@ describe('fetchKeysetPage', () => {
     for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const { rows: page, nextCursor } = await fetchKeysetPage({
-        cursor, limit: 5, direction: 'asc', baseWhere: {}, findAll,
+        cursor, limit: 5, direction: 'asc', baseWhere: {}, findAll, escape: fakeEscape,
       });
       seen.push(...page.map((r) => r.id));
       if (!nextCursor) break;
@@ -356,7 +429,7 @@ describe('BUG-066 — the internal keyset alias never reaches a client', () => {
     ];
     const { rows: page } = await fetchKeysetPage({
       cursor: null, limit: 5, direction: 'asc', baseWhere: {},
-      findAll: async () => rows,
+      findAll: async () => rows, escape: fakeEscape,
     });
     for (const r of page) {
       expect(JSON.parse(JSON.stringify(r.toJSON()))).not.toHaveProperty(CREATED_AT_US_ALIAS);
@@ -373,7 +446,7 @@ describe('BUG-066 — the internal keyset alias never reaches a client', () => {
     ];
     const { rows: page, nextCursor } = await fetchKeysetPage({
       cursor: null, limit: 2, direction: 'asc', baseWhere: {},
-      findAll: async () => rows,
+      findAll: async () => rows, escape: fakeEscape,
     });
     expect(page).toHaveLength(2);
     expect(nextCursor).toBeTruthy();

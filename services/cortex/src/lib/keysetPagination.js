@@ -20,7 +20,15 @@
 // different-microsecond sibling" — both looked >= the ms-truncated cursor);
 // DESC walks silently dropped same-millisecond siblings the same way.
 //
-// Fix: never let the seek key touch a JS Date. Select (and seek on) a
+// BUG-067 amended how that fix works, without weakening it: the µs projection
+// is now EMISSION-ONLY (it builds the cursor), while the seek and the ORDER BY
+// both run on the physical `created_at` column. Ordering by the expression made
+// the composite index unusable, so every page sorted the entire match set. The
+// invariant is now structural — one column, referenced once in `seekWhere` and
+// once in `keysetOrder` — rather than one long expression duplicated in two
+// places where a one-character divergence would silently resurrect BUG-063.
+//
+// Original BUG-063 fix: never let the seek key touch a JS Date. Select a
 // fixed-width, UTC, microsecond-precision TEXT projection of the timestamp
 // instead — `to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US')`
 // — which sorts identically to the underlying timestamp (fixed width, same
@@ -28,14 +36,27 @@
 // (the seek WHERE + the ORDER BY use the exact same expression) and in
 // Node (the cursor just carries the string through, untouched).
 
-const { Op, where: sequelizeWhere, literal } = require('sequelize');
+const { Op, literal } = require('sequelize');
 
 const CREATED_AT_US_ALIAS = '__createdAtUs';
+// Exactly what CREATED_AT_US_EXPR emits: 'YYYY-MM-DDTHH:MI:SS.uuuuuu', no offset.
+const CREATED_AT_US_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}$/;
 const CREATED_AT_US_EXPR = `to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US')`;
 
-/** Spread into a Sequelize `attributes: { include: [...] }` array so the
- * query also selects the raw µs-precision sort key alongside the model's
- * normal (Date-typed, ms-precision) `createdAt` attribute. */
+/**
+ * Spread into a Sequelize `attributes: { include: [...] }` array so the query
+ * also selects the raw µs-precision key alongside the model's normal
+ * (Date-typed, ms-precision) `createdAt` attribute.
+ *
+ * **EMISSION ONLY** (BUG-067). This projection exists solely to get a
+ * µs-precision value out of Postgres and into the cursor without it passing
+ * through a JS `Date` — which is what silently truncated it and caused BUG-063.
+ * It is NOT used for comparison: `seekWhere` and `keysetOrder` both work on the
+ * physical `created_at` column, because `to_char(timestamptz, text)` is only
+ * STABLE, not IMMUTABLE, and therefore cannot be indexed at all (an expression
+ * index on it errors with "functions in index expression must be marked
+ * IMMUTABLE"). Ordering by it was what produced BUG-067's per-match-set `Sort`.
+ */
 function createdAtUsAttribute() {
   return [literal(CREATED_AT_US_EXPR), CREATED_AT_US_ALIAS];
 }
@@ -76,6 +97,11 @@ function decodeCursor(cursor) {
       || typeof payload.createdAtUs !== 'string' || !payload.createdAtUs) {
       return null;
     }
+    // BUG-067: the seek interpolates this value into a literal (escaped), so a
+    // validated cursor must be structurally incapable of carrying anything but
+    // a fixed-width UTC µs timestamp — wrong precision, an offset already
+    // present, or any SQL metacharacter all fail here and restart at page 1.
+    if (!CREATED_AT_US_RE.test(payload.createdAtUs)) return null;
     return { createdAtUs: payload.createdAtUs, id: payload.id };
   } catch (err) {
     return null;
@@ -83,35 +109,72 @@ function decodeCursor(cursor) {
 }
 
 /**
- * WHERE fragment that seeks strictly past `cursor`, matching `direction`
- * ('desc' = newest-first, e.g. session lists; 'asc' = oldest-first, e.g.
- * message history). Compares the SAME raw µs-precision expression the query
- * orders by (`keysetOrder`) — never the plain (ms-precision) `createdAt`
- * attribute. Must be combined (Op.and) with the query's own filters —
- * combining via a plain object spread would silently drop one side's Op.or.
+ * WHERE fragment that seeks strictly past `cursor` (BUG-067).
+ *
+ * ── Why this is row-wise, and why the `Z` matters ──────────────────────────
+ * Two things here are load-bearing; both were established by measurement, not
+ * taste (dba ruling, 2026-07-29).
+ *
+ * 1. **Row-wise, not OR-form.** The previous
+ *    `(key > c) OR (key = c AND id > c.id)` shape gets **no index bound at
+ *    all**: Postgres uses the index only for the `session_id` equality prefix
+ *    and drops the entire seek into a `Filter:`, so every page re-walked the
+ *    whole session history. `(created_at, id) > (…, …)` produces a real
+ *    `Index Cond` over both columns.
+ *
+ * 2. **The cursor literal MUST carry `Z`.** The emitted cursor is UTC
+ *    wall-clock (the projection is `AT TIME ZONE 'UTC'`). An offset-less cast
+ *    is interpreted in the SESSION's TimeZone, so on a non-UTC connection the
+ *    seek key silently skews — verified: under `America/New_York`,
+ *    `'…T03:00:01.000011'::timestamptz` lands 4 hours off, while the `Z` form
+ *    is correct. It survives review only because the dev box happens to be
+ *    `Etc/UTC`. The `Z` is appended HERE, at seek-build time, rather than at
+ *    emission, so cursors issued before this change keep working byte-identically
+ *    instead of becoming zone-skewed.
+ *
+ * The comparison is now on the physical `created_at` column — the same column
+ * `keysetOrder` sorts by — so BUG-063's "seek and sort must use the identical
+ * key" invariant is structural rather than a matter of keeping two copies of a
+ * 60-character expression in sync.
+ *
+ * `escape` is REQUIRED: `literal` does not bind parameters, so the caller must
+ * supply the connection's escaper. The `CREATED_AT_US_RE` check in
+ * `decodeCursor` is defence-in-depth on top of that, never a substitute.
  */
-function seekWhere(cursor, direction) {
+function seekWhere(cursor, direction, escape) {
   if (!cursor) return null;
-  const cmp = direction === 'asc' ? Op.gt : Op.lt;
-  const usExpr = literal(CREATED_AT_US_EXPR);
-  return {
-    [Op.or]: [
-      sequelizeWhere(usExpr, { [cmp]: cursor.createdAtUs }),
-      {
-        [Op.and]: [
-          sequelizeWhere(usExpr, cursor.createdAtUs),
-          { id: { [cmp]: cursor.id } },
-        ],
-      },
-    ],
-  };
+  if (typeof escape !== 'function') {
+    // Deliberately a throw, not a silent fallback: an optional escaper is an
+    // invitation to inline unvalidated input here later.
+    throw new Error('seekWhere requires an escape function');
+  }
+  const cmp = direction === 'asc' ? '>' : '<';
+  const ts = escape(`${cursor.createdAtUs}Z`);
+  const id = escape(String(cursor.id));
+  return literal(`("created_at", "id") ${cmp} (${ts}::timestamptz, ${id})`);
 }
 
-/** ORDER clause matching seekWhere's key exactly — the same expression
- * drives both, so paging can never disagree with display order. */
+/**
+ * ORDER clause matching `seekWhere`'s key exactly — both now reference the
+ * plain `created_at` column, so the composite indexes
+ * `(session_id, created_at, id)` / `(channel[, user_id], created_at, id)` can
+ * serve the ordering and no `Sort` node is produced. `id` must be in the index
+ * too: without it the pathkeys stop one column short and Postgres adds an
+ * `Incremental Sort` on every page.
+ */
 function keysetOrder(direction) {
   const dir = direction === 'asc' ? 'ASC' : 'DESC';
-  return [[literal(CREATED_AT_US_EXPR), dir], ['id', dir]];
+  // NOTE (dba, verified 2026-07-30): Sequelize renders these as
+  // `ORDER BY "createdAt" ASC, "ChatMessage"."id" ASC` — the first term as the
+  // output ALIAS, the second as the qualified physical column — while the seek
+  // in `seekWhere` uses `("created_at", "id")`. That asymmetry is real but
+  // BENIGN: the alias projects the raw column, all four spellings
+  // ('createdAt', 'created_at', col(), literal()) produce identical plans, and
+  // any future divergence (e.g. a join projecting a second `createdAt`) would be
+  // a hard Postgres ambiguity ERROR, not silent wrongness. Left as-is
+  // deliberately — it looks like a bug at review and is not one, so do not
+  // "fix" it blind.
+  return [['createdAt', dir], ['id', dir]];
 }
 
 /**
@@ -140,8 +203,8 @@ function stripKeysetAlias(row) {
  * on purpose so ChatSession and ChatMessage (different id types: string vs
  * UUID) share this helper.
  */
-async function fetchKeysetPage({ cursor, limit, direction, baseWhere, findAll }) {
-  const seek = seekWhere(cursor, direction);
+async function fetchKeysetPage({ cursor, limit, direction, baseWhere, findAll, escape }) {
+  const seek = seekWhere(cursor, direction, escape);
   const where = seek ? { [Op.and]: [baseWhere, seek] } : baseWhere;
   const order = keysetOrder(direction);
   const rows = await findAll(where, order, limit + 1);
@@ -168,6 +231,7 @@ module.exports = {
   fetchKeysetPage,
   stripKeysetAlias,
   createdAtUsAttribute,
+  CREATED_AT_US_RE,
   CREATED_AT_US_ALIAS,
   CREATED_AT_US_EXPR,
 };

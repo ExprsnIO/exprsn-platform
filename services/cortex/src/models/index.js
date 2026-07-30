@@ -172,9 +172,16 @@ const ChatSession = sequelize.define('ChatSession', {
   tableName: 'chat_sessions',
   underscored: true,
   timestamps: true,
+  // BUG-067: the session list filters `channel` (admin) or `channel` + `user_id`
+  // (owner) and orders (created_at, id) — so each path needs its own composite
+  // ending in `id`. The bare `channel` index is a strict prefix of the first and
+  // is dropped by the migration. `user_id` alone is NOT a prefix of anything
+  // here, so it stays. Names are explicit so Sequelize's auto-naming cannot
+  // drift from the migration's DDL.
   indexes: [
-    { fields: ['channel'] },
-    { fields: ['user_id'] },
+    { name: 'chat_sessions_channel_created_at_id', fields: ['channel', 'created_at', 'id'] },
+    { name: 'chat_sessions_channel_user_id_created_at_id', fields: ['channel', 'user_id', 'created_at', 'id'] },
+    { name: 'chat_sessions_user_id', fields: ['user_id'] },
   ],
 });
 
@@ -191,7 +198,10 @@ const ChatMessage = sequelize.define('ChatMessage', {
   underscored: true,
   timestamps: true,
   updatedAt: false,
-  indexes: [{ fields: ['session_id', 'created_at'] }],
+  // BUG-067: `id` must be IN the index, not just the filter+sort prefix —
+  // without it the pathkeys stop one column short and Postgres adds an
+  // Incremental Sort to every keyset page.
+  indexes: [{ name: 'chat_messages_session_id_created_at_id', fields: ['session_id', 'created_at', 'id'] }],
 });
 
 // ── Outbox: drafted CS email replies (sent / held / blocked) ────────────────

@@ -16,10 +16,15 @@ process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy'
 
 const USER = 'aaaaaaaa-0000-0000-0000-000000000001';
 
-jest.mock('../../src/models', () => ({
-  ChatSession: { findAll: jest.fn(), findByPk: jest.fn() },
-  ChatMessage: { findAll: jest.fn() },
-}));
+// BUG-067: the routes pass `escape` through to seekWhere, so the mocked models
+// need the connection escaper too. Doubling embedded quotes matches pg.
+jest.mock('../../src/models', () => {
+  const sequelize = { escape: (v) => `'${String(v).replace(/'/g, "''")}'` };
+  return {
+    ChatSession: { findAll: jest.fn(), findByPk: jest.fn(), sequelize },
+    ChatMessage: { findAll: jest.fn(), sequelize },
+  };
+});
 
 jest.mock('../../src/middleware/auth', () => ({
   caRead: (req, res, next) => { req.userId = USER; next(); },
@@ -31,7 +36,7 @@ const express = require('express');
 const request = require('supertest');
 const { Op } = require('sequelize');
 const { ChatSession, ChatMessage } = require('../../src/models');
-const { CREATED_AT_US_ALIAS, CREATED_AT_US_EXPR } = require('../../src/lib/keysetPagination');
+const { CREATED_AT_US_ALIAS } = require('../../src/lib/keysetPagination');
 
 function buildApp() {
   const app = express();
@@ -71,16 +76,17 @@ function evalCond(row, cond) {
   if (cond == null) return true;
   if (cond[Op.and]) return cond[Op.and].every((c) => evalCond(row, c));
   if (cond[Op.or]) return cond[Op.or].some((c) => evalCond(row, c));
-  if (cond.attribute && cond.attribute.val === CREATED_AT_US_EXPR) {
-    const { logic } = cond;
-    const rowUs = row.get(CREATED_AT_US_ALIAS);
-    if (logic && typeof logic === 'object') {
-      const [sym] = Object.getOwnPropertySymbols(logic);
-      if (sym === Op.gt) return rowUs > logic[Op.gt];
-      if (sym === Op.lt) return rowUs < logic[Op.lt];
-      return true;
-    }
-    return rowUs === logic;
+  if (cond.val && typeof cond.val === 'string') {
+    // Row-wise seek (BUG-067): compare the first column, and only on a tie the
+    // second — exactly Postgres's ROW(...) semantics.
+    const m = /^\("created_at", "id"\) ([<>]) \('([^']+)'::timestamptz, '(.*)'\)$/.exec(cond.val);
+    if (!m) throw new Error(`harness cannot evaluate literal: ${cond.val}`);
+    const [, cmp, ts, id] = m;
+    const rowKey = [`${row.get(CREATED_AT_US_ALIAS)}Z`, String(row.id)];
+    const curKey = [ts, id.replace(/''/g, "'")];
+    const c = rowKey[0] < curKey[0] ? -1 : rowKey[0] > curKey[0] ? 1
+      : rowKey[1] < curKey[1] ? -1 : rowKey[1] > curKey[1] ? 1 : 0;
+    return cmp === '>' ? c > 0 : c < 0;
   }
   return Object.entries(cond).every(([k, v]) => {
     if (v && typeof v === 'object') {
@@ -105,8 +111,9 @@ describe('GET /api/v1/chat (session list) — TASK-063 keyset pagination', () =>
     expect(ChatSession.findAll).toHaveBeenCalledTimes(1);
     const call = ChatSession.findAll.mock.calls[0][0];
     expect(call.limit).toBe(101); // fetch limit+1 to detect a next page
-    expect(call.order[0][0].val).toBe(CREATED_AT_US_EXPR); // BUG-063: not the plain `createdAt` attribute
-    expect(call.order[0][1]).toBe('DESC');
+    // BUG-067: ordering is on the PLAIN column now, which is what lets the
+    // composite index serve it. The µs projection is emission-only.
+    expect(call.order).toEqual([['createdAt', 'DESC'], ['id', 'DESC']]);
     expect(call.order[1]).toEqual(['id', 'DESC']);
     expect(call.where).toEqual({ channel: 'assistant', userId: USER });
     expect(call.attributes.include[0][1]).toBe(CREATED_AT_US_ALIAS);
@@ -146,10 +153,9 @@ describe('GET /api/v1/chat (session list) — TASK-063 keyset pagination', () =>
     expect(call.where[Op.and]).toBeDefined();
     const [base, seek] = call.where[Op.and];
     expect(base).toEqual({ channel: 'assistant', userId: USER });
-    const [strict, tie] = seek[Op.or];
-    expect(strict.attribute.val).toBe(CREATED_AT_US_EXPR);
-    expect(strict.logic[Op.lt]).toBe('2026-07-28T12:00:00.123456');
-    expect(tie[Op.and][1].id[Op.lt]).toBe('s-5');
+    // Row-wise, descending, with the mandatory explicit Z on the cursor literal.
+    expect(seek.val).toBe(
+      `("created_at", "id") < ('2026-07-28T12:00:00.123456Z'::timestamptz, 's-5')`);
   });
 
   test('limit is clamped to the 100 cap', async () => {
@@ -209,8 +215,7 @@ describe('GET /api/v1/chat/:id (message history) — TASK-063 keyset pagination'
 
     const call = ChatMessage.findAll.mock.calls[0][0];
     expect(call.limit).toBe(201); // 200 + 1
-    expect(call.order[0][0].val).toBe(CREATED_AT_US_EXPR);
-    expect(call.order[0][1]).toBe('ASC');
+    expect(call.order).toEqual([['createdAt', 'ASC'], ['id', 'ASC']]);
     expect(call.order[1]).toEqual(['id', 'ASC']);
     expect(call.where).toEqual({ sessionId: 's-1' });
     expect(call.attributes.include[0][1]).toBe(CREATED_AT_US_ALIAS);

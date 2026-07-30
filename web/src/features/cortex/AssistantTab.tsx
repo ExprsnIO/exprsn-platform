@@ -41,6 +41,12 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
   // turn result (carries the guardrail verdict, which session detail doesn't).
   const [pending, setPending] = useState<string | null>(null);
   const [lastTurn, setLastTurn] = useState<ChatTurnResult | null>(null);
+  // FEAT-090: text released so far by the streaming turn. This is PROVISIONAL —
+  // the server can retract it (`onReset`) when a guardrail verdict replaces the
+  // draft, and the authoritative reply is always the resolved turn result, which
+  // arrives with the refetched session history. Rendered in a muted bubble so it
+  // reads as in-progress rather than as a persisted message.
+  const [streamed, setStreamed] = useState('');
 
   // TASK-063: keyset-paged session list — first page is the exact same
   // default-limit call as before, "Load more" walks the cursor forward.
@@ -67,12 +73,17 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
 
   const turn = useMutation({
     mutationFn: (message: string) =>
-      cortexApi.chatTurn(message, {
+      cortexApi.chatTurnStream(message, {
         ...(selectedId && { session_id: selectedId }),
         ...(model && { model }),
         ...(skills.length && { skills }),
+        onChunk: (text) => setStreamed((prev) => prev + text),
+        onReset: () => setStreamed(''),
       }),
-    onMutate: (message) => setPending(message),
+    onMutate: (message) => {
+      setPending(message);
+      setStreamed('');
+    },
     onSuccess: async (res) => {
       setLastTurn(res);
       if (!selectedId) setSelectedId(res.session_id);
@@ -82,7 +93,12 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
       ]);
     },
     onError,
-    onSettled: () => setPending(null),
+    // Clear the provisional text only after the refetch above has landed, so the
+    // bubble is replaced by the persisted message rather than blinking empty.
+    onSettled: () => {
+      setPending(null);
+      setStreamed('');
+    },
   });
 
   const messages = useMemo(() => {
@@ -93,7 +109,7 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, pending]);
+  }, [messages.length, pending, streamed]);
 
   const sessions = useMemo(
     () => (sessionsQuery.data?.pages ?? []).flatMap((p) => p.sessions),
@@ -218,7 +234,8 @@ export function AssistantTab({ onError }: { onError: (e: unknown) => void }) {
                 );
               })}
               {pending && <ChatBubble mine>{pending}</ChatBubble>}
-              {turn.isPending && <TypingIndicator />}
+              {streamed && <ChatBubble mine={false}>{streamed}</ChatBubble>}
+              {turn.isPending && !streamed && <TypingIndicator />}
               <div ref={bottomRef} />
             </Stack>
           )}

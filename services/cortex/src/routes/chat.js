@@ -10,7 +10,11 @@ const { newId } = require('../lib/ids');
 const { assistantChatTurn } = require('../engine/jobs');
 const { caRead, caWrite, isAdminReq } = require('../middleware/auth');
 const { clampLimit, decodeCursor, fetchKeysetPage, createdAtUsAttribute } = require('../lib/keysetPagination');
+const { openSSE } = require('../lib/sse');
+const { toClientError } = require('../lib/clientError');
+const { createLogger } = require('@exprsn/shared');
 
+const logger = createLogger('exprsn-cortex');
 const router = express.Router();
 const ID_RE = /^[\w-]+$/;
 
@@ -41,8 +45,36 @@ router.post('/', caWrite, asyncHandler(async (req, res) => {
   if (req.body.session_id && !(await ownedSession(req, sid, 'assistant'))) {
     return res.status(404).json({ error: 'not found' });
   }
-  res.json(await assistantChatTurn(
-    sid, message, req.body.model ?? null, req.body.skills ?? null, req.userId || null));
+  const turn = (stream) => assistantChatTurn(
+    sid, message, req.body.model ?? null, req.body.skills ?? null, req.userId || null, stream);
+
+  // FEAT-090 — streaming is OPT-IN. Without `stream:true` this route behaves
+  // byte-identically to before: same JSON body, same status, same everything.
+  if (req.body.stream !== true) return res.json(await turn(null));
+
+  const sse = openSSE(req, res);
+  const ctl = new AbortController();
+  // A closed tab must not keep a local generation (and its semaphore slot)
+  // running for minutes.
+  sse.onClientGone(() => ctl.abort());
+  sse.send('start', { session_id: sid });
+  try {
+    const result = await turn({
+      signal: ctl.signal,
+      abort: () => ctl.abort(),
+      onChunk: (text) => sse.send('token', { text }),
+      // Everything streamed so far is superseded — the client must clear its
+      // provisional buffer. The authoritative reply always arrives in `done`.
+      onReset: () => sse.send('reset', {}),
+    });
+    sse.close('done', result);
+  } catch (err) {
+    if (ctl.signal.aborted) return sse.close('cancelled', {});
+    // BUG-068: the headers already went out as 200, so this never reaches the
+    // module error handler — build the payload through the shared helper so the
+    // production redaction and the correlation id match the buffered route.
+    sse.close('error', toClientError(err, logger, { path: req.path, transport: 'sse' }));
+  }
 }));
 
 router.get('/', caRead, asyncHandler(async (req, res) => {

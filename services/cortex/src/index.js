@@ -32,6 +32,7 @@ const db = require('./models');
 const { initCache } = require('./lib/cache');
 const { initQueues } = require('./queues');
 const { requireEnabled } = require('./middleware/auth');
+const { toClientError, statusOf } = require('./lib/clientError');
 
 const logger = createLogger('exprsn-cortex');
 const app = express();
@@ -74,12 +75,11 @@ app.use((err, req, res, next) => {
   if (err.name === 'ValueError') {
     return res.status(400).json({ error: err.message });
   }
-  const status = err.statusCode || err.status || 500;
-  logger.error('Cortex module error', { error: err.message, path: req.path, status });
-  res.status(status).json({
-    error: err.errorCode || err.code || 'INTERNAL_ERROR',
-    message: config.env === 'production' && status >= 500 ? 'An error occurred' : err.message,
-  });
+  // BUG-068: the redaction rule lives in lib/clientError so the buffered route,
+  // the SSE stream and the socket namespace cannot drift apart. Previously this
+  // was the only path that redacted, and FEAT-090's two streaming transports
+  // silently did not.
+  res.status(statusOf(err)).json(toClientError(err, logger, { path: req.path }));
 });
 
 async function init() {
@@ -125,8 +125,11 @@ async function init() {
   }
 }
 
+const { registerSockets } = require('./sockets');
+
 module.exports = {
   name: 'cortex',
   app,
+  registerSockets,
   init,
 };

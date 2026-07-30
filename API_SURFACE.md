@@ -48,6 +48,9 @@ Columns: **Method | Path | Required Fields | Optional Fields | Min/Max | Auth | 
 - `live` `/live` and `moderator` `/moderation` Socket.IO namespaces have **no handshake token auth**
   (flagged `TODO(platform)`). The `ca` `/ca` namespace connects unauthenticated sockets too.
 - `vault` `/vault` namespace bypasses CA-token validation in non-production (any token → dev user).
+- `cortex` `/cortex` namespace (FEAT-090) **does** enforce handshake auth — shared
+  `authenticateSocket({requiredPermissions:['write']})`, no dev bypass — and is the
+  pattern to follow for new namespaces rather than the unauthenticated ones above.
 - `timeline`: `POST /api/webhooks/moderator` requires HMAC `x-webhook-signature` (`MODERATOR_WEBHOOK_SECRET`), same as the bluesky webhook (fail-closed 503 if the secret is unset; BUG-006, 2026-07-07).
 - `filevault`: share-link GET endpoints are unauthenticated — access is by knowing the share-link UUID.
 
@@ -1063,7 +1066,7 @@ CA-bearer-only.
 | POST | /cortex/api/v1/agents/:idOrName/run | `input` | model | — | CA write *or service HMAC* | 202 `{id,status:queued}`; 409 unless status `enabled`; runs via Bull worker (`run-agent`) |
 | GET | /cortex/api/v1/agents/:idOrName/runs | — | limit, offset | limit ≤200 (default 50) | CA read *or service HMAC* | paginated run ledger with transcripts; own runs; admin sees all |
 | GET | /cortex/api/v1/agents/:idOrName/runs/:runId | — | — | — | CA read *or service HMAC* | single run incl. transcript/guardrail verdict |
-| POST | /cortex/api/v1/chat | `message` | session_id, model, skills | — | CA write | assistant turn; `attachments` → 400 (not ported) |
+| POST | /cortex/api/v1/chat | `message` | session_id, model, skills, **`stream`** | — | CA write | assistant turn; `attachments` → 400 (not ported). **FEAT-090:** `stream:true` ⇒ `text/event-stream` instead of JSON (see below); anything else (absent, `"true"`, `1`) keeps the byte-identical JSON response |
 | GET | /cortex/api/v1/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination — response carries `nextCursor` (opaque, null at end); `cursor` seeks strictly past the prior page (no dupes/gaps across a concurrent insert) |
 | POST | /cortex/api/v1/cs/chat | `message` | session_id | — | CA write | guarded customer chat turn |
 | GET | /cortex/api/v1/cs/chat[/:id] | — | `cursor`, `limit` | sessions: limit ≤100 (def 100); `:id` messages: limit ≤200 (def 200) | CA read | own sessions; admin all; TASK-063 keyset pagination, same `nextCursor` contract as /chat above |
@@ -1083,6 +1086,63 @@ CA-bearer-only.
 | POST | /cortex/api/v1/skills[,/build,/:name/enable,/disable] | varies | — | — | CA write + admin | skills are prompt packs (no test gate) |
 | DELETE | /cortex/api/v1/skills/:name | — | — | — | CA write + admin | — |
 | GET | /cortex/api/v1/prompts | — | channel, session, q, limit, offset | limit ≤500 | CA read + admin | prompt/response telemetry query |
+#### Streaming assistant chat — SSE (FEAT-090)
+
+`POST /cortex/api/v1/chat` with `stream: true` answers `200 text/event-stream`
+instead of JSON. Streaming is **opt-in and assistant-channel only** — the
+customer-service routes (`/cortex/api/v1/cs/*`) are deliberately NOT streamable,
+because a `cs` reply held for human review must not reach a customer before that
+review happens.
+
+Response headers carry the anti-buffering set: `Cache-Control: no-cache,
+no-store, no-transform` and `X-Accel-Buffering: no`. The gateway's app-wide
+`compression()` is configured to skip `text/event-stream` (`src/gateway.js`) —
+without that, frames sit in the gzip buffer and the stream looks broken.
+
+| Event | Payload | Meaning |
+|-------|---------|---------|
+| `start` | `{session_id}` | accepted; the id to use for follow-up turns |
+| `token` | `{text}` | a **screened** prefix of the reply — see the guarantee below |
+| `reset` | `{}` | everything streamed so far is superseded — clear the provisional buffer |
+| `done` | full turn result (`{session_id, reply, status, skills, guardrails}`) | terminal; identical to the JSON body the non-streaming call returns |
+| `error` | `{error, message}` | terminal; the response is already `200`, so failures travel in-band |
+| `cancelled` | `{}` | terminal; the client disconnected or cancelled |
+
+`:` comment frames are sent every 15s as keep-alive and can be ignored.
+
+**Screened-prefix guarantee.** `token` never carries raw model output. Deltas
+accumulate server-side and a prefix is released only once the deterministic
+guardrails (`regex`/`contains`/`max_length`) have passed over everything
+accumulated so far; a `block` or `escalate` verdict halts generation and
+releases nothing further. `llm_judge` rules and the moderator screen are too
+expensive per-chunk and still run once over the final text — so a late verdict
+can still retract, which is what `reset` is for. **The authoritative reply is
+always the `done` payload**; a client that renders only `done` is correct, and a
+client that renders `token` text must honour `reset`.
+
+### Socket.IO events (namespace /cortex)
+
+Namespace `io.use` runs the shared `authenticateSocket({requiredPermissions:['write']})`
+against CA — the same middleware the gateway runs on `/_admin`; an
+unauthenticated handshake is rejected before any handler runs. A second
+middleware rejects with `CORTEX_DISABLED` when the module is flag-off (applied
+*after* auth, so a disabled module is not an unauthenticated probe). One
+generation at a time per socket; `userId` always comes from the validated token,
+never from the payload.
+
+| Event | Direction | Required Fields | Optional Fields | Auth | Notes |
+|-------|-----------|-----------------|-----------------|------|-------|
+| `chat:send` | client → server | `message` | `session_id`, `model`, `skills` | CA write (handshake) | second concurrent send ⇒ `chat:error` `BUSY` |
+| `chat:cancel` | client → server | — | — | — | aborts the in-flight generation |
+| `chat:start` | server → client | `{session_id}` | — | — | — |
+| `chat:token` | server → client | `{text}` | — | — | screened prefix, same guarantee as SSE |
+| `chat:reset` | server → client | `{}` | — | — | drop provisional text |
+| `chat:done` | server → client | turn result | — | — | authoritative reply |
+| `chat:error` | server → client | `{error, message}` | — | — | — |
+| `chat:cancelled` | server → client | `{}` | — | — | cancel or disconnect |
+
+Disconnecting aborts the generation, so a closed tab does not keep burning the
+LLM concurrency slot.
 
 ### Things to note
 - Inference: external OpenAI-compatible llama.cpp router (`CORTEX_LLM_BASE_URL`);

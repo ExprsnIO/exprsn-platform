@@ -28,6 +28,7 @@ const { ToolRegistry } = require('./tools');
 const { SkillRegistry } = require('./skills');
 const { AgentTask, Agent, AgentRun, ChatSession, ChatMessage, OutboxEntry, Review } = require('../models');
 const { personaPrompt } = require('./agents');
+const { createStreamGuard } = require('./streamGuard');
 const { newId } = require('../lib/ids');
 const { logPrompt } = require('../lib/promptLog');
 const { initQueues, queues } = require('../queues');
@@ -56,6 +57,19 @@ const CORTEX_SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 async function applyOutputGuardrails(text, channel) {
   const verdict = await ENGINE.evaluate(text, 'output', channel);
   return [verdict.action, verdict];
+}
+
+// FEAT-090: the mid-stream screen runs only the cheap deterministic rule types.
+// An `llm_judge` rule issues a model call per evaluation and the moderator
+// screen is a 15s HTTP round-trip — running either once per released chunk
+// would cost far more than streaming saves. Both still run over the FINAL text
+// in the normal output path below, where they can still block/escalate and
+// retract what was streamed.
+async function deterministicOutputVerdict(text, scope, channel) {
+  const specs = (await ENGINE.enabledSpecs())
+    .map((spec) => ({ ...spec, rules: spec.rules.filter((r) => r.type !== 'llm_judge') }))
+    .filter((spec) => spec.rules.length);
+  return ENGINE.evaluate(text, scope, channel, specs);
 }
 
 // Optional moderator-module screen, layered on top of the local guardrails.
@@ -249,8 +263,23 @@ async function queueAgentRun(runId) {
 // Owner-facing assistant chat: full tool access (session workspace, delegate,
 // enabled custom tools) + selected skills; same guardrail flow as the
 // customer channels, on channel 'chat'.
+/**
+ * One assistant chat turn.
+ *
+ * FEAT-090 streaming: pass `stream = { onChunk, onReset, signal }` to receive
+ * the reply incrementally. Only SCREENED text is ever handed to `onChunk` —
+ * deltas accumulate behind `createStreamGuard`, which releases a prefix only
+ * after the deterministic guardrails have passed over everything accumulated so
+ * far, and halts generation outright on a `block`/`escalate` verdict. `onReset`
+ * means "discard everything streamed so far" (a superseded tool-call iteration,
+ * or a final verdict that replaced the draft).
+ *
+ * The RETURN VALUE is identical either way — same shape, same statuses, same
+ * persisted messages — so the non-streaming path is unchanged and a streaming
+ * client that ignores the events still gets a correct final answer.
+ */
 async function assistantChatTurn(sessionId, message, model = null,
-                                 skillNames = null, userId = null) {
+                                 skillNames = null, userId = null, stream = null) {
   let session = await ChatSession.findByPk(sessionId);
   if (!session) {
     session = await ChatSession.create({
@@ -278,8 +307,59 @@ async function assistantChatTurn(sessionId, message, model = null,
     const [schemas, impls] = agent.taskTools(workspace, await TOOLS.agentTools());
     const system = await personaPrompt('assistant', agent.CHAT_SYSTEM) +
       await SKILLS.promptBlock(session.skills);
-    const { text: draft, commitCache } = await agent.runAgent(
-      system, history, schemas, impls, ENGINE, 'chat', { model: session.model });
+
+    // Screened-prefix streaming (FEAT-090). The guard owns the decision of what
+    // may leave the process; runAgent only feeds it raw deltas.
+    let guard = null;
+    let pending = Promise.resolve();
+    let runOpts = { model: session.model };
+    if (stream) {
+      guard = createStreamGuard(deterministicOutputVerdict, 'chat');
+      runOpts = {
+        ...runOpts,
+        signal: stream.signal || null,
+        onDelta: (d) => {
+          if (d.reset) {
+            guard = createStreamGuard(deterministicOutputVerdict, 'chat');
+            if (stream.onReset) stream.onReset();
+            return;
+          }
+          // push() is async but deltas arrive synchronously from the parser;
+          // chain them so screening order matches arrival order and a slow
+          // evaluation can never let a later chunk overtake an earlier one.
+          const g = guard;
+          pending = pending.then(async () => {
+            if (g !== guard) return; // superseded by a reset mid-flight
+            const { text, halted } = await g.push(d.content);
+            if (text && stream.onChunk) stream.onChunk(text);
+            // A halting verdict mid-generation: stop burning the router (and
+            // the semaphore slot) on output that can never be released.
+            if (halted && typeof stream.abort === 'function') stream.abort();
+          }).catch(() => {});
+        },
+      };
+    }
+
+    let draft;
+    let commitCache = null;
+    try {
+      ({ text: draft, commitCache } = await agent.runAgent(
+        system, history, schemas, impls, ENGINE, 'chat', runOpts));
+    } catch (e) {
+      // We abort the generation ourselves when the guard halts. The partial
+      // text still has to go through the normal verdict path below so the
+      // status, the persisted message, and the Review row are identical to
+      // what the non-streaming path would have produced.
+      if (!(guard && guard.halted)) throw e;
+      draft = guard.buffered();
+    }
+    if (guard) {
+      await pending;
+      if (!guard.halted) {
+        const tail = await guard.finish();
+        if (tail.text && stream.onChunk) stream.onChunk(tail.text);
+      }
+    }
     let [action, vOut] = await applyOutputGuardrails(draft, 'chat');
     const modOut = await moderatorScreen(draft, 'chat', sessionId);
     action = combinedAction(action, modOut);
@@ -301,6 +381,10 @@ async function assistantChatTurn(sessionId, message, model = null,
       status = 'sent';
       if (commitCache) await commitCache();
     }
+    // The final verdict replaced the draft, so whatever was streamed is no
+    // longer the answer — tell the client to drop it before the terminal event
+    // delivers the canned reply.
+    if (stream && stream.onReset && status !== 'sent') stream.onReset();
   }
   await appendMessage(sessionId, { role: 'assistant', content: reply, status });
   logPrompt({

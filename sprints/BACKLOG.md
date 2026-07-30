@@ -7161,7 +7161,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   FEAT-070, BUG-060, `sprints/feat-011-blockmute-adr.md` §3/§5.
 
 ### BUG-079 — Exprsn's RabbitMQ is unreachable from the host: the running container publishes no ports and host `:5672` belongs to a different project's broker
-- **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
+- **Type:** bug · **Status:** **done** (fixed + verified 2026-07-30) · **Priority:** P2 · **Size:** S
 - **Owner-role:** unassigned (dba glance on the queue topology) · **Blocked-by:** —
 - **Legacy:** — (surfaced during an infrastructure survey at the BUG-067 QA pass, 2026-07-30; **diagnosis corrected on verification — see below**)
 - **Description:** Every host-run Exprsn RabbitMQ flow currently cannot connect.
@@ -7215,6 +7215,54 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   complete it; and `:8080` is LLM-Studio's UI, which is why
   `CORTEX_LLM_BASE_URL` must point at `:11434` — `main`'s committed `.env` still
   points at `:8080` and 404s on `/v1/chat/completions`.
+- **Resolution (done · 2026-07-30):** fixed by the dba's recommended route —
+  **non-colliding host ports in `.env`** (`RABBITMQ_PORT=5673`,
+  `RABBITMQ_MGMT_PORT=15673`; backup at `.env.bak-bug079-20260730`) plus a
+  container recreate. No code changed. Because `docker-compose.yml` and
+  `src/config/index.js` read the *same two* variables, that one edit moved the
+  published ports, every amqplib client, and the `/health` management probe
+  together. `/health` now reports **`status: ok`** with
+  `rabbitmq: up, 3.13.7, 6ms` — the first time all four dependencies have been
+  green.
+- **Two corrections to the original report, both material:**
+  1. **The `PortBindings` were NOT malformed.** The container had been recreated
+     since the survey and carried well-formed bindings
+     (`5672/tcp → HostPort 5672`), yet `docker port` was still empty and
+     `NetworkSettings.Ports` showed `{"5672/tcp":[],"15672/tcp":[]}` — declared
+     but unpublished. So the real failure was **losing the host-port race to the
+     co-resident broker on restart**, not a corrupt binding. The remedy is the
+     same; the diagnosis in the ticket would have sent the next person looking at
+     the wrong thing, and `docker-compose.yml` now carries a comment describing
+     this exact symptom.
+  2. **`unhealthy` was a healthcheck-tuning fault, not a broker fault** — and the
+     ticket was right to say diagnose rather than assume. The broker's own log
+     read `Server startup complete; 5 plugins started` with listeners on
+     5672/15672/15692/25672 the whole time. The cause: **`rabbitmq-diagnostics -q
+     ping` boots an Erlang VM per probe and was measured at 18.4s** on this box
+     (`check_port_connectivity` is worse, 38.5s) against a **10s** healthcheck
+     timeout with **no `start_period`**, while the image itself took ~55s to
+     start. The probe could therefore never pass, so a perfectly healthy broker
+     was pinned `unhealthy` indefinitely. Retuned in `docker-compose.yml` to
+     `interval: 30s / timeout: 30s / start_period: 90s / retries: 5`; the
+     recreated container reported **healthy in 9 seconds**.
+- **Verified end-to-end through the platform's own helper, not just a port
+  check.** `shared/utils/rabbit.js`: `assertTopology` (exchange + queue + DLQ) →
+  `publish` → `queueDepth` 1 → `consume` returned the exact payload →
+  `queueDepth` 0 after ack → queue and DLQ deleted. Management API
+  `GET :15673/api/overview` → **HTTP 200** (`rabbit@c0c4f4dcec02`, 3.13.7,
+  Erlang 26.2.5.16). **The negative control is the important one:** connecting to
+  the *old* `:5672` with Exprsn's credentials still returns
+  `403 ACCESS-REFUSED`, which proves the round-trip above ran against **our**
+  broker and not LLM-Studio's. That distinction is the whole reason this ticket
+  mattered.
+- **Left for whoever picks up the queue paths:** `.env.example` deliberately still
+  defaults to 5672/15672 — the collision is specific to this box, and the
+  defaults are correct on a clean host, so the setup-TUI schema needs no change.
+  The two non-defect observations above (no Bull workers running;
+  `CORTEX_LLM_BASE_URL` pointing at LLM-Studio's `:8080`) are **untouched and
+  still true**. The dba glance on queue topology was not needed for this fix — no
+  queue shapes changed — but still applies to the first real queue-path
+  verification, which is now unblocked.
 
 ### BUG-078 — cortex keyset cursor: the `id` half is never validated, so a tampered cursor 500s on the message-history routes instead of failing safe to page 1
 - **Type:** bug · **Status:** backlog · **Priority:** P3 (QA recommendation; PM confirms) · **Size:** S

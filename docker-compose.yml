@@ -141,15 +141,26 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-exprsn}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-change_me}
+    # BUG-079: both host ports are parameterised because a co-resident stack can
+    # own 5672/15672 on the same box. If `docker port exprsn-rabbitmq` is empty
+    # while `docker inspect` shows PortBindings, the publish lost a race for the
+    # host port — set RABBITMQ_PORT / RABBITMQ_MGMT_PORT in .env and recreate.
+    # src/config/index.js reads the same two vars, so clients and the /health
+    # management probe follow the change automatically.
     ports:
       - "${RABBITMQ_PORT:-5672}:5672"
       - "${RABBITMQ_MGMT_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    # `rabbitmq-diagnostics` boots an Erlang VM per probe: measured at ~18s on a
+    # loaded dev box, and this image takes ~55s to finish starting. The old
+    # 10s timeout / no start_period could therefore never pass, leaving a
+    # perfectly healthy broker permanently `unhealthy` (BUG-079).
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 15s
-      timeout: 10s
+      interval: 30s
+      timeout: 30s
+      start_period: 90s
       retries: 5
     networks: [exprsn]
 

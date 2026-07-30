@@ -7078,6 +7078,71 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   TASK-071, BUG-064, `services/cortex/src/models/index.js` (ChatMessage,
   AgentRun, and the two association declarations).
 
+### BUG-080 — spark socket delivery is not S5-filtered: a suppressed sender's `new:message` / `message:edited` / `new:reaction` reach the suppressing viewer live, while REST correctly hides them
+- **Type:** bug · **Status:** backlog · **Priority:** P2 (QA recommendation) · **Size:** S–M
+- **Owner-role:** unassigned · **Blocked-by:** —
+- **Legacy:** — (found by qa-specialist executing **TASK-068** against the real
+  `/spark` Socket.IO namespace, 2026-07-30, branch `s2614-qa` @ `b49c3f5`;
+  **pre-existing from FEAT-070, not a regression** — its C/B
+  (`sprints/assessments/feat-070-blockmute-cb.md:32,46`) scoped S5 as read-time
+  only and named typing leakage as the sole socket residual, so socket
+  *delivery* filtering was never in scope. TASK-068's AC #2 is what surfaced it.)
+- **Description:** FEAT-070's **send** enforcement (S2) is correct on the socket
+  path — that half is verified and passing (see TASK-068). What is missing is the
+  **read/delivery** half: `socket/index.js:377` broadcasts `new:message` to the
+  whole `conversation:${id}` room with no per-recipient suppression filter, and
+  the SPA appends unconditionally (`web/src/features/messages/useConversation.ts:81-93`).
+  The REST read paths *do* filter (`routes/messages.js:51-57` and peers, via
+  `contactPolicy.getSuppressedIds`), so the two transports disagree about the
+  same rows. Two live-reproduced shapes, both with real users, real CA bearers
+  and a real gateway:
+  1. **Mute (direct conversation).** Mute is one-way and deliberately does *not*
+     block sends, so `assertCanContact` (which consults only
+     `isBlockedEitherWay`, `contactPolicy.js:126`) passes. A muted sender's
+     message is persisted and delivered live into the muter's open conversation,
+     then **vanishes on reload** because `GET /spark/api/messages/:id` filters it.
+  2. **Block (group conversation) — the sharper case.** `isEnforceableDirect`
+     (`contactPolicy.js:91`) exempts anything that is not a `type:'direct'`,
+     `groupId`-less conversation, per ADR §3. So in a group conversation a
+     **blocked** sender's message is delivered live to the person who blocked
+     them, while their REST read shows an empty list. Block-suppressed content
+     reaches the blocker's screen in realtime.
+  3. **`edit:message` is the worst of the set, because its content is fully
+     attacker-controlled.** `edit:message` (`socket/index.js:541`) re-emits
+     without re-checking contact policy, so a blocked sender can push arbitrary
+     *new* text onto the blocker's screen by editing an older message — verified
+     live: `message:edited` with `T068-P5-EDITED-while-blocked` arrived at the
+     blocker while their REST read stayed empty. `new:reaction`
+     (`add:reaction`, `:509`, which has neither a participant check nor a policy
+     check) and `read:receipt` (`:490`) leak the same way.
+- **Steps to reproduce:** two users A and B in a spark conversation, both joined
+  over `/spark`. (a) A mutes B via `POST /timeline/api/interactions/users/:id/mute`
+  → B `emit('send:message')` → A receives `new:message`; `GET /spark/api/messages/:id`
+  as A omits it. (b) In a `type:'group'` conversation, A blocks B → B sends → A
+  receives `new:message`; A's REST read is empty. (c) Same group, B
+  `emit('edit:message', {messageId, content})` and `emit('add:reaction')` → A
+  receives `message:edited` and `new:reaction` with the new content.
+- **Expected:** realtime delivery agrees with the read paths. A viewer never
+  receives a live event originating from a sender in their suppressed set.
+- **Notes on the fix:** the room-wide broadcast is the root cause, so the fix
+  shape is per-recipient emission rather than another guard — e.g. resolve the
+  room's sockets and skip those whose viewer has the sender suppressed, or emit
+  per participant socket using the existing `contactPolicy.getSuppressedIds`
+  primitive (one façade call per send, cached per conversation is enough). Two
+  design questions for whoever picks it up: (1) whether the group-block case
+  should instead be closed at the *send* side, which would revisit ADR §3's group
+  exemption — a product call, not a QA one; (2) `edit:message` needs a contact
+  re-check regardless of how delivery filtering lands, since its content is new.
+  Sizing S–M because the socket surface is 5 events wide, not one.
+- **Environment:** worktree gateway on `:8552` from `s2614-qa` @ `b49c3f5`
+  (identical to `main`), live dev `exprsn` DB, real Ollama-independent path (no
+  LLM involved). The shared `:8443` gateway was never touched.
+- **Notes:** **not** a send bypass — no blocked message is ever persisted (proved
+  at the DB level under TASK-068), and the read paths are correct. The exposure
+  is that suppressed content is *visible until reload*. Same defect family as
+  BUG-060 (a read-path leak) and rated the same way. Cross-ref: TASK-068,
+  FEAT-070, BUG-060, `sprints/feat-011-blockmute-adr.md` §3/§5.
+
 ### BUG-079 — Exprsn's RabbitMQ is unreachable from the host: the running container publishes no ports and host `:5672` belongs to a different project's broker
 - **Type:** bug · **Status:** backlog · **Priority:** P2 · **Size:** S
 - **Owner-role:** unassigned (dba glance on the queue topology) · **Blocked-by:** —
@@ -7254,7 +7319,7 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   cheap part. Cross-ref: BUG-057, TASK-055, FEAT-009 policy note.
 
 ### TASK-068 — Verify spark block enforcement over the **socket** send path
-- **Type:** task · **Status:** in-sprint (2026-14) · **Priority:** P2 · **Size:** S
+- **Type:** task · **Status:** done (2026-14) · **Priority:** P2 · **Size:** S
 - **Owner-role:** qa-specialist · **Blocked-by:** —
 - **Legacy:** standing QA-runtime debt — FEAT-070's smoke covered REST only
 - **Description:** FEAT-070's block/mute enforcement was smoke-verified over the
@@ -7272,9 +7337,58 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   retired debt table with a plausible security impact rather than hygiene or
   polish, and it has been deferred three cycles. BUG-061's teardown fix makes the
   socket suite pleasant to run now. Cross-ref: FEAT-070, BUG-060, BUG-061.
+- **QA (done · 2026-07-30, qa-specialist, `s2614-qa` @ `b49c3f5`):** **verified —
+  send enforcement PASS, delivery filtering FAIL → BUG-080 filed (P2), not fixed
+  here per AC #3.** Driven against the **real** `/spark` Socket.IO namespace on a
+  worktree gateway (`:8552`) with two purpose-made users
+  (`qa068a/qa068b@exprsn.io`) and real CA bearers — deliberately *not* from the
+  suite alone, because the existing
+  `services/spark/tests/socket/blockEnforcement.socket.test.js` fabricates the
+  `io`/`socket` objects and stubs `io.use` as a `jest.fn()` that never invokes
+  the middleware, so it has never exercised `validateSocketToken`, a real room
+  broadcast, or a real DB write. That is the same "the mock stood where the risk
+  lived" shape this sprint hit four times (FEAT-090 SSE liveness, FEAT-081
+  `concat` schema + escalate ENUM, BUG-067's generated SQL) — and it is exactly
+  where AC #2 turned out to fail.
+  - **AC #1 PASS, and proved at the DB level rather than by the absence of an
+    event.** With A blocking B, `send:message` returned
+    `error {event:'send:message', message:'You cannot send messages to this
+    conversation'}` to the sender, the counterpart socket received **nothing**,
+    and `spark.messages` gained **no row** — confirmed by direct query, not by
+    the API read (whose emptiness is ambiguous, since S4/S5 hide the whole
+    conversation from a blocker anyway; the blocked sender's *own* read staying
+    at 1 message is the clean oracle). Refused in **both** directions
+    (blockee→blocker and blocker→blockee — the pair is frozen, per ADR), and
+    `typing:start` was a silent no-op both ways. Control phase with no
+    relationship delivered normally to both sockets, so the negative result is
+    not an inert-harness artifact.
+  - **AC #2 FAIL → BUG-080.** The S5 suppressed-sender filter does **not** apply
+    to socket-delivered messages. `socket/index.js:377` emits room-wide with no
+    per-recipient filter. Two live shapes: a **muted** sender's message arrives
+    live at the muter and then vanishes on reload (mute doesn't block sends, so
+    S2 legitimately passes); and in a **group** conversation — exempt from S2 by
+    ADR §3 — a **blocked** sender's message reaches the blocker live while their
+    REST read is empty. Worst limb: `edit:message` re-emits with no contact
+    re-check, so a blocked sender can push arbitrary *new* text at the blocker
+    (`T068-P5-EDITED-while-blocked` observed arriving); `new:reaction` and
+    `read:receipt` leak likewise. Filed at **P2**, matching BUG-060's rating: it
+    is a visibility leak until reload, **not** a send bypass.
+  - **AC #3 satisfied** — BUG-080 filed with repro, root cause, fix shape, and
+    the two design questions (whether the group-block case belongs at the send
+    side, which reopens ADR §3; and `edit:message`'s missing re-check). No
+    product code touched under this ticket.
+  - **Suites (unchanged baseline):** the three spark enforcement suites —
+    `tests/socket/blockEnforcement.socket.test.js`,
+    `tests/routes/blockEnforcement.routes.test.js`,
+    `tests/services/blockEnforcement.test.js` — **40 tests green**. They are
+    honest about what they cover; they simply never covered delivery.
+  - **Fixtures:** the two `qa068*` users, their 2 conversations (1 direct, 1
+    group), 4 messages, 1 reaction and their block/mute edges — removed under
+    TASK-070 in the same pass (the relationship rows are hard-deleted by
+    unblock/unmute, verified empty).
 
 ### TASK-069 — Re-run auth `oauth2.test.js` (env-limited skip from the 2026-10 closeout)
-- **Type:** task · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** done (2026-14) · **Priority:** P3 · **Size:** S
 - **Owner-role:** qa-specialist · **Blocked-by:** —
 - **Legacy:** standing QA-runtime debt — skipped at the 2026-10 closeout for missing infra
 - **Description:** The suite was skipped because the infra it needs wasn't up.
@@ -7288,9 +7402,33 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
     named in the ticket rather than "env-limited".
 - **Notes:** Belongs to the known auth pre-existing-failure backlog (STATUS.md
   #9 note) — a red result is an acceptable, informative outcome here.
+- **QA (done · 2026-07-30, qa-specialist, `s2614-qa` @ `b49c3f5`):** **GREEN —
+  33/33 tests pass, 1 suite, 26.4s.** The skip had indeed outlived its reason;
+  no BUG to file and nothing to cross-link to the auth stabilization backlog.
+  - Command: `cd services/auth && AUTH_DB_NAME=exprsn_auth_test AUTH_DB_USER=exprsn
+    AUTH_DB_PASSWORD=change_me AUTH_DB_HOST=localhost AUTH_DB_PORT=5432 npx jest
+    tests/oauth2.test.js`. **DB isolation double-checked** rather than assumed:
+    `tests/setup.js:13` defaults `AUTH_DB_NAME` to `exprsn_auth_test` even with no
+    env, and the explicit override matched it — the real `exprsn` DB was never a
+    candidate for the force-sync.
+  - Coverage that actually ran (worth recording, since this suite protects
+    previously-fixed defects): PKCE S256 accept + non-S256 reject, state
+    required, redirect-URI validation, the full auth-code and refresh-token
+    grants, client-credential validation and the not-authorized-for-grant path,
+    RFC 7662 introspection **including the two BUG-030 regressions** (no
+    introspection without client auth; no cross-client introspection), RFC 7009
+    revocation with the BUG-029 regression (a revoked token stops introspecting
+    as active) and the no-existence-leak 200, OIDC discovery/JWKS/UserInfo plus
+    "no `id_token` at the plain OAuth2 token endpoint", and social login
+    create/link.
+  - **One warning, already known and NOT a new defect:** the run ends with Jest's
+    force-exit notice. auth's `jest.config.js` sets `forceExit: true`, which was
+    examined and deliberately left alone during BUG-061 (recorded in that
+    ticket's dev note as auth's own DB/session teardown, unrelated to the
+    idempotency handler). Not the BUG-065/BUG-070 family; no ticket filed.
 
 ### TASK-070 — Sweep QA fixture residue (clean or document as durable)
-- **Type:** task · **Status:** in-sprint (2026-14) · **Priority:** P3 · **Size:** S
+- **Type:** task · **Status:** done (2026-14) · **Priority:** P3 · **Size:** S
 - **Owner-role:** qa-specialist · **Blocked-by:** —
 - **Legacy:** standing QA-runtime debt, plus new residue from the 2026-13 verification
 - **Description:** Accumulated verification fixtures across the dev DB need a
@@ -7305,6 +7443,62 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   - The durable list lives somewhere QA will actually find it next cycle.
 - **Notes:** Cheap, and it stops each cycle's verification from silting up the
   dev DB. Worth doing before the RAG track starts writing embeddings.
+- **QA (done · 2026-07-30, qa-specialist, `s2614-qa` @ `b49c3f5`):** **swept and
+  documented — both ACs met.** The durable list is
+  **`sprints/QA-FIXTURES.md`**, linked from `sprints/README.md`'s folder layout
+  with a "read before verifying or deleting anything" instruction, so it sits on
+  the path every role already walks rather than in a ticket thread.
+  - **The listed residue was a subset of what was actually there, so the sweep was
+    driven from an inventory, not from the list.** Rather than delete by name, I
+    enumerated every column in `information_schema.columns` named
+    `userId`/`user_id`/`senderId`/`createdBy`/`actorId`/… across all schemas and
+    counted rows for each fixture user. That found **7** QA users, not the 3 the
+    ticket named — `hotfix-smoke2@exprsn.io` and `smoke3@exprsn.io` were
+    undocumented residue from a 2026-07-28 hotfix smoke that nobody had recorded —
+    and established that they touched exactly **9 tables**, including
+    `filevault.files`/`file_versions` and `ca.audit_logs`, neither of which the
+    ticket anticipated. Worth keeping as the method: a named list under-counts.
+  - **Removed** (single transaction, before/after counts captured): 7 users
+    (8 → **1**, `tester@exprsn.io` kept) · 17 `auth.sessions` via cascade
+    (39 → 22, all remaining are tester's) · 19 `ca.tokens` (41 → 22) **including
+    the revoked-token fixture** the ticket listed · 12 `ca.audit_logs`
+    (14601 → 14589) · spark: 3 conversations, 6 participants, 4 messages,
+    1 reaction, 4 `message_moderation` → **all 0** · filevault: 3 files +
+    3 versions → 0 · cortex: the failed smoke run **`run-1785283486-e4f76a`** the
+    ticket named, 6 orphaned `prompt_logs` (the 4 the FEAT-090 pass left because
+    ownership was ambiguous across concurrent sessions — resolvable now that no
+    other pass is live), 1 chat session + 2 messages → **all 0**, with the 3
+    builtin personas intact.
+  - **On disk:** the 2 content-addressed blobs owned by the deleted filevault
+    files, and all **14** `data/cortex/workspaces/` session directories (cortex is
+    at 0 sessions, so every one was orphaned). `data/filevault/fd/` correctly
+    survived — it still holds an unrelated blob, which is the check that the
+    delete was targeted rather than a directory wipe.
+  - **`exprsn_spark_test` was on the delete list and should not have been.** It is
+    the isolated DB `services/spark/tests/setup.js` forces `SPARK_DB_NAME` to, for
+    the same reason `exprsn_auth_test` exists — deleting it would have pointed the
+    next spark suite run at the real `exprsn`. It is now recorded as **durable**,
+    which is precisely the failure mode this ticket's second AC exists to prevent.
+  - **Verified after, not assumed:** the clean-baseline query published in
+    `QA-FIXTURES.md` was run and returns the documented baseline exactly (1 user,
+    3 cortex agents, every other counter 0), and the cluster is back to its steady
+    **four** databases.
+  - **Recorded as durable rather than swept (with reasons, per AC #1):** ~28
+    orphaned filevault blobs on disk from passes predating any counting — they are
+    content-addressed, refcounted through `filevault.file_blobs` (which has 0
+    rows), harmless, and no ticket owns their provenance; tester's own CA
+    tokens/auth sessions, which expire normally; and the swept cortex constraint
+    state from BUG-064, which **re-accretes on any dev boot from a checkout that
+    still runs `sync({alter:true})` until BUG-071 lands** — the note tells the next
+    pass to re-run BUG-064's `up()` rather than hand-drop constraints.
+  - **One incidental oddity, not filed:** the disk layout doubles the first path
+    segment — storage_key `b1/ff/<hash>` lands at
+    `data/filevault/b1/b1/ff/<hash>`. Harmless (content-addressed either way) but
+    it costs a minute to find a blob from its key, so it is written down here.
+  - **Approved before execution.** The sweep is destructive against the shared dev
+    `exprsn` DB, so the full inventory was put to the owner and confirmed
+    (full sweep, keeping `tester`, the builtin personas, and both `*_test`
+    databases) before any DELETE ran.
 
 ### TASK-071 — `db:check` blind spots: flag-gated modules unchecked + no duplicate-constraint detection
 - **Type:** task · **Status:** backlog · **Priority:** P2 · **Size:** S

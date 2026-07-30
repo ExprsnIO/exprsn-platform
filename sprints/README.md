@@ -30,6 +30,7 @@ Also read, before structural work: `ARCHITECTURE.md` (design), `API_SURFACE.md`
 sprints/
   README.md            this governance doc (convention + lifecycle + roles)
   BACKLOG.md           intake queue: every unscheduled feature/bug/task/spike
+  QA-FIXTURES.md       durable-vs-residue dev-DB fixtures + the clean-baseline query
   active/              one file per in-flight sprint, e.g. active/sprint-2026-09.md
   archive/             closed sprints move here at close-out
   templates/
@@ -42,6 +43,11 @@ sprints/
 - **`active/`** holds the current sprint file(s). The product-manager pulls
   groomed tickets into it and tracks status there.
 - **`archive/`** is where a sprint file is moved when the sprint ends.
+- **`QA-FIXTURES.md`** records which dev-DB fixtures are **durable** (the `tester`
+  login, the isolated `*_test` databases, the builtin cortex personas) versus
+  residue to sweep, plus the clean-baseline inventory query. **Read it before
+  verifying anything and before deleting anything from the dev DB** — it exists
+  because that knowledge previously lived only in ticket threads (TASK-070).
 
 ---
 

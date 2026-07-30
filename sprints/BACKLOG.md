@@ -10,10 +10,27 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. **Sprint 2026-14 is in flight — see `active/sprint-2026-14.md`**
-> (committed 2026-07-28: FEAT-090 sr warm-up → FEAT-081 anchor, both C/B-approved
-> from the Cortex slate; BUG-066/064/065 on the jr track; BUG-067 dba-owned;
-> TASK-068/069/070 on the qa track). **Sprint 2026-13 closed 2026-07-28
+> active sprint. **No sprint is currently in flight — `active/` is empty and the
+> next cycle needs grooming.** **Sprint 2026-14 closed 2026-07-30
+> (9/9 done: FEAT-090 + FEAT-081 on the sr track, BUG-066/065/064 jr,
+> BUG-067 dba, TASK-068/069/070 qa; merged to `main` @ `0c0a510`, archived at
+> `archive/sprint-2026-14.md`)**. It spent the FEAT-080 keystone — token
+> streaming and the sequential 8-step chaining engine both shipped — burned the
+> four P3s from the 2026-13 verification, and closed the three converted
+> QA-debt tickets that had rolled three cycles as an un-schedulable free-text
+> table. New tickets from its build/QA: BUG-070/071 (alter-sync accretion in
+> timeline/plugins/lowcode; timeline's unclosed IPCWorker handle),
+> BUG-075/076/077/078 (P3s), **BUG-080 (P2 — spark socket delivery is not
+> S5-filtered; a suppressed sender's live events reach the suppressing viewer
+> while REST correctly hides them)**, and TASK-071/072 (`db:check` has zero
+> cortex coverage; no cortex test touches a real DB). **Next-grooming carry-ins
+> are recorded in the archived sprint file's close-out** — read them before
+> planning: FEAT-078's ADR-0005 sign-off has rolled a **third** time and is now
+> a decision rather than a scheduling item; **TASK-071 then TASK-072** is the
+> answer to five defects this cycle that green suites structurally could not
+> catch; BUG-080 carries an ADR §3 product question; and BUG-079 should be fixed
+> before any queue-path verification is scheduled.
+> **Sprint 2026-13 closed 2026-07-28
 > (6/6 done: FEAT-080 anchor + TASK-062, TASK-063, BUG-060, BUG-061, BUG-062;
 > merged to `main` @ `908e478`, archived at `archive/sprint-2026-13.md`)**. It
 > opened the C/B-approved Cortex agentic build-out foundations-first and cleared

@@ -5,7 +5,7 @@
  * Webhook dispatcher — signed outbound delivery with timeout, bounded retry,
  * and a per-endpoint circuit breaker.
  *
- * Signing (PLUGINS_PLAN.md §5): every delivery carries
+ * Signing (docs/plans/plugins-plan.md §5): every delivery carries
  *   X-Plugin-ID:        <pluginKey>
  *   X-Plugin-Event:     <event>
  *   X-Plugin-Timestamp: <unix-ms>

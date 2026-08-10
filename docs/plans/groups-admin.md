@@ -1,6 +1,6 @@
 # Admin Console — Groups (Nexus) Section Expansion — Plan
 
-> Status: **IMPLEMENTED (2026-06-28).** Companion to `GROUPS_FRONTEND_PLAN.md`.
+> Status: **IMPLEMENTED (2026-06-28).** Companion to `docs/plans/groups-frontend.md`.
 > §11 open decision resolved → **YES, platform-admin override added** (CA-token
 > role `admin` bypasses the nexus group guards via `isPlatformAdminRequest`).
 > Phase 0: config endpoints secured (`requireToken`+`requireAdmin`), `RequireAdmin`

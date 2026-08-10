@@ -6,7 +6,7 @@
  *
  * A plugin is a declarative, scoped, capability-gated extension described by a
  * manifest and stored as DATA — never arbitrary code loaded into the gateway.
- * See PLUGINS_PLAN.md §2 for the data model rationale.
+ * See docs/plans/plugins-plan.md §2 for the data model rationale.
  *
  * All tables live in the `plugins` schema. The instance is obtained from the
  * platform's shared getSequelize() so the gateway process and the migrate-sync

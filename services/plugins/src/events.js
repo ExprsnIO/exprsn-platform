@@ -5,7 +5,7 @@
  * Event + surface registry — what the platform owns.
  *
  * A manifest's `events` must reference known events and its `appliesTo` must
- * reference known module surfaces (PLUGINS_PLAN.md §3). The hook bus
+ * reference known module surfaces (docs/plans/plugins-plan.md §3). The hook bus
  * (pluginHost) only dispatches events listed here, so a typo or a probe for an
  * un-instrumented event is rejected at validation time rather than silently
  * never firing.

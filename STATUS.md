@@ -25,7 +25,7 @@ Locked decisions that determine which follow-ups are blocking:
   per-event WebRTC signaling auth (#11) is **MVP-blocking** this cycle.
 - **Sessions (#9): full fix**, not the hide-the-tab cut — persist `Session` rows
   on login and make revoke invalidate the CA token.
-- **Sprint ordering: release-engineering-first** (see `SPRINT.md`).
+- **Sprint ordering: release-engineering-first** (see `sprints/archive/SPRINT.md`).
 
 ## First run
 
@@ -83,8 +83,8 @@ deferrals: python-tool sandboxing before production enablement (flag default
 off), Socket.IO task-progress namespace (polling for now), dataset tools /
 attachments / MCP not ported.
 
-### TODO.md burn-down (2026-07-02) — admin console + moderation + group calendar
-Implemented every open item in `TODO.md` (see its Done section for the checklist).
+### docs/reports/todo-archive.md burn-down (2026-07-02) — admin console + moderation + group calendar
+Implemented every open item in `docs/reports/todo-archive.md` (see its Done section for the checklist).
 Highlights:
 - **Admin tables** (`web/src/features/admin/ui.tsx` DataTable): opt-in column
   picker (persisted per table in localStorage), per-column filter row,
@@ -166,7 +166,7 @@ default false), so the MVP critical path is untouched.
   (dimension/measure roles); flows execute on the shared hook bus. 4 unit tests green.
 - Wiring: registry +2 rows, migrate-sync schemas, `config.features`, `.env.example`,
   a guarded `pluginHost.emit('timeline.post.created')`, and `web/` admin sections.
-- See `PLUGINS_PLAN.md` §9 (as-built) and `PLUGINS_DECISIONS.md` addendum (resolved
+- See `docs/plans/plugins-plan.md` §9 (as-built) and `docs/plans/plugins-decisions.md` addendum (resolved
   decisions). Deferred: Bull `worker:plugins`, CA-issued plugin tokens, `internal`
   in-process tier, org-RBAC/group-aware enforcement.
 

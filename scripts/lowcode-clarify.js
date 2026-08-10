@@ -19,7 +19,7 @@
  *
  *   node scripts/lowcode-clarify.js            # opens/creates ./lowcode-clarify.state.json
  *   node scripts/lowcode-clarify.js my.json    # use a specific state file
- *   node scripts/lowcode-clarify.js --export    # headless: (re)write LOWCODE_CLARIFICATIONS.md and exit
+ *   node scripts/lowcode-clarify.js --export    # headless: (re)write docs/plans/lowcode-clarifications.md and exit
  *
  * Keys: ↑/↓ move · Enter select · Space toggle (multi) · Esc back · Ctrl-C quit.
  */
@@ -602,7 +602,7 @@ const CATEGORIES = [
 
 // ─────────────────────────────── state I/O ─────────────────────────────────
 const STATE_FILE = path.resolve(process.cwd(), process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'lowcode-clarify.state.json');
-const BRIEF_DOC = path.resolve(process.cwd(), 'LOWCODE_CLARIFICATIONS.md');
+const BRIEF_DOC = path.resolve(process.cwd(), 'docs', 'plans', 'lowcode-clarifications.md');
 
 let state = blankState();
 function blankState() { return { version: 1, updatedAt: null, answers: {} }; }
@@ -744,7 +744,7 @@ async function reviewScreen() {
     const answered = ALL_ITEMS.filter(({ it }) => isAnswered(it)).length;
     const i = await selectMenu('Review & Export',
       [
-        c.green + '⇪ Export → LOWCODE_CLARIFICATIONS.md' + c.reset,
+        c.green + '⇪ Export → docs/plans/lowcode-clarifications.md' + c.reset,
         'Preview brief',
         c.green + '💾 Save state' + c.reset,
         'Back',
@@ -752,7 +752,7 @@ async function reviewScreen() {
       answered + '/' + ALL_ITEMS.length + ' items answered');
     if (i === 0) { save(); fs.writeFileSync(BRIEF_DOC, buildBrief(), 'utf8'); await toast(c.green + 'Wrote ' + path.basename(BRIEF_DOC) + c.reset); }
     else if (i === 1) {
-      clear(); header('LOWCODE_CLARIFICATIONS.md (preview)');
+      clear(); header('docs/plans/lowcode-clarifications.md (preview)');
       out(buildBrief().split('\n').slice(0, 48).join('\n') + '\n\n' + c.dim + '… (truncated; export to see all)' + c.reset + '\n\n');
       await selectMenu('', [c.green + 'OK' + c.reset]);
     } else if (i === 2) { save(); await toast(c.green + 'Saved ' + path.basename(STATE_FILE) + c.reset); }
@@ -802,7 +802,7 @@ async function mainMenu() {
       return { label: cat.icon + '  ' + pad(cat.title, 26), hint: tag };
     });
     rows.push({ separator: true });
-    rows.push({ label: '✓  Review & Export', hint: 'summary + write LOWCODE_CLARIFICATIONS.md' });
+    rows.push({ label: '✓  Review & Export', hint: 'summary + write docs/plans/lowcode-clarifications.md' });
     rows.push({ separator: true });
     rows.push({ label: c.green + '   Save & Quit' + c.reset });
     rows.push({ label: c.red + '   Quit without saving' + c.reset });

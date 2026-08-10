@@ -287,4 +287,4 @@ release-engineered:
 - **MVP scope decisions (2026-06-22):** single instance; `/live` streaming publish
   is in scope (so its signaling needs per-event auth); Sessions gets the full fix
   (persisted rows + token revocation). Release-engineering-first sprint ordering —
-  see `SPRINT.md`. Details and rationale in `STATUS.md`.
+  see `sprints/archive/SPRINT.md`. Details and rationale in `STATUS.md`.

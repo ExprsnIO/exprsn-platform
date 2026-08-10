@@ -5,7 +5,7 @@
  * Closed capability vocabulary — the core trust control.
  *
  * A manifest may only declare capabilities drawn from this registry; an unknown
- * capability is rejected at validation time (PLUGINS_PLAN.md §3). Grants stored
+ * capability is rejected at validation time (docs/plans/plugins-plan.md §3). Grants stored
  * in plugins.plugin_grants must be a subset of a plugin's declared capabilities,
  * and requirePluginCapability() (Phase 2) checks a requested capability against
  * those grants.
@@ -13,7 +13,7 @@
  * Naming: `<verb>:<module>.<noun>` (read/write/emit/call). Keep this list small
  * and auditable; widening it is a deliberate security decision.
  *
- * IMPORTANT (moderator interaction, PLUGINS_PLAN.md §3): a `write:*content*`
+ * IMPORTANT (moderator interaction, docs/plans/plugins-plan.md §3): a `write:*content*`
  * capability does NOT let a plugin bypass moderation — produced/modified content
  * is routed back through services/moderator before it lands. Plugins default to
  * read/emit; write capabilities are flagged `routesThroughModerator`.

@@ -8,7 +8,7 @@ start work that is not represented by a ticket in `sprints/` — file one first.
 This supersedes the ad-hoc planning that lived in two legacy docs, which remain
 valid as **cross-referenced history**:
 
-- `SPRINT.md` (repo root) — the prior MVP release-readiness sprint (tickets
+- `sprints/archive/SPRINT.md` — the prior MVP release-readiness sprint (tickets
   `SP-1`…`SP-11`, plus production-readiness `R1`…`R6`). Closed items and their
   acceptance notes stay there.
 - `STATUS.md` (repo root) — the authoritative integration punch list (numbered
@@ -33,6 +33,9 @@ sprints/
   QA-FIXTURES.md       durable-vs-residue dev-DB fixtures + the clean-baseline query
   active/              one file per in-flight sprint, e.g. active/sprint-2026-09.md
   archive/             closed sprints move here at close-out
+    SPRINT.md          the pre-convention MVP sprint (SP-1…SP-11, R1–R6)
+  assessments/         cost-benefit sign-offs, one per FEAT (or FEAT group)
+  proposals/           multi-sprint feature plans awaiting grooming
   templates/
     ticket.md          copy-paste ticket template
     sprint.md          copy-paste sprint-plan template
@@ -63,7 +66,7 @@ sprints/
 | `SPIKE-` | time-boxed research           |
 
 Legacy references stay valid and should be cross-linked in the ticket body:
-`SP-N` and `R1`–`R6` (from `SPRINT.md`), and `#N` numbered follow-ups (from
+`SP-N` and `R1`–`R6` (from `sprints/archive/SPRINT.md`), and `#N` numbered follow-ups (from
 `STATUS.md`).
 
 ---

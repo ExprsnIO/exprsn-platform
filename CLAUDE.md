@@ -97,7 +97,11 @@ Runtime prerequisites: Postgres and Redis must be up **before** `npm start` — 
 
 Read `ARCHITECTURE.md` (design) and `STATUS.md` (known follow-ups / punch list) before structural changes. `API_SURFACE.md` documents every module's HTTP/socket endpoints — consult it before adding or wiring routes (including from the SPA).
 
-**Sprints & backlog live in `sprints/`** — this is the single, go-forward home for all sprint planning and backlog intake (features, bugs, tasks, spikes). Read `sprints/README.md` for the convention (ticket-ID scheme `TYPE-NNN`, statuses, lifecycle, and the per-role ownership); pick up work from `sprints/active/sprint-*.md`, file new items into `sprints/BACKLOG.md`, and **do not start work that isn't represented by a ticket there.** `SPRINT.md` (repo root) is the prior MVP release-readiness sprint (`SP-1`…`SP-11`, `R1`–`R6`), kept for reference and cross-linked from new tickets.
+**Only five Markdown files belong at the repo root** — `README.md` (entry point + doc map), `CLAUDE.md`, `ARCHITECTURE.md`, `API_SURFACE.md`, `STATUS.md`. Everything else goes under `docs/plans/` (design/implementation plans), `docs/reports/` (point-in-time audits, closed-out lists), `docs/runbooks/` (operational how-tos), `docs/adr/` (decision records), or `sprints/` (planning). Do not add new plan or report docs to the root. Anything listed in `docs/assets/manifest.js` must live at the root or under `docs/` — nothing else is servable by the nginx edge (see `docs/README.md`), and root files also need their own bind mount in `docker-compose.yml`.
+
+`docs/plans/plugins-decisions.md` and `docs/plans/lowcode-clarifications.md` are **generated** (`npm run plan:plugins`, `npm run lowcode:clarify`) — edit via the TUI, not by hand. Note that `plugins-decisions.md` carries a hand-written "Addendum" section that `--export` silently overwrites; preserve it if you regenerate.
+
+**Sprints & backlog live in `sprints/`** — this is the single, go-forward home for all sprint planning and backlog intake (features, bugs, tasks, spikes). Read `sprints/README.md` for the convention (ticket-ID scheme `TYPE-NNN`, statuses, lifecycle, and the per-role ownership); pick up work from `sprints/active/sprint-*.md`, file new items into `sprints/BACKLOG.md`, and **do not start work that isn't represented by a ticket there.** `sprints/archive/SPRINT.md` is the prior MVP release-readiness sprint (`SP-1`…`SP-11`, `R1`–`R6`), kept for reference and cross-linked from new tickets.
 
 ### Source of truth
 
@@ -150,4 +154,4 @@ Current MVP scope decisions (2026-06-22), which determine what's blocking:
 - **Single gateway instance** for MVP — so spark's redis-adapter ownership (STATUS #3) is deferred, not blocking.
 - **`/live` streaming publish is in scope** — so its WebRTC signaling needs per-event auth (STATUS #11) before MVP.
 - **Sessions full fix — DONE** (STATUS #9): `Session` rows persist on every login path with the CA token id, and `DELETE /sessions` + logout revoke the CA token in-process (bearer 401s after). `services/auth/tests/session.test.js` is green.
-- **Sprint ordering is release-engineering-first** — see `SPRINT.md`.
+- **Sprint ordering is release-engineering-first** — see `sprints/archive/SPRINT.md`.

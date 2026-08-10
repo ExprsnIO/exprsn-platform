@@ -182,21 +182,15 @@ services:
       # Markdown files its viewer fetches (docs/assets/manifest.js). Mounted at
       # /srv (not under the read-only html root, where mountpoints can't be
       # created) and individually — never mount the repo root into this
-      # container (it would expose .env / cert keys).
+      # container (it would expose .env / cert keys). Only the four living
+      # root docs need their own mount; the archived plans/reports live under
+      # docs/plans + docs/reports and ride along in the ./docs mount above.
       - ./docs:/srv/docs:ro
-      - ./ADMIN_INTERFACE_REPORT.md:/srv/mdroot/ADMIN_INTERFACE_REPORT.md:ro
       - ./API_SURFACE.md:/srv/mdroot/API_SURFACE.md:ro
       - ./ARCHITECTURE.md:/srv/mdroot/ARCHITECTURE.md:ro
       - ./CLAUDE.md:/srv/mdroot/CLAUDE.md:ro
-      - ./FEAT_ADMIN_IMPROVEMENTS.md:/srv/mdroot/FEAT_ADMIN_IMPROVEMENTS.md:ro
-      - ./GROUPS_ADMIN_PLAN.md:/srv/mdroot/GROUPS_ADMIN_PLAN.md:ro
-      - ./GROUPS_FRONTEND_PLAN.md:/srv/mdroot/GROUPS_FRONTEND_PLAN.md:ro
-      - ./LOWCODE_CLARIFICATIONS.md:/srv/mdroot/LOWCODE_CLARIFICATIONS.md:ro
-      - ./PLUGINS_DECISIONS.md:/srv/mdroot/PLUGINS_DECISIONS.md:ro
-      - ./PLUGINS_PLAN.md:/srv/mdroot/PLUGINS_PLAN.md:ro
-      - ./SPRINT.md:/srv/mdroot/SPRINT.md:ro
+      - ./README.md:/srv/mdroot/README.md:ro
       - ./STATUS.md:/srv/mdroot/STATUS.md:ro
-      - ./TODO.md:/srv/mdroot/TODO.md:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks: [exprsn]

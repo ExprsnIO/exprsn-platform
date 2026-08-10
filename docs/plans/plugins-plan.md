@@ -10,7 +10,7 @@ sandboxed `script` execution, endpoint management, and a state-machine engine
 brought forward from later phases.** A parallel low-code module ships alongside.
 Everything is behind `PLUGINS_ENABLED` / `LOWCODE_ENABLED` (default `false`) so
 the modules load inert. See **§9 Implementation status** at the bottom for the
-as-built summary and the resolved decisions in `PLUGINS_DECISIONS.md`.
+as-built summary and the resolved decisions in `docs/plans/plugins-decisions.md`.
 
 ---
 
@@ -53,7 +53,7 @@ These facts drive every design decision:
 - **Nothing is group-aware in its data ownership.** Nexus owns rich group tables
   (`services/nexus/src/models/GroupMembership.js` has `user_id/group_id/role/status`), but
   timeline/spark/live/etc. rows carry no `group_id`. Group ownership is genuinely aspirational.
-- **Posture is release-engineering-first and single-instance** (`SPRINT.md`, `CLAUDE.md`
+- **Posture is release-engineering-first and single-instance** (`sprints/archive/SPRINT.md`, `CLAUDE.md`
   "MVP / release readiness"). Bull workers run as separate processes (`worker:timeline`,
   `worker:prefetch`). The plugin system is net-new and must not jeopardize the MVP critical
   path — it ships behind a flag and is inert by default.
@@ -220,7 +220,7 @@ Manifest (JSON, stored in `plugins.manifest` / `plugin_versions`):
 - `configSchema` itself validated as a JSON schema; `config` on install validated against it.
 - `webhook` endpoints: enforce https in production (mirror `assertSecureCaUrl`,
   `shared/middleware/tokenValidation.js`), block private/loopback targets unless explicitly
-  allowlisted (SSRF — the security review already flagged atproto SSRF, `SPRINT.md` SP-11).
+  allowlisted (SSRF — the security review already flagged atproto SSRF, `sprints/archive/SPRINT.md` SP-11).
 
 **Containment of broken/malicious plugins:**
 - Dispatch is best-effort and wrapped so it **never throws into the emitting request** (the
@@ -251,7 +251,7 @@ Manifest (JSON, stored in `plugins.manifest` / `plugin_versions`):
   cannot be *enforced* on timeline/spark/live events. Group scope is therefore **declarable
   and installable but only enforceable where group context exists** (i.e. inside nexus's own
   routes, or after the per-module group-ownership backend work described in
-  `GROUPS_ADMIN_PLAN.md`). This is explicitly deferred and called out as a precondition.
+  `docs/plans/groups-admin.md`). This is explicitly deferred and called out as a precondition.
 - `user` — the authenticated user, for their own data.
 
 **Resolution at event/request time** (`services/plugins/src/services/scopeResolver.js`):
@@ -286,7 +286,7 @@ the symmetric secret it was provisioned. Timeouts + non-prod TLS relaxation foll
   `permissions` and `resourceValue` narrowed to the plugin's granted capabilities (the
   `Token` model already supports this, `services/ca/models/Token.js`), recorded in
   `plugin_credentials`. This gives real expiry/revocation through the existing CA lifecycle
-  (and the existing session-revocation machinery, `SPRINT.md` SP-6).
+  (and the existing session-revocation machinery, `sprints/archive/SPRINT.md` SP-6).
 
 **Authorization at request time:** `requirePluginCapability('write:spark.messages')` (modeled
 on `requirePermissions`, `shared/middleware/auth.js` / `roleValidator.requirePermission`)
@@ -304,7 +304,7 @@ ad-hoc auth roles — keeping plugin authz separate from user RBAC.
 ## 6. Phased implementation plan (MVP-first, flag-gated)
 
 Everything ships behind `PLUGINS_ENABLED` (default `false`) so the module loads inert and
-never touches the MVP critical path (`SPRINT.md` SP-1→SP-9). The module is added to the
+never touches the MVP critical path (`sprints/archive/SPRINT.md` SP-1→SP-9). The module is added to the
 registry but its hook-bus emits are no-ops until enabled.
 
 ### Phase 0 — Registry + lifecycle skeleton (no execution)
@@ -347,7 +347,7 @@ pending per-module group-awareness. `GET /plugins/api/surfaces` feed; SPA render
 `admin-section` surfaces.
 - **Acceptance:** per-org enable/config works; SPA renders a plugin-contributed admin section
   from the manifest; group scope returns a clear "requires group-aware data ownership" notice
-  tied to `GROUPS_ADMIN_PLAN.md`.
+  tied to `docs/plans/groups-admin.md`.
 
 ### Phase 4 — Post-MVP
 First-party `internal` in-process extension tier (signed, in-repo, loaded defensively,

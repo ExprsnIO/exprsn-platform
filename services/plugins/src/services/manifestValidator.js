@@ -4,7 +4,7 @@
  * ═══════════════════════════════════════════════════════════
  * Manifest validation — structural (ajv) + semantic (trust) checks.
  *
- * Layers (PLUGINS_PLAN.md §3):
+ * Layers (docs/plans/plugins-plan.md §3):
  *  1. ajv structural validation against MANIFEST_SCHEMA.
  *  2. semver `version`.
  *  3. capabilities ⊆ the closed capability registry (the core trust control).

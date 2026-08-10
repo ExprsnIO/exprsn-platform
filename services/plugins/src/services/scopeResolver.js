@@ -5,7 +5,7 @@
  * Scope resolver — given an event context, return the ordered set of enabled
  * installations that apply, with merged config.
  *
- * Mirrors ruleEngineService._ruleApplies' scope-filter idea (PLUGINS_PLAN.md §4):
+ * Mirrors ruleEngineService._ruleApplies' scope-filter idea (docs/plans/plugins-plan.md §4):
  *  1. From context derive { userId, orgId?, groupId?, module }.
  *  2. Match enabled installs: platform (always) ∪ organization=orgId ∪
  *     group=groupId (only when group context is present) ∪ user=userId.

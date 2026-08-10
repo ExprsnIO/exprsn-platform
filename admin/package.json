@@ -1,0 +1,35 @@
+{
+  "name": "@exprsn/admin",
+  "version": "1.0.0",
+  "description": "Unified admin console for Exprsn platform services",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "exprsn",
+    "admin",
+    "console",
+    "management"
+  ],
+  "author": "Rick Holland <engineering@exprsn.com>",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.3.2",
+    "pg": "^8.11.3",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.6.1",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

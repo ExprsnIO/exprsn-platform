@@ -1,0 +1,137 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Analytics & Monitoring</h1>
+            <p class="page-subtitle">System performance metrics and usage analytics</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-download"></i>
+                Export Report
+            </button>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-cpu"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">42%</div>
+                <div class="stat-label">CPU Usage</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-down"></i>
+                    5% decrease
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-memory"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">6.2 GB</div>
+                <div class="stat-label">Memory Used</div>
+                <div class="stat-change">
+                    of 16 GB total
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-hdd"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">145 GB</div>
+                <div class="stat-label">Disk Used</div>
+                <div class="stat-change">
+                    of 500 GB total
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-wifi"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">1.2K</div>
+                <div class="stat-label">Requests/min</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    15% increase
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Request Rate (Last 24h)</h3>
+            </div>
+            <div class="card-body" style="background: var(--exprsn-bg-secondary); padding: 3rem; text-align: center;">
+                <i class="bi bi-graph-up" style="font-size: 4rem; color: var(--exprsn-text-muted);"></i>
+                <p class="text-muted mt-3">Chart placeholder - integrate charting library</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Error Rate</h3>
+            </div>
+            <div class="card-body" style="background: var(--exprsn-bg-secondary); padding: 3rem; text-align: center;">
+                <div class="stat-value" style="color: var(--exprsn-success);">0.05%</div>
+                <p class="text-muted mt-2">Very low error rate</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Top Endpoints</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="sortable">Endpoint</th>
+                            <th class="sortable">Requests</th>
+                            <th class="sortable">Avg Response</th>
+                            <th class="sortable">Errors</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>/api/posts</code></td>
+                            <td>45,231</td>
+                            <td>125ms</td>
+                            <td><span class="badge badge-success">0.02%</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/auth/login</code></td>
+                            <td>12,456</td>
+                            <td>45ms</td>
+                            <td><span class="badge badge-success">0.01%</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>/api/timeline</code></td>
+                            <td>38,901</td>
+                            <td>215ms</td>
+                            <td><span class="badge badge-warning">0.15%</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

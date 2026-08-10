@@ -1,0 +1,725 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-nexus",
+      "version": "1.0.0",
+      "description": "Groups and Events Service"
+    },
+    "routes": [
+      {
+        "path": "/api/nexus/groups",
+        "method": "GET",
+        "description": "List groups",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          },
+          "certificateBinding": false
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "category": {
+              "type": "string"
+            },
+            "visibility": {
+              "type": "string",
+              "enum": ["public", "private", "secret"]
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/nexus/groups",
+        "method": "POST",
+        "description": "Create new group",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "visibility": {
+                "type": "string",
+                "enum": ["public", "private", "secret"],
+                "default": "public"
+              },
+              "categoryId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "rules": {
+                "type": "string",
+                "maxLength": 5000
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/nexus/groups/:id",
+        "method": "GET",
+        "description": "Get group details",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/nexus/groups/:id",
+        "method": "PUT",
+        "description": "Update group",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "visibility": {
+                "type": "string",
+                "enum": ["public", "private", "secret"]
+              },
+              "rules": {
+                "type": "string",
+                "maxLength": 5000
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/nexus/groups/:id",
+        "method": "DELETE",
+        "description": "Delete group",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/nexus/groups/:id/members",
+        "method": "GET",
+        "description": "List group members",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups/:id/members",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "role": {
+              "type": "string",
+              "enum": ["owner", "admin", "moderator", "member"]
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/nexus/groups/:id/members",
+        "method": "POST",
+        "description": "Add member to group",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups/:id/members",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "required": ["userId"],
+            "properties": {
+              "userId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "role": {
+                "type": "string",
+                "enum": ["admin", "moderator", "member"],
+                "default": "member"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/nexus/groups/:id/members/:userId",
+        "method": "DELETE",
+        "description": "Remove member from group",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups/:id/members/:userId",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "userId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/nexus/groups/trending",
+        "method": "GET",
+        "description": "Get trending groups",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups/trending",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            },
+            "category": {
+              "type": "string"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 60
+        }
+      },
+      {
+        "path": "/api/nexus/groups/recommendations",
+        "method": "GET",
+        "description": "Get personalized group recommendations",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/groups/recommendations",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/nexus/events",
+        "method": "GET",
+        "description": "List events",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/events",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "groupId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "startDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/nexus/events",
+        "method": "POST",
+        "description": "Create new event",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/events",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["title", "startTime"],
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "startTime": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "endTime": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "location": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "groupId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "isVirtual": {
+                "type": "boolean",
+                "default": false
+              },
+              "maxAttendees": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/nexus/events/:id",
+        "method": "GET",
+        "description": "Get event details",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/events/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/nexus/events/:id",
+        "method": "PUT",
+        "description": "Update event",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/events/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "startTime": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "endTime": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "location": {
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/nexus/events/:id",
+        "method": "DELETE",
+        "description": "Delete event",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/events/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/nexus/events/:id/ical",
+        "method": "GET",
+        "description": "Export event to iCal format",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/events/:id/ical",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/nexus/events/:id/rsvp",
+        "method": "POST",
+        "description": "RSVP to event",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/events/:id/rsvp",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "required": ["status"],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["going", "maybe", "not_going"]
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/nexus/calendar",
+        "method": "GET",
+        "description": "Get user's event calendar",
+        "target": {
+          "service": "nexus",
+          "path": "/api/nexus/calendar",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "startDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "groupId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 60
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 2500
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

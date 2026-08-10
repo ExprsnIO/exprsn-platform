@@ -1,0 +1,537 @@
+/**
+ * Integration Tests for Complete Publish Workflow
+ * Tests the full end-to-end flow from entity design to published API
+ */
+
+const request = require('supertest');
+const app = require('../../../index');
+const { Pool } = require('pg');
+const MigrationService = require('../../services/MigrationService');
+
+// Test database connection
+const testPool = new Pool({
+  host: process.env.TEST_DB_HOST || 'localhost',
+  port: process.env.TEST_DB_PORT || 5432,
+  database: process.env.TEST_DB_NAME || 'exprsn_svr_test',
+  user: process.env.TEST_DB_USER || 'postgres',
+  password: process.env.TEST_DB_PASSWORD || ''
+});
+
+describe('Publish Workflow Integration Tests', () => {
+  let testEntityId;
+  let testAppId;
+
+  beforeAll(async () => {
+    // Create test database schema
+    await testPool.query('CREATE SCHEMA IF NOT EXISTS test_schema');
+
+    // Create test application
+    const appResult = await testPool.query(`
+      INSERT INTO applications (id, name, display_name, created_at, updated_at)
+      VALUES ($1, $2, $3, NOW(), NOW())
+      RETURNING id
+    `, [
+      '00000000-0000-0000-0000-000000000001',
+      'test_app',
+      'Test Application'
+    ]);
+    testAppId = appResult.rows[0].id;
+  });
+
+  afterAll(async () => {
+    // Cleanup test data
+    await testPool.query('DROP SCHEMA IF EXISTS test_schema CASCADE');
+    await testPool.query('DELETE FROM applications WHERE id = $1', [testAppId]);
+    await testPool.end();
+  });
+
+  describe('Complete Publish Flow', () => {
+    test('should successfully publish a new entity with all steps', async () => {
+      // Step 1: Create entity definition
+      const entity = {
+        name: 'product',
+        tableName: 'products',
+        applicationId: testAppId,
+        fields: [
+          { name: 'id', type: 'UUID', primaryKey: true, defaultValue: 'gen_random_uuid()' },
+          { name: 'name', type: 'String', required: true },
+          { name: 'price', type: 'Decimal', validation: { precision: 10, scale: 2 } },
+          { name: 'created_at', type: 'Timestamp', defaultValue: 'CURRENT_TIMESTAMP' }
+        ],
+        indexes: [
+          {
+            name: 'idx_products_name',
+            type: 'btree',
+            fields: [{ name: 'name' }]
+          }
+        ],
+        metadata: {
+          version: '1.0.0'
+        }
+      };
+
+      const createResponse = await request(app)
+        .post('/lowcode/api/entities')
+        .send(entity)
+        .expect(201);
+
+      testEntityId = createResponse.body.data.id;
+      expect(createResponse.body.success).toBe(true);
+
+      // Step 2: Generate migration
+      const migrationResponse = await request(app)
+        .post(`/lowcode/api/entities/${testEntityId}/migrations/generate`)
+        .send({
+          currentSchema: entity,
+          previousSchema: null,
+          options: {
+            type: 'create_table',
+            safeMode: true,
+            generateRollback: true
+          }
+        })
+        .expect(200);
+
+      expect(migrationResponse.body.success).toBe(true);
+      expect(migrationResponse.body.sql).toContain('CREATE TABLE products');
+      expect(migrationResponse.body.rollbackSql).toContain('DROP TABLE');
+      expect(migrationResponse.body.checksum).toHaveLength(64);
+
+      const migration = migrationResponse.body;
+
+      // Step 3: Execute migration
+      const executeResponse = await request(app)
+        .post(`/lowcode/api/entities/${testEntityId}/migrations/execute`)
+        .send({
+          migration,
+          options: {
+            validateSchema: true,
+            backupBeforeMigration: false
+          }
+        })
+        .expect(200);
+
+      expect(executeResponse.body.success).toBe(true);
+
+      // Verify table was created
+      const tableCheck = await testPool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_name = 'products'
+        )
+      `);
+      expect(tableCheck.rows[0].exists).toBe(true);
+
+      // Step 4: Generate CRUD routes
+      const crudResponse = await request(app)
+        .post(`/lowcode/api/entities/${testEntityId}/crud/generate`)
+        .send({ entity })
+        .expect(200);
+
+      expect(crudResponse.body.success).toBe(true);
+      expect(crudResponse.body.endpoints).toHaveLength(5);
+      expect(crudResponse.body.routeCode).toContain('router.get(\'/product\'');
+      expect(crudResponse.body.routeCode).toContain('router.post(\'/product\'');
+
+      // Step 5: Test generated API endpoints (after route registration)
+      // Note: Would require dynamic route loading or app restart
+    });
+
+    test('should handle schema modifications correctly', async () => {
+      // Create initial entity
+      const initialSchema = {
+        name: 'user',
+        tableName: 'users',
+        fields: [
+          { name: 'id', type: 'UUID', primaryKey: true },
+          { name: 'email', type: 'String', required: true, unique: true }
+        ],
+        indexes: []
+      };
+
+      const createResponse = await request(app)
+        .post('/lowcode/api/entities')
+        .send(initialSchema)
+        .expect(201);
+
+      const entityId = createResponse.body.data.id;
+
+      // Generate and execute initial migration
+      const initialMigration = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({
+          currentSchema: initialSchema,
+          previousSchema: null,
+          options: { type: 'create_table', safeMode: true }
+        })
+        .expect(200);
+
+      await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/execute`)
+        .send({ migration: initialMigration.body })
+        .expect(200);
+
+      // Modify schema - add field
+      const modifiedSchema = {
+        ...initialSchema,
+        fields: [
+          ...initialSchema.fields,
+          { name: 'phone', type: 'String' }
+        ]
+      };
+
+      // Generate ALTER TABLE migration
+      const alterMigration = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({
+          currentSchema: modifiedSchema,
+          previousSchema: initialSchema,
+          options: { type: 'auto', safeMode: true }
+        })
+        .expect(200);
+
+      expect(alterMigration.body.sql).toContain('ALTER TABLE users ADD COLUMN phone');
+
+      // Execute ALTER migration
+      await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/execute`)
+        .send({ migration: alterMigration.body })
+        .expect(200);
+
+      // Verify column was added
+      const columnCheck = await testPool.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'phone'
+      `);
+      expect(columnCheck.rows).toHaveLength(1);
+
+      // Cleanup
+      await testPool.query('DROP TABLE IF EXISTS users');
+      await request(app).delete(`/lowcode/api/entities/${entityId}`);
+    });
+
+    test('should detect and warn about destructive changes', async () => {
+      const initial = {
+        name: 'order',
+        tableName: 'orders',
+        fields: [
+          { name: 'id', type: 'UUID', primaryKey: true },
+          { name: 'total', type: 'Decimal', validation: { precision: 10, scale: 2 } },
+          { name: 'old_field', type: 'String' }
+        ]
+      };
+
+      // Create and migrate initial schema
+      const createRes = await request(app)
+        .post('/lowcode/api/entities')
+        .send(initial)
+        .expect(201);
+
+      const entityId = createRes.body.data.id;
+
+      const initialMigration = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({ currentSchema: initial, previousSchema: null })
+        .expect(200);
+
+      await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/execute`)
+        .send({ migration: initialMigration.body })
+        .expect(200);
+
+      // Modify schema - remove field (destructive)
+      const modified = {
+        ...initial,
+        fields: initial.fields.filter(f => f.name !== 'old_field')
+      };
+
+      // Detect changes
+      const changesRes = await request(app)
+        .post('/lowcode/api/migrations/detect-changes')
+        .send({ current: modified, previous: initial })
+        .expect(200);
+
+      expect(changesRes.body.changes.removedFields).toHaveLength(1);
+      expect(changesRes.body.changes.removedFields[0].name).toBe('old_field');
+
+      // Cleanup
+      await testPool.query('DROP TABLE IF EXISTS orders');
+      await request(app).delete(`/lowcode/api/entities/${entityId}`);
+    });
+
+    test('should rollback failed migrations', async () => {
+      const schema = {
+        name: 'invalid_entity',
+        tableName: 'invalid_table',
+        fields: [
+          { name: 'id', type: 'UUID', primaryKey: true },
+          // Intentionally invalid: duplicate column names will cause error
+          { name: 'duplicate', type: 'String' },
+          { name: 'duplicate', type: 'Integer' }
+        ]
+      };
+
+      const createRes = await request(app)
+        .post('/lowcode/api/entities')
+        .send(schema)
+        .expect(201);
+
+      const entityId = createRes.body.data.id;
+
+      const migrationRes = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({ currentSchema: schema, previousSchema: null })
+        .expect(200);
+
+      // Execution should fail due to duplicate columns
+      const executeRes = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/execute`)
+        .send({ migration: migrationRes.body })
+        .expect(500);
+
+      expect(executeRes.body.success).toBe(false);
+      expect(executeRes.body.message).toBeTruthy();
+
+      // Verify table was not created
+      const tableCheck = await testPool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_name = 'invalid_table'
+        )
+      `);
+      expect(tableCheck.rows[0].exists).toBe(false);
+
+      // Cleanup
+      await request(app).delete(`/lowcode/api/entities/${entityId}`);
+    });
+
+    test('should handle entity locking correctly', async () => {
+      const schema = {
+        name: 'locked_entity',
+        tableName: 'locked_table',
+        fields: [
+          { name: 'id', type: 'UUID', primaryKey: true }
+        ],
+        metadata: {
+          locked: false
+        }
+      };
+
+      const createRes = await request(app)
+        .post('/lowcode/api/entities')
+        .send(schema)
+        .expect(201);
+
+      const entityId = createRes.body.data.id;
+
+      // Lock the entity
+      const lockRes = await request(app)
+        .put(`/lowcode/api/entities/${entityId}/lock`)
+        .expect(200);
+
+      expect(lockRes.body.success).toBe(true);
+
+      // Attempt to publish locked entity should fail
+      const migrationRes = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({ currentSchema: schema, previousSchema: null })
+        .expect(403); // Forbidden
+
+      expect(migrationRes.body.success).toBe(false);
+      expect(migrationRes.body.message).toContain('locked');
+
+      // Unlock
+      await request(app)
+        .put(`/lowcode/api/entities/${entityId}/unlock`)
+        .expect(200);
+
+      // Now should succeed
+      await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({ currentSchema: schema, previousSchema: null })
+        .expect(200);
+
+      // Cleanup
+      await request(app).delete(`/lowcode/api/entities/${entityId}`);
+    });
+  });
+
+  describe('Migration History Tracking', () => {
+    test('should track migration history correctly', async () => {
+      const schema = {
+        name: 'versioned_entity',
+        tableName: 'versioned_table',
+        fields: [
+          { name: 'id', type: 'UUID', primaryKey: true }
+        ],
+        migrations: [],
+        metadata: { version: '1.0.0' }
+      };
+
+      const createRes = await request(app)
+        .post('/lowcode/api/entities')
+        .send(schema)
+        .expect(201);
+
+      const entityId = createRes.body.data.id;
+
+      // Apply first migration
+      const mig1 = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({ currentSchema: schema, previousSchema: null })
+        .expect(200);
+
+      await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/execute`)
+        .send({ migration: mig1.body })
+        .expect(200);
+
+      // Get entity and check migrations array
+      const getRes1 = await request(app)
+        .get(`/lowcode/api/entities/${entityId}`)
+        .expect(200);
+
+      expect(getRes1.body.data.migrations).toHaveLength(1);
+      expect(getRes1.body.data.migrations[0].status).toBe('applied');
+      expect(getRes1.body.data.metadata.version).toBe('1.0.1');
+
+      // Apply second migration
+      const schema2 = {
+        ...schema,
+        fields: [...schema.fields, { name: 'new_field', type: 'String' }]
+      };
+
+      const mig2 = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({
+          currentSchema: schema2,
+          previousSchema: schema
+        })
+        .expect(200);
+
+      await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/execute`)
+        .send({ migration: mig2.body })
+        .expect(200);
+
+      // Check migrations array again
+      const getRes2 = await request(app)
+        .get(`/lowcode/api/entities/${entityId}`)
+        .expect(200);
+
+      expect(getRes2.body.data.migrations).toHaveLength(2);
+      expect(getRes2.body.data.metadata.version).toBe('1.0.2');
+
+      // Cleanup
+      await testPool.query('DROP TABLE IF EXISTS versioned_table');
+      await request(app).delete(`/lowcode/api/entities/${entityId}`);
+    });
+
+    test('should support migration rollback', async () => {
+      const schema = {
+        name: 'rollback_test',
+        tableName: 'rollback_table',
+        fields: [
+          { name: 'id', type: 'UUID', primaryKey: true },
+          { name: 'field1', type: 'String' }
+        ]
+      };
+
+      const createRes = await request(app)
+        .post('/lowcode/api/entities')
+        .send(schema)
+        .expect(201);
+
+      const entityId = createRes.body.data.id;
+
+      // Create and execute migration
+      const migRes = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({ currentSchema: schema, previousSchema: null })
+        .expect(200);
+
+      await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/execute`)
+        .send({ migration: migRes.body })
+        .expect(200);
+
+      const migrationId = migRes.body.id;
+
+      // Rollback migration
+      const rollbackRes = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/${migrationId}/rollback`)
+        .expect(200);
+
+      expect(rollbackRes.body.success).toBe(true);
+
+      // Verify table was dropped
+      const tableCheck = await testPool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_name = 'rollback_table'
+        )
+      `);
+      expect(tableCheck.rows[0].exists).toBe(false);
+
+      // Cleanup
+      await request(app).delete(`/lowcode/api/entities/${entityId}`);
+    });
+  });
+
+  describe('CRUD Generation', () => {
+    test('should generate working CRUD endpoints', async () => {
+      const schema = {
+        name: 'blog_post',
+        tableName: 'blog_posts',
+        fields: [
+          { name: 'id', type: 'UUID', primaryKey: true, defaultValue: 'gen_random_uuid()' },
+          { name: 'title', type: 'String', required: true },
+          { name: 'content', type: 'Text' },
+          { name: 'published', type: 'Boolean', defaultValue: false },
+          { name: 'created_at', type: 'Timestamp', defaultValue: 'CURRENT_TIMESTAMP' }
+        ]
+      };
+
+      // Create, migrate, and generate CRUD
+      const createRes = await request(app)
+        .post('/lowcode/api/entities')
+        .send(schema)
+        .expect(201);
+
+      const entityId = createRes.body.data.id;
+
+      const migRes = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/generate`)
+        .send({ currentSchema: schema, previousSchema: null })
+        .expect(200);
+
+      await request(app)
+        .post(`/lowcode/api/entities/${entityId}/migrations/execute`)
+        .send({ migration: migRes.body })
+        .expect(200);
+
+      const crudRes = await request(app)
+        .post(`/lowcode/api/entities/${entityId}/crud/generate`)
+        .send({ entity: schema })
+        .expect(200);
+
+      expect(crudRes.body.endpoints).toEqual([
+        { method: 'GET', path: '/api/entities/blog_post', description: 'List all' },
+        { method: 'POST', path: '/api/entities/blog_post', description: 'Create new' },
+        { method: 'GET', path: '/api/entities/blog_post/:id', description: 'Get one by ID' },
+        { method: 'PUT', path: '/api/entities/blog_post/:id', description: 'Update by ID' },
+        { method: 'DELETE', path: '/api/entities/blog_post/:id', description: 'Delete by ID' }
+      ]);
+
+      expect(crudRes.body.routeCode).toContain('router.get(\'/blog_post\'');
+      expect(crudRes.body.routeCode).toContain('router.post(\'/blog_post\'');
+      expect(crudRes.body.routeCode).toContain('router.get(\'/blog_post/:id\'');
+      expect(crudRes.body.routeCode).toContain('router.put(\'/blog_post/:id\'');
+      expect(crudRes.body.routeCode).toContain('router.delete(\'/blog_post/:id\'');
+
+      // Cleanup
+      await testPool.query('DROP TABLE IF EXISTS blog_posts');
+      await request(app).delete(`/lowcode/api/entities/${entityId}`);
+    });
+  });
+});

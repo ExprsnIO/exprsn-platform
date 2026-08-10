@@ -1,0 +1,102 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">User Management</h1>
+            <p class="page-subtitle">Manage users, roles, and permissions</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Add User
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">All Users</h3>
+            <div class="d-flex gap-2">
+                <input type="text" class="form-control" placeholder="Search users..." style="width: 250px;">
+                <select class="form-select" style="width: 150px;">
+                    <option>All Roles</option>
+                    <option>Admin</option>
+                    <option>User</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="sortable">Name</th>
+                            <th class="sortable">Email</th>
+                            <th class="sortable">Role</th>
+                            <th class="sortable">Status</th>
+                            <th class="sortable">Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Admin User</strong></td>
+                            <td>admin@exprsn.io</td>
+                            <td><span class="badge badge-primary">Administrator</span></td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td>2025-01-01</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>John Doe</strong></td>
+                            <td>john@example.com</td>
+                            <td><span class="badge badge-secondary">User</span></td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td>2025-06-15</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Jane Smith</strong></td>
+                            <td>jane@example.com</td>
+                            <td><span class="badge badge-info">Editor</span></td>
+                            <td><span class="badge badge-warning">Inactive</span></td>
+                            <td>2025-09-22</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

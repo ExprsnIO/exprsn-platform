@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn SVR</title>
+
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .setup-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem 0;
+      margin-bottom: 2rem;
+    }
+    .status-badge {
+      font-size: 0.875rem;
+      padding: 0.25rem 0.75rem;
+    }
+    .service-card {
+      transition: transform 0.2s, box-shadow 0.2s;
+      border-left: 4px solid transparent;
+    }
+    .service-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .service-card.running {
+      border-left-color: #28a745;
+    }
+    .service-card.stopped {
+      border-left-color: #dc3545;
+    }
+    .config-section {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .config-label {
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 0.25rem;
+    }
+    .config-value {
+      color: #212529;
+      font-family: 'Courier New', monospace;
+      background: #f8f9fa;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+    .test-result {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 4px;
+      display: none;
+    }
+    .test-result.success {
+      background-color: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    .test-result.error {
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    .category-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+    }
+    .endpoint-list {
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="setup-header">
+    <div class="container">
+      <h1><i class="bi bi-gear-fill"></i> <%= title %></h1>
+      <p class="mb-0">Service Integration & Configuration Management</p>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container pb-5">
+
+    <!-- System Status Overview -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="card">
+          <div class="card-body text-center">
+            <h3 class="mb-0"><%= stats.runningServices %> / <%= stats.totalServices %></h3>
+            <small class="text-muted">Services Running</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card">
+          <div class="card-body text-center">
+            <h3 class="mb-0">
+              <% if (database.connected) { %>
+                <i class="bi bi-check-circle-fill text-success"></i>
+              <% } else { %>
+                <i class="bi bi-x-circle-fill text-danger"></i>
+              <% } %>
+            </h3>
+            <small class="text-muted">PostgreSQL</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card">
+          <div class="card-body text-center">
+            <h3 class="mb-0">
+              <% if (redis.connected) { %>
+                <i class="bi bi-check-circle-fill text-success"></i>
+              <% } else if (!redis.enabled) { %>
+                <i class="bi bi-dash-circle-fill text-warning"></i>
+              <% } else { %>
+                <i class="bi bi-x-circle-fill text-danger"></i>
+              <% } %>
+            </h3>
+            <small class="text-muted">Redis</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card">
+          <div class="card-body text-center">
+            <h3 class="mb-0"><%= config.env %></h3>
+            <small class="text-muted">Environment</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="setupTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+          <i class="bi bi-speedometer2"></i> Overview
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services" type="button" role="tab">
+          <i class="bi bi-hdd-network"></i> Services
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="database-tab" data-bs-toggle="tab" data-bs-target="#database" type="button" role="tab">
+          <i class="bi bi-database"></i> Database
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="redis-tab" data-bs-toggle="tab" data-bs-target="#redis-config" type="button" role="tab">
+          <i class="bi bi-layers"></i> Redis
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#configuration" type="button" role="tab">
+          <i class="bi bi-sliders"></i> Configuration
+        </button>
+      </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="setupTabContent">
+
+      <!-- Overview Tab -->
+      <div class="tab-pane fade show active" id="overview" role="tabpanel">
+        <div class="config-section">
+          <h4 class="mb-3"><i class="bi bi-info-circle"></i> System Information</h4>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="config-label">Service Name</div>
+              <div class="config-value"><%= config.serviceName %></div>
+            </div>
+            <div class="col-md-6">
+              <div class="config-label">Port</div>
+              <div class="config-value"><%= config.port %></div>
+            </div>
+            <div class="col-md-6">
+              <div class="config-label">Environment</div>
+              <div class="config-value"><%= config.env %></div>
+            </div>
+            <div class="col-md-6">
+              <div class="config-label">Socket.IO Enabled</div>
+              <div class="config-value"><%= config.socketIO.enabled ? 'Yes' : 'No' %></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <h4 class="mb-3"><i class="bi bi-list-check"></i> Quick Status</h4>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <tbody>
+                <tr>
+                  <td><strong>PostgreSQL</strong></td>
+                  <td>
+                    <% if (database.connected) { %>
+                      <span class="badge bg-success">Connected</span>
+                      <small class="text-muted ms-2"><%= database.database %> @ <%= database.host %>:<%= database.port %></small>
+                    <% } else { %>
+                      <span class="badge bg-danger">Disconnected</span>
+                      <small class="text-muted ms-2"><%= database.error %></small>
+                    <% } %>
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Redis</strong></td>
+                  <td>
+                    <% if (!redis.enabled) { %>
+                      <span class="badge bg-warning">Disabled</span>
+                    <% } else if (redis.connected) { %>
+                      <span class="badge bg-success">Connected</span>
+                      <small class="text-muted ms-2"><%= redis.host %>:<%= redis.port %> (DB <%= redis.db %>)</small>
+                    <% } else { %>
+                      <span class="badge bg-danger">Disconnected</span>
+                      <small class="text-muted ms-2"><%= redis.error %></small>
+                    <% } %>
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Services Running</strong></td>
+                  <td>
+                    <span class="badge bg-info"><%= stats.runningServices %> / <%= stats.totalServices %></span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Services Tab -->
+      <div class="tab-pane fade" id="services" role="tabpanel">
+        <div class="config-section">
+          <h4 class="mb-3"><i class="bi bi-hdd-network"></i> Available Services</h4>
+          <p class="text-muted mb-4">Discovered Exprsn microservices on the network</p>
+
+          <div class="row">
+            <% services.forEach(function(service) { %>
+              <div class="col-md-6 mb-3">
+                <div class="card service-card <%= service.running ? 'running' : 'stopped' %>">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                      <div>
+                        <h6 class="mb-1">
+                          <%= service.name %>
+                          <span class="badge category-badge bg-secondary ms-2"><%= service.category %></span>
+                        </h6>
+                        <small class="text-muted"><%= service.description %></small>
+                      </div>
+                      <% if (service.running) { %>
+                        <span class="badge status-badge bg-success">Running</span>
+                      <% } else { %>
+                        <span class="badge status-badge bg-danger">Stopped</span>
+                      <% } %>
+                    </div>
+
+                    <div class="mt-2">
+                      <small class="text-muted d-block">
+                        <i class="bi bi-hdd"></i> ID: <code><%= service.id %></code>
+                      </small>
+                      <small class="text-muted d-block">
+                        <i class="bi bi-plug"></i> Port: <strong><%= service.port %></strong>
+                      </small>
+                      <small class="text-muted d-block">
+                        <i class="bi bi-link-45deg"></i> URL: <code><%= service.url %></code>
+                      </small>
+                    </div>
+
+                    <% if (service.running && service.endpoints && service.endpoints.length > 0) { %>
+                      <div class="mt-2">
+                        <small class="text-muted">Endpoints:</small>
+                        <div class="endpoint-list">
+                          <% service.endpoints.forEach(function(endpoint) { %>
+                            <code class="d-block"><%= endpoint %></code>
+                          <% }); %>
+                        </div>
+                      </div>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Database Tab -->
+      <div class="tab-pane fade" id="database" role="tabpanel">
+        <div class="config-section">
+          <h4 class="mb-3"><i class="bi bi-database"></i> PostgreSQL Configuration</h4>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="config-label">Host</div>
+              <div class="config-value"><%= database.host %></div>
+            </div>
+            <div class="col-md-6">
+              <div class="config-label">Port</div>
+              <div class="config-value"><%= database.port %></div>
+            </div>
+            <div class="col-md-6">
+              <div class="config-label">Database Name</div>
+              <div class="config-value"><%= database.database %></div>
+            </div>
+            <div class="col-md-6">
+              <div class="config-label">Connection Status</div>
+              <div class="config-value">
+                <% if (database.connected) { %>
+                  <span class="badge bg-success"><i class="bi bi-check-circle"></i> Connected</span>
+                <% } else { %>
+                  <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Disconnected</span>
+                <% } %>
+              </div>
+            </div>
+
+            <% if (database.connected && database.version) { %>
+              <div class="col-md-12">
+                <div class="config-label">PostgreSQL Version</div>
+                <div class="config-value"><%= database.version %></div>
+              </div>
+            <% } %>
+
+            <% if (!database.connected && database.error) { %>
+              <div class="col-md-12">
+                <div class="alert alert-danger">
+                  <strong>Connection Error:</strong> <%= database.error %>
+                </div>
+              </div>
+            <% } %>
+          </div>
+
+          <button class="btn btn-primary mt-3" onclick="testConnection('database')">
+            <i class="bi bi-arrow-repeat"></i> Test Connection
+          </button>
+          <div id="db-test-result" class="test-result"></div>
+        </div>
+      </div>
+
+      <!-- Redis Tab -->
+      <div class="tab-pane fade" id="redis-config" role="tabpanel">
+        <div class="config-section">
+          <h4 class="mb-3"><i class="bi bi-layers"></i> Redis Configuration</h4>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="config-label">Enabled</div>
+              <div class="config-value">
+                <% if (redis.enabled) { %>
+                  <span class="badge bg-success">Yes</span>
+                <% } else { %>
+                  <span class="badge bg-warning">No</span>
+                <% } %>
+              </div>
+            </div>
+
+            <% if (redis.enabled) { %>
+              <div class="col-md-6">
+                <div class="config-label">Host</div>
+                <div class="config-value"><%= redis.host %></div>
+              </div>
+              <div class="col-md-6">
+                <div class="config-label">Port</div>
+                <div class="config-value"><%= redis.port %></div>
+              </div>
+              <div class="col-md-6">
+                <div class="config-label">Database</div>
+                <div class="config-value"><%= redis.db %></div>
+              </div>
+              <div class="col-md-6">
+                <div class="config-label">Connection Status</div>
+                <div class="config-value">
+                  <% if (redis.connected) { %>
+                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Connected</span>
+                  <% } else { %>
+                    <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Disconnected</span>
+                  <% } %>
+                </div>
+              </div>
+
+              <% if (redis.connected && redis.version) { %>
+                <div class="col-md-6">
+                  <div class="config-label">Redis Version</div>
+                  <div class="config-value"><%= redis.version %></div>
+                </div>
+              <% } %>
+
+              <% if (!redis.connected && redis.error) { %>
+                <div class="col-md-12">
+                  <div class="alert alert-danger">
+                    <strong>Connection Error:</strong> <%= redis.error %>
+                  </div>
+                </div>
+              <% } %>
+            <% } %>
+          </div>
+
+          <% if (redis.enabled) { %>
+            <button class="btn btn-primary mt-3" onclick="testConnection('redis')">
+              <i class="bi bi-arrow-repeat"></i> Test Connection
+            </button>
+            <div id="redis-test-result" class="test-result"></div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Configuration Tab -->
+      <div class="tab-pane fade" id="configuration" role="tabpanel">
+        <div class="config-section">
+          <h4 class="mb-3"><i class="bi bi-sliders"></i> Environment Variables</h4>
+          <p class="text-muted mb-4">Current configuration loaded from .env file</p>
+
+          <div class="accordion" id="configAccordion">
+            <!-- Application Settings -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#appConfig">
+                  <i class="bi bi-app"></i> &nbsp; Application Settings
+                </button>
+              </h2>
+              <div id="appConfig" class="accordion-collapse collapse show" data-bs-parent="#configAccordion">
+                <div class="accordion-body">
+                  <table class="table table-sm">
+                    <tbody>
+                      <tr><td><code>NODE_ENV</code></td><td><%= config.env %></td></tr>
+                      <tr><td><code>PORT</code></td><td><%= config.port %></td></tr>
+                      <tr><td><code>SERVICE_NAME</code></td><td><%= config.serviceName %></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Database Settings -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dbConfig">
+                  <i class="bi bi-database"></i> &nbsp; Database Settings
+                </button>
+              </h2>
+              <div id="dbConfig" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                <div class="accordion-body">
+                  <table class="table table-sm">
+                    <tbody>
+                      <tr><td><code>DB_HOST</code></td><td><%= config.database.host %></td></tr>
+                      <tr><td><code>DB_PORT</code></td><td><%= config.database.port %></td></tr>
+                      <tr><td><code>DB_NAME</code></td><td><%= config.database.name %></td></tr>
+                      <tr><td><code>DB_USER</code></td><td><%= config.database.username %></td></tr>
+                      <tr><td><code>DB_POOL_MAX</code></td><td><%= config.database.pool.max %></td></tr>
+                      <tr><td><code>DB_POOL_MIN</code></td><td><%= config.database.pool.min %></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Redis Settings -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#redisConfigAccordion">
+                  <i class="bi bi-layers"></i> &nbsp; Redis Settings
+                </button>
+              </h2>
+              <div id="redisConfigAccordion" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                <div class="accordion-body">
+                  <table class="table table-sm">
+                    <tbody>
+                      <tr><td><code>REDIS_ENABLED</code></td><td><%= config.redis.enabled %></td></tr>
+                      <tr><td><code>REDIS_HOST</code></td><td><%= config.redis.host %></td></tr>
+                      <tr><td><code>REDIS_PORT</code></td><td><%= config.redis.port %></td></tr>
+                      <tr><td><code>REDIS_DB</code></td><td><%= config.redis.db %></td></tr>
+                      <tr><td><code>CACHE_TTL</code></td><td><%= config.redis.cacheTTL %></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Security Settings -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secConfig">
+                  <i class="bi bi-shield-lock"></i> &nbsp; Security Settings
+                </button>
+              </h2>
+              <div id="secConfig" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                <div class="accordion-body">
+                  <table class="table table-sm">
+                    <tbody>
+                      <tr><td><code>ENABLE_SQL_INJECTION_DETECTION</code></td><td><%= config.security.enableSQLInjectionDetection %></td></tr>
+                      <tr><td><code>ENABLE_XSS_PROTECTION</code></td><td><%= config.security.enableXSSProtection %></td></tr>
+                      <tr><td><code>ALLOWED_ORIGINS</code></td><td><%= config.security.allowedOrigins.join(', ') || 'None' %></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <a href="/setup/api/config/env-template" class="btn btn-outline-primary" target="_blank">
+              <i class="bi bi-download"></i> Download .env Template
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    async function testConnection(type) {
+      const resultDiv = document.getElementById(`${type}-test-result`);
+      resultDiv.style.display = 'block';
+      resultDiv.className = 'test-result';
+      resultDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing connection...';
+
+      try {
+        const response = await fetch(`/setup/api/config/test-${type}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          resultDiv.className = 'test-result success';
+          resultDiv.innerHTML = `<i class="bi bi-check-circle"></i> <strong>Connection successful!</strong> ${type === 'database' ? 'Database: ' + data.status.database : 'Redis version: ' + data.status.version}`;
+        } else {
+          resultDiv.className = 'test-result error';
+          resultDiv.innerHTML = `<i class="bi bi-x-circle"></i> <strong>Connection failed:</strong> ${data.status.error || data.error}`;
+        }
+      } catch (error) {
+        resultDiv.className = 'test-result error';
+        resultDiv.innerHTML = `<i class="bi bi-x-circle"></i> <strong>Error:</strong> ${error.message}`;
+      }
+    }
+  </script>
+</body>
+</html>

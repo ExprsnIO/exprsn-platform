@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exprsn FileVault - Secure File Storage and Management">
+  <title><%= title %> | Exprsn FileVault</title>
+
+  <!-- Bootstrap 5.3 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+  <!-- Skip to main content link for accessibility -->
+  <a href="#main-content" class="visually-hidden-focusable">Skip to main content</a>
+
+  <!-- Top Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top" aria-label="Main navigation">
+    <div class="container-fluid">
+      <a class="navbar-brand d-flex align-items-center" href="/">
+        <i class="bi bi-cloud-arrow-up-fill me-2 fs-4" aria-hidden="true"></i>
+        <span class="fw-bold">FileVault</span>
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain"
+              aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarMain">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="/">
+              <i class="bi bi-grid-fill me-1" aria-hidden="true"></i>
+              Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-section="files">
+              <i class="bi bi-folder-fill me-1" aria-hidden="true"></i>
+              Files
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-section="shared">
+              <i class="bi bi-share-fill me-1" aria-hidden="true"></i>
+              Shared
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-section="webdav">
+              <i class="bi bi-hdd-network-fill me-1" aria-hidden="true"></i>
+              WebDAV
+            </a>
+          </li>
+        </ul>
+
+        <!-- Search Form -->
+        <form class="d-flex me-3" role="search" id="searchForm">
+          <div class="input-group">
+            <input class="form-control" type="search" placeholder="Search files..."
+                   aria-label="Search files" id="searchInput">
+            <button class="btn btn-outline-light" type="submit" aria-label="Search">
+              <i class="bi bi-search" aria-hidden="true"></i>
+            </button>
+          </div>
+        </form>
+
+        <!-- Storage Usage Indicator -->
+        <div class="text-light me-3 d-none d-lg-block">
+          <small>
+            <i class="bi bi-hdd-fill me-1" aria-hidden="true"></i>
+            <span id="storageUsed">0 MB</span> / <span id="storageQuota">1 GB</span>
+          </small>
+        </div>
+
+        <!-- User Menu -->
+        <div class="dropdown">
+          <button class="btn btn-outline-light dropdown-toggle" type="button"
+                  id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false" aria-label="User menu">
+            <i class="bi bi-person-circle me-1" aria-hidden="true"></i>
+            <span class="d-none d-md-inline">User</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+            <li><a class="dropdown-item" href="#" data-action="settings">
+              <i class="bi bi-gear-fill me-2" aria-hidden="true"></i>Settings
+            </a></li>
+            <li><a class="dropdown-item" href="#" data-action="storage">
+              <i class="bi bi-hdd-fill me-2" aria-hidden="true"></i>Storage Info
+            </a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#" data-action="logout">
+              <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Sign Out
+            </a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </nav>

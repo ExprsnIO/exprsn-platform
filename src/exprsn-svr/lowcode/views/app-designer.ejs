@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    .designer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg-primary);
+    }
+
+    .designer-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .app-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .app-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.5rem;
+    }
+
+    .app-details h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--text-primary);
+    }
+
+    .app-details p {
+      margin: 0.25rem 0 0 0;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .designer-main {
+      flex: 1;
+      overflow: auto;
+      padding: 2rem;
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .tool-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .tool-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      border-color: var(--primary-color);
+    }
+
+    .tool-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+      color: white;
+    }
+
+    .tool-icon.entities {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .tool-icon.forms {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .tool-icon.grids {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .tool-icon.workflows {
+      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    .tool-icon.settings {
+      background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+
+    .tool-icon.preview {
+      background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+    }
+
+    .tool-content h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: var(--text-primary);
+    }
+
+    .tool-content p {
+      margin: 0.5rem 0 0 0;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+
+    .tool-footer {
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+
+    .tool-badge {
+      background: var(--primary-color);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="designer-container">
+    <!-- Header -->
+    <header class="designer-header">
+      <div class="app-info">
+        <div class="app-icon">
+          <i class="fas fa-cubes"></i>
+        </div>
+        <div class="app-details">
+          <h1 id="appName">Loading...</h1>
+          <p id="appDescription">Loading application details...</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" onclick="window.location.href='/lowcode/applications'">
+          <i class="fas fa-arrow-left"></i> Back to Applications
+        </button>
+        <button class="btn btn-primary" onclick="runApplication()">
+          <i class="fas fa-play"></i> Run Application
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="designer-main">
+      <div class="tools-grid">
+        <!-- Entities Tool -->
+        <div class="tool-card" data-tool="entities">
+          <div class="tool-icon entities">
+            <i class="fas fa-database"></i>
+          </div>
+          <div class="tool-content">
+            <h3>Data Entities <small style="color: var(--primary-color); font-size: 0.75rem;">Enhanced</small></h3>
+            <p>Visual database designer with 25+ field types, migration generator, CRUD API generation, schema diff, rollback tools, and real-time collaboration.</p>
+          </div>
+          <div class="tool-footer">
+            <span id="entitiesCount">0 entities</span>
+            <span class="tool-badge" style="background: var(--primary-color); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500;">13 Features</span>
+          </div>
+        </div>
+
+        <!-- Forms Tool -->
+        <div class="tool-card" data-tool="forms">
+          <div class="tool-icon forms">
+            <i class="fas fa-wpforms"></i>
+          </div>
+          <div class="tool-content">
+            <h3>Forms</h3>
+            <p>Create interactive forms with drag-and-drop interface builder.</p>
+          </div>
+          <div class="tool-footer">
+            <span id="formsCount">0 forms</span>
+            <i class="fas fa-arrow-right"></i>
+          </div>
+        </div>
+
+        <!-- Grids Tool -->
+        <div class="tool-card" data-tool="grids">
+          <div class="tool-icon grids">
+            <i class="fas fa-table"></i>
+          </div>
+          <div class="tool-content">
+            <h3>Data Grids</h3>
+            <p>Build data tables with sorting, filtering, and pagination.</p>
+          </div>
+          <div class="tool-footer">
+            <span id="gridsCount">0 grids</span>
+            <i class="fas fa-arrow-right"></i>
+          </div>
+        </div>
+
+        <!-- Workflows Tool -->
+        <div class="tool-card" data-tool="workflows">
+          <div class="tool-icon workflows">
+            <i class="fas fa-project-diagram"></i>
+          </div>
+          <div class="tool-content">
+            <h3>Workflows</h3>
+            <p>Design automated business processes and logic flows.</p>
+          </div>
+          <div class="tool-footer">
+            <span id="workflowsCount">0 workflows</span>
+            <span class="tool-badge">Coming Soon</span>
+          </div>
+        </div>
+
+        <!-- Settings Tool -->
+        <div class="tool-card" data-tool="settings">
+          <div class="tool-icon settings">
+            <i class="fas fa-cog"></i>
+          </div>
+          <div class="tool-content">
+            <h3>Settings & Variables</h3>
+            <p>Configure application settings, define variables, and manage environment-specific values.</p>
+          </div>
+          <div class="tool-footer">
+            <span id="settingsCount">Manage settings</span>
+            <i class="fas fa-arrow-right"></i>
+          </div>
+        </div>
+
+        <!-- Preview/Run Tool -->
+        <div class="tool-card" data-tool="preview">
+          <div class="tool-icon preview">
+            <i class="fas fa-eye"></i>
+          </div>
+          <div class="tool-content">
+            <h3>Preview & Run</h3>
+            <p>Test and interact with your application in runtime mode.</p>
+          </div>
+          <div class="tool-footer">
+            <span>Launch app</span>
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const APP_ID = '<%= appId %>';
+
+    // Load application data
+    async function loadApplication() {
+      try {
+        const response = await fetch(`/lowcode/api/applications/${APP_ID}?includeEntities=true&includeGrids=true&includeForms=true`);
+        const data = await response.json();
+
+        if (data.success) {
+          const app = data.data;
+          document.getElementById('appName').textContent = app.displayName;
+          document.getElementById('appDescription').textContent = app.description || 'No description';
+          document.title = `${app.displayName} - Designer`;
+
+          // Update counts
+          document.getElementById('entitiesCount').textContent = `${app.entities?.length || 0} entities`;
+          document.getElementById('gridsCount').textContent = `${app.grids?.length || 0} grids`;
+          document.getElementById('formsCount').textContent = `${app.forms?.length || 0} forms`;
+        }
+      } catch (error) {
+        console.error('Failed to load application:', error);
+      }
+    }
+
+    function openEntityDesigner() {
+      window.location.href = `/lowcode/entity-designer?appId=${APP_ID}`;
+    }
+
+    function openGridDesigner() {
+      window.location.href = `/lowcode/grids/new?appId=${APP_ID}`;
+    }
+
+    function openFormDesigner() {
+      window.location.href = `/lowcode/forms/new?appId=${APP_ID}`;
+    }
+
+    function runApplication() {
+      window.location.href = `/lowcode/apps/${APP_ID}`;
+    }
+
+    function showComingSoon(feature) {
+      alert(`${feature} will be available in a future update!`);
+    }
+
+    // Setup click handlers for tool cards
+    function setupToolCards() {
+      const toolCards = document.querySelectorAll('.tool-card');
+
+      toolCards.forEach(card => {
+        const tool = card.getAttribute('data-tool');
+
+        card.addEventListener('click', () => {
+          console.log(`Clicked on ${tool} tool`);
+
+          switch(tool) {
+            case 'entities':
+              openEntityDesigner();
+              break;
+            case 'grids':
+              openGridDesigner();
+              break;
+            case 'forms':
+              openFormDesigner();
+              break;
+            case 'preview':
+              runApplication();
+              break;
+            case 'workflows':
+              showComingSoon('Workflow Designer');
+              break;
+            case 'settings':
+              window.location.href = `/lowcode/settings?appId=${APP_ID}`;
+              break;
+          }
+        });
+
+        // Add hover effect
+        card.style.cursor = 'pointer';
+      });
+    }
+
+    // Load app data on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadApplication();
+      setupToolCards();
+    });
+  </script>
+</body>
+</html>

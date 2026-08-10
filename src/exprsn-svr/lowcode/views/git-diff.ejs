@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Git Diff Viewer - Exprsn Low-Code</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Monaco Editor -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    #diff-container {
+      height: calc(100vh - 60px);
+      width: 100%;
+    }
+
+    .diff-header {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 60px;
+    }
+
+    .diff-info {
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .diff-info i {
+      font-size: 1.5rem;
+      color: #0066ff;
+    }
+
+    .diff-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .artifact-badge {
+      background: #e7f3ff;
+      color: #0066ff;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+    }
+
+    .comparison-text {
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="text-center">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <div class="mt-2">Loading diff...</div>
+    </div>
+  </div>
+
+  <!-- Diff Header -->
+  <div class="diff-header">
+    <div class="diff-info">
+      <i class="fas fa-code-compare"></i>
+      <div>
+        <div>
+          <span id="artifact-name" class="fw-bold">Loading...</span>
+          <span class="artifact-badge" id="artifact-type"></span>
+        </div>
+        <div class="comparison-text" id="comparison-info">Database vs. Git</div>
+      </div>
+    </div>
+    <div class="diff-actions">
+      <button class="btn btn-secondary" onclick="window.close()">
+        <i class="fas fa-times"></i> Close
+      </button>
+      <button class="btn btn-success" onclick="acceptFileChanges()" id="accept-file-btn">
+        <i class="fas fa-download"></i> Accept File Version
+      </button>
+      <button class="btn btn-primary" onclick="keepDatabase()" id="keep-db-btn">
+        <i class="fas fa-upload"></i> Keep Database Version
+      </button>
+    </div>
+  </div>
+
+  <!-- Monaco Diff Editor Container -->
+  <div id="diff-container"></div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // Get query parameters
+    const params = new URLSearchParams(window.location.search);
+    const artifactType = params.get('artifactType');
+    const artifactId = params.get('artifactId');
+    const repositoryId = params.get('repositoryId');
+
+    let diffEditor;
+    let dbVersion;
+    let fileVersion;
+
+    require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+    require(['vs/editor/editor.main'], function() {
+      loadDiff();
+    });
+
+    async function loadDiff() {
+      try {
+        // Show loading
+        document.getElementById('loading-overlay').classList.remove('hidden');
+
+        // Get database version
+        const dbResponse = await fetch(`/lowcode/api/${artifactType}s/${artifactId}`);
+        const dbData = await dbResponse.json();
+
+        if (!dbData.success) {
+          throw new Error('Failed to load database version');
+        }
+
+        dbVersion = dbData.data;
+
+        // Update header
+        document.getElementById('artifact-name').textContent = dbVersion.name || dbVersion.displayName;
+        document.getElementById('artifact-type').textContent = artifactType;
+
+        // Get file version
+        const fileResponse = await fetch(`/lowcode/api/artifacts/file-content?repositoryId=${repositoryId}&relativePath=${artifactType}s/${sanitizeFileName(dbVersion.name || dbVersion.displayName)}.json`);
+        const fileData = await fileResponse.json();
+
+        if (fileData.success) {
+          fileVersion = fileData.data;
+          document.getElementById('comparison-info').textContent = `Database vs. Git (Updated: ${new Date(fileVersion.updatedAt).toLocaleString()})`;
+        } else {
+          // File doesn't exist - this is a new artifact
+          fileVersion = null;
+          document.getElementById('comparison-info').textContent = 'Database vs. Git (Not in repository)';
+          document.getElementById('accept-file-btn').disabled = true;
+        }
+
+        // Create diff editor
+        diffEditor = monaco.editor.createDiffEditor(document.getElementById('diff-container'), {
+          enableSplitViewResizing: true,
+          renderSideBySide: true,
+          readOnly: true,
+          automaticLayout: true,
+          theme: 'vs',
+          minimap: {
+            enabled: true
+          }
+        });
+
+        // Prepare models
+        const originalContent = fileVersion ? JSON.stringify(fileVersion, null, 2) : '{\n  "message": "Not in Git repository"\n}';
+        const modifiedContent = JSON.stringify(dbVersion, null, 2);
+
+        const originalModel = monaco.editor.createModel(
+          originalContent,
+          'json'
+        );
+
+        const modifiedModel = monaco.editor.createModel(
+          modifiedContent,
+          'json'
+        );
+
+        // Set models (Git version on left, Database version on right)
+        diffEditor.setModel({
+          original: originalModel,
+          modified: modifiedModel
+        });
+
+        // Hide loading
+        document.getElementById('loading-overlay').classList.add('hidden');
+
+      } catch (error) {
+        console.error('Failed to load diff:', error);
+        document.getElementById('loading-overlay').innerHTML = `
+          <div class="alert alert-danger">
+            <h4 class="alert-heading">Failed to Load Diff</h4>
+            <p>${error.message}</p>
+            <button class="btn btn-secondary" onclick="window.close()">Close</button>
+          </div>
+        `;
+      }
+    }
+
+    async function acceptFileChanges() {
+      if (!fileVersion) {
+        alert('No file version available');
+        return;
+      }
+
+      if (!confirm('Accept changes from Git? This will overwrite the database version.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/lowcode/api/artifacts/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            repositoryId,
+            relativePath: `${artifactType}s/${sanitizeFileName(dbVersion.name || dbVersion.displayName)}.json`,
+            overwrite: true
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('Changes accepted successfully');
+
+          // Reload parent window if it exists
+          if (window.opener) {
+            window.opener.location.reload();
+          }
+
+          window.close();
+        } else {
+          alert('Failed to accept changes: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Failed to accept changes:', error);
+        alert('Failed to accept changes');
+      }
+    }
+
+    async function keepDatabase() {
+      if (!confirm('Export database version to Git? This will overwrite the file version.')) {
+        return;
+      }
+
+      try {
+        // Export artifact
+        const exportResponse = await fetch('/lowcode/api/artifacts/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            artifactType,
+            artifactId,
+            repositoryId
+          })
+        });
+
+        const exportData = await exportResponse.json();
+
+        if (!exportData.success) {
+          throw new Error('Export failed');
+        }
+
+        // Auto-commit
+        const commitResponse = await fetch('/lowcode/api/git/commit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            repositoryId,
+            branch: 'main', // TODO: Get from current branch
+            message: `Updated ${artifactType}: ${dbVersion.name || dbVersion.displayName}`,
+            files: [exportData.data.relativePath]
+          })
+        });
+
+        const commitData = await commitResponse.json();
+
+        if (commitData.success) {
+          alert('Database version saved to Git successfully');
+
+          // Reload parent window if it exists
+          if (window.opener) {
+            window.opener.location.reload();
+          }
+
+          window.close();
+        } else {
+          alert('Commit failed: ' + (commitData.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Failed to keep database version:', error);
+        alert('Failed to save database version');
+      }
+    }
+
+    function sanitizeFileName(name) {
+      return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+  </script>
+</body>
+</html>

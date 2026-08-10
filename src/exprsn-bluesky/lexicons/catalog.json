@@ -1,0 +1,145 @@
+{
+  "version": "1.0.0",
+  "description": "Exprsn Lexicon Catalog for AT Protocol Integration",
+  "namespace": "io.exprsn",
+  "lexicons": {
+    "timeline": {
+      "description": "Social feed and timeline interactions",
+      "records": [
+        {
+          "id": "io.exprsn.timeline.post",
+          "description": "Timeline post with rich media support",
+          "file": "io/exprsn/timeline/post.json"
+        },
+        {
+          "id": "io.exprsn.timeline.like",
+          "description": "Like record for posts",
+          "file": "io/exprsn/timeline/like.json"
+        },
+        {
+          "id": "io.exprsn.timeline.repost",
+          "description": "Repost/share record",
+          "file": "io/exprsn/timeline/repost.json"
+        },
+        {
+          "id": "io.exprsn.timeline.embed",
+          "description": "Embeddable content types (images, video, links, quotes)",
+          "file": "io/exprsn/timeline/embed.json"
+        }
+      ],
+      "queries": [
+        {
+          "id": "io.exprsn.timeline.getFeed",
+          "description": "Get user timeline feed with pagination",
+          "file": "io/exprsn/timeline/getFeed.json"
+        }
+      ]
+    },
+    "spark": {
+      "description": "Real-time messaging with E2EE support",
+      "records": [
+        {
+          "id": "io.exprsn.spark.message",
+          "description": "Direct message with encryption support",
+          "file": "io/exprsn/spark/message.json"
+        },
+        {
+          "id": "io.exprsn.spark.conversation",
+          "description": "Conversation/chat record for 1:1 or group messaging",
+          "file": "io/exprsn/spark/conversation.json"
+        }
+      ],
+      "queries": [
+        {
+          "id": "io.exprsn.spark.getConversations",
+          "description": "Get user's conversation list",
+          "file": "io/exprsn/spark/getConversations.json"
+        }
+      ],
+      "procedures": [
+        {
+          "id": "io.exprsn.spark.sendMessage",
+          "description": "Send a message in a conversation",
+          "file": "io/exprsn/spark/sendMessage.json"
+        }
+      ]
+    },
+    "filevault": {
+      "description": "Media storage and CDN integration",
+      "records": [
+        {
+          "id": "io.exprsn.filevault.media",
+          "description": "Media file record with metadata",
+          "file": "io/exprsn/filevault/media.json"
+        }
+      ]
+    },
+    "herald": {
+      "description": "Multi-channel notifications",
+      "records": [
+        {
+          "id": "io.exprsn.herald.notification",
+          "description": "Notification record with multi-channel delivery",
+          "file": "io/exprsn/herald/notification.json"
+        }
+      ]
+    },
+    "nexus": {
+      "description": "Groups, events, and community features",
+      "records": [
+        {
+          "id": "io.exprsn.nexus.group",
+          "description": "Group/community record",
+          "file": "io/exprsn/nexus/group.json"
+        },
+        {
+          "id": "io.exprsn.nexus.event",
+          "description": "Event record with CalDAV support",
+          "file": "io/exprsn/nexus/event.json"
+        }
+      ]
+    },
+    "moderator": {
+      "description": "Content moderation and safety",
+      "records": [
+        {
+          "id": "io.exprsn.moderator.report",
+          "description": "Content moderation report and labels",
+          "file": "io/exprsn/moderator/report.json"
+        }
+      ]
+    },
+    "workflow": {
+      "description": "Workflow automation and triggers",
+      "records": [
+        {
+          "id": "io.exprsn.workflow.workflow",
+          "description": "Workflow definition with triggers and steps",
+          "file": "io/exprsn/workflow/workflow.json"
+        }
+      ]
+    },
+    "forge": {
+      "description": "CRM and business management",
+      "records": [
+        {
+          "id": "io.exprsn.forge.contact",
+          "description": "CRM contact record (CardDAV compatible)",
+          "file": "io/exprsn/forge/contact.json"
+        },
+        {
+          "id": "io.exprsn.forge.opportunity",
+          "description": "Sales opportunity/deal record",
+          "file": "io/exprsn/forge/opportunity.json"
+        }
+      ]
+    }
+  },
+  "stats": {
+    "totalLexicons": 16,
+    "services": 8,
+    "records": 14,
+    "queries": 2,
+    "procedures": 1
+  }
+}

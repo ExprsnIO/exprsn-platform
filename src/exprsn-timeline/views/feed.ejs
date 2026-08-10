@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> | Exprsn Timeline</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <%- include('partials/styles') %>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <%- include('partials/nav') %>
+
+    <main id="main-content">
+        <div class="container-fluid">
+            <div class="timeline-container">
+                <!-- Left Sidebar (Hidden on small screens) -->
+                <aside class="sidebar sidebar-left">
+                    <div class="widget">
+                        <h3 class="widget-title">
+                            <i class="bi bi-person-circle me-2"></i>
+                            Profile
+                        </h3>
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="post-avatar" style="width: 64px; height: 64px; font-size: 2rem;">
+                                <i class="bi bi-person"></i>
+                            </div>
+                            <div>
+                                <div class="author-name"><%= user ? user.username : 'Guest User' %></div>
+                                <div class="author-username">@<%= user ? user.username : 'guest' %></div>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" id="composeBtn">
+                                <i class="bi bi-plus-circle me-2"></i>
+                                New Post
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="widget">
+                        <h3 class="widget-title">
+                            <i class="bi bi-bar-chart me-2"></i>
+                            Your Stats
+                        </h3>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Posts</span>
+                            <strong>142</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Following</span>
+                            <strong>328</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Followers</span>
+                            <strong>1,247</strong>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Feed -->
+                <div class="feed-main">
+                    <!-- Feed Navigation -->
+                    <div class="feed-nav" role="navigation" aria-label="Feed navigation">
+                        <button class="feed-nav-item active" data-feed="home">
+                            <i class="bi bi-house-door me-1"></i> Home
+                        </button>
+                        <button class="feed-nav-item" data-feed="global">
+                            <i class="bi bi-globe me-1"></i> Global
+                        </button>
+                        <button class="feed-nav-item" data-feed="explore">
+                            <i class="bi bi-compass me-1"></i> Explore
+                        </button>
+                        <button class="feed-nav-item" data-feed="trending">
+                            <i class="bi bi-fire me-1"></i> Trending
+                        </button>
+                    </div>
+
+                    <!-- Compose Button (Mobile) -->
+                    <div class="d-md-none mb-3">
+                        <button class="btn btn-primary w-100" id="composeBtnMobile">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            What's on your mind?
+                        </button>
+                    </div>
+
+                    <!-- Feed Title -->
+                    <div class="mb-3">
+                        <h2 id="feedTitle" class="h4 fw-bold">Home Feed</h2>
+                        <p class="text-muted mb-0">Latest posts from people you follow</p>
+                    </div>
+
+                    <!-- Posts Feed -->
+                    <div id="postsFeed" role="feed" aria-label="Timeline posts">
+                        <!-- Posts will be dynamically loaded here -->
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <h3>Your feed is empty</h3>
+                            <p>Start following people to see their posts here, or create your first post!</p>
+                            <button class="btn btn-primary mt-3" id="emptyStateComposeBtn">
+                                <i class="bi bi-plus-circle me-2"></i>
+                                Create Your First Post
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Loading Indicator -->
+                    <div id="loadingIndicator">
+                        <div class="spinner"></div>
+                    </div>
+
+                    <!-- Load More -->
+                    <div id="loadMoreContainer" style="display: none;" class="text-center mt-4 mb-4">
+                        <button id="loadMoreBtn" class="btn btn-outline-primary">
+                            <i class="bi bi-arrow-down-circle me-2"></i>
+                            Load More Posts
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar -->
+                <aside class="sidebar sidebar-right">
+                    <!-- Search -->
+                    <div class="widget">
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent border-0">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" class="form-control border-0" id="searchInput"
+                                   placeholder="Search posts..." aria-label="Search posts">
+                        </div>
+                    </div>
+
+                    <!-- Trending Topics -->
+                    <div class="widget">
+                        <h3 class="widget-title">
+                            <i class="bi bi-fire me-2"></i>
+                            Trending Topics
+                        </h3>
+                        <div id="trendingTopics">
+                            <div class="trending-item">
+                                <div class="trending-topic">#Technology</div>
+                                <div class="trending-count">1,234 posts</div>
+                            </div>
+                            <div class="trending-item">
+                                <div class="trending-topic">#News</div>
+                                <div class="trending-count">892 posts</div>
+                            </div>
+                            <div class="trending-item">
+                                <div class="trending-topic">#Sports</div>
+                                <div class="trending-count">654 posts</div>
+                            </div>
+                            <div class="trending-item">
+                                <div class="trending-topic">#Entertainment</div>
+                                <div class="trending-count">432 posts</div>
+                            </div>
+                        </div>
+                        <a href="/search?tab=trending" class="btn btn-link text-decoration-none mt-2">
+                            Show more <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+
+                    <!-- Suggested Users -->
+                    <div class="widget">
+                        <h3 class="widget-title">
+                            <i class="bi bi-people me-2"></i>
+                            Who to Follow
+                        </h3>
+                        <div id="suggestedUsers">
+                            <div class="suggestion-item">
+                                <div class="post-avatar" style="width: 40px; height: 40px; font-size: 1.25rem;">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="author-name">John Doe</div>
+                                    <div class="author-username">@johndoe</div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary">Follow</button>
+                            </div>
+                            <div class="suggestion-item">
+                                <div class="post-avatar" style="width: 40px; height: 40px; font-size: 1.25rem;">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="author-name">Jane Smith</div>
+                                    <div class="author-username">@janesmith</div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary">Follow</button>
+                            </div>
+                            <div class="suggestion-item">
+                                <div class="post-avatar" style="width: 40px; height: 40px; font-size: 1.25rem;">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="author-name">Bob Johnson</div>
+                                    <div class="author-username">@bobjohnson</div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary">Follow</button>
+                            </div>
+                        </div>
+                        <a href="/discover" class="btn btn-link text-decoration-none mt-2">
+                            Show more <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+
+                    <!-- Quick Links -->
+                    <div class="widget">
+                        <h3 class="widget-title">
+                            <i class="bi bi-link-45deg me-2"></i>
+                            Quick Links
+                        </h3>
+                        <div class="d-flex flex-column gap-2">
+                            <a href="/lists" class="text-decoration-none">
+                                <i class="bi bi-list-ul me-2"></i>My Lists
+                            </a>
+                            <a href="/bookmarks" class="text-decoration-none">
+                                <i class="bi bi-bookmark me-2"></i>Bookmarks
+                            </a>
+                            <a href="/settings" class="text-decoration-none">
+                                <i class="bi bi-gear me-2"></i>Settings
+                            </a>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </main>
+
+    <!-- Post Composer Modal -->
+    <div id="postComposer" role="dialog" aria-labelledby="composerTitle" aria-modal="true">
+        <div class="composer-header">
+            <h5 id="composerTitle">Create Post</h5>
+            <button type="button" class="btn-close" id="closeComposer" aria-label="Close"></button>
+        </div>
+        <div class="composer-body">
+            <div class="d-flex gap-3 mb-3">
+                <div class="post-avatar">
+                    <i class="bi bi-person"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <textarea id="postContent"
+                              class="form-control"
+                              placeholder="What's on your mind?"
+                              aria-label="Post content"
+                              maxlength="500"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="composer-footer">
+            <div class="composer-actions">
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="Add media">
+                    <i class="bi bi-image"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="Add emoji">
+                    <i class="bi bi-emoji-smile"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="Add poll">
+                    <i class="bi bi-bar-chart"></i>
+                </button>
+                <select id="visibilitySelect" class="form-select form-select-sm" style="width: auto;" aria-label="Post visibility">
+                    <option value="public">Public</option>
+                    <option value="followers">Followers</option>
+                    <option value="private">Private</option>
+                </select>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="char-counter"><span id="charCount">0</span>/500</span>
+                <button type="button" id="publishBtn" class="btn btn-primary" disabled>
+                    Post
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay for Composer -->
+    <div id="composerOverlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1049;"></div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Post Modal (for viewing post details) -->
+    <div id="postModal" class="modal" tabindex="-1" aria-labelledby="postModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="postModalTitle">Post Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <!-- Post details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('partials/footer') %>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="/js/timeline-api.js"></script>
+    <script src="/js/timeline-socket.js"></script>
+    <script src="/js/timeline-ui.js"></script>
+    <%- include('partials/scripts') %>
+
+    <script>
+        // Additional composer button handlers
+        document.getElementById('composeBtnMobile')?.addEventListener('click', () => {
+            document.getElementById('postComposer').style.display = 'block';
+            document.getElementById('composerOverlay').style.display = 'block';
+            document.getElementById('postContent').focus();
+        });
+
+        document.getElementById('emptyStateComposeBtn')?.addEventListener('click', () => {
+            document.getElementById('postComposer').style.display = 'block';
+            document.getElementById('composerOverlay').style.display = 'block';
+            document.getElementById('postContent').focus();
+        });
+
+        document.getElementById('composerOverlay')?.addEventListener('click', () => {
+            document.getElementById('postComposer').style.display = 'none';
+            document.getElementById('composerOverlay').style.display = 'none';
+        });
+
+        // Enhanced compose button handler
+        const originalCloseComposer = document.getElementById('closeComposer');
+        if (originalCloseComposer) {
+            originalCloseComposer.addEventListener('click', () => {
+                document.getElementById('composerOverlay').style.display = 'none';
+            });
+        }
+
+        const originalComposeBtn = document.getElementById('composeBtn');
+        if (originalComposeBtn) {
+            originalComposeBtn.addEventListener('click', () => {
+                document.getElementById('composerOverlay').style.display = 'block';
+            });
+        }
+    </script>
+</body>
+</html>

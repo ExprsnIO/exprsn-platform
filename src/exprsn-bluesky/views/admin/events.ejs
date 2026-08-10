@@ -1,0 +1,136 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-3">
+  <div class="col-md-12">
+    <div class="alert alert-info">
+      <i class="bi bi-broadcast"></i> Real-time event stream is <span id="connection-status" class="badge bg-secondary">connecting...</span>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Firehose Events</h5>
+    <div>
+      <button class="btn btn-sm btn-primary" id="pause-btn">
+        <i class="bi bi-pause"></i> Pause
+      </button>
+      <button class="btn btn-sm btn-secondary" id="clear-btn">
+        <i class="bi bi-trash"></i> Clear
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div id="events-stream" style="max-height: 600px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px;">
+      <p class="text-muted">Waiting for events...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  let isPaused = false;
+  const maxEvents = 100;
+  const events = [];
+
+  function updateConnectionStatus(status) {
+    const badge = document.getElementById('connection-status');
+    if (status === 'connected') {
+      badge.className = 'badge bg-success';
+      badge.textContent = 'connected';
+    } else if (status === 'disconnected') {
+      badge.className = 'badge bg-danger';
+      badge.textContent = 'disconnected';
+    } else {
+      badge.className = 'badge bg-secondary';
+      badge.textContent = 'connecting...';
+    }
+  }
+
+  function addEvent(event) {
+    if (isPaused) return;
+
+    events.unshift(event);
+    if (events.length > maxEvents) {
+      events.pop();
+    }
+
+    renderEvents();
+  }
+
+  function renderEvents() {
+    const container = document.getElementById('events-stream');
+    const html = events.map((event, idx) => {
+      const operationColor = {
+        create: 'success',
+        update: 'warning',
+        delete: 'danger'
+      }[event.operation] || 'secondary';
+
+      return `
+        <div class="border-bottom pb-2 mb-2" style="animation: fadeIn 0.3s;">
+          <div class="d-flex justify-content-between">
+            <div>
+              <span class="badge bg-${operationColor}">${event.operation || event.type}</span>
+              <strong>${event.collection || event.eventType || 'event'}</strong>
+            </div>
+            <small class="text-muted">${new Date(event.time).toLocaleTimeString()}</small>
+          </div>
+          <div class="text-muted">
+            <small>
+              DID: <code>${event.did?.substring(0, 32)}...</code>
+              ${event.rkey ? `| Key: <code>${event.rkey}</code>` : ''}
+            </small>
+          </div>
+          ${event.record ? `<pre class="mt-1 mb-0" style="font-size: 10px;">${JSON.stringify(event.record, null, 2).substring(0, 200)}...</pre>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = html || '<p class="text-muted">No events yet</p>';
+  }
+
+  // Subscribe to firehose
+  socket.emit('subscribe:firehose', {});
+
+  socket.on('subscribed:firehose', (data) => {
+    console.log('Subscribed to firehose:', data);
+    updateConnectionStatus('connected');
+  });
+
+  socket.on('firehose:event', (event) => {
+    addEvent(event);
+  });
+
+  socket.on('connect', () => {
+    updateConnectionStatus('connected');
+    socket.emit('subscribe:firehose', {});
+  });
+
+  socket.on('disconnect', () => {
+    updateConnectionStatus('disconnected');
+  });
+
+  // Pause/Resume
+  document.getElementById('pause-btn').addEventListener('click', function() {
+    isPaused = !isPaused;
+    this.innerHTML = isPaused
+      ? '<i class="bi bi-play"></i> Resume'
+      : '<i class="bi bi-pause"></i> Pause';
+    this.className = isPaused ? 'btn btn-sm btn-success' : 'btn btn-sm btn-primary';
+  });
+
+  // Clear
+  document.getElementById('clear-btn').addEventListener('click', function() {
+    events.length = 0;
+    renderEvents();
+  });
+</script>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
+<%- include('../partials/footer') %>

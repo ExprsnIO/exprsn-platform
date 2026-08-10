@@ -1,0 +1,119 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.filevault.media",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Media file stored in FileVault",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["blob", "mimeType", "createdAt"],
+        "properties": {
+          "blob": {
+            "type": "blob",
+            "accept": ["image/*", "video/*", "audio/*", "application/pdf"],
+            "maxSize": 100000000,
+            "description": "Media blob (max 100MB)"
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "MIME type of the media"
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "alt": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Alt text for accessibility"
+          },
+          "metadata": {
+            "type": "ref",
+            "ref": "#mediaMetadata"
+          },
+          "storage": {
+            "type": "string",
+            "enum": ["local", "s3", "ipfs"],
+            "description": "Storage backend"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": ["public", "private", "unlisted"],
+            "default": "public"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "mediaMetadata": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "duration": {
+          "type": "integer",
+          "description": "Duration in seconds for video/audio"
+        },
+        "size": {
+          "type": "integer",
+          "description": "File size in bytes"
+        },
+        "codec": {
+          "type": "string"
+        },
+        "bitrate": {
+          "type": "integer"
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["uri", "cid", "url", "mimeType"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Public URL for accessing the media"
+        },
+        "thumbnailUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "fileName": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "ref",
+          "ref": "#mediaMetadata"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    }
+  }
+}

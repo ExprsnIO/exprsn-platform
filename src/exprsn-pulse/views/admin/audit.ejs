@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+        <%- include('../shared/sidebar') %>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-clock-history text-info"></i>
+            Audit Logs
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <button type="button" class="btn btn-outline-secondary" onclick="exportLogs()">
+              <i class="bi bi-download"></i> Export Logs
+            </button>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Description -->
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i>
+          <strong>Audit Logging</strong> tracks all CRUD operations for compliance and security monitoring. Integrates with @exprsn/shared autoAudit middleware.
+        </div>
+
+        <!-- Filters -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <form id="filter-form" class="row g-3">
+              <div class="col-md-2">
+                <label for="filter-action" class="form-label small">Action</label>
+                <select class="form-select form-select-sm" id="filter-action" name="action">
+                  <option value="">All Actions</option>
+                  <option value="create" <%= filters.action === 'create' ? 'selected' : '' %>>Create</option>
+                  <option value="read" <%= filters.action === 'read' ? 'selected' : '' %>>Read</option>
+                  <option value="update" <%= filters.action === 'update' ? 'selected' : '' %>>Update</option>
+                  <option value="delete" <%= filters.action === 'delete' ? 'selected' : '' %>>Delete</option>
+                </select>
+              </div>
+
+              <div class="col-md-2">
+                <label for="filter-resource" class="form-label small">Resource</label>
+                <select class="form-select form-select-sm" id="filter-resource" name="resource">
+                  <option value="">All Resources</option>
+                  <option value="dashboard">Dashboards</option>
+                  <option value="report">Reports</option>
+                  <option value="datasource">Data Sources</option>
+                  <option value="query">Queries</option>
+                  <option value="visualization">Visualizations</option>
+                  <option value="schedule">Schedules</option>
+                  <option value="user">Users</option>
+                  <option value="role">Roles</option>
+                </select>
+              </div>
+
+              <div class="col-md-2">
+                <label for="filter-user" class="form-label small">User</label>
+                <input type="text" class="form-control form-control-sm" id="filter-user"
+                       name="userId" value="<%= filters.userId || '' %>"
+                       placeholder="User ID">
+              </div>
+
+              <div class="col-md-2">
+                <label for="filter-date-from" class="form-label small">From Date</label>
+                <input type="date" class="form-control form-control-sm" id="filter-date-from" name="dateFrom">
+              </div>
+
+              <div class="col-md-2">
+                <label for="filter-date-to" class="form-label small">To Date</label>
+                <input type="date" class="form-control form-control-sm" id="filter-date-to" name="dateTo">
+              </div>
+
+              <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-sm btn-primary me-2">
+                  <i class="bi bi-funnel"></i> Filter
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearFilters()">
+                  <i class="bi bi-x-circle"></i> Clear
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Audit Logs Table -->
+        <div class="card shadow">
+          <div class="card-body">
+            <% if (logs.length === 0) { %>
+              <div class="text-center py-5">
+                <i class="bi bi-clock-history" style="font-size: 4rem; color: #dee2e6;"></i>
+                <h4 class="mt-3">No audit logs found</h4>
+                <p class="text-muted">Audit logs will appear here once users start performing actions</p>
+              </div>
+            <% } else { %>
+              <div class="table-responsive">
+                <table class="table table-hover table-sm align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>User</th>
+                      <th>Action</th>
+                      <th>Resource</th>
+                      <th>Resource ID</th>
+                      <th>IP Address</th>
+                      <th>Status</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% logs.forEach(log => { %>
+                      <tr>
+                        <td>
+                          <small><%= new Date(log.timestamp).toLocaleString() %></small>
+                        </td>
+                        <td>
+                          <span class="badge bg-secondary"><%= log.userId %></span>
+                        </td>
+                        <td>
+                          <span class="badge bg-<%= getActionColor(log.action) %>">
+                            <%= log.action.toUpperCase() %>
+                          </span>
+                        </td>
+                        <td>
+                          <code class="small"><%= log.resourceType %></code>
+                        </td>
+                        <td>
+                          <small><%= log.resourceId %></small>
+                        </td>
+                        <td>
+                          <small class="text-muted"><%= log.ipAddress || 'N/A' %></small>
+                        </td>
+                        <td>
+                          <% if (log.success) { %>
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                          <% } else { %>
+                            <i class="bi bi-x-circle-fill text-danger"></i>
+                          <% } %>
+                        </td>
+                        <td>
+                          <button class="btn btn-sm btn-outline-info" onclick="viewLogDetails('<%= log.id %>')">
+                            <i class="bi bi-info-circle"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Pagination -->
+              <% if (pagination.pages > 1) { %>
+                <nav aria-label="Audit log pagination">
+                  <ul class="pagination pagination-sm justify-content-center mb-0">
+                    <li class="page-item <%= pagination.page === 1 ? 'disabled' : '' %>">
+                      <a class="page-link" href="?page=<%= pagination.page - 1 %>&limit=<%= pagination.limit %>">Previous</a>
+                    </li>
+
+                    <% for (let i = 1; i <= Math.min(pagination.pages, 10); i++) { %>
+                      <li class="page-item <%= pagination.page === i ? 'active' : '' %>">
+                        <a class="page-link" href="?page=<%= i %>&limit=<%= pagination.limit %>"><%= i %></a>
+                      </li>
+                    <% } %>
+
+                    <li class="page-item <%= pagination.page === pagination.pages ? 'disabled' : '' %>">
+                      <a class="page-link" href="?page=<%= pagination.page + 1 %>&limit=<%= pagination.limit %>">Next</a>
+                    </li>
+                  </ul>
+                </nav>
+
+                <p class="text-center text-muted small mt-2">
+                  Showing <%= (pagination.page - 1) * pagination.limit + 1 %> -
+                  <%= Math.min(pagination.page * pagination.limit, pagination.total) %> of
+                  <%= pagination.total %> logs
+                </p>
+              <% } %>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="row mt-4">
+          <div class="col-md-3">
+            <div class="card text-center">
+              <div class="card-body">
+                <h6 class="card-title small">Total Logs</h6>
+                <p class="display-6 small"><%= pagination.total %></p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-center">
+              <div class="card-body">
+                <h6 class="card-title small">Success Rate</h6>
+                <p class="display-6 small text-success">
+                  <%= logs.length > 0 ? Math.round(logs.filter(l => l.success).length / logs.length * 100) : 0 %>%
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-center">
+              <div class="card-body">
+                <h6 class="card-title small">Unique Users</h6>
+                <p class="display-6 small">
+                  <%= new Set(logs.map(l => l.userId)).size %>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card text-center">
+              <div class="card-body">
+                <h6 class="card-title small">Most Common Action</h6>
+                <p class="display-6 small">
+                  <%= logs.length > 0 ? getMostCommonAction(logs) : 'N/A' %>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Log Details Modal -->
+  <div class="modal fade" id="logDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Audit Log Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="log-details-content">
+            <div class="text-center py-3">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <script>
+    let logDetailsModal;
+
+    $(document).ready(function() {
+      logDetailsModal = new bootstrap.Modal('#logDetailsModal');
+
+      // Filter form submission
+      $('#filter-form').on('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const params = new URLSearchParams();
+
+        for (const [key, value] of formData.entries()) {
+          if (value) {
+            params.append(key, value);
+          }
+        }
+
+        window.location.href = '/admin/audit?' + params.toString();
+      });
+    });
+
+    function clearFilters() {
+      window.location.href = '/admin/audit';
+    }
+
+    function viewLogDetails(id) {
+      logDetailsModal.show();
+      $('#log-details-content').html(`
+        <div class="text-center py-3">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      `);
+
+      // TODO: Load log details from API
+      setTimeout(() => {
+        $('#log-details-content').html(`
+          <div class="alert alert-info">
+            <p class="mb-0">Audit log detail view requires backend API implementation</p>
+          </div>
+          <pre class="bg-light p-3">Log ID: ${id}</pre>
+        `);
+      }, 500);
+    }
+
+    function exportLogs() {
+      const params = new URLSearchParams(window.location.search);
+      params.append('export', 'csv');
+      window.location.href = '/api/audit/export?' + params.toString();
+    }
+  </script>
+
+  <%
+    function getActionColor(action) {
+      const colors = {
+        create: 'success',
+        read: 'info',
+        update: 'warning',
+        delete: 'danger'
+      };
+      return colors[action] || 'secondary';
+    }
+
+    function getMostCommonAction(logs) {
+      const counts = {};
+      logs.forEach(log => {
+        counts[log.action] = (counts[log.action] || 0) + 1;
+      });
+
+      let maxAction = '';
+      let maxCount = 0;
+      Object.entries(counts).forEach(([action, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          maxAction = action;
+        }
+      });
+
+      return maxAction.toUpperCase();
+    }
+  %>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

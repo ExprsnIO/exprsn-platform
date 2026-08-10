@@ -1,0 +1,191 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-pulse",
+      "version": "1.0.0",
+      "description": "Analytics and Metrics Service"
+    },
+    "routes": [
+      {
+        "path": "/api/pulse/track",
+        "method": "POST",
+        "description": "Track analytics event",
+        "target": {
+          "service": "pulse",
+          "path": "/api/analytics/track",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["event", "properties"],
+            "properties": {
+              "event": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "properties": {
+                "type": "object"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 1000
+        }
+      },
+      {
+        "path": "/api/pulse/events",
+        "method": "GET",
+        "description": "Query analytics events",
+        "target": {
+          "service": "pulse",
+          "path": "/api/analytics/events",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "event": {
+              "type": "string"
+            },
+            "userId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "startDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/pulse/stats",
+        "method": "GET",
+        "description": "Get statistics",
+        "target": {
+          "service": "pulse",
+          "path": "/api/analytics/stats",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "metric": {
+              "type": "string",
+              "enum": ["users", "events", "requests", "errors"]
+            },
+            "startDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "interval": {
+              "type": "string",
+              "enum": ["hour", "day", "week", "month"],
+              "default": "day"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 60
+        }
+      },
+      {
+        "path": "/api/pulse/dashboard",
+        "method": "GET",
+        "description": "Get dashboard data",
+        "target": {
+          "service": "pulse",
+          "path": "/api/analytics/dashboard",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 60
+        }
+      },
+      {
+        "path": "/api/pulse/metrics",
+        "method": "GET",
+        "description": "Prometheus metrics endpoint",
+        "target": {
+          "service": "pulse",
+          "path": "/metrics",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": false
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 5000
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

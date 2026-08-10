@@ -1,0 +1,914 @@
+<!-- Git Toolbar Component -->
+<!-- Reusable Git integration toolbar for all designers -->
+
+<div class="git-toolbar" id="git-toolbar">
+  <div class="git-toolbar-inner">
+    <!-- Repository Info -->
+    <div class="git-repo-info">
+      <i class="fab fa-git-alt"></i>
+      <span id="git-repo-name">Not connected</span>
+    </div>
+
+    <!-- Branch Selector -->
+    <div class="git-branch-selector">
+      <select id="git-branch-select" class="form-select form-select-sm" disabled>
+        <option value="">Select branch...</option>
+      </select>
+      <button id="git-new-branch" class="btn btn-sm btn-outline-primary" disabled>
+        <i class="fas fa-code-branch"></i> New
+      </button>
+    </div>
+
+    <!-- Status Indicator -->
+    <div class="git-status" id="git-status">
+      <span class="badge bg-secondary">Not tracked</span>
+    </div>
+
+    <!-- Actions -->
+    <div class="git-actions">
+      <button id="git-commit" class="btn btn-sm btn-success" disabled>
+        <i class="fas fa-save"></i> Commit
+      </button>
+      <button id="git-history" class="btn btn-sm btn-info" disabled>
+        <i class="fas fa-history"></i> History
+      </button>
+      <button id="git-diff" class="btn btn-sm btn-warning" disabled>
+        <i class="fas fa-code-compare"></i> Diff
+      </button>
+      <button id="git-push" class="btn btn-sm btn-primary" disabled>
+        <i class="fas fa-upload"></i> Push
+      </button>
+      <button id="git-pull" class="btn btn-sm btn-primary" disabled>
+        <i class="fas fa-download"></i> Pull
+      </button>
+    </div>
+
+    <!-- Settings -->
+    <div class="git-settings">
+      <button id="git-config" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-cog"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Git Commit Modal -->
+<div class="modal fade" id="gitCommitModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Commit Changes</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="commit-message" class="form-label">Commit Message <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="commit-message" placeholder="e.g., Updated contact form validation" required>
+        </div>
+        <div class="mb-3">
+          <label for="commit-description" class="form-label">Description (optional)</label>
+          <textarea class="form-control" id="commit-description" rows="3" placeholder="Additional details about the changes..."></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Changed Files</label>
+          <div id="commit-file-list" class="file-list">
+            <div class="text-muted text-center py-3">Loading...</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="confirm-commit">
+          <i class="fas fa-save"></i> Commit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Git Config Modal -->
+<div class="modal fade" id="gitConfigModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Git Configuration</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="git-repository-select" class="form-label">Git Repository</label>
+          <select class="form-select" id="git-repository-select">
+            <option value="">Select repository...</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <button class="btn btn-primary" id="git-connect-repo">
+            <i class="fas fa-link"></i> Connect Repository
+          </button>
+          <button class="btn btn-success ms-2" id="git-create-repo">
+            <i class="fas fa-plus"></i> Create New Repository
+          </button>
+        </div>
+        <div class="mb-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="auto-commit-check">
+            <label class="form-check-label" for="auto-commit-check">
+              Auto-commit on save
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="auto-push-check">
+            <label class="form-check-label" for="auto-push-check">
+              Auto-push commits
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="save-git-config">
+          <i class="fas fa-save"></i> Save Configuration
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Branch Modal -->
+<div class="modal fade" id="gitNewBranchModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Create New Branch</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="new-branch-name" class="form-label">Branch Name</label>
+          <input type="text" class="form-control" id="new-branch-name" placeholder="e.g., feature/new-validation">
+        </div>
+        <div class="mb-3">
+          <label for="branch-from" class="form-label">Create from</label>
+          <select class="form-select" id="branch-from">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirm-new-branch">
+          <i class="fas fa-code-branch"></i> Create Branch
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.git-toolbar {
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  padding: 0.5rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.git-toolbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.git-repo-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.git-repo-info i {
+  font-size: 1.2rem;
+  color: #f34f29; /* Git orange */
+}
+
+.git-branch-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.git-branch-selector select {
+  min-width: 150px;
+}
+
+.git-status {
+  margin-left: auto;
+}
+
+.git-status .badge {
+  font-size: 0.875rem;
+}
+
+.git-status .badge.bg-warning {
+  color: #000;
+}
+
+.git-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.file-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+}
+
+.file-list-item {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.file-list-item:last-child {
+  border-bottom: none;
+}
+
+.file-list-item i {
+  margin-right: 0.5rem;
+}
+
+.file-status-added {
+  color: #28a745;
+}
+
+.file-status-modified {
+  color: #ffc107;
+}
+
+.file-status-deleted {
+  color: #dc3545;
+}
+</style>
+
+<script>
+// Git Toolbar JavaScript
+class GitToolbar {
+  constructor(artifactType, artifactId) {
+    this.artifactType = artifactType;
+    this.artifactId = artifactId;
+    this.repositoryId = null;
+    this.currentBranch = null;
+    this.autoCommit = false;
+    this.autoPush = false;
+    this.applicationId = null;
+
+    this.init();
+  }
+
+  async init() {
+    // Load Git configuration for this artifact
+    await this.loadGitConfig();
+
+    // Set up event listeners
+    this.setupEventListeners();
+
+    // Check Git status
+    if (this.repositoryId) {
+      await this.updateStatus();
+    }
+  }
+
+  setupEventListeners() {
+    // Branch selector
+    const branchSelect = document.getElementById('git-branch-select');
+    if (branchSelect) {
+      branchSelect.addEventListener('change', async (e) => {
+        await this.switchBranch(e.target.value);
+      });
+    }
+
+    // New branch
+    const newBranchBtn = document.getElementById('git-new-branch');
+    if (newBranchBtn) {
+      newBranchBtn.addEventListener('click', async () => {
+        await this.showNewBranchModal();
+      });
+    }
+
+    // Commit
+    const commitBtn = document.getElementById('git-commit');
+    if (commitBtn) {
+      commitBtn.addEventListener('click', async () => {
+        await this.showCommitModal();
+      });
+    }
+
+    // Confirm commit
+    const confirmCommitBtn = document.getElementById('confirm-commit');
+    if (confirmCommitBtn) {
+      confirmCommitBtn.addEventListener('click', async () => {
+        await this.commit();
+      });
+    }
+
+    // History
+    const historyBtn = document.getElementById('git-history');
+    if (historyBtn) {
+      historyBtn.addEventListener('click', async () => {
+        await this.showHistory();
+      });
+    }
+
+    // Diff
+    const diffBtn = document.getElementById('git-diff');
+    if (diffBtn) {
+      diffBtn.addEventListener('click', async () => {
+        await this.showDiff();
+      });
+    }
+
+    // Push
+    const pushBtn = document.getElementById('git-push');
+    if (pushBtn) {
+      pushBtn.addEventListener('click', async () => {
+        await this.push();
+      });
+    }
+
+    // Pull
+    const pullBtn = document.getElementById('git-pull');
+    if (pullBtn) {
+      pullBtn.addEventListener('click', async () => {
+        await this.pull();
+      });
+    }
+
+    // Config
+    const configBtn = document.getElementById('git-config');
+    if (configBtn) {
+      configBtn.addEventListener('click', async () => {
+        await this.showConfigModal();
+      });
+    }
+
+    // Connect repository
+    const connectRepoBtn = document.getElementById('git-connect-repo');
+    if (connectRepoBtn) {
+      connectRepoBtn.addEventListener('click', async () => {
+        await this.connectRepository();
+      });
+    }
+
+    // Create repository
+    const createRepoBtn = document.getElementById('git-create-repo');
+    if (createRepoBtn) {
+      createRepoBtn.addEventListener('click', async () => {
+        await this.createRepository();
+      });
+    }
+
+    // Save config
+    const saveConfigBtn = document.getElementById('save-git-config');
+    if (saveConfigBtn) {
+      saveConfigBtn.addEventListener('click', async () => {
+        await this.saveConfig();
+      });
+    }
+
+    // Confirm new branch
+    const confirmNewBranchBtn = document.getElementById('confirm-new-branch');
+    if (confirmNewBranchBtn) {
+      confirmNewBranchBtn.addEventListener('click', async () => {
+        await this.createBranch();
+      });
+    }
+  }
+
+  async loadGitConfig() {
+    try {
+      // Try to get artifact's application first
+      const artifactResponse = await fetch(`/lowcode/api/${this.artifactType}s/${this.artifactId}`);
+      const artifactData = await artifactResponse.json();
+
+      if (artifactData.success && artifactData.data.applicationId) {
+        this.applicationId = artifactData.data.applicationId;
+
+        // Try to get application's Git repository
+        const appResponse = await fetch(`/lowcode/api/applications/${this.applicationId}`);
+        const appData = await appResponse.json();
+
+        if (appData.success && appData.data.gitRepository) {
+          // Find repository by URL or name
+          const reposResponse = await fetch('/lowcode/api/git/repositories');
+          const reposData = await reposResponse.json();
+
+          if (reposData.success) {
+            const repo = reposData.data.find(r =>
+              r.name === appData.data.gitRepository ||
+              r.remoteUrl === appData.data.gitRepository
+            );
+
+            if (repo) {
+              this.repositoryId = repo.id;
+              this.currentBranch = appData.data.gitBranch || 'main';
+              await this.loadRepositoryInfo();
+              this.enableToolbar();
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load Git config:', error);
+    }
+  }
+
+  async loadRepositoryInfo() {
+    try {
+      const response = await fetch(`/lowcode/api/git/repositories/${this.repositoryId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        document.getElementById('git-repo-name').textContent = data.data.name;
+        await this.loadBranches();
+      }
+    } catch (error) {
+      console.error('Failed to load repository info:', error);
+    }
+  }
+
+  async loadBranches() {
+    try {
+      const response = await fetch(`/lowcode/api/git/repositories/${this.repositoryId}/branches`);
+      const data = await response.json();
+
+      if (data.success) {
+        const select = document.getElementById('git-branch-select');
+        select.innerHTML = '';
+
+        data.data.forEach(branch => {
+          const option = document.createElement('option');
+          option.value = branch.name;
+          option.textContent = branch.name;
+          option.selected = branch.name === this.currentBranch;
+          select.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  }
+
+  async updateStatus() {
+    try {
+      const response = await fetch(`/lowcode/api/artifacts/changed-files?repositoryId=${this.repositoryId}&applicationId=${this.applicationId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        const statusBadge = document.querySelector('#git-status .badge');
+        const changedFiles = data.data.changedFiles || [];
+
+        const modifiedCount = changedFiles.filter(f => f.status === 'modified' || f.status === 'added').length;
+
+        if (modifiedCount > 0) {
+          statusBadge.className = 'badge bg-warning text-dark';
+          statusBadge.textContent = `${modifiedCount} changed`;
+        } else {
+          statusBadge.className = 'badge bg-success';
+          statusBadge.textContent = 'Up to date';
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    }
+  }
+
+  enableToolbar() {
+    document.getElementById('git-branch-select').disabled = false;
+    document.getElementById('git-new-branch').disabled = false;
+    document.getElementById('git-commit').disabled = false;
+    document.getElementById('git-history').disabled = false;
+    document.getElementById('git-diff').disabled = false;
+    document.getElementById('git-push').disabled = false;
+    document.getElementById('git-pull').disabled = false;
+  }
+
+  async showCommitModal() {
+    const modal = new bootstrap.Modal(document.getElementById('gitCommitModal'));
+
+    // Load changed files
+    const fileList = document.getElementById('commit-file-list');
+    fileList.innerHTML = '<div class="text-muted text-center py-3">Loading...</div>';
+
+    modal.show();
+
+    try {
+      const response = await fetch(`/lowcode/api/artifacts/changed-files?repositoryId=${this.repositoryId}&applicationId=${this.applicationId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        const changedFiles = data.data.changedFiles || [];
+
+        if (changedFiles.length === 0) {
+          fileList.innerHTML = '<div class="text-muted text-center py-3">No changes</div>';
+        } else {
+          fileList.innerHTML = '';
+          changedFiles.forEach(file => {
+            const item = document.createElement('div');
+            item.className = 'file-list-item';
+            item.innerHTML = `
+              <i class="fas fa-file file-status-${file.status}"></i>
+              <span>${file.path}</span>
+            `;
+            fileList.appendChild(item);
+          });
+        }
+      }
+    } catch (error) {
+      fileList.innerHTML = '<div class="text-danger text-center py-3">Failed to load changes</div>';
+    }
+  }
+
+  async commit() {
+    const message = document.getElementById('commit-message').value;
+    const description = document.getElementById('commit-description').value;
+
+    if (!message) {
+      alert('Commit message is required');
+      return;
+    }
+
+    try {
+      // Export all artifacts for the application
+      const exportResponse = await fetch('/lowcode/api/artifacts/export-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: this.applicationId,
+          repositoryId: this.repositoryId
+        })
+      });
+
+      const exportData = await exportResponse.json();
+
+      if (!exportData.success) {
+        throw new Error('Export failed');
+      }
+
+      // Create commit using Git service
+      const commitResponse = await fetch('/lowcode/api/git/commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repositoryId: this.repositoryId,
+          branch: this.currentBranch,
+          message: message + (description ? '\n\n' + description : ''),
+          files: exportData.data.files.map(f => f.relativePath)
+        })
+      });
+
+      const commitData = await commitResponse.json();
+
+      if (commitData.success) {
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('gitCommitModal'));
+        modal.hide();
+
+        // Clear form
+        document.getElementById('commit-message').value = '';
+        document.getElementById('commit-description').value = '';
+
+        // Update status
+        await this.updateStatus();
+
+        // Show success
+        this.showNotification('Commit created successfully', 'success');
+
+        // Auto-push if enabled
+        if (this.autoPush) {
+          await this.push();
+        }
+      } else {
+        this.showNotification('Commit failed: ' + commitData.message, 'error');
+      }
+    } catch (error) {
+      console.error('Commit failed:', error);
+      this.showNotification('Commit failed', 'error');
+    }
+  }
+
+  async push() {
+    try {
+      const response = await fetch('/lowcode/api/git/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repositoryId: this.repositoryId,
+          branch: this.currentBranch
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        this.showNotification('Pushed to remote successfully', 'success');
+        await this.updateStatus();
+      } else {
+        this.showNotification('Push failed: ' + data.message, 'error');
+      }
+    } catch (error) {
+      console.error('Push failed:', error);
+      this.showNotification('Push failed', 'error');
+    }
+  }
+
+  async pull() {
+    try {
+      const response = await fetch('/lowcode/api/git/pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repositoryId: this.repositoryId,
+          branch: this.currentBranch
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Import changes
+        await fetch('/lowcode/api/artifacts/import-application', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            repositoryId: this.repositoryId,
+            applicationId: this.applicationId,
+            overwrite: true
+          })
+        });
+
+        this.showNotification('Pulled changes successfully', 'success');
+
+        // Reload page to show changes
+        setTimeout(() => {
+          location.reload();
+        }, 1000);
+      } else {
+        this.showNotification('Pull failed: ' + data.message, 'error');
+      }
+    } catch (error) {
+      console.error('Pull failed:', error);
+      this.showNotification('Pull failed', 'error');
+    }
+  }
+
+  async showHistory() {
+    window.open(`/lowcode/git-history?repositoryId=${this.repositoryId}&branch=${this.currentBranch}`, '_blank');
+  }
+
+  async showDiff() {
+    window.open(`/lowcode/git-diff?artifactType=${this.artifactType}&artifactId=${this.artifactId}&repositoryId=${this.repositoryId}`, '_blank');
+  }
+
+  async showConfigModal() {
+    const modal = new bootstrap.Modal(document.getElementById('gitConfigModal'));
+
+    // Load repositories
+    const response = await fetch('/lowcode/api/git/repositories');
+    const data = await response.json();
+
+    if (data.success) {
+      const select = document.getElementById('git-repository-select');
+      select.innerHTML = '<option value="">Select repository...</option>';
+
+      data.data.forEach(repo => {
+        const option = document.createElement('option');
+        option.value = repo.id;
+        option.textContent = repo.name;
+        option.selected = repo.id === this.repositoryId;
+        select.appendChild(option);
+      });
+    }
+
+    // Set checkboxes
+    document.getElementById('auto-commit-check').checked = this.autoCommit;
+    document.getElementById('auto-push-check').checked = this.autoPush;
+
+    modal.show();
+  }
+
+  async connectRepository() {
+    const repositoryId = document.getElementById('git-repository-select').value;
+
+    if (!repositoryId) {
+      alert('Please select a repository');
+      return;
+    }
+
+    try {
+      // Update application with repository
+      const response = await fetch(`/lowcode/api/applications/${this.applicationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gitRepository: repositoryId,
+          gitBranch: 'main'
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        this.repositoryId = repositoryId;
+        this.currentBranch = 'main';
+
+        await this.loadRepositoryInfo();
+        this.enableToolbar();
+
+        this.showNotification('Repository connected successfully', 'success');
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('gitConfigModal'));
+        modal.hide();
+      }
+    } catch (error) {
+      console.error('Failed to connect repository:', error);
+      this.showNotification('Failed to connect repository', 'error');
+    }
+  }
+
+  async createRepository() {
+    const name = prompt('Repository name:');
+    if (!name) return;
+
+    try {
+      const response = await fetch('/lowcode/api/git/repositories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          description: `Repository for ${this.artifactType}`,
+          type: 'local',
+          applicationId: this.applicationId
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        this.repositoryId = data.data.id;
+        this.currentBranch = 'main';
+
+        // Initialize repository
+        await fetch('/lowcode/api/git/initialize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            repositoryId: this.repositoryId
+          })
+        });
+
+        await this.loadRepositoryInfo();
+        this.enableToolbar();
+
+        this.showNotification('Repository created successfully', 'success');
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('gitConfigModal'));
+        modal.hide();
+      }
+    } catch (error) {
+      console.error('Failed to create repository:', error);
+      this.showNotification('Failed to create repository', 'error');
+    }
+  }
+
+  async saveConfig() {
+    this.autoCommit = document.getElementById('auto-commit-check').checked;
+    this.autoPush = document.getElementById('auto-push-check').checked;
+
+    // Save to localStorage for now
+    localStorage.setItem('git-auto-commit', this.autoCommit);
+    localStorage.setItem('git-auto-push', this.autoPush);
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('gitConfigModal'));
+    modal.hide();
+
+    this.showNotification('Configuration saved', 'success');
+  }
+
+  async showNewBranchModal() {
+    const modal = new bootstrap.Modal(document.getElementById('gitNewBranchModal'));
+
+    // Populate branch selector
+    await this.loadBranches();
+    const branchSelect = document.getElementById('git-branch-select');
+    const branchFromSelect = document.getElementById('branch-from');
+    branchFromSelect.innerHTML = branchSelect.innerHTML;
+
+    modal.show();
+  }
+
+  async createBranch() {
+    const name = document.getElementById('new-branch-name').value;
+    const fromBranch = document.getElementById('branch-from').value;
+
+    if (!name) {
+      alert('Branch name is required');
+      return;
+    }
+
+    try {
+      const response = await fetch('/lowcode/api/git/branches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repositoryId: this.repositoryId,
+          name,
+          from: fromBranch
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await this.loadBranches();
+        this.currentBranch = name;
+        document.getElementById('git-branch-select').value = name;
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('gitNewBranchModal'));
+        modal.hide();
+
+        this.showNotification('Branch created successfully', 'success');
+      }
+    } catch (error) {
+      console.error('Failed to create branch:', error);
+      this.showNotification('Failed to create branch', 'error');
+    }
+  }
+
+  async switchBranch(branchName) {
+    if (!branchName) return;
+
+    try {
+      const response = await fetch('/lowcode/api/git/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repositoryId: this.repositoryId,
+          branch: branchName
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        this.currentBranch = branchName;
+
+        // Update application
+        await fetch(`/lowcode/api/applications/${this.applicationId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gitBranch: branchName
+          })
+        });
+
+        this.showNotification(`Switched to branch: ${branchName}`, 'success');
+        await this.updateStatus();
+
+        // Reload to show branch content
+        setTimeout(() => {
+          location.reload();
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Failed to switch branch:', error);
+      this.showNotification('Failed to switch branch', 'error');
+    }
+  }
+
+  showNotification(message, type) {
+    // Simple notification (you can replace with better UI like toastr)
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const alert = document.createElement('div');
+    alert.className = `alert ${alertClass} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+    alert.style.zIndex = '9999';
+    alert.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+
+    setTimeout(() => {
+      alert.remove();
+    }, 5000);
+  }
+}
+
+// Global Git toolbar instance (will be initialized per page)
+window.GitToolbar = GitToolbar;
+</script>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exprsn Spark - Real-Time Messaging</title>
+    <link rel="stylesheet" href="/css/spark.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Connection Status Banner -->
+    <div id="connectionStatus" class="connection-status hidden">
+        <i class="fas fa-circle-notch fa-spin"></i>
+        <span id="connectionText">Connecting...</span>
+    </div>
+
+    <!-- Main Container -->
+    <div class="spark-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Header -->
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-comments"></i>
+                    <h1>Spark</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-icon" id="themeToggle" title="Toggle Theme" aria-label="Toggle theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button class="btn-icon" id="newConversation" title="New Conversation" aria-label="New conversation">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="btn-icon" id="settingsBtn" title="Settings" aria-label="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="search-container">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchConversations" placeholder="Search conversations...">
+                    <button class="btn-icon clear-search hidden" id="clearSearch" aria-label="Clear search">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Conversation Filters -->
+            <div class="conversation-filters">
+                <button class="filter-btn active" data-filter="all">
+                    <i class="fas fa-inbox"></i> All
+                </button>
+                <button class="filter-btn" data-filter="unread">
+                    <i class="fas fa-circle"></i> Unread
+                    <span class="badge" id="unreadBadge">0</span>
+                </button>
+                <button class="filter-btn" data-filter="groups">
+                    <i class="fas fa-users"></i> Groups
+                </button>
+                <button class="filter-btn" data-filter="direct">
+                    <i class="fas fa-user"></i> Direct
+                </button>
+            </div>
+
+            <!-- Conversations List -->
+            <div class="conversations-list" id="conversationsList">
+                <!-- Loading State -->
+                <div class="conversations-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading conversations...</p>
+                </div>
+                <!-- Conversations will be dynamically loaded here -->
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-area">
+            <!-- Welcome Screen -->
+            <div class="welcome-screen" id="welcomeScreen">
+                <div class="welcome-content">
+                    <i class="fas fa-comments"></i>
+                    <h2>Welcome to Exprsn Spark</h2>
+                    <p>Select a conversation to start messaging</p>
+                    <button class="btn-primary" id="startNewChat">
+                        <i class="fas fa-plus"></i> Start New Conversation
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Container (hidden initially) -->
+            <div class="chat-container hidden" id="chatContainer">
+                <!-- Chat Header -->
+                <header class="chat-header">
+                    <div class="chat-header-left">
+                        <button class="btn-icon mobile-back" id="mobileBack" aria-label="Back">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <div class="conversation-avatar">
+                            <div class="avatar" id="chatAvatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="online-indicator" id="onlineIndicator"></div>
+                        </div>
+                        <div class="conversation-info">
+                            <h3 id="chatTitle">Conversation</h3>
+                            <div class="chat-status">
+                                <span id="chatStatus">Offline</span>
+                                <span class="typing-indicator hidden" id="typingIndicator">
+                                    <span></span><span></span><span></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-header-right">
+                        <button class="btn-icon" id="searchMessages" title="Search Messages" aria-label="Search messages">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <button class="btn-icon" id="videoCall" title="Video Call" aria-label="Start video call">
+                            <i class="fas fa-video"></i>
+                        </button>
+                        <button class="btn-icon" id="voiceCall" title="Voice Call" aria-label="Start voice call">
+                            <i class="fas fa-phone"></i>
+                        </button>
+                        <button class="btn-icon" id="conversationInfo" title="Info" aria-label="Conversation info">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Messages Container -->
+                <div class="messages-container" id="messagesContainer">
+                    <div class="messages-loading hidden" id="messagesLoading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading messages...</p>
+                    </div>
+                    <div class="messages-list" id="messagesList">
+                        <!-- Messages will be dynamically loaded here -->
+                    </div>
+                    <!-- Scroll to bottom button -->
+                    <button class="scroll-to-bottom hidden" id="scrollToBottom" aria-label="Scroll to bottom">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+
+                <!-- Message Input -->
+                <div class="message-input-container">
+                    <div class="reply-preview hidden" id="replyPreview">
+                        <div class="reply-content">
+                            <strong>Replying to:</strong>
+                            <p id="replyText"></p>
+                        </div>
+                        <button class="btn-icon cancel-reply" id="cancelReply" aria-label="Cancel reply">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="message-input-actions">
+                        <button class="btn-icon" id="attachFile" title="Attach File" aria-label="Attach file">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <button class="btn-icon" id="insertEmoji" title="Insert Emoji" aria-label="Insert emoji">
+                            <i class="fas fa-smile"></i>
+                        </button>
+                    </div>
+                    <div class="message-input-wrapper">
+                        <div class="message-input"
+                             contenteditable="true"
+                             id="messageInput"
+                             data-placeholder="Type a message..."
+                             role="textbox"
+                             aria-label="Message input"
+                             aria-multiline="true">
+                        </div>
+                    </div>
+                    <button class="btn-send" id="sendMessage" aria-label="Send message">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Info Panel (right sidebar - hidden by default) -->
+        <aside class="info-panel hidden" id="infoPanel">
+            <div class="info-panel-header">
+                <h3>Conversation Info</h3>
+                <button class="btn-icon" id="closeInfo" aria-label="Close info">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="info-panel-content">
+                <div class="info-section">
+                    <div class="info-avatar-large">
+                        <div class="avatar-large" id="infoAvatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                    <h4 id="infoTitle">Conversation Name</h4>
+                    <p id="infoMembers">2 members</p>
+                </div>
+
+                <div class="info-section">
+                    <h5>Actions</h5>
+                    <button class="info-action-btn">
+                        <i class="fas fa-bell-slash"></i> Mute Notifications
+                    </button>
+                    <button class="info-action-btn">
+                        <i class="fas fa-star"></i> Star Conversation
+                    </button>
+                    <button class="info-action-btn">
+                        <i class="fas fa-search"></i> Search Messages
+                    </button>
+                </div>
+
+                <div class="info-section">
+                    <h5>Members <span id="memberCount">0</span></h5>
+                    <div id="membersList" class="members-list">
+                        <!-- Members will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h5>Shared Media</h5>
+                    <div class="media-grid" id="sharedMedia">
+                        <!-- Shared media thumbnails will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="info-section danger-zone">
+                    <button class="info-action-btn danger">
+                        <i class="fas fa-sign-out-alt"></i> Leave Conversation
+                    </button>
+                    <button class="info-action-btn danger" id="deleteConversation">
+                        <i class="fas fa-trash"></i> Delete Conversation
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- New Conversation Modal -->
+    <div class="modal hidden" id="newConversationModal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>New Conversation</h3>
+                <button class="btn-icon" id="closeNewConversation" aria-label="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="conversation-type-selector">
+                    <button class="type-btn active" data-type="direct">
+                        <i class="fas fa-user"></i> Direct Message
+                    </button>
+                    <button class="type-btn" data-type="group">
+                        <i class="fas fa-users"></i> Group Chat
+                    </button>
+                </div>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchUsers" placeholder="Search users...">
+                </div>
+                <div class="users-list" id="usersList">
+                    <!-- Users will be loaded here -->
+                </div>
+                <div class="selected-users" id="selectedUsers">
+                    <!-- Selected users will appear here -->
+                </div>
+                <div class="group-settings hidden" id="groupSettings">
+                    <input type="text" id="groupName" placeholder="Group name" class="form-input">
+                    <textarea id="groupDescription" placeholder="Group description (optional)" class="form-input"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelNewConversation">Cancel</button>
+                <button class="btn-primary" id="createConversation">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emoji Picker Modal -->
+    <div class="emoji-picker hidden" id="emojiPicker">
+        <div class="emoji-picker-header">
+            <div class="emoji-categories">
+                <button class="emoji-category active" data-category="smileys"><i class="fas fa-smile"></i></button>
+                <button class="emoji-category" data-category="people"><i class="fas fa-user"></i></button>
+                <button class="emoji-category" data-category="nature"><i class="fas fa-leaf"></i></button>
+                <button class="emoji-category" data-category="food"><i class="fas fa-utensils"></i></button>
+                <button class="emoji-category" data-category="activities"><i class="fas fa-futbol"></i></button>
+                <button class="emoji-category" data-category="travel"><i class="fas fa-plane"></i></button>
+                <button class="emoji-category" data-category="objects"><i class="fas fa-lightbulb"></i></button>
+                <button class="emoji-category" data-category="symbols"><i class="fas fa-heart"></i></button>
+            </div>
+        </div>
+        <div class="emoji-picker-body" id="emojiPickerBody">
+            <!-- Emojis will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu hidden" id="contextMenu">
+        <button class="context-menu-item" data-action="reply">
+            <i class="fas fa-reply"></i> Reply
+        </button>
+        <button class="context-menu-item" data-action="forward">
+            <i class="fas fa-share"></i> Forward
+        </button>
+        <button class="context-menu-item" data-action="copy">
+            <i class="fas fa-copy"></i> Copy
+        </button>
+        <button class="context-menu-item" data-action="edit">
+            <i class="fas fa-edit"></i> Edit
+        </button>
+        <button class="context-menu-item" data-action="delete">
+            <i class="fas fa-trash"></i> Delete
+        </button>
+        <button class="context-menu-item" data-action="select">
+            <i class="fas fa-check-square"></i> Select
+        </button>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/spark-config.js"></script>
+    <script src="/js/spark-socket.js"></script>
+    <script src="/js/spark-ui.js"></script>
+    <script src="/js/spark-app.js"></script>
+</body>
+</html>

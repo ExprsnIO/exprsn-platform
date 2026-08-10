@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authentication Management - Git Setup</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    body {
+      background: #f8f9fa;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .page-header {
+      background: white;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .auth-card {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .credential-item {
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      transition: all 0.2s;
+    }
+
+    .credential-item:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-color: #0d6efd;
+    }
+
+    .key-fingerprint {
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: #6c757d;
+      background: #f8f9fa;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .token-value {
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      background: #f8f9fa;
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px dashed #dee2e6;
+    }
+
+    .scope-badge {
+      background: #e7f3ff;
+      color: #0d6efd;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      margin: 0.125rem;
+      display: inline-block;
+    }
+
+    .last-used {
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
+
+    .warning-box {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .code-block {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 1rem;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="page-header">
+    <div class="container-fluid">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-3">
+          <li class="breadcrumb-item"><a href="/">Home</a></li>
+          <li class="breadcrumb-item"><a href="#" onclick="goToDashboard(); return false;">Git Setup</a></li>
+          <li class="breadcrumb-item active">Authentication</li>
+        </ol>
+      </nav>
+      <h2><i class="bi bi-shield-lock-fill me-2"></i>Authentication Management</h2>
+      <p class="text-muted mb-0">Manage SSH keys, Personal Access Tokens, and OAuth applications</p>
+    </div>
+  </div>
+
+  <div class="container-fluid">
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="authTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="ssh-tab" data-bs-toggle="tab" data-bs-target="#ssh" type="button">
+          <i class="bi bi-key me-2"></i>SSH Keys
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="pat-tab" data-bs-toggle="tab" data-bs-target="#pat" type="button">
+          <i class="bi bi-shield me-2"></i>Personal Access Tokens
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="oauth-tab" data-bs-toggle="tab" data-bs-target="#oauth" type="button">
+          <i class="bi bi-diagram-3 me-2"></i>OAuth Applications
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="authTabContent">
+      <!-- SSH Keys Tab -->
+      <div class="tab-pane fade show active" id="ssh" role="tabpanel">
+        <div class="row">
+          <div class="col-lg-8">
+            <div class="auth-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">SSH Keys</h4>
+                <button class="btn btn-primary btn-sm" onclick="showAddSSHKeyModal()">
+                  <i class="bi bi-plus-lg me-1"></i>Add SSH Key
+                </button>
+              </div>
+
+              <div id="ssh-key-list">
+                <div class="text-center py-4">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="auth-card">
+              <h5><i class="bi bi-info-circle me-2"></i>SSH Keys Guide</h5>
+              <p class="small text-muted">SSH keys allow you to securely connect to Git repositories without using a password.</p>
+
+              <h6 class="mt-3">Generating SSH Keys:</h6>
+              <div class="code-block small">
+ssh-keygen -t ed25519 -C "email@example.com"
+              </div>
+
+              <p class="small text-muted mt-2">Or for RSA (4096-bit):</p>
+              <div class="code-block small">
+ssh-keygen -t rsa -b 4096 -C "email@example.com"
+              </div>
+
+              <p class="small text-muted mt-3">Your public key is located at <code>~/.ssh/id_ed25519.pub</code> (or <code>~/.ssh/id_rsa.pub</code> for RSA).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Personal Access Tokens Tab -->
+      <div class="tab-pane fade" id="pat" role="tabpanel">
+        <div class="row">
+          <div class="col-lg-8">
+            <div class="auth-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">Personal Access Tokens</h4>
+                <button class="btn btn-primary btn-sm" onclick="showGeneratePATModal()">
+                  <i class="bi bi-plus-lg me-1"></i>Generate Token
+                </button>
+              </div>
+
+              <div id="pat-list">
+                <div class="text-center py-4">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="auth-card">
+              <h5><i class="bi bi-info-circle me-2"></i>Token Guide</h5>
+              <p class="small text-muted">Personal Access Tokens (PATs) provide an alternative to using passwords for Git over HTTPS or API authentication.</p>
+
+              <h6 class="mt-3">Token Scopes:</h6>
+              <ul class="small">
+                <li><strong>read_repository</strong> - Read repository data</li>
+                <li><strong>write_repository</strong> - Push to repositories</li>
+                <li><strong>admin_repository</strong> - Full admin access</li>
+                <li><strong>read_api</strong> - Read API access</li>
+                <li><strong>write_api</strong> - Write API access</li>
+              </ul>
+
+              <div class="alert alert-warning small mt-3">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Treat tokens like passwords. Store them securely and never share them.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OAuth Applications Tab -->
+      <div class="tab-pane fade" id="oauth" role="tabpanel">
+        <div class="row">
+          <div class="col-lg-12">
+            <div class="auth-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">OAuth Applications</h4>
+                <button class="btn btn-primary btn-sm" onclick="showRegisterOAuthModal()">
+                  <i class="bi bi-plus-lg me-1"></i>Register Application
+                </button>
+              </div>
+
+              <div id="oauth-app-list">
+                <div class="text-center py-4">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add SSH Key Modal -->
+  <div class="modal fade" id="addSSHKeyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add SSH Key</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addSSHKeyForm">
+            <div class="mb-3">
+              <label class="form-label">Title</label>
+              <input type="text" class="form-control" id="sshKeyTitle" required>
+              <small class="text-muted">Descriptive name for this key</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Key Type</label>
+              <select class="form-select" id="sshKeyType" required>
+                <option value="ed25519">ED25519 (recommended)</option>
+                <option value="rsa">RSA</option>
+                <option value="ecdsa">ECDSA</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Public Key</label>
+              <textarea class="form-control" id="sshPublicKey" rows="6" required
+                placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5..."></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Expires At (Optional)</label>
+              <input type="datetime-local" class="form-control" id="sshKeyExpires">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveSSHKey()">Add SSH Key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate PAT Modal -->
+  <div class="modal fade" id="generatePATModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Generate Personal Access Token</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="generatePATForm">
+            <div class="mb-3">
+              <label class="form-label">Token Name</label>
+              <input type="text" class="form-control" id="patName" required>
+              <small class="text-muted">Descriptive name for this token</small>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Scopes</label>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="scope-read-repo" value="read_repository" checked>
+                <label class="form-check-label" for="scope-read-repo">read_repository</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="scope-write-repo" value="write_repository">
+                <label class="form-check-label" for="scope-write-repo">write_repository</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="scope-admin-repo" value="admin_repository">
+                <label class="form-check-label" for="scope-admin-repo">admin_repository</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="scope-read-api" value="read_api">
+                <label class="form-check-label" for="scope-read-api">read_api</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="scope-write-api" value="write_api">
+                <label class="form-check-label" for="scope-write-api">write_api</label>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Expires At (Optional)</label>
+              <input type="datetime-local" class="form-control" id="patExpires">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="generatePAT()">Generate Token</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Token Generated Modal -->
+  <div class="modal fade" id="tokenGeneratedModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title">Token Generated Successfully</h5>
+        </div>
+        <div class="modal-body">
+          <div class="warning-box">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Important:</strong> Copy this token now. You won't be able to see it again!
+          </div>
+          <label class="form-label">Your Personal Access Token:</label>
+          <div class="token-value" id="generatedToken"></div>
+          <button class="btn btn-sm btn-outline-secondary mt-2" onclick="copyToken()">
+            <i class="bi bi-clipboard me-1"></i>Copy to Clipboard
+          </button>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="closeTokenModal()">I've Saved My Token</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register OAuth App Modal -->
+  <div class="modal fade" id="registerOAuthModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Register OAuth Application</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="registerOAuthForm">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Application Name</label>
+                <input type="text" class="form-control" id="oauthName" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Homepage URL</label>
+                <input type="url" class="form-control" id="oauthHomepage" placeholder="https://example.com">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Description</label>
+              <textarea class="form-control" id="oauthDescription" rows="2"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Redirect URIs (one per line)</label>
+              <textarea class="form-control" id="oauthRedirectUris" rows="3" required
+                placeholder="https://example.com/callback&#10;https://example.com/auth/callback"></textarea>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Logo URL (Optional)</label>
+                <input type="url" class="form-control" id="oauthLogoUrl">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Privacy Policy URL (Optional)</label>
+                <input type="url" class="form-control" id="oauthPrivacyUrl">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="registerOAuth()">Register Application</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Navigation helper
+    function goToDashboard() {
+      const currentPath = window.location.pathname;
+      const basePath = currentPath.includes('/lowcode/git') ? '/lowcode/git' : '/git';
+      window.location.href = `${basePath}/dashboard`;
+    }
+
+    // Load SSH keys
+    async function loadSSHKeys() {
+      try {
+        const res = await fetch('/lowcode/api/git/auth/ssh-keys');
+        const data = await res.json();
+        const keys = data.data || [];
+
+        if (keys.length === 0) {
+          document.getElementById('ssh-key-list').innerHTML =
+            '<div class="text-center py-4 text-muted">No SSH keys configured</div>';
+          return;
+        }
+
+        document.getElementById('ssh-key-list').innerHTML = keys.map(key => `
+          <div class="credential-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="flex-grow-1">
+                <h6 class="mb-2">
+                  <i class="bi bi-key-fill me-2 text-primary"></i>
+                  ${escapeHtml(key.title)}
+                </h6>
+                <div class="key-fingerprint mb-2">${escapeHtml(key.fingerprint)}</div>
+                <div>
+                  <span class="badge bg-secondary">${key.keyType.toUpperCase()}</span>
+                  ${key.expiresAt ? `<span class="badge bg-warning ms-2">Expires: ${new Date(key.expiresAt).toLocaleDateString()}</span>` : ''}
+                </div>
+                ${key.lastUsedAt ? `<div class="last-used mt-2">Last used: ${new Date(key.lastUsedAt).toLocaleString()}</div>` : ''}
+              </div>
+              <div>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteSSHKey('${key.id}')">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Failed to load SSH keys:', error);
+        document.getElementById('ssh-key-list').innerHTML =
+          '<div class="alert alert-danger">Failed to load SSH keys</div>';
+      }
+    }
+
+    // Load Personal Access Tokens
+    async function loadPATs() {
+      try {
+        const res = await fetch('/lowcode/api/git/auth/tokens');
+        const data = await res.json();
+        const tokens = data.data || [];
+
+        if (tokens.length === 0) {
+          document.getElementById('pat-list').innerHTML =
+            '<div class="text-center py-4 text-muted">No personal access tokens</div>';
+          return;
+        }
+
+        document.getElementById('pat-list').innerHTML = tokens.map(token => `
+          <div class="credential-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="flex-grow-1">
+                <h6 class="mb-2">
+                  <i class="bi bi-shield-fill-check me-2 text-success"></i>
+                  ${escapeHtml(token.name)}
+                </h6>
+                <div class="mb-2">
+                  ${(token.scopes || []).map(scope => `<span class="scope-badge">${scope}</span>`).join('')}
+                </div>
+                <div>
+                  ${token.expiresAt ? `<span class="badge bg-warning">Expires: ${new Date(token.expiresAt).toLocaleDateString()}</span>` : '<span class="badge bg-success">No expiration</span>'}
+                  ${token.lastUsedAt ? `<span class="badge bg-info ms-2">Last used: ${new Date(token.lastUsedAt).toLocaleDateString()}</span>` : ''}
+                </div>
+              </div>
+              <div>
+                <button class="btn btn-sm btn-outline-warning me-2" onclick="revokePAT('${token.id}')">
+                  <i class="bi bi-x-circle"></i> Revoke
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deletePAT('${token.id}')">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Failed to load PATs:', error);
+      }
+    }
+
+    // Load OAuth Applications
+    async function loadOAuthApps() {
+      try {
+        const res = await fetch('/lowcode/api/git/auth/oauth/apps');
+        const data = await res.json();
+        const apps = data.data || [];
+
+        if (apps.length === 0) {
+          document.getElementById('oauth-app-list').innerHTML =
+            '<div class="text-center py-4 text-muted">No OAuth applications registered</div>';
+          return;
+        }
+
+        document.getElementById('oauth-app-list').innerHTML = apps.map(app => `
+          <div class="credential-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="flex-grow-1">
+                <h5 class="mb-2">
+                  <i class="bi bi-app-indicator me-2 text-primary"></i>
+                  ${escapeHtml(app.name)}
+                </h5>
+                ${app.description ? `<p class="text-muted mb-2">${escapeHtml(app.description)}</p>` : ''}
+                <div class="mb-2">
+                  <strong>Client ID:</strong> <code>${escapeHtml(app.clientId)}</code>
+                </div>
+                ${app.homepageUrl ? `<div class="mb-2"><i class="bi bi-link-45deg me-1"></i><a href="${escapeHtml(app.homepageUrl)}" target="_blank">${escapeHtml(app.homepageUrl)}</a></div>` : ''}
+              </div>
+              <div>
+                <button class="btn btn-sm btn-outline-primary me-2" onclick="regenerateSecret('${app.id}')">
+                  <i class="bi bi-arrow-clockwise"></i> Regenerate Secret
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteOAuthApp('${app.id}')">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Failed to load OAuth apps:', error);
+      }
+    }
+
+    // Modal functions
+    function showAddSSHKeyModal() {
+      new bootstrap.Modal(document.getElementById('addSSHKeyModal')).show();
+    }
+
+    function showGeneratePATModal() {
+      new bootstrap.Modal(document.getElementById('generatePATModal')).show();
+    }
+
+    function showRegisterOAuthModal() {
+      new bootstrap.Modal(document.getElementById('registerOAuthModal')).show();
+    }
+
+    async function saveSSHKey() {
+      try {
+        const expiresAt = document.getElementById('sshKeyExpires').value;
+        const res = await fetch('/lowcode/api/git/auth/ssh-keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: document.getElementById('sshKeyTitle').value,
+            publicKey: document.getElementById('sshPublicKey').value.trim(),
+            keyType: document.getElementById('sshKeyType').value,
+            expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
+          })
+        });
+
+        if (res.ok) {
+          bootstrap.Modal.getInstance(document.getElementById('addSSHKeyModal')).hide();
+          loadSSHKeys();
+        } else {
+          const error = await res.json();
+          alert('Failed to add SSH key: ' + error.message);
+        }
+      } catch (error) {
+        alert('Failed to add SSH key: ' + error.message);
+      }
+    }
+
+    async function generatePAT() {
+      try {
+        const scopes = [];
+        document.querySelectorAll('input[type="checkbox"][id^="scope-"]:checked').forEach(cb => {
+          scopes.push(cb.value);
+        });
+
+        const expiresAt = document.getElementById('patExpires').value;
+        const res = await fetch('/lowcode/api/git/auth/tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('patName').value,
+            scopes: scopes,
+            expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('generatedToken').textContent = data.data.token;
+          bootstrap.Modal.getInstance(document.getElementById('generatePATModal')).hide();
+          new bootstrap.Modal(document.getElementById('tokenGeneratedModal')).show();
+        } else {
+          const error = await res.json();
+          alert('Failed to generate token: ' + error.message);
+        }
+      } catch (error) {
+        alert('Failed to generate token: ' + error.message);
+      }
+    }
+
+    function closeTokenModal() {
+      loadPATs();
+    }
+
+    function copyToken() {
+      const token = document.getElementById('generatedToken').textContent;
+      navigator.clipboard.writeText(token);
+      alert('Token copied to clipboard!');
+    }
+
+    async function registerOAuth() {
+      try {
+        const redirectUris = document.getElementById('oauthRedirectUris').value
+          .split('\n')
+          .map(uri => uri.trim())
+          .filter(uri => uri.length > 0);
+
+        const res = await fetch('/lowcode/api/git/auth/oauth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('oauthName').value,
+            description: document.getElementById('oauthDescription').value,
+            redirectUris: redirectUris,
+            homepageUrl: document.getElementById('oauthHomepage').value || null,
+            logoUrl: document.getElementById('oauthLogoUrl').value || null,
+            privacyPolicyUrl: document.getElementById('oauthPrivacyUrl').value || null
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          bootstrap.Modal.getInstance(document.getElementById('registerOAuthModal')).hide();
+          alert('Application registered!\n\nClient ID: ' + data.data.clientId + '\nClient Secret: ' + data.data.clientSecret + '\n\nSave the client secret now - you won\'t see it again!');
+          loadOAuthApps();
+        } else {
+          const error = await res.json();
+          alert('Failed to register application: ' + error.message);
+        }
+      } catch (error) {
+        alert('Failed to register application: ' + error.message);
+      }
+    }
+
+    async function deleteSSHKey(id) {
+      if (!confirm('Delete this SSH key?')) return;
+      try {
+        await fetch(`/lowcode/api/git/auth/ssh-keys/${id}`, { method: 'DELETE' });
+        loadSSHKeys();
+      } catch (error) {
+        alert('Failed to delete SSH key');
+      }
+    }
+
+    async function revokePAT(id) {
+      if (!confirm('Revoke this token?')) return;
+      try {
+        await fetch(`/lowcode/api/git/auth/tokens/${id}/revoke`, { method: 'PUT' });
+        loadPATs();
+      } catch (error) {
+        alert('Failed to revoke token');
+      }
+    }
+
+    async function deletePAT(id) {
+      if (!confirm('Delete this token?')) return;
+      try {
+        await fetch(`/lowcode/api/git/auth/tokens/${id}`, { method: 'DELETE' });
+        loadPATs();
+      } catch (error) {
+        alert('Failed to delete token');
+      }
+    }
+
+    async function regenerateSecret(id) {
+      if (!confirm('Regenerate client secret? This will invalidate the current secret.')) return;
+      try {
+        const res = await fetch(`/lowcode/api/git/auth/oauth/apps/${id}/regenerate-secret`, { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          alert('Client secret regenerated!\n\nNew Secret: ' + data.data.clientSecret + '\n\nSave it now - you won\'t see it again!');
+          loadOAuthApps();
+        }
+      } catch (error) {
+        alert('Failed to regenerate secret');
+      }
+    }
+
+    async function deleteOAuthApp(id) {
+      if (!confirm('Delete this OAuth application?')) return;
+      try {
+        await fetch(`/lowcode/api/git/auth/oauth/apps/${id}`, { method: 'DELETE' });
+        loadOAuthApps();
+      } catch (error) {
+        alert('Failed to delete application');
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSSHKeys();
+      loadPATs();
+      loadOAuthApps();
+    });
+
+    // Tab change events
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+      tab.addEventListener('shown.bs.tab', (e) => {
+        if (e.target.id === 'ssh-tab') loadSSHKeys();
+        if (e.target.id === 'pat-tab') loadPATs();
+        if (e.target.id === 'oauth-tab') loadOAuthApps();
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<div class="col-md-6 col-lg-4">
+    <div class="card page-card h-100">
+        <div class="card-body position-relative">
+            <span class="page-status-badge">
+                <span class="badge bg-<%= page.status === 'published' ? 'success' : 'warning' %>">
+                    <i class="bi bi-<%= page.status === 'published' ? 'globe' : 'file-earmark' %>"></i>
+                    <%= page.status %>
+                </span>
+            </span>
+
+            <div class="page-content">
+                <h5 class="card-title mb-2">
+                    <a href="/pages/<%= page.slug %>" class="text-decoration-none" target="_blank">
+                        <%= page.title %>
+                    </a>
+                </h5>
+
+                <% if (page.description) { %>
+                <p class="card-text text-muted small mb-3"><%= page.description %></p>
+                <% } %>
+
+                <div class="page-meta mb-3">
+                    <div class="page-meta-item">
+                        <i class="bi bi-calendar"></i>
+                        <span><%= new Date(page.updated_at).toLocaleDateString() %></span>
+                    </div>
+                    <% if (page.is_static) { %>
+                    <div class="page-meta-item text-info">
+                        <i class="bi bi-file-code"></i>
+                        <span>Static</span>
+                    </div>
+                    <% } else { %>
+                    <div class="page-meta-item text-warning">
+                        <i class="bi bi-lightning-charge"></i>
+                        <span>Dynamic</span>
+                    </div>
+                    <% } %>
+                    <% if (page.socket_events && page.socket_events.length > 0) { %>
+                    <div class="page-meta-item text-primary">
+                        <i class="bi bi-broadcast"></i>
+                        <span>Real-time</span>
+                    </div>
+                    <% } %>
+                    <% if (!page.is_public) { %>
+                    <div class="page-meta-item text-danger">
+                        <i class="bi bi-lock"></i>
+                        <span>Private</span>
+                    </div>
+                    <% } %>
+                </div>
+
+                <div class="page-actions">
+                    <a href="/editor/edit/<%= page.id %>" class="btn btn-sm btn-primary">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <a href="/pages/<%= page.slug %>" class="btn btn-sm btn-outline-secondary" target="_blank">
+                        <i class="bi bi-eye"></i> View
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete('<%= page.id %>', '<%= page.title %>')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

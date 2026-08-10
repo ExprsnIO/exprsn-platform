@@ -1,0 +1,3140 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entity Designer Pro - Exprsn Low-Code Platform</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- D3.js for relationship visualization (local copy) -->
+  <script src="/lowcode/static/js/d3.v7.min.js"></script>
+
+  <!-- Socket.IO Client -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+      background: var(--bg-primary, #ffffff);
+      color: var(--text-primary, #1f2937);
+      overflow: hidden;
+    }
+
+    .designer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════════════════════ */
+
+    .designer-header {
+      background: var(--bg-secondary, #f9fafb);
+      border-bottom: 1px solid var(--border-color, #e5e7eb);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex: 1;
+    }
+
+    .back-btn {
+      padding: 0.5rem;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary, #6b7280);
+      cursor: pointer;
+      border-radius: 0.375rem;
+      transition: all 0.2s ease;
+      font-size: 1.25rem;
+    }
+
+    .back-btn:hover {
+      background: var(--gray-100, #f3f4f6);
+      color: var(--text-primary, #1f2937);
+    }
+
+    .app-breadcrumb {
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6b7280);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex: 2;
+      justify-content: center;
+    }
+
+    .view-tabs {
+      display: flex;
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 0.5rem;
+      overflow: hidden;
+      background: var(--bg-primary, #ffffff);
+    }
+
+    .view-tab {
+      padding: 0.5rem 1.25rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-secondary, #6b7280);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .view-tab:not(:last-child) {
+      border-right: 1px solid var(--border-color, #e5e7eb);
+    }
+
+    .view-tab.active {
+      background: var(--primary, #3b82f6);
+      color: white;
+    }
+
+    .view-tab:hover:not(.active) {
+      background: var(--gray-100, #f3f4f6);
+      color: var(--text-primary, #1f2937);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success, #10b981);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.disconnected {
+      background: var(--danger, #ef4444);
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--primary, #3b82f6);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark, #2563eb);
+      box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-success {
+      background: var(--success, #10b981);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: var(--success-dark, #059669);
+    }
+
+    .btn-secondary {
+      background: var(--bg-primary, #ffffff);
+      color: var(--text-primary, #1f2937);
+      border: 1px solid var(--border-color, #e5e7eb);
+    }
+
+    .btn-secondary:hover {
+      background: var(--gray-100, #f3f4f6);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       THREE-PANEL LAYOUT
+       ═══════════════════════════════════════════════════════════ */
+
+    .designer-main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* LEFT PANEL - Entity Selector */
+    .left-panel {
+      width: 280px;
+      background: var(--bg-secondary, #f9fafb);
+      border-right: 1px solid var(--border-color, #e5e7eb);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color, #e5e7eb);
+      background: var(--bg-primary, #ffffff);
+    }
+
+    .panel-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary, #6b7280);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.75rem;
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 0.375rem;
+      background: var(--bg-primary, #ffffff);
+      color: var(--text-primary, #1f2937);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary, #3b82f6);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-secondary, #6b7280);
+      font-size: 0.875rem;
+    }
+
+    .entity-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    .entity-item {
+      padding: 0.75rem;
+      margin-bottom: 0.25rem;
+      background: var(--bg-primary, #ffffff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .entity-item:hover {
+      border-color: var(--primary, #3b82f6);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .entity-item.active {
+      border-color: var(--primary, #3b82f6);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .entity-info {
+      flex: 1;
+    }
+
+    .entity-name {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--text-primary, #1f2937);
+      margin-bottom: 0.125rem;
+    }
+
+    .entity-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary, #6b7280);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .entity-badge {
+      padding: 0.125rem 0.375rem;
+      background: var(--gray-100, #f3f4f6);
+      color: var(--gray-700, #374151);
+      border-radius: 0.25rem;
+      font-size: 0.625rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .entity-badge.forge {
+      background: rgba(147, 51, 234, 0.1);
+      color: #9333ea;
+    }
+
+    .entity-actions {
+      display: flex;
+      gap: 0.25rem;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .entity-item:hover .entity-actions {
+      opacity: 1;
+    }
+
+    .icon-btn {
+      padding: 0.25rem;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary, #6b7280);
+      cursor: pointer;
+      border-radius: 0.25rem;
+      transition: all 0.2s ease;
+      font-size: 0.875rem;
+    }
+
+    .icon-btn:hover {
+      background: var(--gray-100, #f3f4f6);
+      color: var(--text-primary, #1f2937);
+    }
+
+    .add-entity-btn {
+      margin: 0.5rem;
+      width: calc(100% - 1rem);
+      padding: 0.75rem;
+      background: var(--primary, #3b82f6);
+      color: white;
+      border: none;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .add-entity-btn:hover {
+      background: var(--primary-dark, #2563eb);
+    }
+
+    /* CENTER PANEL - Main Editor */
+    .center-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg-primary, #ffffff);
+    }
+
+    .editor-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border-color, #e5e7eb);
+      background: var(--bg-secondary, #f9fafb);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .entity-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary, #1f2937);
+    }
+
+    .entity-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6b7280);
+      margin-top: 0.25rem;
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .editor-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    /* Fields View */
+    .fields-table-container {
+      background: var(--bg-secondary, #f9fafb);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+
+    .fields-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .fields-table thead {
+      background: var(--gray-50, #f9fafb);
+    }
+
+    .fields-table th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.813rem;
+      color: var(--text-secondary, #6b7280);
+      border-bottom: 1px solid var(--border-color, #e5e7eb);
+    }
+
+    .fields-table tbody tr {
+      border-bottom: 1px solid var(--border-color, #e5e7eb);
+      transition: background 0.2s ease;
+      cursor: pointer;
+    }
+
+    .fields-table tbody tr:hover {
+      background: var(--gray-50, #f9fafb);
+    }
+
+    .fields-table tbody tr.selected {
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .fields-table td {
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      color: var(--text-primary, #1f2937);
+    }
+
+    /* Relationship Canvas */
+    #relationshipCanvas {
+      width: 100%;
+      height: 600px;
+      background: var(--bg-secondary, #f9fafb);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 0.5rem;
+      position: relative;
+    }
+
+    .relationship-node {
+      background: white;
+      border: 2px solid var(--primary, #3b82f6);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      cursor: move;
+    }
+
+    .relationship-node.selected {
+      border-color: var(--success, #10b981);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+
+    .node-header {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary, #1f2937);
+    }
+
+    .node-field {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary, #6b7280);
+      border-left: 2px solid var(--border-color, #e5e7eb);
+      margin-bottom: 0.25rem;
+    }
+
+    .node-field.primary-key {
+      border-left-color: var(--warning, #f59e0b);
+      font-weight: 600;
+    }
+
+    .node-field.foreign-key {
+      border-left-color: var(--primary, #3b82f6);
+    }
+
+    /* RIGHT PANEL - Properties */
+    .right-panel {
+      width: 350px;
+      background: var(--bg-secondary, #f9fafb);
+      border-left: 1px solid var(--border-color, #e5e7eb);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .properties-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .property-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .property-group-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary, #6b7280);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .format-tabs {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .format-tab {
+      padding: 0.25rem 0.5rem;
+      background: var(--bg-primary, #ffffff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .format-tab.active {
+      background: var(--primary, #3b82f6);
+      color: white;
+      border-color: var(--primary, #3b82f6);
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.375rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary, #1f2937);
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 0.375rem;
+      background: var(--bg-primary, #ffffff);
+      color: var(--text-primary, #1f2937);
+      font-size: 0.875rem;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary, #3b82f6);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+
+    .form-checkbox input {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary, #3b82f6);
+    }
+
+    .form-checkbox label {
+      font-size: 0.875rem;
+      color: var(--text-primary, #1f2937);
+      cursor: pointer;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--bg-primary, #ffffff);
+      border-radius: 0.5rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.active .modal {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border-color, #e5e7eb);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary, #1f2937);
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary, #6b7280);
+      cursor: pointer;
+      font-size: 1.5rem;
+      padding: 0.25rem;
+      transition: color 0.2s ease;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary, #1f2937);
+    }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color, #e5e7eb);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .toast {
+      background: var(--bg-secondary, #f9fafb);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: 0.375rem;
+      padding: 1rem;
+      min-width: 300px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.success {
+      border-left: 4px solid var(--success, #10b981);
+    }
+
+    .toast.error {
+      border-left: 4px solid var(--danger, #ef4444);
+    }
+
+    .toast.info {
+      border-left: 4px solid var(--primary, #3b82f6);
+    }
+
+    .toast-icon {
+      font-size: 1.25rem;
+    }
+
+    .toast.success .toast-icon {
+      color: var(--success, #10b981);
+    }
+
+    .toast.error .toast-icon {
+      color: var(--danger, #ef4444);
+    }
+
+    .toast.info .toast-icon {
+      color: var(--primary, #3b82f6);
+    }
+
+    .toast-message {
+      flex: 1;
+      font-size: 0.875rem;
+      color: var(--text-primary, #1f2937);
+    }
+
+    /* Form Sections */
+    .form-section {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color, #e5e7eb);
+    }
+
+    .form-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .form-section-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary, #1f2937);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary, #3b82f6);
+      display: inline-block;
+    }
+
+    /* Entity Locking & Read-Only Styles */
+    .entity-status-bar {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background: #f9fafb;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 9999px;
+    }
+
+    .badge-danger {
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+
+    .badge-warning {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-success {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-info {
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+
+    .badge-secondary {
+      background-color: #f3f4f6;
+      color: #374151;
+    }
+
+    .btn-sm {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.813rem;
+    }
+
+    .btn-outline-danger {
+      background: transparent;
+      color: #dc2626;
+      border: 1px solid #dc2626;
+    }
+
+    .btn-outline-danger:hover {
+      background: #dc2626;
+      color: white;
+    }
+
+    .btn-outline-warning {
+      background: transparent;
+      color: #d97706;
+      border: 1px solid #d97706;
+    }
+
+    .btn-outline-warning:hover {
+      background: #d97706;
+      color: white;
+    }
+
+    .btn-outline-success {
+      background: transparent;
+      color: #059669;
+      border: 1px solid #059669;
+    }
+
+    .btn-outline-success:hover {
+      background: #059669;
+      color: white;
+    }
+
+    .btn-outline-secondary {
+      background: transparent;
+      color: #6b7280;
+      border: 1px solid #6b7280;
+    }
+
+    .btn-outline-secondary:hover {
+      background: #6b7280;
+      color: white;
+    }
+
+    /* Read-only overlay */
+    .read-only-overlay {
+      position: relative;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    .read-only-overlay::after {
+      content: 'Read-Only Mode';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+    /* Locked overlay */
+    .locked-overlay {
+      position: relative;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .locked-overlay::after {
+      content: '🔒 Locked';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(239, 68, 68, 0.95);
+      color: white;
+      padding: 1.5rem 3rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* Utility Classes */
+    .hidden {
+      display: none !important;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       MIGRATIONS UI
+       ═══════════════════════════════════════════════════════════ */
+
+    .migrations-container {
+      padding: 1rem;
+    }
+
+    .migration-section {
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .migrations-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .migration-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: white;
+      transition: box-shadow 0.2s;
+    }
+
+    .migration-card:hover {
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .migration-card-header {
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .migration-title {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .migration-meta {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: #6b7280;
+      flex-wrap: wrap;
+    }
+
+    .migration-type-badge {
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.625rem;
+    }
+
+    .migration-type-badge.create_table {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .migration-type-badge.alter_table,
+    .migration-type-badge.add_column,
+    .migration-type-badge.drop_column,
+    .migration-type-badge.modify_column {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .migration-type-badge.drop_table {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .migration-type-badge.add_index,
+    .migration-type-badge.drop_index {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .migration-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .migration-sql-preview {
+      border-top: 1px solid #e5e7eb;
+      padding: 1rem;
+      background: #f9fafb;
+    }
+
+    .sql-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .sql-tab {
+      padding: 0.25rem 0.75rem;
+      background: #e5e7eb;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .sql-tab:hover {
+      background: #d1d5db;
+    }
+
+    .sql-tab.active {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .sql-code {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+      margin: 0.5rem 0;
+      line-height: 1.5;
+    }
+
+    .sql-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .detected-changes {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .change-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: #f9fafb;
+      border-radius: 4px;
+    }
+
+    .change-item input[type="checkbox"] {
+      accent-color: #3b82f6;
+      cursor: pointer;
+    }
+
+    .change-type {
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.625rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .change-type.add {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .change-type.remove {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .change-type.modify {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .migration-id {
+      font-family: 'Courier New', monospace;
+      font-size: 0.7rem;
+    }
+
+    .migration-date {
+      font-style: italic;
+    }
+
+    .btn-link {
+      background: transparent;
+      border: none;
+      color: #3b82f6;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 0.875rem;
+    }
+
+    .btn-link:hover {
+      color: #2563eb;
+    }
+
+    /* Index Field Selection Styles */
+    .index-field-selection {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .field-list-container {
+      border: 1px solid var(--border-color, #dee2e6);
+      border-radius: 0.375rem;
+      padding: 1rem;
+      background: var(--bg-primary, #ffffff);
+    }
+
+    .field-list-header {
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary, #3b82f6);
+      color: var(--text-primary, #1f2937);
+      font-size: 0.875rem;
+    }
+
+    .available-field-item {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--gray-100, #f3f4f6);
+      font-size: 0.813rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .available-field-item:hover {
+      background-color: var(--gray-50, #f9fafb);
+    }
+
+    .available-field-item input[type="checkbox"] {
+      margin-right: 0.5rem;
+      cursor: pointer;
+      accent-color: var(--primary, #3b82f6);
+    }
+
+    .field-type-badge {
+      display: inline-block;
+      padding: 0.125rem 0.375rem;
+      background: var(--gray-100, #f3f4f6);
+      color: var(--gray-700, #374151);
+      border-radius: 0.25rem;
+      font-size: 0.625rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+
+    .field-already-indexed {
+      color: var(--success, #10b981);
+      font-size: 0.75rem;
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .selected-fields-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.813rem;
+    }
+
+    .selected-fields-table th,
+    .selected-fields-table td {
+      padding: 0.5rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color, #e5e7eb);
+    }
+
+    .selected-fields-table th {
+      font-weight: 600;
+      color: var(--text-secondary, #6b7280);
+      background: var(--gray-50, #f9fafb);
+      font-size: 0.75rem;
+    }
+
+    .selected-field-row {
+      cursor: move;
+      transition: all 0.2s ease;
+    }
+
+    .selected-field-row:hover {
+      background-color: var(--gray-50, #f9fafb);
+    }
+
+    .selected-field-row.dragging {
+      opacity: 0.5;
+      background-color: var(--blue-50, #dbeafe);
+    }
+
+    .selected-field-row.drag-over {
+      border-top: 2px solid var(--primary, #3b82f6);
+    }
+
+    .drag-handle {
+      color: var(--text-secondary, #6b7280);
+      cursor: move;
+      margin-right: 0.5rem;
+    }
+
+    .remove-field-btn {
+      background: transparent;
+      border: none;
+      color: var(--danger, #ef4444);
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 0.25rem;
+      transition: all 0.2s ease;
+    }
+
+    .remove-field-btn:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="designer-container">
+    <!-- Git Toolbar -->
+    <%- include('partials/git-toolbar') %>
+
+    <!-- Header -->
+    <header class="designer-header">
+      <div class="header-left">
+        <button class="back-btn" id="backBtn" title="Back to Application">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <div class="app-breadcrumb">
+          <span id="appName">Loading...</span>
+          <i class="fas fa-chevron-right"></i>
+          <span>Entity Designer</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div class="view-tabs">
+          <button class="view-tab active" data-view="fields">
+            <i class="fas fa-table"></i>
+            Fields
+          </button>
+          <button class="view-tab" data-view="relationships">
+            <i class="fas fa-project-diagram"></i>
+            Relationships
+          </button>
+          <button class="view-tab" data-view="indexes">
+            <i class="fas fa-key"></i>
+            Indexes
+          </button>
+          <button class="view-tab" data-view="schema">
+            <i class="fas fa-code"></i>
+            Schema
+          </button>
+          <button class="view-tab" data-view="migrations">
+            <i class="fas fa-database"></i>
+            Migrations
+            <span id="pendingMigrationsCount" class="badge badge-warning" style="display: none; margin-left: 0.5rem;">0</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="connection-status">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Connected</span>
+        </div>
+        <button class="btn btn-outline-primary" id="saveDraftBtn">
+          <i class="fas fa-save"></i>
+          Save Draft
+        </button>
+        <button class="btn btn-success" id="publishEntityBtn">
+          <i class="fas fa-rocket"></i>
+          Publish
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="designer-main">
+      <!-- LEFT PANEL - Entity Selector -->
+      <aside class="left-panel">
+        <div class="panel-header">
+          <div class="panel-title">Entities</div>
+          <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input
+              type="text"
+              class="search-input"
+              id="entitySearch"
+              placeholder="Search entities..."
+            >
+          </div>
+        </div>
+        <div class="entity-list" id="entityList">
+          <!-- Entities will be populated here -->
+        </div>
+        <button class="add-entity-btn" id="addEntityBtn">
+          <i class="fas fa-plus"></i>
+          New Entity
+        </button>
+      </aside>
+
+      <!-- CENTER PANEL - Main Editor -->
+      <div class="center-panel">
+        <div class="editor-header">
+          <div>
+            <div class="entity-title" id="entityTitle">Select an entity</div>
+            <div class="entity-subtitle" id="entitySubtitle">or create a new one</div>
+          </div>
+          <div class="editor-actions">
+            <button class="btn btn-secondary" id="addFieldBtn" style="display: none;">
+              <i class="fas fa-plus"></i>
+              Add Field
+            </button>
+          </div>
+        </div>
+
+        <!-- Entity Status & Controls -->
+        <div class="entity-status-bar" id="entityStatusBar" style="display: none; margin: 1rem 1.5rem 0 1.5rem;">
+          <!-- Left side - Status badges -->
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <span id="lockedBadge" class="badge badge-danger" style="display: none;">
+              <i class="fas fa-lock"></i> Locked
+            </span>
+            <span id="readOnlyBadge" class="badge badge-warning" style="display: none;">
+              <i class="fas fa-eye"></i> Read-Only
+            </span>
+            <span id="templateBadge" class="badge badge-success" style="display: none;">
+              <i class="fas fa-file-alt"></i> Template
+            </span>
+            <span id="versionBadge" class="badge badge-secondary" style="display: none;">
+              <i class="fas fa-code-branch"></i> v<span id="versionText">1.0.0</span>
+            </span>
+          </div>
+
+          <!-- Right side - Action buttons -->
+          <div style="display: flex; gap: 0.5rem;">
+            <button id="toggleLockBtn" class="btn btn-sm btn-outline-danger" title="Lock/Unlock Entity">
+              <i class="fas fa-lock"></i> <span id="lockBtnText">Lock</span>
+            </button>
+            <button id="toggleReadOnlyBtn" class="btn btn-sm btn-outline-warning" title="Toggle Read-Only Mode">
+              <i class="fas fa-eye"></i> <span id="readOnlyBtnText">Read-Only</span>
+            </button>
+            <button id="saveAsTemplateBtn" class="btn btn-sm btn-outline-success" title="Save as Template">
+              <i class="fas fa-file-alt"></i> Save as Template
+            </button>
+            <button id="entitySettingsBtn" class="btn btn-sm btn-outline-secondary" title="Entity Settings">
+              <i class="fas fa-cog"></i> Settings
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-content">
+          <!-- Fields View -->
+          <div id="fieldsView">
+            <div class="fields-table-container">
+              <table class="fields-table" id="fieldsTable">
+                <thead>
+                  <tr>
+                    <th style="width: 60px;">Order</th>
+                    <th>Field Name</th>
+                    <th>Type</th>
+                    <th>Required</th>
+                    <th>Unique</th>
+                    <th>Indexed</th>
+                    <th>Default</th>
+                  </tr>
+                </thead>
+                <tbody id="fieldsTableBody">
+                  <tr>
+                    <td colspan="7" class="empty-state">
+                      <div class="empty-icon">
+                        <i class="fas fa-table"></i>
+                      </div>
+                      <p>No entity selected</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Relationships View -->
+          <div id="relationshipsView" class="hidden">
+            <div id="relationshipCanvas"></div>
+          </div>
+
+          <!-- Indexes View -->
+          <div id="indexesView" class="hidden">
+            <div class="fields-table-container">
+              <table class="fields-table">
+                <thead>
+                  <tr>
+                    <th>Index Name</th>
+                    <th>Type</th>
+                    <th>Fields</th>
+                    <th>Unique</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="indexesTableBody">
+                  <tr>
+                    <td colspan="5" class="empty-state">
+                      <p>No indexes defined</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Schema View -->
+          <div id="schemaView" class="hidden">
+            <div class="format-tabs">
+              <button class="format-tab active" data-format="json">JSON</button>
+              <button class="format-tab" data-format="sql">SQL</button>
+              <button class="format-tab" data-format="xml">XML</button>
+              <button class="format-tab" data-format="jsonlex">JSONLex</button>
+            </div>
+            <textarea
+              class="form-textarea"
+              id="schemaCode"
+              style="height: 500px; font-family: 'Monaco', 'Courier New', monospace;"
+              readonly
+            ></textarea>
+          </div>
+
+          <!-- Migrations View -->
+          <div id="migrationsView" class="hidden">
+            <div class="migrations-container">
+              <!-- Migration Header -->
+              <div class="migrations-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <div>
+                  <h2 style="margin: 0;">Database Migrations</h2>
+                  <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">
+                    Current Version: <strong id="currentEntityVersion">1.0.0</strong> |
+                    Pending: <strong id="pendingMigrationsText">0</strong> |
+                    Applied: <strong id="appliedMigrationsText">0</strong>
+                  </p>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button id="generateMigrationBtn" class="btn btn-primary">
+                    <i class="fas fa-magic"></i> Generate Migration
+                  </button>
+                  <button id="applyMigrationsBtn" class="btn btn-success" disabled>
+                    <i class="fas fa-play"></i> Apply Pending
+                  </button>
+                  <button id="exportMigrationsBtn" class="btn btn-outline-secondary">
+                    <i class="fas fa-download"></i> Export SQL
+                  </button>
+                </div>
+              </div>
+
+              <!-- Pending Migrations Section -->
+              <div class="migration-section">
+                <h3 class="section-title">
+                  <i class="fas fa-clock"></i> Pending Migrations
+                </h3>
+                <div id="pendingMigrationsList" class="migrations-list">
+                  <!-- Populated dynamically -->
+                  <div class="empty-state" style="text-align: center; padding: 2rem; color: #9ca3af;">
+                    <i class="fas fa-check-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <p>No pending migrations. All changes are synchronized.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Applied Migrations Section -->
+              <div class="migration-section">
+                <h3 class="section-title">
+                  <i class="fas fa-check"></i> Applied Migrations
+                </h3>
+                <div id="appliedMigrationsList" class="migrations-list">
+                  <!-- Populated dynamically -->
+                  <div class="empty-state" style="text-align: center; padding: 2rem; color: #9ca3af;">
+                    <p>No migrations have been applied yet.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Failed Migrations Section -->
+              <div class="migration-section" id="failedMigrationsSection" style="display: none;">
+                <h3 class="section-title" style="color: #dc2626;">
+                  <i class="fas fa-exclamation-triangle"></i> Failed Migrations
+                </h3>
+                <div id="failedMigrationsList" class="migrations-list">
+                  <!-- Populated dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL - Properties -->
+      <aside class="right-panel">
+        <div class="panel-header">
+          <div class="panel-title">Properties</div>
+        </div>
+        <div class="properties-content" id="propertiesContent">
+          <div class="empty-state">
+            <div class="empty-icon">
+              <i class="fas fa-hand-pointer"></i>
+            </div>
+            <p>Select a field to edit</p>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Modal for Creating/Editing Entities -->
+  <div class="modal-overlay" id="entityModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="entityModalTitle">New Entity</h2>
+        <button class="modal-close" id="entityModalClose">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Display Name</label>
+          <input
+            type="text"
+            class="form-input"
+            id="modalEntityDisplayName"
+            placeholder="e.g., Customer"
+          >
+        </div>
+        <div class="form-group">
+          <label class="form-label">Entity Name (database table)</label>
+          <input
+            type="text"
+            class="form-input"
+            id="modalEntityName"
+            placeholder="e.g., customer"
+          >
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea
+            class="form-textarea"
+            id="modalEntityDescription"
+            placeholder="Describe this entity..."
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Source Type</label>
+          <select class="form-select" id="modalEntitySourceType">
+            <option value="custom">Custom (New Table)</option>
+            <option value="forge">Forge (Virtual)</option>
+            <option value="external">External API</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="entityModalCancel">Cancel</button>
+        <button class="btn btn-primary" id="entityModalSave">
+          <i class="fas fa-save"></i>
+          Create Entity
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Creating/Editing Fields -->
+  <div class="modal-overlay" id="fieldModal">
+    <div class="modal" style="max-width: 900px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="fieldModalTitle">New Field</h2>
+        <button class="modal-close" id="fieldModalClose">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+        <!-- Basic Information -->
+        <div class="form-section">
+          <h3 class="form-section-title">Basic Information</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Field Name (Database Column)</label>
+              <input
+                type="text"
+                class="form-input"
+                id="modalFieldName"
+                placeholder="e.g., firstName"
+              >
+              <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+                Technical name used in database (camelCase, no spaces)
+              </small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Display Label</label>
+              <input
+                type="text"
+                class="form-input"
+                id="modalFieldLabel"
+                placeholder="e.g., First Name"
+              >
+              <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+                User-friendly label shown in forms
+              </small>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data Type</label>
+            <select class="form-select" id="modalFieldType">
+              <optgroup label="Text">
+                <option value="String">String (Variable Length)</option>
+                <option value="Text">Text (Long Text)</option>
+                <option value="Char">Char (Fixed Length)</option>
+              </optgroup>
+              <optgroup label="Numbers">
+                <option value="Integer">Integer</option>
+                <option value="BigInt">Big Integer</option>
+                <option value="Decimal">Decimal (Precise)</option>
+                <option value="Float">Float</option>
+                <option value="Double">Double</option>
+              </optgroup>
+              <optgroup label="Date & Time">
+                <option value="Date">Date</option>
+                <option value="DateTime">DateTime</option>
+                <option value="Time">Time</option>
+                <option value="Timestamp">Timestamp</option>
+              </optgroup>
+              <optgroup label="Specialized">
+                <option value="Boolean">Boolean</option>
+                <option value="UUID">UUID</option>
+                <option value="Enum">Enum (Predefined Values)</option>
+                <option value="JSON">JSON</option>
+                <option value="JSONB">JSONB (Binary JSON)</option>
+                <option value="Color">Color</option>
+                <option value="Email">Email</option>
+                <option value="URL">URL</option>
+                <option value="Phone">Phone Number</option>
+              </optgroup>
+              <optgroup label="Binary">
+                <option value="Binary">Binary</option>
+                <option value="Blob">Blob</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description (Optional)</label>
+            <textarea
+              class="form-textarea"
+              id="modalFieldDescription"
+              placeholder="Describe what this field is used for..."
+              rows="2"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- String/Text Configuration -->
+        <div class="form-section" id="stringConfigSection" style="display: none;">
+          <h3 class="form-section-title">String Configuration</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Min Length</label>
+              <input
+                type="number"
+                class="form-input"
+                id="modalFieldMinLength"
+                placeholder="e.g., 0"
+                min="0"
+              >
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Length</label>
+              <input
+                type="number"
+                class="form-input"
+                id="modalFieldMaxLength"
+                placeholder="e.g., 255"
+                min="0"
+              >
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Pattern (Regex) - Optional</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalFieldPattern"
+              placeholder="e.g., ^[A-Za-z]+$"
+            >
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Regular expression for validation
+            </small>
+          </div>
+        </div>
+
+        <!-- Number Configuration -->
+        <div class="form-section" id="numberConfigSection" style="display: none;">
+          <h3 class="form-section-title">Number Configuration</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Min Value</label>
+              <input
+                type="number"
+                class="form-input"
+                id="modalFieldMinValue"
+                placeholder="e.g., 0"
+                step="any"
+              >
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Value</label>
+              <input
+                type="number"
+                class="form-input"
+                id="modalFieldMaxValue"
+                placeholder="e.g., 9999"
+                step="any"
+              >
+            </div>
+          </div>
+          <div class="form-row" id="precisionScaleRow" style="display: none;">
+            <div class="form-group">
+              <label class="form-label">Precision (Total Digits)</label>
+              <input
+                type="number"
+                class="form-input"
+                id="modalFieldPrecision"
+                placeholder="e.g., 10"
+                min="1"
+                max="65"
+              >
+            </div>
+            <div class="form-group">
+              <label class="form-label">Scale (Decimal Places)</label>
+              <input
+                type="number"
+                class="form-input"
+                id="modalFieldScale"
+                placeholder="e.g., 2"
+                min="0"
+                max="30"
+              >
+            </div>
+          </div>
+          <div class="form-checkbox" id="autoIncrementOption" style="display: none;">
+            <input type="checkbox" id="modalFieldAutoIncrement">
+            <label for="modalFieldAutoIncrement">Auto-increment</label>
+          </div>
+        </div>
+
+        <!-- Date Configuration -->
+        <div class="form-section" id="dateConfigSection" style="display: none;">
+          <h3 class="form-section-title">Date/Time Configuration</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Min Date</label>
+              <input
+                type="date"
+                class="form-input"
+                id="modalFieldMinDate"
+              >
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Date</label>
+              <input
+                type="date"
+                class="form-input"
+                id="modalFieldMaxDate"
+              >
+            </div>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="modalFieldAutoNow">
+            <label for="modalFieldAutoNow">Auto-set to current date/time on create</label>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="modalFieldAutoUpdate">
+            <label for="modalFieldAutoUpdate">Auto-update to current date/time on modify</label>
+          </div>
+        </div>
+
+        <!-- UUID Configuration -->
+        <div class="form-section" id="uuidConfigSection" style="display: none;">
+          <h3 class="form-section-title">UUID Configuration</h3>
+          <div class="form-group">
+            <label class="form-label">Generation Trigger</label>
+            <select class="form-select" id="modalFieldUUIDTrigger">
+              <option value="insert">On Insert (Create)</option>
+              <option value="manual">Manual (User Provided)</option>
+              <option value="function">Custom Function</option>
+            </select>
+          </div>
+          <div class="form-group" id="uuidFunctionGroup" style="display: none;">
+            <label class="form-label">Custom UUID Function</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalFieldUUIDFunction"
+              placeholder="e.g., gen_custom_uuid()"
+            >
+          </div>
+        </div>
+
+        <!-- Enum Configuration -->
+        <div class="form-section" id="enumConfigSection" style="display: none;">
+          <h3 class="form-section-title">Enum Configuration</h3>
+          <div class="form-group">
+            <label class="form-label">Enum Scope</label>
+            <select class="form-select" id="modalFieldEnumScope">
+              <option value="field">Field-Specific (This field only)</option>
+              <option value="global">Global (Reusable across entities)</option>
+              <option value="session">Session (Runtime defined)</option>
+              <option value="form">Form (UI specific)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Enum Values</label>
+            <button type="button" class="btn btn-secondary btn-sm" id="openEnumEditorBtn" style="margin-top: 0.5rem;">
+              <i class="fas fa-list"></i>
+              Open Enum Editor
+            </button>
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Click to define enum values with labels
+            </small>
+          </div>
+          <div id="enumValuesPreview" style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-secondary, #f9fafb); border-radius: 0.25rem; display: none;">
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem;">Values: <span id="enumValuesText"></span></small>
+          </div>
+        </div>
+
+        <!-- JSON/JSONB Configuration -->
+        <div class="form-section" id="jsonConfigSection" style="display: none;">
+          <h3 class="form-section-title">JSON Configuration</h3>
+          <button type="button" class="btn btn-secondary btn-sm" id="openJSONEditorBtn">
+            <i class="fas fa-code"></i>
+            Open JSON Schema Builder
+          </button>
+          <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+            Define the structure of JSON data
+          </small>
+        </div>
+
+        <!-- Color Configuration -->
+        <div class="form-section" id="colorConfigSection" style="display: none;">
+          <h3 class="form-section-title">Color Configuration</h3>
+          <div class="form-group">
+            <label class="form-label">Color Format</label>
+            <select class="form-select" id="modalFieldColorFormat">
+              <option value="hex">HEX (#RRGGBB)</option>
+              <option value="rgb">RGB (rgb(r,g,b))</option>
+              <option value="rgba">RGBA (rgba(r,g,b,a))</option>
+              <option value="hsv">HSV (hsv(h,s,v))</option>
+              <option value="hsl">HSL (hsl(h,s,l))</option>
+              <option value="cmyk">CMYK (cmyk(c,m,y,k))</option>
+            </select>
+          </div>
+
+          <!-- Visual Color Picker -->
+          <div class="form-group">
+            <label class="form-label">Color Picker</label>
+            <div id="visualColorPicker" style="border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; background: #f8f9fa;">
+              <!-- Color Preview -->
+              <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                <div style="flex: 1;">
+                  <div id="colorPreview" style="width: 100%; height: 60px; border: 2px solid #dee2e6; border-radius: 6px; background: #000000;"></div>
+                </div>
+                <div style="flex: 1;">
+                  <label style="font-size: 12px; color: #6c757d; margin-bottom: 0.25rem;">Current Color</label>
+                  <div id="colorHexValue" style="font-family: monospace; font-size: 14px; font-weight: bold;">#000000</div>
+                </div>
+              </div>
+
+              <!-- Color Palette Canvas -->
+              <div style="margin-bottom: 1rem;">
+                <canvas id="colorPaletteCanvas" width="200" height="200" style="width: 100%; border: 1px solid #dee2e6; border-radius: 4px; cursor: crosshair;"></canvas>
+              </div>
+
+              <!-- Brightness Slider -->
+              <div style="margin-bottom: 1rem;">
+                <label style="font-size: 12px; color: #6c757d; margin-bottom: 0.25rem;">Brightness</label>
+                <input type="range" id="colorBrightnessSlider" min="0" max="100" value="50" style="width: 100%;">
+              </div>
+
+              <!-- Format Tabs -->
+              <div style="margin-bottom: 1rem;">
+                <div class="btn-group" style="display: flex; gap: 0.25rem;">
+                  <button class="btn btn-sm color-format-tab active" data-format="hex">HEX</button>
+                  <button class="btn btn-sm color-format-tab" data-format="rgb">RGB</button>
+                  <button class="btn btn-sm color-format-tab" data-format="rgba">RGBA</button>
+                  <button class="btn btn-sm color-format-tab" data-format="hsl">HSL</button>
+                  <button class="btn btn-sm color-format-tab" data-format="cmyk">CMYK</button>
+                </div>
+              </div>
+
+              <!-- Format Input Fields -->
+              <div id="colorFormatInputs" style="margin-bottom: 1rem;">
+                <!-- HEX Format -->
+                <div id="hexInputs" class="color-format-inputs">
+                  <div class="form-group">
+                    <label style="font-size: 12px;">HEX</label>
+                    <input type="text" id="hexInput" class="form-control" value="#000000" maxlength="7">
+                  </div>
+                </div>
+
+                <!-- RGB Format -->
+                <div id="rgbInputs" class="color-format-inputs" style="display: none;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                    <div class="form-group">
+                      <label style="font-size: 12px;">R</label>
+                      <input type="number" id="rgbR" class="form-control" min="0" max="255" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">G</label>
+                      <input type="number" id="rgbG" class="form-control" min="0" max="255" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">B</label>
+                      <input type="number" id="rgbB" class="form-control" min="0" max="255" value="0">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RGBA Format -->
+                <div id="rgbaInputs" class="color-format-inputs" style="display: none;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem;">
+                    <div class="form-group">
+                      <label style="font-size: 12px;">R</label>
+                      <input type="number" id="rgbaR" class="form-control" min="0" max="255" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">G</label>
+                      <input type="number" id="rgbaG" class="form-control" min="0" max="255" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">B</label>
+                      <input type="number" id="rgbaB" class="form-control" min="0" max="255" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">A</label>
+                      <input type="number" id="rgbaA" class="form-control" min="0" max="1" step="0.1" value="1">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- HSL Format -->
+                <div id="hslInputs" class="color-format-inputs" style="display: none;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                    <div class="form-group">
+                      <label style="font-size: 12px;">H</label>
+                      <input type="number" id="hslH" class="form-control" min="0" max="360" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">S (%)</label>
+                      <input type="number" id="hslS" class="form-control" min="0" max="100" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">L (%)</label>
+                      <input type="number" id="hslL" class="form-control" min="0" max="100" value="0">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CMYK Format -->
+                <div id="cmykInputs" class="color-format-inputs" style="display: none;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem;">
+                    <div class="form-group">
+                      <label style="font-size: 12px;">C (%)</label>
+                      <input type="number" id="cmykC" class="form-control" min="0" max="100" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">M (%)</label>
+                      <input type="number" id="cmykM" class="form-control" min="0" max="100" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">Y (%)</label>
+                      <input type="number" id="cmykY" class="form-control" min="0" max="100" value="0">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px;">K (%)</label>
+                      <input type="number" id="cmykK" class="form-control" min="0" max="100" value="100">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recently Used Colors -->
+              <div style="margin-bottom: 0.5rem;">
+                <label style="font-size: 12px; color: #6c757d; margin-bottom: 0.25rem;">Recently Used</label>
+                <div id="recentColors" style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                  <!-- Recent color swatches will be added here -->
+                </div>
+              </div>
+
+              <!-- Preset Palettes -->
+              <details style="margin-top: 1rem;">
+                <summary style="cursor: pointer; font-size: 13px; color: #495057; font-weight: 500;">Color Presets</summary>
+                <div style="margin-top: 0.5rem;">
+                  <div style="margin-bottom: 0.5rem;">
+                    <strong style="font-size: 11px; color: #6c757d;">Material Colors</strong>
+                    <div id="materialPalette" style="display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.25rem;">
+                      <!-- Material color swatches -->
+                    </div>
+                  </div>
+                  <div style="margin-bottom: 0.5rem;">
+                    <strong style="font-size: 11px; color: #6c757d;">Bootstrap Colors</strong>
+                    <div id="bootstrapPalette" style="display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.25rem;">
+                      <!-- Bootstrap color swatches -->
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <!-- Constraints -->
+        <div class="form-section">
+          <h3 class="form-section-title">Constraints & Validation</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <div class="form-checkbox">
+                <input type="checkbox" id="modalFieldRequired">
+                <label for="modalFieldRequired">Required (NOT NULL)</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-checkbox">
+                <input type="checkbox" id="modalFieldUnique">
+                <label for="modalFieldUnique">Unique</label>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <div class="form-checkbox">
+                <input type="checkbox" id="modalFieldIndexed">
+                <label for="modalFieldIndexed">Create Index</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-checkbox">
+                <input type="checkbox" id="modalFieldPrimaryKey">
+                <label for="modalFieldPrimaryKey">Primary Key</label>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Default Value (Optional)</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalFieldDefault"
+              placeholder="Default value"
+            >
+          </div>
+        </div>
+
+        <!-- Advanced Options -->
+        <div class="form-section">
+          <h3 class="form-section-title">Advanced Options</h3>
+          <div class="form-checkbox">
+            <input type="checkbox" id="modalFieldReadOnly">
+            <label for="modalFieldReadOnly">Read-Only (Cannot be modified after creation)</label>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="modalFieldHidden">
+            <label for="modalFieldHidden">Hidden (Not shown in forms by default)</label>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="modalFieldCalculated">
+            <label for="modalFieldCalculated">Calculated Field (Computed from other fields)</label>
+          </div>
+          <div class="form-group" id="calculatedExpressionGroup" style="display: none; margin-top: 1rem;">
+            <label class="form-label">Calculation Expression</label>
+            <button type="button" class="btn btn-secondary btn-sm" id="openExpressionBuilderBtn">
+              <i class="fas fa-calculator"></i>
+              Open Expression Builder
+            </button>
+            <textarea
+              class="form-textarea"
+              id="modalFieldExpression"
+              placeholder="e.g., price * quantity"
+              rows="2"
+              style="margin-top: 0.5rem;"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="fieldModalCancel">Cancel</button>
+        <button class="btn btn-primary" id="fieldModalSave">
+          <i class="fas fa-save"></i>
+          Save Field
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Creating/Editing Relationships -->
+  <div class="modal-overlay" id="relationshipModal">
+    <div class="modal" style="max-width: 800px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="relationshipModalTitle">New Relationship</h2>
+        <button class="modal-close" id="relationshipModalClose">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <!-- Basic Information -->
+        <div class="form-section">
+          <h3 class="form-section-title">Basic Information</h3>
+          <div class="form-group">
+            <label class="form-label">Relationship Name</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalRelationshipName"
+              placeholder="e.g., orders"
+            >
+          </div>
+          <div class="form-group">
+            <label class="form-label">Relationship Type</label>
+            <select class="form-select" id="modalRelationshipType">
+              <option value="belongsTo">Many to One (N:1) - Belongs To</option>
+              <option value="hasOne">One to One (1:1) - Has One</option>
+              <option value="hasMany">One to Many (1:N) - Has Many</option>
+              <option value="belongsToMany">Many to Many (N:M) - Belongs To Many</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Source Configuration -->
+        <div class="form-section">
+          <h3 class="form-section-title">Source (This Entity)</h3>
+          <div class="form-group">
+            <label class="form-label">Source Table</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalRelationshipSourceTable"
+              placeholder="Current entity table (auto-populated)"
+              readonly
+            >
+          </div>
+          <div class="form-group">
+            <label class="form-label">Source Column(s)</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalRelationshipSourceColumns"
+              placeholder="e.g., id or id,type (comma-separated for composite keys)"
+            >
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              For composite foreign keys, separate column names with commas
+            </small>
+          </div>
+        </div>
+
+        <!-- Destination Configuration -->
+        <div class="form-section">
+          <h3 class="form-section-title">Destination (Target Entity)</h3>
+          <div class="form-group">
+            <label class="form-label">Target Entity</label>
+            <select class="form-select" id="modalRelationshipTarget">
+              <option value="">Select entity...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Destination Column(s)</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalRelationshipDestColumns"
+              placeholder="e.g., customerId or customerId,type (comma-separated)"
+            >
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Foreign key column(s) in the target table
+            </small>
+          </div>
+        </div>
+
+        <!-- Junction Table (for Many-to-Many) -->
+        <div class="form-section" id="junctionTableSection" style="display: none;">
+          <h3 class="form-section-title">Junction Table (Many-to-Many)</h3>
+          <div class="form-group">
+            <label class="form-label">Junction Table Name</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalRelationshipJunctionTable"
+              placeholder="e.g., user_roles"
+            >
+          </div>
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label class="form-label">Source Key in Junction</label>
+              <input
+                type="text"
+                class="form-input"
+                id="modalRelationshipJunctionSourceKey"
+                placeholder="e.g., userId"
+              >
+            </div>
+            <div class="form-group">
+              <label class="form-label">Target Key in Junction</label>
+              <input
+                type="text"
+                class="form-input"
+                id="modalRelationshipJunctionTargetKey"
+                placeholder="e.g., roleId"
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Referential Actions -->
+        <div class="form-section">
+          <h3 class="form-section-title">Referential Actions</h3>
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label class="form-label">On Update</label>
+              <select class="form-select" id="modalRelationshipOnUpdate">
+                <option value="NO ACTION">NO ACTION</option>
+                <option value="CASCADE">CASCADE</option>
+                <option value="SET NULL">SET NULL</option>
+                <option value="SET DEFAULT">SET DEFAULT</option>
+                <option value="RESTRICT">RESTRICT</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">On Delete</label>
+              <select class="form-select" id="modalRelationshipOnDelete">
+                <option value="NO ACTION">NO ACTION</option>
+                <option value="CASCADE">CASCADE</option>
+                <option value="SET NULL">SET NULL</option>
+                <option value="SET DEFAULT">SET DEFAULT</option>
+                <option value="RESTRICT">RESTRICT</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trigger Actions -->
+        <div class="form-section">
+          <h3 class="form-section-title">Trigger Actions</h3>
+          <div class="form-group">
+            <label class="form-label">On Insert Trigger</label>
+            <select class="form-select" id="modalRelationshipOnInsert">
+              <option value="">None</option>
+              <option value="validate">Validate Foreign Key</option>
+              <option value="log">Log Insert</option>
+              <option value="custom">Custom Function</option>
+            </select>
+          </div>
+          <div class="form-group" id="customInsertFunctionGroup" style="display: none;">
+            <label class="form-label">Custom Insert Function</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalRelationshipInsertFunction"
+              placeholder="e.g., audit_insert_relationship()"
+            >
+          </div>
+        </div>
+
+        <!-- Lookup Configuration -->
+        <div class="form-section">
+          <h3 class="form-section-title">Lookup Configuration</h3>
+          <div class="form-group">
+            <label class="form-label">Display Field (for lookups)</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalRelationshipDisplayField"
+              placeholder="e.g., name, title (field to display in dropdowns)"
+            >
+          </div>
+          <div class="form-group">
+            <label class="form-label">Filter Condition (optional)</label>
+            <textarea
+              class="form-textarea"
+              id="modalRelationshipFilterCondition"
+              placeholder="e.g., status = 'active' AND type = 'customer'"
+              rows="2"
+            ></textarea>
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              SQL WHERE clause to filter lookup values
+            </small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sort Order (optional)</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalRelationshipSortOrder"
+              placeholder="e.g., name ASC, created_at DESC"
+            >
+          </div>
+        </div>
+
+        <!-- Advanced Options -->
+        <div class="form-section">
+          <h3 class="form-section-title">Advanced Options</h3>
+          <div class="form-checkbox">
+            <input type="checkbox" id="modalRelationshipRollbackOnFail">
+            <label for="modalRelationshipRollbackOnFail">Rollback transaction on constraint violation</label>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="modalRelationshipDeferrable">
+            <label for="modalRelationshipDeferrable">Deferrable constraint (check at transaction end)</label>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="modalRelationshipIndexed">
+            <label for="modalRelationshipIndexed">Create index on foreign key columns</label>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="modalRelationshipBidirectional">
+            <label for="modalRelationshipBidirectional">Create bidirectional relationship (inverse)</label>
+          </div>
+        </div>
+
+        <!-- Inverse Relationship Configuration (for bidirectional) -->
+        <div class="form-section" id="inverseRelationshipSection" style="display: none;">
+          <h3 class="form-section-title">Inverse Relationship</h3>
+          <div class="form-group">
+            <label class="form-label">Inverse Relationship Name</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalRelationshipInverseName"
+              placeholder="e.g., customer (name in target entity)"
+            >
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="relationshipModalCancel">Cancel</button>
+        <button class="btn btn-primary" id="relationshipModalSave">
+          <i class="fas fa-save"></i>
+          Save Relationship
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Creating/Editing Indexes -->
+  <div class="modal-overlay" id="indexModal">
+    <div class="modal" style="max-width: 900px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="indexModalTitle">New Index</h2>
+        <button class="modal-close" id="indexModalClose">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+        <!-- Basic Information -->
+        <div class="form-section">
+          <h3 class="form-section-title">Basic Information</h3>
+          <div class="form-group">
+            <label class="form-label">Index Name</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalIndexName"
+              placeholder="e.g., idx_customer_email"
+            >
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Unique identifier for this index
+            </small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Index Type</label>
+            <select class="form-select" id="modalIndexType">
+              <option value="btree">B-Tree (Default - General purpose, supports &lt;, &lt;=, =, &gt;=, &gt;)</option>
+              <option value="hash">Hash (Equality comparisons only, fast lookups)</option>
+              <option value="gist">GiST (Generalized Search Tree - Spatial, full-text)</option>
+              <option value="gin">GIN (Generalized Inverted Index - JSONB, arrays, full-text)</option>
+              <option value="brin">BRIN (Block Range - Very large tables with natural ordering)</option>
+              <option value="spgist">SP-GiST (Space-Partitioned - Non-balanced data structures)</option>
+            </select>
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Choose index type based on data structure and query patterns
+            </small>
+          </div>
+        </div>
+
+        <!-- Field Selection -->
+        <div class="form-section">
+          <h3 class="form-section-title">Field Selection</h3>
+          <div class="index-field-selection">
+            <!-- Available Fields -->
+            <div class="field-list-container">
+              <div class="field-list-header">
+                Available Fields
+              </div>
+              <div style="margin-bottom: 0.75rem;">
+                <input
+                  type="text"
+                  class="form-input"
+                  id="availableFieldsSearch"
+                  placeholder="Search fields..."
+                  style="font-size: 0.813rem;"
+                >
+              </div>
+              <div style="margin-bottom: 0.5rem; display: flex; gap: 0.5rem;">
+                <button type="button" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.375rem 0.75rem;" id="selectAllFieldsBtn">
+                  Select All
+                </button>
+                <button type="button" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.375rem 0.75rem;" id="clearAllFieldsBtn">
+                  Clear All
+                </button>
+              </div>
+              <div id="availableFieldsList" style="max-height: 300px; overflow-y: auto;">
+                <!-- Available fields will be populated here -->
+              </div>
+            </div>
+
+            <!-- Selected Fields -->
+            <div class="field-list-container">
+              <div class="field-list-header">
+                Selected Fields (Order)
+                <small style="font-weight: normal; font-size: 0.75rem; color: var(--text-secondary, #6b7280); display: block; margin-top: 0.25rem;">
+                  Drag to reorder fields
+                </small>
+              </div>
+              <div style="margin-top: 1rem;">
+                <table class="selected-fields-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 40px;">#</th>
+                      <th>Field</th>
+                      <th style="width: 100px;">Sort</th>
+                      <th style="width: 50px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="selectedFieldsTableBody">
+                    <tr>
+                      <td colspan="4" style="text-align: center; color: var(--text-secondary, #6b7280); font-size: 0.813rem; padding: 2rem;">
+                        No fields selected
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advanced Options -->
+        <div class="form-section">
+          <h3 class="form-section-title">Advanced Options</h3>
+
+          <div class="form-row">
+            <div class="form-group">
+              <div class="form-checkbox">
+                <input type="checkbox" id="modalIndexUnique">
+                <label for="modalIndexUnique">Unique Index</label>
+              </div>
+              <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+                Ensures all values in indexed columns are unique
+              </small>
+            </div>
+            <div class="form-group">
+              <div class="form-checkbox">
+                <input type="checkbox" id="modalIndexConcurrent">
+                <label for="modalIndexConcurrent">Concurrent Creation</label>
+              </div>
+              <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+                Build index without locking table (slower but non-blocking)
+              </small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="form-checkbox">
+              <input type="checkbox" id="modalIndexPartial">
+              <label for="modalIndexPartial">Partial Index</label>
+            </div>
+          </div>
+          <div class="form-group" id="partialIndexWhereGroup" style="display: none; margin-left: 1.5rem;">
+            <label class="form-label">WHERE Condition</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalIndexPartialWhere"
+              placeholder="e.g., deleted_at IS NULL"
+            >
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Index only rows matching this condition
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Include Columns (non-key columns for index-only scans)</label>
+            <input
+              type="text"
+              class="form-input"
+              id="modalIndexInclude"
+              placeholder="e.g., firstName, phone (comma-separated)"
+            >
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Additional columns to store in index for covering queries
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Fill Factor: <span id="fillFactorValue">90</span>%</label>
+            <input
+              type="range"
+              class="form-range"
+              id="modalIndexFillFactor"
+              min="10"
+              max="100"
+              value="90"
+              step="5"
+              style="width: 100%;"
+            >
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Percentage of page to fill during index creation (lower values leave room for updates)
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Storage Parameters (optional)</label>
+            <textarea
+              class="form-textarea"
+              id="modalIndexStorageParams"
+              placeholder="e.g., fillfactor=70, deduplicate_items=on"
+              rows="2"
+            ></textarea>
+            <small style="color: var(--text-secondary, #6b7280); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+              Custom PostgreSQL storage parameters
+            </small>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="indexModalCancel">Cancel</button>
+        <button class="btn btn-primary" id="indexModalSave">
+          <i class="fas fa-save"></i>
+          Save Index
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entity Settings Modal -->
+  <div class="modal-overlay" id="entitySettingsModal">
+    <div class="modal" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Entity Settings</h2>
+        <button class="modal-close" id="entitySettingsModalClose">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <!-- Basic Information -->
+        <div class="form-section">
+          <h3 class="form-section-title">Basic Information</h3>
+          <div class="form-group">
+            <label class="form-label">Display Name</label>
+            <input type="text" id="entityDisplayName" class="form-input" placeholder="User">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea id="entityDescription" class="form-input" rows="3" placeholder="Extended entity description..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Version</label>
+            <input type="text" id="entityVersion" class="form-input" placeholder="1.0.0" pattern="^\d+\.\d+\.\d+$">
+            <small style="color: #6b7280;">Semantic versioning: MAJOR.MINOR.PATCH</small>
+          </div>
+        </div>
+
+        <!-- Access Control -->
+        <div class="form-section">
+          <h3 class="form-section-title">Access Control</h3>
+          <div class="form-checkbox">
+            <input type="checkbox" id="entityLocked">
+            <label for="entityLocked">
+              <strong>Locked</strong> - Prevent all modifications (can only be unlocked by admin)
+            </label>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="entityReadOnly">
+            <label for="entityReadOnly">
+              <strong>Read-Only</strong> - Allow viewing but prevent editing
+            </label>
+          </div>
+          <div id="lockedInfoSection" style="display: none; margin-top: 0.5rem; padding: 0.75rem; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
+            <p style="margin: 0; font-size: 0.875rem; color: #991b1b;">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Warning:</strong> Locked entities cannot be modified. This action requires admin privileges to reverse.
+            </p>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.75rem; color: #7f1d1d;">
+              Locked by: <span id="lockedByUser">N/A</span> on <span id="lockedAtTime">N/A</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Template Settings -->
+        <div class="form-section">
+          <h3 class="form-section-title">Template Settings</h3>
+          <div class="form-checkbox">
+            <input type="checkbox" id="entityIsTemplate">
+            <label for="entityIsTemplate">
+              <strong>Save as Template</strong> - Make this entity reusable for creating new entities
+            </label>
+          </div>
+          <div id="templateSettingsGroup" style="display: none; margin-top: 1rem;">
+            <div class="form-group">
+              <label class="form-label">Template Name</label>
+              <input type="text" id="entityTemplateName" class="form-input" placeholder="E-commerce Product">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Template Category</label>
+              <select id="entityTemplateCategory" class="form-select">
+                <option value="">Select Category</option>
+                <option value="business">Business</option>
+                <option value="ecommerce">E-commerce</option>
+                <option value="crm">CRM</option>
+                <option value="hr">Human Resources</option>
+                <option value="finance">Finance</option>
+                <option value="education">Education</option>
+                <option value="healthcare">Healthcare</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="entitySettingsCancel">Cancel</button>
+        <button class="btn btn-primary" id="entitySettingsSave">
+          <i class="fas fa-save"></i> Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Migration Modal -->
+  <div class="modal-overlay" id="generateMigrationModal">
+    <div class="modal" style="max-width: 700px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Generate Migration</h2>
+        <button class="modal-close" id="generateMigrationModalClose">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <!-- Migration Information -->
+        <div class="form-section">
+          <h3 class="form-section-title">Migration Information</h3>
+          <div class="form-group">
+            <label class="form-label">Version Number</label>
+            <input type="text" id="migrationVersion" class="form-input"
+                   placeholder="1.1.0" pattern="^\d+\.\d+\.\d+$">
+            <small style="color: #6b7280;">
+              Semantic versioning: MAJOR.MINOR.PATCH
+              <button type="button" id="autoIncrementVersionBtn" class="btn btn-sm btn-link" style="padding: 0; margin-left: 0.5rem;">
+                Auto-increment
+              </button>
+            </small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <input type="text" id="migrationDescription" class="form-input"
+                   placeholder="Add email_verified column">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Migration Type</label>
+            <select id="migrationType" class="form-select">
+              <option value="auto">Auto-Detect Changes</option>
+              <option value="create_table">Create Table</option>
+              <option value="alter_table">Alter Table</option>
+              <option value="drop_table">Drop Table</option>
+              <option value="add_column">Add Column</option>
+              <option value="drop_column">Drop Column</option>
+              <option value="modify_column">Modify Column</option>
+              <option value="add_index">Add Index</option>
+              <option value="drop_index">Drop Index</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Change Detection (shown when type=auto) -->
+        <div class="form-section" id="changeDetectionSection">
+          <h3 class="form-section-title">Detected Changes</h3>
+          <div id="detectedChangesList" class="detected-changes">
+            <!-- Populated by schema diff -->
+            <p style="color: #6b7280; font-size: 0.875rem;">No changes detected. Select a migration type to proceed.</p>
+          </div>
+        </div>
+
+        <!-- Advanced Options -->
+        <div class="form-section">
+          <h3 class="form-section-title">Advanced Options</h3>
+          <div class="form-checkbox">
+            <input type="checkbox" id="migrationSafeMode" checked>
+            <label for="migrationSafeMode">
+              Safe Mode - Wrap in transaction and validate before applying
+            </label>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="migrationGenerateRollback" checked>
+            <label for="migrationGenerateRollback">
+              Generate Rollback SQL automatically
+            </label>
+          </div>
+          <div class="form-checkbox">
+            <input type="checkbox" id="migrationBackupData">
+            <label for="migrationBackupData">
+              Backup affected tables before applying
+            </label>
+          </div>
+        </div>
+
+        <!-- SQL Preview (read-only) -->
+        <div class="form-section">
+          <h3 class="form-section-title">Generated SQL Preview</h3>
+          <pre id="migrationSqlPreview" class="sql-preview" style="background: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 4px; max-height: 200px; overflow-y: auto;"><code>-- SQL will be generated when you click "Generate"...</code></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="generateMigrationCancel">Cancel</button>
+        <button class="btn btn-primary" id="generateMigrationConfirm">
+          <i class="fas fa-magic"></i> Generate Migration
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Publish Entity Confirmation Modal -->
+  <div class="modal-overlay" id="publishEntityModal">
+    <div class="modal" style="max-width: 800px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Publish Entity</h2>
+        <button class="modal-close" id="publishEntityModalClose">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <!-- Publication Summary -->
+        <div class="publish-summary" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f9fafb; border-radius: 0.5rem;">
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <i class="fas fa-table" style="color: #3b82f6; font-size: 1.5rem;"></i>
+            <div>
+              <strong>Database Table:</strong><br>
+              <code id="publishTableName" style="background: #e5e7eb; padding: 0.125rem 0.5rem; border-radius: 0.25rem;">users</code>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <i class="fas fa-columns" style="color: #10b981; font-size: 1.5rem;"></i>
+            <div>
+              <strong>Fields:</strong><br>
+              <span id="publishFieldCount">12</span> fields
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <i class="fas fa-layer-group" style="color: #f59e0b; font-size: 1.5rem;"></i>
+            <div>
+              <strong>Indexes:</strong><br>
+              <span id="publishIndexCount">3</span> indexes
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <i class="fas fa-link" style="color: #8b5cf6; font-size: 1.5rem;"></i>
+            <div>
+              <strong>Relationships:</strong><br>
+              <span id="publishRelationshipCount">2</span> relationships
+            </div>
+          </div>
+        </div>
+
+        <!-- What Will Happen Section -->
+        <div class="publish-steps" style="margin-bottom: 1.5rem;">
+          <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">What will happen:</h3>
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; gap: 1rem;">
+              <div style="flex-shrink: 0; width: 32px; height: 32px; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">1</div>
+              <div style="flex: 1;">
+                <strong>Generate Migration</strong>
+                <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Create SQL migration for schema changes (v<span id="publishMigrationVersion">1.0.0</span>)</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+              <div style="flex-shrink: 0; width: 32px; height: 32px; background: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">2</div>
+              <div style="flex: 1;">
+                <strong>Execute Migration</strong>
+                <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Apply migration to database (creates/alters table)</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+              <div style="flex-shrink: 0; width: 32px; height: 32px; background: #f59e0b; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">3</div>
+              <div style="flex: 1;">
+                <strong>Generate API Routes</strong>
+                <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Create 5 CRUD endpoints automatically:</p>
+                <ul style="margin: 0.5rem 0 0 1.5rem; font-size: 0.875rem; color: #6b7280;">
+                  <li>GET /api/entities/<code id="publishGetAll">users</code> - List all</li>
+                  <li>POST /api/entities/<code id="publishCreate">users</code> - Create new</li>
+                  <li>GET /api/entities/<code id="publishGetOne">users</code>/:id - Get one</li>
+                  <li>PUT /api/entities/<code id="publishUpdate">users</code>/:id - Update</li>
+                  <li>DELETE /api/entities/<code id="publishDelete">users</code>/:id - Delete</li>
+                </ul>
+              </div>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+              <div style="flex-shrink: 0; width: 32px; height: 32px; background: #8b5cf6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">4</div>
+              <div style="flex: 1;">
+                <strong>Update Entity Status</strong>
+                <p style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Mark entity as published and track version</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Options -->
+        <div class="publish-options" style="margin-bottom: 1.5rem;">
+          <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Options:</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="form-checkbox">
+              <input type="checkbox" id="publishGenerateSeedData">
+              <label for="publishGenerateSeedData">Generate sample seed data (10 records)</label>
+            </div>
+            <div class="form-checkbox">
+              <input type="checkbox" id="publishValidateSchema" checked>
+              <label for="publishValidateSchema">Validate schema before applying migration</label>
+            </div>
+            <div class="form-checkbox">
+              <input type="checkbox" id="publishBackupBeforeMigration">
+              <label for="publishBackupBeforeMigration">Backup existing table before migration (if exists)</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Warning for destructive changes -->
+        <div id="publishWarning" style="display: none; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 0.5rem; padding: 1rem; display: none;">
+          <div style="display: flex; gap: 0.75rem;">
+            <i class="fas fa-exclamation-triangle" style="color: #f59e0b; font-size: 1.5rem;"></i>
+            <div style="flex: 1;">
+              <strong style="color: #92400e;">Warning: Destructive Changes Detected</strong>
+              <p style="margin: 0.5rem 0 0 0; color: #78350f;">This migration includes operations that may result in data loss:</p>
+              <ul id="publishWarningList" style="margin: 0.5rem 0 0 1.5rem; font-size: 0.875rem; color: #78350f;"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="publishEntityCancel">Cancel</button>
+        <button class="btn btn-success" id="publishEntityConfirm">
+          <i class="fas fa-rocket"></i> Publish Entity
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Publish Progress Modal -->
+  <div class="modal-overlay" id="publishProgressModal">
+    <div class="modal" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Publishing Entity...</h2>
+      </div>
+      <div class="modal-body">
+        <div class="progress-steps" style="display: flex; flex-direction: column; gap: 1rem;">
+          <div class="progress-step" id="progressStep1" style="display: flex; gap: 1rem; align-items: flex-start;">
+            <div class="progress-step-icon" style="flex-shrink: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-spinner fa-spin" style="color: #3b82f6; font-size: 1.25rem;"></i>
+            </div>
+            <div style="flex: 1;">
+              <strong>Generating Migration</strong>
+              <p id="progressStep1Text" style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Creating SQL migration...</p>
+            </div>
+          </div>
+          <div class="progress-step" id="progressStep2" style="display: flex; gap: 1rem; align-items: flex-start; opacity: 0.5;">
+            <div class="progress-step-icon" style="flex-shrink: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-clock" style="color: #9ca3af; font-size: 1.25rem;"></i>
+            </div>
+            <div style="flex: 1;">
+              <strong>Executing Migration</strong>
+              <p id="progressStep2Text" style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Waiting...</p>
+            </div>
+          </div>
+          <div class="progress-step" id="progressStep3" style="display: flex; gap: 1rem; align-items: flex-start; opacity: 0.5;">
+            <div class="progress-step-icon" style="flex-shrink: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-clock" style="color: #9ca3af; font-size: 1.25rem;"></i>
+            </div>
+            <div style="flex: 1;">
+              <strong>Generating API Routes</strong>
+              <p id="progressStep3Text" style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Waiting...</p>
+            </div>
+          </div>
+          <div class="progress-step" id="progressStep4" style="display: flex; gap: 1rem; align-items: flex-start; opacity: 0.5;">
+            <div class="progress-step-icon" style="flex-shrink: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-clock" style="color: #9ca3af; font-size: 1.25rem;"></i>
+            </div>
+            <div style="flex: 1;">
+              <strong>Finalizing</strong>
+              <p id="progressStep4Text" style="margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;">Waiting...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error display -->
+        <div id="publishErrorDisplay" style="display: none; margin-top: 1.5rem; background: #fee2e2; border: 1px solid #ef4444; border-radius: 0.5rem; padding: 1rem;">
+          <div style="display: flex; gap: 0.75rem;">
+            <i class="fas fa-exclamation-circle" style="color: #dc2626; font-size: 1.5rem;"></i>
+            <div style="flex: 1;">
+              <strong style="color: #991b1b;">Publication Failed</strong>
+              <p id="publishErrorMessage" style="margin: 0.5rem 0 0 0; color: #7f1d1d;"></p>
+              <pre id="publishErrorDetails" style="background: #1f2937; color: #e5e7eb; padding: 0.5rem; border-radius: 4px; font-size: 0.75rem; overflow-x: auto; margin-top: 0.5rem;"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="publishProgressClose" disabled>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Publish Success Modal -->
+  <div class="modal-overlay" id="publishSuccessModal">
+    <div class="modal" style="max-width: 700px;">
+      <div class="modal-header">
+        <h2 class="modal-title" style="color: #10b981;">
+          <i class="fas fa-check-circle"></i>
+          Entity Published Successfully!
+        </h2>
+        <button class="modal-close" id="publishSuccessModalClose">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <!-- Success Summary -->
+        <div class="success-summary" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f0fdf4; border-radius: 0.5rem;">
+          <div style="text-align: center;">
+            <i class="fas fa-database" style="color: #10b981; font-size: 2rem; margin-bottom: 0.5rem;"></i>
+            <div><strong>Table Created:</strong></div>
+            <code id="successTableName" style="background: #d1fae5; padding: 0.125rem 0.5rem; border-radius: 0.25rem;">users</code>
+          </div>
+          <div style="text-align: center;">
+            <i class="fas fa-code-branch" style="color: #3b82f6; font-size: 2rem; margin-bottom: 0.5rem;"></i>
+            <div><strong>Version:</strong></div>
+            <code id="successVersion" style="background: #dbeafe; padding: 0.125rem 0.5rem; border-radius: 0.25rem;">1.0.0</code>
+          </div>
+          <div style="text-align: center;">
+            <i class="fas fa-clock" style="color: #6b7280; font-size: 2rem; margin-bottom: 0.5rem;"></i>
+            <div><strong>Published:</strong></div>
+            <span id="successTimestamp">Just now</span>
+          </div>
+        </div>
+
+        <!-- API Endpoints -->
+        <div class="api-endpoints-section" style="margin-bottom: 1.5rem;">
+          <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">API Endpoints Generated:</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem;">
+              <span style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: center;">GET</span>
+              <code id="successEndpoint1" style="flex: 1; background: #e5e7eb; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">/api/entities/users</code>
+              <button class="btn btn-sm btn-outline-primary copy-endpoint-btn" data-endpoint="1" title="Copy endpoint">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem;">
+              <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: center;">POST</span>
+              <code id="successEndpoint2" style="flex: 1; background: #e5e7eb; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">/api/entities/users</code>
+              <button class="btn btn-sm btn-outline-primary copy-endpoint-btn" data-endpoint="2" title="Copy endpoint">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem;">
+              <span style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: center;">GET</span>
+              <code id="successEndpoint3" style="flex: 1; background: #e5e7eb; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">/api/entities/users/:id</code>
+              <button class="btn btn-sm btn-outline-primary copy-endpoint-btn" data-endpoint="3" title="Copy endpoint">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem;">
+              <span style="background: #f59e0b; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: center;">PUT</span>
+              <code id="successEndpoint4" style="flex: 1; background: #e5e7eb; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">/api/entities/users/:id</code>
+              <button class="btn btn-sm btn-outline-primary copy-endpoint-btn" data-endpoint="4" title="Copy endpoint">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: #f9fafb; border-radius: 0.375rem;">
+              <span style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: center;">DELETE</span>
+              <code id="successEndpoint5" style="flex: 1; background: #e5e7eb; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">/api/entities/users/:id</code>
+              <button class="btn btn-sm btn-outline-primary copy-endpoint-btn" data-endpoint="5" title="Copy endpoint">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sample API Call -->
+        <div class="sample-api-call">
+          <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Sample API Call:</h3>
+          <pre style="background: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 4px; overflow-x: auto;"><code id="successSampleCall">curl -X GET http://localhost:5000/api/entities/users \
+  -H "Content-Type: application/json"</code></pre>
+          <button class="btn btn-sm btn-outline-primary" id="copySampleCallBtn" style="margin-top: 0.5rem;">
+            <i class="fas fa-copy"></i> Copy
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" id="publishSuccessViewMigrations">
+          <i class="fas fa-database"></i> View Migrations
+        </button>
+        <button class="btn btn-primary" id="publishSuccessClose">
+          <i class="fas fa-check"></i> Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/lowcode/static/js/entity-designer-pro.js"></script>
+  <script src="/lowcode/static/js/entity-designer-migrations.js"></script>
+  <script src="/lowcode/static/js/entity-ai-assistant.js"></script>
+
+  <!-- Initialize Git Toolbar -->
+  <script>
+    // Initialize Git toolbar for this entity
+    document.addEventListener('DOMContentLoaded', () => {
+      // Get entity ID from URL parameters or global variable
+      const urlParams = new URLSearchParams(window.location.search);
+      const entityId = urlParams.get('entityId') || window.currentEntityId;
+
+      if (entityId) {
+        window.gitToolbar = new GitToolbar('entity', entityId);
+
+        // Hook into save functionality to support auto-commit
+        const originalSave = window.saveEntity;
+        if (originalSave) {
+          window.saveEntity = async function() {
+            await originalSave.call(this);
+
+            // Auto-commit if enabled
+            if (window.gitToolbar && window.gitToolbar.autoCommit) {
+              await window.gitToolbar.showCommitModal();
+            }
+          };
+        }
+      }
+    });
+  </script>
+</body>
+</html>

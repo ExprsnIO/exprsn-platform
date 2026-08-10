@@ -1,0 +1,304 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-herald",
+      "version": "1.0.0",
+      "description": "Notifications and Alerts Service"
+    },
+    "routes": [
+      {
+        "path": "/api/herald/notifications",
+        "method": "GET",
+        "description": "List user notifications",
+        "target": {
+          "service": "herald",
+          "path": "/api/herald/notifications",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          },
+          "certificateBinding": false
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "read": {
+              "type": "boolean"
+            },
+            "type": {
+              "type": "string",
+              "enum": ["like", "comment", "repost", "follow", "mention", "system"]
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/herald/notifications/:id",
+        "method": "GET",
+        "description": "Get notification details",
+        "target": {
+          "service": "herald",
+          "path": "/api/herald/notifications/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/herald/notifications/:id/read",
+        "method": "POST",
+        "description": "Mark notification as read",
+        "target": {
+          "service": "herald",
+          "path": "/api/herald/notifications/:id/read",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/herald/notifications/read-all",
+        "method": "POST",
+        "description": "Mark all notifications as read",
+        "target": {
+          "service": "herald",
+          "path": "/api/herald/notifications/read-all",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/herald/notifications/:id",
+        "method": "DELETE",
+        "description": "Delete notification",
+        "target": {
+          "service": "herald",
+          "path": "/api/herald/notifications/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/herald/notifications/unread-count",
+        "method": "GET",
+        "description": "Get unread notification count",
+        "target": {
+          "service": "herald",
+          "path": "/api/herald/notifications/unread-count",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/herald/preferences",
+        "method": "GET",
+        "description": "Get notification preferences",
+        "target": {
+          "service": "herald",
+          "path": "/api/herald/preferences",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/herald/preferences",
+        "method": "PUT",
+        "description": "Update notification preferences",
+        "target": {
+          "service": "herald",
+          "path": "/api/herald/preferences",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "frequency": {
+                    "type": "string",
+                    "enum": ["instant", "daily", "weekly"]
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["like", "comment", "repost", "follow", "mention", "system"]
+                    }
+                  }
+                }
+              },
+              "push": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["like", "comment", "repost", "follow", "mention", "system"]
+                    }
+                  }
+                }
+              },
+              "sms": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["system", "security"]
+                    }
+                  }
+                }
+              },
+              "inApp": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "sound": {
+                    "type": "boolean"
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["like", "comment", "repost", "follow", "mention", "system"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 2000
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

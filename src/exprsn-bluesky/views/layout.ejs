@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || 'Exprsn BlueSky' %> | Exprsn BlueSky</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    <!-- Exprsn Theme CSS -->
+    <link href="/theme/css/exprsn-theme.css" rel="stylesheet">
+    <link href="/theme/css/exprsn-components.css" rel="stylesheet">
+    <link href="/theme/css/exprsn-modern.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link href="/css/main.css" rel="stylesheet">
+
+    <% if (locals.additionalCSS) { %>
+        <% additionalCSS.forEach(css => { %>
+            <link href="<%= css %>" rel="stylesheet">
+        <% }) %>
+    <% } %>
+</head>
+<body>
+    <!-- Navigation -->
+    <%- include('partials/navbar') %>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar (Desktop) -->
+                <aside class="col-md-3 col-lg-2 d-none d-md-block sidebar">
+                    <%- include('partials/sidebar') %>
+                </aside>
+
+                <!-- Main Feed Area -->
+                <div class="col-md-9 col-lg-7 main-feed">
+                    <%- body %>
+                </div>
+
+                <!-- Right Sidebar (Trending, Suggestions) -->
+                <aside class="col-lg-3 d-none d-lg-block right-sidebar">
+                    <%- include('partials/right-sidebar') %>
+                </aside>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <%- include('partials/bottom-nav') %>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Exprsn Theme JavaScript -->
+    <script src="/theme/js/theme-switcher.js"></script>
+    <script src="/theme/js/components.js"></script>
+
+    <!-- Custom JavaScript -->
+    <script src="/js/main.js"></script>
+
+    <% if (locals.additionalJS) { %>
+        <% additionalJS.forEach(js => { %>
+            <script src="<%= js %>"></script>
+        <% }) %>
+    <% } %>
+</body>
+</html>

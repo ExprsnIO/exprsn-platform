@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .header h1 { margin: 0; font-size: 2rem; font-weight: 700; }
+    .header p { margin: 0.5rem 0 0; opacity: 0.9; }
+    .function-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+    .function-card { background: white; border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s, box-shadow 0.2s; }
+    .function-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .function-name { font-size: 1.25rem; font-weight: 700; color: #333; margin-bottom: 0.5rem; font-family: 'Courier New', monospace; }
+    .function-syntax { background: #f8f9fa; padding: 0.5rem; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9rem; margin: 0.5rem 0; }
+    .function-desc { color: #666; font-size: 0.9rem; margin: 0.5rem 0; }
+    .function-examples { margin-top: 1rem; }
+    .example { background: #e3f2fd; padding: 0.5rem; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85rem; margin: 0.25rem 0; }
+    .category-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .badge-text { background: #e3f2fd; color: #1976d2; }
+    .badge-math { background: #fff3e0; color: #f57c00; }
+    .badge-datetime { background: #f3e5f5; color: #7b1fa2; }
+    .badge-array { background: #e8f5e9; color: #388e3c; }
+    .badge-stats { background: #fce4ec; color: #c2185b; }
+    .badge-logical { background: #fff9c4; color: #f9a825; }
+    .search-bar { margin-bottom: 2rem; }
+    .search-bar input { padding: 0.75rem; font-size: 1rem; border-radius: 8px; border: 1px solid #ddd; }
+    .category-filter { margin-bottom: 2rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .category-btn { padding: 0.5rem 1rem; border: 1px solid #ddd; background: white; border-radius: 20px; cursor: pointer; transition: all 0.2s; }
+    .category-btn:hover, .category-btn.active { background: #667eea; color: white; border-color: #667eea; }
+    .stats { display: flex; gap: 2rem; margin-bottom: 2rem; }
+    .stat-card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: #667eea; }
+    .stat-label { color: #666; font-size: 0.9rem; margin-top: 0.25rem; }
+    .header-actions { margin-top: 1rem; }
+    .header-btn { padding: 0.5rem 1.5rem; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 4px; text-decoration: none; display: inline-block; transition: all 0.2s; }
+    .header-btn:hover { background: rgba(255,255,255,0.3); color: white; }
+    .header-btn.primary { background: #28a745; border-color: #28a745; }
+    .header-btn.primary:hover { background: #218838; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="container">
+      <h1><i class="fas fa-calculator"></i> Function Builder</h1>
+      <p>40+ Excel, Power Query, and R-like functions for data transformation</p>
+      <div class="header-actions">
+        <a href="/lowcode/function-builder-ide" class="header-btn primary">
+          <i class="fas fa-code"></i> Open IDE
+        </a>
+        <a href="/lowcode/applications" class="header-btn">
+          <i class="fas fa-arrow-left"></i> Back to Applications
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="total-functions">0</div>
+        <div class="stat-label">Total Functions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="total-categories">0</div>
+        <div class="stat-label">Categories</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="filtered-count">0</div>
+        <div class="stat-label">Showing</div>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" class="form-control" id="search-input" placeholder="Search functions by name, description, or tag...">
+    </div>
+
+    <div class="category-filter" id="category-filter"></div>
+
+    <div class="function-grid" id="function-grid">
+      <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2">Loading functions...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allFunctions = [];
+    let allCategories = [];
+    let currentCategory = null;
+    let searchTerm = '';
+
+    async function loadData() {
+      try {
+        const [categoriesRes, functionsRes] = await Promise.all([
+          fetch('/lowcode/api/function-builder/categories'),
+          fetch('/lowcode/api/function-builder/functions')
+        ]);
+
+        const categoriesData = await categoriesRes.json();
+        const functionsData = await functionsRes.json();
+
+        allCategories = categoriesData.categories;
+        allFunctions = functionsData.functions;
+
+        document.getElementById('total-functions').textContent = allFunctions.length;
+        document.getElementById('total-categories').textContent = allCategories.length;
+
+        renderCategoryFilter();
+        renderFunctions();
+      } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('function-grid').innerHTML = '<div class="alert alert-danger">Failed to load functions</div>';
+      }
+    }
+
+    function renderCategoryFilter() {
+      const filter = document.getElementById('category-filter');
+      filter.innerHTML = `
+        <button class="category-btn active" onclick="filterByCategory(null)">All</button>
+        ${allCategories.map(cat => `
+          <button class="category-btn" onclick="filterByCategory('${cat.name}')">
+            <i class="fa ${cat.icon}"></i> ${cat.display_name} (${cat.function_count})
+          </button>
+        `).join('')}
+      `;
+    }
+
+    function filterByCategory(category) {
+      currentCategory = category;
+      document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      renderFunctions();
+    }
+
+    function renderFunctions() {
+      let filtered = allFunctions;
+
+      if (currentCategory) {
+        filtered = filtered.filter(f => f.category === currentCategory);
+      }
+
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(f => 
+          f.name.toLowerCase().includes(term) ||
+          f.description.toLowerCase().includes(term) ||
+          (f.tags && f.tags.some(t => t.toLowerCase().includes(term)))
+        );
+      }
+
+      document.getElementById('filtered-count').textContent = filtered.length;
+
+      const grid = document.getElementById('function-grid');
+      
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="col-12 text-center py-5"><p>No functions found</p></div>';
+        return;
+      }
+
+      grid.innerHTML = filtered.map(func => `
+        <div class="function-card">
+          <div>
+            <span class="category-badge badge-${func.category}">${func.category_display_name}</span>
+          </div>
+          <div class="function-name">${func.name}</div>
+          <div class="function-syntax">${func.syntax}</div>
+          <div class="function-desc">${func.description}</div>
+          ${func.examples && func.examples.length > 0 ? `
+            <div class="function-examples">
+              <strong style="font-size: 0.85rem; color: #666;">Examples:</strong>
+              ${func.examples.map(ex => `
+                <div class="example">
+                  <div><strong>Input:</strong> ${ex.input}</div>
+                  <div><strong>Output:</strong> ${ex.output}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          ${func.tags && func.tags.length > 0 ? `
+            <div style="margin-top: 1rem;">
+              ${func.tags.map(tag => `<span class="badge bg-secondary me-1">${tag}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      searchTerm = e.target.value;
+      renderFunctions();
+    });
+
+    loadData();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

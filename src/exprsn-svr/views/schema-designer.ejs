@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visual Schema Designer - Exprsn Forge</title>
+
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- D3.js -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Toolbar */
+    #toolbar {
+      height: 60px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+
+    #toolbar .schema-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-right: 20px;
+      flex: 1;
+    }
+
+    #toolbar .btn {
+      margin-left: 10px;
+      font-weight: 500;
+    }
+
+    /* Main Layout */
+    .designer-container {
+      display: flex;
+      height: calc(100vh - 60px);
+    }
+
+    /* Canvas */
+    #canvas-container {
+      flex: 1;
+      position: relative;
+      background: #f8f9fa;
+      background-image:
+        linear-gradient(#e9ecef 1px, transparent 1px),
+        linear-gradient(90deg, #e9ecef 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    #schema-canvas {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    #schema-canvas:active {
+      cursor: grabbing;
+    }
+
+    /* Schema Table Nodes */
+    .schema-table {
+      cursor: move;
+    }
+
+    .table-header {
+      fill: #667eea;
+      rx: 6;
+      ry: 6;
+    }
+
+    .table-body {
+      fill: white;
+      stroke: #dee2e6;
+      stroke-width: 2;
+      rx: 6;
+      ry: 6;
+    }
+
+    .table-title {
+      fill: white;
+      font-size: 14px;
+      font-weight: 600;
+      text-anchor: middle;
+    }
+
+    .table-column {
+      fill: #495057;
+      font-size: 12px;
+    }
+
+    .table-column.primary-key {
+      fill: #e83e8c;
+      font-weight: 600;
+    }
+
+    .table-column-icon {
+      fill: #6c757d;
+      font-size: 10px;
+    }
+
+    /* Relationships */
+    .relationship-line {
+      fill: none;
+      stroke: #6c757d;
+      stroke-width: 2;
+      marker-end: url(#arrowhead);
+    }
+
+    .relationship-line.one-to-many {
+      stroke: #0d6efd;
+    }
+
+    .relationship-line.many-to-many {
+      stroke: #6f42c1;
+    }
+
+    .relationship-line.one-to-one {
+      stroke: #20c997;
+    }
+
+    .relationship-line:hover {
+      stroke-width: 3;
+      stroke: #dc3545;
+    }
+
+    /* Sidebar */
+    #sidebar {
+      width: 320px;
+      background: white;
+      border-left: 1px solid #dee2e6;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    #sidebar h5 {
+      color: #495057;
+      font-weight: 600;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .schema-info-item {
+      margin-bottom: 15px;
+    }
+
+    .schema-info-label {
+      font-size: 0.85rem;
+      color: #6c757d;
+      font-weight: 500;
+      margin-bottom: 5px;
+    }
+
+    .schema-info-value {
+      font-size: 1rem;
+      color: #495057;
+    }
+
+    .table-list-item {
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+
+    .table-list-item:hover {
+      background: #e9ecef;
+      border-left-color: #667eea;
+    }
+
+    .table-list-item.selected {
+      background: #e7f1ff;
+      border-left-color: #0d6efd;
+    }
+
+    .table-list-name {
+      font-weight: 600;
+      color: #495057;
+      font-size: 0.95rem;
+    }
+
+    .table-list-columns {
+      font-size: 0.8rem;
+      color: #6c757d;
+      margin-top: 4px;
+    }
+
+    /* Modals */
+    .modal-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .modal-header .btn-close {
+      filter: brightness(0) invert(1);
+    }
+
+    /* Form Groups */
+    .form-label {
+      font-weight: 600;
+      color: #495057;
+      font-size: 0.9rem;
+    }
+
+    /* Column Row */
+    .column-row {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .column-row-handle {
+      cursor: move;
+      color: #6c757d;
+    }
+
+    .column-row-name {
+      flex: 1;
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .column-row-type {
+      color: #6c757d;
+      font-size: 0.85rem;
+    }
+
+    .column-row-badges {
+      display: flex;
+      gap: 5px;
+    }
+
+    /* Minimap */
+    #minimap {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 200px;
+      height: 150px;
+      background: white;
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      pointer-events: none;
+    }
+
+    /* Contextual Info */
+    .info-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #e7f1ff;
+      color: #0d6efd;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+
+    /* Loading State */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <div class="schema-title">
+      <i class="bi bi-diagram-3"></i>
+      <span id="schema-name">Loading...</span>
+    </div>
+    <button class="btn btn-light btn-sm" onclick="schemaDesigner.addTable()">
+      <i class="bi bi-plus-circle"></i> Add Table
+    </button>
+    <button class="btn btn-light btn-sm" onclick="schemaDesigner.autoLayout()">
+      <i class="bi bi-grid"></i> Auto Layout
+    </button>
+    <button class="btn btn-light btn-sm" onclick="schemaDesigner.zoomToFit()">
+      <i class="bi bi-arrows-angle-contract"></i> Fit
+    </button>
+    <button class="btn btn-light btn-sm" onclick="schemaDesigner.generateCode()">
+      <i class="bi bi-code-slash"></i> Generate Code
+    </button>
+    <button class="btn btn-light btn-sm" onclick="schemaDesigner.saveSchema()">
+      <i class="bi bi-save"></i> Save
+    </button>
+    <button class="btn btn-outline-light btn-sm" onclick="schemaDesigner.showSettings()">
+      <i class="bi bi-gear"></i>
+    </button>
+  </div>
+
+  <!-- Main Container -->
+  <div class="designer-container">
+    <!-- Canvas -->
+    <div id="canvas-container">
+      <svg id="schema-canvas">
+        <defs>
+          <!-- Arrowhead marker for relationships -->
+          <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#6c757d" />
+          </marker>
+          <marker id="arrowhead-hover" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#dc3545" />
+          </marker>
+        </defs>
+        <g id="canvas-root">
+          <g id="relationships-layer"></g>
+          <g id="tables-layer"></g>
+        </g>
+      </svg>
+
+      <!-- Minimap -->
+      <canvas id="minimap"></canvas>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <h5><i class="bi bi-info-circle"></i> Schema Info</h5>
+
+      <div class="schema-info-item">
+        <div class="schema-info-label">Status</div>
+        <div class="schema-info-value">
+          <span id="schema-status-badge" class="info-badge">Draft</span>
+        </div>
+      </div>
+
+      <div class="schema-info-item">
+        <div class="schema-info-label">Database</div>
+        <div class="schema-info-value" id="schema-database">-</div>
+      </div>
+
+      <div class="schema-info-item">
+        <div class="schema-info-label">Tables</div>
+        <div class="schema-info-value">
+          <strong id="tables-count">0</strong> tables,
+          <strong id="relationships-count">0</strong> relationships
+        </div>
+      </div>
+
+      <hr>
+
+      <h5><i class="bi bi-table"></i> Tables</h5>
+      <div id="tables-list"></div>
+
+      <button class="btn btn-outline-primary w-100 mt-3" onclick="schemaDesigner.addTable()">
+        <i class="bi bi-plus-lg"></i> Add Table
+      </button>
+    </div>
+  </div>
+
+  <!-- Add Table Modal -->
+  <div class="modal fade" id="addTableModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add New Table</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Table Name (SQL)</label>
+              <input type="text" class="form-control" id="new-table-name" placeholder="e.g., users">
+              <small class="text-muted">Snake_case, no spaces</small>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Display Name</label>
+              <input type="text" class="form-control" id="new-table-display-name" placeholder="e.g., Users">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" id="new-table-description" rows="2"></textarea>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <label class="form-label">Table Type</label>
+              <select class="form-select" id="new-table-type">
+                <option value="table">Table</option>
+                <option value="view">View</option>
+                <option value="materialized_view">Materialized View</option>
+                <option value="junction">Junction Table</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Color</label>
+              <input type="color" class="form-control form-control-color" id="new-table-color" value="#667eea">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Icon</label>
+              <select class="form-select" id="new-table-icon">
+                <option value="table">Table</option>
+                <option value="people">People</option>
+                <option value="folder">Folder</option>
+                <option value="cart">Cart</option>
+                <option value="box">Box</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Quick Setup</label>
+            <div class="btn-group w-100" role="group">
+              <button type="button" class="btn btn-outline-secondary" onclick="schemaDesigner.applyTemplate('user')">
+                <i class="bi bi-person"></i> User Table
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="schemaDesigner.applyTemplate('transaction')">
+                <i class="bi bi-receipt"></i> Transaction
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="schemaDesigner.applyTemplate('blank')">
+                <i class="bi bi-file-earmark"></i> Blank
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="new-table-soft-delete" checked>
+              <label class="form-check-label" for="new-table-soft-delete">
+                Enable soft deletes (deleted_at)
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="new-table-audited" checked>
+              <label class="form-check-label" for="new-table-audited">
+                Enable audit trail
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="new-table-temporal">
+              <label class="form-check-label" for="new-table-temporal">
+                Enable temporal (time-travel)
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="schemaDesigner.createTable()">
+            <i class="bi bi-plus-circle"></i> Create Table
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Table Modal -->
+  <div class="modal fade" id="editTableModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Table: <span id="edit-table-title"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-properties">Properties</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-columns">Columns</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-indexes">Indexes</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-relationships">Relationships</button>
+            </li>
+          </ul>
+
+          <div class="tab-content">
+            <!-- Properties Tab -->
+            <div class="tab-pane fade show active" id="tab-properties">
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Table Name</label>
+                  <input type="text" class="form-control" id="edit-table-name">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Display Name</label>
+                  <input type="text" class="form-control" id="edit-table-display-name">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" id="edit-table-description" rows="3"></textarea>
+              </div>
+              <div class="row">
+                <div class="col-md-4">
+                  <label class="form-label">Color</label>
+                  <input type="color" class="form-control form-control-color" id="edit-table-color">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Icon</label>
+                  <select class="form-select" id="edit-table-icon">
+                    <option value="table">Table</option>
+                    <option value="people">People</option>
+                    <option value="folder">Folder</option>
+                    <option value="cart">Cart</option>
+                    <option value="box">Box</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Columns Tab -->
+            <div class="tab-pane fade" id="tab-columns">
+              <div class="d-flex justify-content-between mb-3">
+                <h6>Columns</h6>
+                <button class="btn btn-sm btn-primary" onclick="schemaDesigner.addColumn()">
+                  <i class="bi bi-plus"></i> Add Column
+                </button>
+              </div>
+              <div id="columns-list"></div>
+            </div>
+
+            <!-- Indexes Tab -->
+            <div class="tab-pane fade" id="tab-indexes">
+              <div class="d-flex justify-content-between mb-3">
+                <h6>Indexes</h6>
+                <button class="btn btn-sm btn-primary" onclick="schemaDesigner.addIndex()">
+                  <i class="bi bi-plus"></i> Add Index
+                </button>
+              </div>
+              <div id="indexes-list">
+                <p class="text-muted">Indexes improve query performance. They will be shown here.</p>
+              </div>
+            </div>
+
+            <!-- Relationships Tab -->
+            <div class="tab-pane fade" id="tab-relationships">
+              <div class="d-flex justify-content-between mb-3">
+                <h6>Relationships</h6>
+                <button class="btn btn-sm btn-primary" onclick="schemaDesigner.addRelationship()">
+                  <i class="bi bi-plus"></i> Add Relationship
+                </button>
+              </div>
+              <div id="relationships-list">
+                <p class="text-muted">Define foreign key relationships to other tables.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger me-auto" onclick="schemaDesigner.deleteTable()">
+            <i class="bi bi-trash"></i> Delete Table
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" onclick="schemaDesigner.saveTableChanges()">
+            <i class="bi bi-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Column Modal -->
+  <div class="modal fade" id="addColumnModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus"></i> Add Column</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Column Name</label>
+            <input type="text" class="form-control" id="new-column-name" placeholder="e.g., email">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Display Name</label>
+            <input type="text" class="form-control" id="new-column-display-name" placeholder="e.g., Email Address">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Data Type</label>
+            <select class="form-select" id="new-column-type">
+              <option value="UUID">UUID</option>
+              <option value="VARCHAR">VARCHAR</option>
+              <option value="TEXT">TEXT</option>
+              <option value="INTEGER">INTEGER</option>
+              <option value="BIGINT">BIGINT</option>
+              <option value="DECIMAL">DECIMAL</option>
+              <option value="BOOLEAN">BOOLEAN</option>
+              <option value="DATE">DATE</option>
+              <option value="TIMESTAMP">TIMESTAMP</option>
+              <option value="JSONB">JSONB</option>
+              <option value="ARRAY">ARRAY</option>
+            </select>
+          </div>
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label">Length</label>
+              <input type="number" class="form-control" id="new-column-length" placeholder="e.g., 255">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Default Value</label>
+              <input type="text" class="form-control" id="new-column-default">
+            </div>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="new-column-primary-key">
+            <label class="form-check-label" for="new-column-primary-key">Primary Key</label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="new-column-nullable" checked>
+            <label class="form-check-label" for="new-column-nullable">Nullable</label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="new-column-unique">
+            <label class="form-check-label" for="new-column-unique">Unique</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="schemaDesigner.createColumn()">
+            <i class="bi bi-plus"></i> Add Column
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Schema Designer JavaScript -->
+  <script src="/js/schema-designer.js"></script>
+
+  <script>
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      const schemaId = '<%= schemaId %>';
+      schemaDesigner.init(schemaId);
+    });
+  </script>
+</body>
+</html>

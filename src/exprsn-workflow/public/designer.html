@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Exprsn Workflow Designer - Visual workflow automation designer">
+    <title>Exprsn Workflow Designer</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="designer.css">
+</head>
+<body data-theme="light">
+    <!-- Header -->
+    <header class="header" role="banner">
+        <div class="workflow-info">
+            <h1>
+                <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                <span>Workflow Designer</span>
+            </h1>
+            <input
+                type="text"
+                id="workflow-name"
+                placeholder="Workflow name"
+                value="Untitled Workflow"
+                aria-label="Workflow name"
+            >
+            <input
+                type="text"
+                id="workflow-description"
+                placeholder="Description"
+                style="width: 300px;"
+                aria-label="Workflow description"
+            >
+        </div>
+        <div class="header-actions">
+            <button
+                class="theme-switcher-btn"
+                onclick="toggleTheme()"
+                aria-label="Toggle theme"
+                title="Toggle theme"
+                data-tooltip="Toggle theme"
+            >
+                <i class="bi bi-moon-stars" id="theme-icon"></i>
+            </button>
+            <button class="btn btn-secondary" onclick="window.location.href='/templates.html'" aria-label="Browse templates">
+                <i class="bi bi-collection" aria-hidden="true"></i>
+                <span>Templates</span>
+            </button>
+            <button class="btn btn-secondary" onclick="clearWorkflow()" aria-label="Clear workflow">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+                <span>Clear</span>
+            </button>
+            <button class="btn btn-primary" onclick="saveWorkflow()" aria-label="Save workflow">
+                <i class="bi bi-save" aria-hidden="true"></i>
+                <span>Save</span>
+            </button>
+            <button class="btn btn-success" onclick="exportWorkflow()" aria-label="Export workflow">
+                <i class="bi bi-download" aria-hidden="true"></i>
+                <span>Export</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Toolbar -->
+    <div class="toolbar" role="toolbar" aria-label="Workflow tools">
+        <div class="toolbar-section">
+            <span class="toolbar-label">Connection Mode:</span>
+            <button
+                class="btn btn-small btn-secondary"
+                onclick="toggleConnectionMode()"
+                id="connection-mode-btn"
+                aria-label="Toggle connection mode"
+                aria-pressed="false"
+            >
+                <i class="bi bi-diagram-2" aria-hidden="true"></i>
+                <span>Off</span>
+            </button>
+        </div>
+        <div class="toolbar-section">
+            <span class="toolbar-label">Grid Snap:</span>
+            <button
+                class="btn btn-small btn-secondary"
+                onclick="toggleGridSnap()"
+                id="grid-snap-btn"
+                aria-label="Toggle grid snap"
+                aria-pressed="false"
+            >
+                <i class="bi bi-grid-3x3" aria-hidden="true"></i>
+                <span>Off</span>
+            </button>
+        </div>
+        <div class="toolbar-section">
+            <button
+                class="btn btn-small btn-secondary"
+                onclick="zoomIn()"
+                aria-label="Zoom in"
+                title="Zoom in"
+            >
+                <i class="bi bi-zoom-in" aria-hidden="true"></i>
+            </button>
+            <button
+                class="btn btn-small btn-secondary"
+                onclick="zoomOut()"
+                aria-label="Zoom out"
+                title="Zoom out"
+            >
+                <i class="bi bi-zoom-out" aria-hidden="true"></i>
+            </button>
+            <button
+                class="btn btn-small btn-secondary"
+                onclick="resetZoom()"
+                aria-label="Reset zoom"
+                title="Reset zoom"
+            >
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+        <div class="toolbar-section">
+            <span class="toolbar-label">Zoom:</span>
+            <span id="zoom-level" aria-live="polite">100%</span>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="container" role="main">
+        <!-- Sidebar -->
+        <aside class="sidebar" role="complementary" aria-label="Step palette">
+            <h3>Step Palette</h3>
+
+            <div class="palette-category">
+                <div class="category-title">
+                    <i class="bi bi-star" aria-hidden="true"></i>
+                    Basic Steps
+                </div>
+                <div class="step-palette">
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="action"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Action step - Execute an action"
+                    >
+                        <div class="step-item-title step-type-action">
+                            <i class="bi bi-play-circle" aria-hidden="true"></i>
+                            Action
+                        </div>
+                        <div class="step-item-desc">Execute an action</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="condition"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Condition step - Branch based on condition"
+                    >
+                        <div class="step-item-title step-type-condition">
+                            <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                            Condition
+                        </div>
+                        <div class="step-item-desc">Branch based on condition</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="loop"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Loop step - Iterate over collection"
+                    >
+                        <div class="step-item-title step-type-loop">
+                            <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                            Loop
+                        </div>
+                        <div class="step-item-desc">Iterate over collection</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palette-category">
+                <div class="category-title">
+                    <i class="bi bi-code-square" aria-hidden="true"></i>
+                    Code & Data
+                </div>
+                <div class="step-palette">
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="javascript"
+                        role="button"
+                        tabindex="0"
+                        aria-label="JavaScript step - Execute custom code"
+                    >
+                        <div class="step-item-title step-type-javascript">
+                            <i class="bi bi-filetype-js" aria-hidden="true"></i>
+                            JavaScript
+                        </div>
+                        <div class="step-item-desc">Execute custom code</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="data_transform"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Transform Data step - Transform data structure"
+                    >
+                        <div class="step-item-title step-type-data_transform">
+                            <i class="bi bi-shuffle" aria-hidden="true"></i>
+                            Transform Data
+                        </div>
+                        <div class="step-item-desc">Transform data structure</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palette-category">
+                <div class="category-title">
+                    <i class="bi bi-plug" aria-hidden="true"></i>
+                    Integration
+                </div>
+                <div class="step-palette">
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="api_call"
+                        role="button"
+                        tabindex="0"
+                        aria-label="API Call step - Make HTTP request"
+                    >
+                        <div class="step-item-title step-type-api_call">
+                            <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                            API Call
+                        </div>
+                        <div class="step-item-desc">Make HTTP request</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="service"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Exprsn Service step - Call Exprsn endpoint"
+                    >
+                        <div class="step-item-title step-type-service">
+                            <i class="bi bi-hdd-network" aria-hidden="true"></i>
+                            Exprsn Service
+                        </div>
+                        <div class="step-item-desc">Call Exprsn endpoint</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="database"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Database Query step - Execute SQL query"
+                    >
+                        <div class="step-item-title step-type-database">
+                            <i class="bi bi-database" aria-hidden="true"></i>
+                            Database Query
+                        </div>
+                        <div class="step-item-desc">Execute SQL query</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="jsonlex"
+                        role="button"
+                        tabindex="0"
+                        aria-label="JSONLex step - Transform with JSONLex"
+                    >
+                        <div class="step-item-title step-type-jsonlex">
+                            <i class="bi bi-braces" aria-hidden="true"></i>
+                            JSONLex
+                        </div>
+                        <div class="step-item-desc">Transform with JSONLex</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palette-category">
+                <div class="category-title">
+                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                    Advanced
+                </div>
+                <div class="step-palette">
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="parallel"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Parallel step - Run steps concurrently"
+                    >
+                        <div class="step-item-title step-type-parallel">
+                            <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+                            Parallel
+                        </div>
+                        <div class="step-item-desc">Run steps concurrently</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="switch"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Switch step - Multi-way branching"
+                    >
+                        <div class="step-item-title step-type-switch">
+                            <i class="bi bi-signpost-split" aria-hidden="true"></i>
+                            Switch
+                        </div>
+                        <div class="step-item-desc">Multi-way branching</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="wait"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Wait step - Time-based delay"
+                    >
+                        <div class="step-item-title step-type-wait">
+                            <i class="bi bi-clock" aria-hidden="true"></i>
+                            Wait
+                        </div>
+                        <div class="step-item-desc">Time-based delay</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="approval"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Approval step - Human approval required"
+                    >
+                        <div class="step-item-title step-type-approval">
+                            <i class="bi bi-hand-thumbs-up" aria-hidden="true"></i>
+                            Approval
+                        </div>
+                        <div class="step-item-desc">Human approval required</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="notification"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Notification step - Send alerts"
+                    >
+                        <div class="step-item-title step-type-notification">
+                            <i class="bi bi-bell" aria-hidden="true"></i>
+                            Notification
+                        </div>
+                        <div class="step-item-desc">Send alerts</div>
+                    </div>
+                    <div
+                        class="step-item"
+                        draggable="true"
+                        data-type="subworkflow"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Subworkflow step - Execute another workflow"
+                    >
+                        <div class="step-item-title step-type-subworkflow">
+                            <i class="bi bi-diagram-2" aria-hidden="true"></i>
+                            Subworkflow
+                        </div>
+                        <div class="step-item-desc">Execute another workflow</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Canvas -->
+        <section class="canvas-container" role="region" aria-label="Workflow canvas">
+            <canvas
+                id="workflow-canvas"
+                width="2000"
+                height="2000"
+                aria-label="Workflow diagram canvas"
+            ></canvas>
+            <div class="empty-state" id="empty-state" role="status" aria-live="polite">
+                <div class="empty-state-icon">
+                    <i class="bi bi-lightning" aria-hidden="true"></i>
+                </div>
+                <div class="empty-state-text">Drag steps from the palette to start building</div>
+            </div>
+        </section>
+
+        <!-- Properties Panel -->
+        <aside class="properties-panel" id="properties-panel" role="complementary" aria-label="Properties panel">
+            <h3>Properties</h3>
+            <p style="color: var(--text-muted); font-size: var(--font-size-sm);">Select a step to edit its properties</p>
+        </aside>
+    </main>
+
+    <!-- Service Selection Modal -->
+    <div class="modal" id="service-modal" role="dialog" aria-labelledby="service-modal-title" aria-modal="true">
+        <div class="modal-content">
+            <h2 class="modal-header" id="service-modal-title">Select Exprsn Service</h2>
+            <div class="service-list" id="service-list" role="list"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeServiceModal()">
+                    <i class="bi bi-x-circle" aria-hidden="true"></i>
+                    Cancel
+                </button>
+                <button class="btn btn-primary" onclick="selectService()">
+                    <i class="bi bi-check-circle" aria-hidden="true"></i>
+                    Select
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Field Editor Modal -->
+    <div class="modal" id="field-modal" role="dialog" aria-labelledby="field-modal-title" aria-modal="true">
+        <div class="modal-content">
+            <h2 class="modal-header" id="field-modal-title">Manage Fields</h2>
+            <div id="field-editor-content"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeFieldModal()">
+                    <i class="bi bi-x-circle" aria-hidden="true"></i>
+                    Cancel
+                </button>
+                <button class="btn btn-primary" onclick="saveFields()">
+                    <i class="bi bi-check-circle" aria-hidden="true"></i>
+                    Save Fields
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Bundle JS (includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Designer JavaScript -->
+    <script src="designer.js"></script>
+
+    <script>
+        // Theme Management
+        function toggleTheme() {
+            const html = document.documentElement;
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+
+            // Update icon
+            const icon = document.getElementById('theme-icon');
+            icon.className = newTheme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
+
+            // Re-render canvas with new theme colors
+            if (typeof render === 'function') {
+                render();
+            }
+        }
+
+        // Load saved theme preference
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+
+            document.body.setAttribute('data-theme', theme);
+
+            const icon = document.getElementById('theme-icon');
+            icon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
+        }
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                const newTheme = e.matches ? 'dark' : 'light';
+                document.body.setAttribute('data-theme', newTheme);
+                const icon = document.getElementById('theme-icon');
+                icon.className = newTheme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
+                if (typeof render === 'function') {
+                    render();
+                }
+            }
+        });
+
+        // Initialize theme on load
+        loadTheme();
+
+        // Keyboard navigation for draggable items
+        document.querySelectorAll('.step-item').forEach(item => {
+            item.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    // Simulate adding to center of canvas
+                    const stepType = item.dataset.type;
+                    if (stepType && typeof addStep === 'function') {
+                        addStep(stepType, 500, 500);
+                    }
+                }
+            });
+        });
+
+        // Close modals on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.active').forEach(modal => {
+                    modal.classList.remove('active');
+                });
+            }
+        });
+
+        // Trap focus in modals
+        function trapFocus(modal) {
+            const focusableElements = modal.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+
+            modal.addEventListener('keydown', (e) => {
+                if (e.key !== 'Tab') return;
+
+                if (e.shiftKey) {
+                    if (document.activeElement === firstElement) {
+                        lastElement.focus();
+                        e.preventDefault();
+                    }
+                } else {
+                    if (document.activeElement === lastElement) {
+                        firstElement.focus();
+                        e.preventDefault();
+                    }
+                }
+            });
+        }
+
+        // Apply focus trap to modals when they open
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.attributeName === 'class') {
+                        if (modal.classList.contains('active')) {
+                            trapFocus(modal);
+                            // Focus first focusable element
+                            const firstFocusable = modal.querySelector('button, input, select, textarea');
+                            if (firstFocusable) firstFocusable.focus();
+                        }
+                    }
+                });
+            });
+            observer.observe(modal, { attributes: true });
+        });
+    </script>
+</body>
+</html>

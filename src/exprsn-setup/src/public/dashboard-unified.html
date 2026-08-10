@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exprsn Setup - Unified Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --exprsn-primary: #DC382D;
+      --exprsn-secondary: #1a1a1a;
+      --exprsn-success: #28a745;
+      --exprsn-warning: #ffc107;
+      --exprsn-danger: #dc3545;
+      --exprsn-info: #17a2b8;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .dashboard-container {
+      padding: 2rem 0;
+    }
+
+    .dashboard-header {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .dashboard-header h1 {
+      color: var(--exprsn-primary);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .dashboard-header p {
+      color: #6c757d;
+      margin-bottom: 0;
+    }
+
+    .stats-row {
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      border-left: 4px solid;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card.stat-primary { border-left-color: var(--exprsn-primary); }
+    .stat-card.stat-success { border-left-color: var(--exprsn-success); }
+    .stat-card.stat-warning { border-left-color: var(--exprsn-warning); }
+    .stat-card.stat-info { border-left-color: var(--exprsn-info); }
+
+    .stat-card .stat-icon {
+      font-size: 2.5rem;
+      opacity: 0.3;
+      position: absolute;
+      right: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .stat-card .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-card .stat-label {
+      color: #6c757d;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .admin-section {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .admin-section h2 {
+      color: var(--exprsn-secondary);
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #e9ecef;
+    }
+
+    .admin-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      height: 100%;
+      border: 2px solid #e9ecef;
+      transition: all 0.3s;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .admin-card:hover {
+      border-color: var(--exprsn-primary);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px rgba(220, 56, 45, 0.15);
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .admin-card-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
+      color: white;
+    }
+
+    .admin-card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--exprsn-secondary);
+    }
+
+    .admin-card-description {
+      color: #6c757d;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+
+    .admin-card-stats {
+      display: flex;
+      gap: 1rem;
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 1px solid #e9ecef;
+    }
+
+    .admin-card-stat {
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+
+    .admin-card-stat strong {
+      color: var(--exprsn-secondary);
+      font-size: 1rem;
+      display: block;
+    }
+
+    .system-status {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      animation: pulse 2s infinite;
+    }
+
+    .status-indicator.status-running {
+      background-color: var(--exprsn-success);
+    }
+
+    .status-indicator.status-stopped {
+      background-color: var(--exprsn-danger);
+      animation: none;
+    }
+
+    .status-indicator.status-warning {
+      background-color: var(--exprsn-warning);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .quick-action-btn {
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .service-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .service-item {
+      padding: 0.75rem;
+      border-bottom: 1px solid #e9ecef;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .service-item:last-child {
+      border-bottom: none;
+    }
+
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loading-overlay.show {
+      display: flex;
+    }
+
+    .loading-spinner {
+      text-align: center;
+      color: white;
+    }
+
+    .loading-spinner .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+
+    .badge-custom {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 6px;
+    }
+
+    .footer-info {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.8);
+      padding: 2rem 0;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid dashboard-container">
+    <!-- Header -->
+    <div class="container">
+      <div class="dashboard-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1><i class="bi bi-gear-fill"></i> Exprsn Setup Dashboard</h1>
+            <p class="lead mb-0">Central management console for the Exprsn microservices platform</p>
+          </div>
+          <div>
+            <span class="badge bg-success badge-custom" id="connectionStatus">
+              <i class="bi bi-wifi"></i> Connected
+            </span>
+            <span class="badge bg-secondary badge-custom ms-2" id="lastUpdate">
+              Updated: Never
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Statistics -->
+    <div class="container">
+      <div class="stats-row">
+        <div class="row g-4">
+          <div class="col-md-3">
+            <div class="stat-card stat-primary position-relative">
+              <i class="bi bi-boxes stat-icon"></i>
+              <div class="stat-value" id="totalServices">18</div>
+              <div class="stat-label">Total Services</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card stat-success position-relative">
+              <i class="bi bi-play-circle stat-icon"></i>
+              <div class="stat-value" id="runningServices">0</div>
+              <div class="stat-label">Running</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card stat-warning position-relative">
+              <i class="bi bi-exclamation-triangle stat-icon"></i>
+              <div class="stat-value" id="stoppedServices">0</div>
+              <div class="stat-label">Stopped</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card stat-info position-relative">
+              <i class="bi bi-check-circle stat-icon"></i>
+              <div class="stat-value" id="configuredServices">0</div>
+              <div class="stat-label">Configured</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="container">
+      <div class="system-status">
+        <h2><i class="bi bi-lightning-charge-fill"></i> Quick Actions</h2>
+        <div class="row">
+          <div class="col-md-12">
+            <button class="btn btn-success quick-action-btn" onclick="startAllServices()">
+              <i class="bi bi-play-fill"></i> Start All Services
+            </button>
+            <button class="btn btn-danger quick-action-btn" onclick="stopAllServices()">
+              <i class="bi bi-stop-fill"></i> Stop All Services
+            </button>
+            <button class="btn btn-warning quick-action-btn" onclick="restartAllServices()">
+              <i class="bi bi-arrow-clockwise"></i> Restart All Services
+            </button>
+            <button class="btn btn-info quick-action-btn" onclick="refreshDashboard()">
+              <i class="bi bi-arrow-clockwise"></i> Refresh Dashboard
+            </button>
+            <button class="btn btn-primary quick-action-btn" onclick="viewLogs()">
+              <i class="bi bi-file-text"></i> View System Logs
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Administration Sections -->
+    <div class="container">
+      <div class="admin-section">
+        <h2><i class="bi bi-kanban"></i> Administration</h2>
+        <div class="row g-4">
+          <!-- Services Management -->
+          <div class="col-md-4">
+            <a href="/admin/services" class="admin-card">
+              <div class="admin-card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <i class="bi bi-boxes"></i>
+              </div>
+              <div class="admin-card-title">Services Overview</div>
+              <div class="admin-card-description">
+                Monitor and manage all 18 Exprsn microservices including CA, Auth, Timeline, Spark, and more
+              </div>
+              <div class="admin-card-stats">
+                <div class="admin-card-stat">
+                  <strong id="adminServicesTotal">18</strong>
+                  Total Services
+                </div>
+                <div class="admin-card-stat">
+                  <strong id="adminServicesRunning">0</strong>
+                  Running
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- PostgreSQL Management -->
+          <div class="col-md-4">
+            <a href="/admin/postgresql" class="admin-card">
+              <div class="admin-card-icon" style="background: linear-gradient(135deg, #336791 0%, #6b9bd1 100%);">
+                <i class="bi bi-database"></i>
+              </div>
+              <div class="admin-card-title">PostgreSQL Management</div>
+              <div class="admin-card-description">
+                Manage PostgreSQL instances, databases, connections, and run migrations
+              </div>
+              <div class="admin-card-stats">
+                <div class="admin-card-stat">
+                  <strong id="adminDatabasesTotal">-</strong>
+                  Databases
+                </div>
+                <div class="admin-card-stat">
+                  <strong id="adminDatabasesStatus">-</strong>
+                  Status
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- Redis Management -->
+          <div class="col-md-4">
+            <a href="/admin/redis" class="admin-card">
+              <div class="admin-card-icon" style="background: linear-gradient(135deg, #DC382D 0%, #ff6b5a 100%);">
+                <i class="bi bi-lightning-charge"></i>
+              </div>
+              <div class="admin-card-title">Redis & Caching</div>
+              <div class="admin-card-description">
+                Monitor Redis instances, memory usage, and manage cache keys across services
+              </div>
+              <div class="admin-card-stats">
+                <div class="admin-card-stat">
+                  <strong id="adminRedisMemory">-</strong>
+                  Memory
+                </div>
+                <div class="admin-card-stat">
+                  <strong id="adminRedisKeys">-</strong>
+                  Keys
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- Groups Management -->
+          <div class="col-md-4">
+            <a href="/admin/groups" class="admin-card">
+              <div class="admin-card-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <i class="bi bi-people"></i>
+              </div>
+              <div class="admin-card-title">Groups Management</div>
+              <div class="admin-card-description">
+                Create and manage organizational groups with hierarchical structure
+              </div>
+              <div class="admin-card-stats">
+                <div class="admin-card-stat">
+                  <strong id="adminGroupsTotal">0</strong>
+                  Groups
+                </div>
+                <div class="admin-card-stat">
+                  <strong id="adminGroupsMembers">0</strong>
+                  Members
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- Roles & Permissions -->
+          <div class="col-md-4">
+            <a href="/admin/roles" class="admin-card">
+              <div class="admin-card-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <i class="bi bi-shield-check"></i>
+              </div>
+              <div class="admin-card-title">Roles & Permissions</div>
+              <div class="admin-card-description">
+                Define roles and granular permissions for access control across services
+              </div>
+              <div class="admin-card-stats">
+                <div class="admin-card-stat">
+                  <strong id="adminRolesTotal">0</strong>
+                  Roles
+                </div>
+                <div class="admin-card-stat">
+                  <strong id="adminPermissionsTotal">0</strong>
+                  Permissions
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <!-- Certificates (Placeholder) -->
+          <div class="col-md-4">
+            <a href="/admin/certificates" class="admin-card">
+              <div class="admin-card-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <i class="bi bi-shield-lock"></i>
+              </div>
+              <div class="admin-card-title">Certificates & CA</div>
+              <div class="admin-card-description">
+                Manage X.509 certificates, OCSP responder, and Certificate Authority
+              </div>
+              <div class="admin-card-stats">
+                <div class="admin-card-stat">
+                  <strong>-</strong>
+                  Certificates
+                </div>
+                <div class="admin-card-stat">
+                  <strong>-</strong>
+                  Active
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity / Service Status -->
+    <div class="container">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="system-status">
+            <h2><i class="bi bi-clock-history"></i> Recent Activity</h2>
+            <div class="service-list" id="recentActivity">
+              <div class="text-center text-muted py-4">
+                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                <p class="mt-2">No recent activity</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="system-status">
+            <h2><i class="bi bi-activity"></i> Core Services Status</h2>
+            <div class="service-list" id="coreServicesStatus">
+              <div class="service-item">
+                <div>
+                  <span class="status-indicator status-stopped"></span>
+                  <strong>Certificate Authority (CA)</strong>
+                  <span class="badge bg-secondary ms-2">Port 3000</span>
+                </div>
+                <span class="badge bg-danger">Stopped</span>
+              </div>
+              <div class="service-item">
+                <div>
+                  <span class="status-indicator status-stopped"></span>
+                  <strong>Authentication (Auth)</strong>
+                  <span class="badge bg-secondary ms-2">Port 3001</span>
+                </div>
+                <span class="badge bg-danger">Stopped</span>
+              </div>
+              <div class="service-item">
+                <div>
+                  <span class="status-indicator status-stopped"></span>
+                  <strong>Messaging (Spark)</strong>
+                  <span class="badge bg-secondary ms-2">Port 3002</span>
+                </div>
+                <span class="badge bg-danger">Stopped</span>
+              </div>
+              <div class="service-item">
+                <div>
+                  <span class="status-indicator status-stopped"></span>
+                  <strong>Timeline</strong>
+                  <span class="badge bg-secondary ms-2">Port 3004</span>
+                </div>
+                <span class="badge bg-danger">Stopped</span>
+              </div>
+              <div class="service-item">
+                <div>
+                  <span class="status-indicator status-stopped"></span>
+                  <strong>API Gateway (Bridge)</strong>
+                  <span class="badge bg-secondary ms-2">Port 3010</span>
+                </div>
+                <span class="badge bg-danger">Stopped</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-info">
+      <p>Exprsn Platform v1.0.0 | Setup Service | Port 3015</p>
+      <p class="mb-0">
+        <a href="https://github.com/anthropics/exprsn" target="_blank" style="color: rgba(255, 255, 255, 0.9);">
+          <i class="bi bi-github"></i> GitHub
+        </a>
+        <span class="mx-2">|</span>
+        <a href="/health" target="_blank" style="color: rgba(255, 255, 255, 0.9);">
+          <i class="bi bi-heart-pulse"></i> Health Check
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner">
+      <div class="spinner-border" role="status"></div>
+      <p class="mt-3">Processing...</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let servicesData = [];
+
+    // Connection status handling
+    socket.on('connect', () => {
+      document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-wifi"></i> Connected';
+      document.getElementById('connectionStatus').className = 'badge bg-success badge-custom';
+      refreshDashboard();
+    });
+
+    socket.on('disconnect', () => {
+      document.getElementById('connectionStatus').innerHTML = '<i class="bi bi-wifi-off"></i> Disconnected';
+      document.getElementById('connectionStatus').className = 'badge bg-danger badge-custom';
+    });
+
+    // Listen for service updates
+    socket.on('services:all', (data) => {
+      servicesData = data.services || [];
+      updateStatistics();
+      updateCoreServicesStatus();
+      updateLastUpdate();
+    });
+
+    socket.on('health:all', (data) => {
+      if (data.services) {
+        updateHealthStatuses(data.services);
+      }
+      updateLastUpdate();
+    });
+
+    // Update statistics
+    function updateStatistics() {
+      const total = 18;
+      const running = servicesData.filter(s => s.status === 'running').length;
+      const stopped = servicesData.filter(s => s.status === 'stopped' || !s.status).length;
+      const configured = servicesData.filter(s => s.setupCompleted).length;
+
+      document.getElementById('totalServices').textContent = total;
+      document.getElementById('runningServices').textContent = running;
+      document.getElementById('stoppedServices').textContent = stopped;
+      document.getElementById('configuredServices').textContent = configured;
+
+      // Update admin card stats
+      document.getElementById('adminServicesTotal').textContent = total;
+      document.getElementById('adminServicesRunning').textContent = running;
+    }
+
+    // Update core services status
+    function updateCoreServicesStatus() {
+      const coreServices = ['ca', 'auth', 'spark', 'timeline', 'bridge'];
+      const statusContainer = document.getElementById('coreServicesStatus');
+
+      const serviceNames = {
+        ca: 'Certificate Authority (CA)',
+        auth: 'Authentication (Auth)',
+        spark: 'Messaging (Spark)',
+        timeline: 'Timeline',
+        bridge: 'API Gateway (Bridge)'
+      };
+
+      const ports = {
+        ca: 3000,
+        auth: 3001,
+        spark: 3002,
+        timeline: 3004,
+        bridge: 3010
+      };
+
+      let html = '';
+      coreServices.forEach(serviceId => {
+        const service = servicesData.find(s => s.serviceId === serviceId);
+        const status = service?.status || 'stopped';
+        const statusClass = status === 'running' ? 'status-running' : 'status-stopped';
+        const badgeClass = status === 'running' ? 'bg-success' : 'bg-danger';
+        const statusText = status === 'running' ? 'Running' : 'Stopped';
+
+        html += `
+          <div class="service-item">
+            <div>
+              <span class="status-indicator ${statusClass}"></span>
+              <strong>${serviceNames[serviceId]}</strong>
+              <span class="badge bg-secondary ms-2">Port ${ports[serviceId]}</span>
+            </div>
+            <span class="badge ${badgeClass}">${statusText}</span>
+          </div>
+        `;
+      });
+
+      statusContainer.innerHTML = html;
+    }
+
+    // Update health statuses
+    function updateHealthStatuses(healthData) {
+      // Update service statuses based on health check
+      healthData.forEach(health => {
+        const service = servicesData.find(s => s.serviceId === health.serviceId);
+        if (service) {
+          service.status = health.status;
+        }
+      });
+      updateStatistics();
+      updateCoreServicesStatus();
+    }
+
+    // Update last update timestamp
+    function updateLastUpdate() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString();
+      document.getElementById('lastUpdate').textContent = `Updated: ${timeString}`;
+    }
+
+    // Load admin stats from APIs
+    async function loadAdminStats() {
+      try {
+        // Load groups count
+        const groupsRes = await fetch('/api/groups');
+        if (groupsRes.ok) {
+          const groupsData = await groupsRes.json();
+          document.getElementById('adminGroupsTotal').textContent = groupsData.groups?.length || 0;
+        }
+
+        // Load roles count
+        const rolesRes = await fetch('/api/roles');
+        if (rolesRes.ok) {
+          const rolesData = await rolesRes.json();
+          document.getElementById('adminRolesTotal').textContent = rolesData.roles?.length || 0;
+        }
+
+        // Load permissions count
+        const permsRes = await fetch('/api/permissions');
+        if (permsRes.ok) {
+          const permsData = await permsRes.json();
+          document.getElementById('adminPermissionsTotal').textContent = permsData.permissions?.length || 0;
+        }
+      } catch (error) {
+        console.error('Error loading admin stats:', error);
+      }
+    }
+
+    // Quick Actions
+    function startAllServices() {
+      if (confirm('Are you sure you want to start all services? This may take several minutes.')) {
+        showLoading();
+        fetch('/api/services/start-all', { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            hideLoading();
+            if (data.success) {
+              alert('All services started successfully');
+              refreshDashboard();
+            } else {
+              alert('Failed to start services: ' + data.error);
+            }
+          })
+          .catch(err => {
+            hideLoading();
+            alert('Error starting services: ' + err.message);
+          });
+      }
+    }
+
+    function stopAllServices() {
+      if (confirm('Are you sure you want to stop all services?')) {
+        showLoading();
+        fetch('/api/services/stop-all', { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            hideLoading();
+            if (data.success) {
+              alert('All services stopped successfully');
+              refreshDashboard();
+            } else {
+              alert('Failed to stop services: ' + data.error);
+            }
+          })
+          .catch(err => {
+            hideLoading();
+            alert('Error stopping services: ' + err.message);
+          });
+      }
+    }
+
+    function restartAllServices() {
+      if (confirm('Are you sure you want to restart all services? This may take several minutes.')) {
+        showLoading();
+        fetch('/api/services/restart-all', { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            hideLoading();
+            if (data.success) {
+              alert('All services restarted successfully');
+              refreshDashboard();
+            } else {
+              alert('Failed to restart services: ' + data.error);
+            }
+          })
+          .catch(err => {
+            hideLoading();
+            alert('Error restarting services: ' + err.message);
+          });
+      }
+    }
+
+    function refreshDashboard() {
+      socket.emit('stats:request');
+      loadAdminStats();
+    }
+
+    function viewLogs() {
+      window.location.href = '/admin/services'; // Redirect to services page with logs
+    }
+
+    function showLoading() {
+      document.getElementById('loadingOverlay').classList.add('show');
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.remove('show');
+    }
+
+    // Initial load
+    refreshDashboard();
+
+    // Auto-refresh every 30 seconds
+    setInterval(refreshDashboard, 30000);
+  </script>
+</body>
+</html>

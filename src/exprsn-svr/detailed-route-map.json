@@ -1,0 +1,5645 @@
+{
+  "summary": {
+    "totalFiles": 118,
+    "totalEndpoints": 1180,
+    "generatedAt": "2025-12-29T17:07:26.270Z"
+  },
+  "modules": {
+    "main": {
+      "name": "main",
+      "basePath": "/api",
+      "files": [
+        {
+          "name": "analytics.js",
+          "path": "routes/analytics.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/track"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/engagement"
+            },
+            {
+              "method": "GET",
+              "path": "/page/:pageId/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/page/:pageId/referrers"
+            },
+            {
+              "method": "GET",
+              "path": "/page/:pageId/geographic"
+            },
+            {
+              "method": "GET",
+              "path": "/page/:pageId/devices"
+            },
+            {
+              "method": "GET",
+              "path": "/page/:pageId/browsers"
+            },
+            {
+              "method": "GET",
+              "path": "/page/:pageId/time-series"
+            },
+            {
+              "method": "GET",
+              "path": "/page/:pageId/campaigns"
+            }
+          ]
+        },
+        {
+          "name": "api.js",
+          "path": "routes/api.js",
+          "endpoints": 14,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/pages"
+            },
+            {
+              "method": "POST",
+              "path": "/pages"
+            },
+            {
+              "method": "GET",
+              "path": "/pages/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/pages/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/pages/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/pages/:id/publish"
+            },
+            {
+              "method": "POST",
+              "path": "/code/validate"
+            },
+            {
+              "method": "POST",
+              "path": "/code/execute"
+            },
+            {
+              "method": "GET",
+              "path": "/pages/:id/versions"
+            },
+            {
+              "method": "GET",
+              "path": "/pages/:id/versions/:versionId"
+            },
+            {
+              "method": "POST",
+              "path": "/pages/:id/versions"
+            },
+            {
+              "method": "GET",
+              "path": "/pages/versions/compare"
+            },
+            {
+              "method": "POST",
+              "path": "/pages/:id/versions/:versionId/restore"
+            },
+            {
+              "method": "GET",
+              "path": "/health"
+            }
+          ]
+        },
+        {
+          "name": "assets.js",
+          "path": "routes/assets.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/search"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/page/:pageId"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/download"
+            },
+            {
+              "method": "POST",
+              "path": "/upload"
+            },
+            {
+              "method": "POST",
+              "path": "/upload/multiple"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            }
+          ]
+        },
+        {
+          "name": "components.js",
+          "path": "routes/components.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/popular"
+            },
+            {
+              "method": "GET",
+              "path": "/category/:category"
+            },
+            {
+              "method": "GET",
+              "path": "/search"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/with-dependencies"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/render"
+            }
+          ]
+        },
+        {
+          "name": "config.js",
+          "path": "routes/config.js",
+          "endpoints": 2,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/:sectionId"
+            },
+            {
+              "method": "POST",
+              "path": "/:sectionId"
+            }
+          ]
+        },
+        {
+          "name": "decisionTables.js",
+          "path": "routes/decisionTables.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/evaluate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/activate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/deactivate"
+            }
+          ]
+        },
+        {
+          "name": "editor.js",
+          "path": "routes/editor.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/new"
+            },
+            {
+              "method": "GET",
+              "path": "/edit/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/designer"
+            },
+            {
+              "method": "GET",
+              "path": "/designer/new"
+            },
+            {
+              "method": "GET",
+              "path": "/designer/edit/:id"
+            }
+          ]
+        },
+        {
+          "name": "markdown.js",
+          "path": "routes/markdown.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/convert"
+            },
+            {
+              "method": "POST",
+              "path": "/to-page"
+            },
+            {
+              "method": "POST",
+              "path": "/create-page"
+            },
+            {
+              "method": "POST",
+              "path": "/extract-toc"
+            },
+            {
+              "method": "POST",
+              "path": "/extract-frontmatter"
+            },
+            {
+              "method": "POST",
+              "path": "/to-markdown"
+            },
+            {
+              "method": "POST",
+              "path": "/validate"
+            },
+            {
+              "method": "POST",
+              "path": "/stats"
+            }
+          ]
+        },
+        {
+          "name": "pages.js",
+          "path": "routes/pages.js",
+          "endpoints": 1,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/:slug"
+            }
+          ]
+        },
+        {
+          "name": "plugins.js",
+          "path": "routes/plugins.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/enable"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/disable"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/config"
+            },
+            {
+              "method": "GET",
+              "path": "/meta/types"
+            },
+            {
+              "method": "GET",
+              "path": "/meta/loaded"
+            }
+          ]
+        },
+        {
+          "name": "setup-v2.js",
+          "path": "routes/setup-v2.js",
+          "endpoints": 17,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/api/home/cards"
+            },
+            {
+              "method": "POST",
+              "path": "/api/home/cards/layout"
+            },
+            {
+              "method": "POST",
+              "path": "/api/home/cards/reset"
+            },
+            {
+              "method": "GET",
+              "path": "/api/home/dashboard-data"
+            },
+            {
+              "method": "GET",
+              "path": "/environments"
+            },
+            {
+              "method": "GET",
+              "path": "/services"
+            },
+            {
+              "method": "GET",
+              "path": "/database"
+            },
+            {
+              "method": "GET",
+              "path": "/database/migrations"
+            },
+            {
+              "method": "GET",
+              "path": "/database/schema"
+            },
+            {
+              "method": "GET",
+              "path": "/applications"
+            },
+            {
+              "method": "GET",
+              "path": "/security"
+            },
+            {
+              "method": "GET",
+              "path": "/security/users"
+            },
+            {
+              "method": "GET",
+              "path": "/security/roles"
+            },
+            {
+              "method": "GET",
+              "path": "/analytics"
+            },
+            {
+              "method": "GET",
+              "path": "/git"
+            },
+            {
+              "method": "GET",
+              "path": "/settings"
+            }
+          ]
+        },
+        {
+          "name": "setup.js",
+          "path": "routes/setup.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/api/status"
+            },
+            {
+              "method": "GET",
+              "path": "/api/services"
+            },
+            {
+              "method": "GET",
+              "path": "/api/services/:serviceId"
+            },
+            {
+              "method": "GET",
+              "path": "/api/config"
+            },
+            {
+              "method": "POST",
+              "path": "/api/config/test-db"
+            },
+            {
+              "method": "POST",
+              "path": "/api/config/test-redis"
+            },
+            {
+              "method": "POST",
+              "path": "/api/config/test-service"
+            },
+            {
+              "method": "GET",
+              "path": "/api/config/env-template"
+            }
+          ]
+        },
+        {
+          "name": "templates.js",
+          "path": "routes/templates.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/featured"
+            },
+            {
+              "method": "GET",
+              "path": "/popular"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/rate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/create-page"
+            }
+          ]
+        }
+      ],
+      "totalEndpoints": 112,
+      "endpointsByMethod": {
+        "GET": 64,
+        "POST": 35,
+        "PUT": 7,
+        "PATCH": 0,
+        "DELETE": 6,
+        "ALL": 0
+      }
+    },
+    "lowcode": {
+      "name": "lowcode",
+      "basePath": "/lowcode/api",
+      "files": [
+        {
+          "name": "setup-config.js",
+          "path": "lowcode/routes/setup-config.js",
+          "endpoints": 56,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/api/system-health"
+            },
+            {
+              "method": "GET",
+              "path": "/api/services"
+            },
+            {
+              "method": "GET",
+              "path": "/api/services/:serviceId"
+            },
+            {
+              "method": "POST",
+              "path": "/api/services/:serviceId/test"
+            },
+            {
+              "method": "POST",
+              "path": "/api/services/:serviceId/start"
+            },
+            {
+              "method": "POST",
+              "path": "/api/services/:serviceId/stop"
+            },
+            {
+              "method": "GET",
+              "path": "/api/databases"
+            },
+            {
+              "method": "GET",
+              "path": "/api/databases/:databaseId"
+            },
+            {
+              "method": "POST",
+              "path": "/api/databases/:databaseId/test"
+            },
+            {
+              "method": "POST",
+              "path": "/api/databases/:databaseId/migrate"
+            },
+            {
+              "method": "POST",
+              "path": "/api/databases/:databaseId/seed"
+            },
+            {
+              "method": "POST",
+              "path": "/api/databases/:databaseId/backup"
+            },
+            {
+              "method": "GET",
+              "path": "/api/redis"
+            },
+            {
+              "method": "POST",
+              "path": "/api/redis/test"
+            },
+            {
+              "method": "POST",
+              "path": "/api/redis/flush/:dbNumber"
+            },
+            {
+              "method": "GET",
+              "path": "/api/config"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/config"
+            },
+            {
+              "method": "GET",
+              "path": "/api/config/export"
+            },
+            {
+              "method": "GET",
+              "path": "/api/environment"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/environment"
+            },
+            {
+              "method": "GET",
+              "path": "/api/databases/:databaseId/statistics"
+            },
+            {
+              "method": "POST",
+              "path": "/api/databases/:databaseId/backup"
+            },
+            {
+              "method": "POST",
+              "path": "/api/databases/:databaseId/restore"
+            },
+            {
+              "method": "GET",
+              "path": "/api/databases/:databaseId/migrations"
+            },
+            {
+              "method": "GET",
+              "path": "/api/redis/:dbNumber/info"
+            },
+            {
+              "method": "GET",
+              "path": "/api/redis/:dbNumber/keys"
+            },
+            {
+              "method": "DELETE",
+              "path": "/api/redis/:dbNumber/keys"
+            },
+            {
+              "method": "GET",
+              "path": "/api/ca/configuration"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/ca/configuration"
+            },
+            {
+              "method": "POST",
+              "path": "/api/ca/test-connection"
+            },
+            {
+              "method": "GET",
+              "path": "/api/auth/configuration"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/auth/configuration"
+            },
+            {
+              "method": "POST",
+              "path": "/api/auth/test-connection"
+            },
+            {
+              "method": "POST",
+              "path": "/api/auth/generate-secrets"
+            },
+            {
+              "method": "GET",
+              "path": "/api/vault/configuration"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/vault/configuration"
+            },
+            {
+              "method": "POST",
+              "path": "/api/vault/test-connection"
+            },
+            {
+              "method": "GET",
+              "path": "/api/vault/secrets"
+            },
+            {
+              "method": "POST",
+              "path": "/api/vault/seal"
+            },
+            {
+              "method": "POST",
+              "path": "/api/vault/unseal"
+            },
+            {
+              "method": "POST",
+              "path": "/api/vault/rotate-master-key"
+            },
+            {
+              "method": "GET",
+              "path": "/api/filevault/configuration"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/filevault/configuration"
+            },
+            {
+              "method": "POST",
+              "path": "/api/filevault/test-connection"
+            },
+            {
+              "method": "GET",
+              "path": "/api/herald/configuration"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/herald/configuration"
+            },
+            {
+              "method": "POST",
+              "path": "/api/herald/test-connection"
+            },
+            {
+              "method": "GET",
+              "path": "/api/workflow/configuration"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/workflow/configuration"
+            },
+            {
+              "method": "POST",
+              "path": "/api/workflow/test-connection"
+            },
+            {
+              "method": "GET",
+              "path": "/api/setup/configuration"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/setup/configuration"
+            },
+            {
+              "method": "POST",
+              "path": "/api/setup/test-connection"
+            },
+            {
+              "method": "GET",
+              "path": "/api/business-hub/configuration"
+            },
+            {
+              "method": "PUT",
+              "path": "/api/business-hub/configuration"
+            }
+          ]
+        },
+        {
+          "name": "security.js",
+          "path": "lowcode/routes/security.js",
+          "endpoints": 25,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/users"
+            },
+            {
+              "method": "GET",
+              "path": "/users/:userId/roles"
+            },
+            {
+              "method": "POST",
+              "path": "/users/:userId/roles"
+            },
+            {
+              "method": "DELETE",
+              "path": "/users/:userId/roles/:roleId"
+            },
+            {
+              "method": "POST",
+              "path": "/users/:userId/groups"
+            },
+            {
+              "method": "DELETE",
+              "path": "/users/:userId/groups/:groupId"
+            },
+            {
+              "method": "GET",
+              "path": "/roles"
+            },
+            {
+              "method": "POST",
+              "path": "/roles"
+            },
+            {
+              "method": "GET",
+              "path": "/roles/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/roles/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/roles/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/groups"
+            },
+            {
+              "method": "POST",
+              "path": "/groups"
+            },
+            {
+              "method": "GET",
+              "path": "/groups/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/groups/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/groups/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/groups/:groupId/members"
+            },
+            {
+              "method": "POST",
+              "path": "/groups/:groupId/members"
+            },
+            {
+              "method": "DELETE",
+              "path": "/groups/:groupId/members/:userId"
+            },
+            {
+              "method": "GET",
+              "path": "/permissions"
+            },
+            {
+              "method": "POST",
+              "path": "/permissions"
+            },
+            {
+              "method": "GET",
+              "path": "/permissions/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/permissions/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/permissions/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/permissions/check"
+            }
+          ]
+        },
+        {
+          "name": "forms.js",
+          "path": "lowcode/routes/forms.js",
+          "endpoints": 24,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/duplicate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/controls"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/controls/:controlId"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/controls/:controlId"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/controls/reorder"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/datasources"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/datasources/:name"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/datasources/:name"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/variables"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/variables/:name"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/variables/:name"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/validate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/publish"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/unpublish"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/submissions"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/stats"
+            },
+            {
+              "method": "POST",
+              "path": "/:formId/autosave"
+            },
+            {
+              "method": "GET",
+              "path": "/:formId/autosave"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:formId/autosave"
+            }
+          ]
+        },
+        {
+          "name": "gitEnvironments.js",
+          "path": "lowcode/routes/gitEnvironments.js",
+          "endpoints": 21,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/repositories/:repositoryId"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:environmentId/variables"
+            },
+            {
+              "method": "GET",
+              "path": "/:environmentId/variables/effective"
+            },
+            {
+              "method": "POST",
+              "path": "/variables"
+            },
+            {
+              "method": "PUT",
+              "path": "/variables/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/variables/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/variables/repositories/:repositoryId"
+            },
+            {
+              "method": "GET",
+              "path": "/variables/global"
+            },
+            {
+              "method": "GET",
+              "path": "/registries"
+            },
+            {
+              "method": "GET",
+              "path": "/registries/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/registries"
+            },
+            {
+              "method": "PUT",
+              "path": "/registries/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/registries/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/registries/:id/test"
+            },
+            {
+              "method": "GET",
+              "path": "/:environmentId/deployments"
+            },
+            {
+              "method": "GET",
+              "path": "/:environmentId/deployments/latest"
+            },
+            {
+              "method": "GET",
+              "path": "/repositories/:repositoryId/deployments/stats"
+            }
+          ]
+        },
+        {
+          "name": "gitRunners.js",
+          "path": "lowcode/routes/gitRunners.js",
+          "endpoints": 19,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/register"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/heartbeat"
+            },
+            {
+              "method": "GET",
+              "path": "/available/query"
+            },
+            {
+              "method": "GET",
+              "path": "/stats/overview"
+            },
+            {
+              "method": "POST",
+              "path": "/cache"
+            },
+            {
+              "method": "GET",
+              "path": "/cache/:repositoryId"
+            },
+            {
+              "method": "DELETE",
+              "path": "/cache/:cacheId"
+            },
+            {
+              "method": "DELETE",
+              "path": "/cache/repository/:repositoryId"
+            },
+            {
+              "method": "POST",
+              "path": "/cache/cleanup"
+            },
+            {
+              "method": "GET",
+              "path": "/cache/stats/:repositoryId?"
+            },
+            {
+              "method": "POST",
+              "path": "/artifacts"
+            },
+            {
+              "method": "GET",
+              "path": "/artifacts/pipeline/:pipelineRunId"
+            },
+            {
+              "method": "GET",
+              "path": "/artifacts/:artifactId"
+            },
+            {
+              "method": "DELETE",
+              "path": "/artifacts/:artifactId"
+            },
+            {
+              "method": "POST",
+              "path": "/artifacts/cleanup"
+            }
+          ]
+        },
+        {
+          "name": "gitSetup.js",
+          "path": "lowcode/routes/gitSetup.js",
+          "endpoints": 18,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/config"
+            },
+            {
+              "method": "GET",
+              "path": "/config/:key"
+            },
+            {
+              "method": "POST",
+              "path": "/config"
+            },
+            {
+              "method": "PUT",
+              "path": "/config/bulk"
+            },
+            {
+              "method": "DELETE",
+              "path": "/config/:key"
+            },
+            {
+              "method": "GET",
+              "path": "/config/validate"
+            },
+            {
+              "method": "GET",
+              "path": "/templates/repositories"
+            },
+            {
+              "method": "GET",
+              "path": "/templates/repositories/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/templates/repositories"
+            },
+            {
+              "method": "PUT",
+              "path": "/templates/repositories/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/templates/repositories/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/templates/issues"
+            },
+            {
+              "method": "GET",
+              "path": "/templates/issues/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/templates/issues"
+            },
+            {
+              "method": "PUT",
+              "path": "/templates/issues/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/templates/issues/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/audit-logs"
+            }
+          ]
+        },
+        {
+          "name": "gitAuth.js",
+          "path": "lowcode/routes/gitAuth.js",
+          "endpoints": 17,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/ssh-keys"
+            },
+            {
+              "method": "POST",
+              "path": "/ssh-keys"
+            },
+            {
+              "method": "DELETE",
+              "path": "/ssh-keys/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/ssh-keys/verify"
+            },
+            {
+              "method": "GET",
+              "path": "/tokens"
+            },
+            {
+              "method": "POST",
+              "path": "/tokens"
+            },
+            {
+              "method": "PUT",
+              "path": "/tokens/:id/revoke"
+            },
+            {
+              "method": "DELETE",
+              "path": "/tokens/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/tokens/verify"
+            },
+            {
+              "method": "GET",
+              "path": "/oauth/apps"
+            },
+            {
+              "method": "GET",
+              "path": "/oauth/apps/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/oauth/register"
+            },
+            {
+              "method": "PUT",
+              "path": "/oauth/apps/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/oauth/apps/:id/regenerate-secret"
+            },
+            {
+              "method": "DELETE",
+              "path": "/oauth/apps/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/oauth/verify"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            }
+          ]
+        },
+        {
+          "name": "automation.js",
+          "path": "lowcode/routes/automation.js",
+          "endpoints": 16,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/applications/:applicationId/rules"
+            },
+            {
+              "method": "POST",
+              "path": "/applications/:applicationId/rules"
+            },
+            {
+              "method": "GET",
+              "path": "/rules/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/rules/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/rules/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/rules/:id/execute"
+            },
+            {
+              "method": "GET",
+              "path": "/applications/:applicationId/tables"
+            },
+            {
+              "method": "POST",
+              "path": "/applications/:applicationId/tables"
+            },
+            {
+              "method": "GET",
+              "path": "/tables/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/tables/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/tables/:id/activate"
+            },
+            {
+              "method": "POST",
+              "path": "/tables/:id/deactivate"
+            },
+            {
+              "method": "DELETE",
+              "path": "/tables/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/tables/:id/rules"
+            },
+            {
+              "method": "DELETE",
+              "path": "/tables/:id/rules/:ruleId"
+            },
+            {
+              "method": "POST",
+              "path": "/tables/:id/execute"
+            }
+          ]
+        },
+        {
+          "name": "gitRepositories.js",
+          "path": "lowcode/routes/gitRepositories.js",
+          "endpoints": 16,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:identifier"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/archive"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/unarchive"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/fork"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/branches"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/branches"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/branches/:branchName"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/commits"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/commits"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/tree"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/files"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/diff"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/merge"
+            }
+          ]
+        },
+        {
+          "name": "gitSecurity.js",
+          "path": "lowcode/routes/gitSecurity.js",
+          "endpoints": 16,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/scan-configs/repositories/:repositoryId"
+            },
+            {
+              "method": "GET",
+              "path": "/scan-configs/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/scan-configs"
+            },
+            {
+              "method": "PUT",
+              "path": "/scan-configs/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/scan-configs/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/scan-results"
+            },
+            {
+              "method": "GET",
+              "path": "/scan-results/:configId"
+            },
+            {
+              "method": "GET",
+              "path": "/scan-results/:id/details"
+            },
+            {
+              "method": "GET",
+              "path": "/scan-results/commits/:commitSha"
+            },
+            {
+              "method": "GET",
+              "path": "/repositories/:repositoryId/vulnerabilities"
+            },
+            {
+              "method": "GET",
+              "path": "/repositories/:repositoryId/trends"
+            },
+            {
+              "method": "GET",
+              "path": "/repositories/:repositoryId/score"
+            },
+            {
+              "method": "POST",
+              "path": "/vulnerabilities/:id/dismiss"
+            },
+            {
+              "method": "POST",
+              "path": "/vulnerabilities/:id/reopen"
+            },
+            {
+              "method": "GET",
+              "path": "/repositories/:repositoryId/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/repositories/:repositoryId/compliance"
+            }
+          ]
+        },
+        {
+          "name": "grids.js",
+          "path": "lowcode/routes/grids.js",
+          "endpoints": 16,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/duplicate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/columns"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/columns/:columnName"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/columns/:columnName"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/columns/reorder"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/filters"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/filters/:filterId"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/settings"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/data"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/export"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/stats"
+            }
+          ]
+        },
+        {
+          "name": "cards.js",
+          "path": "lowcode/routes/cards.js",
+          "endpoints": 15,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/popular"
+            },
+            {
+              "method": "GET",
+              "path": "/category/:category"
+            },
+            {
+              "method": "POST",
+              "path": "/search/tags"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/duplicate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/publish"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/unpublish"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/version"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/tags"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/tags"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/stats"
+            }
+          ]
+        },
+        {
+          "name": "ai.js",
+          "path": "lowcode/routes/ai.js",
+          "endpoints": 14,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/providers"
+            },
+            {
+              "method": "GET",
+              "path": "/providers/:id/health"
+            },
+            {
+              "method": "POST",
+              "path": "/suggest/entity"
+            },
+            {
+              "method": "POST",
+              "path": "/suggest/fields"
+            },
+            {
+              "method": "GET",
+              "path": "/suggestions"
+            },
+            {
+              "method": "POST",
+              "path": "/suggestions/:id/approve"
+            },
+            {
+              "method": "POST",
+              "path": "/suggestions/:id/reject"
+            },
+            {
+              "method": "POST",
+              "path": "/suggestions/:id/apply"
+            },
+            {
+              "method": "POST",
+              "path": "/chat"
+            },
+            {
+              "method": "GET",
+              "path": "/chat/:sessionId"
+            },
+            {
+              "method": "GET",
+              "path": "/chat"
+            },
+            {
+              "method": "DELETE",
+              "path": "/chat/:sessionId"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/execution-logs"
+            }
+          ]
+        },
+        {
+          "name": "gitPolicies.js",
+          "path": "lowcode/routes/gitPolicies.js",
+          "endpoints": 14,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/repositories/:repositoryId"
+            },
+            {
+              "method": "POST",
+              "path": "/repositories/:repositoryId"
+            },
+            {
+              "method": "GET",
+              "path": "/repositories/:repositoryId/branches/:branchName"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:policyId"
+            },
+            {
+              "method": "POST",
+              "path": "/check-compliance"
+            },
+            {
+              "method": "GET",
+              "path": "/code-owners/:repositoryId"
+            },
+            {
+              "method": "POST",
+              "path": "/code-owners/:repositoryId"
+            },
+            {
+              "method": "GET",
+              "path": "/code-owners/:repositoryId/path"
+            },
+            {
+              "method": "DELETE",
+              "path": "/code-owners/:codeOwnerId"
+            },
+            {
+              "method": "GET",
+              "path": "/code-owners/:repositoryId/codeowners-file"
+            },
+            {
+              "method": "GET",
+              "path": "/merge-train/:repositoryId/:targetBranch"
+            },
+            {
+              "method": "POST",
+              "path": "/merge-train"
+            },
+            {
+              "method": "PUT",
+              "path": "/merge-train/:entryId/complete"
+            },
+            {
+              "method": "DELETE",
+              "path": "/merge-train/:entryId"
+            }
+          ]
+        },
+        {
+          "name": "polls.js",
+          "path": "lowcode/routes/polls.js",
+          "endpoints": 14,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/activate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/close"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/archive"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/options"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/respond"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/results"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/results/calculate"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/responses"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/stats"
+            }
+          ]
+        },
+        {
+          "name": "apis.js",
+          "path": "lowcode/routes/apis.js",
+          "endpoints": 13,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/enable"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/disable"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/test"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/logs"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/metrics"
+            },
+            {
+              "method": "GET",
+              "path": "/docs/openapi.json"
+            },
+            {
+              "method": "GET",
+              "path": "/docs/swagger"
+            }
+          ]
+        },
+        {
+          "name": "entities.js",
+          "path": "lowcode/routes/entities.js",
+          "endpoints": 13,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/fields"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/fields/:fieldName"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/fields/:fieldName"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/relationships"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/crud-api"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/migrations/generate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/migrations/execute"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/crud/generate"
+            }
+          ]
+        },
+        {
+          "name": "processes.js",
+          "path": "lowcode/routes/processes.js",
+          "endpoints": 13,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/:applicationId/processes"
+            },
+            {
+              "method": "POST",
+              "path": "/:applicationId/processes"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/activate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/deprecate"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/start"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/instances"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/statistics"
+            },
+            {
+              "method": "GET",
+              "path": "/instances/:instanceId"
+            },
+            {
+              "method": "POST",
+              "path": "/instances/:instanceId/complete-task"
+            },
+            {
+              "method": "POST",
+              "path": "/instances/:instanceId/cancel"
+            }
+          ]
+        },
+        {
+          "name": "reports.js",
+          "path": "lowcode/routes/reports.js",
+          "endpoints": 13,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/execute"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/executions"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/duplicate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/export"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/schedules"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/schedules"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/schedules/:scheduleId"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/schedules/:scheduleId"
+            }
+          ]
+        },
+        {
+          "name": "functionBuilder.js",
+          "path": "lowcode/routes/functionBuilder.js",
+          "endpoints": 12,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/function-builder/categories"
+            },
+            {
+              "method": "GET",
+              "path": "/function-builder/functions"
+            },
+            {
+              "method": "GET",
+              "path": "/function-builder/functions/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/function-builder/execute"
+            },
+            {
+              "method": "GET",
+              "path": "/function-builder/database/tables"
+            },
+            {
+              "method": "GET",
+              "path": "/function-builder/saved-queries"
+            },
+            {
+              "method": "POST",
+              "path": "/function-builder/saved-queries"
+            },
+            {
+              "method": "GET",
+              "path": "/function-builder/saved-queries/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/function-builder/saved-queries/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/function-builder/saved-queries/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/function-builder/executions/:queryId"
+            },
+            {
+              "method": "POST",
+              "path": "/function-builder/validate"
+            }
+          ]
+        },
+        {
+          "name": "gitIssues.js",
+          "path": "lowcode/routes/gitIssues.js",
+          "endpoints": 11,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/:repoId/issues"
+            },
+            {
+              "method": "GET",
+              "path": "/:repoId/issues"
+            },
+            {
+              "method": "GET",
+              "path": "/:repoId/issues/:issueNumber"
+            },
+            {
+              "method": "PATCH",
+              "path": "/:repoId/issues/:issueNumber"
+            },
+            {
+              "method": "POST",
+              "path": "/:repoId/issues/:issueNumber/close"
+            },
+            {
+              "method": "POST",
+              "path": "/:repoId/issues/:issueNumber/reopen"
+            },
+            {
+              "method": "POST",
+              "path": "/:repoId/issues/:issueNumber/labels"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:repoId/issues/:issueNumber/labels/:label"
+            },
+            {
+              "method": "POST",
+              "path": "/:repoId/issues/:issueNumber/assignees"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:repoId/issues/:issueNumber/assignees/:userId"
+            },
+            {
+              "method": "GET",
+              "path": "/:repoId/issues-stats"
+            }
+          ]
+        },
+        {
+          "name": "settings.js",
+          "path": "lowcode/routes/settings.js",
+          "endpoints": 11,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/object"
+            },
+            {
+              "method": "GET",
+              "path": "/by-category"
+            },
+            {
+              "method": "GET",
+              "path": "/key/:key"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/defaults"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/value"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/reset"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            }
+          ]
+        },
+        {
+          "name": "applications.js",
+          "path": "lowcode/routes/applications.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/clone"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/publish"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/archive"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/version"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/stats"
+            }
+          ]
+        },
+        {
+          "name": "dataSources.js",
+          "path": "lowcode/routes/dataSources.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/test"
+            },
+            {
+              "method": "GET",
+              "path": "/database/tables"
+            },
+            {
+              "method": "GET",
+              "path": "/database/tables/:schema/:table/columns"
+            },
+            {
+              "method": "GET",
+              "path": "/services"
+            },
+            {
+              "method": "POST",
+              "path": "/test-connection"
+            }
+          ]
+        },
+        {
+          "name": "gitPullRequests.js",
+          "path": "lowcode/routes/gitPullRequests.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/:repoId/pulls"
+            },
+            {
+              "method": "GET",
+              "path": "/:repoId/pulls"
+            },
+            {
+              "method": "GET",
+              "path": "/:repoId/pulls/:prNumber"
+            },
+            {
+              "method": "PATCH",
+              "path": "/:repoId/pulls/:prNumber"
+            },
+            {
+              "method": "POST",
+              "path": "/:repoId/pulls/:prNumber/merge"
+            },
+            {
+              "method": "POST",
+              "path": "/:repoId/pulls/:prNumber/close"
+            },
+            {
+              "method": "POST",
+              "path": "/:repoId/pulls/:prNumber/ready"
+            },
+            {
+              "method": "POST",
+              "path": "/:repoId/pulls/:prNumber/reviewers"
+            },
+            {
+              "method": "POST",
+              "path": "/pull-requests/:prId/ci-status"
+            },
+            {
+              "method": "GET",
+              "path": "/:repoId/pulls-stats"
+            }
+          ]
+        },
+        {
+          "name": "htmlComponents.js",
+          "path": "lowcode/routes/htmlComponents.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/categories"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/install"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/uninstall"
+            },
+            {
+              "method": "GET",
+              "path": "/projects/:projectId"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/rate"
+            }
+          ]
+        },
+        {
+          "name": "plugins.js",
+          "path": "lowcode/routes/plugins.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/generate"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/marketplace"
+            },
+            {
+              "method": "POST",
+              "path": "/install"
+            },
+            {
+              "method": "POST",
+              "path": "/purchase"
+            },
+            {
+              "method": "POST",
+              "path": "/upload"
+            },
+            {
+              "method": "POST",
+              "path": "/:name/enable"
+            },
+            {
+              "method": "POST",
+              "path": "/:name/disable"
+            },
+            {
+              "method": "GET",
+              "path": "/:name"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:name"
+            }
+          ]
+        },
+        {
+          "name": "gitPipelines.js",
+          "path": "lowcode/routes/gitPipelines.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/:repoId/pipelines"
+            },
+            {
+              "method": "GET",
+              "path": "/:repoId/pipelines"
+            },
+            {
+              "method": "GET",
+              "path": "/pipelines/:pipelineId"
+            },
+            {
+              "method": "PATCH",
+              "path": "/pipelines/:pipelineId"
+            },
+            {
+              "method": "DELETE",
+              "path": "/pipelines/:pipelineId"
+            },
+            {
+              "method": "POST",
+              "path": "/pipelines/:pipelineId/trigger"
+            },
+            {
+              "method": "POST",
+              "path": "/pipeline-runs/:runId/cancel"
+            },
+            {
+              "method": "GET",
+              "path": "/pipeline-runs/:runId/logs"
+            },
+            {
+              "method": "GET",
+              "path": "/pipelines/:pipelineId/stats"
+            }
+          ]
+        },
+        {
+          "name": "htmlLibraries.js",
+          "path": "lowcode/routes/htmlLibraries.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/popular"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/projects/:projectId"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/load-order"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/toggle"
+            }
+          ]
+        },
+        {
+          "name": "tiles.js",
+          "path": "lowcode/routes/tiles.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/categories"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/key/:key"
+            },
+            {
+              "method": "GET",
+              "path": "/application/:applicationId"
+            },
+            {
+              "method": "POST",
+              "path": "/application/:applicationId/:tileId/enable"
+            },
+            {
+              "method": "POST",
+              "path": "/application/:applicationId/:tileId/disable"
+            },
+            {
+              "method": "PUT",
+              "path": "/application/:applicationId/:tileId"
+            },
+            {
+              "method": "POST",
+              "path": "/application/:applicationId/reset"
+            }
+          ]
+        },
+        {
+          "name": "htmlFiles.js",
+          "path": "lowcode/routes/htmlFiles.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/projects/:projectId/tree"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/move"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/versions"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/restore/:versionNumber"
+            }
+          ]
+        },
+        {
+          "name": "htmlProjects.js",
+          "path": "lowcode/routes/htmlProjects.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/duplicate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/libraries"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/libraries/:libraryId"
+            }
+          ]
+        },
+        {
+          "name": "setup.js",
+          "path": "lowcode/routes/setup.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/status"
+            },
+            {
+              "method": "POST",
+              "path": "/environment"
+            },
+            {
+              "method": "POST",
+              "path": "/test-database"
+            },
+            {
+              "method": "POST",
+              "path": "/initialize-database"
+            },
+            {
+              "method": "GET",
+              "path": "/check-services"
+            },
+            {
+              "method": "POST",
+              "path": "/complete"
+            },
+            {
+              "method": "GET",
+              "path": "/env-template"
+            }
+          ]
+        },
+        {
+          "name": "artifacts.js",
+          "path": "lowcode/routes/artifacts.js",
+          "endpoints": 7,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/export"
+            },
+            {
+              "method": "POST",
+              "path": "/export-application"
+            },
+            {
+              "method": "POST",
+              "path": "/generate-repo-files"
+            },
+            {
+              "method": "POST",
+              "path": "/import"
+            },
+            {
+              "method": "POST",
+              "path": "/import-application"
+            },
+            {
+              "method": "GET",
+              "path": "/changed-files"
+            },
+            {
+              "method": "GET",
+              "path": "/file-content"
+            }
+          ]
+        },
+        {
+          "name": "charts.js",
+          "path": "lowcode/routes/charts.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/duplicate"
+            }
+          ]
+        },
+        {
+          "name": "dashboards.js",
+          "path": "lowcode/routes/dashboards.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/duplicate"
+            }
+          ]
+        },
+        {
+          "name": "queries.js",
+          "path": "lowcode/routes/queries.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/execute"
+            }
+          ]
+        },
+        {
+          "name": "runtime.js",
+          "path": "lowcode/routes/runtime.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/:appId"
+            },
+            {
+              "method": "GET",
+              "path": "/:appId/forms/:formId"
+            },
+            {
+              "method": "GET",
+              "path": "/:appId/grids/:gridId"
+            },
+            {
+              "method": "POST",
+              "path": "/:appId/data/:dataSourceId"
+            },
+            {
+              "method": "GET",
+              "path": "/:appId/navigation"
+            },
+            {
+              "method": "POST",
+              "path": "/:appId/analytics"
+            }
+          ]
+        },
+        {
+          "name": "dataAccess.js",
+          "path": "lowcode/routes/dataAccess.js",
+          "endpoints": 5,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/query"
+            },
+            {
+              "method": "POST",
+              "path": "/redis"
+            },
+            {
+              "method": "POST",
+              "path": "/xml"
+            },
+            {
+              "method": "POST",
+              "path": "/json"
+            },
+            {
+              "method": "GET",
+              "path": "/connections"
+            }
+          ]
+        },
+        {
+          "name": "formulas.js",
+          "path": "lowcode/routes/formulas.js",
+          "endpoints": 4,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/evaluate"
+            },
+            {
+              "method": "POST",
+              "path": "/evaluate-batch"
+            },
+            {
+              "method": "POST",
+              "path": "/validate"
+            },
+            {
+              "method": "GET",
+              "path": "/functions"
+            }
+          ]
+        },
+        {
+          "name": "appHtmlIntegration.js",
+          "path": "lowcode/routes/appHtmlIntegration.js",
+          "endpoints": 3,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/applications/:appId/html-project"
+            },
+            {
+              "method": "POST",
+              "path": "/applications/:appId/sync-to-html"
+            },
+            {
+              "method": "GET",
+              "path": "/applications/:appId/html-ide-url"
+            }
+          ]
+        },
+        {
+          "name": "reportPages.js",
+          "path": "lowcode/routes/reportPages.js",
+          "endpoints": 3,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/reports"
+            },
+            {
+              "method": "GET",
+              "path": "/report-designer"
+            },
+            {
+              "method": "GET",
+              "path": "/dashboards"
+            }
+          ]
+        },
+        {
+          "name": "index.js",
+          "path": "lowcode/routes/index.js",
+          "endpoints": 2,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/health"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            }
+          ]
+        },
+        {
+          "name": "apiRuntime.js",
+          "path": "lowcode/routes/apiRuntime.js",
+          "endpoints": 1,
+          "routes": [
+            {
+              "method": "ALL",
+              "path": "*"
+            }
+          ]
+        },
+        {
+          "name": "git.js",
+          "path": "lowcode/routes/git.js",
+          "endpoints": 1,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/health"
+            }
+          ]
+        },
+        {
+          "name": "queryExecutor.js",
+          "path": "lowcode/routes/queryExecutor.js",
+          "endpoints": 1,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/execute"
+            }
+          ]
+        }
+      ],
+      "totalEndpoints": 539,
+      "endpointsByMethod": {
+        "GET": 214,
+        "POST": 202,
+        "PUT": 56,
+        "PATCH": 3,
+        "DELETE": 63,
+        "ALL": 1
+      }
+    },
+    "workflow": {
+      "name": "workflow",
+      "basePath": "/workflow/api",
+      "files": [
+        {
+          "name": "analytics.js",
+          "path": "workflow/routes/analytics.js",
+          "endpoints": 3,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/overview"
+            },
+            {
+              "method": "GET",
+              "path": "/trends"
+            },
+            {
+              "method": "GET",
+              "path": "/workflow/:id"
+            }
+          ]
+        },
+        {
+          "name": "approvals.js",
+          "path": "workflow/routes/approvals.js",
+          "endpoints": 3,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/:executionId/steps/:stepId/approve"
+            },
+            {
+              "method": "POST",
+              "path": "/:executionId/steps/:stepId/reject"
+            },
+            {
+              "method": "GET",
+              "path": "/:executionId/pending-approvals"
+            }
+          ]
+        },
+        {
+          "name": "audit.js",
+          "path": "workflow/routes/audit.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/statistics"
+            },
+            {
+              "method": "GET",
+              "path": "/workflow/:workflowId"
+            },
+            {
+              "method": "GET",
+              "path": "/execution/:executionId"
+            },
+            {
+              "method": "POST",
+              "path": "/archive"
+            },
+            {
+              "method": "GET",
+              "path": "/events"
+            }
+          ]
+        },
+        {
+          "name": "config.js",
+          "path": "workflow/routes/config.js",
+          "endpoints": 2,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/:sectionId"
+            },
+            {
+              "method": "POST",
+              "path": "/:sectionId"
+            }
+          ]
+        },
+        {
+          "name": "executions.js",
+          "path": "workflow/routes/executions.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/:workflowId/execute"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/cancel"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/retry"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/logs"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/labels"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/labels"
+            },
+            {
+              "method": "GET",
+              "path": "/labels/all"
+            }
+          ]
+        },
+        {
+          "name": "favorites.js",
+          "path": "workflow/routes/favorites.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/:id/favorite"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/favorite"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/favorite/status"
+            },
+            {
+              "method": "GET",
+              "path": "/favorites"
+            },
+            {
+              "method": "GET",
+              "path": "/favorites/statistics"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/favorites/count"
+            }
+          ]
+        },
+        {
+          "name": "importExport.js",
+          "path": "workflow/routes/importExport.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/:workflowId/export"
+            },
+            {
+              "method": "POST",
+              "path": "/export"
+            },
+            {
+              "method": "POST",
+              "path": "/import"
+            },
+            {
+              "method": "POST",
+              "path": "/import-batch"
+            },
+            {
+              "method": "POST",
+              "path": "/validate-import"
+            },
+            {
+              "method": "GET",
+              "path": "/export/documentation"
+            }
+          ]
+        },
+        {
+          "name": "monitoring.js",
+          "path": "workflow/routes/monitoring.js",
+          "endpoints": 4,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/running"
+            },
+            {
+              "method": "GET",
+              "path": "/approvals"
+            },
+            {
+              "method": "GET",
+              "path": "/history"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            }
+          ]
+        },
+        {
+          "name": "retention.js",
+          "path": "workflow/routes/retention.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/statistics"
+            },
+            {
+              "method": "POST",
+              "path": "/archive"
+            },
+            {
+              "method": "POST",
+              "path": "/archive-logs"
+            },
+            {
+              "method": "POST",
+              "path": "/prune"
+            },
+            {
+              "method": "PUT",
+              "path": "/policy"
+            },
+            {
+              "method": "POST",
+              "path": "/restore/:executionId"
+            }
+          ]
+        },
+        {
+          "name": "scheduler.js",
+          "path": "workflow/routes/scheduler.js",
+          "endpoints": 11,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/workflows/:workflowId/schedule"
+            },
+            {
+              "method": "PUT",
+              "path": "/workflows/:workflowId/schedule"
+            },
+            {
+              "method": "GET",
+              "path": "/workflows/:workflowId/schedule"
+            },
+            {
+              "method": "POST",
+              "path": "/workflows/:workflowId/enable"
+            },
+            {
+              "method": "POST",
+              "path": "/workflows/:workflowId/disable"
+            },
+            {
+              "method": "DELETE",
+              "path": "/workflows/:workflowId/schedule"
+            },
+            {
+              "method": "POST",
+              "path": "/workflows/:workflowId/trigger"
+            },
+            {
+              "method": "GET",
+              "path": "/scheduled"
+            },
+            {
+              "method": "POST",
+              "path": "/validate"
+            },
+            {
+              "method": "GET",
+              "path": "/examples"
+            },
+            {
+              "method": "GET",
+              "path": "/presets"
+            }
+          ]
+        },
+        {
+          "name": "shortcuts.js",
+          "path": "workflow/routes/shortcuts.js",
+          "endpoints": 3,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/documentation"
+            },
+            {
+              "method": "GET",
+              "path": "/quick-reference"
+            },
+            {
+              "method": "GET",
+              "path": "/by-category/:category"
+            }
+          ]
+        },
+        {
+          "name": "steps.js",
+          "path": "workflow/routes/steps.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "PUT",
+              "path": "/:workflowId/steps/:stepId/comment"
+            },
+            {
+              "method": "GET",
+              "path": "/:workflowId/steps/:stepId/comment"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:workflowId/steps/:stepId/comment"
+            },
+            {
+              "method": "GET",
+              "path": "/:workflowId/steps/comments"
+            },
+            {
+              "method": "PUT",
+              "path": "/:workflowId/steps/comments/bulk"
+            },
+            {
+              "method": "GET",
+              "path": "/:workflowId/steps/comments/search"
+            },
+            {
+              "method": "POST",
+              "path": "/:workflowId/steps/:stepId/copy"
+            },
+            {
+              "method": "POST",
+              "path": "/:workflowId/steps/:stepId/duplicate"
+            },
+            {
+              "method": "POST",
+              "path": "/:workflowId/steps/paste"
+            },
+            {
+              "method": "POST",
+              "path": "/:sourceWorkflowId/steps/copy-to/:targetWorkflowId"
+            }
+          ]
+        },
+        {
+          "name": "tags.js",
+          "path": "workflow/routes/tags.js",
+          "endpoints": 7,
+          "routes": [
+            {
+              "method": "PUT",
+              "path": "/:id/tags"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/tags/add"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/tags/remove"
+            },
+            {
+              "method": "GET",
+              "path": "/tags/all"
+            },
+            {
+              "method": "GET",
+              "path": "/tags/suggestions"
+            },
+            {
+              "method": "POST",
+              "path": "/tags/bulk"
+            },
+            {
+              "method": "GET",
+              "path": "/tags/statistics"
+            }
+          ]
+        },
+        {
+          "name": "templates.js",
+          "path": "workflow/routes/templates.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/categories"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/instantiate"
+            },
+            {
+              "method": "POST",
+              "path": "/from-workflow/:workflowId"
+            },
+            {
+              "method": "POST",
+              "path": "/initialize-builtin"
+            }
+          ]
+        },
+        {
+          "name": "testing.js",
+          "path": "workflow/routes/testing.js",
+          "endpoints": 2,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/:id/test"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/validate"
+            }
+          ]
+        },
+        {
+          "name": "views.js",
+          "path": "workflow/routes/views.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/dashboard"
+            },
+            {
+              "method": "GET",
+              "path": "/designer"
+            },
+            {
+              "method": "GET",
+              "path": "/visual-designer"
+            },
+            {
+              "method": "GET",
+              "path": "/workflows"
+            },
+            {
+              "method": "GET",
+              "path": "/executions"
+            },
+            {
+              "method": "GET",
+              "path": "/templates"
+            },
+            {
+              "method": "GET",
+              "path": "/workflows/:id"
+            }
+          ]
+        },
+        {
+          "name": "webhooks.js",
+          "path": "workflow/routes/webhooks.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/workflows/:workflowId/enable"
+            },
+            {
+              "method": "POST",
+              "path": "/workflows/:workflowId/disable"
+            },
+            {
+              "method": "GET",
+              "path": "/workflows/:workflowId/config"
+            },
+            {
+              "method": "POST",
+              "path": "/workflows/:workflowId/regenerate-secret"
+            },
+            {
+              "method": "GET",
+              "path": "/workflows/:workflowId/statistics"
+            },
+            {
+              "method": "POST",
+              "path": "/workflows/:workflowId/test"
+            },
+            {
+              "method": "POST",
+              "path": "/:workflowId"
+            },
+            {
+              "method": "POST",
+              "path": "/signature/generate"
+            },
+            {
+              "method": "GET",
+              "path": "/documentation"
+            }
+          ]
+        },
+        {
+          "name": "workflows.js",
+          "path": "workflow/routes/workflows.js",
+          "endpoints": 13,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/clone"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/templates/all"
+            },
+            {
+              "method": "GET",
+              "path": "/templates/categories"
+            },
+            {
+              "method": "GET",
+              "path": "/templates/:templateId"
+            },
+            {
+              "method": "POST",
+              "path": "/templates/:templateId/create"
+            },
+            {
+              "method": "GET",
+              "path": "/templates/category/:category"
+            },
+            {
+              "method": "GET",
+              "path": "/templates/search/:query"
+            }
+          ]
+        }
+      ],
+      "totalEndpoints": 115,
+      "endpointsByMethod": {
+        "GET": 60,
+        "POST": 44,
+        "PUT": 6,
+        "PATCH": 0,
+        "DELETE": 5,
+        "ALL": 0
+      }
+    },
+    "forge-crm": {
+      "name": "forge-crm",
+      "basePath": "/forge/crm",
+      "files": [
+        {
+          "name": "activities.js",
+          "path": "routes/forge/crm/activities.js",
+          "endpoints": 14,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/upcoming"
+            },
+            {
+              "method": "GET",
+              "path": "/overdue"
+            },
+            {
+              "method": "GET",
+              "path": "/timeline"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/log-call"
+            },
+            {
+              "method": "POST",
+              "path": "/log-email"
+            },
+            {
+              "method": "POST",
+              "path": "/schedule-meeting"
+            },
+            {
+              "method": "POST",
+              "path": "/bulk-create"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/complete"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            }
+          ]
+        },
+        {
+          "name": "campaigns.js",
+          "path": "routes/forge/crm/campaigns.js",
+          "endpoints": 19,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/members"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/members"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/members"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/launch"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/pause"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/resume"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/complete"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/track"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/performance"
+            },
+            {
+              "method": "POST",
+              "path": "/compare"
+            },
+            {
+              "method": "GET",
+              "path": "/stats/overview"
+            },
+            {
+              "method": "POST",
+              "path": "/ab-test"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/clone"
+            },
+            {
+              "method": "GET",
+              "path": "/status/active"
+            }
+          ]
+        },
+        {
+          "name": "companies.js",
+          "path": "routes/forge/crm/companies.js",
+          "endpoints": 11,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/hierarchy"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/contacts"
+            },
+            {
+              "method": "POST",
+              "path": "/find-duplicates"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/bulk-import"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/merge"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            }
+          ]
+        },
+        {
+          "name": "contacts.js",
+          "path": "routes/forge/crm/contacts.js",
+          "endpoints": 12,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/find-duplicates"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/merge"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/timeline"
+            },
+            {
+              "method": "POST",
+              "path": "/segment"
+            },
+            {
+              "method": "POST",
+              "path": "/export"
+            },
+            {
+              "method": "POST",
+              "path": "/import"
+            },
+            {
+              "method": "GET",
+              "path": "/stats/overview"
+            }
+          ]
+        },
+        {
+          "name": "index.js",
+          "path": "routes/forge/crm/index.js",
+          "endpoints": 1,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            }
+          ]
+        },
+        {
+          "name": "leads.js",
+          "path": "routes/forge/crm/leads.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/bulk-import"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/qualify"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/convert"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/assign"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            }
+          ]
+        },
+        {
+          "name": "opportunities.js",
+          "path": "routes/forge/crm/opportunities.js",
+          "endpoints": 11,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/stage"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/win"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/lose"
+            },
+            {
+              "method": "GET",
+              "path": "/reports/forecast"
+            },
+            {
+              "method": "GET",
+              "path": "/reports/win-loss"
+            },
+            {
+              "method": "GET",
+              "path": "/reports/aging"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/clone"
+            }
+          ]
+        },
+        {
+          "name": "tickets.js",
+          "path": "routes/forge/crm/tickets.js",
+          "endpoints": 14,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/comments"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/status"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/close"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/escalate"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/assign"
+            },
+            {
+              "method": "GET",
+              "path": "/stats/overview"
+            },
+            {
+              "method": "GET",
+              "path": "/reports/attention"
+            },
+            {
+              "method": "GET",
+              "path": "/my/assigned"
+            },
+            {
+              "method": "GET",
+              "path": "/number/:ticketNumber"
+            },
+            {
+              "method": "POST",
+              "path": "/bulk/update"
+            }
+          ]
+        }
+      ],
+      "totalEndpoints": 92,
+      "endpointsByMethod": {
+        "GET": 36,
+        "POST": 43,
+        "PUT": 7,
+        "PATCH": 0,
+        "DELETE": 6,
+        "ALL": 0
+      }
+    },
+    "forge-erp": {
+      "name": "forge-erp",
+      "basePath": "/forge/erp",
+      "files": [
+        {
+          "name": "accounting.js",
+          "path": "routes/forge/erp/accounting.js",
+          "endpoints": 17,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/accounts"
+            },
+            {
+              "method": "GET",
+              "path": "/accounts"
+            },
+            {
+              "method": "GET",
+              "path": "/accounts/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/accounts/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/accounts/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/accounts/:id/balance"
+            },
+            {
+              "method": "POST",
+              "path": "/journal-entries"
+            },
+            {
+              "method": "GET",
+              "path": "/journal-entries"
+            },
+            {
+              "method": "GET",
+              "path": "/journal-entries/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/journal-entries/:id/post"
+            },
+            {
+              "method": "POST",
+              "path": "/journal-entries/:id/reverse"
+            },
+            {
+              "method": "POST",
+              "path": "/payments"
+            },
+            {
+              "method": "GET",
+              "path": "/payments"
+            },
+            {
+              "method": "GET",
+              "path": "/payments/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/payments/:id/apply"
+            },
+            {
+              "method": "POST",
+              "path": "/payments/:id/reconcile"
+            },
+            {
+              "method": "POST",
+              "path": "/payments/:id/refund"
+            }
+          ]
+        },
+        {
+          "name": "assets.js",
+          "path": "routes/forge/erp/assets.js",
+          "endpoints": 13,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/statistics"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/dispose"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/assign"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/depreciation"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/depreciation"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/maintenance-schedules"
+            },
+            {
+              "method": "GET",
+              "path": "/maintenance-schedules"
+            },
+            {
+              "method": "GET",
+              "path": "/maintenance-schedules/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/maintenance-schedules/:id/complete"
+            }
+          ]
+        },
+        {
+          "name": "bankReconciliation.js",
+          "path": "routes/forge/erp/bankReconciliation.js",
+          "endpoints": 7,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/import"
+            },
+            {
+              "method": "POST",
+              "path": "/match"
+            },
+            {
+              "method": "POST",
+              "path": "/unmatch"
+            },
+            {
+              "method": "POST",
+              "path": "/adjustment"
+            },
+            {
+              "method": "POST",
+              "path": "/complete"
+            },
+            {
+              "method": "GET",
+              "path": "/status/:accountId"
+            },
+            {
+              "method": "GET",
+              "path": "/unreconciled/:accountId"
+            }
+          ]
+        },
+        {
+          "name": "creditNotes.js",
+          "path": "routes/forge/erp/creditNotes.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/issue"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/apply"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/refund"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/void"
+            },
+            {
+              "method": "GET",
+              "path": "/customer/:customerId/balance"
+            }
+          ]
+        },
+        {
+          "name": "employees.js",
+          "path": "routes/forge/erp/employees.js",
+          "endpoints": 5,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/terminate"
+            }
+          ]
+        },
+        {
+          "name": "financialReports.js",
+          "path": "routes/forge/erp/financialReports.js",
+          "endpoints": 4,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/balance-sheet"
+            },
+            {
+              "method": "POST",
+              "path": "/profit-and-loss"
+            },
+            {
+              "method": "POST",
+              "path": "/cash-flow"
+            },
+            {
+              "method": "POST",
+              "path": "/metrics"
+            }
+          ]
+        },
+        {
+          "name": "hr.js",
+          "path": "routes/forge/erp/hr.js",
+          "endpoints": 18,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/payroll"
+            },
+            {
+              "method": "GET",
+              "path": "/payroll"
+            },
+            {
+              "method": "GET",
+              "path": "/payroll/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/payroll/:id/approve"
+            },
+            {
+              "method": "POST",
+              "path": "/payroll/process"
+            },
+            {
+              "method": "GET",
+              "path": "/payroll/:id/paystub"
+            },
+            {
+              "method": "POST",
+              "path": "/leave-requests"
+            },
+            {
+              "method": "GET",
+              "path": "/leave-requests"
+            },
+            {
+              "method": "GET",
+              "path": "/leave-requests/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/leave-requests/:id/approve"
+            },
+            {
+              "method": "POST",
+              "path": "/leave-requests/:id/reject"
+            },
+            {
+              "method": "GET",
+              "path": "/leave-balance/:employeeId"
+            },
+            {
+              "method": "POST",
+              "path": "/performance-reviews"
+            },
+            {
+              "method": "GET",
+              "path": "/performance-reviews"
+            },
+            {
+              "method": "GET",
+              "path": "/performance-reviews/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/performance-reviews/:id/self-assessment"
+            },
+            {
+              "method": "POST",
+              "path": "/performance-reviews/:id/complete"
+            },
+            {
+              "method": "POST",
+              "path": "/performance-reviews/:id/acknowledge"
+            }
+          ]
+        },
+        {
+          "name": "index.js",
+          "path": "routes/forge/erp/index.js",
+          "endpoints": 1,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            }
+          ]
+        },
+        {
+          "name": "inventory.js",
+          "path": "routes/forge/erp/inventory.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/status/low-stock"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/adjust"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/reserve"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/release"
+            }
+          ]
+        },
+        {
+          "name": "invoices.js",
+          "path": "routes/forge/erp/invoices.js",
+          "endpoints": 11,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/statistics"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/send"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/pay"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/pdf"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/line-items"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/line-items/:lineItemId"
+            }
+          ]
+        },
+        {
+          "name": "products.js",
+          "path": "routes/forge/erp/products.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/sku/:sku"
+            },
+            {
+              "method": "GET",
+              "path": "/stats/overview"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/import"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/adjust-stock"
+            }
+          ]
+        },
+        {
+          "name": "projects.js",
+          "path": "routes/forge/erp/projects.js",
+          "endpoints": 13,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/dashboard"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "PATCH",
+              "path": "/:id/status"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/milestones"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id/milestones/:milestoneId"
+            },
+            {
+              "method": "PATCH",
+              "path": "/:id/budget"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/time"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/calculate-completion"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/statistics"
+            }
+          ]
+        },
+        {
+          "name": "purchaseOrders.js",
+          "path": "routes/forge/erp/purchaseOrders.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/approvals/pending"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/approve"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/receive"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/cancel"
+            }
+          ]
+        },
+        {
+          "name": "reports.js",
+          "path": "routes/forge/erp/reports.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/balance-sheet"
+            },
+            {
+              "method": "GET",
+              "path": "/profit-loss"
+            },
+            {
+              "method": "GET",
+              "path": "/cash-flow"
+            },
+            {
+              "method": "GET",
+              "path": "/trial-balance"
+            },
+            {
+              "method": "GET",
+              "path": "/general-ledger/:accountId"
+            },
+            {
+              "method": "GET",
+              "path": "/ar-aging"
+            },
+            {
+              "method": "GET",
+              "path": "/ap-aging"
+            },
+            {
+              "method": "GET",
+              "path": "/financial-ratios"
+            }
+          ]
+        },
+        {
+          "name": "salesOrders.js",
+          "path": "routes/forge/erp/salesOrders.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/stats/overview"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/fulfill"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/cancel"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/payment"
+            }
+          ]
+        },
+        {
+          "name": "tax.js",
+          "path": "routes/forge/erp/tax.js",
+          "endpoints": 15,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/rates"
+            },
+            {
+              "method": "GET",
+              "path": "/rates/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/rates/code/:code"
+            },
+            {
+              "method": "POST",
+              "path": "/rates"
+            },
+            {
+              "method": "PUT",
+              "path": "/rates/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/rates/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/exemptions"
+            },
+            {
+              "method": "GET",
+              "path": "/exemptions/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/exemptions"
+            },
+            {
+              "method": "PUT",
+              "path": "/exemptions/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/exemptions/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/calculate"
+            },
+            {
+              "method": "POST",
+              "path": "/determine"
+            },
+            {
+              "method": "POST",
+              "path": "/reverse-calculate"
+            },
+            {
+              "method": "POST",
+              "path": "/reports"
+            }
+          ]
+        }
+      ],
+      "totalEndpoints": 156,
+      "endpointsByMethod": {
+        "GET": 64,
+        "POST": 69,
+        "PUT": 13,
+        "PATCH": 2,
+        "DELETE": 8,
+        "ALL": 0
+      }
+    },
+    "forge-groupware": {
+      "name": "forge-groupware",
+      "basePath": "/forge/groupware",
+      "files": [
+        {
+          "name": "boards.js",
+          "path": "routes/forge/groupware/boards.js",
+          "endpoints": 14,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/stats"
+            },
+            {
+              "method": "POST",
+              "path": "/:boardId/columns"
+            },
+            {
+              "method": "PUT",
+              "path": "/:boardId/columns/:columnId"
+            },
+            {
+              "method": "POST",
+              "path": "/:boardId/columns/:columnId/move"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:boardId/columns/:columnId"
+            },
+            {
+              "method": "POST",
+              "path": "/:boardId/cards"
+            },
+            {
+              "method": "POST",
+              "path": "/:boardId/cards/:cardId/move"
+            },
+            {
+              "method": "PUT",
+              "path": "/:boardId/cards/:cardId"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:boardId/cards/:cardId"
+            }
+          ]
+        },
+        {
+          "name": "caldav.js",
+          "path": "routes/forge/groupware/caldav.js",
+          "endpoints": 4,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/:calendarId/"
+            },
+            {
+              "method": "GET",
+              "path": "/:calendarId/:eventId"
+            },
+            {
+              "method": "PUT",
+              "path": "/:calendarId/:eventId"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:calendarId/:eventId"
+            }
+          ]
+        },
+        {
+          "name": "calendars.js",
+          "path": "routes/forge/groupware/calendars.js",
+          "endpoints": 11,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/events"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/export"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/search"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/events"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/:calendarId/events/:eventId"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:calendarId/events/:eventId"
+            }
+          ]
+        },
+        {
+          "name": "carddav.js",
+          "path": "routes/forge/groupware/carddav.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/addressbooks"
+            },
+            {
+              "method": "POST",
+              "path": "/addressbooks"
+            },
+            {
+              "method": "GET",
+              "path": "/addressbooks/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/addressbooks/:addressbookId/contacts"
+            },
+            {
+              "method": "POST",
+              "path": "/addressbooks/:addressbookId/contacts"
+            },
+            {
+              "method": "GET",
+              "path": "/contacts/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/contacts/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/contacts/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/contacts/:id/vcard"
+            }
+          ]
+        },
+        {
+          "name": "comments.js",
+          "path": "routes/forge/groupware/comments.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/reactions"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/reactions/:emoji"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/flag"
+            },
+            {
+              "method": "GET",
+              "path": "/recent"
+            }
+          ]
+        },
+        {
+          "name": "documents.js",
+          "path": "routes/forge/groupware/documents.js",
+          "endpoints": 22,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/folders"
+            },
+            {
+              "method": "GET",
+              "path": "/folders/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/folders/:id/path"
+            },
+            {
+              "method": "POST",
+              "path": "/folders"
+            },
+            {
+              "method": "PUT",
+              "path": "/folders/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/folders/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/search"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/move"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/copy"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/versions"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/versions/:versionNumber"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/versions/:versionNumber/restore"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/versions/compare"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/versions/stats"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/versions/:versionNumber"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/versions/cleanup"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            }
+          ]
+        },
+        {
+          "name": "forms.js",
+          "path": "routes/forge/groupware/forms.js",
+          "endpoints": 9,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:idOrSlug"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:formId/submissions"
+            },
+            {
+              "method": "POST",
+              "path": "/:formId/submissions"
+            },
+            {
+              "method": "GET",
+              "path": "/:formId/submissions/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:formId/submissions/:id/review"
+            }
+          ]
+        },
+        {
+          "name": "forums.js",
+          "path": "routes/forge/groupware/forums.js",
+          "endpoints": 12,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/categories"
+            },
+            {
+              "method": "POST",
+              "path": "/categories"
+            },
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:idOrSlug"
+            },
+            {
+              "method": "POST",
+              "path": "/:forumId/threads"
+            },
+            {
+              "method": "GET",
+              "path": "/:forumId/threads/:threadIdOrSlug"
+            },
+            {
+              "method": "POST",
+              "path": "/threads/:threadId/posts"
+            },
+            {
+              "method": "PUT",
+              "path": "/posts/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/posts/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/posts/:id/like"
+            },
+            {
+              "method": "POST",
+              "path": "/posts/:id/mark-solution"
+            }
+          ]
+        },
+        {
+          "name": "gantt.js",
+          "path": "routes/forge/groupware/gantt.js",
+          "endpoints": 6,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/data"
+            },
+            {
+              "method": "GET",
+              "path": "/project/:projectId"
+            },
+            {
+              "method": "GET",
+              "path": "/project/:projectId/critical-path"
+            },
+            {
+              "method": "GET",
+              "path": "/project/:projectId/statistics"
+            },
+            {
+              "method": "POST",
+              "path": "/resource-allocation"
+            },
+            {
+              "method": "GET",
+              "path": "/project/:projectId/suggest-schedule"
+            }
+          ]
+        },
+        {
+          "name": "index.js",
+          "path": "routes/forge/groupware/index.js",
+          "endpoints": 1,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            }
+          ]
+        },
+        {
+          "name": "knowledge.js",
+          "path": "routes/forge/groupware/knowledge.js",
+          "endpoints": 12,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/categories"
+            },
+            {
+              "method": "POST",
+              "path": "/categories"
+            },
+            {
+              "method": "GET",
+              "path": "/categories/:idOrSlug"
+            },
+            {
+              "method": "PUT",
+              "path": "/categories/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/categories/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/articles"
+            },
+            {
+              "method": "POST",
+              "path": "/articles"
+            },
+            {
+              "method": "GET",
+              "path": "/articles/:idOrSlug"
+            },
+            {
+              "method": "PUT",
+              "path": "/articles/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/articles/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/articles/:id/feedback"
+            },
+            {
+              "method": "GET",
+              "path": "/search"
+            }
+          ]
+        },
+        {
+          "name": "notes.js",
+          "path": "routes/forge/groupware/notes.js",
+          "endpoints": 8,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/search/query"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/tags"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/archive"
+            }
+          ]
+        },
+        {
+          "name": "search.js",
+          "path": "routes/forge/groupware/search.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/suggestions"
+            },
+            {
+              "method": "GET",
+              "path": "/documents"
+            },
+            {
+              "method": "GET",
+              "path": "/wiki"
+            },
+            {
+              "method": "GET",
+              "path": "/tasks"
+            },
+            {
+              "method": "GET",
+              "path": "/notes"
+            },
+            {
+              "method": "GET",
+              "path": "/calendar"
+            },
+            {
+              "method": "GET",
+              "path": "/boards"
+            },
+            {
+              "method": "GET",
+              "path": "/knowledge"
+            },
+            {
+              "method": "GET",
+              "path": "/forums"
+            }
+          ]
+        },
+        {
+          "name": "tasks.js",
+          "path": "routes/forge/groupware/tasks.js",
+          "endpoints": 13,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/stats"
+            },
+            {
+              "method": "GET",
+              "path": "/overdue"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/assignments"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/dependencies"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/assign"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/assign/:userId"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/dependencies"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id/dependencies/:dependsOnTaskId"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            }
+          ]
+        },
+        {
+          "name": "timeTracking.js",
+          "path": "routes/forge/groupware/timeTracking.js",
+          "endpoints": 13,
+          "routes": [
+            {
+              "method": "POST",
+              "path": "/timer/start"
+            },
+            {
+              "method": "POST",
+              "path": "/timer/stop"
+            },
+            {
+              "method": "GET",
+              "path": "/timer/current"
+            },
+            {
+              "method": "POST",
+              "path": "/timer/:id/break"
+            },
+            {
+              "method": "GET",
+              "path": "/entries"
+            },
+            {
+              "method": "POST",
+              "path": "/entries"
+            },
+            {
+              "method": "GET",
+              "path": "/entries/:id"
+            },
+            {
+              "method": "PUT",
+              "path": "/entries/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/entries/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/summary"
+            },
+            {
+              "method": "POST",
+              "path": "/entries/submit"
+            },
+            {
+              "method": "POST",
+              "path": "/entries/approve"
+            },
+            {
+              "method": "POST",
+              "path": "/entries/reject"
+            }
+          ]
+        },
+        {
+          "name": "webdav.js",
+          "path": "routes/forge/groupware/webdav.js",
+          "endpoints": 3,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "*"
+            },
+            {
+              "method": "PUT",
+              "path": "*"
+            },
+            {
+              "method": "DELETE",
+              "path": "*"
+            }
+          ]
+        },
+        {
+          "name": "wiki.js",
+          "path": "routes/forge/groupware/wiki.js",
+          "endpoints": 10,
+          "routes": [
+            {
+              "method": "GET",
+              "path": "/"
+            },
+            {
+              "method": "GET",
+              "path": "/:id"
+            },
+            {
+              "method": "GET",
+              "path": "/slug/:slug"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/history"
+            },
+            {
+              "method": "GET",
+              "path": "/:id/children"
+            },
+            {
+              "method": "POST",
+              "path": "/"
+            },
+            {
+              "method": "PUT",
+              "path": "/:id"
+            },
+            {
+              "method": "DELETE",
+              "path": "/:id"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/publish"
+            },
+            {
+              "method": "POST",
+              "path": "/:id/lock"
+            }
+          ]
+        }
+      ],
+      "totalEndpoints": 166,
+      "endpointsByMethod": {
+        "GET": 76,
+        "POST": 48,
+        "PUT": 19,
+        "PATCH": 0,
+        "DELETE": 23,
+        "ALL": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.timeline.getFeed",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "Get timeline feed for a user",
+      "parameters": {
+        "type": "params",
+        "properties": {
+          "algorithm": {
+            "type": "string",
+            "description": "Feed algorithm (chronological, algorithmic, following)"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Pagination cursor"
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["feed"],
+          "properties": {
+            "cursor": {
+              "type": "string"
+            },
+            "feed": {
+              "type": "array",
+              "items": {
+                "type": "ref",
+                "ref": "#feedViewPost"
+              }
+            }
+          }
+        }
+      }
+    },
+    "feedViewPost": {
+      "type": "object",
+      "required": ["post"],
+      "properties": {
+        "post": {
+          "type": "ref",
+          "ref": "io.exprsn.timeline.post#view"
+        },
+        "reply": {
+          "type": "ref",
+          "ref": "#replyRef"
+        },
+        "reason": {
+          "type": "union",
+          "refs": ["#reasonRepost"]
+        }
+      }
+    },
+    "replyRef": {
+      "type": "object",
+      "required": ["root", "parent"],
+      "properties": {
+        "root": {
+          "type": "ref",
+          "ref": "io.exprsn.timeline.post#view"
+        },
+        "parent": {
+          "type": "ref",
+          "ref": "io.exprsn.timeline.post#view"
+        }
+      }
+    },
+    "reasonRepost": {
+      "type": "object",
+      "required": ["by", "indexedAt"],
+      "properties": {
+        "by": {
+          "type": "ref",
+          "ref": "app.bsky.actor.defs#profileViewBasic"
+        },
+        "indexedAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    }
+  }
+}

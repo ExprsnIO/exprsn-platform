@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Management - Exprsn Platform</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Socket.IO Client -->
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+
+  <style>
+    :root {
+      --exprsn-primary: #667eea;
+      --exprsn-secondary: #764ba2;
+      --exprsn-success: #10b981;
+      --exprsn-warning: #f59e0b;
+      --exprsn-danger: #ef4444;
+      --exprsn-info: #3b82f6;
+      --sidebar-width: 280px;
+      --header-height: 70px;
+      --transition-speed: 0.3s;
+    }
+
+    [data-bs-theme="dark"] {
+      --bs-body-bg: #1a1a2e;
+      --bs-body-color: #eee;
+      --card-bg: #16213e;
+      --card-border: #0f3460;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      overflow-x: hidden;
+      background: var(--bs-body-bg, #f8f9fa);
+      color: var(--bs-body-color, #212529);
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: var(--sidebar-width);
+      background: linear-gradient(180deg, var(--exprsn-primary) 0%, var(--exprsn-secondary) 100%);
+      color: white;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+      transition: transform var(--transition-speed) ease;
+    }
+
+    .sidebar-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      position: sticky;
+      top: 0;
+      background: linear-gradient(180deg, var(--exprsn-primary) 0%, var(--exprsn-secondary) 100%);
+      z-index: 10;
+    }
+
+    .sidebar-brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+
+    .sidebar-subtitle {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      margin-top: 0.25rem;
+      font-weight: 500;
+    }
+
+    .sidebar-nav {
+      padding: 0.5rem 0 2rem;
+    }
+
+    .nav-section {
+      margin: 0.75rem 0;
+    }
+
+    .nav-section-title {
+      padding: 0.75rem 1rem 0.5rem;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      opacity: 0.6;
+      font-weight: 700;
+    }
+
+    .nav-items {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .nav-item {
+      list-style: none;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+
+    .nav-link.active {
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border-left-color: white;
+      font-weight: 600;
+    }
+
+    .nav-link i {
+      margin-right: 0.75rem;
+      font-size: 1.1rem;
+      width: 20px;
+      text-align: center;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.7rem;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.2);
+      font-weight: 600;
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    .main-content {
+      margin-left: var(--sidebar-width);
+      min-height: 100vh;
+      transition: margin-left var(--transition-speed) ease;
+    }
+
+    .top-bar {
+      height: var(--header-height);
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    [data-bs-theme="dark"] .top-bar {
+      background: var(--card-bg);
+      border-bottom-color: var(--card-border);
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0;
+      color: #1f2937;
+    }
+
+    [data-bs-theme="dark"] .page-title {
+      color: #eee;
+    }
+
+    .top-bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-box i {
+      position: absolute;
+      left: 1rem;
+      color: #9ca3af;
+    }
+
+    .search-box input {
+      padding: 0.5rem 1rem 0.5rem 2.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      width: 300px;
+      transition: all 0.2s;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: var(--exprsn-primary);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .theme-toggle {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .theme-toggle:hover {
+      background: #f9fafb;
+      border-color: var(--exprsn-primary);
+    }
+
+    [data-bs-theme="dark"] .theme-toggle {
+      background: var(--card-bg);
+      border-color: var(--card-border);
+    }
+
+    .mobile-menu-toggle {
+      display: none;
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    /* ===== CONTENT AREA ===== */
+    .content-area {
+      padding: 2rem;
+    }
+
+    /* ===== CARDS ===== */
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #e5e7eb;
+      transition: all 0.3s;
+      height: 100%;
+    }
+
+    [data-bs-theme="dark"] .stat-card {
+      background: var(--card-bg);
+      border-color: var(--card-border);
+    }
+
+    .stat-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .stat-icon.success { background: #d1fae5; color: #065f46; }
+    .stat-icon.info { background: #dbeafe; color: #1e40af; }
+    .stat-icon.warning { background: #fef3c7; color: #92400e; }
+    .stat-icon.danger { background: #fee2e2; color: #991b1b; }
+    .stat-icon.primary { background: #e0e7ff; color: #4338ca; }
+
+    .stat-label {
+      color: #6c757d;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0.5rem 0;
+    }
+
+    .stat-change {
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .stat-change.positive { color: var(--exprsn-success); }
+    .stat-change.negative { color: var(--exprsn-danger); }
+
+    /* ===== WORKFLOW CARDS ===== */
+    .workflow-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.25rem;
+      border: 2px solid #e5e7eb;
+      transition: all 0.3s;
+      cursor: pointer;
+      height: 100%;
+    }
+
+    [data-bs-theme="dark"] .workflow-card {
+      background: var(--card-bg);
+      border-color: var(--card-border);
+    }
+
+    .workflow-card:hover {
+      border-color: var(--exprsn-primary);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .workflow-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .workflow-name {
+      font-weight: 600;
+      font-size: 1rem;
+      margin: 0;
+    }
+
+    .workflow-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .workflow-status.active { background: #d1fae5; color: #065f46; }
+    .workflow-status.draft { background: #fef3c7; color: #92400e; }
+    .workflow-status.inactive { background: #fee2e2; color: #991b1b; }
+    .workflow-status.archived { background: #e5e7eb; color: #6b7280; }
+
+    .workflow-description {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin: 0.5rem 0;
+      line-height: 1.4;
+    }
+
+    .workflow-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: #6c757d;
+      margin-top: 1rem;
+    }
+
+    .workflow-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .workflow-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .workflow-actions .btn {
+      font-size: 0.8rem;
+      padding: 0.4rem 0.8rem;
+    }
+
+    /* ===== TABLES ===== */
+    .table-container {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #e5e7eb;
+    }
+
+    [data-bs-theme="dark"] .table-container {
+      background: var(--card-bg);
+      border-color: var(--card-border);
+    }
+
+    .table {
+      margin-bottom: 0;
+    }
+
+    [data-bs-theme="dark"] .table {
+      color: var(--bs-body-color);
+    }
+
+    /* ===== BADGES ===== */
+    .badge-modern {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn-modern {
+      border-radius: 8px;
+      padding: 0.6rem 1.2rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-primary-modern {
+      background: linear-gradient(135deg, var(--exprsn-primary) 0%, var(--exprsn-secondary) 100%);
+      color: white;
+    }
+
+    .btn-primary-modern:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    /* ===== SECTION CONTAINERS ===== */
+    .section-view {
+      display: none;
+    }
+
+    .section-view.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-header {
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .section-description {
+      color: #6c757d;
+      font-size: 1rem;
+    }
+
+    /* ===== EXECUTION STATUS BADGES ===== */
+    .execution-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .execution-status.completed { background: #d1fae5; color: #065f46; }
+    .execution-status.running { background: #dbeafe; color: #1e40af; }
+    .execution-status.failed { background: #fee2e2; color: #991b1b; }
+    .execution-status.cancelled { background: #e5e7eb; color: #6b7280; }
+    .execution-status.waiting { background: #fef3c7; color: #92400e; }
+
+    /* ===== CHARTS ===== */
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin-top: 1rem;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 992px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar.active {
+        transform: translateX(0);
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+
+      .mobile-menu-toggle {
+        display: flex;
+      }
+
+      .search-box input {
+        width: 200px;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .top-bar {
+        padding: 0 1rem;
+      }
+
+      .content-area {
+        padding: 1rem;
+      }
+
+      .search-box {
+        display: none;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+      }
+    }
+
+    /* ===== MODAL IMPROVEMENTS ===== */
+    .modal-content {
+      border-radius: 12px;
+      border: none;
+    }
+
+    .modal-header {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 1.5rem;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .modal-footer {
+      border-top: 1px solid #e5e7eb;
+      padding: 1.5rem;
+    }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+
+    .empty-state-icon {
+      font-size: 4rem;
+      color: #d1d5db;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state-description {
+      color: #6c757d;
+      margin-bottom: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1 class="sidebar-brand">Workflow</h1>
+      <p class="sidebar-subtitle">Automation Platform</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      <!-- Overview -->
+      <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <ul class="nav-items">
+          <li class="nav-item">
+            <button class="nav-link active" data-section="dashboard">
+              <i class="bi bi-speedometer2"></i>
+              Dashboard
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="workflows">
+              <i class="bi bi-diagram-3"></i>
+              My Workflows
+              <span class="nav-badge" id="workflow-count">0</span>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="executions">
+              <i class="bi bi-play-circle"></i>
+              Executions
+              <span class="nav-badge" id="execution-count">0</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Creation & Design -->
+      <div class="nav-section">
+        <div class="nav-section-title">Creation</div>
+        <ul class="nav-items">
+          <li class="nav-item">
+            <button class="nav-link" data-section="designer">
+              <i class="bi bi-brush"></i>
+              Visual Designer
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="templates">
+              <i class="bi bi-file-earmark-text"></i>
+              Templates
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="import">
+              <i class="bi bi-file-arrow-up"></i>
+              Import Workflow
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Automation -->
+      <div class="nav-section">
+        <div class="nav-section-title">Automation</div>
+        <ul class="nav-items">
+          <li class="nav-item">
+            <button class="nav-link" data-section="scheduler">
+              <i class="bi bi-clock"></i>
+              Scheduler
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="webhooks">
+              <i class="bi bi-link-45deg"></i>
+              Webhooks
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="approvals">
+              <i class="bi bi-check-circle"></i>
+              Approvals
+              <span class="nav-badge" id="pending-approvals">0</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Management -->
+      <div class="nav-section">
+        <div class="nav-section-title">Management</div>
+        <ul class="nav-items">
+          <li class="nav-item">
+            <button class="nav-link" data-section="monitoring">
+              <i class="bi bi-activity"></i>
+              Monitoring
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="audit">
+              <i class="bi bi-journal-text"></i>
+              Audit Logs
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="analytics">
+              <i class="bi bi-graph-up"></i>
+              Analytics
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Configuration -->
+      <div class="nav-section">
+        <div class="nav-section-title">Configuration</div>
+        <ul class="nav-items">
+          <li class="nav-item">
+            <button class="nav-link" data-section="tags">
+              <i class="bi bi-tags"></i>
+              Tags & Categories
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="retention">
+              <i class="bi bi-archive"></i>
+              Data Retention
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-section="settings">
+              <i class="bi bi-gear"></i>
+              Settings
+            </button>
+          </li>
+        </ul>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="d-flex align-items-center gap-3">
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+          <i class="bi bi-list"></i>
+        </button>
+        <h2 class="page-title" id="page-title">Dashboard</h2>
+      </div>
+
+      <div class="top-bar-actions">
+        <div class="search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" id="global-search" placeholder="Search workflows..." autocomplete="off">
+        </div>
+
+        <button class="btn btn-primary btn-modern" onclick="createNewWorkflow()">
+          <i class="bi bi-plus-lg"></i> New Workflow
+        </button>
+
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+          <i class="bi bi-moon-stars-fill"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area" id="content-area">
+      <!-- Dashboard View -->
+      <div id="dashboard-view" class="section-view active">
+        <div class="section-header">
+          <h3 class="section-title">Workflow Dashboard</h3>
+          <p class="section-description">Monitor and manage your workflow automation processes</p>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+          <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card">
+              <div class="stat-icon primary">
+                <i class="bi bi-diagram-3"></i>
+              </div>
+              <div class="stat-label">Total Workflows</div>
+              <div class="stat-value" id="stat-total-workflows">--</div>
+              <div class="stat-change">All workflows</div>
+            </div>
+          </div>
+          <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card">
+              <div class="stat-icon success">
+                <i class="bi bi-check-circle"></i>
+              </div>
+              <div class="stat-label">Active Workflows</div>
+              <div class="stat-value" id="stat-active-workflows">--</div>
+              <div class="stat-change positive">Production ready</div>
+            </div>
+          </div>
+          <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card">
+              <div class="stat-icon info">
+                <i class="bi bi-play-circle"></i>
+              </div>
+              <div class="stat-label">Total Executions</div>
+              <div class="stat-value" id="stat-total-executions">--</div>
+              <div class="stat-change">Last 30 days</div>
+            </div>
+          </div>
+          <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card">
+              <div class="stat-icon warning">
+                <i class="bi bi-graph-up"></i>
+              </div>
+              <div class="stat-label">Success Rate</div>
+              <div class="stat-value" id="stat-success-rate">--</div>
+              <div class="stat-change positive">
+                <i class="bi bi-arrow-up"></i> Trending up
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="table-container">
+              <h5 class="mb-3">Quick Actions</h5>
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-success btn-modern" onclick="navigateToSection('designer')">
+                  <i class="bi bi-brush"></i> Create Workflow
+                </button>
+                <button class="btn btn-primary btn-modern" onclick="navigateToSection('templates')">
+                  <i class="bi bi-file-earmark-text"></i> Browse Templates
+                </button>
+                <button class="btn btn-info btn-modern" onclick="navigateToSection('executions')">
+                  <i class="bi bi-play-circle"></i> View Executions
+                </button>
+                <button class="btn btn-warning btn-modern" onclick="navigateToSection('approvals')">
+                  <i class="bi bi-check-circle"></i> Pending Approvals
+                </button>
+                <button class="btn btn-secondary btn-modern" onclick="navigateToSection('monitoring')">
+                  <i class="bi bi-activity"></i> System Monitor
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Workflows -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="table-container">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Recent Workflows</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="navigateToSection('workflows')">
+                  View All <i class="bi bi-arrow-right"></i>
+                </button>
+              </div>
+              <div id="recent-workflows-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Executions -->
+        <div class="row">
+          <div class="col-md-8">
+            <div class="table-container">
+              <h5 class="mb-3">Recent Executions</h5>
+              <div id="recent-executions-container"></div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="table-container">
+              <h5 class="mb-3">Execution Stats</h5>
+              <div class="chart-container">
+                <canvas id="execution-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workflows View -->
+      <div id="workflows-view" class="section-view">
+        <div class="section-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h3 class="section-title">My Workflows</h3>
+              <p class="section-description">Create and manage your workflow automations</p>
+            </div>
+            <button class="btn btn-primary btn-modern" onclick="createNewWorkflow()">
+              <i class="bi bi-plus-lg"></i> New Workflow
+            </button>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="mb-4">
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-primary active" data-filter="all">All</button>
+            <button class="btn btn-sm btn-outline-success" data-filter="active">Active</button>
+            <button class="btn btn-sm btn-outline-warning" data-filter="draft">Drafts</button>
+            <button class="btn btn-sm btn-outline-danger" data-filter="inactive">Inactive</button>
+            <button class="btn btn-sm btn-outline-secondary" data-filter="archived">Archived</button>
+          </div>
+        </div>
+
+        <div id="workflows-container"></div>
+      </div>
+
+      <!-- Executions View -->
+      <div id="executions-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Workflow Executions</h3>
+          <p class="section-description">Monitor and track workflow execution history</p>
+        </div>
+
+        <!-- Filters -->
+        <div class="mb-4">
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-primary active" data-exec-filter="all">All</button>
+            <button class="btn btn-sm btn-outline-info" data-exec-filter="running">Running</button>
+            <button class="btn btn-sm btn-outline-success" data-exec-filter="completed">Completed</button>
+            <button class="btn btn-sm btn-outline-danger" data-exec-filter="failed">Failed</button>
+            <button class="btn btn-sm btn-outline-warning" data-exec-filter="waiting">Waiting</button>
+          </div>
+        </div>
+
+        <div id="executions-container"></div>
+      </div>
+
+      <!-- Designer View -->
+      <div id="designer-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Visual Workflow Designer</h3>
+          <p class="section-description">Drag-and-drop workflow creation tool</p>
+        </div>
+        <div style="background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
+          <iframe src="/designer.html" style="width: 100%; height: calc(100vh - 250px); border: none;"></iframe>
+        </div>
+      </div>
+
+      <!-- Templates View -->
+      <div id="templates-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Workflow Templates</h3>
+          <p class="section-description">Start with pre-built templates for common use cases</p>
+        </div>
+        <div id="templates-container"></div>
+      </div>
+
+      <!-- Import View -->
+      <div id="import-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Import Workflow</h3>
+          <p class="section-description">Import workflows from JSON files</p>
+        </div>
+        <div class="table-container">
+          <div class="mb-3">
+            <label for="import-file" class="form-label">Select Workflow JSON File</label>
+            <input class="form-control" type="file" id="import-file" accept=".json">
+          </div>
+          <div class="mb-3">
+            <label for="import-textarea" class="form-label">Or Paste JSON</label>
+            <textarea class="form-control" id="import-textarea" rows="10" placeholder="Paste workflow JSON here..."></textarea>
+          </div>
+          <button class="btn btn-primary btn-modern" onclick="importWorkflow()">
+            <i class="bi bi-file-arrow-up"></i> Import Workflow
+          </button>
+        </div>
+      </div>
+
+      <!-- Scheduler View -->
+      <div id="scheduler-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Workflow Scheduler</h3>
+          <p class="section-description">Schedule workflows with cron expressions</p>
+        </div>
+        <div style="background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
+          <iframe src="/scheduler.html" style="width: 100%; height: calc(100vh - 250px); border: none;"></iframe>
+        </div>
+      </div>
+
+      <!-- Webhooks View -->
+      <div id="webhooks-view" class="section-view">
+        <div class="section-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h3 class="section-title">Webhooks</h3>
+              <p class="section-description">Trigger workflows via HTTP webhooks</p>
+            </div>
+            <button class="btn btn-primary btn-modern" onclick="createWebhook()">
+              <i class="bi bi-plus-lg"></i> New Webhook
+            </button>
+          </div>
+        </div>
+        <div id="webhooks-container"></div>
+      </div>
+
+      <!-- Approvals View -->
+      <div id="approvals-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Approval Queue</h3>
+          <p class="section-description">Workflows waiting for manual approval</p>
+        </div>
+        <div id="approvals-container"></div>
+      </div>
+
+      <!-- Monitoring View -->
+      <div id="monitoring-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">System Monitoring</h3>
+          <p class="section-description">Real-time workflow execution monitoring</p>
+        </div>
+        <div style="background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
+          <iframe src="/monitor.html" style="width: 100%; height: calc(100vh - 250px); border: none;"></iframe>
+        </div>
+      </div>
+
+      <!-- Audit View -->
+      <div id="audit-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Audit Logs</h3>
+          <p class="section-description">Track all workflow changes and executions</p>
+        </div>
+        <div id="audit-container"></div>
+      </div>
+
+      <!-- Analytics View -->
+      <div id="analytics-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Analytics</h3>
+          <p class="section-description">Workflow performance metrics and insights</p>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-4">
+            <div class="table-container">
+              <h5 class="mb-3">Execution Trends</h5>
+              <div class="chart-container">
+                <canvas id="trends-chart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 mb-4">
+            <div class="table-container">
+              <h5 class="mb-3">Success vs Failure Rate</h5>
+              <div class="chart-container">
+                <canvas id="success-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-12">
+            <div class="table-container">
+              <h5 class="mb-3">Top Workflows by Executions</h5>
+              <div id="top-workflows-container"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tags View -->
+      <div id="tags-view" class="section-view">
+        <div class="section-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h3 class="section-title">Tags & Categories</h3>
+              <p class="section-description">Organize workflows with tags</p>
+            </div>
+            <button class="btn btn-primary btn-modern" onclick="createTag()">
+              <i class="bi bi-plus-lg"></i> New Tag
+            </button>
+          </div>
+        </div>
+        <div id="tags-container"></div>
+      </div>
+
+      <!-- Retention View -->
+      <div id="retention-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Data Retention</h3>
+          <p class="section-description">Configure execution log and data retention policies</p>
+        </div>
+        <div class="table-container">
+          <div class="row">
+            <div class="col-md-6">
+              <h6 class="mb-3">Retention Settings</h6>
+              <div class="mb-3">
+                <label class="form-label">Execution Log Retention (days)</label>
+                <input type="number" class="form-control" id="log-retention" value="90">
+                <small class="text-muted">Logs older than this will be deleted</small>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Completed Execution Data (days)</label>
+                <input type="number" class="form-control" id="completed-retention" value="30">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Failed Execution Data (days)</label>
+                <input type="number" class="form-control" id="failed-retention" value="180">
+              </div>
+              <button class="btn btn-primary btn-modern" onclick="saveRetentionSettings()">
+                <i class="bi bi-check"></i> Save Settings
+              </button>
+            </div>
+            <div class="col-md-6">
+              <h6 class="mb-3">Cleanup Operations</h6>
+              <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> Last cleanup: Never
+              </div>
+              <button class="btn btn-warning btn-modern" onclick="runCleanup()">
+                <i class="bi bi-trash"></i> Run Cleanup Now
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings View -->
+      <div id="settings-view" class="section-view">
+        <div class="section-header">
+          <h3 class="section-title">Workflow Settings</h3>
+          <p class="section-description">Configure workflow engine and system settings</p>
+        </div>
+        <div class="table-container">
+          <div class="row">
+            <div class="col-md-6">
+              <h6 class="mb-3">Execution Settings</h6>
+              <div class="mb-3">
+                <label class="form-label">Max Execution Time (ms)</label>
+                <input type="number" class="form-control" id="max-exec-time" value="300000">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Max Steps per Workflow</label>
+                <input type="number" class="form-control" id="max-steps" value="100">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Max Loop Iterations</label>
+                <input type="number" class="form-control" id="max-iterations" value="1000">
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="enable-vm" checked>
+                  <label class="form-check-label" for="enable-vm">
+                    Enable JavaScript VM Execution
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h6 class="mb-3">VM Settings</h6>
+              <div class="mb-3">
+                <label class="form-label">VM Timeout (ms)</label>
+                <input type="number" class="form-control" id="vm-timeout" value="30000">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">VM Max Memory (MB)</label>
+                <input type="number" class="form-control" id="vm-memory" value="128">
+              </div>
+              <h6 class="mb-3 mt-4">Security</h6>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="enable-rbac" checked>
+                  <label class="form-check-label" for="enable-rbac">
+                    Enable RBAC
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="enable-jsonlex" checked>
+                  <label class="form-check-label" for="enable-jsonlex">
+                    Enable JSONLex Validation
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button class="btn btn-primary btn-modern" onclick="saveSettings()">
+              <i class="bi bi-check"></i> Save Settings
+            </button>
+            <button class="btn btn-secondary btn-modern" onclick="resetSettings()">
+              <i class="bi bi-arrow-counterclockwise"></i> Reset to Defaults
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Workflow Modal -->
+  <div class="modal fade" id="createWorkflowModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Create New Workflow</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="workflow-name" class="form-label">Workflow Name</label>
+            <input type="text" class="form-control" id="workflow-name" required>
+          </div>
+          <div class="mb-3">
+            <label for="workflow-description" class="form-label">Description</label>
+            <textarea class="form-control" id="workflow-description" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="workflow-category" class="form-label">Category</label>
+            <select class="form-select" id="workflow-category">
+              <option value="">Select category...</option>
+              <option value="automation">Automation</option>
+              <option value="integration">Integration</option>
+              <option value="notification">Notification</option>
+              <option value="data-processing">Data Processing</option>
+              <option value="approval">Approval</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Start From</label>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-primary flex-fill" onclick="startFromScratch()">
+                <i class="bi bi-file-earmark"></i> Blank Workflow
+              </button>
+              <button class="btn btn-outline-success flex-fill" onclick="startFromTemplate()">
+                <i class="bi bi-file-earmark-text"></i> Template
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveNewWorkflow()">Create Workflow</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // ===== GLOBAL STATE =====
+    let socket;
+    let currentSection = 'dashboard';
+    let workflows = [];
+    let executions = [];
+    let executionChart = null;
+    let trendsChart = null;
+    let successChart = null;
+
+    // ===== INITIALIZATION =====
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeApp();
+    });
+
+    function initializeApp() {
+      setupNavigation();
+      setupThemeToggle();
+      setupMobileMenu();
+      setupSearch();
+      connectWebSocket();
+      loadInitialData();
+      setupFilters();
+    }
+
+    // ===== WEBSOCKET =====
+    function connectWebSocket() {
+      socket = io({
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: Infinity
+      });
+
+      socket.on('connect', () => {
+        console.log('WebSocket connected');
+      });
+
+      socket.on('disconnect', () => {
+        console.log('WebSocket disconnected');
+      });
+
+      socket.on('execution:started', (data) => {
+        loadExecutions();
+        updateStats();
+      });
+
+      socket.on('execution:completed', (data) => {
+        loadExecutions();
+        updateStats();
+      });
+
+      socket.on('execution:failed', (data) => {
+        loadExecutions();
+        updateStats();
+      });
+    }
+
+    // ===== NAVIGATION =====
+    function setupNavigation() {
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function() {
+          const section = this.dataset.section;
+          navigateToSection(section);
+        });
+      });
+    }
+
+    function navigateToSection(section) {
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
+
+      const titles = {
+        'dashboard': 'Dashboard',
+        'workflows': 'My Workflows',
+        'executions': 'Executions',
+        'designer': 'Visual Designer',
+        'templates': 'Templates',
+        'import': 'Import Workflow',
+        'scheduler': 'Scheduler',
+        'webhooks': 'Webhooks',
+        'approvals': 'Approvals',
+        'monitoring': 'Monitoring',
+        'audit': 'Audit Logs',
+        'analytics': 'Analytics',
+        'tags': 'Tags & Categories',
+        'retention': 'Data Retention',
+        'settings': 'Settings'
+      };
+      document.getElementById('page-title').textContent = titles[section] || 'Dashboard';
+
+      document.querySelectorAll('.section-view').forEach(view => {
+        view.classList.remove('active');
+      });
+      document.getElementById(`${section}-view`)?.classList.add('active');
+
+      currentSection = section;
+      document.getElementById('sidebar').classList.remove('active');
+
+      // Load section-specific data
+      if (section === 'workflows') loadWorkflows();
+      if (section === 'executions') loadExecutions();
+      if (section === 'templates') loadTemplates();
+      if (section === 'webhooks') loadWebhooks();
+      if (section === 'approvals') loadApprovals();
+      if (section === 'audit') loadAuditLogs();
+      if (section === 'analytics') loadAnalytics();
+      if (section === 'tags') loadTags();
+    }
+
+    // ===== THEME TOGGLE =====
+    function setupThemeToggle() {
+      const themeToggle = document.getElementById('theme-toggle');
+      const html = document.documentElement;
+
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      html.setAttribute('data-bs-theme', savedTheme);
+      updateThemeIcon(savedTheme);
+
+      themeToggle.addEventListener('click', () => {
+        const currentTheme = html.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        html.setAttribute('data-bs-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeIcon(newTheme);
+      });
+    }
+
+    function updateThemeIcon(theme) {
+      const icon = document.querySelector('#theme-toggle i');
+      icon.className = theme === 'light' ? 'bi bi-moon-stars-fill' : 'bi bi-sun-fill';
+    }
+
+    // ===== MOBILE MENU =====
+    function setupMobileMenu() {
+      const toggle = document.getElementById('mobile-menu-toggle');
+      const sidebar = document.getElementById('sidebar');
+
+      toggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!sidebar.contains(e.target) && !toggle.contains(e.target)) {
+          sidebar.classList.remove('active');
+        }
+      });
+    }
+
+    // ===== SEARCH =====
+    function setupSearch() {
+      const searchInput = document.getElementById('global-search');
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        filterWorkflows(query);
+      });
+    }
+
+    function filterWorkflows(query) {
+      console.log('Filtering workflows:', query);
+      // Implement workflow filtering
+    }
+
+    // ===== FILTERS =====
+    function setupFilters() {
+      document.querySelectorAll('[data-filter]').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          const filter = this.dataset.filter;
+          filterWorkflowsByStatus(filter);
+        });
+      });
+
+      document.querySelectorAll('[data-exec-filter]').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('[data-exec-filter]').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          const filter = this.dataset.execFilter;
+          filterExecutionsByStatus(filter);
+        });
+      });
+    }
+
+    function filterWorkflowsByStatus(status) {
+      console.log('Filter by status:', status);
+      // Implement filtering
+    }
+
+    function filterExecutionsByStatus(status) {
+      console.log('Filter executions by status:', status);
+      // Implement filtering
+    }
+
+    // ===== DATA LOADING =====
+    function loadInitialData() {
+      updateStats();
+      loadRecentWorkflows();
+      loadRecentExecutions();
+      createExecutionChart();
+    }
+
+    function updateStats() {
+      fetch('/api/workflows?limit=1000')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const total = data.workflows?.length || 0;
+            const active = data.workflows?.filter(w => w.status === 'active').length || 0;
+            document.getElementById('stat-total-workflows').textContent = total;
+            document.getElementById('stat-active-workflows').textContent = active;
+            document.getElementById('workflow-count').textContent = total;
+          }
+        })
+        .catch(err => console.error('Error loading workflows:', err));
+
+      fetch('/api/executions/stats')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('stat-total-executions').textContent = data.stats?.totalExecutions || 0;
+            const successRate = data.stats?.successRate || 0;
+            document.getElementById('stat-success-rate').textContent = successRate.toFixed(1) + '%';
+          }
+        })
+        .catch(err => console.error('Error loading stats:', err));
+    }
+
+    function loadRecentWorkflows() {
+      fetch('/api/workflows?limit=5&sort=-updated_at')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.workflows) {
+            displayRecentWorkflows(data.workflows);
+          }
+        })
+        .catch(err => console.error('Error loading recent workflows:', err));
+    }
+
+    function displayRecentWorkflows(workflows) {
+      const container = document.getElementById('recent-workflows-container');
+      if (!workflows || workflows.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p class="text-muted">No workflows yet</p></div>';
+        return;
+      }
+
+      let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr>';
+      html += '<th>Name</th><th>Status</th><th>Category</th><th>Executions</th><th>Last Updated</th></tr></thead><tbody>';
+
+      workflows.forEach(wf => {
+        html += `
+          <tr style="cursor: pointer;" onclick="viewWorkflow('${wf.id}')">
+            <td><strong>${wf.name}</strong></td>
+            <td><span class="workflow-status ${wf.status}">${wf.status}</span></td>
+            <td>${wf.category || 'N/A'}</td>
+            <td>${wf.execution_count || 0}</td>
+            <td>${new Date(wf.updated_at).toLocaleString()}</td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function loadRecentExecutions() {
+      fetch('/api/executions?limit=10&sort=-started_at')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.executions) {
+            displayRecentExecutions(data.executions);
+          }
+        })
+        .catch(err => console.error('Error loading executions:', err));
+    }
+
+    function displayRecentExecutions(executions) {
+      const container = document.getElementById('recent-executions-container');
+      if (!executions || executions.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p class="text-muted">No executions yet</p></div>';
+        return;
+      }
+
+      let html = '<div class="table-responsive"><table class="table table-hover table-sm"><thead><tr>';
+      html += '<th>Workflow</th><th>Status</th><th>Started</th><th>Duration</th></tr></thead><tbody>';
+
+      executions.slice(0, 5).forEach(exec => {
+        const duration = exec.completed_at ?
+          Math.round((new Date(exec.completed_at) - new Date(exec.started_at)) / 1000) + 's' :
+          'Running...';
+
+        html += `
+          <tr style="cursor: pointer;" onclick="viewExecution('${exec.id}')">
+            <td>${exec.workflow?.name || 'N/A'}</td>
+            <td><span class="execution-status ${exec.status}">${exec.status}</span></td>
+            <td>${new Date(exec.started_at).toLocaleString()}</td>
+            <td>${duration}</td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+      document.getElementById('execution-count').textContent = executions.length;
+    }
+
+    function createExecutionChart() {
+      const ctx = document.getElementById('execution-chart');
+      if (!ctx) return;
+
+      executionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Completed', 'Failed', 'Running'],
+          datasets: [{
+            data: [65, 25, 10],
+            backgroundColor: ['#10b981', '#ef4444', '#3b82f6']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+
+    function loadWorkflows() {
+      fetch('/api/workflows')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            workflows = data.workflows || [];
+            displayWorkflows(workflows);
+          }
+        })
+        .catch(err => console.error('Error loading workflows:', err));
+    }
+
+    function displayWorkflows(workflows) {
+      const container = document.getElementById('workflows-container');
+      if (!workflows || workflows.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="bi bi-diagram-3 empty-state-icon"></i>
+            <h4 class="empty-state-title">No Workflows Yet</h4>
+            <p class="empty-state-description">Create your first workflow to get started</p>
+            <button class="btn btn-primary btn-modern" onclick="createNewWorkflow()">
+              <i class="bi bi-plus-lg"></i> Create Workflow
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div class="row">';
+      workflows.forEach(wf => {
+        html += `
+          <div class="col-md-6 col-lg-4 mb-3">
+            <div class="workflow-card" onclick="viewWorkflow('${wf.id}')">
+              <div class="workflow-header">
+                <h6 class="workflow-name">${wf.name}</h6>
+                <span class="workflow-status ${wf.status}">${wf.status}</span>
+              </div>
+              <p class="workflow-description">${wf.description || 'No description'}</p>
+              <div class="workflow-meta">
+                <span class="workflow-meta-item">
+                  <i class="bi bi-play-circle"></i> ${wf.execution_count || 0} runs
+                </span>
+                <span class="workflow-meta-item">
+                  <i class="bi bi-clock"></i> ${new Date(wf.updated_at).toLocaleDateString()}
+                </span>
+              </div>
+              <div class="workflow-actions" onclick="event.stopPropagation()">
+                <button class="btn btn-sm btn-success" onclick="executeWorkflow('${wf.id}')">
+                  <i class="bi bi-play-fill"></i> Run
+                </button>
+                <button class="btn btn-sm btn-primary" onclick="editWorkflow('${wf.id}')">
+                  <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteWorkflow('${wf.id}')">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function loadExecutions() {
+      fetch('/api/executions')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            executions = data.executions || [];
+            displayExecutions(executions);
+          }
+        })
+        .catch(err => console.error('Error loading executions:', err));
+    }
+
+    function displayExecutions(executions) {
+      const container = document.getElementById('executions-container');
+      if (!executions || executions.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="bi bi-play-circle empty-state-icon"></i>
+            <h4 class="empty-state-title">No Executions Yet</h4>
+            <p class="empty-state-description">Execute a workflow to see results here</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '<div class="table-container"><table class="table table-hover"><thead><tr>';
+      html += '<th>Workflow</th><th>Status</th><th>Started</th><th>Duration</th><th>Actions</th></tr></thead><tbody>';
+
+      executions.forEach(exec => {
+        const duration = exec.completed_at ?
+          Math.round((new Date(exec.completed_at) - new Date(exec.started_at)) / 1000) + 's' :
+          'Running...';
+
+        html += `
+          <tr>
+            <td>${exec.workflow?.name || 'N/A'}</td>
+            <td><span class="execution-status ${exec.status}">${exec.status}</span></td>
+            <td>${new Date(exec.started_at).toLocaleString()}</td>
+            <td>${duration}</td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" onclick="viewExecution('${exec.id}')">
+                <i class="bi bi-eye"></i> View
+              </button>
+              ${exec.status === 'failed' ? `
+                <button class="btn btn-sm btn-outline-warning" onclick="retryExecution('${exec.id}')">
+                  <i class="bi bi-arrow-repeat"></i> Retry
+                </button>
+              ` : ''}
+            </td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function loadTemplates() {
+      const container = document.getElementById('templates-container');
+      container.innerHTML = '<div class="empty-state"><p class="text-muted">Loading templates...</p></div>';
+      // Implement template loading
+    }
+
+    function loadWebhooks() {
+      const container = document.getElementById('webhooks-container');
+      container.innerHTML = '<div class="empty-state"><p class="text-muted">No webhooks configured</p></div>';
+      // Implement webhook loading
+    }
+
+    function loadApprovals() {
+      const container = document.getElementById('approvals-container');
+      container.innerHTML = '<div class="empty-state"><p class="text-muted">No pending approvals</p></div>';
+      // Implement approvals loading
+    }
+
+    function loadAuditLogs() {
+      const container = document.getElementById('audit-container');
+      container.innerHTML = '<div class="empty-state"><p class="text-muted">Loading audit logs...</p></div>';
+      // Implement audit log loading
+    }
+
+    function loadAnalytics() {
+      // Create charts
+      setTimeout(() => {
+        createTrendsChart();
+        createSuccessChart();
+      }, 100);
+    }
+
+    function createTrendsChart() {
+      const ctx = document.getElementById('trends-chart');
+      if (!ctx || trendsChart) return;
+
+      trendsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [{
+            label: 'Executions',
+            data: [12, 19, 15, 25, 22, 18, 20],
+            borderColor: '#667eea',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+
+    function createSuccessChart() {
+      const ctx = document.getElementById('success-chart');
+      if (!ctx || successChart) return;
+
+      successChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Success', 'Failed'],
+          datasets: [{
+            data: [85, 15],
+            backgroundColor: ['#10b981', '#ef4444']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          }
+        }
+      });
+    }
+
+    function loadTags() {
+      const container = document.getElementById('tags-container');
+      container.innerHTML = '<div class="empty-state"><p class="text-muted">No tags created</p></div>';
+      // Implement tag loading
+    }
+
+    // ===== WORKFLOW ACTIONS =====
+    function createNewWorkflow() {
+      const modal = new bootstrap.Modal(document.getElementById('createWorkflowModal'));
+      modal.show();
+    }
+
+    function startFromScratch() {
+      // Navigate to designer
+      navigateToSection('designer');
+      bootstrap.Modal.getInstance(document.getElementById('createWorkflowModal'))?.hide();
+    }
+
+    function startFromTemplate() {
+      navigateToSection('templates');
+      bootstrap.Modal.getInstance(document.getElementById('createWorkflowModal'))?.hide();
+    }
+
+    function saveNewWorkflow() {
+      const name = document.getElementById('workflow-name').value;
+      const description = document.getElementById('workflow-description').value;
+      const category = document.getElementById('workflow-category').value;
+
+      if (!name) {
+        alert('Please enter a workflow name');
+        return;
+      }
+
+      fetch('/api/workflows', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          category,
+          status: 'draft',
+          definition: {
+            version: '1.0',
+            steps: [],
+            connections: [],
+            variables: {}
+          }
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          bootstrap.Modal.getInstance(document.getElementById('createWorkflowModal'))?.hide();
+          navigateToSection('designer');
+          showNotification('Workflow created successfully', 'success');
+          updateStats();
+        } else {
+          showNotification('Failed to create workflow: ' + data.error, 'danger');
+        }
+      })
+      .catch(err => {
+        showNotification('Error: ' + err.message, 'danger');
+      });
+    }
+
+    function viewWorkflow(id) {
+      console.log('View workflow:', id);
+      // Implement workflow view
+    }
+
+    function editWorkflow(id) {
+      console.log('Edit workflow:', id);
+      window.location.href = `/designer.html?id=${id}`;
+    }
+
+    function executeWorkflow(id) {
+      if (!confirm('Execute this workflow?')) return;
+
+      fetch(`/api/workflows/${id}/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputData: {},
+          triggerType: 'manual'
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showNotification('Workflow execution started', 'success');
+          navigateToSection('executions');
+        } else {
+          showNotification('Failed to execute workflow: ' + data.error, 'danger');
+        }
+      })
+      .catch(err => {
+        showNotification('Error: ' + err.message, 'danger');
+      });
+    }
+
+    function deleteWorkflow(id) {
+      if (!confirm('Are you sure you want to delete this workflow?')) return;
+
+      fetch(`/api/workflows/${id}`, {
+        method: 'DELETE'
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showNotification('Workflow deleted', 'success');
+          loadWorkflows();
+          updateStats();
+        } else {
+          showNotification('Failed to delete workflow: ' + data.error, 'danger');
+        }
+      })
+      .catch(err => {
+        showNotification('Error: ' + err.message, 'danger');
+      });
+    }
+
+    function viewExecution(id) {
+      console.log('View execution:', id);
+      // Implement execution view
+    }
+
+    function retryExecution(id) {
+      if (!confirm('Retry this execution?')) return;
+
+      fetch(`/api/executions/${id}/retry`, {
+        method: 'POST'
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showNotification('Execution retry started', 'success');
+          loadExecutions();
+        } else {
+          showNotification('Failed to retry execution: ' + data.error, 'danger');
+        }
+      })
+      .catch(err => {
+        showNotification('Error: ' + err.message, 'danger');
+      });
+    }
+
+    function importWorkflow() {
+      const file = document.getElementById('import-file').files[0];
+      const jsonText = document.getElementById('import-textarea').value;
+
+      if (!file && !jsonText) {
+        alert('Please select a file or paste JSON');
+        return;
+      }
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          processImport(e.target.result);
+        };
+        reader.readAsText(file);
+      } else {
+        processImport(jsonText);
+      }
+    }
+
+    function processImport(jsonText) {
+      try {
+        const workflow = JSON.parse(jsonText);
+        fetch('/api/workflows/import', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(workflow)
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            showNotification('Workflow imported successfully', 'success');
+            navigateToSection('workflows');
+          } else {
+            showNotification('Import failed: ' + data.error, 'danger');
+          }
+        });
+      } catch (err) {
+        showNotification('Invalid JSON: ' + err.message, 'danger');
+      }
+    }
+
+    function createWebhook() {
+      console.log('Create webhook');
+      // Implement webhook creation
+    }
+
+    function createTag() {
+      const name = prompt('Enter tag name:');
+      if (name) {
+        console.log('Create tag:', name);
+        // Implement tag creation
+      }
+    }
+
+    function saveRetentionSettings() {
+      const logRetention = document.getElementById('log-retention').value;
+      const completedRetention = document.getElementById('completed-retention').value;
+      const failedRetention = document.getElementById('failed-retention').value;
+
+      console.log('Save retention settings:', { logRetention, completedRetention, failedRetention });
+      showNotification('Retention settings saved', 'success');
+    }
+
+    function runCleanup() {
+      if (!confirm('This will delete old execution logs. Continue?')) return;
+
+      console.log('Run cleanup');
+      showNotification('Cleanup started', 'info');
+    }
+
+    function saveSettings() {
+      console.log('Save settings');
+      showNotification('Settings saved successfully', 'success');
+    }
+
+    function resetSettings() {
+      if (!confirm('Reset all settings to defaults?')) return;
+
+      console.log('Reset settings');
+      showNotification('Settings reset to defaults', 'info');
+    }
+
+    function showNotification(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+      toast.style.zIndex = '9999';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+  </script>
+</body>
+</html>

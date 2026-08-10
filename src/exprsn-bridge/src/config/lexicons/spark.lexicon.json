@@ -1,0 +1,627 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-spark",
+      "version": "1.0.0",
+      "description": "Real-time messaging and communication service"
+    },
+    "routes": [
+      {
+        "path": "/api/spark/conversations",
+        "method": "GET",
+        "description": "List user's conversations",
+        "target": {
+          "service": "spark",
+          "path": "/api/conversations",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "type": {
+              "type": "string",
+              "enum": ["direct", "group", "all"],
+              "default": "all"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 120
+        }
+      },
+      {
+        "path": "/api/spark/conversations/:id",
+        "method": "GET",
+        "description": "Get conversation details",
+        "target": {
+          "service": "spark",
+          "path": "/api/conversations/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/spark/conversations",
+        "method": "POST",
+        "description": "Create new conversation",
+        "target": {
+          "service": "spark",
+          "path": "/api/conversations",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["direct", "group"]
+              },
+              "participantIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "minItems": 1,
+                "maxItems": 500
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/spark/messages/:conversationId",
+        "method": "GET",
+        "description": "Get conversation messages",
+        "target": {
+          "service": "spark",
+          "path": "/api/messages/:conversationId",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "conversationId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "before": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "after": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 180
+        }
+      },
+      {
+        "path": "/api/spark/messages/:conversationId/:messageId",
+        "method": "GET",
+        "description": "Get single message",
+        "target": {
+          "service": "spark",
+          "path": "/api/messages/:conversationId/:messageId",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "conversationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "messageId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/spark/messages/:conversationId/:messageId",
+        "method": "PUT",
+        "description": "Edit message",
+        "target": {
+          "service": "spark",
+          "path": "/api/messages/:conversationId/:messageId",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "conversationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "messageId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "required": ["content"],
+            "properties": {
+              "content": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10000
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/spark/messages/:conversationId/:messageId",
+        "method": "DELETE",
+        "description": "Delete message",
+        "target": {
+          "service": "spark",
+          "path": "/api/messages/:conversationId/:messageId",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "conversationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "messageId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/spark/conversations/:id/upload",
+        "method": "POST",
+        "description": "Upload file attachment",
+        "target": {
+          "service": "spark",
+          "path": "/api/conversations/:id/upload",
+          "timeout": 30000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/spark/attachments/:id",
+        "method": "GET",
+        "description": "Get attachment metadata",
+        "target": {
+          "service": "spark",
+          "path": "/api/attachments/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/spark/search",
+        "method": "GET",
+        "description": "Search messages",
+        "target": {
+          "service": "spark",
+          "path": "/api/search",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "q": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "conversationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "from": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "to": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "type": {
+              "type": "string",
+              "enum": ["text", "image", "video", "file", "audio"]
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 60
+        }
+      },
+      {
+        "path": "/api/spark/presence",
+        "method": "GET",
+        "description": "Get user presence status",
+        "target": {
+          "service": "spark",
+          "path": "/api/presence",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "userIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 1,
+              "maxItems": 100
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 180
+        }
+      },
+      {
+        "path": "/api/spark/presence",
+        "method": "PUT",
+        "description": "Update own presence",
+        "target": {
+          "service": "spark",
+          "path": "/api/presence",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["status"],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["online", "away", "busy", "offline"]
+              },
+              "statusMessage": {
+                "type": "string",
+                "maxLength": 100
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 60
+        }
+      },
+      {
+        "path": "/api/spark/calls/history",
+        "method": "GET",
+        "description": "Get call history",
+        "target": {
+          "service": "spark",
+          "path": "/api/calls/history",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "conversationId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/spark/notifications",
+        "method": "GET",
+        "description": "Get user notifications",
+        "target": {
+          "service": "spark",
+          "path": "/api/notifications",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "unreadOnly": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/spark/notifications/:id/read",
+        "method": "PUT",
+        "description": "Mark notification as read",
+        "target": {
+          "service": "spark",
+          "path": "/api/notifications/:id/read",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/spark/notifications/read-all",
+        "method": "PUT",
+        "description": "Mark all notifications as read",
+        "target": {
+          "service": "spark",
+          "path": "/api/notifications/read-all",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        }
+      },
+      {
+        "path": "/api/spark/notifications/preferences",
+        "method": "GET",
+        "description": "Get notification preferences",
+        "target": {
+          "service": "spark",
+          "path": "/api/notifications/preferences",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/spark/notifications/preferences",
+        "method": "PUT",
+        "description": "Update notification preferences",
+        "target": {
+          "service": "spark",
+          "path": "/api/notifications/preferences",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "conversationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "muted": {
+                "type": "boolean"
+              },
+              "notifyOnMention": {
+                "type": "boolean"
+              },
+              "soundEnabled": {
+                "type": "boolean"
+              },
+              "desktopEnabled": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 1000
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

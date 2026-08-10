@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vault Administration | Exprsn Vault</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin-dashboard.css">
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+        <div class="position-sticky pt-3">
+          <div class="text-center mb-4">
+            <h4 class="text-white"><i class="bi bi-shield-lock-fill"></i> Vault Admin</h4>
+          </div>
+
+          <ul class="nav flex-column">
+            <li class="nav-item">
+              <a class="nav-link active" href="#" data-view="dashboard">
+                <i class="bi bi-speedometer2"></i> Dashboard
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-view="tokens">
+                <i class="bi bi-key-fill"></i> Tokens
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-view="secrets">
+                <i class="bi bi-file-lock-fill"></i> Secrets
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-view="policies">
+                <i class="bi bi-shield-check"></i> Policies
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-view="audit">
+                <i class="bi bi-clipboard-data"></i> Audit Logs
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-view="analytics">
+                <i class="bi bi-graph-up"></i> Analytics & AI
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-view="maintenance">
+                <i class="bi bi-tools"></i> Maintenance
+              </a>
+            </li>
+          </ul>
+
+          <hr class="text-white">
+
+          <div class="px-3">
+            <button class="btn btn-sm btn-outline-light w-100 mb-2" id="refreshBtn">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <button class="btn btn-sm btn-outline-danger w-100" id="logoutBtn">
+              <i class="bi bi-box-arrow-right"></i> Logout
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <div class="d-flex align-items-center">
+            <h1 class="h2 mb-0" id="viewTitle">Dashboard</h1>
+            <span id="connectionStatus" class="badge bg-secondary ms-3">Connecting...</span>
+          </div>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="exportBtn">
+                <i class="bi bi-download"></i> Export
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" title="Keyboard Shortcuts (Ctrl+/)">
+                <i class="bi bi-keyboard"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <div id="dashboardView" class="view-content">
+          <div class="row">
+            <div class="col-md-3 mb-4">
+              <div class="card bg-primary text-white">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between">
+                    <div>
+                      <h6 class="card-title">Active Tokens</h6>
+                      <h2 id="activeTokensCount">-</h2>
+                    </div>
+                    <i class="bi bi-key-fill" style="font-size: 2rem;"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3 mb-4">
+              <div class="card bg-success text-white">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between">
+                    <div>
+                      <h6 class="card-title">Secrets</h6>
+                      <h2 id="secretsCount">-</h2>
+                    </div>
+                    <i class="bi bi-file-lock-fill" style="font-size: 2rem;"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3 mb-4">
+              <div class="card bg-info text-white">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between">
+                    <div>
+                      <h6 class="card-title">Encryption Keys</h6>
+                      <h2 id="keysCount">-</h2>
+                    </div>
+                    <i class="bi bi-shield-lock" style="font-size: 2rem;"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3 mb-4">
+              <div class="card bg-warning text-dark">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between">
+                    <div>
+                      <h6 class="card-title">High Risk</h6>
+                      <h2 id="highRiskCount">-</h2>
+                    </div>
+                    <i class="bi bi-exclamation-triangle-fill" style="font-size: 2rem;"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-4">
+              <div class="card">
+                <div class="card-header">
+                  <h5>Token Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                  <canvas id="tokenStatusChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 mb-4">
+              <div class="card">
+                <div class="card-header">
+                  <h5>Risk Distribution</h5>
+                </div>
+                <div class="card-body">
+                  <canvas id="riskChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header">
+                  <h5>Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                  <div id="recentActivity" class="table-responsive">
+                    <p class="text-muted">Loading...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tokens View -->
+        <div id="tokensView" class="view-content" style="display: none;">
+          <div class="row mb-3">
+            <div class="col-md-12">
+              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#generateTokenModal">
+                <i class="bi bi-plus-circle"></i> Generate New Token
+              </button>
+              <button class="btn btn-danger ms-2" id="bulkRevokeBtn">
+                <i class="bi bi-x-circle"></i> Bulk Revoke
+              </button>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-3">
+              <select class="form-select" id="tokenStatusFilter">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="revoked">Revoked</option>
+                <option value="expired">Expired</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select class="form-select" id="tokenEntityTypeFilter">
+                <option value="">All Entity Types</option>
+                <option value="user">User</option>
+                <option value="group">Group</option>
+                <option value="organization">Organization</option>
+                <option value="service">Service</option>
+                <option value="certificate">Certificate</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <input type="text" class="form-control" id="tokenSearchInput" placeholder="Search tokens...">
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-outline-secondary w-100" id="applyTokenFiltersBtn">
+                <i class="bi bi-funnel"></i> Apply
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <div id="tokensTable" class="table-responsive">
+                <p class="text-muted">Loading tokens...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secrets View -->
+        <div id="secretsView" class="view-content" style="display: none;">
+          <div class="row mb-3">
+            <div class="col-md-12">
+              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSecretModal">
+                <i class="bi bi-plus-circle"></i> Create Secret
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <div id="secretsTable" class="table-responsive">
+                <p class="text-muted">Loading secrets...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Policies View -->
+        <div id="policiesView" class="view-content" style="display: none;">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPolicyModal">
+                <i class="bi bi-plus-circle"></i> Create Policy
+              </button>
+              <button class="btn btn-info ms-2" id="aiSuggestPoliciesBtn">
+                <i class="bi bi-magic"></i> AI Suggestions
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <div id="policiesTable" class="table-responsive">
+                <p class="text-muted">Loading policies...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics View -->
+        <div id="analyticsView" class="view-content" style="display: none;">
+          <div class="row">
+            <div class="col-md-12 mb-4">
+              <div class="card">
+                <div class="card-header">
+                  <h5>Access Report</h5>
+                </div>
+                <div class="card-body">
+                  <div class="row mb-3">
+                    <div class="col-md-3">
+                      <label>Start Date</label>
+                      <input type="date" class="form-control" id="reportStartDate">
+                    </div>
+                    <div class="col-md-3">
+                      <label>End Date</label>
+                      <input type="date" class="form-control" id="reportEndDate">
+                    </div>
+                    <div class="col-md-3">
+                      <label>&nbsp;</label>
+                      <button class="btn btn-primary w-100" id="generateReportBtn">
+                        <i class="bi bi-file-earmark-bar-graph"></i> Generate
+                      </button>
+                    </div>
+                  </div>
+                  <div id="reportResults"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-12">
+              <div class="card">
+                <div class="card-header">
+                  <h5>Anomaly Detection</h5>
+                </div>
+                <div class="card-body">
+                  <div id="anomaliesTable" class="table-responsive">
+                    <p class="text-muted">Select a token to detect anomalies</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Maintenance View -->
+        <div id="maintenanceView" class="view-content" style="display: none;">
+          <div class="row">
+            <div class="col-md-6 mb-4">
+              <div class="card">
+                <div class="card-header">
+                  <h5>Token Maintenance</h5>
+                </div>
+                <div class="card-body">
+                  <button class="btn btn-warning w-100 mb-2" id="purgeExpiredBtn">
+                    <i class="bi bi-trash"></i> Purge Expired Tokens
+                  </button>
+                  <button class="btn btn-info w-100" id="clearCacheBtn">
+                    <i class="bi bi-x-circle"></i> Clear Redis Cache
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 mb-4">
+              <div class="card">
+                <div class="card-header">
+                  <h5>Cache Statistics</h5>
+                </div>
+                <div class="card-body" id="cacheStats">
+                  <p class="text-muted">Loading...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Generate Token Modal -->
+  <div class="modal fade" id="generateTokenModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Generate New Vault Token</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="generateTokenForm">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="tokenDisplayName" class="form-label">Display Name *</label>
+                <input type="text" class="form-control" id="tokenDisplayName" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="tokenEntityType" class="form-label">Entity Type *</label>
+                <select class="form-select" id="tokenEntityType" required>
+                  <option value="user">User</option>
+                  <option value="group">Group</option>
+                  <option value="organization">Organization</option>
+                  <option value="service">Service</option>
+                  <option value="certificate">Certificate</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="tokenEntityId" class="form-label">Entity ID *</label>
+              <input type="text" class="form-control" id="tokenEntityId" required>
+            </div>
+            <div class="mb-3">
+              <label for="tokenDescription" class="form-label">Description</label>
+              <textarea class="form-control" id="tokenDescription" rows="2"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Permissions *</label>
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="permRead" checked>
+                    <label class="form-check-label" for="permRead">Read</label>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="permWrite">
+                    <label class="form-check-label" for="permWrite">Write</label>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="permDelete">
+                    <label class="form-check-label" for="permDelete">Delete</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="tokenPaths" class="form-label">Path Prefixes (comma-separated)</label>
+              <input type="text" class="form-control" id="tokenPaths" placeholder="/app1/*, /shared/*">
+            </div>
+            <div class="mb-3">
+              <label for="tokenIPs" class="form-label">IP Whitelist (comma-separated)</label>
+              <input type="text" class="form-control" id="tokenIPs" placeholder="192.168.1.1, 10.0.0.*">
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="tokenExpiry" class="form-label">Expiry Date</label>
+                <input type="datetime-local" class="form-control" id="tokenExpiry">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="tokenMaxUses" class="form-label">Max Uses</label>
+                <input type="number" class="form-control" id="tokenMaxUses" min="1">
+              </div>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="tokenCAIntegration" checked>
+              <label class="form-check-label" for="tokenCAIntegration">
+                Enable CA Integration
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="submitGenerateToken">Generate Token</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Token Display Modal -->
+  <div class="modal fade" id="tokenDisplayModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title">Token Generated Successfully</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong>Important:</strong> This token will only be shown once. Store it securely!
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Token Value</label>
+            <div class="input-group">
+              <input type="text" class="form-control font-monospace" id="generatedTokenValue" readonly>
+              <button class="btn btn-outline-secondary" type="button" id="copyTokenBtn">
+                <i class="bi bi-clipboard"></i> Copy
+              </button>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Token ID</label>
+            <input type="text" class="form-control" id="generatedTokenId" readonly>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Token Details Modal -->
+  <div class="modal fade" id="tokenDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Token Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="tokenDetailsContent">
+            <p class="text-muted">Loading...</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" id="revokeTokenBtn">
+            <i class="bi bi-x-circle"></i> Revoke Token
+          </button>
+          <button type="button" class="btn btn-warning" id="suspendTokenBtn">
+            <i class="bi bi-pause-circle"></i> Suspend Token
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Secret Modal -->
+  <div class="modal fade" id="createSecretModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Create Secret</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="createSecretForm">
+            <div class="mb-3">
+              <label for="secretPath" class="form-label">Secret Path *</label>
+              <input type="text" class="form-control" id="secretPath" required
+                     placeholder="/app/database/credentials" pattern="^/[a-zA-Z0-9/_-]+$">
+              <div class="form-text">Must start with / and contain only alphanumeric, -, _, /</div>
+              <div class="invalid-feedback">Please enter a valid secret path.</div>
+            </div>
+            <div class="mb-3">
+              <label for="secretValue" class="form-label">Secret Value *</label>
+              <textarea class="form-control font-monospace" id="secretValue" rows="4" required></textarea>
+              <div class="invalid-feedback">Secret value is required.</div>
+            </div>
+            <div class="mb-3">
+              <label for="secretMetadata" class="form-label">Metadata (JSON)</label>
+              <textarea class="form-control font-monospace" id="secretMetadata" rows="3"
+                        placeholder='{"description": "Database credentials", "environment": "production"}'></textarea>
+              <div class="form-text">Optional JSON metadata</div>
+              <div class="invalid-feedback">Invalid JSON format.</div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="secretExpiry" class="form-label">Expiry Date (Optional)</label>
+                <input type="datetime-local" class="form-control" id="secretExpiry">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="secretVersion" class="form-label">Version Control</label>
+                <select class="form-select" id="secretVersion">
+                  <option value="true">Enable Versioning</option>
+                  <option value="false">Single Version</option>
+                </select>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="submitCreateSecret">
+            <i class="bi bi-save"></i> Create Secret
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Policy Modal -->
+  <div class="modal fade" id="createPolicyModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Create Access Policy</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="createPolicyForm">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="policyName" class="form-label">Policy Name *</label>
+                <input type="text" class="form-control" id="policyName" required
+                       pattern="^[a-zA-Z0-9-_]+$" minlength="3" maxlength="64">
+                <div class="form-text">Alphanumeric, dash, underscore only (3-64 chars)</div>
+                <div class="invalid-feedback">Invalid policy name format.</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="policyType" class="form-label">Policy Type *</label>
+                <select class="form-select" id="policyType" required>
+                  <option value="">Select type...</option>
+                  <option value="secret">Secret Access</option>
+                  <option value="key">Key Management</option>
+                  <option value="credential">Credential Access</option>
+                  <option value="global">Global Policy</option>
+                </select>
+                <div class="invalid-feedback">Please select a policy type.</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="policyDescription" class="form-label">Description</label>
+              <textarea class="form-control" id="policyDescription" rows="2"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="policyRules" class="form-label">Policy Rules (JSONLex) *</label>
+              <textarea class="form-control font-monospace" id="policyRules" rows="8" required></textarea>
+              <div class="form-text">
+                Example: <code>{"conditions": [{"field": "ip", "operator": "in", "value": ["192.168.1.0/24"]}], "permissions": {"read": true}}</code>
+              </div>
+              <div class="invalid-feedback">Invalid JSON format.</div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="policyPriority" class="form-label">Priority (0-100)</label>
+                <input type="number" class="form-control" id="policyPriority" min="0" max="100" value="50">
+                <div class="form-text">Higher priority = evaluated first</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="policyEnforcement" class="form-label">Enforcement Mode</label>
+                <select class="form-select" id="policyEnforcement">
+                  <option value="enforcing">Enforcing (Block violations)</option>
+                  <option value="permissive">Permissive (Log only)</option>
+                  <option value="audit">Audit (Log and alert)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="policyActive" checked>
+              <label class="form-check-label" for="policyActive">
+                Activate policy immediately
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-info" id="validatePolicyBtn">
+            <i class="bi bi-check-circle"></i> Validate JSONLex
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="submitCreatePolicy">
+            <i class="bi bi-save"></i> Create Policy
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Policy Modal -->
+  <div class="modal fade" id="editPolicyModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Access Policy</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editPolicyForm">
+            <input type="hidden" id="editPolicyId">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="editPolicyName" class="form-label">Policy Name *</label>
+                <input type="text" class="form-control" id="editPolicyName" required
+                       pattern="^[a-zA-Z0-9-_]+$" minlength="3" maxlength="64">
+                <div class="invalid-feedback">Invalid policy name format.</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="editPolicyType" class="form-label">Policy Type *</label>
+                <select class="form-select" id="editPolicyType" required>
+                  <option value="secret">Secret Access</option>
+                  <option value="key">Key Management</option>
+                  <option value="credential">Credential Access</option>
+                  <option value="global">Global Policy</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="editPolicyDescription" class="form-label">Description</label>
+              <textarea class="form-control" id="editPolicyDescription" rows="2"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="editPolicyRules" class="form-label">Policy Rules (JSONLex) *</label>
+              <textarea class="form-control font-monospace" id="editPolicyRules" rows="8" required></textarea>
+              <div class="invalid-feedback">Invalid JSON format.</div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="editPolicyPriority" class="form-label">Priority (0-100)</label>
+                <input type="number" class="form-control" id="editPolicyPriority" min="0" max="100">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="editPolicyEnforcement" class="form-label">Enforcement Mode</label>
+                <select class="form-select" id="editPolicyEnforcement">
+                  <option value="enforcing">Enforcing</option>
+                  <option value="permissive">Permissive</option>
+                  <option value="audit">Audit</option>
+                </select>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" id="deletePolicyBtn">
+            <i class="bi bi-trash"></i> Delete
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="submitEditPolicy">
+            <i class="bi bi-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Security Alert Modal -->
+  <div class="modal fade" id="securityAlertModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content border-danger">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Security Alert</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="securityAlertContent">
+            <p class="text-muted">No alerts</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" id="acknowledgeAlertBtn">
+            <i class="bi bi-check-circle"></i> Acknowledge & Take Action
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Dismiss</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Data Modal -->
+  <div class="modal fade" id="exportDataModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Export Data</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="exportDataForm">
+            <div class="mb-3">
+              <label class="form-label">Data Type *</label>
+              <select class="form-select" id="exportDataType" required>
+                <option value="">Select data type...</option>
+                <option value="tokens">Tokens</option>
+                <option value="secrets">Secrets (metadata only)</option>
+                <option value="policies">Policies</option>
+                <option value="audit">Audit Logs</option>
+                <option value="analytics">Analytics Report</option>
+              </select>
+              <div class="invalid-feedback">Please select a data type.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Export Format *</label>
+              <select class="form-select" id="exportFormat" required>
+                <option value="json">JSON</option>
+                <option value="csv">CSV</option>
+                <option value="xlsx">Excel (XLSX)</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Date Range</label>
+              <div class="row">
+                <div class="col-md-6">
+                  <input type="date" class="form-control" id="exportStartDate">
+                </div>
+                <div class="col-md-6">
+                  <input type="date" class="form-control" id="exportEndDate">
+                </div>
+              </div>
+              <div class="form-text">Leave empty for all data</div>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="exportIncludeRevoked">
+              <label class="form-check-label" for="exportIncludeRevoked">
+                Include revoked/expired items
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="submitExportData">
+            <i class="bi bi-download"></i> Export
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container for Notifications -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-3 text-white">Processing...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="/js/admin-dashboard-enhanced.js"></script>
+  <script src="/js/admin-dashboard.js"></script>
+</body>
+</html>

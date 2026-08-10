@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+        <%- include('../shared/sidebar') %>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-shield-check text-success"></i>
+            Permissions Management
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <button type="button" class="btn btn-success" onclick="createRole()">
+              <i class="bi bi-plus-circle"></i> New Role
+            </button>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Description -->
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i>
+          <strong>Role-Based Access Control (RBAC)</strong> manages user permissions through roles. Integrates with exprsn-auth for user and role management.
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-3" id="permissionTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="roles-tab" data-bs-toggle="tab"
+                    data-bs-target="#roles" type="button" role="tab">
+              <i class="bi bi-people"></i> Roles
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="permissions-tab" data-bs-toggle="tab"
+                    data-bs-target="#permissions-view" type="button" role="tab">
+              <i class="bi bi-key"></i> Permissions
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="matrix-tab" data-bs-toggle="tab"
+                    data-bs-target="#matrix" type="button" role="tab">
+              <i class="bi bi-grid-3x3"></i> Permission Matrix
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="permissionTabContent">
+          <!-- Roles Tab -->
+          <div class="tab-pane fade show active" id="roles" role="tabpanel">
+            <div class="row">
+              <% if (roles.length === 0) { %>
+                <div class="col-12">
+                  <div class="card shadow">
+                    <div class="card-body text-center py-5">
+                      <i class="bi bi-people" style="font-size: 4rem; color: #dee2e6;"></i>
+                      <h4 class="mt-3">No roles configured</h4>
+                      <p class="text-muted">Create roles to organize user permissions</p>
+                      <button type="button" class="btn btn-success" onclick="createRole()">
+                        <i class="bi bi-plus-circle"></i> Create Role
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              <% } else { %>
+                <% roles.forEach(role => { %>
+                  <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                      <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                          <i class="bi bi-person-badge"></i>
+                          <%= role.name %>
+                        </h6>
+                        <div class="dropdown">
+                          <button class="btn btn-sm btn-link text-muted" type="button"
+                                  data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i>
+                          </button>
+                          <ul class="dropdown-menu">
+                            <li>
+                              <button class="dropdown-item" onclick="editRole('<%= role.id %>')">
+                                <i class="bi bi-pencil"></i> Edit
+                              </button>
+                            </li>
+                            <li>
+                              <button class="dropdown-item" onclick="viewRolePermissions('<%= role.id %>')">
+                                <i class="bi bi-key"></i> Manage Permissions
+                              </button>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                              <button class="dropdown-item text-danger" onclick="deleteRole('<%= role.id %>')">
+                                <i class="bi bi-trash"></i> Delete
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                      <div class="card-body">
+                        <% if (role.description) { %>
+                          <p class="card-text text-muted small"><%= role.description %></p>
+                        <% } %>
+
+                        <div class="mb-2">
+                          <strong>Users:</strong> <%= role.userCount || 0 %>
+                        </div>
+
+                        <div class="mb-2">
+                          <strong>Permissions:</strong> <%= role.permissionCount || 0 %>
+                        </div>
+
+                        <% if (role.isSystem) { %>
+                          <span class="badge bg-secondary">System Role</span>
+                        <% } %>
+                      </div>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } %>
+
+              <!-- Default Roles Info -->
+              <div class="col-12 mt-3">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6 class="card-title"><i class="bi bi-info-circle"></i> Default Roles</h6>
+                    <div class="row small">
+                      <div class="col-md-3">
+                        <strong>Admin:</strong> Full system access
+                      </div>
+                      <div class="col-md-3">
+                        <strong>Analyst:</strong> Create dashboards & reports
+                      </div>
+                      <div class="col-md-3">
+                        <strong>Viewer:</strong> View-only access
+                      </div>
+                      <div class="col-md-3">
+                        <strong>Data Manager:</strong> Manage data sources
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Permissions Tab -->
+          <div class="tab-pane fade" id="permissions-view" role="tabpanel">
+            <div class="card shadow">
+              <div class="card-body">
+                <h5 class="card-title mb-4">Available Permissions</h5>
+
+                <div class="accordion" id="permissionsAccordion">
+                  <!-- Dashboards -->
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                              data-bs-target="#dashboardsPerms">
+                        <i class="bi bi-grid-3x3-gap me-2"></i> Dashboards
+                      </button>
+                    </h2>
+                    <div id="dashboardsPerms" class="accordion-collapse collapse show"
+                         data-bs-parent="#permissionsAccordion">
+                      <div class="accordion-body">
+                        <div class="row">
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="dash-view">
+                              <label class="form-check-label small" for="dash-view">
+                                <code>dashboards.view</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="dash-create">
+                              <label class="form-check-label small" for="dash-create">
+                                <code>dashboards.create</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="dash-edit">
+                              <label class="form-check-label small" for="dash-edit">
+                                <code>dashboards.edit</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="dash-delete">
+                              <label class="form-check-label small" for="dash-delete">
+                                <code>dashboards.delete</code>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Reports -->
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                              data-bs-target="#reportsPerms">
+                        <i class="bi bi-file-earmark-bar-graph me-2"></i> Reports
+                      </button>
+                    </h2>
+                    <div id="reportsPerms" class="accordion-collapse collapse"
+                         data-bs-parent="#permissionsAccordion">
+                      <div class="accordion-body">
+                        <div class="row">
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="rep-view">
+                              <label class="form-check-label small" for="rep-view">
+                                <code>reports.view</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="rep-execute">
+                              <label class="form-check-label small" for="rep-execute">
+                                <code>reports.execute</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="rep-schedule">
+                              <label class="form-check-label small" for="rep-schedule">
+                                <code>reports.schedule</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="rep-export">
+                              <label class="form-check-label small" for="rep-export">
+                                <code>reports.export</code>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Data Sources -->
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                              data-bs-target="#dataPerms">
+                        <i class="bi bi-database me-2"></i> Data Sources
+                      </button>
+                    </h2>
+                    <div id="dataPerms" class="accordion-collapse collapse"
+                         data-bs-parent="#permissionsAccordion">
+                      <div class="accordion-body">
+                        <div class="row">
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="data-view">
+                              <label class="form-check-label small" for="data-view">
+                                <code>datasources.view</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="data-create">
+                              <label class="form-check-label small" for="data-create">
+                                <code>datasources.create</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="data-test">
+                              <label class="form-check-label small" for="data-test">
+                                <code>datasources.test</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="data-delete">
+                              <label class="form-check-label small" for="data-delete">
+                                <code>datasources.delete</code>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Admin -->
+                  <div class="accordion-item">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                              data-bs-target="#adminPerms">
+                        <i class="bi bi-shield-lock me-2"></i> Admin
+                      </button>
+                    </h2>
+                    <div id="adminPerms" class="accordion-collapse collapse"
+                         data-bs-parent="#permissionsAccordion">
+                      <div class="accordion-body">
+                        <div class="row">
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="admin-users">
+                              <label class="form-check-label small" for="admin-users">
+                                <code>admin.users</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="admin-roles">
+                              <label class="form-check-label small" for="admin-roles">
+                                <code>admin.roles</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="admin-audit">
+                              <label class="form-check-label small" for="admin-audit">
+                                <code>admin.audit</code>
+                              </label>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" id="admin-settings">
+                              <label class="form-check-label small" for="admin-settings">
+                                <code>admin.settings</code>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Permission Matrix Tab -->
+          <div class="tab-pane fade" id="matrix" role="tabpanel">
+            <div class="card shadow">
+              <div class="card-body">
+                <h5 class="card-title mb-4">Role-Permission Matrix</h5>
+                <div class="table-responsive">
+                  <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Permission</th>
+                        <th>Admin</th>
+                        <th>Analyst</th>
+                        <th>Viewer</th>
+                        <th>Data Manager</th>
+                      </tr>
+                    </thead>
+                    <tbody class="small">
+                      <tr>
+                        <td><code>dashboards.view</code></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                      </tr>
+                      <tr>
+                        <td><code>dashboards.create</code></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-x-circle-fill text-danger"></i></td>
+                        <td class="text-center"><i class="bi bi-x-circle-fill text-danger"></i></td>
+                      </tr>
+                      <tr>
+                        <td><code>reports.execute</code></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                      </tr>
+                      <tr>
+                        <td><code>datasources.create</code></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-x-circle-fill text-danger"></i></td>
+                        <td class="text-center"><i class="bi bi-x-circle-fill text-danger"></i></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                      </tr>
+                      <tr>
+                        <td><code>admin.settings</code></td>
+                        <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+                        <td class="text-center"><i class="bi bi-x-circle-fill text-danger"></i></td>
+                        <td class="text-center"><i class="bi bi-x-circle-fill text-danger"></i></td>
+                        <td class="text-center"><i class="bi bi-x-circle-fill text-danger"></i></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="text-muted small mt-3">
+                  <i class="bi bi-info-circle"></i> This matrix shows the default permission assignments. Edit roles to customize permissions.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <script>
+    function createRole() {
+      const name = prompt('Role name:');
+      if (!name) return;
+
+      const description = prompt('Description (optional):') || '';
+
+      PulseUtils.showLoading();
+
+      // TODO: Implement role creation via exprsn-auth API
+      setTimeout(() => {
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Role creation requires exprsn-auth integration', 'info');
+      }, 500);
+    }
+
+    function editRole(id) {
+      alert('Edit role functionality requires exprsn-auth integration');
+    }
+
+    function viewRolePermissions(id) {
+      alert('Manage role permissions functionality requires exprsn-auth integration');
+    }
+
+    function deleteRole(id) {
+      PulseModals.showDeleteConfirm('Role', 'this role', function() {
+        PulseUtils.showAlert('Role deletion requires exprsn-auth integration', 'info');
+      });
+    }
+  </script>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

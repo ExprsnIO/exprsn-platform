@@ -1,0 +1,308 @@
+<%
+    const title = 'Git Management Dashboard';
+    const currentPath = '/lowcode/git';
+%>
+<%- include('./partials/git-header') %>
+<%- include('./partials/git-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-git me-2"></i>
+                Git Management Dashboard
+            </h1>
+            <p class="page-subtitle">Enterprise-grade Git hosting with integrated CI/CD</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh
+            </button>
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i>
+                New Repository
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-folder"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="total-repos">0</div>
+                <div class="stat-label">Total Repositories</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    5 this month
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-play-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="active-pipelines">0</div>
+                <div class="stat-label">Active Pipelines</div>
+                <div class="stat-change">
+                    Running now
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="security-score">A+</div>
+                <div class="stat-label">Security Score</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    Excellent
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-rocket-takeoff"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value" id="deploy-count">0</div>
+                <div class="stat-label">Recent Deployments</div>
+                <div class="stat-change">
+                    Last 30 days
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Cards -->
+    <h2 class="mt-4 mb-3" style="font-size: 1.25rem; font-weight: 600;">Management Features</h2>
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card" style="cursor: pointer;" onclick="window.location.href='/lowcode/git/setup/config'">
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="stat-icon primary">
+                            <i class="bi bi-gear"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title mb-2">System Configuration</h3>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">
+                                Global settings, repository templates, and issue templates
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card" style="cursor: pointer;" onclick="window.location.href='/lowcode/git/auth'">
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="stat-icon success">
+                            <i class="bi bi-shield-lock"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title mb-2">Authentication</h3>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">
+                                SSH keys, Personal Access Tokens, OAuth applications
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card" style="cursor: pointer;" onclick="window.location.href='/lowcode/git/policies'">
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="stat-icon warning">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title mb-2">Repository Policies</h3>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">
+                                Branch protection, CODEOWNERS, merge strategies
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card" style="cursor: pointer;" onclick="window.location.href='/lowcode/git/runners'">
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="stat-icon primary">
+                            <i class="bi bi-cpu"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title mb-2">CI/CD Runners</h3>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">
+                                Runner management, pipeline cache, build artifacts
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card" style="cursor: pointer;" onclick="window.location.href='/lowcode/git/security'">
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="stat-icon danger">
+                            <i class="bi bi-bug"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title mb-2">Security Scanning</h3>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">
+                                Vulnerability management, SAST, dependency scanning
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card" style="cursor: pointer;" onclick="window.location.href='/lowcode/git/environments'">
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="stat-icon success">
+                            <i class="bi bi-cloud-upload"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title mb-2">Environments</h3>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">
+                                Deployment environments, variables, container registries
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-clock-history me-2"></i>
+                Recent Activity
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Repository</th>
+                            <th>User</th>
+                            <th>Description</th>
+                            <th class="sortable">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-success">Commit</span></td>
+                            <td><code>exprsn-ca</code></td>
+                            <td>Admin User</td>
+                            <td>Initial commit: Exprsn Certificate Authority Ecosystem</td>
+                            <td>2 hours ago</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-primary">Push</span></td>
+                            <td><code>exprsn-auth</code></td>
+                            <td>John Doe</td>
+                            <td>Pushed 3 commits to main branch</td>
+                            <td>5 hours ago</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">Deploy</span></td>
+                            <td><code>exprsn-timeline</code></td>
+                            <td>Jane Smith</td>
+                            <td>Deployed to production environment</td>
+                            <td>1 day ago</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-bar-chart me-2"></i>
+                        Repository Stats
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Public Repositories</span>
+                        <strong>0</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Private Repositories</span>
+                        <strong>0</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Active Branches</span>
+                        <strong>0</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">Total Contributors</span>
+                        <strong>0</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-shield-check me-2"></i>
+                        Security Overview
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Critical Vulnerabilities</span>
+                        <span class="badge badge-success">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">High Severity Issues</span>
+                        <span class="badge badge-success">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Secret Detections</span>
+                        <span class="badge badge-success">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">Compliance Score</span>
+                        <strong class="text-success">100%</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('./partials/git-footer') %>

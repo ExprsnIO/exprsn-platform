@@ -1,0 +1,180 @@
+<!-- Right Sidebar -->
+<div class="right-sidebar-content p-3">
+    <!-- Trending Topics -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-0 pb-0">
+            <h6 class="fw-bold mb-0">Trending Topics</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush" id="trendingTopics">
+                <!-- Trending topics will be loaded dynamically -->
+                <a href="/explore?tag=atprotocol" class="list-group-item list-group-item-action border-0 px-3 py-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted small">Technology</div>
+                            <div class="fw-semibold">#atprotocol</div>
+                            <div class="text-muted small">1.2K posts</div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </div>
+                </a>
+
+                <a href="/explore?tag=decentralized" class="list-group-item list-group-item-action border-0 px-3 py-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted small">Technology</div>
+                            <div class="fw-semibold">#decentralized</div>
+                            <div class="text-muted small">856 posts</div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </div>
+                </a>
+
+                <a href="/explore?tag=opensource" class="list-group-item list-group-item-action border-0 px-3 py-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted small">Development</div>
+                            <div class="fw-semibold">#opensource</div>
+                            <div class="text-muted small">645 posts</div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </div>
+                </a>
+
+                <a href="/explore?tag=photography" class="list-group-item list-group-item-action border-0 px-3 py-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted small">Creative</div>
+                            <div class="fw-semibold">#photography</div>
+                            <div class="text-muted small">523 posts</div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </div>
+                </a>
+
+                <a href="/explore?tag=cooking" class="list-group-item list-group-item-action border-0 px-3 py-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted small">Lifestyle</div>
+                            <div class="fw-semibold">#cooking</div>
+                            <div class="text-muted small">412 posts</div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </div>
+                </a>
+            </div>
+            <a href="/explore/trending" class="d-block text-center text-primary text-decoration-none small py-2 border-top">
+                Show more
+            </a>
+        </div>
+    </div>
+
+    <!-- Suggested Users -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-0 pb-0">
+            <h6 class="fw-bold mb-0">Who to Follow</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush" id="suggestedUsers">
+                <!-- Suggested users will be loaded dynamically -->
+                <div class="list-group-item border-0 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <img src="/images/default-avatar.png"
+                             alt="Alice Anderson"
+                             class="rounded-circle"
+                             style="width: 40px; height: 40px; object-fit: cover;">
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="fw-semibold text-truncate">Alice Anderson</div>
+                            <div class="text-muted small text-truncate">@alice_dev.exprsn.io</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill"
+                                onclick="followUser('alice_dev.exprsn.io')">
+                            Follow
+                        </button>
+                    </div>
+                </div>
+
+                <div class="list-group-item border-0 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <img src="/images/default-avatar.png"
+                             alt="Bob Brown"
+                             class="rounded-circle"
+                             style="width: 40px; height: 40px; object-fit: cover;">
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="fw-semibold text-truncate">Bob Brown</div>
+                            <div class="text-muted small text-truncate">@bob_designer.exprsn.io</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill"
+                                onclick="followUser('bob_designer.exprsn.io')">
+                            Follow
+                        </button>
+                    </div>
+                </div>
+
+                <div class="list-group-item border-0 px-3 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <img src="/images/default-avatar.png"
+                             alt="Charlie Chen"
+                             class="rounded-circle"
+                             style="width: 40px; height: 40px; object-fit: cover;">
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="fw-semibold text-truncate">Charlie Chen</div>
+                            <div class="text-muted small text-truncate">@charlie_pm.exprsn.io</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill"
+                                onclick="followUser('charlie_pm.exprsn.io')">
+                            Follow
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <a href="/explore/people" class="d-block text-center text-primary text-decoration-none small py-2 border-top">
+                Show more
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity (if user is logged in) -->
+    <% if (locals.user) { %>
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-0 pb-0">
+            <h6 class="fw-bold mb-0">Recent Activity</h6>
+        </div>
+        <div class="card-body">
+            <div class="small">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-heart-fill text-danger"></i>
+                    <span class="text-muted"><span class="fw-semibold" id="recentLikesCount">0</span> likes today</span>
+                </div>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-chat-fill text-primary"></i>
+                    <span class="text-muted"><span class="fw-semibold" id="recentRepliesCount">0</span> replies today</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-arrow-repeat text-success"></i>
+                    <span class="text-muted"><span class="fw-semibold" id="recentRepostsCount">0</span> reposts today</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <% } %>
+
+    <!-- Footer Links -->
+    <div class="small text-muted px-3 mb-3">
+        <div class="mb-2">
+            <a href="/about" class="text-decoration-none text-muted me-2">About</a>
+            <a href="/help" class="text-decoration-none text-muted me-2">Help</a>
+        </div>
+        <div class="mb-2">
+            <a href="/terms" class="text-decoration-none text-muted me-2">Terms</a>
+            <a href="/privacy" class="text-decoration-none text-muted me-2">Privacy</a>
+        </div>
+        <div class="mb-2">
+            <a href="/api/docs" class="text-decoration-none text-muted me-2">API</a>
+            <a href="https://atproto.com" target="_blank" class="text-decoration-none text-muted">AT Protocol</a>
+        </div>
+        <div class="mt-2">
+            © 2024 Exprsn BlueSky
+        </div>
+    </div>
+</div>

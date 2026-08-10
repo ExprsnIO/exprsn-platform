@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> | Exprsn Nexus</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <%- include('partials/styles') %>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <%- include('partials/nav') %>
+    <main id="main-content">
+        <div class="container">
+            <h1 class="mb-4"><i class="bi bi-people me-2"></i><%= title %></h1>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2><%= group.name %></h2>
+                    <p class="lead"><%= group.description || 'No description' %></p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Members</div>
+                        <div class="card-body">
+                            <% if (group.members && group.members.length > 0) { %>
+                                <p><%= group.members.length %> members</p>
+                            <% } else { %>
+                                <p>No members yet</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Events</div>
+                        <div class="card-body">
+                            <% if (group.events && group.events.length > 0) { %>
+                                <p><%= group.events.length %> events</p>
+                            <% } else { %>
+                                <p>No events scheduled</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <%- include('partials/footer') %>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <%- include('partials/scripts') %>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Environment Management</h1>
+            <p class="page-subtitle">Configure and manage development, staging, and production environments</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Add Environment
+            </button>
+        </div>
+    </div>
+
+    <!-- Environment Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+        <!-- Development Environment -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="status-dot online"></span>
+                    <h3 class="card-title">Development</h3>
+                </div>
+                <span class="badge badge-success">Active</span>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.875rem;">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Node ENV</span>
+                        <strong>development</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Services</span>
+                        <strong>15 running</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Database</span>
+                        <strong>PostgreSQL 15</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Port Range</span>
+                        <strong>3000-5001</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Configure</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Logs</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Staging Environment -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="status-dot warning"></span>
+                    <h3 class="card-title">Staging</h3>
+                </div>
+                <span class="badge badge-warning">Inactive</span>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.875rem;">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Node ENV</span>
+                        <strong>staging</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Services</span>
+                        <strong>0 running</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Database</span>
+                        <strong>Not configured</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Port Range</span>
+                        <strong>6000-8000</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Setup</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Deploy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Production Environment -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="status-dot offline"></span>
+                    <h3 class="card-title">Production</h3>
+                </div>
+                <span class="badge badge-secondary">Not Configured</span>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.875rem;">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Node ENV</span>
+                        <strong>production</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Services</span>
+                        <strong>Not deployed</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Database</span>
+                        <strong>Not configured</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">SSL</span>
+                        <strong>Required</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-sm btn-primary w-100">Configure Production</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Editor -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Environment Variables</h3>
+            <button class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Add Variable
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Variable</th>
+                            <th>Value</th>
+                            <th>Environment</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>NODE_ENV</code></td>
+                            <td><code>development</code></td>
+                            <td><span class="badge badge-info">Development</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>DB_HOST</code></td>
+                            <td><code>localhost</code></td>
+                            <td><span class="badge badge-info">Development</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>REDIS_ENABLED</code></td>
+                            <td><code>true</code></td>
+                            <td><span class="badge badge-info">Development</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deployment History -->
+    <div class="card mt-3">
+        <div class="card-header">
+            <h3 class="card-title">Deployment History</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="sortable">Date</th>
+                            <th>Environment</th>
+                            <th>Version</th>
+                            <th>Deployed By</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2025-12-27 09:30</td>
+                            <td><span class="badge badge-info">Development</span></td>
+                            <td><code>v1.2.3</code></td>
+                            <td>Admin User</td>
+                            <td><span class="badge badge-success">Success</span></td>
+                        </tr>
+                        <tr>
+                            <td>2025-12-26 14:15</td>
+                            <td><span class="badge badge-info">Development</span></td>
+                            <td><code>v1.2.2</code></td>
+                            <td>Admin User</td>
+                            <td><span class="badge badge-success">Success</span></td>
+                        </tr>
+                        <tr>
+                            <td>2025-12-25 11:00</td>
+                            <td><span class="badge badge-info">Development</span></td>
+                            <td><code>v1.2.1</code></td>
+                            <td>Admin User</td>
+                            <td><span class="badge badge-danger">Failed</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

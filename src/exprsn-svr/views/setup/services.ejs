@@ -1,0 +1,255 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Service Health</h1>
+            <p class="page-subtitle">Monitor and manage all 23 microservices</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh
+            </button>
+            <button class="btn btn-primary">
+                <i class="bi bi-play-circle"></i>
+                Start All
+            </button>
+        </div>
+    </div>
+
+    <!-- Service Status Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <!-- exprsn-ca -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-shield-check" style="font-size: 1.5rem; color: var(--exprsn-success);"></i>
+                    <strong>exprsn-ca</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge badge-success"><span class="status-dot online"></span>Running</span>
+                    <code class="text-muted">:3000</code>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">Uptime: 5d 12h</div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-secondary flex-fill">Restart</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Logs</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- exprsn-auth -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-key" style="font-size: 1.5rem; color: var(--exprsn-primary);"></i>
+                    <strong>exprsn-auth</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge badge-success"><span class="status-dot online"></span>Running</span>
+                    <code class="text-muted">:3001</code>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">Uptime: 5d 11h</div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-secondary flex-fill">Restart</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Logs</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- exprsn-spark -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-chat-dots" style="font-size: 1.5rem; color: var(--exprsn-info);"></i>
+                    <strong>exprsn-spark</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge badge-success"><span class="status-dot online"></span>Running</span>
+                    <code class="text-muted">:3002</code>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">Uptime: 5d 10h</div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-secondary flex-fill">Restart</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Logs</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- exprsn-timeline -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-journal-text" style="font-size: 1.5rem; color: var(--exprsn-warning);"></i>
+                    <strong>exprsn-timeline</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge badge-warning"><span class="status-dot warning"></span>Degraded</span>
+                    <code class="text-muted">:3004</code>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">Uptime: 2h 15m</div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-secondary flex-fill">Restart</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Logs</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- exprsn-svr -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-briefcase" style="font-size: 1.5rem; color: var(--exprsn-text-muted);"></i>
+                    <strong>exprsn-svr</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge badge-secondary"><span class="status-dot offline"></span>Stopped</span>
+                    <code class="text-muted">:5001</code>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">-</div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-success flex-fill">Start</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Logs</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- exprsn-setup -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-gear" style="font-size: 1.5rem; color: var(--exprsn-success);"></i>
+                    <strong>exprsn-setup</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge badge-success"><span class="status-dot online"></span>Running</span>
+                    <code class="text-muted">:3015</code>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">Uptime: 5d 12h</div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-secondary flex-fill">Restart</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Logs</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- More services (placeholders for remaining 17 services) -->
+        <% const otherServices = [
+            { name: 'exprsn-prefetch', port: 3005, icon: 'arrow-down-circle' },
+            { name: 'exprsn-moderator', port: 3006, icon: 'shield' },
+            { name: 'exprsn-filevault', port: 3007, icon: 'folder' },
+            { name: 'exprsn-gallery', port: 3008, icon: 'image' },
+            { name: 'exprsn-live', port: 3009, icon: 'camera-video' },
+            { name: 'exprsn-bridge', port: 3010, icon: 'diagram-2' },
+            { name: 'exprsn-nexus', port: 3011, icon: 'people-fill' },
+            { name: 'exprsn-pulse', port: 3012, icon: 'activity' },
+            { name: 'exprsn-vault', port: 3013, icon: 'safe' },
+            { name: 'exprsn-herald', port: 3014, icon: 'bell' },
+            { name: 'exprsn-workflow', port: 3017, icon: 'diagram-3' },
+            { name: 'exprsn-payments', port: 3018, icon: 'credit-card' },
+            { name: 'exprsn-atlas', port: 3019, icon: 'geo-alt' },
+            { name: 'exprsn-dbadmin', port: 3020, icon: 'database-gear' },
+            { name: 'exprsn-bluesky', port: 3021, icon: 'cloud' },
+        ]; %>
+        <% otherServices.forEach(service => { %>
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="bi bi-<%= service.icon %>" style="font-size: 1.5rem; color: var(--exprsn-text-muted);"></i>
+                    <strong><%= service.name %></strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge badge-secondary"><span class="status-dot offline"></span>Stopped</span>
+                    <code class="text-muted">:<%= service.port %></code>
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">-</div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-success flex-fill">Start</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Logs</button>
+                </div>
+            </div>
+        </div>
+        <% }); %>
+    </div>
+
+    <!-- Service Details Table -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">All Services</h3>
+            <button class="btn btn-sm btn-outline-primary">Export Status</button>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="sortable">Service</th>
+                            <th class="sortable">Status</th>
+                            <th class="sortable">Port</th>
+                            <th class="sortable">Memory</th>
+                            <th class="sortable">CPU</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>exprsn-ca</strong></td>
+                            <td><span class="badge badge-success">Running</span></td>
+                            <td>3000</td>
+                            <td>128 MB</td>
+                            <td>2.5%</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Restart">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Stop">
+                                        <i class="bi bi-stop-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>exprsn-auth</strong></td>
+                            <td><span class="badge badge-success">Running</span></td>
+                            <td>3001</td>
+                            <td>256 MB</td>
+                            <td>5.1%</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Restart">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Stop">
+                                        <i class="bi bi-stop-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>exprsn-timeline</strong></td>
+                            <td><span class="badge badge-warning">Degraded</span></td>
+                            <td>3004</td>
+                            <td>512 MB</td>
+                            <td>85.3%</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Restart">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Stop">
+                                        <i class="bi bi-stop-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

@@ -1,0 +1,3343 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microservice Administration Dashboard | Exprsn</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Custom Exprsn Styles -->
+    <style>
+        /* ============================================================================
+           CSS CUSTOM PROPERTIES - WCAG COMPLIANT COLOR SYSTEM
+           ============================================================================ */
+        :root {
+            /* Primary Brand Colors */
+            --exprsn-primary: #0066ff;
+            --exprsn-primary-hover: #0052cc;
+            --exprsn-primary-light: #4d94ff;
+            --exprsn-primary-dark: #0047b3;
+            --exprsn-primary-glow: rgba(0, 102, 255, 0.3);
+            
+            /* Secondary Colors */
+            --exprsn-secondary: #7c3aed;
+            --exprsn-secondary-hover: #6d28d9;
+            --exprsn-secondary-light: #a78bfa;
+            --exprsn-secondary-dark: #5b21b6;
+            
+            /* Accent Colors */
+            --exprsn-accent-pink: #ec4899;
+            --exprsn-accent-orange: #f97316;
+            --exprsn-accent-green: #10b981;
+            --exprsn-accent-cyan: #06b6d4;
+            --exprsn-accent-yellow: #eab308;
+            
+            /* Gradients */
+            --exprsn-gradient-primary: linear-gradient(135deg, #0066ff 0%, #7c3aed 100%);
+            --exprsn-gradient-warm: linear-gradient(135deg, #f97316 0%, #ec4899 100%);
+            --exprsn-gradient-cool: linear-gradient(135deg, #06b6d4 0%, #0066ff 100%);
+            --exprsn-gradient-success: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+            
+            /* Semantic Colors */
+            --exprsn-success: #10b981;
+            --exprsn-success-hover: #059669;
+            --exprsn-success-bg: #d1fae5;
+            --exprsn-danger: #ef4444;
+            --exprsn-danger-hover: #dc2626;
+            --exprsn-danger-bg: #fee2e2;
+            --exprsn-warning: #f59e0b;
+            --exprsn-warning-hover: #d97706;
+            --exprsn-warning-bg: #fef3c7;
+            --exprsn-info: #3b82f6;
+            --exprsn-info-hover: #2563eb;
+            --exprsn-info-bg: #dbeafe;
+            
+            /* Neutral Colors */
+            --exprsn-white: #ffffff;
+            --exprsn-black: #0a0a0a;
+            --exprsn-gray-50: #fafafa;
+            --exprsn-gray-100: #f5f5f5;
+            --exprsn-gray-200: #e5e5e5;
+            --exprsn-gray-300: #d4d4d4;
+            --exprsn-gray-400: #a3a3a3;
+            --exprsn-gray-500: #737373;
+            --exprsn-gray-600: #525252;
+            --exprsn-gray-700: #404040;
+            --exprsn-gray-800: #262626;
+            --exprsn-gray-900: #171717;
+            
+            /* Background & Surface */
+            --exprsn-bg-primary: #ffffff;
+            --exprsn-bg-secondary: #fafafa;
+            --exprsn-bg-tertiary: #f5f5f5;
+            --exprsn-surface-raised: #ffffff;
+            --exprsn-surface-overlay: rgba(10, 10, 10, 0.8);
+            
+            /* Text Colors */
+            --exprsn-text-primary: #171717;
+            --exprsn-text-secondary: #525252;
+            --exprsn-text-muted: #737373;
+            --exprsn-text-inverse: #ffffff;
+            --exprsn-text-link: #0066ff;
+            
+            /* Border Colors */
+            --exprsn-border-color: #e5e5e5;
+            --exprsn-border-color-strong: #a3a3a3;
+            
+            /* Shadows */
+            --exprsn-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+            --exprsn-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --exprsn-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --exprsn-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --exprsn-shadow-glow: 0 0 20px rgba(0, 102, 255, 0.5);
+            
+            /* Border Radius */
+            --exprsn-radius-sm: 0.375rem;
+            --exprsn-radius-md: 0.5rem;
+            --exprsn-radius-lg: 0.75rem;
+            --exprsn-radius-xl: 1rem;
+            --exprsn-radius-2xl: 1.5rem;
+            --exprsn-radius-full: 9999px;
+            
+            /* Spacing */
+            --exprsn-spacing-xs: 0.25rem;
+            --exprsn-spacing-sm: 0.5rem;
+            --exprsn-spacing-md: 1rem;
+            --exprsn-spacing-lg: 1.5rem;
+            --exprsn-spacing-xl: 2rem;
+            --exprsn-spacing-2xl: 3rem;
+            
+            /* Typography */
+            --exprsn-font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --exprsn-font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            
+            /* Transitions */
+            --exprsn-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+            --exprsn-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+            --exprsn-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+            
+            /* Sidebar */
+            --sidebar-width: 280px;
+            --sidebar-collapsed-width: 70px;
+        }
+
+        /* ============================================================================
+           DARK THEME
+           ============================================================================ */
+        [data-theme="dark"] {
+            --exprsn-primary: #3b82f6;
+            --exprsn-primary-hover: #60a5fa;
+            --exprsn-bg-primary: #0a0a0a;
+            --exprsn-bg-secondary: #171717;
+            --exprsn-bg-tertiary: #262626;
+            --exprsn-surface-raised: #1f1f1f;
+            --exprsn-text-primary: #fafafa;
+            --exprsn-text-secondary: #d4d4d4;
+            --exprsn-text-muted: #a3a3a3;
+            --exprsn-border-color: #404040;
+            --exprsn-border-color-strong: #525252;
+        }
+
+        /* ============================================================================
+           BASE STYLES
+           ============================================================================ */
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        body {
+            font-family: var(--exprsn-font-family);
+            background-color: var(--exprsn-bg-secondary);
+            color: var(--exprsn-text-primary);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ============================================================================
+           TOP NAVBAR
+           ============================================================================ */
+        .top-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: var(--exprsn-bg-primary);
+            border-bottom: 1px solid var(--exprsn-border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            z-index: 1050;
+            box-shadow: var(--exprsn-shadow-sm);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--exprsn-primary);
+            text-decoration: none;
+            margin-right: 2rem;
+        }
+
+        .navbar-brand .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--exprsn-gradient-primary);
+            border-radius: var(--exprsn-radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        /* Global Search */
+        .global-search {
+            flex: 1;
+            max-width: 480px;
+            position: relative;
+        }
+
+        .global-search .search-input {
+            width: 100%;
+            height: 44px;
+            padding: 0 1rem 0 2.75rem;
+            font-size: 0.9375rem;
+            color: var(--exprsn-text-primary);
+            background: var(--exprsn-bg-secondary);
+            border: 2px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-xl);
+            transition: var(--exprsn-transition-base);
+        }
+
+        .global-search .search-input:focus {
+            outline: none;
+            border-color: var(--exprsn-primary);
+            box-shadow: 0 0 0 3px var(--exprsn-primary-glow);
+            background: var(--exprsn-bg-primary);
+        }
+
+        .global-search .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--exprsn-text-muted);
+            font-size: 1rem;
+        }
+
+        .global-search .search-shortcut {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-family: var(--exprsn-font-family-mono);
+            color: var(--exprsn-text-muted);
+            background: var(--exprsn-bg-tertiary);
+            border-radius: var(--exprsn-radius-sm);
+            border: 1px solid var(--exprsn-border-color);
+        }
+
+        /* Navbar Actions */
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-left: auto;
+        }
+
+        .nav-action-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: var(--exprsn-radius-lg);
+            color: var(--exprsn-text-secondary);
+            cursor: pointer;
+            transition: var(--exprsn-transition-base);
+            position: relative;
+        }
+
+        .nav-action-btn:hover {
+            background: var(--exprsn-bg-tertiary);
+            color: var(--exprsn-text-primary);
+        }
+
+        .nav-action-btn .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.625rem;
+            font-weight: 600;
+            background: var(--exprsn-danger);
+            color: white;
+            border-radius: 50%;
+        }
+
+        /* User Menu */
+        .user-menu {
+            position: relative;
+            margin-left: 0.5rem;
+        }
+
+        .user-menu-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.375rem 0.75rem 0.375rem 0.375rem;
+            background: var(--exprsn-bg-tertiary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-xl);
+            cursor: pointer;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .user-menu-btn:hover {
+            border-color: var(--exprsn-primary);
+            box-shadow: var(--exprsn-shadow-sm);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--exprsn-gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .user-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+        }
+
+        .user-role {
+            font-size: 0.75rem;
+            color: var(--exprsn-text-muted);
+        }
+
+        .user-menu-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 240px;
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            box-shadow: var(--exprsn-shadow-xl);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: var(--exprsn-transition-fast);
+            z-index: 1100;
+        }
+
+        .user-menu:hover .user-menu-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--exprsn-border-color);
+        }
+
+        .dropdown-header .user-email {
+            font-size: 0.8125rem;
+            color: var(--exprsn-text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            color: var(--exprsn-text-primary);
+            text-decoration: none;
+            transition: var(--exprsn-transition-base);
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .dropdown-item:hover {
+            background: var(--exprsn-bg-secondary);
+        }
+
+        .dropdown-item.text-danger {
+            color: var(--exprsn-danger);
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--exprsn-border-color);
+            margin: 0.5rem 0;
+        }
+
+        /* ============================================================================
+           SIDEBAR
+           ============================================================================ */
+        .sidebar {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            bottom: 0;
+            width: var(--sidebar-width);
+            background: var(--exprsn-bg-primary);
+            border-right: 1px solid var(--exprsn-border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 1040;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 0;
+        }
+
+        .nav-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-section-title {
+            padding: 0.5rem 1.5rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--exprsn-text-muted);
+        }
+
+        .sidebar.collapsed .nav-section-title {
+            display: none;
+        }
+
+        .nav-item {
+            margin: 0.125rem 0.75rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.625rem 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--exprsn-text-secondary);
+            text-decoration: none;
+            border-radius: var(--exprsn-radius-lg);
+            transition: var(--exprsn-transition-base);
+        }
+
+        .nav-link:hover {
+            background: var(--exprsn-bg-secondary);
+            color: var(--exprsn-text-primary);
+        }
+
+        .nav-link.active {
+            background: var(--exprsn-primary-glow);
+            color: var(--exprsn-primary);
+        }
+
+        .nav-link i {
+            font-size: 1.125rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-link .nav-badge {
+            margin-left: auto;
+            padding: 0.125rem 0.5rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            background: var(--exprsn-primary);
+            color: white;
+            border-radius: var(--exprsn-radius-full);
+        }
+
+        .nav-link .nav-badge.warning {
+            background: var(--exprsn-warning);
+            color: var(--exprsn-text-primary);
+        }
+
+        .nav-link .nav-badge.danger {
+            background: var(--exprsn-danger);
+        }
+
+        .sidebar.collapsed .nav-link span,
+        .sidebar.collapsed .nav-link .nav-badge {
+            display: none;
+        }
+
+        /* Sidebar Footer */
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--exprsn-border-color);
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            background: var(--exprsn-success-bg);
+            border-radius: var(--exprsn-radius-lg);
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--exprsn-success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .system-status-text {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--exprsn-success);
+        }
+
+        .sidebar.collapsed .system-status-text {
+            display: none;
+        }
+
+        /* ============================================================================
+           MAIN CONTENT
+           ============================================================================ */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            margin-top: 64px;
+            padding: 1.5rem;
+            min-height: calc(100vh - 64px);
+            transition: var(--exprsn-transition-base);
+        }
+
+        .sidebar.collapsed ~ .main-content {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--exprsn-text-primary);
+            margin: 0;
+        }
+
+        .page-subtitle {
+            font-size: 0.9375rem;
+            color: var(--exprsn-text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* ============================================================================
+           BUTTONS
+           ============================================================================ */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            line-height: 1.5;
+            text-decoration: none;
+            border: 2px solid transparent;
+            border-radius: var(--exprsn-radius-lg);
+            cursor: pointer;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .btn-primary {
+            background: var(--exprsn-gradient-primary);
+            color: var(--exprsn-text-inverse);
+            box-shadow: var(--exprsn-shadow-md);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--exprsn-shadow-lg), var(--exprsn-shadow-glow);
+        }
+
+        .btn-secondary {
+            background: var(--exprsn-bg-tertiary);
+            color: var(--exprsn-text-primary);
+            border-color: var(--exprsn-border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--exprsn-bg-secondary);
+            border-color: var(--exprsn-border-color-strong);
+        }
+
+        .btn-outline-primary {
+            background: transparent;
+            color: var(--exprsn-primary);
+            border-color: var(--exprsn-primary);
+        }
+
+        .btn-outline-primary:hover {
+            background: var(--exprsn-primary);
+            color: var(--exprsn-text-inverse);
+        }
+
+        .btn-success {
+            background: var(--exprsn-success);
+            color: var(--exprsn-text-inverse);
+        }
+
+        .btn-danger {
+            background: var(--exprsn-danger);
+            color: var(--exprsn-text-inverse);
+        }
+
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .btn-lg {
+            padding: 0.875rem 1.75rem;
+            font-size: 1rem;
+        }
+
+        .btn-icon {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+        }
+
+        /* ============================================================================
+           CARDS
+           ============================================================================ */
+        .card {
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-xl);
+            box-shadow: var(--exprsn-shadow-sm);
+            transition: var(--exprsn-transition-base);
+        }
+
+        .card:hover {
+            box-shadow: var(--exprsn-shadow-md);
+        }
+
+        .card-header {
+            padding: 1rem 1.5rem;
+            background: transparent;
+            border-bottom: 1px solid var(--exprsn-border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+            margin: 0;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .card-footer {
+            padding: 1rem 1.5rem;
+            background: var(--exprsn-bg-secondary);
+            border-top: 1px solid var(--exprsn-border-color);
+            border-radius: 0 0 var(--exprsn-radius-xl) var(--exprsn-radius-xl);
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-xl);
+            padding: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--exprsn-shadow-lg);
+            border-color: var(--exprsn-primary);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--exprsn-radius-lg);
+            font-size: 1.5rem;
+        }
+
+        .stat-icon.primary {
+            background: var(--exprsn-primary-glow);
+            color: var(--exprsn-primary);
+        }
+
+        .stat-icon.success {
+            background: var(--exprsn-success-bg);
+            color: var(--exprsn-success);
+        }
+
+        .stat-icon.warning {
+            background: var(--exprsn-warning-bg);
+            color: var(--exprsn-warning);
+        }
+
+        .stat-icon.danger {
+            background: var(--exprsn-danger-bg);
+            color: var(--exprsn-danger);
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--exprsn-text-primary);
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--exprsn-text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .stat-change {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .stat-change.positive {
+            color: var(--exprsn-success);
+        }
+
+        .stat-change.negative {
+            color: var(--exprsn-danger);
+        }
+
+        /* ============================================================================
+           TABLES
+           ============================================================================ */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: var(--exprsn-radius-xl);
+            border: 1px solid var(--exprsn-border-color);
+            background: var(--exprsn-bg-primary);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+
+        .table thead {
+            background: var(--exprsn-bg-secondary);
+        }
+
+        .table th {
+            padding: 1rem 1.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--exprsn-text-muted);
+            text-align: left;
+            border-bottom: 1px solid var(--exprsn-border-color);
+            white-space: nowrap;
+        }
+
+        .table th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .table th.sortable:hover {
+            color: var(--exprsn-text-primary);
+            background: var(--exprsn-bg-tertiary);
+        }
+
+        .table th.sortable::after {
+            content: '⇅';
+            margin-left: 0.5rem;
+            opacity: 0.4;
+        }
+
+        .table th.sortable.sorted-asc::after {
+            content: '↑';
+            opacity: 1;
+            color: var(--exprsn-primary);
+        }
+
+        .table th.sortable.sorted-desc::after {
+            content: '↓';
+            opacity: 1;
+            color: var(--exprsn-primary);
+        }
+
+        .table td {
+            padding: 1rem 1.25rem;
+            font-size: 0.875rem;
+            color: var(--exprsn-text-primary);
+            border-bottom: 1px solid var(--exprsn-border-color);
+            vertical-align: middle;
+        }
+
+        .table tbody tr {
+            transition: var(--exprsn-transition-base);
+        }
+
+        .table tbody tr:hover {
+            background: var(--exprsn-bg-secondary);
+        }
+
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table tbody tr.selected {
+            background: var(--exprsn-primary-glow);
+        }
+
+        /* Draggable Rows */
+        .table-draggable tbody tr {
+            cursor: move;
+        }
+
+        .table-draggable tbody tr.dragging {
+            opacity: 0.5;
+            background: var(--exprsn-primary-glow);
+        }
+
+        .table-draggable tbody tr.drag-over {
+            border-top: 2px solid var(--exprsn-primary);
+        }
+
+        .drag-handle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            color: var(--exprsn-text-muted);
+            cursor: grab;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* Table Actions */
+        .table-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .table-action-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-md);
+            color: var(--exprsn-text-secondary);
+            cursor: pointer;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .table-action-btn:hover {
+            background: var(--exprsn-bg-secondary);
+            color: var(--exprsn-text-primary);
+            border-color: var(--exprsn-border-color-strong);
+        }
+
+        .table-action-btn.danger:hover {
+            background: var(--exprsn-danger-bg);
+            color: var(--exprsn-danger);
+            border-color: var(--exprsn-danger);
+        }
+
+        /* ============================================================================
+           FILTERS
+           ============================================================================ */
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-xl);
+            margin-bottom: 1rem;
+        }
+
+        .filter-search {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .filter-search .form-control {
+            padding-left: 2.5rem;
+        }
+
+        .filter-search .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--exprsn-text-muted);
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--exprsn-text-secondary);
+        }
+
+        .filter-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            background: var(--exprsn-primary-glow);
+            color: var(--exprsn-primary);
+            border: 1px solid var(--exprsn-primary);
+            border-radius: var(--exprsn-radius-full);
+        }
+
+        .filter-tag-close {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 50%;
+            color: inherit;
+            cursor: pointer;
+            padding: 0;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .filter-tag-close:hover {
+            background: var(--exprsn-primary);
+            color: white;
+        }
+
+        /* ============================================================================
+           FORMS
+           ============================================================================ */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+        }
+
+        .form-label.required::after {
+            content: ' *';
+            color: var(--exprsn-danger);
+        }
+
+        .form-control {
+            width: 100%;
+            height: 44px;
+            padding: 0 1rem;
+            font-size: 0.9375rem;
+            color: var(--exprsn-text-primary);
+            background: var(--exprsn-bg-primary);
+            border: 2px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            transition: var(--exprsn-transition-base);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--exprsn-primary);
+            box-shadow: 0 0 0 3px var(--exprsn-primary-glow);
+        }
+
+        .form-control:disabled {
+            background: var(--exprsn-bg-tertiary);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .form-control.is-invalid {
+            border-color: var(--exprsn-danger);
+        }
+
+        .form-control.is-valid {
+            border-color: var(--exprsn-success);
+        }
+
+        textarea.form-control {
+            height: auto;
+            min-height: 120px;
+            padding: 0.75rem 1rem;
+            resize: vertical;
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23737373' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        .form-text {
+            display: block;
+            margin-top: 0.375rem;
+            font-size: 0.8125rem;
+            color: var(--exprsn-text-muted);
+        }
+
+        .invalid-feedback {
+            display: none;
+            margin-top: 0.375rem;
+            font-size: 0.8125rem;
+            color: var(--exprsn-danger);
+        }
+
+        .form-control.is-invalid ~ .invalid-feedback {
+            display: block;
+        }
+
+        /* Checkboxes & Radios */
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 44px;
+            padding: 0;
+        }
+
+        .form-check-input {
+            width: 20px;
+            height: 20px;
+            margin: 0;
+            border: 2px solid var(--exprsn-border-color-strong);
+            border-radius: var(--exprsn-radius-sm);
+            cursor: pointer;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--exprsn-primary);
+            border-color: var(--exprsn-primary);
+        }
+
+        .form-check-input[type="radio"] {
+            border-radius: 50%;
+        }
+
+        .form-check-label {
+            font-size: 0.9375rem;
+            color: var(--exprsn-text-primary);
+            cursor: pointer;
+        }
+
+        /* Toggle Switch */
+        .form-switch {
+            padding-left: 3rem;
+        }
+
+        .form-switch .form-check-input {
+            width: 44px;
+            margin-left: -3rem;
+            border-radius: var(--exprsn-radius-full);
+        }
+
+        .form-switch .form-check-input:checked {
+            background-image: none;
+        }
+
+        /* Input Group */
+        .input-group {
+            display: flex;
+        }
+
+        .input-group .form-control {
+            flex: 1;
+            border-radius: 0;
+        }
+
+        .input-group .form-control:first-child {
+            border-radius: var(--exprsn-radius-lg) 0 0 var(--exprsn-radius-lg);
+        }
+
+        .input-group .form-control:last-child {
+            border-radius: 0 var(--exprsn-radius-lg) var(--exprsn-radius-lg) 0;
+        }
+
+        .input-group .btn {
+            border-radius: 0;
+        }
+
+        .input-group .btn:last-child {
+            border-radius: 0 var(--exprsn-radius-lg) var(--exprsn-radius-lg) 0;
+        }
+
+        .input-group-text {
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            font-size: 0.875rem;
+            color: var(--exprsn-text-secondary);
+            background: var(--exprsn-bg-tertiary);
+            border: 2px solid var(--exprsn-border-color);
+        }
+
+        /* Date Picker */
+        input[type="date"],
+        input[type="datetime-local"],
+        input[type="time"] {
+            min-width: 200px;
+        }
+
+        /* ============================================================================
+           PROGRESS BARS
+           ============================================================================ */
+        .progress {
+            display: flex;
+            height: 8px;
+            overflow: hidden;
+            background: var(--exprsn-bg-tertiary);
+            border-radius: var(--exprsn-radius-full);
+        }
+
+        .progress-lg {
+            height: 12px;
+        }
+
+        .progress-xl {
+            height: 20px;
+        }
+
+        .progress-bar {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+            color: white;
+            text-align: center;
+            white-space: nowrap;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: var(--exprsn-gradient-primary);
+            transition: width 0.6s ease;
+            border-radius: var(--exprsn-radius-full);
+        }
+
+        .progress-bar-success {
+            background: var(--exprsn-gradient-success);
+        }
+
+        .progress-bar-warning {
+            background: var(--exprsn-warning);
+        }
+
+        .progress-bar-danger {
+            background: var(--exprsn-danger);
+        }
+
+        .progress-bar-striped {
+            background-image: linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0.15) 25%,
+                transparent 25%,
+                transparent 50%,
+                rgba(255, 255, 255, 0.15) 50%,
+                rgba(255, 255, 255, 0.15) 75%,
+                transparent 75%,
+                transparent
+            );
+            background-size: 1rem 1rem;
+        }
+
+        .progress-bar-animated {
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+
+        @keyframes progress-bar-stripes {
+            0% { background-position: 1rem 0; }
+            100% { background-position: 0 0; }
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.8125rem;
+        }
+
+        .progress-label-text {
+            color: var(--exprsn-text-secondary);
+        }
+
+        .progress-label-value {
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+        }
+
+        /* ============================================================================
+           BADGES & TAGS
+           ============================================================================ */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.625rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: var(--exprsn-radius-full);
+        }
+
+        .badge-primary {
+            background: var(--exprsn-primary-glow);
+            color: var(--exprsn-primary);
+        }
+
+        .badge-success {
+            background: var(--exprsn-success-bg);
+            color: var(--exprsn-success);
+        }
+
+        .badge-warning {
+            background: var(--exprsn-warning-bg);
+            color: var(--exprsn-warning);
+        }
+
+        .badge-danger {
+            background: var(--exprsn-danger-bg);
+            color: var(--exprsn-danger);
+        }
+
+        .badge-info {
+            background: var(--exprsn-info-bg);
+            color: var(--exprsn-info);
+        }
+
+        .badge-secondary {
+            background: var(--exprsn-bg-tertiary);
+            color: var(--exprsn-text-secondary);
+        }
+
+        /* Status Dot */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .status-dot.online { background: var(--exprsn-success); }
+        .status-dot.offline { background: var(--exprsn-text-muted); }
+        .status-dot.warning { background: var(--exprsn-warning); }
+        .status-dot.error { background: var(--exprsn-danger); }
+
+        /* ============================================================================
+           ALERTS
+           ============================================================================ */
+        .alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            border-radius: var(--exprsn-radius-lg);
+            margin-bottom: 1rem;
+        }
+
+        .alert-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .alert-message {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .alert-close {
+            background: transparent;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .alert-close:hover {
+            opacity: 1;
+        }
+
+        .alert-success {
+            background: var(--exprsn-success-bg);
+            color: var(--exprsn-success);
+            border-left: 4px solid var(--exprsn-success);
+        }
+
+        .alert-warning {
+            background: var(--exprsn-warning-bg);
+            color: var(--exprsn-warning-hover);
+            border-left: 4px solid var(--exprsn-warning);
+        }
+
+        .alert-danger {
+            background: var(--exprsn-danger-bg);
+            color: var(--exprsn-danger);
+            border-left: 4px solid var(--exprsn-danger);
+        }
+
+        .alert-info {
+            background: var(--exprsn-info-bg);
+            color: var(--exprsn-info);
+            border-left: 4px solid var(--exprsn-info);
+        }
+
+        /* ============================================================================
+           TICKERS / LIVE DATA
+           ============================================================================ */
+        .ticker-container {
+            overflow: hidden;
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            padding: 0.75rem 0;
+        }
+
+        .ticker-scroll {
+            display: flex;
+            animation: ticker 30s linear infinite;
+        }
+
+        @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .ticker-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0 2rem;
+            white-space: nowrap;
+        }
+
+        .ticker-label {
+            font-size: 0.8125rem;
+            color: var(--exprsn-text-muted);
+        }
+
+        .ticker-value {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+        }
+
+        .ticker-change {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .ticker-change.up { color: var(--exprsn-success); }
+        .ticker-change.down { color: var(--exprsn-danger); }
+
+        /* ============================================================================
+           TREE VIEW / OUTLINE
+           ============================================================================ */
+        .tree-view {
+            font-size: 0.875rem;
+        }
+
+        .tree-item {
+            padding: 0.375rem 0;
+        }
+
+        .tree-item-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-radius: var(--exprsn-radius-md);
+            cursor: pointer;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .tree-item-header:hover {
+            background: var(--exprsn-bg-secondary);
+        }
+
+        .tree-toggle {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: var(--exprsn-text-muted);
+            transition: var(--exprsn-transition-base);
+        }
+
+        .tree-item.collapsed .tree-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .tree-icon {
+            font-size: 1rem;
+            color: var(--exprsn-primary);
+        }
+
+        .tree-label {
+            flex: 1;
+            color: var(--exprsn-text-primary);
+        }
+
+        .tree-badge {
+            font-size: 0.6875rem;
+            padding: 0.125rem 0.375rem;
+            background: var(--exprsn-bg-tertiary);
+            border-radius: var(--exprsn-radius-sm);
+            color: var(--exprsn-text-muted);
+        }
+
+        .tree-children {
+            margin-left: 1.5rem;
+            padding-left: 0.75rem;
+            border-left: 1px dashed var(--exprsn-border-color);
+        }
+
+        .tree-item.collapsed .tree-children {
+            display: none;
+        }
+
+        /* ============================================================================
+           TABS
+           ============================================================================ */
+        .nav-tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--exprsn-border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-tabs .nav-link {
+            padding: 0.875rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--exprsn-text-secondary);
+            text-decoration: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: var(--exprsn-text-primary);
+            background: var(--exprsn-bg-secondary);
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--exprsn-primary);
+            border-bottom-color: var(--exprsn-primary);
+        }
+
+        .tab-content > .tab-pane {
+            display: none;
+        }
+
+        .tab-content > .tab-pane.active {
+            display: block;
+        }
+
+        /* ============================================================================
+           MODALS
+           ============================================================================ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--exprsn-surface-overlay);
+            z-index: 1060;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            background: var(--exprsn-bg-primary);
+            border-radius: var(--exprsn-radius-2xl);
+            box-shadow: var(--exprsn-shadow-xl);
+            z-index: 1061;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .modal-overlay.show + .modal-dialog,
+        .modal-dialog.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--exprsn-border-color);
+        }
+
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+            margin: 0;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: var(--exprsn-radius-md);
+            color: var(--exprsn-text-muted);
+            cursor: pointer;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .modal-close:hover {
+            background: var(--exprsn-bg-tertiary);
+            color: var(--exprsn-text-primary);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--exprsn-border-color);
+        }
+
+        /* ============================================================================
+           PAGINATION
+           ============================================================================ */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            margin: 1.5rem 0;
+        }
+
+        .page-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+            padding: 0 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--exprsn-text-secondary);
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-md);
+            text-decoration: none;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .page-link:hover {
+            background: var(--exprsn-bg-secondary);
+            color: var(--exprsn-text-primary);
+            border-color: var(--exprsn-border-color-strong);
+        }
+
+        .page-link.active {
+            background: var(--exprsn-primary);
+            color: var(--exprsn-text-inverse);
+            border-color: var(--exprsn-primary);
+        }
+
+        .page-link.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* ============================================================================
+           CHARTS PLACEHOLDER
+           ============================================================================ */
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--exprsn-bg-secondary);
+            border-radius: var(--exprsn-radius-lg);
+            border: 2px dashed var(--exprsn-border-color);
+        }
+
+        .chart-placeholder {
+            text-align: center;
+            color: var(--exprsn-text-muted);
+        }
+
+        .chart-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Mini Chart */
+        .mini-chart {
+            height: 40px;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .mini-chart-bar {
+            width: 4px;
+            background: var(--exprsn-primary);
+            border-radius: 2px 2px 0 0;
+            transition: var(--exprsn-transition-base);
+        }
+
+        .mini-chart-bar:hover {
+            background: var(--exprsn-primary-hover);
+        }
+
+        /* ============================================================================
+           SPINNERS
+           ============================================================================ */
+        .spinner {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border: 3px solid var(--exprsn-border-color);
+            border-right-color: var(--exprsn-primary);
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner-sm {
+            width: 1rem;
+            height: 1rem;
+            border-width: 2px;
+        }
+
+        .spinner-lg {
+            width: 3rem;
+            height: 3rem;
+            border-width: 4px;
+        }
+
+        /* ============================================================================
+           TOOLTIPS
+           ============================================================================ */
+        [data-tooltip] {
+            position: relative;
+        }
+
+        [data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--exprsn-text-inverse);
+            background: var(--exprsn-gray-800);
+            border-radius: var(--exprsn-radius-md);
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--exprsn-transition-fast);
+            z-index: 1070;
+        }
+
+        [data-tooltip]:hover::after {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ============================================================================
+           GRID LAYOUT
+           ============================================================================ */
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        @media (max-width: 1200px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            
+            .sidebar {
+                width: var(--sidebar-collapsed-width);
+            }
+            
+            .main-content {
+                margin-left: var(--sidebar-collapsed-width);
+            }
+            
+            .page-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+
+        /* ============================================================================
+           UTILITIES
+           ============================================================================ */
+        .text-muted { color: var(--exprsn-text-muted); }
+        .text-primary { color: var(--exprsn-primary); }
+        .text-success { color: var(--exprsn-success); }
+        .text-warning { color: var(--exprsn-warning); }
+        .text-danger { color: var(--exprsn-danger); }
+        
+        .fw-500 { font-weight: 500; }
+        .fw-600 { font-weight: 600; }
+        .fw-700 { font-weight: 700; }
+        
+        .font-mono { font-family: var(--exprsn-font-family-mono); }
+        
+        .d-flex { display: flex; }
+        .d-grid { display: grid; }
+        .d-none { display: none; }
+        
+        .align-items-center { align-items: center; }
+        .justify-content-between { justify-content: space-between; }
+        .justify-content-end { justify-content: flex-end; }
+        
+        .gap-1 { gap: 0.25rem; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 1rem; }
+        .gap-4 { gap: 1.5rem; }
+        
+        .mt-0 { margin-top: 0; }
+        .mt-1 { margin-top: 0.25rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-3 { margin-top: 1rem; }
+        .mt-4 { margin-top: 1.5rem; }
+        
+        .mb-0 { margin-bottom: 0; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-3 { margin-bottom: 1rem; }
+        .mb-4 { margin-bottom: 1.5rem; }
+        
+        .me-1 { margin-right: 0.25rem; }
+        .me-2 { margin-right: 0.5rem; }
+        .me-3 { margin-right: 1rem; }
+        
+        .w-100 { width: 100%; }
+        
+        /* Login Page Specific */
+        .login-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .login-left {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            background: var(--exprsn-bg-primary);
+        }
+
+        .login-right {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--exprsn-gradient-primary);
+            padding: 2rem;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--exprsn-primary);
+            margin-bottom: 2rem;
+        }
+
+        .login-logo .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--exprsn-gradient-primary);
+            border-radius: var(--exprsn-radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .login-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--exprsn-text-primary);
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-subtitle {
+            font-size: 0.9375rem;
+            color: var(--exprsn-text-muted);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-promo {
+            text-align: center;
+            color: white;
+            max-width: 400px;
+        }
+
+        .login-promo h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .login-promo p {
+            font-size: 1.125rem;
+            opacity: 0.9;
+        }
+
+        @media (max-width: 992px) {
+            .login-right {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ========== LOGIN PAGE (Hidden by default - toggle via JS) ========== -->
+    <div id="login-page" class="login-container" style="display: none;">
+        <div class="login-left">
+            <div class="login-card">
+                <div class="login-logo">
+                    <span class="logo-icon"><i class="bi bi-grid-1x2"></i></span>
+                    <span>Exprsn</span>
+                </div>
+                <h1 class="login-title">Welcome Back</h1>
+                <p class="login-subtitle">Sign in to your microservice admin dashboard</p>
+                
+                <form id="login-form">
+                    <div class="form-group">
+                        <label class="form-label required">Email Address</label>
+                        <input type="email" class="form-control" placeholder="admin@exprsn.io" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="login-password" placeholder="Enter your password" required>
+                            <button type="button" class="btn btn-secondary" onclick="togglePassword('login-password')">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between mb-4">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="remember-me">
+                            <label class="form-check-label" for="remember-me">Remember me</label>
+                        </div>
+                        <a href="#" class="text-primary">Forgot password?</a>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 btn-lg">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        Sign In
+                    </button>
+                </form>
+                
+                <div class="mt-4" style="text-align: center;">
+                    <span class="text-muted">Don't have an account?</span>
+                    <a href="#" class="text-primary fw-600">Request Access</a>
+                </div>
+            </div>
+        </div>
+        <div class="login-right">
+            <div class="login-promo">
+                <h2>Microservice Administration Platform</h2>
+                <p>Monitor, manage, and scale your microservices with powerful real-time analytics and intuitive controls.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MAIN DASHBOARD ========== -->
+    <div id="dashboard-wrapper">
+        <!-- Top Navbar -->
+        <nav class="top-navbar">
+            <a href="#" class="navbar-brand">
+                <span class="brand-icon"><i class="bi bi-grid-1x2"></i></span>
+                <span>Exprsn</span>
+            </a>
+            
+            <!-- Global Search -->
+            <div class="global-search">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" class="search-input" placeholder="Search services, users, logs...">
+                <span class="search-shortcut">⌘K</span>
+            </div>
+            
+            <!-- Navbar Actions -->
+            <div class="navbar-actions">
+                <button class="nav-action-btn" data-tooltip="Theme" onclick="toggleTheme()">
+                    <i class="bi bi-moon"></i>
+                </button>
+                <button class="nav-action-btn" data-tooltip="Notifications">
+                    <i class="bi bi-bell"></i>
+                    <span class="badge">5</span>
+                </button>
+                <button class="nav-action-btn" data-tooltip="Messages">
+                    <i class="bi bi-chat-dots"></i>
+                    <span class="badge">3</span>
+                </button>
+                <button class="nav-action-btn" data-tooltip="Settings">
+                    <i class="bi bi-gear"></i>
+                </button>
+                
+                <!-- User Menu -->
+                <div class="user-menu">
+                    <button class="user-menu-btn">
+                        <div class="user-avatar">JD</div>
+                        <div class="user-info">
+                            <span class="user-name">John Doe</span>
+                            <span class="user-role">Admin</span>
+                        </div>
+                        <i class="bi bi-chevron-down" style="color: var(--exprsn-text-muted);"></i>
+                    </button>
+                    <div class="user-menu-dropdown">
+                        <div class="dropdown-header">
+                            <div class="user-name">John Doe</div>
+                            <div class="user-email">john.doe@exprsn.io</div>
+                        </div>
+                        <a href="#" class="dropdown-item">
+                            <i class="bi bi-person"></i>
+                            <span>My Profile</span>
+                        </a>
+                        <a href="#" class="dropdown-item">
+                            <i class="bi bi-gear"></i>
+                            <span>Settings</span>
+                        </a>
+                        <a href="#" class="dropdown-item" onclick="showSwitchUser()">
+                            <i class="bi bi-people"></i>
+                            <span>Switch User</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item text-danger" onclick="logout()">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Overview</div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link active">
+                            <i class="bi bi-grid-1x2"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-activity"></i>
+                            <span>Analytics</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-file-earmark-bar-graph"></i>
+                            <span>Reports</span>
+                            <span class="nav-badge">New</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Microservices</div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-box-seam"></i>
+                            <span>Services</span>
+                            <span class="nav-badge">24</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-diagram-3"></i>
+                            <span>Dependencies</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-cloud"></i>
+                            <span>Deployments</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-hdd-network"></i>
+                            <span>API Gateway</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Monitoring</div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-heart-pulse"></i>
+                            <span>Health Status</span>
+                            <span class="nav-badge warning">3</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-journal-text"></i>
+                            <span>Logs</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <span>Alerts</span>
+                            <span class="nav-badge danger">7</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Metrics</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Database</div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-database"></i>
+                            <span>Queries</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-table"></i>
+                            <span>Tables</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Administration</div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-people"></i>
+                            <span>Users</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-shield-lock"></i>
+                            <span>Permissions</span>
+                        </a>
+                    </div>
+                    <div class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-sliders"></i>
+                            <span>Settings</span>
+                        </a>
+                    </div>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="system-status">
+                    <div class="status-indicator"></div>
+                    <span class="system-status-text">All Systems Operational</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <header class="page-header">
+                <div>
+                    <h1 class="page-title">Dashboard Overview</h1>
+                    <p class="page-subtitle">Monitor your microservices in real-time</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary">
+                        <i class="bi bi-download"></i>
+                        Export
+                    </button>
+                    <button class="btn btn-primary" onclick="showAddServiceModal()">
+                        <i class="bi bi-plus-lg"></i>
+                        Add Service
+                    </button>
+                </div>
+            </header>
+
+            <!-- Live Ticker -->
+            <div class="ticker-container mb-4">
+                <div class="ticker-scroll">
+                    <div class="ticker-item">
+                        <span class="ticker-label">Requests/min:</span>
+                        <span class="ticker-value">12,458</span>
+                        <span class="ticker-change up">↑ 12%</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-label">Avg Latency:</span>
+                        <span class="ticker-value">45ms</span>
+                        <span class="ticker-change down">↓ 5ms</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-label">Error Rate:</span>
+                        <span class="ticker-value">0.02%</span>
+                        <span class="ticker-change up">↑ 0.01%</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-label">Active Users:</span>
+                        <span class="ticker-value">2,847</span>
+                        <span class="ticker-change up">↑ 156</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-label">CPU Usage:</span>
+                        <span class="ticker-value">42%</span>
+                        <span class="ticker-change down">↓ 3%</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-label">Memory:</span>
+                        <span class="ticker-value">68%</span>
+                        <span class="ticker-change up">↑ 2%</span>
+                    </div>
+                    <!-- Duplicate for seamless scroll -->
+                    <div class="ticker-item">
+                        <span class="ticker-label">Requests/min:</span>
+                        <span class="ticker-value">12,458</span>
+                        <span class="ticker-change up">↑ 12%</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-label">Avg Latency:</span>
+                        <span class="ticker-value">45ms</span>
+                        <span class="ticker-change down">↓ 5ms</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-label">Error Rate:</span>
+                        <span class="ticker-value">0.02%</span>
+                        <span class="ticker-change up">↑ 0.01%</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-label">Active Users:</span>
+                        <span class="ticker-value">2,847</span>
+                        <span class="ticker-change up">↑ 156</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts -->
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill alert-icon"></i>
+                <div class="alert-content">
+                    <div class="alert-title">High Memory Usage Detected</div>
+                    <div class="alert-message">Payment Service is using 89% memory. Consider scaling up resources.</div>
+                </div>
+                <button class="alert-close"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon primary">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">24</div>
+                        <div class="stat-label">Active Services</div>
+                        <div class="stat-change positive">
+                            <i class="bi bi-arrow-up"></i> 2 new this week
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon success">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">99.9%</div>
+                        <div class="stat-label">Uptime</div>
+                        <div class="stat-change positive">
+                            <i class="bi bi-arrow-up"></i> 0.1% from last month
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon warning">
+                        <i class="bi bi-exclamation-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">3</div>
+                        <div class="stat-label">Warnings</div>
+                        <div class="stat-change negative">
+                            <i class="bi bi-arrow-up"></i> 1 more than yesterday
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon danger">
+                        <i class="bi bi-bug"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Critical Errors</div>
+                        <div class="stat-change positive">
+                            <i class="bi bi-check"></i> All clear
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Grid -->
+            <div class="grid grid-2 mt-4">
+                <!-- Services Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Microservices</h3>
+                        <button class="btn btn-sm btn-secondary">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <!-- Filter Bar -->
+                        <div class="filter-bar" style="border: none; border-bottom: 1px solid var(--exprsn-border-color); border-radius: 0;">
+                            <div class="filter-search">
+                                <i class="bi bi-search search-icon"></i>
+                                <input type="text" class="form-control" placeholder="Search services...">
+                            </div>
+                            <div class="filter-group">
+                                <label class="filter-label">Status:</label>
+                                <select class="form-control form-select" style="width: 150px;">
+                                    <option>All</option>
+                                    <option>Running</option>
+                                    <option>Warning</option>
+                                    <option>Stopped</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Active Filter Tags -->
+                        <div style="padding: 0 1.5rem;">
+                            <div class="filter-tags">
+                                <span class="filter-tag">
+                                    Status: Running
+                                    <button class="filter-tag-close"><i class="bi bi-x"></i></button>
+                                </span>
+                                <span class="filter-tag">
+                                    Type: API
+                                    <button class="filter-tag-close"><i class="bi bi-x"></i></button>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container" style="border: none; border-radius: 0;">
+                            <table class="table table-draggable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th class="sortable sorted-asc">Service</th>
+                                        <th class="sortable">Status</th>
+                                        <th class="sortable">CPU</th>
+                                        <th class="sortable">Memory</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="services-table">
+                                    <tr draggable="true">
+                                        <td><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="status-dot online"></span>
+                                                <span class="fw-600">auth-service</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge badge-success">Running</span></td>
+                                        <td>12%</td>
+                                        <td>
+                                            <div class="progress" style="width: 100px;">
+                                                <div class="progress-bar" style="width: 45%;"></div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="table-actions">
+                                                <button class="table-action-btn" data-tooltip="View"><i class="bi bi-eye"></i></button>
+                                                <button class="table-action-btn" data-tooltip="Restart"><i class="bi bi-arrow-clockwise"></i></button>
+                                                <button class="table-action-btn danger" data-tooltip="Stop"><i class="bi bi-stop-circle"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr draggable="true">
+                                        <td><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="status-dot online"></span>
+                                                <span class="fw-600">payment-service</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge badge-warning">High Load</span></td>
+                                        <td>78%</td>
+                                        <td>
+                                            <div class="progress" style="width: 100px;">
+                                                <div class="progress-bar progress-bar-warning" style="width: 89%;"></div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="table-actions">
+                                                <button class="table-action-btn" data-tooltip="View"><i class="bi bi-eye"></i></button>
+                                                <button class="table-action-btn" data-tooltip="Restart"><i class="bi bi-arrow-clockwise"></i></button>
+                                                <button class="table-action-btn danger" data-tooltip="Stop"><i class="bi bi-stop-circle"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr draggable="true">
+                                        <td><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="status-dot online"></span>
+                                                <span class="fw-600">user-service</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge badge-success">Running</span></td>
+                                        <td>23%</td>
+                                        <td>
+                                            <div class="progress" style="width: 100px;">
+                                                <div class="progress-bar" style="width: 52%;"></div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="table-actions">
+                                                <button class="table-action-btn" data-tooltip="View"><i class="bi bi-eye"></i></button>
+                                                <button class="table-action-btn" data-tooltip="Restart"><i class="bi bi-arrow-clockwise"></i></button>
+                                                <button class="table-action-btn danger" data-tooltip="Stop"><i class="bi bi-stop-circle"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr draggable="true">
+                                        <td><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="status-dot offline"></span>
+                                                <span class="fw-600">email-service</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge badge-secondary">Stopped</span></td>
+                                        <td>0%</td>
+                                        <td>
+                                            <div class="progress" style="width: 100px;">
+                                                <div class="progress-bar" style="width: 0%;"></div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="table-actions">
+                                                <button class="table-action-btn" data-tooltip="View"><i class="bi bi-eye"></i></button>
+                                                <button class="table-action-btn" data-tooltip="Start"><i class="bi bi-play-circle"></i></button>
+                                                <button class="table-action-btn danger" data-tooltip="Delete"><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr draggable="true">
+                                        <td><span class="drag-handle"><i class="bi bi-grip-vertical"></i></span></td>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="status-dot online"></span>
+                                                <span class="fw-600">notification-service</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge badge-success">Running</span></td>
+                                        <td>8%</td>
+                                        <td>
+                                            <div class="progress" style="width: 100px;">
+                                                <div class="progress-bar" style="width: 32%;"></div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="table-actions">
+                                                <button class="table-action-btn" data-tooltip="View"><i class="bi bi-eye"></i></button>
+                                                <button class="table-action-btn" data-tooltip="Restart"><i class="bi bi-arrow-clockwise"></i></button>
+                                                <button class="table-action-btn danger" data-tooltip="Stop"><i class="bi bi-stop-circle"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <nav class="pagination" style="margin: 0;">
+                            <a href="#" class="page-link disabled"><i class="bi bi-chevron-left"></i></a>
+                            <a href="#" class="page-link active">1</a>
+                            <a href="#" class="page-link">2</a>
+                            <a href="#" class="page-link">3</a>
+                            <span class="page-link" style="border: none; background: none;">...</span>
+                            <a href="#" class="page-link">8</a>
+                            <a href="#" class="page-link"><i class="bi bi-chevron-right"></i></a>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Service Outline / Tree View -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Service Dependencies</h3>
+                        <button class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-arrows-fullscreen"></i>
+                            Expand All
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="tree-view">
+                            <div class="tree-item">
+                                <div class="tree-item-header">
+                                    <span class="tree-toggle"><i class="bi bi-chevron-down"></i></span>
+                                    <i class="bi bi-diagram-3 tree-icon"></i>
+                                    <span class="tree-label">API Gateway</span>
+                                    <span class="tree-badge">root</span>
+                                </div>
+                                <div class="tree-children">
+                                    <div class="tree-item">
+                                        <div class="tree-item-header">
+                                            <span class="tree-toggle"><i class="bi bi-chevron-down"></i></span>
+                                            <i class="bi bi-box-seam tree-icon"></i>
+                                            <span class="tree-label">auth-service</span>
+                                            <span class="tree-badge">v2.1.0</span>
+                                        </div>
+                                        <div class="tree-children">
+                                            <div class="tree-item collapsed">
+                                                <div class="tree-item-header">
+                                                    <span class="tree-toggle"><i class="bi bi-chevron-down"></i></span>
+                                                    <i class="bi bi-database tree-icon" style="color: var(--exprsn-accent-green);"></i>
+                                                    <span class="tree-label">PostgreSQL</span>
+                                                    <span class="tree-badge">db</span>
+                                                </div>
+                                                <div class="tree-children">
+                                                    <div class="tree-item">
+                                                        <div class="tree-item-header">
+                                                            <span class="tree-toggle" style="visibility: hidden;"><i class="bi bi-chevron-down"></i></span>
+                                                            <i class="bi bi-hdd tree-icon" style="color: var(--exprsn-text-muted);"></i>
+                                                            <span class="tree-label">users_table</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="tree-item">
+                                                        <div class="tree-item-header">
+                                                            <span class="tree-toggle" style="visibility: hidden;"><i class="bi bi-chevron-down"></i></span>
+                                                            <i class="bi bi-hdd tree-icon" style="color: var(--exprsn-text-muted);"></i>
+                                                            <span class="tree-label">sessions_table</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="tree-item collapsed">
+                                                <div class="tree-item-header">
+                                                    <span class="tree-toggle"><i class="bi bi-chevron-down"></i></span>
+                                                    <i class="bi bi-lightning tree-icon" style="color: var(--exprsn-danger);"></i>
+                                                    <span class="tree-label">Redis Cache</span>
+                                                    <span class="tree-badge">cache</span>
+                                                </div>
+                                                <div class="tree-children"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="tree-item collapsed">
+                                        <div class="tree-item-header">
+                                            <span class="tree-toggle"><i class="bi bi-chevron-down"></i></span>
+                                            <i class="bi bi-box-seam tree-icon"></i>
+                                            <span class="tree-label">user-service</span>
+                                            <span class="tree-badge">v1.8.3</span>
+                                        </div>
+                                        <div class="tree-children"></div>
+                                    </div>
+                                    <div class="tree-item collapsed">
+                                        <div class="tree-item-header">
+                                            <span class="tree-toggle"><i class="bi bi-chevron-down"></i></span>
+                                            <i class="bi bi-box-seam tree-icon"></i>
+                                            <span class="tree-label">payment-service</span>
+                                            <span class="tree-badge" style="background: var(--exprsn-warning-bg); color: var(--exprsn-warning);">warning</span>
+                                        </div>
+                                        <div class="tree-children"></div>
+                                    </div>
+                                    <div class="tree-item collapsed">
+                                        <div class="tree-item-header">
+                                            <span class="tree-toggle"><i class="bi bi-chevron-down"></i></span>
+                                            <i class="bi bi-box-seam tree-icon"></i>
+                                            <span class="tree-label">notification-service</span>
+                                            <span class="tree-badge">v1.2.0</span>
+                                        </div>
+                                        <div class="tree-children"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Second Row -->
+            <div class="grid grid-2 mt-4">
+                <!-- Reports Section with Tabs -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Reports & Queries</h3>
+                        <div class="d-flex gap-2">
+                            <input type="date" class="form-control" style="width: 150px;">
+                            <input type="date" class="form-control" style="width: 150px;">
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav-tabs">
+                            <li><a href="#" class="nav-link active" onclick="switchTab(this, 'performance')">Performance</a></li>
+                            <li><a href="#" class="nav-link" onclick="switchTab(this, 'errors')">Errors</a></li>
+                            <li><a href="#" class="nav-link" onclick="switchTab(this, 'traffic')">Traffic</a></li>
+                            <li><a href="#" class="nav-link" onclick="switchTab(this, 'costs')">Costs</a></li>
+                        </ul>
+                        
+                        <div class="tab-content">
+                            <div id="performance" class="tab-pane active">
+                                <div class="chart-container">
+                                    <div class="chart-placeholder">
+                                        <i class="bi bi-bar-chart-line"></i>
+                                        <p>Performance Chart Placeholder</p>
+                                        <p class="text-muted" style="font-size: 0.875rem;">Integrate with Chart.js or similar</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Progress Indicators -->
+                                <div class="mt-4">
+                                    <div class="progress-label">
+                                        <span class="progress-label-text">API Response Time</span>
+                                        <span class="progress-label-value">45ms avg</span>
+                                    </div>
+                                    <div class="progress progress-lg">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 45%;"></div>
+                                    </div>
+                                    
+                                    <div class="progress-label mt-3">
+                                        <span class="progress-label-text">Database Queries</span>
+                                        <span class="progress-label-value">12ms avg</span>
+                                    </div>
+                                    <div class="progress progress-lg">
+                                        <div class="progress-bar progress-bar-success progress-bar-striped" style="width: 12%;"></div>
+                                    </div>
+                                    
+                                    <div class="progress-label mt-3">
+                                        <span class="progress-label-text">Cache Hit Rate</span>
+                                        <span class="progress-label-value">94%</span>
+                                    </div>
+                                    <div class="progress progress-lg">
+                                        <div class="progress-bar progress-bar-success" style="width: 94%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="errors" class="tab-pane">
+                                <p class="text-muted">Error tracking data...</p>
+                            </div>
+                            <div id="traffic" class="tab-pane">
+                                <p class="text-muted">Traffic analytics...</p>
+                            </div>
+                            <div id="costs" class="tab-pane">
+                                <p class="text-muted">Cost breakdown...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Query Builder -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Database Query</h3>
+                        <button class="btn btn-sm btn-success">
+                            <i class="bi bi-play"></i>
+                            Execute
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Select Database</label>
+                            <select class="form-control form-select">
+                                <option>PostgreSQL - Primary</option>
+                                <option>PostgreSQL - Replica</option>
+                                <option>MongoDB - Analytics</option>
+                                <option>Redis - Cache</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">SQL Query</label>
+                            <textarea class="form-control font-mono" style="min-height: 150px;" placeholder="SELECT * FROM users WHERE...">SELECT 
+    u.id, 
+    u.username, 
+    u.email, 
+    u.created_at,
+    COUNT(s.id) as session_count
+FROM users u
+LEFT JOIN sessions s ON u.id = s.user_id
+WHERE u.status = 'active'
+GROUP BY u.id
+ORDER BY u.created_at DESC
+LIMIT 100;</textarea>
+                        </div>
+                        
+                        <div class="d-flex gap-2 mb-3">
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label class="form-label">Timeout (seconds)</label>
+                                <input type="number" class="form-control" value="30">
+                            </div>
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label class="form-label">Max Rows</label>
+                                <input type="number" class="form-control" value="1000">
+                            </div>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="explain-query">
+                            <label class="form-check-label" for="explain-query">Show Query Execution Plan</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Management Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">User Management</h3>
+                    <button class="btn btn-primary btn-sm" onclick="showAddUserModal()">
+                        <i class="bi bi-person-plus"></i>
+                        Add User
+                    </button>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="filter-bar" style="border: none; border-bottom: 1px solid var(--exprsn-border-color); border-radius: 0;">
+                        <div class="filter-search">
+                            <i class="bi bi-search search-icon"></i>
+                            <input type="text" class="form-control" placeholder="Search users...">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Role:</label>
+                            <select class="form-control form-select" style="width: 140px;">
+                                <option>All Roles</option>
+                                <option>Admin</option>
+                                <option>Developer</option>
+                                <option>Viewer</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Status:</label>
+                            <select class="form-control form-select" style="width: 140px;">
+                                <option>All</option>
+                                <option>Active</option>
+                                <option>Inactive</option>
+                                <option>Pending</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Last Active:</label>
+                            <input type="datetime-local" class="form-control" style="width: 200px;">
+                        </div>
+                    </div>
+                    
+                    <div class="table-container" style="border: none; border-radius: 0;">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" class="form-check-input" style="width: 18px; height: 18px;">
+                                    </th>
+                                    <th class="sortable">User</th>
+                                    <th class="sortable">Email</th>
+                                    <th class="sortable">Role</th>
+                                    <th class="sortable">Status</th>
+                                    <th class="sortable">Last Active</th>
+                                    <th>Activity</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><input type="checkbox" class="form-check-input" style="width: 18px; height: 18px;"></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="user-avatar" style="width: 36px; height: 36px; font-size: 0.75rem;">JD</div>
+                                            <div>
+                                                <div class="fw-600">John Doe</div>
+                                                <div class="text-muted" style="font-size: 0.75rem;">@johndoe</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>john.doe@exprsn.io</td>
+                                    <td><span class="badge badge-primary">Admin</span></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td>Just now</td>
+                                    <td>
+                                        <div class="mini-chart">
+                                            <div class="mini-chart-bar" style="height: 60%;"></div>
+                                            <div class="mini-chart-bar" style="height: 80%;"></div>
+                                            <div class="mini-chart-bar" style="height: 40%;"></div>
+                                            <div class="mini-chart-bar" style="height: 90%;"></div>
+                                            <div class="mini-chart-bar" style="height: 70%;"></div>
+                                            <div class="mini-chart-bar" style="height: 100%;"></div>
+                                            <div class="mini-chart-bar" style="height: 85%;"></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="table-actions">
+                                            <button class="table-action-btn"><i class="bi bi-pencil"></i></button>
+                                            <button class="table-action-btn"><i class="bi bi-key"></i></button>
+                                            <button class="table-action-btn danger"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><input type="checkbox" class="form-check-input" style="width: 18px; height: 18px;"></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="user-avatar" style="width: 36px; height: 36px; font-size: 0.75rem; background: var(--exprsn-gradient-cool);">SJ</div>
+                                            <div>
+                                                <div class="fw-600">Sarah Johnson</div>
+                                                <div class="text-muted" style="font-size: 0.75rem;">@sarahj</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>sarah.j@exprsn.io</td>
+                                    <td><span class="badge badge-info">Developer</span></td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td>5 mins ago</td>
+                                    <td>
+                                        <div class="mini-chart">
+                                            <div class="mini-chart-bar" style="height: 40%;"></div>
+                                            <div class="mini-chart-bar" style="height: 50%;"></div>
+                                            <div class="mini-chart-bar" style="height: 70%;"></div>
+                                            <div class="mini-chart-bar" style="height: 60%;"></div>
+                                            <div class="mini-chart-bar" style="height: 80%;"></div>
+                                            <div class="mini-chart-bar" style="height: 65%;"></div>
+                                            <div class="mini-chart-bar" style="height: 75%;"></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="table-actions">
+                                            <button class="table-action-btn"><i class="bi bi-pencil"></i></button>
+                                            <button class="table-action-btn"><i class="bi bi-key"></i></button>
+                                            <button class="table-action-btn danger"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><input type="checkbox" class="form-check-input" style="width: 18px; height: 18px;"></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="user-avatar" style="width: 36px; height: 36px; font-size: 0.75rem; background: var(--exprsn-gradient-warm);">MC</div>
+                                            <div>
+                                                <div class="fw-600">Mike Chen</div>
+                                                <div class="text-muted" style="font-size: 0.75rem;">@mikec</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>mike.chen@exprsn.io</td>
+                                    <td><span class="badge badge-secondary">Viewer</span></td>
+                                    <td><span class="badge badge-warning">Pending</span></td>
+                                    <td>1 hour ago</td>
+                                    <td>
+                                        <div class="mini-chart">
+                                            <div class="mini-chart-bar" style="height: 20%;"></div>
+                                            <div class="mini-chart-bar" style="height: 30%;"></div>
+                                            <div class="mini-chart-bar" style="height: 25%;"></div>
+                                            <div class="mini-chart-bar" style="height: 15%;"></div>
+                                            <div class="mini-chart-bar" style="height: 35%;"></div>
+                                            <div class="mini-chart-bar" style="height: 28%;"></div>
+                                            <div class="mini-chart-bar" style="height: 22%;"></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="table-actions">
+                                            <button class="table-action-btn"><i class="bi bi-pencil"></i></button>
+                                            <button class="table-action-btn"><i class="bi bi-key"></i></button>
+                                            <button class="table-action-btn danger"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><input type="checkbox" class="form-check-input" style="width: 18px; height: 18px;"></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="user-avatar" style="width: 36px; height: 36px; font-size: 0.75rem; background: var(--exprsn-secondary);">EP</div>
+                                            <div>
+                                                <div class="fw-600">Emily Park</div>
+                                                <div class="text-muted" style="font-size: 0.75rem;">@emilyp</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>emily.park@exprsn.io</td>
+                                    <td><span class="badge badge-info">Developer</span></td>
+                                    <td><span class="badge badge-secondary">Inactive</span></td>
+                                    <td>3 days ago</td>
+                                    <td>
+                                        <div class="mini-chart">
+                                            <div class="mini-chart-bar" style="height: 5%;"></div>
+                                            <div class="mini-chart-bar" style="height: 0%;"></div>
+                                            <div class="mini-chart-bar" style="height: 0%;"></div>
+                                            <div class="mini-chart-bar" style="height: 0%;"></div>
+                                            <div class="mini-chart-bar" style="height: 0%;"></div>
+                                            <div class="mini-chart-bar" style="height: 0%;"></div>
+                                            <div class="mini-chart-bar" style="height: 0%;"></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="table-actions">
+                                            <button class="table-action-btn"><i class="bi bi-pencil"></i></button>
+                                            <button class="table-action-btn"><i class="bi bi-key"></i></button>
+                                            <button class="table-action-btn danger"><i class="bi bi-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="text-muted">Showing 1-4 of 24 users</span>
+                        <nav class="pagination" style="margin: 0;">
+                            <a href="#" class="page-link disabled"><i class="bi bi-chevron-left"></i></a>
+                            <a href="#" class="page-link active">1</a>
+                            <a href="#" class="page-link">2</a>
+                            <a href="#" class="page-link">3</a>
+                            <a href="#" class="page-link">4</a>
+                            <a href="#" class="page-link">5</a>
+                            <a href="#" class="page-link">6</a>
+                            <a href="#" class="page-link"><i class="bi bi-chevron-right"></i></a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Health -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">System Resource Utilization</h3>
+                    <span class="badge badge-success"><i class="bi bi-check-circle me-1"></i> Healthy</span>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-4">
+                        <div>
+                            <div class="progress-label">
+                                <span class="progress-label-text">CPU Usage</span>
+                                <span class="progress-label-value">42%</span>
+                            </div>
+                            <div class="progress progress-xl">
+                                <div class="progress-bar" style="width: 42%;">42%</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="progress-label">
+                                <span class="progress-label-text">Memory</span>
+                                <span class="progress-label-value">68%</span>
+                            </div>
+                            <div class="progress progress-xl">
+                                <div class="progress-bar progress-bar-warning" style="width: 68%;">68%</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="progress-label">
+                                <span class="progress-label-text">Disk I/O</span>
+                                <span class="progress-label-value">23%</span>
+                            </div>
+                            <div class="progress progress-xl">
+                                <div class="progress-bar progress-bar-success" style="width: 23%;">23%</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="progress-label">
+                                <span class="progress-label-text">Network</span>
+                                <span class="progress-label-value">56%</span>
+                            </div>
+                            <div class="progress progress-xl">
+                                <div class="progress-bar" style="width: 56%;">56%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ========== MODALS ========== -->
+    
+    <!-- Add Service Modal -->
+    <div class="modal-overlay" id="add-service-modal-overlay" onclick="closeAddServiceModal()"></div>
+    <div class="modal-dialog" id="add-service-modal">
+        <div class="modal-header">
+            <h4 class="modal-title">Add New Service</h4>
+            <button class="modal-close" onclick="closeAddServiceModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form>
+                <div class="form-group">
+                    <label class="form-label required">Service Name</label>
+                    <input type="text" class="form-control" placeholder="e.g., order-service">
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Docker Image</label>
+                    <input type="text" class="form-control" placeholder="e.g., myregistry/order-service:latest">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Port</label>
+                    <input type="number" class="form-control" placeholder="8080">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Environment</label>
+                    <select class="form-control form-select">
+                        <option>Development</option>
+                        <option>Staging</option>
+                        <option>Production</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Resource Limits</label>
+                    <div class="d-flex gap-3">
+                        <div style="flex: 1;">
+                            <label class="form-label" style="font-size: 0.75rem;">CPU Cores</label>
+                            <input type="number" class="form-control" placeholder="1" step="0.5">
+                        </div>
+                        <div style="flex: 1;">
+                            <label class="form-label" style="font-size: 0.75rem;">Memory (GB)</label>
+                            <input type="number" class="form-control" placeholder="2">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="auto-scale">
+                    <label class="form-check-label" for="auto-scale">Enable Auto-scaling</label>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddServiceModal()">Cancel</button>
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Create Service
+            </button>
+        </div>
+    </div>
+
+    <!-- Switch User Modal -->
+    <div class="modal-overlay" id="switch-user-modal-overlay" onclick="closeSwitchUser()"></div>
+    <div class="modal-dialog" id="switch-user-modal" style="max-width: 400px;">
+        <div class="modal-header">
+            <h4 class="modal-title">Switch User</h4>
+            <button class="modal-close" onclick="closeSwitchUser()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="text-muted mb-3">Select a user account to switch to:</p>
+            <div class="d-flex flex-column gap-2">
+                <button class="btn btn-secondary w-100" style="justify-content: flex-start;">
+                    <div class="user-avatar" style="width: 32px; height: 32px; font-size: 0.75rem;">JD</div>
+                    <div style="text-align: left;">
+                        <div class="fw-600">John Doe</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">Admin</div>
+                    </div>
+                    <i class="bi bi-check-lg text-success" style="margin-left: auto;"></i>
+                </button>
+                <button class="btn btn-secondary w-100" style="justify-content: flex-start;">
+                    <div class="user-avatar" style="width: 32px; height: 32px; font-size: 0.75rem; background: var(--exprsn-gradient-cool);">SJ</div>
+                    <div style="text-align: left;">
+                        <div class="fw-600">Sarah Johnson</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">Developer</div>
+                    </div>
+                </button>
+                <button class="btn btn-secondary w-100" style="justify-content: flex-start;">
+                    <div class="user-avatar" style="width: 32px; height: 32px; font-size: 0.75rem; background: var(--exprsn-secondary);">EP</div>
+                    <div style="text-align: left;">
+                        <div class="fw-600">Emily Park</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">Developer</div>
+                    </div>
+                </button>
+            </div>
+            <hr style="border-color: var(--exprsn-border-color); margin: 1.5rem 0;">
+            <button class="btn btn-outline-primary w-100">
+                <i class="bi bi-person-plus"></i>
+                Add Another Account
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            
+            // Update icon
+            const themeBtn = document.querySelector('[data-tooltip="Theme"] i');
+            themeBtn.className = newTheme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+        }
+
+        // Password Toggle
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const btn = input.nextElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+            } else {
+                input.type = 'password';
+                btn.innerHTML = '<i class="bi bi-eye"></i>';
+            }
+        }
+
+        // Login Form
+        document.getElementById('login-form')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('dashboard-wrapper').style.display = 'block';
+        });
+
+        // Logout
+        function logout() {
+            document.getElementById('dashboard-wrapper').style.display = 'none';
+            document.getElementById('login-page').style.display = 'flex';
+        }
+
+        // Add Service Modal
+        function showAddServiceModal() {
+            document.getElementById('add-service-modal-overlay').classList.add('show');
+            document.getElementById('add-service-modal').classList.add('show');
+        }
+
+        function closeAddServiceModal() {
+            document.getElementById('add-service-modal-overlay').classList.remove('show');
+            document.getElementById('add-service-modal').classList.remove('show');
+        }
+
+        // Switch User Modal
+        function showSwitchUser() {
+            document.getElementById('switch-user-modal-overlay').classList.add('show');
+            document.getElementById('switch-user-modal').classList.add('show');
+        }
+
+        function closeSwitchUser() {
+            document.getElementById('switch-user-modal-overlay').classList.remove('show');
+            document.getElementById('switch-user-modal').classList.remove('show');
+        }
+
+        // Tab Switching
+        function switchTab(element, tabId) {
+            // Remove active from all tabs
+            element.closest('.nav-tabs').querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            // Add active to clicked tab
+            element.classList.add('active');
+            
+            // Hide all panes
+            element.closest('.card-body').querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            // Show target pane
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // Tree View Toggle
+        document.querySelectorAll('.tree-item-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const item = this.closest('.tree-item');
+                item.classList.toggle('collapsed');
+            });
+        });
+
+        // Table Drag and Drop
+        let draggedRow = null;
+
+        document.querySelectorAll('.table-draggable tbody tr').forEach(row => {
+            row.addEventListener('dragstart', function(e) {
+                draggedRow = this;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            row.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                document.querySelectorAll('.drag-over').forEach(r => r.classList.remove('drag-over'));
+            });
+
+            row.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (this !== draggedRow) {
+                    this.classList.add('drag-over');
+                }
+            });
+
+            row.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+
+            row.addEventListener('drop', function(e) {
+                e.preventDefault();
+                if (this !== draggedRow) {
+                    const tbody = this.parentNode;
+                    const rows = Array.from(tbody.children);
+                    const draggedIndex = rows.indexOf(draggedRow);
+                    const targetIndex = rows.indexOf(this);
+                    
+                    if (draggedIndex < targetIndex) {
+                        tbody.insertBefore(draggedRow, this.nextSibling);
+                    } else {
+                        tbody.insertBefore(draggedRow, this);
+                    }
+                }
+                this.classList.remove('drag-over');
+            });
+        });
+
+        // Sortable Table Headers
+        document.querySelectorAll('.table th.sortable').forEach(header => {
+            header.addEventListener('click', function() {
+                const currentSort = this.classList.contains('sorted-asc') ? 'asc' : 
+                                   this.classList.contains('sorted-desc') ? 'desc' : null;
+                
+                // Remove sort from all headers
+                this.closest('tr').querySelectorAll('.sortable').forEach(h => {
+                    h.classList.remove('sorted-asc', 'sorted-desc');
+                });
+                
+                // Toggle sort
+                if (currentSort === 'asc') {
+                    this.classList.add('sorted-desc');
+                } else {
+                    this.classList.add('sorted-asc');
+                }
+            });
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeAddServiceModal();
+                closeSwitchUser();
+            }
+        });
+
+        // Keyboard shortcut for search (Cmd/Ctrl + K)
+        document.addEventListener('keydown', function(e) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                document.querySelector('.global-search .search-input').focus();
+            }
+        });
+
+        // Initialize: Show login page first (optional - comment out to show dashboard directly)
+        // document.getElementById('login-page').style.display = 'flex';
+        // document.getElementById('dashboard-wrapper').style.display = 'none';
+    </script>
+</body>
+</html>

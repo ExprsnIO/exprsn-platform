@@ -1,0 +1,272 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-timeline",
+      "version": "1.0.0",
+      "description": "Timeline and social feed service"
+    },
+    "routes": [
+      {
+        "path": "/api/timeline/posts",
+        "method": "GET",
+        "description": "Get timeline posts for authenticated user",
+        "target": {
+          "service": "timeline",
+          "path": "/api/posts",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          },
+          "certificateBinding": false
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 60
+        }
+      },
+      {
+        "path": "/api/timeline/posts/:id",
+        "method": "GET",
+        "description": "Get a single post by ID",
+        "target": {
+          "service": "timeline",
+          "path": "/api/posts/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/timeline/posts",
+        "method": "POST",
+        "description": "Create a new post",
+        "target": {
+          "service": "timeline",
+          "path": "/api/posts",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["content"],
+            "properties": {
+              "content": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 5000
+              },
+              "media": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["type", "url"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["image", "video", "gif"]
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "thumbnailUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  }
+                },
+                "maxItems": 4
+              },
+              "replyToId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "visibility": {
+                "type": "string",
+                "enum": ["public", "followers", "private"],
+                "default": "public"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/timeline/posts/:id",
+        "method": "DELETE",
+        "description": "Delete a post",
+        "target": {
+          "service": "timeline",
+          "path": "/api/posts/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/timeline/posts/:id/like",
+        "method": "POST",
+        "description": "Like a post",
+        "target": {
+          "service": "timeline",
+          "path": "/api/posts/:id/like",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/timeline/posts/:id/repost",
+        "method": "POST",
+        "description": "Repost a post",
+        "target": {
+          "service": "timeline",
+          "path": "/api/posts/:id/repost",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/timeline/search",
+        "method": "GET",
+        "description": "Search posts",
+        "target": {
+          "service": "timeline",
+          "path": "/api/search",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "q": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "type": {
+              "type": "string",
+              "enum": ["posts", "users", "hashtags"],
+              "default": "posts"
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 1000
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

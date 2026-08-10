@@ -1,0 +1,314 @@
+<div class="row mb-4">
+  <div class="col-12">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="/admin/users">Users</a></li>
+        <li class="breadcrumb-item active"><%= targetUser.email %></li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-12">
+    <h2><i class="bi bi-person-circle"></i> <%= targetUser.email %></h2>
+    <p class="text-muted">User details and management</p>
+  </div>
+</div>
+
+<!-- User Information -->
+<div class="row g-4 mb-4">
+  <!-- Basic Info -->
+  <div class="col-md-6">
+    <div class="table-card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-info-circle"></i> Basic Information</h5>
+      </div>
+      <div class="card-body">
+        <table class="table table-borderless mb-0">
+          <tr>
+            <th width="40%">User ID:</th>
+            <td><code><%= targetUser.id %></code></td>
+          </tr>
+          <tr>
+            <th>Email:</th>
+            <td>
+              <%= targetUser.email %>
+              <% if (targetUser.email_verified) { %>
+                <i class="bi bi-patch-check-fill text-success" title="Verified"></i>
+              <% } %>
+            </td>
+          </tr>
+          <tr>
+            <th>Display Name:</th>
+            <td><%= targetUser.display_name || 'N/A' %></td>
+          </tr>
+          <tr>
+            <th>Full Name:</th>
+            <td><%= targetUser.first_name %> <%= targetUser.last_name %></td>
+          </tr>
+          <tr>
+            <th>Status:</th>
+            <td>
+              <span class="badge bg-<%= targetUser.status === 'active' ? 'success' : targetUser.status === 'suspended' ? 'warning' : 'danger' %>">
+                <%= targetUser.status %>
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <th>Roles:</th>
+            <td>
+              <% targetUser.roles.forEach(role => { %>
+                <span class="badge bg-secondary"><%= role %></span>
+              <% }); %>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Security Info -->
+  <div class="col-md-6">
+    <div class="table-card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Security Information</h5>
+      </div>
+      <div class="card-body">
+        <table class="table table-borderless mb-0">
+          <tr>
+            <th width="40%">MFA Enabled:</th>
+            <td>
+              <% if (targetUser.mfa_enabled) { %>
+                <i class="bi bi-check-circle-fill text-success"></i> Yes
+              <% } else { %>
+                <i class="bi bi-x-circle-fill text-danger"></i> No
+              <% } %>
+            </td>
+          </tr>
+          <tr>
+            <th>Created:</th>
+            <td><%= new Date(targetUser.created_at).toLocaleString() %></td>
+          </tr>
+          <tr>
+            <th>Last Updated:</th>
+            <td><%= new Date(targetUser.updated_at).toLocaleString() %></td>
+          </tr>
+          <tr>
+            <th>Last Login:</th>
+            <td>
+              <% if (targetUser.last_login_at) { %>
+                <%= new Date(targetUser.last_login_at).toLocaleString() %>
+              <% } else { %>
+                Never
+              <% } %>
+            </td>
+          </tr>
+          <tr>
+            <th>Last Login IP:</th>
+            <td><%= targetUser.last_login_ip || 'N/A' %></td>
+          </tr>
+          <% if (targetUser.suspended_at) { %>
+          <tr>
+            <th>Suspended At:</th>
+            <td><%= new Date(targetUser.suspended_at).toLocaleString() %></td>
+          </tr>
+          <tr>
+            <th>Suspend Reason:</th>
+            <td><%= targetUser.suspended_reason || 'N/A' %></td>
+          </tr>
+          <% } %>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Actions -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-gear"></i> User Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-flex gap-2">
+          <% if (targetUser.status === 'active') { %>
+            <button class="btn btn-warning" onclick="suspendUser()">
+              <i class="bi bi-person-x"></i> Suspend User
+            </button>
+          <% } else if (targetUser.status === 'suspended') { %>
+            <button class="btn btn-success" onclick="reactivateUser()">
+              <i class="bi bi-person-check"></i> Reactivate User
+            </button>
+          <% } %>
+          <button class="btn btn-danger" onclick="deleteUser()" disabled>
+            <i class="bi bi-trash"></i> Delete User
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Certificates -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-shield-check"></i> User Certificates (<%= certificates.length %>)</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Serial Number</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Issued</th>
+                <th>Expires</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (certificates.length === 0) { %>
+                <tr>
+                  <td colspan="6" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox"></i> No certificates found
+                  </td>
+                </tr>
+              <% } else { %>
+                <% certificates.forEach(cert => { %>
+                  <tr>
+                    <td><code><%= cert.serial_number %></code></td>
+                    <td><span class="badge bg-info"><%= cert.certificate_type %></span></td>
+                    <td><span class="badge bg-<%= cert.status === 'active' ? 'success' : 'danger' %>"><%= cert.status %></span></td>
+                    <td><%= new Date(cert.issued_at).toLocaleDateString() %></td>
+                    <td><%= new Date(cert.expires_at).toLocaleDateString() %></td>
+                    <td>
+                      <a href="/admin/certificates/<%= cert.id %>" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> View
+                      </a>
+                    </td>
+                  </tr>
+                <% }); %>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tokens -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-key"></i> User Tokens (<%= tokens.length %>)</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Handle</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Expires</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (tokens.length === 0) { %>
+                <tr>
+                  <td colspan="6" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox"></i> No tokens found
+                  </td>
+                </tr>
+              <% } else { %>
+                <% tokens.forEach(token => { %>
+                  <tr>
+                    <td><code><%= token.handle %></code></td>
+                    <td><span class="badge bg-info"><%= token.token_type %></span></td>
+                    <td><span class="badge bg-<%= token.status === 'active' ? 'success' : 'secondary' %>"><%= token.status %></span></td>
+                    <td><%= new Date(token.created_at).toLocaleDateString() %></td>
+                    <td><%= token.expires_at ? new Date(token.expires_at).toLocaleDateString() : 'Never' %></td>
+                    <td>
+                      <a href="/admin/tokens/<%= token.id %>" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> View
+                      </a>
+                    </td>
+                  </tr>
+                <% }); %>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const userId = '<%= targetUser.id %>';
+
+  async function suspendUser() {
+    const reason = prompt('Enter suspension reason:');
+    if (!reason) return;
+
+    if (!confirm('Are you sure you want to suspend this user?')) return;
+
+    try {
+      const response = await fetch(`/api/users/${userId}/suspend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (localStorage.getItem('authToken') || '')
+        },
+        body: JSON.stringify({ reason })
+      });
+
+      if (response.ok) {
+        alert('User suspended successfully');
+        location.reload();
+      } else {
+        const error = await response.json();
+        alert('Failed to suspend user: ' + error.error.message);
+      }
+    } catch (error) {
+      alert('Failed to suspend user: ' + error.message);
+    }
+  }
+
+  async function reactivateUser() {
+    if (!confirm('Are you sure you want to reactivate this user?')) return;
+
+    try {
+      const response = await fetch(`/api/users/${userId}/reactivate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + (localStorage.getItem('authToken') || '')
+        }
+      });
+
+      if (response.ok) {
+        alert('User reactivated successfully');
+        location.reload();
+      } else {
+        const error = await response.json();
+        alert('Failed to reactivate user: ' + error.error.message);
+      }
+    } catch (error) {
+      alert('Failed to reactivate user: ' + error.message);
+    }
+  }
+
+  function deleteUser() {
+    alert('User deletion is currently disabled for safety. Please contact a system administrator.');
+  }
+</script>

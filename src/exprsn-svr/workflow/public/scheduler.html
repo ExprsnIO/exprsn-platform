@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Scheduler - Exprsn Workflow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            background: #f8f9fa;
+        }
+
+        .schedule-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .schedule-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+        }
+
+        .preset-card {
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .preset-card:hover {
+            border-color: var(--primary);
+            background: #f0f0ff;
+        }
+
+        .preset-card.selected {
+            border-color: var(--primary);
+            background: #e0e0ff;
+        }
+
+        .cron-builder {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .next-runs {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-clock-history"></i> Workflow Scheduler
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/designer.html">
+                    <i class="bi bi-diagram-3"></i> Designer
+                </a>
+                <a class="nav-link" href="/monitor.html">
+                    <i class="bi bi-speedometer2"></i> Monitor
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2><i class="bi bi-calendar3"></i> Scheduled Workflows</h2>
+                        <p class="text-muted">Manage automated workflow schedules</p>
+                    </div>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createScheduleModal">
+                        <i class="bi bi-plus-circle"></i> Create Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 id="total-scheduled">0</h3>
+                        <p class="text-muted mb-0">Total Scheduled</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 id="total-running" class="text-success">0</h3>
+                        <p class="text-muted mb-0">Running</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 id="total-paused" class="text-warning">0</h3>
+                        <p class="text-muted mb-0">Paused</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 id="next-execution">--</h3>
+                        <p class="text-muted mb-0">Next Execution</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="schedules-list">
+            <!-- Schedules will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Create Schedule Modal -->
+    <div class="modal fade" id="createScheduleModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Workflow Schedule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Workflow</label>
+                        <select class="form-select" id="workflow-select">
+                            <option value="">Choose a workflow...</option>
+                        </select>
+                    </div>
+
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#presets-tab">Presets</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#custom-tab">Custom</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#advanced-tab">Advanced</a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <!-- Presets Tab -->
+                        <div class="tab-pane fade show active" id="presets-tab">
+                            <div id="schedule-presets" class="row row-cols-1 row-cols-md-2 g-3">
+                                <!-- Presets loaded dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Custom Tab -->
+                        <div class="tab-pane fade" id="custom-tab">
+                            <div class="cron-builder">
+                                <div class="mb-3">
+                                    <label class="form-label">Schedule Type</label>
+                                    <select class="form-select" id="custom-type">
+                                        <option value="every-n-minutes">Every N Minutes</option>
+                                        <option value="every-n-hours">Every N Hours</option>
+                                        <option value="daily-at-time">Daily at Specific Time</option>
+                                        <option value="weekly-on-day">Weekly on Specific Day</option>
+                                        <option value="monthly-on-day">Monthly on Specific Day</option>
+                                    </select>
+                                </div>
+                                <div id="custom-fields">
+                                    <!-- Dynamic fields based on type -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Tab -->
+                        <div class="tab-pane fade" id="advanced-tab">
+                            <div class="mb-3">
+                                <label class="form-label">Cron Expression</label>
+                                <input type="text" class="form-control" id="cron-expression" placeholder="* * * * *">
+                                <small class="text-muted">Format: minute hour day month day-of-week</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Timezone</label>
+                                <select class="form-select" id="timezone">
+                                    <option value="UTC">UTC</option>
+                                    <option value="America/New_York">America/New_York</option>
+                                    <option value="America/Chicago">America/Chicago</option>
+                                    <option value="America/Denver">America/Denver</option>
+                                    <option value="America/Los_Angeles">America/Los_Angeles</option>
+                                    <option value="Europe/London">Europe/London</option>
+                                    <option value="Europe/Paris">Europe/Paris</option>
+                                    <option value="Asia/Tokyo">Asia/Tokyo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="next-runs">
+                        <h6>Next 5 Executions:</h6>
+                        <div id="next-executions" class="small text-muted">
+                            Configure a schedule to see next executions
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="create-schedule-btn">
+                        <i class="bi bi-check-circle"></i> Create Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/scheduler.js"></script>
+</body>
+</html>

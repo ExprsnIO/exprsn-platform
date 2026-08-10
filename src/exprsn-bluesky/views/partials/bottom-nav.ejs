@@ -1,0 +1,88 @@
+<!-- Bottom Navigation (Mobile Only) -->
+<nav class="bottom-nav d-md-none fixed-bottom bg-white border-top">
+    <div class="container-fluid">
+        <div class="row g-0">
+            <div class="col text-center">
+                <a href="/" class="bottom-nav-link d-flex flex-column align-items-center py-2 text-decoration-none <%= locals.currentPage === 'home' ? 'active' : '' %>">
+                    <i class="bi bi-house-fill fs-5"></i>
+                    <span class="small">Home</span>
+                </a>
+            </div>
+            <div class="col text-center">
+                <a href="/explore" class="bottom-nav-link d-flex flex-column align-items-center py-2 text-decoration-none <%= locals.currentPage === 'explore' ? 'active' : '' %>">
+                    <i class="bi bi-compass-fill fs-5"></i>
+                    <span class="small">Explore</span>
+                </a>
+            </div>
+            <div class="col text-center">
+                <% if (locals.user) { %>
+                <button class="bottom-nav-link d-flex flex-column align-items-center py-2 border-0 bg-transparent w-100"
+                        data-bs-toggle="modal"
+                        data-bs-target="#createPostModal">
+                    <i class="bi bi-plus-circle-fill fs-5 text-primary"></i>
+                    <span class="small text-primary">Post</span>
+                </button>
+                <% } else { %>
+                <a href="/login" class="bottom-nav-link d-flex flex-column align-items-center py-2 text-decoration-none">
+                    <i class="bi bi-plus-circle-fill fs-5"></i>
+                    <span class="small">Post</span>
+                </a>
+                <% } %>
+            </div>
+            <div class="col text-center">
+                <a href="/notifications" class="bottom-nav-link d-flex flex-column align-items-center py-2 text-decoration-none position-relative <%= locals.currentPage === 'notifications' ? 'active' : '' %>">
+                    <i class="bi bi-bell-fill fs-5"></i>
+                    <span class="small">Alerts</span>
+                    <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-danger"
+                          id="bottomNavNotificationBadge"
+                          style="display: none; font-size: 0.6rem;">
+                        0
+                    </span>
+                </a>
+            </div>
+            <div class="col text-center">
+                <a href="/messages" class="bottom-nav-link d-flex flex-column align-items-center py-2 text-decoration-none position-relative <%= locals.currentPage === 'messages' ? 'active' : '' %>">
+                    <i class="bi bi-envelope-fill fs-5"></i>
+                    <span class="small">Messages</span>
+                    <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-danger"
+                          id="bottomNavMessageBadge"
+                          style="display: none; font-size: 0.6rem;">
+                        0
+                    </span>
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<style>
+.bottom-nav {
+    z-index: 1030;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.bottom-nav-link {
+    color: #6c757d;
+    transition: color 0.2s;
+}
+
+.bottom-nav-link:hover,
+.bottom-nav-link.active {
+    color: #0d6efd;
+}
+
+.bottom-nav-link i {
+    transition: transform 0.2s;
+}
+
+.bottom-nav-link:active i {
+    transform: scale(0.9);
+}
+
+/* Add padding to body to prevent content from being hidden behind bottom nav */
+@media (max-width: 767.98px) {
+    body {
+        padding-bottom: 70px;
+    }
+}
+</style>

@@ -1,0 +1,27 @@
+# Build directories
+/build/
+build*/
+cmake-build-*/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Compiled / artifacts
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.exe
+
+# TransactionDB database artifacts produced by tests / demos
+*.tdb
+*.db
+*.tdb-journal
+demo.db*
+
+# The parent Exprsn repo ignores *.sql; our golden SQL test inputs must be kept.
+!tests/sql/*.sql

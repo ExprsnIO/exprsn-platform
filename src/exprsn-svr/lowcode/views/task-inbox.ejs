@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Task Inbox</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .inbox-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg-primary);
+    }
+
+    /* Header */
+    .inbox-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .inbox-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .task-count {
+      background: var(--primary-color);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Main Content */
+    .inbox-main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar - Task List */
+    .tasks-panel {
+      border-right: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .filter-bar {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 0.25rem;
+      background: var(--bg-primary);
+      padding: 0.25rem;
+      border-radius: 6px;
+    }
+
+    .filter-tab {
+      flex: 1;
+      padding: 0.5rem;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+
+    .filter-tab.active {
+      background: white;
+      color: var(--primary-color);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .tasks-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    .task-item {
+      padding: 1rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--border-color);
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .task-item:hover {
+      border-left-color: var(--primary-color);
+      background: var(--primary-bg-light);
+    }
+
+    .task-item.selected {
+      border-left-color: var(--primary-color);
+      background: var(--primary-bg-light);
+    }
+
+    .task-item.urgent {
+      border-left-color: #ef4444;
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 0.5rem;
+    }
+
+    .task-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .task-priority {
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .task-priority.high { background: #fee2e2; color: #991b1b; }
+    .task-priority.medium { background: #fef3c7; color: #92400e; }
+    .task-priority.low { background: #e0e7ff; color: #4338ca; }
+
+    .task-process {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .task-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .task-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    /* Right Panel - Task Details */
+    .details-panel {
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .task-details {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+
+    .details-header {
+      margin-bottom: 2rem;
+    }
+
+    .details-title {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .details-subtitle {
+      font-size: 1rem;
+      color: var(--text-secondary);
+    }
+
+    .details-section {
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.5px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .info-item {
+      padding: 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+
+    .info-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .info-value {
+      font-size: 1rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .task-form {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+
+    .form-field {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+      font-family: monospace;
+    }
+
+    .form-hint {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-secondary);
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: none;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-secondary);
+    }
+
+    .btn-icon {
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="inbox-container">
+    <!-- Header -->
+    <header class="inbox-header">
+      <div class="header-left">
+        <a href="/lowcode" class="btn-icon" title="Back to Applications">
+          <i class="fas fa-arrow-left"></i>
+        </a>
+        <div class="inbox-title">Task Inbox</div>
+        <span class="task-count" id="task-count">0</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="refresh-btn">
+          <i class="fas fa-sync"></i> Refresh
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="inbox-main">
+      <!-- Left Sidebar - Task List -->
+      <aside class="tasks-panel">
+        <div class="panel-header">
+          My Tasks
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all">All</button>
+            <button class="filter-tab" data-filter="mine">Assigned to Me</button>
+            <button class="filter-tab" data-filter="group">Group Tasks</button>
+          </div>
+        </div>
+
+        <div class="tasks-list" id="tasks-list">
+          <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p>No tasks in your inbox</p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Panel - Task Details -->
+      <section class="details-panel">
+        <div id="task-details">
+          <div class="empty-state" style="height: 100%;">
+            <i class="fas fa-mouse-pointer"></i>
+            <p>Select a task from the list to view details</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Task Inbox Engine -->
+  <script src="/lowcode/js/task-inbox.js"></script>
+
+  <script>
+    // Initialize inbox when page loads
+    window.addEventListener('DOMContentLoaded', () => {
+      window.taskInbox = new TaskInbox({
+        tasksElement: document.getElementById('tasks-list'),
+        detailsElement: document.getElementById('task-details')
+      });
+    });
+  </script>
+</body>
+</html>

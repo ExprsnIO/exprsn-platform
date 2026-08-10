@@ -1,0 +1,51 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.spark.sendMessage",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "Send a message in a conversation",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["conversationId", "content"],
+          "properties": {
+            "conversationId": {
+              "type": "string"
+            },
+            "content": {
+              "type": "union",
+              "refs": [
+                "io.exprsn.spark.message#textContent",
+                "io.exprsn.spark.message#mediaContent",
+                "io.exprsn.spark.message#encryptedContent"
+              ]
+            },
+            "replyTo": {
+              "type": "string",
+              "format": "at-uri"
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["uri", "cid"],
+          "properties": {
+            "uri": {
+              "type": "string",
+              "format": "at-uri"
+            },
+            "cid": {
+              "type": "string",
+              "format": "cid"
+            }
+          }
+        }
+      }
+    }
+  }
+}

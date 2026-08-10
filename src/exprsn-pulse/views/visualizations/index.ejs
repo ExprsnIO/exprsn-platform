@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+        <%- include('../shared/sidebar') %>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-bar-chart text-warning"></i>
+            Visualizations
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="/visualizations/new" class="btn btn-warning">
+              <i class="bi bi-plus-circle"></i> New Visualization
+            </a>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Filter Buttons -->
+        <div class="btn-group mb-3" role="group">
+          <button type="button" class="btn btn-sm btn-outline-secondary active" data-filter="all">
+            All Types
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="chartjs">
+            Chart.js
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="d3">
+            D3.js
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="table">
+            Tables
+          </button>
+        </div>
+
+        <!-- Visualizations Grid -->
+        <div class="row">
+          <% if (visualizations.length === 0) { %>
+            <div class="col-12">
+              <div class="card">
+                <div class="card-body text-center py-5">
+                  <i class="bi bi-bar-chart" style="font-size: 4rem; color: #dee2e6;"></i>
+                  <h4 class="mt-3">No visualizations yet</h4>
+                  <p class="text-muted">Create charts and tables to use in dashboards and reports</p>
+                  <a href="/visualizations/new" class="btn btn-warning">
+                    <i class="bi bi-plus-circle"></i> Create Visualization
+                  </a>
+                </div>
+              </div>
+            </div>
+          <% } else { %>
+            <% visualizations.forEach(viz => { %>
+              <div class="col-md-6 col-lg-4 mb-4 viz-card" data-renderer="<%= viz.renderer %>" data-type="<%= viz.type %>">
+                <div class="card h-100 shadow-sm">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                      <i class="bi bi-<%= getVizIcon(viz.type) %> text-warning"></i>
+                      <%= viz.name %>
+                    </h6>
+                    <div class="dropdown">
+                      <button class="btn btn-sm btn-link text-muted" type="button"
+                              data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                      </button>
+                      <ul class="dropdown-menu">
+                        <li>
+                          <a class="dropdown-item" href="/visualizations/<%= viz.id %>/edit">
+                            <i class="bi bi-pencil"></i> Edit
+                          </a>
+                        </li>
+                        <li>
+                          <button class="dropdown-item" onclick="cloneViz('<%= viz.id %>')">
+                            <i class="bi bi-files"></i> Clone
+                          </button>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                          <button class="dropdown-item text-danger" onclick="deleteViz('<%= viz.id %>')">
+                            <i class="bi bi-trash"></i> Delete
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <% if (viz.description) { %>
+                      <p class="card-text text-muted small"><%= viz.description %></p>
+                    <% } %>
+
+                    <div class="mb-2">
+                      <strong>Type:</strong>
+                      <span class="badge bg-<%= viz.renderer === 'chartjs' ? 'primary' : viz.renderer === 'd3' ? 'info' : 'secondary' %>">
+                        <%= viz.type %>
+                      </span>
+                    </div>
+
+                    <div class="mb-2">
+                      <strong>Renderer:</strong>
+                      <span class="badge bg-secondary">
+                        <%= viz.renderer %>
+                      </span>
+                    </div>
+
+                    <% if (viz.dataset) { %>
+                      <div class="mb-2">
+                        <strong>Dataset:</strong> <%= viz.dataset.name %>
+                      </div>
+                    <% } %>
+
+                    <div class="text-muted small mt-3">
+                      <i class="bi bi-clock"></i>
+                      Updated <%= new Date(viz.updatedAt).toLocaleDateString() %>
+                    </div>
+                  </div>
+                  <div class="card-footer bg-white">
+                    <button class="btn btn-sm btn-outline-success w-100" onclick="previewViz('<%= viz.id %>')">
+                      <i class="bi bi-eye"></i> Preview
+                    </button>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          <% } %>
+        </div>
+
+        <!-- Chart Type Reference -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card bg-light">
+              <div class="card-body">
+                <h6 class="mb-3">
+                  <i class="bi bi-info-circle"></i> Supported Visualization Types
+                </h6>
+                <div class="row small">
+                  <div class="col-md-4 mb-2">
+                    <strong>Chart.js (Simple Charts)</strong>
+                    <ul class="mb-0">
+                      <li>Bar, Line, Pie, Doughnut</li>
+                      <li>Radar, Polar Area</li>
+                      <li>Bubble, Scatter</li>
+                      <li>Area, Stacked Area</li>
+                    </ul>
+                  </div>
+                  <div class="col-md-4 mb-2">
+                    <strong>D3.js (Advanced Visualizations)</strong>
+                    <ul class="mb-0">
+                      <li>Heatmap, Treemap</li>
+                      <li>Sunburst, Sankey</li>
+                      <li>Network, Chord</li>
+                      <li>Calendar, Geographic</li>
+                    </ul>
+                  </div>
+                  <div class="col-md-4 mb-2">
+                    <strong>Data Displays</strong>
+                    <ul class="mb-0">
+                      <li>Table, Pivot Table</li>
+                      <li>Metric Card</li>
+                      <li>Gauge</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Visualization Preview</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="preview-container" style="min-height: 400px;">
+            <div class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- D3.js -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <script>
+    let previewModal;
+
+    $(document).ready(function() {
+      previewModal = new bootstrap.Modal('#previewModal');
+
+      // Filter visualizations
+      $('.btn-group button[data-filter]').on('click', function() {
+        $('.btn-group button[data-filter]').removeClass('active');
+        $(this).addClass('active');
+
+        const filter = $(this).data('filter');
+
+        if (filter === 'all') {
+          $('.viz-card').show();
+        } else if (filter === 'table') {
+          $('.viz-card').hide();
+          $('.viz-card[data-type="table"], .viz-card[data-type="pivot"]').show();
+        } else {
+          $('.viz-card').hide();
+          $('.viz-card[data-renderer="' + filter + '"]').show();
+        }
+      });
+    });
+
+    // Preview visualization
+    async function previewViz(id) {
+      previewModal.show();
+
+      try {
+        const result = await PulseAPI.visualizations.render(id);
+        const viz = result.data;
+
+        if (viz.type === 'table') {
+          renderTablePreview(viz.data);
+        } else if (viz.renderer === 'chartjs') {
+          renderChartPreview(viz);
+        } else {
+          $('#preview-container').html(`
+            <p class="text-muted text-center">
+              Preview for ${viz.renderer} visualizations coming soon
+            </p>
+          `);
+        }
+      } catch (error) {
+        $('#preview-container').html(`
+          <p class="text-danger text-center">
+            Failed to load preview: ${error.message}
+          </p>
+        `);
+      }
+    }
+
+    // Render table preview
+    function renderTablePreview(data) {
+      if (!data || data.length === 0) {
+        $('#preview-container').html('<p class="text-muted text-center">No data available</p>');
+        return;
+      }
+
+      const columns = Object.keys(data[0]);
+      let html = '<table class="table table-striped table-sm"><thead><tr>';
+
+      columns.forEach(col => {
+        html += `<th>${col}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+
+      data.slice(0, 10).forEach(row => {
+        html += '<tr>';
+        columns.forEach(col => {
+          html += `<td>${row[col]}</td>`;
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      if (data.length > 10) {
+        html += `<p class="text-muted text-center small">Showing 10 of ${data.length} rows</p>`;
+      }
+
+      $('#preview-container').html(html);
+    }
+
+    // Render chart preview
+    function renderChartPreview(viz) {
+      const canvas = $('<canvas></canvas>');
+      $('#preview-container').html(canvas);
+
+      new Chart(canvas[0], {
+        type: viz.type,
+        data: viz.chartData,
+        options: viz.chartOptions || {
+          responsive: true,
+          maintainAspectRatio: true
+        }
+      });
+    }
+
+    // Clone visualization
+    async function cloneViz(id) {
+      const name = prompt('Enter name for cloned visualization:');
+      if (!name) return;
+
+      try {
+        await PulseAPI.visualizations.clone(id, name);
+        PulseUtils.showAlert('Visualization cloned successfully', 'success');
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (error) {
+        PulseUtils.showAlert('Failed to clone visualization: ' + error.message, 'danger');
+      }
+    }
+
+    // Delete visualization
+    async function deleteViz(id) {
+      // Find the visualization name from the card
+      const $card = $(`button[onclick*="deleteViz('${id}')"]`).closest('.card');
+      const name = $card.find('h6').first().text().trim();
+
+      PulseModals.showDeleteConfirm('Visualization', name, async function() {
+        try {
+          await PulseAPI.visualizations.delete(id);
+          PulseUtils.showAlert('Visualization deleted successfully', 'success');
+          setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+          PulseUtils.showAlert('Failed to delete visualization: ' + error.message, 'danger');
+        }
+      });
+    }
+  </script>
+
+  <%
+    function getVizIcon(type) {
+      const iconMap = {
+        'bar': 'bar-chart-fill',
+        'line': 'graph-up',
+        'pie': 'pie-chart-fill',
+        'doughnut': 'pie-chart',
+        'table': 'table',
+        'metric': 'speedometer2',
+        'gauge': 'speedometer',
+        'heatmap': 'grid-3x3',
+        'scatter': 'diagram-3',
+        'area': 'graph-up-arrow',
+        'radar': 'hexagon',
+        'bubble': 'circle',
+        'treemap': 'grid-3x3-gap',
+        'sunburst': 'sunglasses'
+      };
+      return iconMap[type] || 'bar-chart';
+    }
+  %>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

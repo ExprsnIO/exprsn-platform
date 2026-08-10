@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Chart Designer</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Chart.js for Preview -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .designer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg-primary);
+    }
+
+    /* Header */
+    .designer-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .chart-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .chart-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Main Content - 3 Panel Layout */
+    .designer-main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 350px 1fr 350px;
+      overflow: hidden;
+    }
+
+    /* Left Panel - Configuration */
+    .config-panel {
+      border-right: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .config-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .config-tab {
+      flex: 1;
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+
+    .config-tab.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+
+    .config-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .config-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.5px;
+    }
+
+    /* Center Panel - Preview */
+    .preview-panel {
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .preview-toolbar {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .preview-canvas {
+      flex: 1;
+      padding: 2rem;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chart-container {
+      width: 100%;
+      max-width: 800px;
+      height: 500px;
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Right Panel - Data */
+    .data-panel {
+      border-left: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .data-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    /* Form Fields */
+    .form-field {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+      font-family: monospace;
+    }
+
+    .form-hint {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    /* Chart Type Grid */
+    .chart-types {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+
+    .chart-type {
+      padding: 1rem;
+      background: var(--bg-primary);
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .chart-type:hover {
+      border-color: var(--primary-color);
+      background: var(--primary-bg-light);
+    }
+
+    .chart-type.active {
+      border-color: var(--primary-color);
+      background: var(--primary-bg-light);
+    }
+
+    .chart-type i {
+      font-size: 2rem;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+    }
+
+    .chart-type-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* Color Picker Grid */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.5rem;
+    }
+
+    .color-option {
+      width: 100%;
+      padding-top: 100%;
+      position: relative;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .color-option.active {
+      border-color: var(--text-primary);
+      transform: scale(1.1);
+    }
+
+    /* Data Mapping */
+    .field-mapping {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .field-mapping-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .field-mapping-title {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* Data Table Preview */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 0.5rem;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .data-table td {
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: none;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-secondary);
+    }
+
+    .btn-icon {
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .btn-sm {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-secondary);
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--border-color);
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: var(--primary-color);
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+  </style>
+</head>
+<body>
+  <div class="designer-container">
+    <!-- Header -->
+    <header class="designer-header">
+      <div class="header-left">
+        <a href="/lowcode/applications" class="btn-icon" title="Back to Applications">
+          <i class="fas fa-arrow-left"></i>
+        </a>
+        <div>
+          <div class="chart-title" id="chart-title">
+            <% if (chart) { %>
+              <%= chart.displayName %>
+            <% } else { %>
+              New Chart
+            <% } %>
+          </div>
+          <div class="chart-subtitle">Chart Designer</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="refresh-preview-btn">
+          <i class="fas fa-sync"></i> Refresh Preview
+        </button>
+        <button class="btn btn-secondary" id="save-draft-btn">
+          <i class="fas fa-save"></i> Save Draft
+        </button>
+        <button class="btn btn-primary" id="publish-btn">
+          <i class="fas fa-check"></i> Publish Chart
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="designer-main">
+      <!-- Left Panel - Configuration -->
+      <aside class="config-panel">
+        <div class="panel-header">Configuration</div>
+
+        <div class="config-tabs">
+          <button class="config-tab active" data-tab="general">General</button>
+          <button class="config-tab" data-tab="styling">Styling</button>
+          <button class="config-tab" data-tab="advanced">Advanced</button>
+        </div>
+
+        <div class="config-content" id="config-content">
+          <!-- General Tab -->
+          <div class="config-tab-content active" data-tab-content="general">
+            <div class="config-section">
+              <div class="section-title">Chart Information</div>
+
+              <div class="form-field">
+                <label class="form-label">Chart Name</label>
+                <input type="text" class="form-input" id="chart-name" placeholder="My Chart">
+              </div>
+
+              <div class="form-field">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="chart-description" placeholder="Chart description..."></textarea>
+              </div>
+            </div>
+
+            <div class="config-section">
+              <div class="section-title">Chart Type</div>
+              <div class="chart-types">
+                <div class="chart-type active" data-type="bar">
+                  <i class="fas fa-chart-bar"></i>
+                  <div class="chart-type-name">Bar</div>
+                </div>
+                <div class="chart-type" data-type="line">
+                  <i class="fas fa-chart-line"></i>
+                  <div class="chart-type-name">Line</div>
+                </div>
+                <div class="chart-type" data-type="pie">
+                  <i class="fas fa-chart-pie"></i>
+                  <div class="chart-type-name">Pie</div>
+                </div>
+                <div class="chart-type" data-type="area">
+                  <i class="fas fa-chart-area"></i>
+                  <div class="chart-type-name">Area</div>
+                </div>
+                <div class="chart-type" data-type="scatter">
+                  <i class="fas fa-braille"></i>
+                  <div class="chart-type-name">Scatter</div>
+                </div>
+                <div class="chart-type" data-type="doughnut">
+                  <i class="fas fa-circle-notch"></i>
+                  <div class="chart-type-name">Donut</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="config-section">
+              <div class="section-title">Axis Configuration</div>
+
+              <div class="form-field">
+                <label class="form-label">X-Axis Label</label>
+                <input type="text" class="form-input" id="x-axis-label" placeholder="Category">
+              </div>
+
+              <div class="form-field">
+                <label class="form-label">Y-Axis Label</label>
+                <input type="text" class="form-input" id="y-axis-label" placeholder="Value">
+              </div>
+            </div>
+          </div>
+
+          <!-- Styling Tab -->
+          <div class="config-tab-content" data-tab-content="styling">
+            <div class="config-section">
+              <div class="section-title">Colors</div>
+
+              <div class="form-field">
+                <label class="form-label">Color Scheme</label>
+                <select class="form-select" id="color-scheme">
+                  <option value="default">Default (Blue)</option>
+                  <option value="rainbow">Rainbow</option>
+                  <option value="pastel">Pastel</option>
+                  <option value="monochrome">Monochrome</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+
+              <div class="form-field" id="custom-colors-field" style="display: none;">
+                <label class="form-label">Custom Colors (comma-separated hex codes)</label>
+                <input type="text" class="form-input" id="custom-colors" placeholder="#3b82f6,#ef4444,#10b981">
+              </div>
+            </div>
+
+            <div class="config-section">
+              <div class="section-title">Legend</div>
+
+              <div class="form-field">
+                <label class="form-label">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Show Legend</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="show-legend" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </label>
+              </div>
+
+              <div class="form-field" id="legend-position-field">
+                <label class="form-label">Legend Position</label>
+                <select class="form-select" id="legend-position">
+                  <option value="top">Top</option>
+                  <option value="bottom">Bottom</option>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="config-section">
+              <div class="section-title">Grid Lines</div>
+
+              <div class="form-field">
+                <label class="form-label">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Show Grid</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="show-grid" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced Tab -->
+          <div class="config-tab-content" data-tab-content="advanced">
+            <div class="config-section">
+              <div class="section-title">Animation</div>
+
+              <div class="form-field">
+                <label class="form-label">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Enable Animation</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="enable-animation" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </label>
+              </div>
+
+              <div class="form-field" id="animation-duration-field">
+                <label class="form-label">Animation Duration (ms)</label>
+                <input type="number" class="form-input" id="animation-duration" value="1000" min="0" max="5000" step="100">
+              </div>
+            </div>
+
+            <div class="config-section">
+              <div class="section-title">Responsiveness</div>
+
+              <div class="form-field">
+                <label class="form-label">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Maintain Aspect Ratio</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="maintain-aspect-ratio" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="config-section">
+              <div class="section-title">Export Options</div>
+
+              <div class="form-field">
+                <label class="form-label">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Allow Export</span>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="allow-export" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </label>
+                <div class="form-hint">Allow users to export chart as image</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center Panel - Preview -->
+      <section class="preview-panel">
+        <div class="preview-toolbar">
+          <div>
+            <strong>Chart Preview</strong>
+            <span style="color: var(--text-secondary); margin-left: 1rem; font-size: 0.875rem;">
+              Live preview updates automatically
+            </span>
+          </div>
+          <div>
+            <button class="btn btn-sm btn-secondary" id="export-chart-btn">
+              <i class="fas fa-download"></i> Export
+            </button>
+          </div>
+        </div>
+
+        <div class="preview-canvas">
+          <div class="chart-container">
+            <canvas id="chart-preview"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel - Data -->
+      <aside class="data-panel">
+        <div class="panel-header">Data Source</div>
+
+        <div class="data-content">
+          <div class="config-section">
+            <div class="section-title">Data Source Type</div>
+
+            <div class="form-field">
+              <select class="form-select" id="data-source-type">
+                <option value="static">Static Data</option>
+                <option value="entity">Low-Code Entity</option>
+                <option value="api">REST API</option>
+                <option value="jsonlex">JSONLex Expression</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Static Data Source -->
+          <div class="data-source-config" id="static-data-config">
+            <div class="config-section">
+              <div class="section-title">Static Data</div>
+
+              <div class="form-field">
+                <label class="form-label">Data (JSON format)</label>
+                <textarea class="form-textarea" id="static-data" style="min-height: 200px;" placeholder='[
+  {"label": "Jan", "value": 65},
+  {"label": "Feb", "value": 59},
+  {"label": "Mar", "value": 80}
+]'></textarea>
+                <div class="form-hint">Enter data as JSON array</div>
+              </div>
+
+              <button class="btn btn-secondary" id="load-static-data-btn" style="width: 100%;">
+                <i class="fas fa-sync"></i> Load Data
+              </button>
+            </div>
+          </div>
+
+          <!-- Entity Data Source -->
+          <div class="data-source-config" id="entity-data-config" style="display: none;">
+            <div class="config-section">
+              <div class="section-title">Entity Configuration</div>
+
+              <div class="form-field">
+                <label class="form-label">Entity</label>
+                <select class="form-select" id="entity-select">
+                  <option value="">Select Entity...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label class="form-label">Label Field</label>
+                <select class="form-select" id="entity-label-field">
+                  <option value="">Select Field...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label class="form-label">Value Field</label>
+                <select class="form-select" id="entity-value-field">
+                  <option value="">Select Field...</option>
+                </select>
+              </div>
+
+              <button class="btn btn-secondary" id="load-entity-data-btn" style="width: 100%;">
+                <i class="fas fa-sync"></i> Load Data
+              </button>
+            </div>
+          </div>
+
+          <!-- API Data Source -->
+          <div class="data-source-config" id="api-data-config" style="display: none;">
+            <div class="config-section">
+              <div class="section-title">API Configuration</div>
+
+              <div class="form-field">
+                <label class="form-label">API URL</label>
+                <input type="text" class="form-input" id="api-url" placeholder="https://api.example.com/data">
+              </div>
+
+              <div class="form-field">
+                <label class="form-label">Method</label>
+                <select class="form-select" id="api-method">
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label class="form-label">Response Path</label>
+                <input type="text" class="form-input" id="api-response-path" placeholder="data.results">
+                <div class="form-hint">JSONPath to data array (e.g., "data.results")</div>
+              </div>
+
+              <button class="btn btn-secondary" id="load-api-data-btn" style="width: 100%;">
+                <i class="fas fa-sync"></i> Load Data
+              </button>
+            </div>
+          </div>
+
+          <!-- JSONLex Data Source -->
+          <div class="data-source-config" id="jsonlex-data-config" style="display: none;">
+            <div class="config-section">
+              <div class="section-title">JSONLex Expression</div>
+
+              <div class="form-field">
+                <label class="form-label">Expression</label>
+                <textarea class="form-textarea" id="jsonlex-expression" placeholder='$.items.map(x => ({ label: x.name, value: x.count }))'></textarea>
+                <div class="form-hint">Transform data using JSONLex</div>
+              </div>
+
+              <button class="btn btn-secondary" id="load-jsonlex-data-btn" style="width: 100%;">
+                <i class="fas fa-sync"></i> Load Data
+              </button>
+            </div>
+          </div>
+
+          <!-- Data Preview -->
+          <div class="config-section" id="data-preview-section" style="display: none;">
+            <div class="section-title">
+              Data Preview
+              <span style="float: right; font-weight: normal; font-size: 0.75rem;">
+                <span id="data-count">0</span> records
+              </span>
+            </div>
+
+            <div style="max-height: 300px; overflow: auto;">
+              <table class="data-table" id="data-preview-table">
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody id="data-preview-body">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Chart Designer Engine -->
+  <script src="/lowcode/js/chart-designer.js"></script>
+
+  <script>
+    // Initialize designer when page loads
+    window.addEventListener('DOMContentLoaded', () => {
+      const chartData = <%= chart ? JSON.stringify(chart) : 'null' %>;
+      const appId = '<%= appId %>';
+
+      window.chartDesigner = new ChartDesigner({
+        chartData,
+        appId
+      });
+    });
+  </script>
+</body>
+</html>

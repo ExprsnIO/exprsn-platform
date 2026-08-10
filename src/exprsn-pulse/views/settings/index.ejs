@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+        <%- include('../shared/sidebar') %>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-gear text-secondary"></i>
+            Settings
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <button type="button" class="btn btn-primary" onclick="saveSettings()">
+              <i class="bi bi-save"></i> Save Changes
+            </button>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Settings Tabs -->
+        <ul class="nav nav-tabs mb-3" id="settingsTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general"
+                    type="button" role="tab">
+              <i class="bi bi-sliders"></i> General
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="appearance-tab" data-bs-toggle="tab" data-bs-target="#appearance"
+                    type="button" role="tab">
+              <i class="bi bi-palette"></i> Appearance
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="cache-tab" data-bs-toggle="tab" data-bs-target="#cache"
+                    type="button" role="tab">
+              <i class="bi bi-hdd-network"></i> Cache & Performance
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications"
+                    type="button" role="tab">
+              <i class="bi bi-bell"></i> Notifications
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security"
+                    type="button" role="tab">
+              <i class="bi bi-shield-lock"></i> Security
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin"
+                    type="button" role="tab">
+              <i class="bi bi-people"></i> Admin
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="settingsTabContent">
+          <!-- General Settings -->
+          <div class="tab-pane fade show active" id="general" role="tabpanel">
+            <div class="card shadow">
+              <div class="card-body">
+                <h5 class="card-title mb-4">General Settings</h5>
+
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <label for="app-name" class="form-label">Application Name</label>
+                    <input type="text" class="form-control" id="app-name" value="Exprsn Pulse">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="timezone" class="form-label">Default Timezone</label>
+                    <select class="form-select" id="timezone">
+                      <option value="UTC">UTC</option>
+                      <option value="America/New_York">America/New_York</option>
+                      <option value="America/Los_Angeles">America/Los_Angeles</option>
+                      <option value="America/Chicago">America/Chicago</option>
+                      <option value="Europe/London">Europe/London</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <label for="date-format" class="form-label">Date Format</label>
+                    <select class="form-select" id="date-format">
+                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="time-format" class="form-label">Time Format</label>
+                    <select class="form-select" id="time-format">
+                      <option value="12h">12 Hour (AM/PM)</option>
+                      <option value="24h">24 Hour</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <label for="default-refresh" class="form-label">Default Dashboard Refresh (seconds)</label>
+                    <input type="number" class="form-control" id="default-refresh" value="30" min="0">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="rows-per-page" class="form-label">Default Rows Per Page</label>
+                    <select class="form-select" id="rows-per-page">
+                      <option value="10">10</option>
+                      <option value="20" selected>20</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Appearance Settings -->
+          <div class="tab-pane fade" id="appearance" role="tabpanel">
+            <div class="card shadow">
+              <div class="card-body">
+                <h5 class="card-title mb-4">
+                  <i class="bi bi-palette"></i> Appearance Settings
+                </h5>
+
+                <div class="mb-4">
+                  <h6 class="mb-3">Theme Preference</h6>
+                  <p class="text-muted small mb-3">
+                    Choose how Exprsn Pulse looks to you. Select a single theme, or sync with your system and automatically switch between day and night themes.
+                  </p>
+
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <div class="card theme-option" data-theme-value="light" onclick="selectThemeOption('light')">
+                        <div class="card-body text-center p-4">
+                          <div class="theme-preview mb-3" style="background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%); border: 2px solid #e5e5e5; border-radius: 12px; height: 80px;"></div>
+                          <i class="bi bi-sun-fill text-warning" style="font-size: 2rem;"></i>
+                          <h6 class="mt-2 mb-1">Light</h6>
+                          <p class="text-muted small mb-0">Clean and bright interface</p>
+                          <i class="bi bi-check-circle-fill position-absolute top-0 end-0 m-2 text-success theme-check" style="font-size: 1.5rem; display: none;"></i>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="card theme-option" data-theme-value="dark" onclick="selectThemeOption('dark')">
+                        <div class="card-body text-center p-4">
+                          <div class="theme-preview mb-3" style="background: linear-gradient(135deg, #0a0a0a 0%, #262626 100%); border: 2px solid #404040; border-radius: 12px; height: 80px;"></div>
+                          <i class="bi bi-moon-stars-fill text-primary" style="font-size: 2rem;"></i>
+                          <h6 class="mt-2 mb-1">Dark</h6>
+                          <p class="text-muted small mb-0">Easy on the eyes</p>
+                          <i class="bi bi-check-circle-fill position-absolute top-0 end-0 m-2 text-success theme-check" style="font-size: 1.5rem; display: none;"></i>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <div class="card theme-option active" data-theme-value="auto" onclick="selectThemeOption('auto')">
+                        <div class="card-body text-center p-4">
+                          <div class="theme-preview mb-3" style="background: linear-gradient(135deg, #ffffff 0%, #0a0a0a 100%); border: 2px solid #737373; border-radius: 12px; height: 80px;"></div>
+                          <i class="bi bi-circle-half text-info" style="font-size: 2rem;"></i>
+                          <h6 class="mt-2 mb-1">Auto</h6>
+                          <p class="text-muted small mb-0">Sync with system</p>
+                          <i class="bi bi-check-circle-fill position-absolute top-0 end-0 m-2 text-success theme-check" style="font-size: 1.5rem;"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <input type="hidden" id="theme-preference" value="auto">
+                </div>
+
+                <hr class="my-4">
+
+                <div class="mb-3">
+                  <h6 class="mb-3">Display Settings</h6>
+
+                  <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="reduce-animations">
+                    <label class="form-check-label" for="reduce-animations">
+                      <strong>Reduce Animations</strong>
+                      <br>
+                      <small class="text-muted">Minimize motion for better performance and accessibility</small>
+                    </label>
+                  </div>
+
+                  <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="high-contrast" disabled>
+                    <label class="form-check-label" for="high-contrast">
+                      <strong>High Contrast Mode</strong>
+                      <span class="badge bg-secondary ms-2">Coming Soon</span>
+                      <br>
+                      <small class="text-muted">Increase color contrast for better visibility</small>
+                    </label>
+                  </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="mb-3">
+                  <h6 class="mb-3">Keyboard Shortcuts</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Action</th>
+                          <th>Shortcut</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><i class="bi bi-search"></i> Focus Search</td>
+                          <td><kbd>Ctrl</kbd> + <kbd>K</kbd></td>
+                        </tr>
+                        <tr>
+                          <td><i class="bi bi-moon-stars"></i> Toggle Theme</td>
+                          <td><kbd>Ctrl</kbd> + <kbd>D</kbd></td>
+                        </tr>
+                        <tr>
+                          <td><i class="bi bi-plus-circle"></i> New Dashboard</td>
+                          <td><kbd>Ctrl</kbd> + <kbd>N</kbd></td>
+                        </tr>
+                        <tr>
+                          <td><i class="bi bi-x-circle"></i> Close Modal</td>
+                          <td><kbd>Esc</kbd></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p class="text-muted small mb-0">
+                    <i class="bi bi-info-circle"></i> Replace <kbd>Ctrl</kbd> with <kbd>⌘ Cmd</kbd> on macOS
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cache & Performance -->
+          <div class="tab-pane fade" id="cache" role="tabpanel">
+            <div class="card shadow">
+              <div class="card-body">
+                <h5 class="card-title mb-4">Cache & Performance Settings</h5>
+
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="redis-enabled" checked>
+                    <label class="form-check-label" for="redis-enabled">
+                      <strong>Enable Redis Caching</strong>
+                      <br>
+                      <small class="text-muted">Use Redis for query result caching and session storage</small>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <label for="query-cache-ttl" class="form-label">Query Cache TTL (seconds)</label>
+                    <input type="number" class="form-control" id="query-cache-ttl" value="300" min="0">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="dashboard-cache-ttl" class="form-label">Dashboard Cache TTL (seconds)</label>
+                    <input type="number" class="form-control" id="dashboard-cache-ttl" value="60" min="0">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="max-concurrent-queries" class="form-label">Max Concurrent Queries</label>
+                  <input type="number" class="form-control" id="max-concurrent-queries" value="10" min="1" max="100">
+                  <div class="form-text">Maximum number of simultaneous query executions</div>
+                </div>
+
+                <hr class="my-4">
+
+                <h6 class="mb-3">Cache Statistics</h6>
+                <div id="cache-stats-container">
+                  <div class="text-center py-3">
+                    <div class="spinner-border text-primary spinner-border-sm" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <span class="ms-2">Loading cache statistics...</span>
+                  </div>
+                </div>
+
+                <div class="mt-4">
+                  <button type="button" class="btn btn-outline-warning me-2" onclick="refreshCacheStats()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh Stats
+                  </button>
+                  <button type="button" class="btn btn-outline-danger" onclick="clearCache()">
+                    <i class="bi bi-trash"></i> Clear All Cache
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="tab-pane fade" id="notifications" role="tabpanel">
+            <div class="card shadow">
+              <div class="card-body">
+                <h5 class="card-title mb-4">Notification Settings</h5>
+
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="email-notifications" checked>
+                    <label class="form-check-label" for="email-notifications">
+                      <strong>Enable Email Notifications</strong>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <label for="smtp-host" class="form-label">SMTP Host</label>
+                    <input type="text" class="form-control" id="smtp-host" placeholder="smtp.example.com">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="smtp-port" class="form-label">SMTP Port</label>
+                    <input type="number" class="form-control" id="smtp-port" value="587">
+                  </div>
+                </div>
+
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <label for="smtp-user" class="form-label">SMTP Username</label>
+                    <input type="text" class="form-control" id="smtp-user" placeholder="user@example.com">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="smtp-from" class="form-label">From Email</label>
+                    <input type="email" class="form-control" id="smtp-from" placeholder="pulse@example.com">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <button type="button" class="btn btn-outline-primary" onclick="testEmail()">
+                    <i class="bi bi-send"></i> Send Test Email
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Security -->
+          <div class="tab-pane fade" id="security" role="tabpanel">
+            <div class="card shadow">
+              <div class="card-body">
+                <h5 class="card-title mb-4">Security Settings</h5>
+
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="ca-auth-enabled" checked>
+                    <label class="form-check-label" for="ca-auth-enabled">
+                      <strong>Enable CA Token Authentication</strong>
+                      <br>
+                      <small class="text-muted">Require valid CA tokens for all API requests</small>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="rbac-enabled" checked>
+                    <label class="form-check-label" for="rbac-enabled">
+                      <strong>Enable Role-Based Access Control (RBAC)</strong>
+                      <br>
+                      <small class="text-muted">Restrict access based on user roles and permissions</small>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="audit-logging" checked>
+                    <label class="form-check-label" for="audit-logging">
+                      <strong>Enable Audit Logging</strong>
+                      <br>
+                      <small class="text-muted">Log all CRUD operations for compliance</small>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <label for="session-timeout" class="form-label">Session Timeout (minutes)</label>
+                    <input type="number" class="form-control" id="session-timeout" value="60" min="5">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="max-login-attempts" class="form-label">Max Login Attempts</label>
+                    <input type="number" class="form-control" id="max-login-attempts" value="5" min="1">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">CA Service URL</label>
+                  <input type="url" class="form-control" id="ca-url" value="http://localhost:3000" readonly>
+                  <div class="form-text">Certificate Authority service endpoint</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admin -->
+          <div class="tab-pane fade" id="admin" role="tabpanel">
+            <div class="card shadow">
+              <div class="card-body">
+                <h5 class="card-title mb-4">Admin Settings</h5>
+
+                <div class="row mb-4">
+                  <div class="col-md-4">
+                    <div class="card text-center">
+                      <div class="card-body">
+                        <h6 class="card-title">System Info</h6>
+                        <p class="mb-1"><small>Version: 1.0.0</small></p>
+                        <p class="mb-1"><small>Node: <%= process.version %></small></p>
+                        <p class="mb-0"><small>Uptime: <span id="uptime">--</span></small></p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="card text-center">
+                      <div class="card-body">
+                        <h6 class="card-title">Database</h6>
+                        <p class="mb-1"><small>Type: PostgreSQL</small></p>
+                        <p class="mb-1"><small>Status: <span class="badge bg-success">Connected</span></small></p>
+                        <p class="mb-0"><small>Tables: 12</small></p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="card text-center">
+                      <div class="card-body">
+                        <h6 class="card-title">Cache</h6>
+                        <p class="mb-1"><small>Type: Redis</small></p>
+                        <p class="mb-1"><small>Status: <span class="badge bg-success">Connected</span></small></p>
+                        <p class="mb-0"><small>Keys: <span id="cache-keys">--</span></small></p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <h6 class="mb-3">Quick Actions</h6>
+                <div class="row mb-3">
+                  <div class="col-md-4 mb-2">
+                    <a href="/admin/permissions" class="btn btn-outline-primary w-100">
+                      <i class="bi bi-shield-check"></i> Manage Permissions
+                    </a>
+                  </div>
+                  <div class="col-md-4 mb-2">
+                    <a href="/admin/audit" class="btn btn-outline-info w-100">
+                      <i class="bi bi-clock-history"></i> View Audit Logs
+                    </a>
+                  </div>
+                  <div class="col-md-4 mb-2">
+                    <button type="button" class="btn btn-outline-warning w-100" onclick="exportConfig()">
+                      <i class="bi bi-download"></i> Export Config
+                    </button>
+                  </div>
+                </div>
+
+                <h6 class="mb-3 mt-4 text-danger">Danger Zone</h6>
+                <div class="alert alert-danger">
+                  <p class="mb-2"><strong>Warning:</strong> These actions cannot be undone.</p>
+                  <button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="resetDatabase()">
+                    <i class="bi bi-database"></i> Reset Database
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearAllData()">
+                    <i class="bi bi-trash"></i> Clear All Data
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <style>
+    .theme-option {
+      cursor: pointer;
+      transition: var(--exprsn-transition-base);
+      position: relative;
+      border: 2px solid transparent;
+    }
+
+    .theme-option:hover {
+      border-color: var(--exprsn-primary);
+      transform: translateY(-4px);
+    }
+
+    .theme-option.active {
+      border-color: var(--exprsn-primary);
+      background-color: var(--exprsn-primary-glow);
+    }
+
+    .theme-option.active .theme-check {
+      display: block !important;
+    }
+
+    kbd {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+      color: var(--exprsn-white);
+      background-color: var(--exprsn-gray-700);
+      border-radius: var(--exprsn-radius-sm);
+      box-shadow: var(--exprsn-shadow-sm);
+      font-family: var(--exprsn-font-family-mono);
+    }
+  </style>
+
+  <script>
+    $(document).ready(function() {
+      // Load current settings
+      loadSettings();
+
+      // Load cache statistics
+      loadCacheStats();
+
+      // Update uptime every second
+      setInterval(updateUptime, 1000);
+
+      // Load theme preference
+      loadThemePreference();
+    });
+
+    async function loadSettings() {
+      try {
+        const result = await PulseAPI.settings.get();
+        const settings = result.data;
+
+        // Apply settings to form fields
+        Object.keys(settings).forEach(key => {
+          const $input = $(`#${key}`);
+          if ($input.length > 0) {
+            if ($input.is(':checkbox')) {
+              $input.prop('checked', settings[key]);
+            } else {
+              $input.val(settings[key]);
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
+    }
+
+    async function saveSettings() {
+      const settings = {
+        'app-name': $('#app-name').val(),
+        timezone: $('#timezone').val(),
+        'date-format': $('#date-format').val(),
+        'time-format': $('#time-format').val(),
+        'default-refresh': parseInt($('#default-refresh').val()),
+        'rows-per-page': parseInt($('#rows-per-page').val()),
+        'theme-preference': $('#theme-preference').val(),
+        'reduce-animations': $('#reduce-animations').is(':checked'),
+        'redis-enabled': $('#redis-enabled').is(':checked'),
+        'query-cache-ttl': parseInt($('#query-cache-ttl').val()),
+        'dashboard-cache-ttl': parseInt($('#dashboard-cache-ttl').val()),
+        'max-concurrent-queries': parseInt($('#max-concurrent-queries').val()),
+        'email-notifications': $('#email-notifications').is(':checked'),
+        'smtp-host': $('#smtp-host').val(),
+        'smtp-port': parseInt($('#smtp-port').val()),
+        'smtp-user': $('#smtp-user').val(),
+        'smtp-from': $('#smtp-from').val(),
+        'ca-auth-enabled': $('#ca-auth-enabled').is(':checked'),
+        'rbac-enabled': $('#rbac-enabled').is(':checked'),
+        'audit-logging': $('#audit-logging').is(':checked'),
+        'session-timeout': parseInt($('#session-timeout').val()),
+        'max-login-attempts': parseInt($('#max-login-attempts').val())
+      };
+
+      try {
+        await PulseAPI.settings.update(settings);
+        PulseUtils.showAlert('Settings saved successfully!', 'success');
+
+        // Save theme preference to localStorage
+        localStorage.setItem('pulse-theme-preference', settings['theme-preference']);
+
+        // Apply theme preference immediately
+        applyThemePreference(settings['theme-preference']);
+      } catch (error) {
+        PulseUtils.showAlert('Failed to save settings: ' + error.message, 'danger');
+      }
+    }
+
+    function loadThemePreference() {
+      // Load theme preference from localStorage
+      const savedPreference = localStorage.getItem('pulse-theme-preference') || 'auto';
+      $('#theme-preference').val(savedPreference);
+
+      // Update UI to show active theme option
+      $('.theme-option').removeClass('active');
+      $('.theme-option .theme-check').hide();
+      $(`.theme-option[data-theme-value="${savedPreference}"]`).addClass('active');
+      $(`.theme-option[data-theme-value="${savedPreference}"] .theme-check`).show();
+    }
+
+    function selectThemeOption(value) {
+      // Update hidden input
+      $('#theme-preference').val(value);
+
+      // Update UI
+      $('.theme-option').removeClass('active');
+      $('.theme-option .theme-check').hide();
+      $(`.theme-option[data-theme-value="${value}"]`).addClass('active');
+      $(`.theme-option[data-theme-value="${value}"] .theme-check`).show();
+
+      // Apply theme immediately (preview)
+      applyThemePreference(value);
+    }
+
+    function applyThemePreference(preference) {
+      if (preference === 'auto') {
+        // Use system preference
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = systemPrefersDark ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('pulse-theme', theme);
+        localStorage.setItem('pulse-theme-auto', 'true');
+        updateThemeIcon(theme);
+      } else {
+        // Use explicit theme
+        document.documentElement.setAttribute('data-theme', preference);
+        localStorage.setItem('pulse-theme', preference);
+        localStorage.removeItem('pulse-theme-auto');
+        updateThemeIcon(preference);
+      }
+    }
+
+    async function loadCacheStats() {
+      try {
+        const response = await fetch('/api/cache/stats', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to load cache stats');
+
+        const result = await response.json();
+        const stats = result.data;
+
+        renderCacheStats(stats);
+      } catch (error) {
+        $('#cache-stats-container').html(`
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            ${stats.enabled ? 'Failed to load cache statistics' : 'Redis caching is disabled'}
+          </div>
+        `);
+      }
+    }
+
+    function renderCacheStats(stats) {
+      if (!stats.enabled) {
+        $('#cache-stats-container').html(`
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Redis caching is currently disabled
+          </div>
+        `);
+        return;
+      }
+
+      if (!stats.connected) {
+        $('#cache-stats-container').html(`
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> Redis is enabled but not connected
+          </div>
+        `);
+        return;
+      }
+
+      const html = `
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <div class="card bg-light">
+              <div class="card-body">
+                <h6 class="card-title text-muted">Total Cached Keys</h6>
+                <h3 class="mb-0">${stats.totalKeys || 0}</h3>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <div class="card bg-light">
+              <div class="card-body">
+                <h6 class="card-title text-muted">Connection Status</h6>
+                <h3 class="mb-0">
+                  <span class="badge bg-success">Connected</span>
+                </h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Cache Type</th>
+                <th>Cached Items</th>
+                <th>TTL (seconds)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><i class="bi bi-grid-3x3-gap"></i> Dashboards</td>
+                <td>${stats.keysByType?.dashboard || 0}</td>
+                <td>${stats.ttl?.dashboard || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td><i class="bi bi-bar-chart"></i> Visualizations</td>
+                <td>${stats.keysByType?.visualization || 0}</td>
+                <td>${stats.ttl?.visualization || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td><i class="bi bi-code"></i> Queries</td>
+                <td>${stats.keysByType?.query || 0}</td>
+                <td>${stats.ttl?.query || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td><i class="bi bi-database"></i> Datasets</td>
+                <td>${stats.keysByType?.dataset || 0}</td>
+                <td>${stats.ttl?.dataset || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td><i class="bi bi-file-text"></i> Reports</td>
+                <td>${stats.keysByType?.report || 0}</td>
+                <td>${stats.ttl?.report || 'N/A'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      $('#cache-stats-container').html(html);
+    }
+
+    async function refreshCacheStats() {
+      $('#cache-stats-container').html(`
+        <div class="text-center py-3">
+          <div class="spinner-border text-primary spinner-border-sm" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <span class="ms-2">Refreshing cache statistics...</span>
+        </div>
+      `);
+      await loadCacheStats();
+    }
+
+    async function clearCache() {
+      if (!confirm('Are you sure you want to clear all cache? This will temporarily reduce performance until the cache is rebuilt.')) return;
+
+      try {
+        const response = await fetch('/api/cache/flush', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          },
+          body: JSON.stringify({})
+        });
+
+        if (!response.ok) throw new Error('Failed to clear cache');
+
+        const result = await response.json();
+        PulseUtils.showAlert('Cache cleared successfully', 'success');
+
+        // Refresh cache stats after clearing
+        await refreshCacheStats();
+      } catch (error) {
+        PulseUtils.showAlert('Failed to clear cache: ' + error.message, 'danger');
+      }
+    }
+
+    async function testEmail() {
+      try {
+        await PulseAPI.settings.testEmail();
+        PulseUtils.showAlert('Test email sent successfully', 'success');
+      } catch (error) {
+        PulseUtils.showAlert('Failed to send test email: ' + error.message, 'danger');
+      }
+    }
+
+    function exportConfig() {
+      window.location.href = '/api/settings/export';
+    }
+
+    function resetDatabase() {
+      if (!confirm('WARNING: This will reset the entire database. Are you absolutely sure?')) return;
+
+      const confirmed = prompt('Type "RESET DATABASE" to confirm:');
+      if (confirmed !== 'RESET DATABASE') {
+        alert('Reset cancelled');
+        return;
+      }
+
+      alert('Database reset functionality requires backend implementation');
+    }
+
+    function clearAllData() {
+      if (!confirm('WARNING: This will delete all data. Are you absolutely sure?')) return;
+
+      const confirmed = prompt('Type "DELETE ALL DATA" to confirm:');
+      if (confirmed !== 'DELETE ALL DATA') {
+        alert('Operation cancelled');
+        return;
+      }
+
+      alert('Clear data functionality requires backend implementation');
+    }
+
+    function updateUptime() {
+      const uptimeSeconds = <%= process.uptime() %> + Math.floor(Date.now() / 1000 - <%= Date.now() / 1000 %>);
+      const hours = Math.floor(uptimeSeconds / 3600);
+      const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+      $('#uptime').text(`${hours}h ${minutes}m`);
+    }
+  </script>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!-- Home Feed View -->
+<div class="feed-container">
+    <!-- Feed Header -->
+    <div class="card border-0 border-bottom rounded-0 sticky-top bg-white" style="top: 56px; z-index: 1020;">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">Home</h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="feedType" id="forYou" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary" for="forYou">For You</label>
+
+                    <input type="radio" class="btn-check" name="feedType" id="following" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="following">Following</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Composer (Desktop) -->
+    <% if (locals.user) { %>
+    <div class="card border-0 border-bottom rounded-0 d-none d-md-block">
+        <div class="card-body p-3">
+            <div class="d-flex gap-3">
+                <img src="<%= user.avatar || '/images/default-avatar.png' %>"
+                     alt="<%= user.displayName %>"
+                     class="rounded-circle"
+                     style="width: 48px; height: 48px; object-fit: cover;">
+                <div class="flex-grow-1">
+                    <textarea class="form-control border-0 p-0"
+                              placeholder="What's happening?"
+                              rows="3"
+                              id="quickPostText"
+                              style="resize: none;"></textarea>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="btn-toolbar" role="toolbar">
+                            <div class="btn-group btn-group-sm me-2" role="group">
+                                <button type="button" class="btn btn-light" title="Add image" onclick="$('#quickPostImage').click()">
+                                    <i class="bi bi-image"></i>
+                                </button>
+                                <button type="button" class="btn btn-light" title="Add GIF">
+                                    <i class="bi bi-filetype-gif"></i>
+                                </button>
+                                <button type="button" class="btn btn-light" title="Add poll">
+                                    <i class="bi bi-bar-chart"></i>
+                                </button>
+                                <button type="button" class="btn btn-light" title="Add emoji">
+                                    <i class="bi bi-emoji-smile"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="postQuickPost()">
+                            Post
+                        </button>
+                    </div>
+                    <input type="file" id="quickPostImage" accept="image/*" multiple style="display: none;" onchange="handleQuickPostImages(this)">
+                    <div id="quickPostImagePreview" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <% } %>
+
+    <!-- Feed Posts -->
+    <div id="feedPosts">
+        <!-- Loading skeleton -->
+        <div class="loading-skeleton" id="loadingSkeleton">
+            <% for (let i = 0; i < 3; i++) { %>
+            <div class="card border-0 border-bottom rounded-0">
+                <div class="card-body p-3">
+                    <div class="d-flex gap-3">
+                        <div class="placeholder-glow">
+                            <div class="placeholder rounded-circle" style="width: 48px; height: 48px;"></div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="placeholder-glow">
+                                <span class="placeholder col-3"></span>
+                                <span class="placeholder col-2 ms-2"></span>
+                            </div>
+                            <div class="placeholder-glow mt-2">
+                                <span class="placeholder col-7"></span>
+                                <span class="placeholder col-4"></span>
+                                <span class="placeholder col-6"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <% } %>
+        </div>
+
+        <!-- Posts will be loaded here dynamically -->
+    </div>
+
+    <!-- Load More -->
+    <div class="text-center py-4" id="loadMoreContainer" style="display: none;">
+        <button class="btn btn-outline-primary" onclick="loadMorePosts()">
+            <i class="bi bi-arrow-clockwise me-2"></i>
+            Load More
+        </button>
+    </div>
+
+    <!-- No Posts Message -->
+    <div class="text-center py-5" id="noPostsMessage" style="display: none;">
+        <i class="bi bi-inbox fs-1 text-muted"></i>
+        <p class="text-muted mt-3">No posts to show yet</p>
+        <% if (locals.user) { %>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPostModal">
+            Create your first post
+        </button>
+        <% } %>
+    </div>
+</div>
+
+<!-- Create Post Modal -->
+<%- include('../partials/create-post-modal') %>
+
+<script>
+let feedCursor = null;
+let feedType = 'forYou';
+let isLoadingPosts = false;
+
+// Initialize feed
+document.addEventListener('DOMContentLoaded', () => {
+    loadFeed();
+
+    // Feed type toggle
+    document.querySelectorAll('input[name="feedType"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            feedType = e.target.id;
+            feedCursor = null;
+            document.getElementById('feedPosts').innerHTML = '';
+            loadFeed();
+        });
+    });
+
+    // Infinite scroll
+    window.addEventListener('scroll', () => {
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+            if (!isLoadingPosts && feedCursor) {
+                loadMorePosts();
+            }
+        }
+    });
+});
+
+async function loadFeed() {
+    if (isLoadingPosts) return;
+    isLoadingPosts = true;
+
+    try {
+        const response = await fetch(`/api/feed/${feedType}?limit=20${feedCursor ? '&cursor=' + feedCursor : ''}`);
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById('loadingSkeleton').style.display = 'none';
+
+            if (data.data.posts.length === 0 && !feedCursor) {
+                document.getElementById('noPostsMessage').style.display = 'block';
+            } else {
+                renderPosts(data.data.posts);
+                feedCursor = data.data.nextCursor;
+
+                if (data.data.hasMore) {
+                    document.getElementById('loadMoreContainer').style.display = 'block';
+                } else {
+                    document.getElementById('loadMoreContainer').style.display = 'none';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load feed:', error);
+        showToast('Failed to load feed', 'error');
+    } finally {
+        isLoadingPosts = false;
+    }
+}
+
+async function loadMorePosts() {
+    await loadFeed();
+}
+
+async function postQuickPost() {
+    const text = document.getElementById('quickPostText').value.trim();
+    if (!text) return;
+
+    try {
+        const response = await fetch('/api/posts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, visibility: 'public' })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            document.getElementById('quickPostText').value = '';
+            document.getElementById('quickPostImagePreview').innerHTML = '';
+            showToast('Post created!', 'success');
+
+            // Prepend new post to feed
+            const postHtml = renderPost(data.data);
+            document.getElementById('feedPosts').insertAdjacentHTML('afterbegin', postHtml);
+        }
+    } catch (error) {
+        console.error('Failed to create post:', error);
+        showToast('Failed to create post', 'error');
+    }
+}
+
+function handleQuickPostImages(input) {
+    const preview = document.getElementById('quickPostImagePreview');
+    preview.innerHTML = '';
+
+    Array.from(input.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            preview.innerHTML += `
+                <div class="d-inline-block position-relative me-2 mb-2">
+                    <img src="${e.target.result}" class="rounded" style="width: 100px; height: 100px; object-fit: cover;">
+                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle p-1">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            `;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+</script>

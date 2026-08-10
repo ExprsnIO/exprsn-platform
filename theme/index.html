@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exprsn Bootstrap WCAG Theme - Accessible, modern UI components">
+  <meta name="theme-color" content="#ffffff">
+  <title>Exprsn Bootstrap WCAG Theme - Component Demo</title>
+
+  <!-- Theme Stylesheets -->
+  <link rel="stylesheet" href="css/exprsn-theme.css">
+  <link rel="stylesheet" href="css/exprsn-components.css">
+
+  <style>
+    /* Additional page-specific styles */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--exprsn-spacing-lg);
+    }
+
+    .demo-section {
+      margin-bottom: var(--exprsn-spacing-xxl);
+      padding-bottom: var(--exprsn-spacing-xxl);
+      border-bottom: 2px solid var(--exprsn-border-color);
+    }
+
+    .demo-section:last-child {
+      border-bottom: none;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--exprsn-spacing-lg);
+      margin-top: var(--exprsn-spacing-lg);
+    }
+
+    .component-demo {
+      padding: var(--exprsn-spacing-lg);
+      background-color: var(--exprsn-bg-secondary);
+      border: 1px solid var(--exprsn-border-color);
+      border-radius: var(--exprsn-radius-lg);
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--exprsn-primary) 0%, var(--exprsn-primary-dark) 100%);
+      color: var(--exprsn-text-inverse);
+      padding: var(--exprsn-spacing-xl) var(--exprsn-spacing-lg);
+      margin-bottom: var(--exprsn-spacing-xxl);
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--exprsn-spacing-md);
+    }
+
+    .nav {
+      display: flex;
+      gap: var(--exprsn-spacing-md);
+      margin-bottom: var(--exprsn-spacing-lg);
+      flex-wrap: wrap;
+    }
+
+    .nav-link {
+      padding: var(--exprsn-spacing-sm) var(--exprsn-spacing-md);
+      text-decoration: none;
+      color: var(--exprsn-text-primary);
+      background-color: var(--exprsn-bg-secondary);
+      border: 2px solid var(--exprsn-border-color);
+      border-radius: var(--exprsn-radius-md);
+      transition: var(--exprsn-transition-base);
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      background-color: var(--exprsn-primary);
+      color: var(--exprsn-text-inverse);
+      border-color: var(--exprsn-primary);
+    }
+
+    .draggable-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .draggable-item {
+      display: flex;
+      align-items: center;
+      gap: var(--exprsn-spacing-md);
+      padding: var(--exprsn-spacing-md);
+      margin-bottom: var(--exprsn-spacing-sm);
+      background-color: var(--exprsn-bg-primary);
+      border: 2px solid var(--exprsn-border-color);
+      border-radius: var(--exprsn-radius-md);
+    }
+
+    .color-swatch {
+      display: inline-block;
+      width: 100px;
+      height: 50px;
+      border: 2px solid var(--exprsn-border-color);
+      border-radius: var(--exprsn-radius-sm);
+      margin-right: var(--exprsn-spacing-sm);
+    }
+
+    .code-block {
+      margin-top: var(--exprsn-spacing-md);
+    }
+  </style>
+</head>
+<body>
+  <!-- Skip to main content link for accessibility -->
+  <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div>
+        <h1 style="margin: 0;">Exprsn Theme</h1>
+        <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">WCAG 2.1 AA Compliant Bootstrap Components</p>
+      </div>
+      <div style="display: flex; gap: var(--exprsn-spacing-md); align-items: center;">
+        <button id="theme-toggle" class="btn btn-outline-secondary" aria-label="Toggle theme" style="background-color: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: white;">
+          <span class="theme-icon">🌙</span>
+          <span class="sr-only">Toggle theme</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main id="main-content" class="container">
+
+    <!-- Navigation -->
+    <nav aria-label="Component navigation" class="nav">
+      <a href="#colors" class="nav-link">Colors</a>
+      <a href="#typography" class="nav-link">Typography</a>
+      <a href="#buttons" class="nav-link">Buttons</a>
+      <a href="#forms" class="nav-link">Forms</a>
+      <a href="#tables" class="nav-link">Tables</a>
+      <a href="#drag-drop" class="nav-link">Drag & Drop</a>
+      <a href="#modals" class="nav-link">Modals</a>
+      <a href="#alerts" class="nav-link">Alerts</a>
+      <a href="#cards" class="nav-link">Cards</a>
+      <a href="#filters" class="nav-link">Filters</a>
+    </nav>
+
+    <!-- Colors Section -->
+    <section id="colors" class="demo-section">
+      <h2>Color System</h2>
+      <p>WCAG AA compliant colors with minimum 4.5:1 contrast ratio for normal text.</p>
+
+      <h3 class="mt-4">Primary Colors</h3>
+      <div class="demo-grid">
+        <div>
+          <div class="color-swatch bg-primary"></div>
+          <strong>Primary</strong>
+          <p class="text-muted">--exprsn-primary</p>
+        </div>
+        <div>
+          <div class="color-swatch bg-secondary"></div>
+          <strong>Secondary</strong>
+          <p class="text-muted">--exprsn-secondary</p>
+        </div>
+      </div>
+
+      <h3 class="mt-4">Semantic Colors</h3>
+      <div class="demo-grid">
+        <div>
+          <div class="color-swatch bg-success"></div>
+          <strong>Success</strong>
+          <p class="text-muted">--exprsn-success</p>
+        </div>
+        <div>
+          <div class="color-swatch bg-danger"></div>
+          <strong>Danger</strong>
+          <p class="text-muted">--exprsn-danger</p>
+        </div>
+        <div>
+          <div class="color-swatch bg-warning"></div>
+          <strong>Warning</strong>
+          <p class="text-muted">--exprsn-warning</p>
+        </div>
+        <div>
+          <div class="color-swatch bg-info"></div>
+          <strong>Info</strong>
+          <p class="text-muted">--exprsn-info</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Typography Section -->
+    <section id="typography" class="demo-section">
+      <h2>Typography</h2>
+      <p>Clear, readable typography with optimal line height and spacing for accessibility.</p>
+
+      <div class="component-demo">
+        <h1>Heading 1 - 2.5rem</h1>
+        <h2>Heading 2 - 2rem</h2>
+        <h3>Heading 3 - 1.75rem</h3>
+        <h4>Heading 4 - 1.5rem</h4>
+        <h5>Heading 5 - 1.25rem</h5>
+        <h6>Heading 6 - 1rem</h6>
+
+        <p class="mt-4">
+          This is a paragraph with <strong>bold text</strong>, <em>italic text</em>, and a
+          <a href="#typography">text link</a>. Links are underlined by default for accessibility.
+        </p>
+
+        <p class="text-muted">
+          This is muted text using .text-muted class.
+        </p>
+
+        <code>const example = 'inline code';</code>
+
+        <pre class="code-block"><code>// Code block example
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+console.log(greet('World'));</code></pre>
+      </div>
+    </section>
+
+    <!-- Buttons Section -->
+    <section id="buttons" class="demo-section">
+      <h2>Buttons</h2>
+      <p>All buttons meet the WCAG minimum target size of 44x44 pixels.</p>
+
+      <h3 class="mt-4">Solid Buttons</h3>
+      <div class="component-demo">
+        <div style="display: flex; flex-wrap: wrap; gap: var(--exprsn-spacing-sm);">
+          <button class="btn btn-primary">Primary</button>
+          <button class="btn btn-secondary">Secondary</button>
+          <button class="btn btn-success">Success</button>
+          <button class="btn btn-danger">Danger</button>
+          <button class="btn btn-warning">Warning</button>
+          <button class="btn btn-info">Info</button>
+          <button class="btn btn-primary" disabled>Disabled</button>
+        </div>
+      </div>
+
+      <h3 class="mt-4">Outline Buttons</h3>
+      <div class="component-demo">
+        <div style="display: flex; flex-wrap: wrap; gap: var(--exprsn-spacing-sm);">
+          <button class="btn btn-outline-primary">Primary</button>
+          <button class="btn btn-outline-secondary">Secondary</button>
+        </div>
+      </div>
+
+      <h3 class="mt-4">Button Sizes</h3>
+      <div class="component-demo">
+        <div style="display: flex; flex-wrap: wrap; gap: var(--exprsn-spacing-sm); align-items: center;">
+          <button class="btn btn-primary btn-sm">Small</button>
+          <button class="btn btn-primary">Default</button>
+          <button class="btn btn-primary btn-lg">Large</button>
+        </div>
+      </div>
+
+      <h3 class="mt-4">Button Group</h3>
+      <div class="component-demo">
+        <div class="btn-group" role="group" aria-label="Button group example">
+          <button class="btn btn-outline-primary">Left</button>
+          <button class="btn btn-outline-primary">Middle</button>
+          <button class="btn btn-outline-primary">Right</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Forms Section -->
+    <section id="forms" class="demo-section">
+      <h2>Forms</h2>
+      <p>Accessible form controls with proper labels, error states, and help text.</p>
+
+      <div class="component-demo">
+        <form>
+          <div class="form-group">
+            <label for="input-text" class="form-label required">Text Input</label>
+            <input type="text" id="input-text" class="form-control" placeholder="Enter text" required>
+            <span class="form-text">This is help text for the input field.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="input-email" class="form-label">Email Input</label>
+            <input type="email" id="input-email" class="form-control is-valid" placeholder="email@example.com" value="user@example.com">
+            <span class="valid-feedback">Email is valid!</span>
+          </div>
+
+          <div class="form-group">
+            <label for="input-error" class="form-label">Input with Error</label>
+            <input type="text" id="input-error" class="form-control is-invalid" value="invalid">
+            <span class="invalid-feedback">This field has an error.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="select-example" class="form-label">Select Dropdown</label>
+            <select id="select-example" class="form-select">
+              <option>Choose an option</option>
+              <option>Option 1</option>
+              <option>Option 2</option>
+              <option>Option 3</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="textarea-example" class="form-label">Textarea</label>
+            <textarea id="textarea-example" class="form-control" rows="4" placeholder="Enter long text here..."></textarea>
+          </div>
+
+          <div class="form-check">
+            <input type="checkbox" id="checkbox-1" class="form-check-input">
+            <label for="checkbox-1" class="form-check-label">Checkbox option</label>
+          </div>
+
+          <div class="form-check">
+            <input type="checkbox" id="checkbox-2" class="form-check-input" checked>
+            <label for="checkbox-2" class="form-check-label">Checked checkbox</label>
+          </div>
+
+          <div class="form-check mt-3">
+            <input type="radio" id="radio-1" name="radio-group" class="form-check-input">
+            <label for="radio-1" class="form-check-label">Radio option 1</label>
+          </div>
+
+          <div class="form-check">
+            <input type="radio" id="radio-2" name="radio-group" class="form-check-input" checked>
+            <label for="radio-2" class="form-check-label">Radio option 2</label>
+          </div>
+
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Submit Form</button>
+            <button type="reset" class="btn btn-secondary">Reset</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Tables Section -->
+    <section id="tables" class="demo-section">
+      <h2>Tables</h2>
+      <p>Accessible tables with sortable headers, hover states, and proper ARIA attributes.</p>
+
+      <h3 class="mt-4">Basic Table</h3>
+      <div class="table-container">
+        <table class="table">
+          <caption>User Data Table</caption>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Alice Johnson</td>
+              <td>alice@example.com</td>
+              <td>Administrator</td>
+              <td><span class="badge badge-success">Active</span></td>
+            </tr>
+            <tr>
+              <td>Bob Smith</td>
+              <td>bob@example.com</td>
+              <td>Developer</td>
+              <td><span class="badge badge-success">Active</span></td>
+            </tr>
+            <tr>
+              <td>Charlie Brown</td>
+              <td>charlie@example.com</td>
+              <td>Designer</td>
+              <td><span class="badge badge-warning">Pending</span></td>
+            </tr>
+            <tr>
+              <td>Diana Prince</td>
+              <td>diana@example.com</td>
+              <td>Manager</td>
+              <td><span class="badge badge-danger">Inactive</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="mt-4">Sortable Table</h3>
+      <div class="table-container">
+        <table id="sortable-table" class="table table-striped table-sortable">
+          <caption>Sortable Token Data</caption>
+          <thead>
+            <tr>
+              <th class="sortable">Token ID</th>
+              <th class="sortable">Type</th>
+              <th class="sortable">Issued</th>
+              <th class="sortable">Expires</th>
+              <th class="sortable">Uses</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>550e8400-e29b</code></td>
+              <td>Time-based</td>
+              <td>2025-11-01</td>
+              <td>2025-12-01</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td><code>6ba7b810-9dad</code></td>
+              <td>Use-based</td>
+              <td>2025-11-15</td>
+              <td>-</td>
+              <td>5</td>
+            </tr>
+            <tr>
+              <td><code>7c9e6679-7425</code></td>
+              <td>Persistent</td>
+              <td>2025-10-20</td>
+              <td>Never</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td><code>8d04a276-f2d5</code></td>
+              <td>Time-based</td>
+              <td>2025-11-20</td>
+              <td>2025-11-27</td>
+              <td>-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Drag and Drop Section -->
+    <section id="drag-drop" class="demo-section">
+      <h2>Drag and Drop</h2>
+      <p>Fully accessible drag and drop with keyboard support and screen reader announcements.</p>
+
+      <h3 class="mt-4">Draggable Table</h3>
+      <p class="text-muted">Click and drag rows, or use Space/Enter to grab, arrow keys to move, Space/Enter to drop.</p>
+      <div class="table-container">
+        <table id="drag-table" class="table table-draggable" data-draggable="table">
+          <caption>Draggable Task List</caption>
+          <thead>
+            <tr>
+              <th style="width: 50px;"></th>
+              <th>Task</th>
+              <th>Priority</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr tabindex="0">
+              <td></td>
+              <td>Implement authentication</td>
+              <td><span class="badge badge-danger">High</span></td>
+              <td><span class="badge badge-warning">In Progress</span></td>
+            </tr>
+            <tr tabindex="0">
+              <td></td>
+              <td>Design user dashboard</td>
+              <td><span class="badge badge-warning">Medium</span></td>
+              <td><span class="badge badge-info">Pending</span></td>
+            </tr>
+            <tr tabindex="0">
+              <td></td>
+              <td>Write documentation</td>
+              <td><span class="badge badge-success">Low</span></td>
+              <td><span class="badge badge-info">Pending</span></td>
+            </tr>
+            <tr tabindex="0">
+              <td></td>
+              <td>Setup CI/CD pipeline</td>
+              <td><span class="badge badge-danger">High</span></td>
+              <td><span class="badge badge-success">Complete</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="mt-4">Draggable List</h3>
+      <ul id="drag-list" class="draggable-list" data-draggable="list">
+        <li class="draggable-item" tabindex="0">
+          <span>📝</span>
+          <span>First item - drag to reorder</span>
+        </li>
+        <li class="draggable-item" tabindex="0">
+          <span>📌</span>
+          <span>Second item - drag to reorder</span>
+        </li>
+        <li class="draggable-item" tabindex="0">
+          <span>🎯</span>
+          <span>Third item - drag to reorder</span>
+        </li>
+        <li class="draggable-item" tabindex="0">
+          <span>✅</span>
+          <span>Fourth item - drag to reorder</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Modals Section -->
+    <section id="modals" class="demo-section">
+      <h2>Modal Dialogs</h2>
+      <p>Accessible modals with focus trapping, keyboard support, and ARIA attributes.</p>
+
+      <div class="component-demo">
+        <button class="btn btn-primary" data-modal-target="example-modal">Open Modal</button>
+        <button class="btn btn-secondary" data-modal-target="confirmation-modal">Open Confirmation</button>
+      </div>
+    </section>
+
+    <!-- Alerts Section -->
+    <section id="alerts" class="demo-section">
+      <h2>Alerts & Notifications</h2>
+      <p>Alert messages with proper ARIA live regions for screen reader announcements.</p>
+
+      <div class="demo-grid">
+        <div id="alert-success" class="alert alert-success alert-dismissible">
+          <strong>Success!</strong> Your operation completed successfully.
+          <button class="alert-close" aria-label="Close alert">×</button>
+        </div>
+
+        <div id="alert-danger" class="alert alert-danger alert-dismissible">
+          <strong>Error!</strong> Something went wrong. Please try again.
+          <button class="alert-close" aria-label="Close alert">×</button>
+        </div>
+
+        <div id="alert-warning" class="alert alert-warning alert-dismissible">
+          <strong>Warning!</strong> Please review your input before proceeding.
+          <button class="alert-close" aria-label="Close alert">×</button>
+        </div>
+
+        <div id="alert-info" class="alert alert-info alert-dismissible">
+          <strong>Info:</strong> This is some helpful information for you.
+          <button class="alert-close" aria-label="Close alert">×</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cards Section -->
+    <section id="cards" class="demo-section">
+      <h2>Cards</h2>
+      <p>Card components for displaying grouped content.</p>
+
+      <div class="demo-grid">
+        <div class="card">
+          <div class="card-header">Featured Token</div>
+          <div class="card-body">
+            <h5 class="card-title">Time-Based Access Token</h5>
+            <p class="card-text">Grants read access to API resources for a limited time period.</p>
+            <div style="display: flex; gap: var(--exprsn-spacing-sm);">
+              <button class="btn btn-primary">View Details</button>
+              <button class="btn btn-outline-secondary">Share</button>
+            </div>
+          </div>
+          <div class="card-footer text-muted">
+            Expires in 24 hours
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">Usage Statistics</div>
+          <div class="card-body">
+            <h5 class="card-title">Monthly Overview</h5>
+            <p class="card-text">Your token usage for November 2025.</p>
+            <ul>
+              <li>Tokens issued: 125</li>
+              <li>Active tokens: 89</li>
+              <li>Validations: 4,523</li>
+            </ul>
+          </div>
+        </div>
+
+        <a href="#cards" class="card card-clickable" style="text-decoration: none;">
+          <div class="card-body">
+            <h5 class="card-title">Clickable Card</h5>
+            <p class="card-text">This entire card is clickable and meets accessibility requirements.</p>
+            <span class="text-primary">Learn more →</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Filters Section -->
+    <section id="filters" class="demo-section">
+      <h2>Filters & Search</h2>
+      <p>Filter controls for data tables and lists.</p>
+
+      <div class="filter-container">
+        <div class="filter-group">
+          <label class="filter-label" for="filter-search">Search</label>
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">🔍</span>
+            <input type="search" id="filter-search" class="form-control search-input" placeholder="Search tokens...">
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label" for="filter-type">Type</label>
+          <select id="filter-type" class="form-select">
+            <option value="">All Types</option>
+            <option value="time">Time-based</option>
+            <option value="use">Use-based</option>
+            <option value="persistent">Persistent</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label" for="filter-status">Status</label>
+          <select id="filter-status" class="form-select">
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="expired">Expired</option>
+            <option value="revoked">Revoked</option>
+          </select>
+        </div>
+
+        <div class="filter-group" style="justify-content: flex-end;">
+          <label class="filter-label" style="opacity: 0;">Actions</label>
+          <button class="btn btn-primary">Apply Filters</button>
+        </div>
+      </div>
+
+      <div class="filter-tags">
+        <span class="filter-tag">
+          Type: Time-based
+          <button class="filter-tag-close" aria-label="Remove filter">×</button>
+        </span>
+        <span class="filter-tag">
+          Status: Active
+          <button class="filter-tag-close" aria-label="Remove filter">×</button>
+        </span>
+      </div>
+    </section>
+
+    <!-- Additional Components -->
+    <section class="demo-section">
+      <h2>Additional Components</h2>
+
+      <h3 class="mt-4">Pagination</h3>
+      <nav aria-label="Page navigation">
+        <ul class="pagination">
+          <li class="page-item disabled">
+            <a class="page-link" href="#" aria-label="Previous">‹ Previous</a>
+          </li>
+          <li class="page-item active">
+            <a class="page-link" href="#">1</a>
+          </li>
+          <li class="page-item">
+            <a class="page-link" href="#">2</a>
+          </li>
+          <li class="page-item">
+            <a class="page-link" href="#">3</a>
+          </li>
+          <li class="page-item">
+            <a class="page-link" href="#" aria-label="Next">Next ›</a>
+          </li>
+        </ul>
+      </nav>
+
+      <h3 class="mt-4">Progress Bars</h3>
+      <div class="component-demo">
+        <div class="progress">
+          <div class="progress-bar" style="width: 25%">25%</div>
+        </div>
+        <div class="progress mt-3">
+          <div class="progress-bar" style="width: 75%; background-color: var(--exprsn-success);">75%</div>
+        </div>
+        <div class="progress mt-3">
+          <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 50%">50%</div>
+        </div>
+      </div>
+
+      <h3 class="mt-4">Loading Spinner</h3>
+      <div class="component-demo">
+        <div style="display: flex; align-items: center; gap: var(--exprsn-spacing-lg);">
+          <div class="spinner spinner-sm" role="status" style="color: var(--exprsn-primary);">
+            <span class="sr-only">Loading...</span>
+          </div>
+          <div class="spinner" role="status" style="color: var(--exprsn-primary);">
+            <span class="sr-only">Loading...</span>
+          </div>
+          <div class="spinner spinner-lg" role="status" style="color: var(--exprsn-primary);">
+            <span class="sr-only">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="mt-4">Badges</h3>
+      <div class="component-demo">
+        <span class="badge badge-primary">Primary</span>
+        <span class="badge badge-secondary">Secondary</span>
+        <span class="badge badge-success">Success</span>
+        <span class="badge badge-danger">Danger</span>
+        <span class="badge badge-warning">Warning</span>
+        <span class="badge badge-info">Info</span>
+      </div>
+    </section>
+
+    <!-- Accessibility Features -->
+    <section class="demo-section">
+      <h2>WCAG Accessibility Features</h2>
+
+      <div class="card">
+        <div class="card-body">
+          <h3 class="card-title">Built-in Accessibility</h3>
+          <ul>
+            <li><strong>WCAG 2.1 AA Compliant:</strong> All components meet or exceed WCAG 2.1 Level AA requirements</li>
+            <li><strong>Color Contrast:</strong> Minimum 4.5:1 contrast ratio for normal text, 3:1 for large text</li>
+            <li><strong>Keyboard Navigation:</strong> All interactive elements fully keyboard accessible</li>
+            <li><strong>Screen Reader Support:</strong> Proper ARIA labels, roles, and live regions</li>
+            <li><strong>Focus Indicators:</strong> Clear, visible focus states on all interactive elements</li>
+            <li><strong>Target Size:</strong> Minimum 44x44px touch targets for all buttons and controls</li>
+            <li><strong>Reduced Motion:</strong> Respects prefers-reduced-motion user preference</li>
+            <li><strong>High Contrast:</strong> Supports high contrast mode</li>
+            <li><strong>Dark Mode:</strong> Full dark theme support with proper contrast ratios</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal Examples -->
+  <div class="modal-overlay" id="example-modal-overlay">
+    <div id="example-modal" class="modal" data-modal aria-labelledby="modal-title" aria-describedby="modal-description">
+      <div class="modal-header">
+        <h2 id="modal-title" class="modal-title">Example Modal</h2>
+        <button class="modal-close" data-modal-close aria-label="Close modal">×</button>
+      </div>
+      <div class="modal-body">
+        <p id="modal-description">
+          This is an accessible modal dialog with focus trapping. You can navigate through the modal using Tab,
+          and close it using the Escape key or the close button.
+        </p>
+        <form>
+          <div class="form-group">
+            <label for="modal-input" class="form-label">Example Input</label>
+            <input type="text" id="modal-input" class="form-control" placeholder="Type something...">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-modal-close>Cancel</button>
+        <button class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="confirmation-modal-overlay">
+    <div id="confirmation-modal" class="modal modal-sm" data-modal aria-labelledby="confirm-title">
+      <div class="modal-header">
+        <h2 id="confirm-title" class="modal-title">Confirm Action</h2>
+        <button class="modal-close" data-modal-close aria-label="Close modal">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to proceed with this action? This cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-modal-close>Cancel</button>
+        <button class="btn btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer style="background-color: var(--exprsn-bg-secondary); border-top: 1px solid var(--exprsn-border-color); margin-top: var(--exprsn-spacing-xxl); padding: var(--exprsn-spacing-xl) var(--exprsn-spacing-lg);">
+    <div class="container">
+      <p class="text-center text-muted" style="margin: 0;">
+        Exprsn Bootstrap WCAG Theme &copy; 2025 -
+        <a href="https://github.com/ExprsnIO/Exprsn">MIT License</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Theme Scripts -->
+  <script src="js/theme-switcher.js"></script>
+  <script src="js/drag-drop.js"></script>
+  <script src="js/components.js"></script>
+
+  <!-- Demo-specific scripts -->
+  <script>
+    // Initialize modal overlays
+    const modals = {
+      'example-modal': document.getElementById('example-modal-overlay'),
+      'confirmation-modal': document.getElementById('confirmation-modal-overlay')
+    };
+
+    // Show modal when trigger button is clicked
+    document.querySelectorAll('[data-modal-target]').forEach(trigger => {
+      trigger.addEventListener('click', () => {
+        const targetId = trigger.getAttribute('data-modal-target');
+        const overlay = modals[targetId];
+        if (overlay) {
+          const modalInstance = new ExpRsnModal(targetId);
+          modalInstance.open();
+        }
+      });
+    });
+
+    // Smooth scroll to anchors
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (href !== '#' && document.querySelector(href)) {
+          e.preventDefault();
+          document.querySelector(href).scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      });
+    });
+
+    // Update active navigation link on scroll
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop;
+        const sectionHeight = section.clientHeight;
+        if (window.pageYOffset >= sectionTop - 100) {
+          current = section.getAttribute('id');
+        }
+      });
+
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === `#${current}`) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

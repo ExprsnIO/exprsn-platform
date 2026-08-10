@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Room - Exprsn Live</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/live.css">
+
+  <style>
+    body {
+      background: #1a1a1a;
+      color: white;
+      overflow: hidden;
+    }
+
+    .room-container {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .room-header {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .room-info h5 {
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .room-code-display {
+      font-family: 'Courier New', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+    }
+
+    .video-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+
+    .video-tile {
+      position: relative;
+      background: #2d2d2d;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .video-tile video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .video-tile.local {
+      border: 3px solid #dc3545;
+    }
+
+    .video-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+      padding: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .participant-name {
+      font-weight: 600;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .participant-status {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .status-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 50%;
+      font-size: 0.875rem;
+    }
+
+    .status-icon.muted {
+      color: #ffc107;
+    }
+
+    .status-icon.video-off {
+      color: #dc3545;
+    }
+
+    .video-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .video-placeholder i {
+      font-size: 4rem;
+      opacity: 0.5;
+    }
+
+    .control-bar {
+      background: #2d2d2d;
+      padding: 1.5rem;
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .control-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.1);
+    }
+
+    .control-btn.active {
+      background: #dc3545;
+    }
+
+    .control-btn.leave {
+      background: #dc3545;
+      width: 64px;
+      height: 64px;
+    }
+
+    .control-btn.leave:hover {
+      background: #c82333;
+    }
+
+    .participants-sidebar {
+      position: fixed;
+      right: -300px;
+      top: 0;
+      width: 300px;
+      height: 100vh;
+      background: #2d2d2d;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+      transition: right 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .participants-sidebar.show {
+      right: 0;
+    }
+
+    .sidebar-header {
+      padding: 1rem;
+      border-bottom: 2px solid #1a1a1a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .participant-item {
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      background: #1a1a1a;
+      border-radius: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .participant-item.host {
+      border-left: 3px solid #dc3545;
+    }
+
+    .loading-room {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .loading-content {
+      text-align: center;
+    }
+
+    .settings-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #2d2d2d;
+      padding: 2rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 1001;
+      min-width: 400px;
+      display: none;
+    }
+
+    .settings-modal.show {
+      display: block;
+    }
+
+    .modal-backdrop-custom {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      display: none;
+    }
+
+    .modal-backdrop-custom.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div class="loading-room" id="loadingRoom">
+    <div class="loading-content">
+      <div class="spinner-border text-danger mb-3" style="width: 3rem; height: 3rem;"></div>
+      <h4>Joining room...</h4>
+      <p class="text-muted">Setting up your camera and microphone</p>
+    </div>
+  </div>
+
+  <!-- Room Container -->
+  <div class="room-container" id="roomContainer" style="display: none;">
+    <!-- Header -->
+    <div class="room-header">
+      <div class="room-info">
+        <h5 id="roomName">Loading...</h5>
+        <div class="d-flex align-items-center gap-3">
+          <span class="room-code-display" id="roomCode">------</span>
+          <button class="btn btn-sm btn-light" onclick="copyRoomCode()">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-light" onclick="toggleParticipants()">
+          <i class="fas fa-users"></i>
+          <span id="participantCount">0</span>
+        </button>
+        <button class="btn btn-light" onclick="showSettings()">
+          <i class="fas fa-cog"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Video Grid -->
+    <div class="video-grid" id="videoGrid">
+      <!-- Local video -->
+      <div class="video-tile local" id="localTile">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <div class="video-overlay">
+          <span class="participant-name">You (Local)</span>
+          <div class="participant-status">
+            <span class="status-icon" id="localAudioStatus">
+              <i class="fas fa-microphone"></i>
+            </span>
+            <span class="status-icon" id="localVideoStatus">
+              <i class="fas fa-video"></i>
+            </span>
+          </div>
+        </div>
+      </div>
+      <!-- Remote videos will be added here -->
+    </div>
+
+    <!-- Control Bar -->
+    <div class="control-bar">
+      <button class="control-btn" id="toggleAudioBtn" title="Toggle Microphone">
+        <i class="fas fa-microphone"></i>
+      </button>
+      <button class="control-btn" id="toggleVideoBtn" title="Toggle Camera">
+        <i class="fas fa-video"></i>
+      </button>
+      <button class="control-btn" id="shareScreenBtn" title="Share Screen">
+        <i class="fas fa-desktop"></i>
+      </button>
+      <button class="control-btn leave" id="leaveRoomBtn" title="Leave Room">
+        <i class="fas fa-phone-slash"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Participants Sidebar -->
+  <div class="participants-sidebar" id="participantsSidebar">
+    <div class="sidebar-header">
+      <h6 class="mb-0">Participants</h6>
+      <button class="btn btn-sm btn-outline-light" onclick="toggleParticipants()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="sidebar-content" id="participantsList">
+      <!-- Participants will be listed here -->
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-backdrop-custom" id="settingsBackdrop" onclick="hideSettings()"></div>
+  <div class="settings-modal" id="settingsModal">
+    <h5 class="mb-3">Settings</h5>
+    <div class="mb-3">
+      <label class="form-label">Microphone</label>
+      <select class="form-select" id="audioDeviceSelect">
+        <option>Default</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Camera</label>
+      <select class="form-select" id="videoDeviceSelect">
+        <option>Default</option>
+      </select>
+    </div>
+    <div class="d-flex gap-2 justify-content-end">
+      <button class="btn btn-secondary" onclick="hideSettings()">Cancel</button>
+      <button class="btn btn-danger" onclick="applySettings()">Apply</button>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/socket.js"></script>
+  <script src="/static/js/webrtc.js"></script>
+
+  <script>
+    // Room application
+    class RoomApp {
+      constructor() {
+        this.roomId = null;
+        this.room = null;
+        this.password = null;
+        this.localStream = null;
+        this.participants = new Map();
+      }
+
+      async init() {
+        // Get room ID from URL
+        const params = new URLSearchParams(window.location.search);
+        this.roomId = params.get('id');
+        this.password = params.get('password');
+
+        if (!this.roomId) {
+          this.showError('No room ID provided');
+          return;
+        }
+
+        // Check WebRTC support
+        if (!WebRTCClient.isSupported()) {
+          this.showError(LiveConfig.errors.webrtcNotSupported);
+          return;
+        }
+
+        try {
+          // Get user media
+          this.localStream = await webrtcClient.getUserMedia();
+          document.getElementById('localVideo').srcObject = this.localStream;
+
+          // Load room details
+          await this.loadRoom();
+
+          // Join room
+          await this.joinRoom();
+
+          // Setup controls and handlers
+          this.setupControls();
+          this.setupWebRTCHandlers();
+          this.setupSocketHandlers();
+
+          // Show room
+          document.getElementById('loadingRoom').style.display = 'none';
+          document.getElementById('roomContainer').style.display = 'flex';
+
+        } catch (error) {
+          console.error('Failed to initialize room:', error);
+          this.showError(error.message || 'Failed to join room');
+        }
+      }
+
+      async loadRoom() {
+        try {
+          const response = await api.getRoom(this.roomId);
+          this.room = response.room;
+
+          // Update UI
+          document.getElementById('roomName').textContent = this.room.name;
+          document.getElementById('roomCode').textContent = this.room.room_code;
+          document.getElementById('participantCount').textContent = this.room.current_participant_count;
+
+        } catch (error) {
+          throw new Error('Failed to load room details');
+        }
+      }
+
+      async joinRoom() {
+        try {
+          const joinData = {
+            displayName: 'User', // Would get from user profile
+            password: this.password
+          };
+
+          const response = await api.joinRoom(this.roomId, joinData);
+
+          // Join WebRTC room
+          await webrtcClient.joinRoom(this.roomId, response.participant.user_id);
+
+          // Join socket room
+          liveSocket.joinRoom(this.roomId);
+
+          this.showToast('Success', 'Joined room successfully', 'success');
+
+        } catch (error) {
+          throw error;
+        }
+      }
+
+      setupControls() {
+        // Toggle audio
+        document.getElementById('toggleAudioBtn').addEventListener('click', () => {
+          const enabled = webrtcClient.toggleAudio();
+          this.updateAudioStatus(enabled);
+          liveSocket.updateParticipantState(this.roomId, { audioEnabled: enabled });
+        });
+
+        // Toggle video
+        document.getElementById('toggleVideoBtn').addEventListener('click', () => {
+          const enabled = webrtcClient.toggleVideo();
+          this.updateVideoStatus(enabled);
+          liveSocket.updateParticipantState(this.roomId, { videoEnabled: enabled });
+        });
+
+        // Share screen
+        document.getElementById('shareScreenBtn').addEventListener('click', async () => {
+          try {
+            await webrtcClient.getScreenShare();
+            this.showToast('Success', 'Screen sharing started', 'success');
+          } catch (error) {
+            this.showToast('Error', 'Failed to share screen', 'error');
+          }
+        });
+
+        // Leave room
+        document.getElementById('leaveRoomBtn').addEventListener('click', () => {
+          this.leaveRoom();
+        });
+      }
+
+      setupWebRTCHandlers() {
+        // Handle remote streams
+        webrtcClient.on('remote-stream', ({ peerId, stream }) => {
+          this.addRemoteVideo(peerId, stream);
+        });
+
+        // Handle peer disconnection
+        webrtcClient.on('peer-disconnected', ({ peerId }) => {
+          this.removeRemoteVideo(peerId);
+        });
+      }
+
+      setupSocketHandlers() {
+        // Participant joined
+        liveSocket.on('participant-joined', (data) => {
+          this.showToast('Participant Joined', `${data.participant.displayName} joined`, 'info');
+          this.updateParticipantCount();
+        });
+
+        // Participant left
+        liveSocket.on('participant-left', (data) => {
+          this.showToast('Participant Left', 'A participant left', 'info');
+          this.updateParticipantCount();
+          this.removeRemoteVideo(data.userId);
+        });
+
+        // Room closed
+        liveSocket.on('room-closed', () => {
+          this.showToast('Room Closed', 'The host closed the room', 'warning');
+          setTimeout(() => this.leaveRoom(), 3000);
+        });
+      }
+
+      addRemoteVideo(peerId, stream) {
+        const videoTile = document.createElement('div');
+        videoTile.className = 'video-tile';
+        videoTile.id = `video-${peerId}`;
+
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.autoplay = true;
+        video.playsinline = true;
+
+        videoTile.innerHTML = `
+          <div class="video-overlay">
+            <span class="participant-name">Participant ${peerId.substring(0, 6)}</span>
+            <div class="participant-status">
+              <span class="status-icon">
+                <i class="fas fa-microphone"></i>
+              </span>
+            </div>
+          </div>
+        `;
+
+        videoTile.insertBefore(video, videoTile.firstChild);
+        document.getElementById('videoGrid').appendChild(videoTile);
+
+        this.participants.set(peerId, { stream, videoTile });
+      }
+
+      removeRemoteVideo(peerId) {
+        const participant = this.participants.get(peerId);
+        if (participant) {
+          participant.videoTile.remove();
+          this.participants.delete(peerId);
+        }
+      }
+
+      updateAudioStatus(enabled) {
+        const btn = document.getElementById('toggleAudioBtn');
+        const icon = btn.querySelector('i');
+        const status = document.getElementById('localAudioStatus');
+
+        if (enabled) {
+          btn.classList.remove('active');
+          icon.className = 'fas fa-microphone';
+          status.classList.remove('muted');
+        } else {
+          btn.classList.add('active');
+          icon.className = 'fas fa-microphone-slash';
+          status.classList.add('muted');
+        }
+      }
+
+      updateVideoStatus(enabled) {
+        const btn = document.getElementById('toggleVideoBtn');
+        const icon = btn.querySelector('i');
+        const status = document.getElementById('localVideoStatus');
+
+        if (enabled) {
+          btn.classList.remove('active');
+          icon.className = 'fas fa-video';
+          status.classList.remove('video-off');
+        } else {
+          btn.classList.add('active');
+          icon.className = 'fas fa-video-slash';
+          status.classList.add('video-off');
+        }
+      }
+
+      updateParticipantCount() {
+        const count = this.participants.size + 1; // +1 for local
+        document.getElementById('participantCount').textContent = count;
+      }
+
+      async leaveRoom() {
+        try {
+          await api.leaveRoom(this.roomId);
+          webrtcClient.leaveRoom();
+          liveSocket.leaveRoom(this.roomId);
+
+          window.location.href = '/static/index.html';
+
+        } catch (error) {
+          console.error('Error leaving room:', error);
+          window.location.href = '/static/index.html';
+        }
+      }
+
+      showToast(title, message, type = 'info') {
+        const toastContainer = document.getElementById('toastContainer');
+        const toastId = `toast-${Date.now()}`;
+
+        const toastHTML = `
+          <div id="${toastId}" class="toast toast-${type}" role="alert">
+            <div class="toast-header">
+              <strong class="me-auto">${title}</strong>
+              <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">${message}</div>
+          </div>
+        `;
+
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+        const toastEl = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastEl, { autohide: true, delay: 5000 });
+        toast.show();
+
+        toastEl.addEventListener('hidden.bs.toast', () => {
+          toastEl.remove();
+        });
+      }
+
+      showError(message) {
+        document.getElementById('loadingRoom').innerHTML = `
+          <div class="loading-content">
+            <i class="fas fa-exclamation-circle fa-3x text-danger mb-3"></i>
+            <h4>Error</h4>
+            <p>${message}</p>
+            <button class="btn btn-light mt-3" onclick="window.location.href='/static/index.html'">
+              Back to Dashboard
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    // Global functions
+    function toggleParticipants() {
+      document.getElementById('participantsSidebar').classList.toggle('show');
+    }
+
+    function copyRoomCode() {
+      const code = document.getElementById('roomCode').textContent;
+      navigator.clipboard.writeText(code);
+      roomApp.showToast('Success', 'Room code copied!', 'success');
+    }
+
+    function showSettings() {
+      document.getElementById('settingsBackdrop').classList.add('show');
+      document.getElementById('settingsModal').classList.add('show');
+    }
+
+    function hideSettings() {
+      document.getElementById('settingsBackdrop').classList.remove('show');
+      document.getElementById('settingsModal').classList.remove('show');
+    }
+
+    async function applySettings() {
+      // Apply device changes (would need implementation in webrtcClient)
+      hideSettings();
+      roomApp.showToast('Success', 'Settings applied', 'success');
+    }
+
+    // Initialize
+    const roomApp = new RoomApp();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => roomApp.init());
+    } else {
+      roomApp.init();
+    }
+  </script>
+</body>
+</html>

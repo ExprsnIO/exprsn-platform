@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exprsn Platform - Unified Admin Console</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Socket.IO -->
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.6.1/dist/socket.io.min.js"></script>
+
+  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="/css/workflow-designer.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="admin-sidebar">
+    <div class="sidebar-header">
+      <h1 class="sidebar-brand">Exprsn</h1>
+      <p class="sidebar-subtitle">Unified Admin Console</p>
+    </div>
+
+    <nav class="sidebar-nav">
+      <!-- Dashboard -->
+      <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <a href="#/dashboard" class="nav-link active" data-page="dashboard">
+          <i class="bi bi-speedometer2"></i>
+          <span>Dashboard</span>
+        </a>
+      </div>
+
+      <!-- Services Management -->
+      <div class="nav-section">
+        <div class="nav-section-title">Services</div>
+        <a href="#/services" class="nav-link" data-page="services">
+          <i class="bi bi-hdd-rack"></i>
+          <span>All Services</span>
+          <span class="badge bg-primary ms-auto" id="services-count">18</span>
+        </a>
+        <a href="#/services/ca" class="nav-link" data-page="service-ca">
+          <i class="bi bi-shield-check"></i>
+          <span>Certificate Authority</span>
+        </a>
+        <a href="#/services/auth" class="nav-link" data-page="service-auth">
+          <i class="bi bi-key"></i>
+          <span>Authentication</span>
+        </a>
+        <a href="#/services/timeline" class="nav-link" data-page="service-timeline">
+          <i class="bi bi-chat-square-text"></i>
+          <span>Timeline</span>
+        </a>
+        <a href="#/services/spark" class="nav-link" data-page="service-spark">
+          <i class="bi bi-chat-dots"></i>
+          <span>Messaging</span>
+        </a>
+        <a href="#/services/moderator" class="nav-link" data-page="service-moderator">
+          <i class="bi bi-shield-exclamation"></i>
+          <span>Moderation</span>
+        </a>
+        <a href="#/services/forge" class="nav-link" data-page="service-forge">
+          <i class="bi bi-briefcase"></i>
+          <span>Business (CRM/ERP)</span>
+        </a>
+      </div>
+
+      <!-- Configuration -->
+      <div class="nav-section">
+        <div class="nav-section-title">Configuration</div>
+        <a href="#/config/global" class="nav-link" data-page="config-global">
+          <i class="bi bi-gear"></i>
+          <span>Global Settings</span>
+        </a>
+        <a href="#/config/database" class="nav-link" data-page="config-database">
+          <i class="bi bi-database"></i>
+          <span>Database</span>
+        </a>
+        <a href="#/config/redis" class="nav-link" data-page="config-redis">
+          <i class="bi bi-server"></i>
+          <span>Redis</span>
+        </a>
+        <a href="#/config/security" class="nav-link" data-page="config-security">
+          <i class="bi bi-lock"></i>
+          <span>Security</span>
+        </a>
+      </div>
+
+      <!-- Tools -->
+      <div class="nav-section">
+        <div class="nav-section-title">Tools</div>
+        <a href="#/users" class="nav-link" data-page="users">
+          <i class="bi bi-people"></i>
+          <span>Users</span>
+        </a>
+        <a href="#/tokens" class="nav-link" data-page="tokens">
+          <i class="bi bi-file-earmark-lock"></i>
+          <span>Tokens</span>
+        </a>
+        <a href="#/certificates" class="nav-link" data-page="certificates">
+          <i class="bi bi-award"></i>
+          <span>Certificates</span>
+        </a>
+        <a href="#/logs" class="nav-link" data-page="logs">
+          <i class="bi bi-journal-text"></i>
+          <span>Logs</span>
+        </a>
+      </div>
+
+      <!-- System -->
+      <div class="nav-section">
+        <div class="nav-section-title">System</div>
+        <a href="#/monitoring" class="nav-link" data-page="monitoring">
+          <i class="bi bi-activity"></i>
+          <span>Monitoring</span>
+        </a>
+        <a href="#/backups" class="nav-link" data-page="backups">
+          <i class="bi bi-cloud-arrow-down"></i>
+          <span>Backups</span>
+        </a>
+        <a href="#/settings" class="nav-link" data-page="settings">
+          <i class="bi bi-sliders"></i>
+          <span>Settings</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="theme-toggle btn btn-sm btn-outline-light w-100" onclick="toggleTheme()">
+        <i class="bi bi-moon-stars"></i>
+        <span>Dark Mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="admin-main">
+    <!-- Header -->
+    <header class="admin-header">
+      <div class="header-left">
+        <button class="btn btn-link sidebar-toggle" onclick="toggleSidebar()">
+          <i class="bi bi-list fs-4"></i>
+        </button>
+        <h2 class="page-title" id="page-title">Dashboard</h2>
+      </div>
+
+      <div class="header-right">
+        <div class="header-status">
+          <span class="status-indicator status-online"></span>
+          <span class="status-text">All Systems Operational</span>
+        </div>
+
+        <button class="btn btn-link position-relative">
+          <i class="bi bi-bell fs-5"></i>
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+            3
+          </span>
+        </button>
+
+        <div class="dropdown">
+          <button class="btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-person-circle fs-5"></i>
+            <span>Admin</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="#/profile"><i class="bi bi-person"></i> Profile</a></li>
+            <li><a class="dropdown-item" href="#/settings"><i class="bi bi-gear"></i> Settings</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="#/logout"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Area with Subgrid Support -->
+    <div class="admin-content" id="admin-content">
+      <!-- Dynamic content loads here -->
+    </div>
+  </main>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Admin Core JS -->
+  <script src="/js/admin-core.js"></script>
+  <script src="/js/modals.js"></script>
+  <script src="/js/pages-complete.js"></script>
+  <script src="/js/pages.js"></script>
+  <script src="/js/workflow-designer.js"></script>
+  <script src="/js/admin-router.js"></script>
+  <script src="/js/admin-services.js"></script>
+  <script src="/js/admin-config.js"></script>
+</body>
+</html>

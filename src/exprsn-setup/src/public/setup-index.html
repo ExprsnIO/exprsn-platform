@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Setup Center - Exprsn Setup</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --exprsn-primary: #DC382D;
+      --exprsn-secondary: #1a1a1a;
+    }
+
+    body {
+      background: #f5f7fa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .navbar-custom {
+      background: linear-gradient(135deg, var(--exprsn-primary) 0%, #ff6b5a 100%);
+      padding: 1rem 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .navbar-custom .navbar-brand, .navbar-custom .nav-link {
+      color: white;
+    }
+
+    .page-header {
+      background: white;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .stats-card {
+      background: white;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    .stats-card h3 {
+      font-size: 2.5rem;
+      margin: 0.5rem 0;
+      color: var(--exprsn-primary);
+    }
+
+    .stats-card p {
+      margin: 0;
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+
+    .category-section {
+      margin-bottom: 3rem;
+    }
+
+    .category-header {
+      background: white;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .category-header h4 {
+      margin: 0;
+      color: var(--exprsn-secondary);
+    }
+
+    .service-card {
+      background: white;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+      height: 100%;
+      border: 2px solid transparent;
+    }
+
+    .service-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      border-color: var(--exprsn-primary);
+    }
+
+    .service-card.configured {
+      border-color: #28a745;
+    }
+
+    .service-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--exprsn-primary) 0%, #ff6b5a 100%);
+      color: white;
+    }
+
+    .service-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--exprsn-secondary);
+    }
+
+    .service-description {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-bottom: 1rem;
+      min-height: 40px;
+    }
+
+    .service-meta {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .service-meta .badge {
+      font-size: 0.75rem;
+    }
+
+    .service-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .service-actions .btn {
+      flex: 1;
+      font-size: 0.875rem;
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+
+    .status-indicator.configured {
+      background: #28a745;
+    }
+
+    .status-indicator.not-configured {
+      background: #ffc107;
+    }
+
+    .status-indicator.disabled {
+      background: #dc3545;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .loading-spinner {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .filter-section {
+      background: white;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">
+        <i class="bi bi-shield-lock"></i> Exprsn Setup
+      </a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link active" href="/setup">Service Setup</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/services">Services Overview</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/">Dashboard</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1><i class="bi bi-gear-fill"></i> Service Setup Center</h1>
+      <p class="text-muted mb-0">Configure and initialize all Exprsn services</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4" id="statsRow">
+      <div class="col-md-3">
+        <div class="stats-card">
+          <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"></i>
+          <h3 id="statConfigured">-</h3>
+          <p>Configured Services</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 2rem;"></i>
+          <h3 id="statPending">-</h3>
+          <p>Pending Setup</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <i class="bi bi-play-circle-fill text-primary" style="font-size: 2rem;"></i>
+          <h3 id="statRunning">-</h3>
+          <p>Running Services</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <i class="bi bi-boxes text-info" style="font-size: 2rem;"></i>
+          <h3 id="statTotal">18</h3>
+          <p>Total Services</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-section">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="searchInput" placeholder="Search services...">
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="filterStatus" id="filterAll" value="all" checked>
+            <label class="btn btn-outline-primary" for="filterAll">All Services</label>
+
+            <input type="radio" class="btn-check" name="filterStatus" id="filterConfigured" value="configured">
+            <label class="btn btn-outline-success" for="filterConfigured">Configured</label>
+
+            <input type="radio" class="btn-check" name="filterStatus" id="filterPending" value="pending">
+            <label class="btn btn-outline-warning" for="filterPending">Pending</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Services by Category -->
+    <div id="servicesContainer">
+      <!-- Will be populated dynamically -->
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner">
+      <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-3">Loading services...</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let allServices = [];
+    let serviceConfigs = {};
+
+    // Category information
+    const categories = {
+      core: { name: 'Core Services', icon: 'shield-lock', description: 'Essential platform services' },
+      infrastructure: { name: 'Infrastructure', icon: 'server', description: 'Infrastructure management' },
+      communication: { name: 'Communication', icon: 'chat-dots', description: 'Messaging and notifications' },
+      content: { name: 'Content Management', icon: 'file-earmark-text', description: 'Content and social features' },
+      media: { name: 'Media Services', icon: 'image', description: 'Media storage and streaming' },
+      business: { name: 'Business Platform', icon: 'briefcase', description: 'CRM, ERP, and business tools' },
+      automation: { name: 'Automation', icon: 'gear-wide-connected', description: 'Workflow automation' },
+      utility: { name: 'Utilities', icon: 'tools', description: 'Utility services' }
+    };
+
+    // Load all data
+    async function loadData() {
+      showLoading();
+
+      try {
+        // Load service metadata
+        const metadataResponse = await fetch('/api/service-config/metadata/all');
+        const metadataData = await metadataResponse.json();
+        const metadata = metadataData.metadata || {};
+
+        // Load service configurations
+        const configResponse = await fetch('/api/service-config?setupCompleted=true');
+        const configData = await configResponse.json();
+        const configs = configData.services || [];
+
+        // Create service configs map
+        configs.forEach(config => {
+          serviceConfigs[config.serviceId] = config;
+        });
+
+        // Merge metadata with configs
+        allServices = Object.entries(metadata).map(([serviceId, meta]) => {
+          const config = serviceConfigs[serviceId] || {};
+          return {
+            ...meta,
+            ...config,
+            configured: config.setupCompleted || false,
+            metadata: meta
+          };
+        });
+
+        renderServices();
+        updateStats();
+      } catch (error) {
+        console.error('Failed to load services:', error);
+        alert('Failed to load services. Please refresh the page.');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function renderServices() {
+      const container = document.getElementById('servicesContainer');
+
+      // Group services by category
+      const servicesByCategory = {};
+      allServices.forEach(service => {
+        const category = service.category || 'utility';
+        if (!servicesByCategory[category]) {
+          servicesByCategory[category] = [];
+        }
+        servicesByCategory[category].push(service);
+      });
+
+      // Render each category
+      let html = '';
+      Object.entries(servicesByCategory).forEach(([categoryId, services]) => {
+        const categoryInfo = categories[categoryId] || categories.utility;
+
+        html += `
+          <div class="category-section" data-category="${categoryId}">
+            <div class="category-header">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h4>
+                    <i class="bi bi-${categoryInfo.icon}"></i>
+                    ${categoryInfo.name}
+                    <small class="text-muted">(${services.length} services)</small>
+                  </h4>
+                  <small class="text-muted">${categoryInfo.description}</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              ${services.map(service => renderServiceCard(service)).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+      attachEventListeners();
+    }
+
+    function renderServiceCard(service) {
+      const statusClass = service.configured ? 'configured' : 'not-configured';
+      const statusText = service.configured ? 'Configured' : 'Not Configured';
+      const statusBadgeClass = service.configured ? 'bg-success' : 'bg-warning';
+
+      return `
+        <div class="col-md-4 col-lg-3 service-item" data-service-id="${service.serviceId}" data-configured="${service.configured}">
+          <div class="service-card ${service.configured ? 'configured' : ''}">
+            <div class="service-icon">
+              <i class="bi bi-${service.icon || 'box'}"></i>
+            </div>
+
+            <div class="service-name">${service.serviceName}</div>
+
+            <div class="service-description">${service.description || 'No description available'}</div>
+
+            <div class="service-meta">
+              <span class="badge ${statusBadgeClass}">
+                <span class="status-indicator ${statusClass}"></span>
+                ${statusText}
+              </span>
+              <span class="badge bg-secondary">Port ${service.port}</span>
+              ${service.status === 'production' ? '<span class="badge bg-info">Production</span>' : ''}
+            </div>
+
+            <div class="service-actions">
+              ${!service.configured ? `
+                <a href="/setup/${service.serviceId}" class="btn btn-primary btn-sm">
+                  <i class="bi bi-play-fill"></i> Setup
+                </a>
+              ` : `
+                <a href="/setup/${service.serviceId}" class="btn btn-outline-primary btn-sm">
+                  <i class="bi bi-pencil-fill"></i> Edit
+                </a>
+              `}
+              <button class="btn btn-outline-secondary btn-sm" onclick="viewServiceDetails('${service.serviceId}')">
+                <i class="bi bi-eye-fill"></i> View
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateStats() {
+      const configured = allServices.filter(s => s.configured).length;
+      const pending = allServices.length - configured;
+      const running = allServices.filter(s => s.status === 'running').length;
+
+      document.getElementById('statConfigured').textContent = configured;
+      document.getElementById('statPending').textContent = pending;
+      document.getElementById('statRunning').textContent = running;
+      document.getElementById('statTotal').textContent = allServices.length;
+    }
+
+    function attachEventListeners() {
+      // Search filter
+      document.getElementById('searchInput').addEventListener('input', filterServices);
+
+      // Status filter
+      document.querySelectorAll('input[name="filterStatus"]').forEach(radio => {
+        radio.addEventListener('change', filterServices);
+      });
+    }
+
+    function filterServices() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const statusFilter = document.querySelector('input[name="filterStatus"]:checked').value;
+
+      document.querySelectorAll('.service-item').forEach(item => {
+        const serviceId = item.dataset.serviceId;
+        const service = allServices.find(s => s.serviceId === serviceId);
+
+        // Text search
+        const matchesSearch = !searchTerm ||
+          service.serviceName.toLowerCase().includes(searchTerm) ||
+          service.description?.toLowerCase().includes(searchTerm) ||
+          service.serviceId.toLowerCase().includes(searchTerm);
+
+        // Status filter
+        const matchesStatus = statusFilter === 'all' ||
+          (statusFilter === 'configured' && item.dataset.configured === 'true') ||
+          (statusFilter === 'pending' && item.dataset.configured === 'false');
+
+        item.style.display = matchesSearch && matchesStatus ? 'block' : 'none';
+      });
+
+      // Hide empty categories
+      document.querySelectorAll('.category-section').forEach(category => {
+        const visibleServices = category.querySelectorAll('.service-item[style="display: block;"], .service-item:not([style])');
+        category.style.display = visibleServices.length > 0 ? 'block' : 'none';
+      });
+    }
+
+    function viewServiceDetails(serviceId) {
+      const service = allServices.find(s => s.serviceId === serviceId);
+      if (!service) return;
+
+      alert(`Service: ${service.serviceName}\n\nPort: ${service.port}\nStatus: ${service.status}\nConfigured: ${service.configured ? 'Yes' : 'No'}\n\nClick "View" or "Edit" to see full details in the setup wizard.`);
+    }
+
+    function showLoading() {
+      document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    // Initialize
+    loadData();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Application - Exprsn Low-Code Platform</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow: hidden;
+    }
+
+    /* Enhanced Modal Styles */
+    .wizard-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 2rem;
+    }
+
+    .wizard-container {
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 1200px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Wizard Header */
+    .wizard-header {
+      padding: 2rem 2.5rem;
+      border-bottom: 1px solid var(--border-color);
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+    }
+
+    .wizard-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .wizard-subtitle {
+      font-size: 0.95rem;
+      opacity: 0.9;
+    }
+
+    /* Progress Bar */
+    .wizard-progress {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem 2.5rem;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-color);
+      overflow-x: auto;
+    }
+
+    .progress-step {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      position: relative;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .progress-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: calc(100% - 20px);
+      top: 16px;
+      width: calc(100% - 60px);
+      height: 2px;
+      background: var(--border-color);
+      z-index: -1;
+    }
+
+    .progress-step.active:not(:last-child)::after {
+      background: var(--primary);
+    }
+
+    .step-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      font-weight: 600;
+      flex-shrink: 0;
+      transition: all 0.3s ease;
+    }
+
+    .progress-step.active .step-circle {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .progress-step.completed .step-circle {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+    }
+
+    .step-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .progress-step.active .step-label {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Wizard Body */
+    .wizard-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem 2.5rem;
+    }
+
+    .wizard-step {
+      display: none;
+    }
+
+    .wizard-step.active {
+      display: block;
+      animation: fadeInStep 0.3s ease;
+    }
+
+    @keyframes fadeInStep {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Step Content Sections */
+    .step-section {
+      margin-bottom: 2rem;
+    }
+
+    .step-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-title i {
+      color: var(--primary);
+    }
+
+    .section-description {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+
+    /* Form Groups */
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .form-label .required {
+      color: var(--danger);
+      margin-left: 2px;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    .form-hint {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.375rem;
+      display: block;
+    }
+
+    /* Template Cards */
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .template-card {
+      background: var(--bg-primary);
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .template-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .template-card.selected {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .template-card .selection-indicator {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
+      transition: all 0.2s ease;
+    }
+
+    .template-card.selected .selection-indicator {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+
+    .template-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+    }
+
+    .template-name {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .template-description {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Clone Options */
+    .clone-options {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .option-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .option-item:hover {
+      background: var(--bg-secondary);
+    }
+
+    .checkbox-custom {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border-color);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .option-item.selected .checkbox-custom {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .option-content {
+      flex: 1;
+    }
+
+    .option-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .option-description {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    /* Chip/Tag Styles */
+    .chip-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .chip .remove-chip {
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+
+    .chip .remove-chip:hover {
+      opacity: 1;
+    }
+
+    /* Color Picker */
+    .color-picker-group {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .color-input-wrapper {
+      position: relative;
+      width: 60px;
+      height: 40px;
+    }
+
+    .color-input {
+      width: 100%;
+      height: 100%;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .color-presets {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .color-preset {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: 2px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .color-preset:hover {
+      transform: scale(1.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .color-preset.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    /* Data Source Selection */
+    .datasource-list {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+
+    .datasource-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      margin-bottom: 0.5rem;
+    }
+
+    .datasource-item:hover {
+      background: var(--bg-secondary);
+    }
+
+    .datasource-item.selected {
+      background: var(--primary-light);
+    }
+
+    .datasource-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .datasource-info {
+      flex: 1;
+    }
+
+    .datasource-name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .datasource-type {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    /* Summary Section */
+    .summary-section {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .summary-item:last-child {
+      border-bottom: none;
+    }
+
+    .summary-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .summary-value {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Wizard Footer */
+    .wizard-footer {
+      padding: 1.5rem 2.5rem;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-secondary {
+      background: var(--gray-200);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+      background: var(--gray-300);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 120, 212, 0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn:disabled:hover {
+      transform: none;
+    }
+
+    /* Empty States */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      color: var(--text-secondary);
+      opacity: 0.5;
+      margin-bottom: 1rem;
+    }
+
+    .empty-text {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .wizard-container {
+        margin: 1rem;
+        max-height: calc(100vh - 2rem);
+      }
+
+      .wizard-header,
+      .wizard-body,
+      .wizard-footer {
+        padding: 1.5rem;
+      }
+
+      .wizard-progress {
+        padding: 1rem;
+      }
+
+      .template-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Application Creation Wizard Modal -->
+  <div class="wizard-modal">
+    <div class="wizard-container">
+      <!-- Header -->
+      <div class="wizard-header">
+        <h1 class="wizard-title">Create New Application</h1>
+        <p class="wizard-subtitle">Get started quickly with templates, git integration, and more</p>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="wizard-progress">
+        <div class="progress-step active" data-step="1">
+          <div class="step-circle">1</div>
+          <span class="step-label">Start</span>
+        </div>
+        <div class="progress-step" data-step="2">
+          <div class="step-circle">2</div>
+          <span class="step-label">Settings</span>
+        </div>
+        <div class="progress-step" data-step="3">
+          <div class="step-circle">3</div>
+          <span class="step-label">Git</span>
+        </div>
+        <div class="progress-step" data-step="4">
+          <div class="step-circle">4</div>
+          <span class="step-label">Access</span>
+        </div>
+        <div class="progress-step" data-step="5">
+          <div class="step-circle">5</div>
+          <span class="step-label">Theme</span>
+        </div>
+        <div class="progress-step" data-step="6">
+          <div class="step-circle">6</div>
+          <span class="step-label">Data</span>
+        </div>
+        <div class="progress-step" data-step="7">
+          <div class="step-circle">7</div>
+          <span class="step-label">Review</span>
+        </div>
+      </div>
+
+      <!-- Wizard Body -->
+      <div class="wizard-body">
+
+        <!-- STEP 1: Template Selection -->
+        <div class="wizard-step active" data-step="1">
+          <div class="step-section">
+            <h3 class="section-title">
+              <i class="fas fa-th-large"></i>
+              Choose a Starting Point
+            </h3>
+            <p class="section-description">
+              Start from scratch, use a template, or clone an existing application
+            </p>
+
+            <div class="template-grid">
+              <div class="template-card" data-template="blank">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon">
+                  <i class="fas fa-plus"></i>
+                </div>
+                <h4 class="template-name">Blank Application</h4>
+                <p class="template-description">Start with an empty application and build from scratch</p>
+              </div>
+
+              <div class="template-card" data-template="crm">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon">
+                  <i class="fas fa-users"></i>
+                </div>
+                <h4 class="template-name">CRM Template</h4>
+                <p class="template-description">Customer relationship management with contacts, leads, and deals</p>
+              </div>
+
+              <div class="template-card" data-template="inventory">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon">
+                  <i class="fas fa-boxes"></i>
+                </div>
+                <h4 class="template-name">Inventory Manager</h4>
+                <p class="template-description">Track products, stock levels, and warehouse locations</p>
+              </div>
+
+              <div class="template-card" data-template="project">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon">
+                  <i class="fas fa-tasks"></i>
+                </div>
+                <h4 class="template-name">Project Management</h4>
+                <p class="template-description">Manage projects, tasks, milestones, and team collaboration</p>
+              </div>
+
+              <div class="template-card" data-template="clone">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon">
+                  <i class="fas fa-copy"></i>
+                </div>
+                <h4 class="template-name">Clone Existing</h4>
+                <p class="template-description">Create a copy of an existing application with a new version</p>
+              </div>
+            </div>
+
+            <div id="cloneOptions" style="display: none;">
+              <div class="form-group">
+                <label class="form-label" for="cloneSource">Select Application to Clone</label>
+                <select class="form-select" id="cloneSource">
+                  <option value="">Loading applications...</option>
+                </select>
+              </div>
+
+              <div class="clone-options">
+                <div class="option-item selected" data-option="entities">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Include Entities</div>
+                    <div class="option-description">Copy all entity definitions and schemas</div>
+                  </div>
+                </div>
+
+                <div class="option-item selected" data-option="forms">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Include Forms</div>
+                    <div class="option-description">Copy form layouts and configurations</div>
+                  </div>
+                </div>
+
+                <div class="option-item selected" data-option="data">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Include Data</div>
+                    <div class="option-description">Copy existing records and data</div>
+                  </div>
+                </div>
+
+                <div class="option-item" data-option="workflows">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Include Workflows</div>
+                    <div class="option-description">Copy automation and workflow definitions</div>
+                  </div>
+                </div>
+
+                <div class="option-item" data-option="permissions">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Include Permissions</div>
+                    <div class="option-description">Copy roles and permission settings</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: Basic Settings -->
+        <div class="wizard-step" data-step="2">
+          <div class="step-section">
+            <h3 class="section-title">
+              <i class="fas fa-cog"></i>
+              Application Settings
+            </h3>
+            <p class="section-description">
+              Configure basic application information and versioning
+            </p>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="appName">
+                  Application Name <span class="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  class="form-input"
+                  id="appName"
+                  placeholder="my-app"
+                  required
+                  pattern="[a-zA-Z][a-zA-Z0-9_-]*"
+                >
+                <span class="form-hint">
+                  Must start with a letter. Use letters, numbers, hyphens, underscores.
+                </span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="appDisplayName">
+                  Display Name <span class="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  class="form-input"
+                  id="appDisplayName"
+                  placeholder="My Application"
+                  required
+                >
+                <span class="form-hint">Human-readable name shown in UI</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="appDescription">Description</label>
+              <textarea
+                class="form-textarea"
+                id="appDescription"
+                placeholder="Brief description of your application"
+              ></textarea>
+              <span class="form-hint">Help users understand the purpose of this application</span>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="appVersion">
+                  Initial Version <span class="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  class="form-input"
+                  id="appVersion"
+                  value="1.0.0"
+                  pattern="\d+\.\d+\.\d+"
+                  required
+                >
+                <span class="form-hint">Semantic versioning (MAJOR.MINOR.PATCH)</span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="appStatus">Initial Status</label>
+                <select class="form-select" id="appStatus">
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                </select>
+                <span class="form-hint">Draft apps are not visible to end users</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="appIcon">Icon (Font Awesome)</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  id="appIcon"
+                  placeholder="fa-rocket"
+                >
+                <span class="form-hint">Font Awesome class name (e.g., fa-rocket)</span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Application Color</label>
+                <div class="color-picker-group">
+                  <div class="color-input-wrapper">
+                    <input type="color" class="color-input" id="appColor" value="#0078D4">
+                  </div>
+                  <div class="color-presets">
+                    <div class="color-preset selected" style="background: #0078D4;" data-color="#0078D4"></div>
+                    <div class="color-preset" style="background: #7C3AED;" data-color="#7C3AED"></div>
+                    <div class="color-preset" style="background: #DC2626;" data-color="#DC2626"></div>
+                    <div class="color-preset" style="background: #059669;" data-color="#059669"></div>
+                    <div class="color-preset" style="background: #EA580C;" data-color="#EA580C"></div>
+                  </div>
+                </div>
+                <span class="form-hint">Used for branding and visual identification</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3: Git Integration -->
+        <div class="wizard-step" data-step="3">
+          <div class="step-section">
+            <h3 class="section-title">
+              <i class="fab fa-git-alt"></i>
+              Git Integration
+            </h3>
+            <p class="section-description">
+              Connect your application to a Git repository for version control and CI/CD
+            </p>
+
+            <div class="form-group">
+              <div class="option-item" id="enableGitToggle">
+                <div class="checkbox-custom">
+                  <i class="fas fa-check"></i>
+                </div>
+                <div class="option-content">
+                  <div class="option-title">Enable Git Integration</div>
+                  <div class="option-description">Connect to a Git repository for version control</div>
+                </div>
+              </div>
+            </div>
+
+            <div id="gitOptions" style="display: none;">
+              <div class="form-group">
+                <label class="form-label" for="gitRepository">
+                  Repository URL <span class="required">*</span>
+                </label>
+                <input
+                  type="url"
+                  class="form-input"
+                  id="gitRepository"
+                  placeholder="https://github.com/username/repo.git"
+                >
+                <span class="form-hint">HTTPS or SSH URL of your Git repository</span>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="gitBranch">Default Branch</label>
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="gitBranch"
+                    value="main"
+                  >
+                  <span class="form-hint">Main development branch</span>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="gitStrategy">Branching Strategy</label>
+                  <select class="form-select" id="gitStrategy">
+                    <option value="gitflow">Git Flow</option>
+                    <option value="trunk">Trunk-Based Development</option>
+                    <option value="feature">Feature Branches</option>
+                  </select>
+                  <span class="form-hint">How branches are organized</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <div class="option-item selected" data-option="autoCommit">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Auto-commit on Save</div>
+                    <div class="option-description">Automatically commit changes to Git when publishing</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <div class="option-item" data-option="enableCiCd">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Enable CI/CD Pipeline</div>
+                    <div class="option-description">Automatically build and deploy on commits</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 4: Access Control -->
+        <div class="wizard-step" data-step="4">
+          <div class="step-section">
+            <h3 class="section-title">
+              <i class="fas fa-shield-alt"></i>
+              Access Control
+            </h3>
+            <p class="section-description">
+              Configure who can access and modify this application
+            </p>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="appVisibility">Visibility</label>
+                <select class="form-select" id="appVisibility">
+                  <option value="private">Private (Owner only)</option>
+                  <option value="organization">Organization</option>
+                  <option value="public">Public</option>
+                </select>
+                <span class="form-hint">Who can see this application</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Initial Roles</label>
+              <div class="clone-options">
+                <div class="option-item selected" data-role="admin">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Administrator</div>
+                    <div class="option-description">Full access to all features and settings</div>
+                  </div>
+                </div>
+
+                <div class="option-item selected" data-role="editor">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Editor</div>
+                    <div class="option-description">Can create and edit records</div>
+                  </div>
+                </div>
+
+                <div class="option-item selected" data-role="viewer">
+                  <div class="checkbox-custom">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="option-content">
+                    <div class="option-title">Viewer</div>
+                    <div class="option-description">Read-only access to records</div>
+                  </div>
+                </div>
+              </div>
+              <span class="form-hint">These default roles will be created for the application</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="userGroups">Add User Groups (Optional)</label>
+              <select class="form-select" id="userGroups" multiple>
+                <option value="engineering">Engineering Team</option>
+                <option value="sales">Sales Team</option>
+                <option value="support">Support Team</option>
+                <option value="management">Management</option>
+              </select>
+              <span class="form-hint">Hold Ctrl/Cmd to select multiple groups</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 5: Theme Selection -->
+        <div class="wizard-step" data-step="5">
+          <div class="step-section">
+            <h3 class="section-title">
+              <i class="fas fa-palette"></i>
+              Choose a Theme
+            </h3>
+            <p class="section-description">
+              Select a visual theme for your application's user interface
+            </p>
+
+            <div class="template-grid">
+              <div class="template-card" data-theme="exprsn-default">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon" style="background: linear-gradient(135deg, #0078D4, #005A9E);">
+                  <i class="fas fa-paint-brush"></i>
+                </div>
+                <h4 class="template-name">Exprsn Default</h4>
+                <p class="template-description">Professional blue theme with excellent contrast</p>
+              </div>
+
+              <div class="template-card" data-theme="material">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon" style="background: linear-gradient(135deg, #6200EA, #3700B3);">
+                  <i class="fab fa-google"></i>
+                </div>
+                <h4 class="template-name">Material Design</h4>
+                <p class="template-description">Google's design language with vibrant colors</p>
+              </div>
+
+              <div class="template-card" data-theme="nord">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon" style="background: linear-gradient(135deg, #5E81AC, #4C566A);">
+                  <i class="fas fa-snowflake"></i>
+                </div>
+                <h4 class="template-name">Nord</h4>
+                <p class="template-description">Arctic-inspired palette with soft tones</p>
+              </div>
+
+              <div class="template-card" data-theme="dracula">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon" style="background: linear-gradient(135deg, #BD93F9, #6272A4);">
+                  <i class="fas fa-moon"></i>
+                </div>
+                <h4 class="template-name">Dracula</h4>
+                <p class="template-description">Dark theme with vibrant accent colors</p>
+              </div>
+
+              <div class="template-card" data-theme="high-contrast">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon" style="background: linear-gradient(135deg, #000000, #333333); color: #FFFF00;">
+                  <i class="fas fa-universal-access"></i>
+                </div>
+                <h4 class="template-name">High Contrast</h4>
+                <p class="template-description">Maximum accessibility and readability</p>
+              </div>
+
+              <div class="template-card" data-theme="custom">
+                <div class="selection-indicator">
+                  <i class="fas fa-check" style="display: none;"></i>
+                </div>
+                <div class="template-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                  <i class="fas fa-wand-magic-sparkles"></i>
+                </div>
+                <h4 class="template-name">Custom Theme</h4>
+                <p class="template-description">Design your own theme later</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 6: Data Sources -->
+        <div class="wizard-step" data-step="6">
+          <div class="step-section">
+            <h3 class="section-title">
+              <i class="fas fa-database"></i>
+              Data Sources & Queries
+            </h3>
+            <p class="section-description">
+              Include existing data sources and queries in your new application
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">Available Data Sources</label>
+              <div class="datasource-list" id="datasourceList">
+                <div class="empty-state">
+                  <div class="empty-icon">
+                    <i class="fas fa-database"></i>
+                  </div>
+                  <p class="empty-text">No data sources available. You can add them later.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.5rem;">
+              <label class="form-label">Saved Queries</label>
+              <div class="datasource-list" id="queryList">
+                <div class="empty-state">
+                  <div class="empty-icon">
+                    <i class="fas fa-search"></i>
+                  </div>
+                  <p class="empty-text">No saved queries available. You can create them later.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 7: Review & Create -->
+        <div class="wizard-step" data-step="7">
+          <div class="step-section">
+            <h3 class="section-title">
+              <i class="fas fa-check-circle"></i>
+              Review & Create
+            </h3>
+            <p class="section-description">
+              Review your application configuration before creating it
+            </p>
+
+            <div class="summary-section">
+              <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Basic Information</h4>
+              <div class="summary-item">
+                <span class="summary-label">Template</span>
+                <span class="summary-value" id="summaryTemplate">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Application Name</span>
+                <span class="summary-value" id="summaryName">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Display Name</span>
+                <span class="summary-value" id="summaryDisplayName">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Version</span>
+                <span class="summary-value" id="summaryVersion">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Status</span>
+                <span class="summary-value" id="summaryStatus">-</span>
+              </div>
+            </div>
+
+            <div class="summary-section">
+              <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Git Integration</h4>
+              <div class="summary-item">
+                <span class="summary-label">Enabled</span>
+                <span class="summary-value" id="summaryGitEnabled">No</span>
+              </div>
+              <div class="summary-item" id="summaryGitRepoItem" style="display: none;">
+                <span class="summary-label">Repository</span>
+                <span class="summary-value" id="summaryGitRepo">-</span>
+              </div>
+              <div class="summary-item" id="summaryGitBranchItem" style="display: none;">
+                <span class="summary-label">Branch</span>
+                <span class="summary-value" id="summaryGitBranch">-</span>
+              </div>
+            </div>
+
+            <div class="summary-section">
+              <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Access & Security</h4>
+              <div class="summary-item">
+                <span class="summary-label">Visibility</span>
+                <span class="summary-value" id="summaryVisibility">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Initial Roles</span>
+                <span class="summary-value" id="summaryRoles">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">User Groups</span>
+                <span class="summary-value" id="summaryGroups">None</span>
+              </div>
+            </div>
+
+            <div class="summary-section">
+              <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Customization</h4>
+              <div class="summary-item">
+                <span class="summary-label">Theme</span>
+                <span class="summary-value" id="summaryTheme">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Data Sources</span>
+                <span class="summary-value" id="summaryDataSources">0 selected</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Queries</span>
+                <span class="summary-value" id="summaryQueries">0 selected</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="wizard-footer">
+        <button class="btn btn-secondary" id="prevBtn" style="display: none;">
+          <i class="fas fa-arrow-left"></i>
+          Previous
+        </button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="nextBtn">
+          Next
+          <i class="fas fa-arrow-right"></i>
+        </button>
+        <button class="btn btn-primary" id="createBtn" style="display: none;">
+          <i class="fas fa-rocket"></i>
+          Create Application
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/lowcode/static/js/app-creation-wizard.js"></script>
+</body>
+</html>

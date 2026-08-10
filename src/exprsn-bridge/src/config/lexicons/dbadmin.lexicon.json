@@ -1,0 +1,223 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-dbadmin",
+      "version": "1.0.0",
+      "description": "PostgreSQL Database Administration Interface"
+    },
+    "routes": [
+      {
+        "path": "/api/dbadmin/query",
+        "method": "POST",
+        "description": "Execute SQL query",
+        "target": {
+          "service": "dbadmin",
+          "path": "/api/query",
+          "timeout": 30000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["sql"],
+            "properties": {
+              "sql": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50000
+              },
+              "database": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000,
+                "default": 1000
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/dbadmin/databases",
+        "method": "GET",
+        "description": "List databases",
+        "target": {
+          "service": "dbadmin",
+          "path": "/api/databases",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/dbadmin/databases/:name/tables",
+        "method": "GET",
+        "description": "List tables in database",
+        "target": {
+          "service": "dbadmin",
+          "path": "/api/databases/:name/tables",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/dbadmin/databases/:db/tables/:table/schema",
+        "method": "GET",
+        "description": "Get table schema",
+        "target": {
+          "service": "dbadmin",
+          "path": "/api/databases/:db/tables/:table/schema",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "db": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "table": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/dbadmin/stats",
+        "method": "GET",
+        "description": "Get database statistics",
+        "target": {
+          "service": "dbadmin",
+          "path": "/api/stats",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/dbadmin/connections",
+        "method": "GET",
+        "description": "Get active connections",
+        "target": {
+          "service": "dbadmin",
+          "path": "/api/connections",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/dbadmin/export",
+        "method": "POST",
+        "description": "Export query results",
+        "target": {
+          "service": "dbadmin",
+          "path": "/api/export",
+          "timeout": 60000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["sql", "format"],
+            "properties": {
+              "sql": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50000
+              },
+              "format": {
+                "type": "string",
+                "enum": ["csv", "json", "excel"]
+              },
+              "database": {
+                "type": "string",
+                "maxLength": 255
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/dbadmin/health",
+        "method": "GET",
+        "description": "DBAdmin service health check",
+        "target": {
+          "service": "dbadmin",
+          "path": "/health",
+          "timeout": 2000
+        },
+        "auth": {
+          "required": false
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 60000,
+        "max": 100
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

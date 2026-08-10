@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code</title>
+
+  <!-- Bootstrap 5.3.0 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome 6.4.0 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Manager Common Styles -->
+  <link rel="stylesheet" href="/css/manager-common.css">
+
+  <style>
+    /* Dashboard-specific colors */
+    .dashboard-icon { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+
+    /* Widget count badge */
+    .widget-count-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      background: #e3f2fd;
+      color: #1976d2;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .widget-count-badge i {
+      font-size: 0.7rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="pageApp">
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-title">
+        <i class="fas fa-chart-line"></i>
+        <div>
+          <h1>Dashboards</h1>
+          <p class="header-subtitle">Create interactive dashboards with charts, reports, and real-time data</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-light btn-sm" onclick="window.location.href='/lowcode/designer?appId=<%= appId %>'">
+          <i class="fas fa-arrow-left"></i> Back to App Designer
+        </button>
+        <button class="btn btn-primary btn-sm" id="new-dashboard-btn">
+          <i class="fas fa-plus"></i> New Dashboard
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="page-content">
+      <div class="content-wrapper">
+        <!-- Filters Bar -->
+        <div class="filters-bar">
+          <div class="filters-row">
+            <div class="filter-group">
+              <label>Status</label>
+              <select id="statusFilter" onchange="manager.filterDashboards()">
+                <option value="">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Sort By</label>
+              <select id="sortBy" onchange="manager.sortDashboards(); manager.renderDashboards()">
+                <option value="createdAt">Newest First</option>
+                <option value="updatedAt">Recently Modified</option>
+                <option value="displayName">Name (A-Z)</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Search</label>
+              <input type="text" id="searchInput" placeholder="Search dashboards..." oninput="manager.filterDashboards()">
+            </div>
+            <div class="items-counter">
+              <span id="itemCount">0</span> dashboards
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Grid -->
+        <div class="items-grid" id="dashboards-grid">
+          <!-- Dashboard cards will be inserted here -->
+        </div>
+
+        <!-- Empty State (shown when no dashboards) -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+          <i class="fas fa-chart-line"></i>
+          <h3>No Dashboards Yet</h3>
+          <p>Create your first dashboard to visualize your data with charts and reports</p>
+          <button class="btn btn-primary" id="create-first-dashboard-btn">
+            <i class="fas fa-plus"></i> Create Your First Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    const appId = '<%= appId %>';
+
+    class DashboardsManager {
+      constructor() {
+        this.dashboards = [];
+        this.filteredDashboards = [];
+
+        this.init();
+      }
+
+      async init() {
+        this.setupEventListeners();
+        await this.loadDashboards();
+      }
+
+      setupEventListeners() {
+        // New dashboard buttons
+        document.getElementById('new-dashboard-btn').addEventListener('click', () => {
+          this.createDashboard();
+        });
+
+        document.getElementById('create-first-dashboard-btn')?.addEventListener('click', () => {
+          this.createDashboard();
+        });
+      }
+
+      async loadDashboards() {
+        try {
+          const response = await fetch(`/lowcode/api/dashboards?applicationId=${appId}`);
+          const data = await response.json();
+
+          if (data.success) {
+            this.dashboards = data.data || [];
+            this.filteredDashboards = [...this.dashboards];
+            this.sortDashboards();
+            this.renderDashboards();
+            this.updateCounter();
+          } else {
+            console.error('Failed to load dashboards:', data.message);
+          }
+        } catch (error) {
+          console.error('Error loading dashboards:', error);
+        }
+      }
+
+      filterDashboards() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+
+        this.filteredDashboards = this.dashboards.filter(dashboard => {
+          const matchesSearch = !searchTerm ||
+            dashboard.displayName.toLowerCase().includes(searchTerm) ||
+            (dashboard.description || '').toLowerCase().includes(searchTerm);
+
+          const matchesStatus = !statusFilter || dashboard.status === statusFilter;
+
+          return matchesSearch && matchesStatus;
+        });
+
+        this.sortDashboards();
+        this.renderDashboards();
+        this.updateCounter();
+      }
+
+      sortDashboards() {
+        const sortBy = document.getElementById('sortBy').value;
+
+        this.filteredDashboards.sort((a, b) => {
+          if (sortBy === 'displayName') {
+            return a.displayName.localeCompare(b.displayName);
+          } else {
+            return new Date(b[sortBy]) - new Date(a[sortBy]);
+          }
+        });
+      }
+
+      renderDashboards() {
+        const grid = document.getElementById('dashboards-grid');
+        const emptyState = document.getElementById('empty-state');
+
+        if (this.filteredDashboards.length === 0) {
+          grid.style.display = 'none';
+          emptyState.style.display = 'block';
+          return;
+        }
+
+        grid.style.display = 'grid';
+        emptyState.style.display = 'none';
+
+        grid.innerHTML = this.filteredDashboards.map(dashboard => `
+          <div class="item-card" onclick="manager.viewDashboard('${dashboard.id}')">
+            <!-- Badge -->
+            <div class="card-badge badge-${this.getStatusBadgeClass(dashboard.status)}">
+              ${dashboard.status}
+            </div>
+
+            <!-- Header -->
+            <div class="card-header">
+              <div class="card-icon dashboard-icon">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div class="card-info">
+                <h3 class="card-title">${dashboard.displayName}</h3>
+                <p class="card-description">${dashboard.description || 'No description'}</p>
+              </div>
+            </div>
+
+            <!-- Widget Count Badge -->
+            ${dashboard.widgetCount > 0 ? `
+              <div style="padding: 0 1.25rem; margin-bottom: 0.5rem;">
+                <span class="widget-count-badge">
+                  <i class="fas fa-th"></i>
+                  ${dashboard.widgetCount} ${dashboard.widgetCount === 1 ? 'widget' : 'widgets'}
+                </span>
+              </div>
+            ` : ''}
+
+            <!-- Metadata -->
+            <div class="card-metadata">
+              <div class="metadata-item">
+                <i class="fas fa-calendar"></i>
+                <span>${this.formatDate(dashboard.createdAt)}</span>
+              </div>
+              <div class="metadata-item">
+                <i class="fas fa-clock"></i>
+                <span>${this.formatTime(dashboard.updatedAt)}</span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card-actions">
+              <button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); manager.editDashboard('${dashboard.id}')">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+              <button class="btn btn-outline-success btn-sm" onclick="event.stopPropagation(); manager.viewDashboard('${dashboard.id}')">
+                <i class="fas fa-eye"></i> View
+              </button>
+              <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation(); manager.deleteDashboard('${dashboard.id}', '${dashboard.displayName.replace(/'/g, "\\'")}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      updateCounter() {
+        document.getElementById('itemCount').textContent = this.filteredDashboards.length;
+      }
+
+      getStatusBadgeClass(status) {
+        const classes = {
+          draft: 'warning',
+          published: 'success',
+          archived: 'secondary'
+        };
+        return classes[status] || 'secondary';
+      }
+
+      formatDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now - date;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+        if (days === 0) return 'Today';
+        if (days === 1) return 'Yesterday';
+        if (days < 7) return `${days}d ago`;
+        if (days < 30) return `${Math.floor(days / 7)}w ago`;
+        if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+        return `${Math.floor(days / 365)}y ago`;
+      }
+
+      formatTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+
+      createDashboard() {
+        window.location.href = `/lowcode/dashboards/new?appId=${appId}`;
+      }
+
+      editDashboard(dashboardId) {
+        window.location.href = `/lowcode/dashboards/${dashboardId}/designer?appId=${appId}`;
+      }
+
+      viewDashboard(dashboardId) {
+        window.location.href = `/lowcode/dashboards/${dashboardId}/view?appId=${appId}`;
+      }
+
+      async deleteDashboard(dashboardId, dashboardName) {
+        if (!confirm(`Are you sure you want to delete "${dashboardName}"?`)) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`/lowcode/api/dashboards/${dashboardId}`, {
+            method: 'DELETE'
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            await this.loadDashboards();
+          } else {
+            alert('Failed to delete dashboard: ' + data.message);
+          }
+        } catch (error) {
+          console.error('Error deleting dashboard:', error);
+          alert('An error occurred while deleting the dashboard');
+        }
+      }
+    }
+
+    // Initialize manager when page loads
+    const manager = new DashboardsManager();
+  </script>
+</body>
+</html>

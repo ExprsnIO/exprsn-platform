@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Application Flow Designer - <%= appName || 'Exprsn Low-Code' %></title>
+
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --sidebar-width: 280px;
+      --toolbar-height: 56px;
+      --properties-width: 320px;
+      --primary-color: #667eea;
+      --secondary-color: #764ba2;
+      --border-color: #e2e8f0;
+      --bg-color: #f8fafc;
+      --text-color: #1e293b;
+      --text-muted: #64748b;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --danger-color: #ef4444;
+      --info-color: #3b82f6;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      overflow: hidden;
+      background: var(--bg-color);
+    }
+
+    .flow-designer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════════════════════ */
+    .flow-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: white;
+      padding: 0 1.5rem;
+      height: var(--toolbar-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 1000;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-left h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .breadcrumb {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+      font-size: 0.875rem;
+    }
+
+    .breadcrumb-item {
+      color: rgba(255,255,255,0.8);
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+      color: rgba(255,255,255,0.6);
+      content: "/";
+    }
+
+    .breadcrumb-item.active {
+      color: white;
+    }
+
+    .breadcrumb-item a {
+      color: rgba(255,255,255,0.9);
+      text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+      color: white;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       MAIN BODY
+       ═══════════════════════════════════════════════════════════ */
+    .flow-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       LEFT SIDEBAR - NODE PALETTE
+       ═══════════════════════════════════════════════════════════ */
+    .node-palette {
+      width: var(--sidebar-width);
+      background: white;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .palette-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .palette-header h3 {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text-color);
+    }
+
+    .palette-search {
+      margin-top: 0.75rem;
+    }
+
+    .palette-search input {
+      width: 100%;
+      padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    .palette-search input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 1.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .palette-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .palette-category {
+      margin-bottom: 1.5rem;
+    }
+
+    .category-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .palette-node {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      cursor: grab;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .palette-node:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .palette-node:active {
+      cursor: grabbing;
+    }
+
+    .node-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .node-icon.start { background: linear-gradient(135deg, #10b981, #059669); }
+    .node-icon.screen { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .node-icon.decision { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .node-icon.action { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .node-icon.end { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .node-icon.form { background: linear-gradient(135deg, #ec4899, #db2777); }
+    .node-icon.grid { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+    .node-icon.dashboard { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+
+    .node-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .node-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-color);
+      margin: 0;
+    }
+
+    .node-description {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin: 0.25rem 0 0 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       CENTER - FLOW CANVAS
+       ═══════════════════════════════════════════════════════════ */
+    .canvas-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-color);
+      min-width: 0;
+      position: relative;
+    }
+
+    .canvas-toolbar {
+      background: white;
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .toolbar-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border-color);
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+    }
+
+    .toolbar-btn:hover {
+      background: var(--bg-color);
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    .toolbar-btn.active {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+      color: white;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-color);
+    }
+
+    .zoom-control {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0 0.5rem;
+    }
+
+    .zoom-label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      min-width: 50px;
+      text-align: center;
+    }
+
+    .canvas-viewport {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      background:
+        linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    .canvas {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-origin: 0 0;
+      transition: transform 0.1s ease-out;
+    }
+
+    .canvas.panning {
+      cursor: grabbing;
+    }
+
+    /* Flow Nodes */
+    .flow-node {
+      position: absolute;
+      background: white;
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      min-width: 180px;
+      cursor: move;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .flow-node:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      z-index: 10;
+    }
+
+    .flow-node.selected {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+      z-index: 20;
+    }
+
+    .flow-node.start { border-color: #10b981; }
+    .flow-node.end { border-color: #ef4444; }
+    .flow-node.decision { border-color: #f59e0b; border-radius: 50%; padding: 1.5rem; min-width: 120px; }
+
+    .flow-node-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .flow-node-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: white;
+    }
+
+    .flow-node-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-color);
+      flex: 1;
+    }
+
+    .flow-node-content {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .flow-node-actions {
+      display: none;
+      position: absolute;
+      top: -28px;
+      right: 0;
+      gap: 2px;
+    }
+
+    .flow-node.selected .flow-node-actions,
+    .flow-node:hover .flow-node-actions {
+      display: flex;
+    }
+
+    .node-action-btn {
+      width: 24px;
+      height: 24px;
+      background: var(--primary-color);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .node-action-btn:hover {
+      background: var(--secondary-color);
+      transform: scale(1.1);
+    }
+
+    /* Connection Points */
+    .connection-point {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: white;
+      border: 2px solid var(--primary-color);
+      border-radius: 50%;
+      cursor: crosshair;
+      transition: all 0.2s;
+    }
+
+    .connection-point:hover {
+      transform: scale(1.3);
+      background: var(--primary-color);
+    }
+
+    .connection-point.top {
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .connection-point.right {
+      right: -6px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .connection-point.bottom {
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .connection-point.left {
+      left: -6px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    /* SVG Connections */
+    .connections-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .connection-line {
+      stroke: var(--primary-color);
+      stroke-width: 2;
+      fill: none;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+
+    .connection-line:hover {
+      stroke: var(--secondary-color);
+      stroke-width: 3;
+    }
+
+    .connection-line.selected {
+      stroke: var(--success-color);
+      stroke-width: 3;
+    }
+
+    .connection-arrow {
+      fill: var(--primary-color);
+    }
+
+    .connection-label {
+      font-size: 0.75rem;
+      fill: var(--text-muted);
+      pointer-events: none;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       RIGHT SIDEBAR - PROPERTIES PANEL
+       ═══════════════════════════════════════════════════════════ */
+    .properties-panel {
+      width: var(--properties-width);
+      background: white;
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .properties-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .properties-header h3 {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text-color);
+    }
+
+    .properties-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .property-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .property-group-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .property-field {
+      margin-bottom: 1rem;
+    }
+
+    .property-label {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-color);
+      margin-bottom: 0.375rem;
+      display: block;
+    }
+
+    .property-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    .property-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .property-select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: white;
+      cursor: pointer;
+    }
+
+    .property-select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    .empty-state {
+      padding: 3rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-state h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-color);
+    }
+
+    .empty-state p {
+      font-size: 0.875rem;
+      margin: 0;
+    }
+
+    /* Minimap */
+    .minimap {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      width: 200px;
+      height: 150px;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 100;
+    }
+
+    .minimap-viewport {
+      position: absolute;
+      border: 2px solid var(--primary-color);
+      background: rgba(102, 126, 234, 0.1);
+      cursor: move;
+    }
+  </style>
+</head>
+<body>
+  <div class="flow-designer-container">
+    <!-- ═══════════════════════════════════════════════════════
+         HEADER
+         ═══════════════════════════════════════════════════════ -->
+    <div class="flow-header">
+      <div class="header-left">
+        <h1>
+          <i class="fa fa-diagram-project"></i>
+          Application Flow Designer
+        </h1>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/lowcode/applications">Applications</a></li>
+            <li class="breadcrumb-item"><a href="/lowcode/designer?appId=<%= appId %>"><%= appName || 'Application' %></a></li>
+            <li class="breadcrumb-item active">Flow Designer</li>
+          </ol>
+        </nav>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-sm btn-light" id="btn-validate">
+          <i class="bi bi-check-circle"></i> Validate
+        </button>
+        <button class="btn btn-sm btn-light" id="btn-test">
+          <i class="bi bi-play-circle"></i> Test Flow
+        </button>
+        <button class="btn btn-sm btn-success" id="btn-save">
+          <i class="bi bi-save"></i> Save
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MAIN BODY
+         ═══════════════════════════════════════════════════════ -->
+    <div class="flow-body">
+      <!-- Left Sidebar - Node Palette -->
+      <div class="node-palette">
+        <div class="palette-header">
+          <h3>Flow Nodes</h3>
+          <div class="palette-search" style="position: relative;">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" id="nodeSearch" placeholder="Search nodes...">
+          </div>
+        </div>
+
+        <div class="palette-content">
+          <!-- Flow Control Nodes -->
+          <div class="palette-category">
+            <div class="category-title">Flow Control</div>
+
+            <div class="palette-node" draggable="true" data-node-type="start">
+              <div class="node-icon start">
+                <i class="fa fa-play"></i>
+              </div>
+              <div class="node-info">
+                <h4 class="node-name">Start</h4>
+                <p class="node-description">Entry point</p>
+              </div>
+            </div>
+
+            <div class="palette-node" draggable="true" data-node-type="decision">
+              <div class="node-icon decision">
+                <i class="fa fa-code-branch"></i>
+              </div>
+              <div class="node-info">
+                <h4 class="node-name">Decision</h4>
+                <p class="node-description">Conditional routing</p>
+              </div>
+            </div>
+
+            <div class="palette-node" draggable="true" data-node-type="action">
+              <div class="node-icon action">
+                <i class="fa fa-bolt"></i>
+              </div>
+              <div class="node-info">
+                <h4 class="node-name">Action</h4>
+                <p class="node-description">Execute operation</p>
+              </div>
+            </div>
+
+            <div class="palette-node" draggable="true" data-node-type="end">
+              <div class="node-icon end">
+                <i class="fa fa-flag-checkered"></i>
+              </div>
+              <div class="node-info">
+                <h4 class="node-name">End</h4>
+                <p class="node-description">Exit point</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Screen Nodes -->
+          <div class="palette-category">
+            <div class="category-title">Screens & Pages</div>
+
+            <div class="palette-node" draggable="true" data-node-type="screen">
+              <div class="node-icon screen">
+                <i class="fa fa-window-maximize"></i>
+              </div>
+              <div class="node-info">
+                <h4 class="node-name">Screen</h4>
+                <p class="node-description">Generic screen</p>
+              </div>
+            </div>
+
+            <div class="palette-node" draggable="true" data-node-type="form">
+              <div class="node-icon form">
+                <i class="fa fa-wpforms"></i>
+              </div>
+              <div class="node-info">
+                <h4 class="node-name">Form Screen</h4>
+                <p class="node-description">Link to form</p>
+              </div>
+            </div>
+
+            <div class="palette-node" draggable="true" data-node-type="grid">
+              <div class="node-icon grid">
+                <i class="fa fa-table"></i>
+              </div>
+              <div class="node-info">
+                <h4 class="node-name">Grid Screen</h4>
+                <p class="node-description">Link to data grid</p>
+              </div>
+            </div>
+
+            <div class="palette-node" draggable="true" data-node-type="dashboard">
+              <div class="node-icon dashboard">
+                <i class="fa fa-chart-line"></i>
+              </div>
+              <div class="node-info">
+                <h4 class="node-name">Dashboard</h4>
+                <p class="node-description">Link to dashboard</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center - Canvas Area -->
+      <div class="canvas-area">
+        <div class="canvas-toolbar">
+          <div class="toolbar-group">
+            <button class="toolbar-btn active" id="btn-select-tool" title="Select Tool">
+              <i class="bi bi-cursor"></i>
+            </button>
+            <button class="toolbar-btn" id="btn-hand-tool" title="Hand Tool (Space)">
+              <i class="bi bi-hand-index"></i>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="btn-delete" title="Delete Selected">
+              <i class="bi bi-trash"></i>
+            </button>
+            <button class="toolbar-btn" id="btn-duplicate" title="Duplicate">
+              <i class="bi bi-files"></i>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="btn-align-left" title="Align Left">
+              <i class="bi bi-align-start"></i>
+            </button>
+            <button class="toolbar-btn" id="btn-align-center" title="Align Center">
+              <i class="bi bi-align-center"></i>
+            </button>
+            <button class="toolbar-btn" id="btn-align-right" title="Align Right">
+              <i class="bi bi-align-end"></i>
+            </button>
+          </div>
+
+          <div class="toolbar-group">
+            <div class="zoom-control">
+              <button class="toolbar-btn" id="btn-zoom-out">
+                <i class="bi bi-dash"></i>
+              </button>
+              <span class="zoom-label" id="zoomLabel">100%</span>
+              <button class="toolbar-btn" id="btn-zoom-in">
+                <i class="bi bi-plus"></i>
+              </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="btn-fit-screen" title="Fit to Screen">
+              <i class="bi bi-arrows-angle-contract"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="canvas-viewport" id="canvasViewport">
+          <div class="canvas" id="canvas">
+            <svg class="connections-layer" id="connectionsLayer">
+              <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                  <polygon points="0 0, 10 3, 0 6" class="connection-arrow" />
+                </marker>
+              </defs>
+            </svg>
+            <!-- Nodes will be added here dynamically -->
+          </div>
+        </div>
+
+        <!-- Minimap -->
+        <div class="minimap" id="minimap">
+          <canvas id="minimapCanvas" width="200" height="150"></canvas>
+          <div class="minimap-viewport" id="minimapViewport"></div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar - Properties Panel -->
+      <div class="properties-panel">
+        <div class="properties-header">
+          <h3>Properties</h3>
+        </div>
+        <div class="properties-content" id="propertiesContent">
+          <div class="empty-state">
+            <i class="bi bi-sliders"></i>
+            <h4>No Selection</h4>
+            <p>Select a node or connection to view its properties</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    /**
+     * ═══════════════════════════════════════════════════════════
+     * Application Flow Designer - Main Controller
+     * ═══════════════════════════════════════════════════════════
+     */
+    (function() {
+      'use strict';
+
+      const state = {
+        appId: '<%= appId %>',
+        nodes: [],
+        connections: [],
+        selectedNode: null,
+        selectedConnection: null,
+        zoom: 1.0,
+        panX: 0,
+        panY: 0,
+        draggedNode: null,
+        connectingFrom: null,
+        isDragging: false,
+        isPanning: false,
+        history: [],
+        historyIndex: -1
+      };
+
+      let nodeIdCounter = 1;
+      let connectionIdCounter = 1;
+
+      // ─────────────────────────────────────────────────────────
+      // Initialize
+      // ─────────────────────────────────────────────────────────
+      function init() {
+        console.log('[FlowDesigner] Initializing...');
+
+        setupEventHandlers();
+        setupDragAndDrop();
+        setupCanvas();
+        setupKeyboardShortcuts();
+
+        // Add initial start node
+        addNode('start', 100, 100, { title: 'Application Start' });
+
+        console.log('[FlowDesigner] Ready');
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Setup Event Handlers
+      // ─────────────────────────────────────────────────────────
+      function setupEventHandlers() {
+        // Toolbar buttons
+        document.getElementById('btn-select-tool').addEventListener('click', () => setTool('select'));
+        document.getElementById('btn-hand-tool').addEventListener('click', () => setTool('hand'));
+        document.getElementById('btn-delete').addEventListener('click', deleteSelected);
+        document.getElementById('btn-duplicate').addEventListener('click', duplicateSelected);
+        document.getElementById('btn-zoom-in').addEventListener('click', () => zoomCanvas(state.zoom + 0.1));
+        document.getElementById('btn-zoom-out').addEventListener('click', () => zoomCanvas(state.zoom - 0.1));
+        document.getElementById('btn-fit-screen').addEventListener('click', fitToScreen);
+
+        // Header actions
+        document.getElementById('btn-save').addEventListener('click', saveFlow);
+        document.getElementById('btn-validate').addEventListener('click', validateFlow);
+        document.getElementById('btn-test').addEventListener('click', testFlow);
+
+        // Node search
+        document.getElementById('nodeSearch').addEventListener('input', filterNodes);
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Drag and Drop
+      // ─────────────────────────────────────────────────────────
+      function setupDragAndDrop() {
+        const paletteNodes = document.querySelectorAll('.palette-node[draggable="true"]');
+
+        paletteNodes.forEach(node => {
+          node.addEventListener('dragstart', (e) => {
+            const nodeType = e.currentTarget.dataset.nodeType;
+            e.dataTransfer.setData('nodeType', nodeType);
+            e.dataTransfer.effectAllowed = 'copy';
+          });
+        });
+
+        const viewport = document.getElementById('canvasViewport');
+        viewport.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        });
+
+        viewport.addEventListener('drop', (e) => {
+          e.preventDefault();
+          const nodeType = e.dataTransfer.getData('nodeType');
+          if (!nodeType) return;
+
+          const rect = viewport.getBoundingClientRect();
+          const x = (e.clientX - rect.left - state.panX) / state.zoom;
+          const y = (e.clientY - rect.top - state.panY) / state.zoom;
+
+          addNode(nodeType, x, y);
+        });
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Canvas Setup
+      // ─────────────────────────────────────────────────────────
+      function setupCanvas() {
+        const viewport = document.getElementById('canvasViewport');
+        const canvas = document.getElementById('canvas');
+
+        let startX, startY, startPanX, startPanY;
+
+        viewport.addEventListener('mousedown', (e) => {
+          if (e.button === 1 || e.spaceKey || e.target.closest('.toolbar-btn#btn-hand-tool.active')) {
+            state.isPanning = true;
+            canvas.classList.add('panning');
+            startX = e.clientX;
+            startY = e.clientY;
+            startPanX = state.panX;
+            startPanY = state.panY;
+            e.preventDefault();
+          }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (state.isPanning) {
+            state.panX = startPanX + (e.clientX - startX);
+            state.panY = startPanY + (e.clientY - startY);
+            updateCanvasTransform();
+          }
+        });
+
+        document.addEventListener('mouseup', () => {
+          if (state.isPanning) {
+            state.isPanning = false;
+            canvas.classList.remove('panning');
+          }
+        });
+
+        // Zoom with mouse wheel
+        viewport.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? -0.1 : 0.1;
+          zoomCanvas(state.zoom + delta);
+        });
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Add Node
+      // ─────────────────────────────────────────────────────────
+      function addNode(type, x, y, options = {}) {
+        const node = {
+          id: `node-${nodeIdCounter++}`,
+          type: type,
+          x: x,
+          y: y,
+          title: options.title || type.charAt(0).toUpperCase() + type.slice(1),
+          properties: { ...options }
+        };
+
+        state.nodes.push(node);
+        renderNode(node);
+        saveToHistory();
+        return node;
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Render Node
+      // ─────────────────────────────────────────────────────────
+      function renderNode(node) {
+        const canvas = document.getElementById('canvas');
+        const el = document.createElement('div');
+        el.className = `flow-node ${node.type}`;
+        el.id = node.id;
+        el.style.left = node.x + 'px';
+        el.style.top = node.y + 'px';
+
+        const iconMap = {
+          start: 'fa-play',
+          screen: 'fa-window-maximize',
+          decision: 'fa-code-branch',
+          action: 'fa-bolt',
+          end: 'fa-flag-checkered',
+          form: 'fa-wpforms',
+          grid: 'fa-table',
+          dashboard: 'fa-chart-line'
+        };
+
+        el.innerHTML = `
+          <div class="flow-node-actions">
+            <button class="node-action-btn" data-action="delete" title="Delete">
+              <i class="bi bi-trash"></i>
+            </button>
+            <button class="node-action-btn" data-action="duplicate" title="Duplicate">
+              <i class="bi bi-files"></i>
+            </button>
+          </div>
+          <div class="flow-node-header">
+            <div class="flow-node-icon node-icon ${node.type}">
+              <i class="fa ${iconMap[node.type] || 'fa-square'}"></i>
+            </div>
+            <div class="flow-node-title">${node.title}</div>
+          </div>
+          <div class="flow-node-content">
+            ${node.type === 'decision' ? 'If condition...' : node.properties.description || 'Configure in properties'}
+          </div>
+          <div class="connection-point top" data-direction="top"></div>
+          <div class="connection-point right" data-direction="right"></div>
+          <div class="connection-point bottom" data-direction="bottom"></div>
+          <div class="connection-point left" data-direction="left"></div>
+        `;
+
+        // Click to select
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectNode(node);
+        });
+
+        // Make draggable
+        let isDragging = false;
+        let dragStartX, dragStartY, nodeStartX, nodeStartY;
+
+        el.addEventListener('mousedown', (e) => {
+          if (e.target.closest('.node-action-btn') || e.target.closest('.connection-point')) return;
+
+          isDragging = true;
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          nodeStartX = node.x;
+          nodeStartY = node.y;
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (isDragging) {
+            const dx = (e.clientX - dragStartX) / state.zoom;
+            const dy = (e.clientY - dragStartY) / state.zoom;
+            node.x = nodeStartX + dx;
+            node.y = nodeStartY + dy;
+            el.style.left = node.x + 'px';
+            el.style.top = node.y + 'px';
+            updateConnections();
+          }
+        });
+
+        document.addEventListener('mouseup', () => {
+          if (isDragging) {
+            isDragging = false;
+            saveToHistory();
+          }
+        });
+
+        // Action buttons
+        el.querySelectorAll('.node-action-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const action = btn.dataset.action;
+            if (action === 'delete') {
+              deleteNode(node);
+            } else if (action === 'duplicate') {
+              duplicateNode(node);
+            }
+          });
+        });
+
+        // Connection points
+        el.querySelectorAll('.connection-point').forEach(point => {
+          point.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            startConnection(node, point.dataset.direction);
+          });
+        });
+
+        canvas.appendChild(el);
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Select Node
+      // ─────────────────────────────────────────────────────────
+      function selectNode(node) {
+        // Deselect previous
+        document.querySelectorAll('.flow-node.selected').forEach(n => n.classList.remove('selected'));
+
+        state.selectedNode = node;
+        state.selectedConnection = null;
+
+        document.getElementById(node.id).classList.add('selected');
+        showNodeProperties(node);
+      }
+
+      function showNodeProperties(node) {
+        const panel = document.getElementById('propertiesContent');
+
+        let html = `
+          <div class="property-group">
+            <div class="property-group-title">Node Info</div>
+            <div class="property-field">
+              <label class="property-label">Title</label>
+              <input type="text" class="property-input" value="${node.title}" data-property="title">
+            </div>
+            <div class="property-field">
+              <label class="property-label">Type</label>
+              <input type="text" class="property-input" value="${node.type}" disabled>
+            </div>
+          </div>
+        `;
+
+        if (node.type === 'screen' || node.type === 'form' || node.type === 'grid' || node.type === 'dashboard') {
+          html += `
+            <div class="property-group">
+              <div class="property-group-title">Screen Configuration</div>
+              <div class="property-field">
+                <label class="property-label">Link To</label>
+                <select class="property-select" data-property="linkTo">
+                  <option value="">Select ${node.type}...</option>
+                  <option value="1">Sample ${node.type} 1</option>
+                  <option value="2">Sample ${node.type} 2</option>
+                </select>
+              </div>
+              <div class="property-field">
+                <label class="property-label">Description</label>
+                <textarea class="property-input" rows="3" data-property="description">${node.properties.description || ''}</textarea>
+              </div>
+            </div>
+          `;
+        }
+
+        if (node.type === 'decision') {
+          html += `
+            <div class="property-group">
+              <div class="property-group-title">Decision Logic</div>
+              <div class="property-field">
+                <label class="property-label">Condition Field</label>
+                <input type="text" class="property-input" value="${node.properties.conditionField || ''}" data-property="conditionField">
+              </div>
+              <div class="property-field">
+                <label class="property-label">Operator</label>
+                <select class="property-select" data-property="operator">
+                  <option value="equals">Equals</option>
+                  <option value="not-equals">Not Equals</option>
+                  <option value="greater-than">Greater Than</option>
+                  <option value="less-than">Less Than</option>
+                  <option value="contains">Contains</option>
+                </select>
+              </div>
+              <div class="property-field">
+                <label class="property-label">Value</label>
+                <input type="text" class="property-input" value="${node.properties.conditionValue || ''}" data-property="conditionValue">
+              </div>
+            </div>
+          `;
+        }
+
+        panel.innerHTML = html;
+
+        // Setup property change handlers
+        panel.querySelectorAll('[data-property]').forEach(input => {
+          input.addEventListener('input', (e) => {
+            const prop = e.target.dataset.property;
+            const value = e.target.value;
+
+            if (prop === 'title') {
+              node.title = value;
+              document.querySelector(`#${node.id} .flow-node-title`).textContent = value;
+            } else {
+              node.properties[prop] = value;
+            }
+
+            saveToHistory();
+          });
+        });
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Connections
+      // ─────────────────────────────────────────────────────────
+      function startConnection(fromNode, fromDirection) {
+        state.connectingFrom = { node: fromNode, direction: fromDirection };
+
+        // Add temporary connection line that follows mouse
+        const svg = document.getElementById('connectionsLayer');
+        const tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        tempLine.setAttribute('id', 'temp-connection');
+        tempLine.setAttribute('class', 'connection-line');
+        tempLine.setAttribute('stroke-dasharray', '5,5');
+        svg.appendChild(tempLine);
+
+        const mousemove = (e) => {
+          const rect = svg.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / state.zoom;
+          const y = (e.clientY - rect.top) / state.zoom;
+
+          const fromPoint = getNodeConnectionPoint(fromNode, fromDirection);
+          tempLine.setAttribute('d', `M ${fromPoint.x} ${fromPoint.y} L ${x} ${y}`);
+        };
+
+        const mouseup = (e) => {
+          document.removeEventListener('mousemove', mousemove);
+          document.removeEventListener('mouseup', mouseup);
+          tempLine.remove();
+
+          // Check if we're over a connection point
+          const target = e.target;
+          if (target.classList.contains('connection-point')) {
+            const toNodeEl = target.closest('.flow-node');
+            const toNode = state.nodes.find(n => n.id === toNodeEl.id);
+            const toDirection = target.dataset.direction;
+
+            if (toNode && toNode !== fromNode) {
+              addConnection(fromNode, fromDirection, toNode, toDirection);
+            }
+          }
+
+          state.connectingFrom = null;
+        };
+
+        document.addEventListener('mousemove', mousemove);
+        document.addEventListener('mouseup', mouseup);
+      }
+
+      function addConnection(fromNode, fromDir, toNode, toDir) {
+        const connection = {
+          id: `connection-${connectionIdCounter++}`,
+          from: fromNode.id,
+          fromDirection: fromDir,
+          to: toNode.id,
+          toDirection: toDir,
+          label: ''
+        };
+
+        state.connections.push(connection);
+        renderConnection(connection);
+        saveToHistory();
+      }
+
+      function renderConnection(connection) {
+        const svg = document.getElementById('connectionsLayer');
+        const fromNode = state.nodes.find(n => n.id === connection.from);
+        const toNode = state.nodes.find(n => n.id === connection.to);
+
+        if (!fromNode || !toNode) return;
+
+        const fromPoint = getNodeConnectionPoint(fromNode, connection.fromDirection);
+        const toPoint = getNodeConnectionPoint(toNode, connection.toDirection);
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('id', connection.id);
+        path.setAttribute('class', 'connection-line');
+        path.setAttribute('marker-end', 'url(#arrowhead)');
+        path.setAttribute('d', createBezierPath(fromPoint, toPoint));
+
+        path.addEventListener('click', () => {
+          selectConnection(connection);
+        });
+
+        svg.appendChild(path);
+      }
+
+      function updateConnections() {
+        state.connections.forEach(connection => {
+          const path = document.getElementById(connection.id);
+          if (!path) return;
+
+          const fromNode = state.nodes.find(n => n.id === connection.from);
+          const toNode = state.nodes.find(n => n.id === connection.to);
+
+          if (!fromNode || !toNode) return;
+
+          const fromPoint = getNodeConnectionPoint(fromNode, connection.fromDirection);
+          const toPoint = getNodeConnectionPoint(toNode, connection.toDirection);
+
+          path.setAttribute('d', createBezierPath(fromPoint, toPoint));
+        });
+      }
+
+      function getNodeConnectionPoint(node, direction) {
+        const el = document.getElementById(node.id);
+        if (!el) return { x: 0, y: 0 };
+
+        const rect = el.getBoundingClientRect();
+        const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+
+        const x = (rect.left - canvasRect.left) / state.zoom;
+        const y = (rect.top - canvasRect.top) / state.zoom;
+        const w = rect.width / state.zoom;
+        const h = rect.height / state.zoom;
+
+        switch(direction) {
+          case 'top': return { x: x + w/2, y: y };
+          case 'right': return { x: x + w, y: y + h/2 };
+          case 'bottom': return { x: x + w/2, y: y + h };
+          case 'left': return { x: x, y: y + h/2 };
+          default: return { x: x + w/2, y: y + h/2 };
+        }
+      }
+
+      function createBezierPath(from, to) {
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const offset = Math.min(distance / 2, 100);
+
+        return `M ${from.x} ${from.y} C ${from.x + offset} ${from.y}, ${to.x - offset} ${to.y}, ${to.x} ${to.y}`;
+      }
+
+      function selectConnection(connection) {
+        document.querySelectorAll('.connection-line.selected').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('.flow-node.selected').forEach(n => n.classList.remove('selected'));
+
+        state.selectedConnection = connection;
+        state.selectedNode = null;
+
+        document.getElementById(connection.id).classList.add('selected');
+        showConnectionProperties(connection);
+      }
+
+      function showConnectionProperties(connection) {
+        const panel = document.getElementById('propertiesContent');
+
+        panel.innerHTML = `
+          <div class="property-group">
+            <div class="property-group-title">Connection Info</div>
+            <div class="property-field">
+              <label class="property-label">Label</label>
+              <input type="text" class="property-input" value="${connection.label || ''}" data-property="label">
+            </div>
+            <div class="property-field">
+              <label class="property-label">Condition (optional)</label>
+              <textarea class="property-input" rows="3" data-property="condition">${connection.condition || ''}</textarea>
+            </div>
+          </div>
+        `;
+
+        panel.querySelectorAll('[data-property]').forEach(input => {
+          input.addEventListener('input', (e) => {
+            connection[e.target.dataset.property] = e.target.value;
+            saveToHistory();
+          });
+        });
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Node Operations
+      // ─────────────────────────────────────────────────────────
+      function deleteNode(node) {
+        if (confirm('Delete this node?')) {
+          // Remove connections
+          state.connections = state.connections.filter(c => c.from !== node.id && c.to !== node.id);
+          state.connections.forEach(c => {
+            const el = document.getElementById(c.id);
+            if (el) el.remove();
+          });
+
+          // Remove node
+          state.nodes = state.nodes.filter(n => n.id !== node.id);
+          document.getElementById(node.id).remove();
+
+          state.selectedNode = null;
+          showEmptyProperties();
+          saveToHistory();
+        }
+      }
+
+      function duplicateNode(node) {
+        addNode(node.type, node.x + 50, node.y + 50, {
+          ...node.properties,
+          title: node.title + ' (copy)'
+        });
+      }
+
+      function deleteSelected() {
+        if (state.selectedNode) {
+          deleteNode(state.selectedNode);
+        } else if (state.selectedConnection) {
+          state.connections = state.connections.filter(c => c.id !== state.selectedConnection.id);
+          document.getElementById(state.selectedConnection.id).remove();
+          state.selectedConnection = null;
+          showEmptyProperties();
+          saveToHistory();
+        }
+      }
+
+      function duplicateSelected() {
+        if (state.selectedNode) {
+          duplicateNode(state.selectedNode);
+        }
+      }
+
+      function showEmptyProperties() {
+        document.getElementById('propertiesContent').innerHTML = `
+          <div class="empty-state">
+            <i class="bi bi-sliders"></i>
+            <h4>No Selection</h4>
+            <p>Select a node or connection to view its properties</p>
+          </div>
+        `;
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Canvas Operations
+      // ─────────────────────────────────────────────────────────
+      function updateCanvasTransform() {
+        const canvas = document.getElementById('canvas');
+        canvas.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+        document.getElementById('zoomLabel').textContent = Math.round(state.zoom * 100) + '%';
+      }
+
+      function zoomCanvas(newZoom) {
+        state.zoom = Math.max(0.1, Math.min(2.0, newZoom));
+        updateCanvasTransform();
+      }
+
+      function fitToScreen() {
+        // TODO: Calculate bounds and fit
+        state.zoom = 1.0;
+        state.panX = 0;
+        state.panY = 0;
+        updateCanvasTransform();
+      }
+
+      function setTool(tool) {
+        document.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+        if (tool === 'select') {
+          document.getElementById('btn-select-tool').classList.add('active');
+        } else if (tool === 'hand') {
+          document.getElementById('btn-hand-tool').classList.add('active');
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // History
+      // ─────────────────────────────────────────────────────────
+      function saveToHistory() {
+        const snapshot = {
+          nodes: JSON.parse(JSON.stringify(state.nodes)),
+          connections: JSON.parse(JSON.stringify(state.connections))
+        };
+
+        state.history = state.history.slice(0, state.historyIndex + 1);
+        state.history.push(snapshot);
+        state.historyIndex++;
+
+        if (state.history.length > 50) {
+          state.history.shift();
+          state.historyIndex--;
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Keyboard Shortcuts
+      // ─────────────────────────────────────────────────────────
+      function setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+          if ((e.key === 'Delete' || e.key === 'Backspace') && (state.selectedNode || state.selectedConnection)) {
+            e.preventDefault();
+            deleteSelected();
+          }
+
+          if ((e.metaKey || e.ctrlKey) && e.key === 'd' && state.selectedNode) {
+            e.preventDefault();
+            duplicateSelected();
+          }
+
+          if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+            e.preventDefault();
+            saveFlow();
+          }
+
+          if (e.key === ' ') {
+            e.preventDefault();
+            setTool('hand');
+          }
+        });
+
+        document.addEventListener('keyup', (e) => {
+          if (e.key === ' ') {
+            setTool('select');
+          }
+        });
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Filter Nodes
+      // ─────────────────────────────────────────────────────────
+      function filterNodes(e) {
+        const query = e.target.value.toLowerCase();
+        document.querySelectorAll('.palette-node').forEach(node => {
+          const name = node.querySelector('.node-name').textContent.toLowerCase();
+          node.style.display = name.includes(query) ? 'flex' : 'none';
+        });
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Save, Validate, Test
+      // ─────────────────────────────────────────────────────────
+      async function saveFlow() {
+        console.log('Saving flow...', state.nodes, state.connections);
+
+        try {
+          // TODO: Implement actual save
+          alert('Flow saved successfully!');
+        } catch (error) {
+          console.error('Save error:', error);
+          alert('Failed to save flow');
+        }
+      }
+
+      function validateFlow() {
+        const errors = [];
+
+        // Check for disconnected nodes
+        state.nodes.forEach(node => {
+          if (node.type !== 'start' && node.type !== 'end') {
+            const hasIncoming = state.connections.some(c => c.to === node.id);
+            const hasOutgoing = state.connections.some(c => c.from === node.id);
+
+            if (!hasIncoming && !hasOutgoing) {
+              errors.push(`Node "${node.title}" is not connected`);
+            }
+          }
+        });
+
+        // Check for start and end nodes
+        const hasStart = state.nodes.some(n => n.type === 'start');
+        const hasEnd = state.nodes.some(n => n.type === 'end');
+
+        if (!hasStart) errors.push('Flow must have a Start node');
+        if (!hasEnd) errors.push('Flow should have an End node');
+
+        if (errors.length > 0) {
+          alert('Validation Issues:\n\n' + errors.join('\n'));
+        } else {
+          alert('✓ Flow is valid!');
+        }
+      }
+
+      function testFlow() {
+        console.log('Testing flow...');
+        alert('Flow testing will simulate user navigation through the defined screens.');
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // Initialize on load
+      // ─────────────────────────────────────────────────────────
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+
+    })();
+  </script>
+</body>
+</html>

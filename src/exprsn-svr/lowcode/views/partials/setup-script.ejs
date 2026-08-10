@@ -1,0 +1,462 @@
+/**
+ * Setup Wizard JavaScript
+ */
+
+(function() {
+  'use strict';
+
+  let currentStep = 1;
+  const totalSteps = 4;
+  let dbConnected = false;
+  let dbInitialized = false;
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeWizard();
+    checkInitialStatus();
+  });
+
+  function initializeWizard() {
+    // Next button
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      if (validateCurrentStep()) {
+        if (currentStep === 1) {
+          saveEnvironment(() => {
+            nextStep();
+          });
+        } else {
+          nextStep();
+        }
+      }
+    });
+
+    // Previous button
+    document.getElementById('prevBtn').addEventListener('click', prevStep);
+
+    // Database buttons
+    document.getElementById('testDbBtn').addEventListener('click', testDatabase);
+    document.getElementById('initDbBtn').addEventListener('click', initializeDatabase);
+
+    // Complete setup button
+    document.getElementById('completeSetupBtn').addEventListener('click', completeSetup);
+
+    // Auto-generate secrets if empty
+    generateSecretsIfEmpty();
+  }
+
+  function generateSecretsIfEmpty() {
+    const sessionSecret = document.getElementById('sessionSecret');
+    const jwtSecret = document.getElementById('jwtSecret');
+
+    if (!sessionSecret.value) {
+      sessionSecret.value = generateRandomString(64);
+    }
+
+    if (!jwtSecret.value) {
+      jwtSecret.value = generateRandomString(64);
+    }
+  }
+
+  function generateRandomString(length) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  function checkInitialStatus() {
+    fetch('/lowcode/setup/status')
+      .then(res => res.json())
+      .then(data => {
+        console.log('[Setup] Initial status:', data);
+
+        // Pre-fill environment values if they exist
+        if (data.environment && data.environment.current) {
+          const env = data.environment.current;
+          if (env.NODE_ENV) document.getElementById('nodeEnv').value = env.NODE_ENV;
+          if (env.PORT) document.getElementById('port').value = env.PORT;
+          if (env.DB_HOST) document.getElementById('dbHost').value = env.DB_HOST;
+          if (env.DB_PORT) document.getElementById('dbPort').value = env.DB_PORT;
+          if (env.DB_NAME) document.getElementById('dbName').value = env.DB_NAME;
+          if (env.DB_USER) document.getElementById('dbUser').value = env.DB_USER;
+        }
+      })
+      .catch(err => console.error('[Setup] Error getting status:', err));
+  }
+
+  function validateCurrentStep() {
+    if (currentStep === 1) {
+      // Validate environment configuration (password is optional for local dev)
+      const required = ['dbHost', 'dbPort', 'dbName', 'dbUser'];
+      const missing = required.filter(id => !document.getElementById(id).value);
+
+      if (missing.length > 0) {
+        alert('Please fill in required database fields: ' + missing.join(', '));
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function saveEnvironment(callback) {
+    const config = {
+      NODE_ENV: document.getElementById('nodeEnv').value,
+      PORT: document.getElementById('port').value,
+      DB_HOST: document.getElementById('dbHost').value,
+      DB_PORT: document.getElementById('dbPort').value,
+      DB_NAME: document.getElementById('dbName').value,
+      DB_USER: document.getElementById('dbUser').value,
+      DB_PASSWORD: document.getElementById('dbPassword').value,
+      SESSION_SECRET: document.getElementById('sessionSecret').value,
+      JWT_SECRET: document.getElementById('jwtSecret').value
+    };
+
+    showLoading('Saving environment configuration...');
+
+    fetch('/lowcode/setup/environment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    })
+      .then(res => res.json())
+      .then(data => {
+        hideLoading();
+
+        if (data.success) {
+          showNotification('Environment configuration saved!', 'success');
+          if (callback) callback();
+        } else {
+          showNotification('Failed to save configuration: ' + data.error, 'danger');
+        }
+      })
+      .catch(err => {
+        hideLoading();
+        showNotification('Error saving configuration', 'danger');
+        console.error(err);
+      });
+  }
+
+  function testDatabase() {
+    const btn = document.getElementById('testDbBtn');
+    const initBtn = document.getElementById('initDbBtn');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Testing connection...';
+
+    fetch('/lowcode/setup/test-database', {
+      method: 'POST'
+    })
+      .then(res => res.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug"></i> Test Database Connection';
+
+        const statusHtml = renderDatabaseStatus(data);
+        document.getElementById('dbStatusContainer').innerHTML = statusHtml;
+
+        if (data.success) {
+          dbConnected = true;
+          initBtn.disabled = false;
+          showNotification('Database connection successful!', 'success');
+
+          if (data.tablesExist) {
+            dbInitialized = true;
+            showNotification('Database already initialized', 'info');
+          }
+        } else {
+          showNotification('Database connection failed: ' + data.error, 'danger');
+        }
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug"></i> Test Database Connection';
+        showNotification('Error testing database connection', 'danger');
+        console.error(err);
+      });
+  }
+
+  function renderDatabaseStatus(data) {
+    const statusClass = data.success ? 'success' : 'danger';
+    const statusIcon = data.success ? 'check-circle' : 'times-circle';
+
+    return `
+      <div class="config-group">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="status-badge ${statusClass}">
+            <i class="fas fa-${statusIcon}"></i>
+            ${data.success ? 'Connected' : 'Failed'}
+          </div>
+          ${data.success ? `
+            <span class="text-muted">${data.host} / ${data.database}</span>
+          ` : ''}
+        </div>
+
+        ${data.success ? `
+          <div class="row">
+            <div class="col-md-4">
+              <div class="info-card">
+                <div class="info-label">Tables</div>
+                <div class="info-value">${data.existingTables} / ${data.requiredTables}</div>
+              </div>
+            </div>
+            <div class="col-md-8">
+              <div class="info-card">
+                <div class="info-label">Status</div>
+                <div class="info-value ${data.tablesExist ? 'text-success' : 'text-warning'}">
+                  ${data.tablesExist ? 'Ready' : 'Needs Initialization'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          ${data.missingTables && data.missingTables.length > 0 ? `
+            <div class="alert alert-warning mt-3 mb-0">
+              <small><strong>Missing tables:</strong> ${data.missingTables.join(', ')}</small>
+            </div>
+          ` : ''}
+        ` : `
+          <div class="alert alert-danger mb-0">
+            <strong>Error:</strong> ${data.error}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  function initializeDatabase() {
+    const btn = document.getElementById('initDbBtn');
+
+    if (!confirm('This will create all required database tables. Continue?')) {
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Initializing...';
+
+    fetch('/lowcode/setup/initialize-database', {
+      method: 'POST'
+    })
+      .then(res => res.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-rocket"></i> Initialize Database';
+
+        if (data.success) {
+          dbInitialized = true;
+          showNotification('Database initialized successfully!', 'success');
+          testDatabase(); // Refresh status
+        } else {
+          showNotification('Database initialization failed: ' + data.error, 'danger');
+        }
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-rocket"></i> Initialize Database';
+        showNotification('Error initializing database', 'danger');
+        console.error(err);
+      });
+  }
+
+  function loadServices() {
+    fetch('/lowcode/setup/check-services')
+      .then(res => res.json())
+      .then(data => {
+        const servicesHtml = renderServicesStatus(data);
+        document.getElementById('servicesContainer').innerHTML = servicesHtml;
+      })
+      .catch(err => {
+        document.getElementById('servicesContainer').innerHTML = `
+          <div class="alert alert-danger">
+            Error checking services: ${err.message}
+          </div>
+        `;
+      });
+  }
+
+  function renderServicesStatus(data) {
+    if (!data.services || data.services.length === 0) {
+      return '<div class="alert alert-warning">No services configured</div>';
+    }
+
+    const servicesHtml = data.services.map(service => {
+      const statusClass = service.available ? 'success' : 'danger';
+      const statusIcon = service.available ? 'check-circle' : 'times-circle';
+
+      return `
+        <div class="service-status">
+          <div class="service-info">
+            <div class="service-icon">
+              <i class="fas fa-server"></i>
+            </div>
+            <div>
+              <strong>${service.name}</strong>
+              <div class="text-muted small">${service.url}</div>
+            </div>
+          </div>
+          <div class="status-badge ${statusClass}">
+            <i class="fas fa-${statusIcon}"></i>
+            ${service.available ? 'Online' : 'Offline'}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const summary = `
+      <div class="alert alert-${data.available > 0 ? 'success' : 'warning'} mb-4">
+        <strong>${data.available} of ${data.total} services are online</strong>
+      </div>
+    `;
+
+    return summary + servicesHtml;
+  }
+
+  function loadSystemInfo() {
+    fetch('/lowcode/setup/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.systemInfo) {
+          const systemHtml = renderSystemInfo(data.systemInfo);
+          document.getElementById('systemInfoContainer').innerHTML = systemHtml;
+        }
+      })
+      .catch(err => console.error('[Setup] Error loading system info:', err));
+  }
+
+  function renderSystemInfo(info) {
+    return `
+      <div class="system-info-grid">
+        <div class="info-card">
+          <div class="info-label">Platform</div>
+          <div class="info-value">${info.platform}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Architecture</div>
+          <div class="info-value">${info.arch}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Node Version</div>
+          <div class="info-value">${info.nodeVersion}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">CPU Cores</div>
+          <div class="info-value">${info.cpus}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Total Memory</div>
+          <div class="info-value">${info.totalMemory}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Free Memory</div>
+          <div class="info-value">${info.freeMemory}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function completeSetup() {
+    const btn = document.getElementById('completeSetupBtn');
+    const options = {
+      initializeDatabase: !dbInitialized,
+      createSampleApp: document.getElementById('createSampleApp').checked
+    };
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Completing setup...';
+
+    fetch('/lowcode/setup/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options)
+    })
+      .then(res => res.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-rocket"></i> Complete Setup';
+
+        if (data.success) {
+          document.getElementById('completeSetupBtn').style.display = 'none';
+          document.getElementById('completionMessage').style.display = 'block';
+          showNotification('Setup completed successfully!', 'success');
+        } else {
+          showNotification('Setup failed: ' + data.error, 'danger');
+        }
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-rocket"></i> Complete Setup';
+        showNotification('Error completing setup', 'danger');
+        console.error(err);
+      });
+  }
+
+  function nextStep() {
+    if (currentStep < totalSteps) {
+      // Hide current step
+      document.getElementById(`step${currentStep}`).classList.remove('active');
+      document.querySelector(`.progress-step[data-step="${currentStep}"]`).classList.remove('active');
+      document.querySelector(`.progress-step[data-step="${currentStep}"]`).classList.add('completed');
+
+      currentStep++;
+
+      // Show next step
+      document.getElementById(`step${currentStep}`).classList.add('active');
+      document.querySelector(`.progress-step[data-step="${currentStep}"]`).classList.add('active');
+
+      // Update buttons
+      document.getElementById('prevBtn').disabled = false;
+      document.getElementById('nextBtn').style.display = currentStep === totalSteps ? 'none' : 'inline-block';
+
+      // Load step-specific data
+      if (currentStep === 3) {
+        loadServices();
+      } else if (currentStep === 4) {
+        loadSystemInfo();
+      }
+    }
+  }
+
+  function prevStep() {
+    if (currentStep > 1) {
+      // Hide current step
+      document.getElementById(`step${currentStep}`).classList.remove('active');
+      document.querySelector(`.progress-step[data-step="${currentStep}"]`).classList.remove('active');
+
+      currentStep--;
+
+      // Show previous step
+      document.getElementById(`step${currentStep}`).classList.add('active');
+      document.querySelector(`.progress-step[data-step="${currentStep}"]`).classList.remove('completed');
+      document.querySelector(`.progress-step[data-step="${currentStep}"]`).classList.add('active');
+
+      // Update buttons
+      document.getElementById('prevBtn').disabled = currentStep === 1;
+      document.getElementById('nextBtn').style.display = 'inline-block';
+    }
+  }
+
+  function showNotification(message, type = 'info') {
+    // Create toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3`;
+    toast.style.zIndex = '9999';
+    toast.innerHTML = message;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.remove();
+    }, 3000);
+  }
+
+  function showLoading(message) {
+    // Simple loading implementation
+    console.log('[Setup] Loading:', message);
+  }
+
+  function hideLoading() {
+    console.log('[Setup] Loading complete');
+  }
+})();

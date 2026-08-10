@@ -1,0 +1,86 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Schema Designer</h1>
+            <p class="page-subtitle">Visual database schema design and modification</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-download"></i>
+                Export Schema
+            </button>
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                New Table
+            </button>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem;">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Tables</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <a href="#" class="nav-link active">
+                        <i class="bi bi-table"></i>
+                        <span>users</span>
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-table"></i>
+                        <span>posts</span>
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-table"></i>
+                        <span>comments</span>
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-table"></i>
+                        <span>certificates</span>
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="bi bi-table"></i>
+                        <span>tokens</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3 class="card-title">Schema Diagram</h3>
+                    <button class="btn btn-sm btn-outline-primary">Edit</button>
+                </div>
+                <div class="card-body" style="background: var(--exprsn-bg-secondary); padding: 3rem; text-align: center;">
+                    <i class="bi bi-diagram-3" style="font-size: 4rem; color: var(--exprsn-text-muted);"></i>
+                    <p class="text-muted mt-3">Visual schema diagram coming soon</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">DDL Preview</h3>
+                    <button class="btn btn-sm btn-primary">Execute</button>
+                </div>
+                <div class="card-body">
+                    <pre style="background: var(--exprsn-bg-secondary); padding: 1rem; border-radius: var(--exprsn-radius-lg); font-family: var(--exprsn-font-family-mono); font-size: 0.875rem; color: var(--exprsn-text-primary); margin: 0;">CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_users_email ON users(email);</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

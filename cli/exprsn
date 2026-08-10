@@ -1,0 +1,9 @@
+#!/bin/bash
+# Exprsn CLI Wrapper Script
+# Usage: ./exprsn [commands]
+
+# Set PostgreSQL PATH (Postgres.app)
+export PATH="/Applications/Postgres.app/Contents/Versions/latest/bin:$PATH"
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+node "$DIR/bin/exprsn.js" "$@"

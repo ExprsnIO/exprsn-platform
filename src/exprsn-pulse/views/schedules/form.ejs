@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Main Content -->
+      <main class="col-12 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-clock text-info"></i>
+            <%= schedule ? 'Edit Schedule' : 'Create Schedule' %>
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+              <button type="button" class="btn btn-info" onclick="saveSchedule()">
+                <i class="bi bi-save"></i> Save
+              </button>
+            </div>
+            <a href="/schedules" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle"></i> Cancel
+            </a>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <div class="row">
+          <div class="col-md-8 offset-md-2">
+            <!-- Basic Info -->
+            <div class="card shadow mb-3">
+              <div class="card-header">
+                <h6 class="m-0">
+                  <i class="bi bi-info-circle"></i> Basic Information
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label for="report-select" class="form-label">Report *</label>
+                  <select class="form-select" id="report-select" required>
+                    <option value="">Select a report...</option>
+                    <% reports.forEach(report => { %>
+                      <option value="<%= report.id %>"
+                              <%= schedule && schedule.reportId === report.id ? 'selected' : '' %>>
+                        <%= report.name %>
+                      </option>
+                    <% }) %>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label for="schedule-name" class="form-label">Schedule Name</label>
+                  <input type="text" class="form-control" id="schedule-name"
+                         value="<%= schedule ? schedule.name || '' : '' %>"
+                         placeholder="e.g., Daily Sales Report">
+                </div>
+
+                <div class="mb-3">
+                  <label for="schedule-description" class="form-label">Description</label>
+                  <textarea class="form-control" id="schedule-description" rows="2"><%= schedule ? schedule.description || '' : '' %></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cron Builder -->
+            <div class="card shadow mb-3">
+              <div class="card-header">
+                <h6 class="m-0">
+                  <i class="bi bi-calendar-event"></i> Schedule Configuration
+                </h6>
+              </div>
+              <div class="card-body">
+                <!-- Quick Presets -->
+                <div class="mb-3">
+                  <label class="form-label">Quick Presets</label>
+                  <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-outline-secondary" onclick="setCron('0 * * * *')">Hourly</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="setCron('0 9 * * *')">Daily (9 AM)</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="setCron('0 9 * * 1')">Weekly (Mon 9 AM)</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="setCron('0 9 1 * *')">Monthly (1st, 9 AM)</button>
+                  </div>
+                </div>
+
+                <hr>
+
+                <!-- Visual Cron Builder -->
+                <div class="cron-builder">
+                  <div class="cron-field">
+                    <label>Minute</label>
+                    <input type="text" class="form-control" id="cron-minute" placeholder="*" maxlength="2">
+                    <small class="text-muted">0-59</small>
+                  </div>
+                  <div class="cron-field">
+                    <label>Hour</label>
+                    <input type="text" class="form-control" id="cron-hour" placeholder="*" maxlength="2">
+                    <small class="text-muted">0-23</small>
+                  </div>
+                  <div class="cron-field">
+                    <label>Day of Month</label>
+                    <input type="text" class="form-control" id="cron-day" placeholder="*" maxlength="2">
+                    <small class="text-muted">1-31</small>
+                  </div>
+                  <div class="cron-field">
+                    <label>Month</label>
+                    <input type="text" class="form-control" id="cron-month" placeholder="*" maxlength="2">
+                    <small class="text-muted">1-12</small>
+                  </div>
+                  <div class="cron-field">
+                    <label>Day of Week</label>
+                    <input type="text" class="form-control" id="cron-dow" placeholder="*" maxlength="1">
+                    <small class="text-muted">0-6 (Sun-Sat)</small>
+                  </div>
+                </div>
+
+                <!-- Cron Expression Display -->
+                <div class="cron-expression mt-3" id="cron-display">
+                  * * * * *
+                </div>
+
+                <!-- Human-readable description -->
+                <div class="cron-description mt-2">
+                  <i class="bi bi-info-circle"></i>
+                  <span id="cron-description">Every minute</span>
+                </div>
+
+                <!-- Timezone -->
+                <div class="mt-3">
+                  <label for="timezone" class="form-label">Timezone</label>
+                  <select class="form-select" id="timezone">
+                    <option value="America/New_York">Eastern Time (ET)</option>
+                    <option value="America/Chicago">Central Time (CT)</option>
+                    <option value="America/Denver">Mountain Time (MT)</option>
+                    <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                    <option value="UTC">UTC</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Delivery Configuration -->
+            <div class="card shadow mb-3">
+              <div class="card-header">
+                <h6 class="m-0">
+                  <i class="bi bi-send"></i> Delivery Configuration
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label for="delivery-method" class="form-label">Delivery Method</label>
+                  <select class="form-select" id="delivery-method">
+                    <option value="none">No Delivery (Execute Only)</option>
+                    <option value="email">Email</option>
+                    <option value="webhook">Webhook</option>
+                    <option value="s3">AWS S3</option>
+                  </select>
+                </div>
+
+                <!-- Email Config -->
+                <div id="email-config" style="display: none;">
+                  <div class="mb-3">
+                    <label for="email-recipients" class="form-label">Recipients *</label>
+                    <input type="text" class="form-control" id="email-recipients"
+                           placeholder="email1@example.com, email2@example.com">
+                    <small class="text-muted">Comma-separated email addresses</small>
+                  </div>
+                  <div class="mb-3">
+                    <label for="email-subject" class="form-label">Email Subject</label>
+                    <input type="text" class="form-control" id="email-subject"
+                           placeholder="Scheduled Report: {report_name}">
+                  </div>
+                  <div class="mb-3">
+                    <label for="email-format" class="form-label">Attachment Format</label>
+                    <select class="form-select" id="email-format">
+                      <option value="pdf">PDF</option>
+                      <option value="excel">Excel</option>
+                      <option value="csv">CSV</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Webhook Config -->
+                <div id="webhook-config" style="display: none;">
+                  <div class="mb-3">
+                    <label for="webhook-url" class="form-label">Webhook URL *</label>
+                    <input type="url" class="form-control" id="webhook-url"
+                           placeholder="https://example.com/webhook">
+                  </div>
+                  <div class="mb-3">
+                    <label for="webhook-method" class="form-label">HTTP Method</label>
+                    <select class="form-select" id="webhook-method">
+                      <option value="POST">POST</option>
+                      <option value="PUT">PUT</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- S3 Config -->
+                <div id="s3-config" style="display: none;">
+                  <div class="mb-3">
+                    <label for="s3-bucket" class="form-label">S3 Bucket *</label>
+                    <input type="text" class="form-control" id="s3-bucket"
+                           placeholder="my-reports-bucket">
+                  </div>
+                  <div class="mb-3">
+                    <label for="s3-prefix" class="form-label">Key Prefix</label>
+                    <input type="text" class="form-control" id="s3-prefix"
+                           placeholder="reports/scheduled/">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Options -->
+            <div class="card shadow mb-3">
+              <div class="card-header">
+                <h6 class="m-0">
+                  <i class="bi bi-gear"></i> Options
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="form-check mb-2">
+                  <input type="checkbox" class="form-check-input" id="is-active" checked>
+                  <label class="form-check-label" for="is-active">
+                    Active (schedule will run automatically)
+                  </label>
+                </div>
+                <div class="form-check mb-2">
+                  <input type="checkbox" class="form-check-input" id="send-on-error">
+                  <label class="form-check-label" for="send-on-error">
+                    Send notification on error
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="text-end mb-4">
+              <a href="/schedules" class="btn btn-outline-secondary me-2">Cancel</a>
+              <button type="button" class="btn btn-info" onclick="saveSchedule()">
+                <i class="bi bi-save"></i> Save Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <script>
+    const scheduleId = <%= schedule ? `'${schedule.id}'` : 'null' %>;
+
+    $(document).ready(function() {
+      // Update cron display when fields change
+      $('.cron-field input').on('input', updateCronDisplay);
+
+      // Show/hide delivery config based on method
+      $('#delivery-method').on('change', function() {
+        const method = $(this).val();
+        $('#email-config, #webhook-config, #s3-config').hide();
+        if (method === 'email') $('#email-config').show();
+        if (method === 'webhook') $('#webhook-config').show();
+        if (method === 's3') $('#s3-config').show();
+      });
+
+      // Initialize if editing
+      <% if (schedule) { %>
+        setCron('<%= schedule.cronExpression || "* * * * *" %>');
+        $('#delivery-method').val('<%= schedule.deliveryMethod || "none" %>').trigger('change');
+        $('#timezone').val('<%= schedule.timezone || "America/New_York" %>');
+        $('#is-active').prop('checked', <%= schedule.isActive || false %>);
+      <% } %>
+    });
+
+    // Update cron expression display
+    function updateCronDisplay() {
+      const minute = $('#cron-minute').val() || '*';
+      const hour = $('#cron-hour').val() || '*';
+      const day = $('#cron-day').val() || '*';
+      const month = $('#cron-month').val() || '*';
+      const dow = $('#cron-dow').val() || '*';
+
+      const cronExpr = `${minute} ${hour} ${day} ${month} ${dow}`;
+      $('#cron-display').text(cronExpr);
+      $('#cron-description').text(describeCron(cronExpr));
+    }
+
+    // Set cron expression
+    function setCron(expr) {
+      const parts = expr.split(' ');
+      $('#cron-minute').val(parts[0] !== '*' ? parts[0] : '');
+      $('#cron-hour').val(parts[1] !== '*' ? parts[1] : '');
+      $('#cron-day').val(parts[2] !== '*' ? parts[2] : '');
+      $('#cron-month').val(parts[3] !== '*' ? parts[3] : '');
+      $('#cron-dow').val(parts[4] !== '*' ? parts[4] : '');
+      updateCronDisplay();
+    }
+
+    // Describe cron expression in human-readable format
+    function describeCron(expr) {
+      const parts = expr.split(' ');
+      const [minute, hour, day, month, dow] = parts;
+
+      if (expr === '* * * * *') return 'Every minute';
+      if (expr === '0 * * * *') return 'Every hour';
+      if (hour !== '*' && minute !== '*' && day === '*' && month === '*' && dow === '*')
+        return `Daily at ${hour}:${minute.padStart(2, '0')}`;
+      if (hour !== '*' && minute !== '*' && dow !== '*' && day === '*')
+        return `Every ${getDayName(dow)} at ${hour}:${minute.padStart(2, '0')}`;
+      if (hour !== '*' && minute !== '*' && day !== '*' && month === '*')
+        return `Monthly on day ${day} at ${hour}:${minute.padStart(2, '0')}`;
+
+      return 'Custom schedule';
+    }
+
+    function getDayName(dow) {
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return days[parseInt(dow)] || dow;
+    }
+
+    // Save schedule
+    async function saveSchedule() {
+      const reportId = $('#report-select').val();
+      if (!reportId) {
+        PulseUtils.showAlert('Please select a report', 'warning');
+        return;
+      }
+
+      const cronExpression = $('#cron-display').text();
+      const deliveryMethod = $('#delivery-method').val();
+
+      const scheduleData = {
+        reportId,
+        name: $('#schedule-name').val().trim(),
+        description: $('#schedule-description').val().trim(),
+        cronExpression,
+        timezone: $('#timezone').val(),
+        deliveryMethod: deliveryMethod !== 'none' ? deliveryMethod : null,
+        isActive: $('#is-active').is(':checked')
+      };
+
+      // Add delivery config
+      if (deliveryMethod === 'email') {
+        scheduleData.deliveryConfig = {
+          recipients: $('#email-recipients').val().split(',').map(e => e.trim()),
+          subject: $('#email-subject').val(),
+          format: $('#email-format').val()
+        };
+      } else if (deliveryMethod === 'webhook') {
+        scheduleData.deliveryConfig = {
+          url: $('#webhook-url').val(),
+          method: $('#webhook-method').val()
+        };
+      } else if (deliveryMethod === 's3') {
+        scheduleData.deliveryConfig = {
+          bucket: $('#s3-bucket').val(),
+          prefix: $('#s3-prefix').val()
+        };
+      }
+
+      try {
+        PulseUtils.showLoading();
+
+        let result;
+        if (scheduleId) {
+          result = await PulseAPI.schedules.update(scheduleId, scheduleData);
+        } else {
+          result = await PulseAPI.schedules.create(scheduleData);
+        }
+
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Schedule saved successfully', 'success');
+
+        setTimeout(() => {
+          window.location.href = '/schedules';
+        }, 1000);
+      } catch (error) {
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Failed to save schedule: ' + error.message, 'danger');
+      }
+    }
+  </script>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

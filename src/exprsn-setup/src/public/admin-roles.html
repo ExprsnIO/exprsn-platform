@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Role Management - Exprsn Setup</title>
+
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <style>
+    :root {
+      --primary-color: #2563eb;
+      --secondary-color: #64748b;
+      --success-color: #10b981;
+      --danger-color: #ef4444;
+      --warning-color: #f59e0b;
+      --info-color: #06b6d4;
+    }
+
+    body {
+      background-color: #f8fafc;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .page-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%);
+      color: white;
+      padding: 2rem 0;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .stats-card {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      height: 100%;
+    }
+
+    .stats-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .stats-card .icon {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      margin-bottom: 1rem;
+    }
+
+    .stats-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 0.25rem;
+    }
+
+    .stats-card .label {
+      font-size: 0.875rem;
+      color: var(--secondary-color);
+      font-weight: 500;
+    }
+
+    .content-card {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .table-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .badge {
+      font-weight: 500;
+      padding: 0.375rem 0.75rem;
+    }
+
+    .hierarchy-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--secondary-color);
+      font-size: 0.875rem;
+    }
+
+    .permission-matrix {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .permission-group {
+      border-left: 3px solid var(--primary-color);
+      padding-left: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .permission-item {
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      transition: background-color 0.2s;
+    }
+
+    .permission-item:hover {
+      background-color: #f1f5f9;
+    }
+
+    .permission-checkbox {
+      cursor: pointer;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(0, 0, 0, 0.1);
+      border-left-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="mb-2">
+            <i class="bi bi-shield-lock"></i> Role Management
+          </h1>
+          <p class="mb-0 opacity-90">Manage roles, permissions, and access control</p>
+        </div>
+        <div>
+          <button class="btn btn-light" onclick="window.location.href='/unified'">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+          </button>
+          <button class="btn btn-success" onclick="createRole()">
+            <i class="bi bi-plus-circle"></i> Create Role
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container">
+    <!-- Statistics -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--primary-color);">
+            <i class="bi bi-shield-lock"></i>
+          </div>
+          <div class="value" id="totalRoles">0</div>
+          <div class="label">Total Roles</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--warning-color);">
+            <i class="bi bi-shield-check"></i>
+          </div>
+          <div class="value" id="systemRoles">0</div>
+          <div class="label">System Roles</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--success-color);">
+            <i class="bi bi-check-circle"></i>
+          </div>
+          <div class="value" id="activeRoles">0</div>
+          <div class="label">Active Roles</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--info-color);">
+            <i class="bi bi-key"></i>
+          </div>
+          <div class="value" id="totalPermissions">0</div>
+          <div class="label">Total Permissions</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="content-card mb-4">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="bi bi-search"></i>
+            </span>
+            <input type="text" class="form-control" id="searchInput" placeholder="Search roles...">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="scopeFilter">
+            <option value="">All Scopes</option>
+            <option value="global">Global</option>
+            <option value="service">Service</option>
+            <option value="resource">Resource</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="systemFilter">
+            <option value="">All Roles</option>
+            <option value="true">System Only</option>
+            <option value="false">Custom Only</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="statusFilter">
+            <option value="">All Status</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" onclick="loadRoles()">
+            <i class="bi bi-funnel"></i> Apply Filters
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Roles Table -->
+    <div class="content-card">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">
+          <i class="bi bi-list-ul"></i> Roles
+        </h5>
+        <div class="text-muted">
+          <small>Showing <span id="currentCount">0</span> of <span id="totalCount">0</span> roles</small>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Role Name</th>
+              <th>Scope</th>
+              <th>Priority</th>
+              <th>Parent</th>
+              <th>Permissions</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rolesTableBody">
+            <tr>
+              <td colspan="7" class="text-center py-5">
+                <div class="loading-spinner mx-auto mb-3"></div>
+                <div class="text-muted">Loading roles...</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <nav aria-label="Roles pagination" class="mt-3">
+        <ul class="pagination justify-content-center mb-0" id="pagination">
+          <!-- Pagination will be inserted here -->
+        </ul>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Bootstrap Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Modal Manager -->
+  <script src="/js/modal-manager.js"></script>
+
+  <script>
+    // State management
+    let currentPage = 1;
+    let totalPages = 1;
+    let socket = null;
+    let allPermissions = [];
+    let allRoles = [];
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeSocketIO();
+      loadStatistics();
+      loadRoles();
+      loadAllPermissions();
+      loadAllRoles();
+
+      // Search on enter
+      document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') loadRoles();
+      });
+    });
+
+    /**
+     * Socket.IO initialization and real-time updates
+     */
+    function initializeSocketIO() {
+      socket = io();
+
+      socket.on('connect', () => {
+        console.log('Socket.IO connected');
+      });
+
+      socket.on('role:created', (data) => {
+        showToast('Role Created', `Role "${data.role.name}" has been created`, 'success');
+        loadRoles();
+        loadStatistics();
+      });
+
+      socket.on('role:updated', (data) => {
+        showToast('Role Updated', 'Role has been updated successfully', 'info');
+        loadRoles();
+        loadStatistics();
+      });
+
+      socket.on('role:deleted', (data) => {
+        showToast('Role Deleted', 'Role has been deleted successfully', 'warning');
+        loadRoles();
+        loadStatistics();
+      });
+
+      socket.on('role:permissions-assigned', (data) => {
+        showToast('Permissions Updated', `${data.assigned} permissions assigned to role`, 'success');
+        loadRoles();
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Socket.IO disconnected');
+      });
+    }
+
+    /**
+     * Load statistics
+     */
+    async function loadStatistics() {
+      try {
+        const response = await fetch('/api/roles/stats');
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('totalRoles').textContent = data.stats.totalRoles;
+          document.getElementById('systemRoles').textContent = data.stats.systemRoles;
+          document.getElementById('activeRoles').textContent = data.stats.activeRoles;
+
+          // Load permission stats separately
+          const permResponse = await fetch('/api/permissions/stats');
+          const permData = await permResponse.json();
+          if (permData.success) {
+            document.getElementById('totalPermissions').textContent = permData.stats.totalPermissions;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load statistics:', error);
+      }
+    }
+
+    /**
+     * Load all permissions for the permission matrix
+     */
+    async function loadAllPermissions() {
+      try {
+        const response = await fetch('/api/permissions?limit=1000');
+        const data = await response.json();
+        if (data.success) {
+          allPermissions = data.permissions;
+        }
+      } catch (error) {
+        console.error('Failed to load permissions:', error);
+      }
+    }
+
+    /**
+     * Load all roles for parent selection
+     */
+    async function loadAllRoles() {
+      try {
+        const response = await fetch('/api/roles?limit=1000');
+        const data = await response.json();
+        if (data.success) {
+          allRoles = data.roles;
+        }
+      } catch (error) {
+        console.error('Failed to load roles:', error);
+      }
+    }
+
+    /**
+     * Load roles with filters
+     */
+    async function loadRoles(page = 1) {
+      currentPage = page;
+
+      const search = document.getElementById('searchInput').value;
+      const scope = document.getElementById('scopeFilter').value;
+      const isSystem = document.getElementById('systemFilter').value;
+      const isActive = document.getElementById('statusFilter').value;
+
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 20,
+        includePermissions: 'true'
+      });
+
+      if (search) params.append('search', search);
+      if (scope) params.append('scope', scope);
+      if (isSystem) params.append('isSystem', isSystem);
+      if (isActive) params.append('isActive', isActive);
+
+      try {
+        const response = await fetch(`/api/roles?${params.toString()}`);
+        const data = await response.json();
+
+        if (data.success) {
+          renderRolesTable(data.roles);
+          renderPagination(data.pagination);
+
+          document.getElementById('currentCount').textContent = data.roles.length;
+          document.getElementById('totalCount').textContent = data.pagination.total;
+        }
+      } catch (error) {
+        console.error('Failed to load roles:', error);
+        showToast('Error', 'Failed to load roles', 'danger');
+      }
+    }
+
+    /**
+     * Render roles table
+     */
+    function renderRolesTable(roles) {
+      const tbody = document.getElementById('rolesTableBody');
+
+      if (roles.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">
+              <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+              <p class="mt-3 mb-0">No roles found</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = roles.map(role => {
+        const scopeColors = {
+          global: 'primary',
+          service: 'info',
+          resource: 'secondary'
+        };
+
+        const permissionCount = role.permissions ? role.permissions.length : 0;
+        const parentRole = allRoles.find(r => r.id === role.parentId);
+
+        return `
+          <tr>
+            <td>
+              <div class="d-flex align-items-center">
+                ${role.isSystem ? '<i class="bi bi-shield-lock text-warning me-2"></i>' : ''}
+                <div>
+                  <div class="fw-semibold">${escapeHtml(role.name)}</div>
+                  <small class="text-muted">${escapeHtml(role.slug)}</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="badge bg-${scopeColors[role.scope] || 'secondary'}">
+                ${role.scope}
+              </span>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark">${role.priority}</span>
+            </td>
+            <td>
+              ${parentRole ? `
+                <div class="hierarchy-indicator">
+                  <i class="bi bi-arrow-return-right"></i>
+                  <span>${escapeHtml(parentRole.name)}</span>
+                </div>
+              ` : '<span class="text-muted">—</span>'}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" onclick="managePermissions('${role.id}', '${escapeHtml(role.name)}')">
+                <i class="bi bi-key"></i> ${permissionCount} permissions
+              </button>
+            </td>
+            <td>
+              <span class="badge bg-${role.isActive ? 'success' : 'secondary'}">
+                ${role.isActive ? 'Active' : 'Inactive'}
+              </span>
+            </td>
+            <td>
+              <div class="table-actions">
+                <button class="btn btn-sm btn-outline-primary" onclick="viewRole('${role.id}')" title="View">
+                  <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="editRole('${role.id}')" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                ${!role.isSystem ? `
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteRole('${role.id}', '${escapeHtml(role.name)}')" title="Delete">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Render pagination
+     */
+    function renderPagination(pagination) {
+      const container = document.getElementById('pagination');
+      totalPages = pagination.pages;
+
+      if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+      }
+
+      let html = '';
+
+      // Previous button
+      html += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="loadRoles(${currentPage - 1}); return false;">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+      `;
+
+      // Page numbers
+      for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+        html += `
+          <li class="page-item ${i === currentPage ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="loadRoles(${i}); return false;">${i}</a>
+          </li>
+        `;
+      }
+
+      // Next button
+      html += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="loadRoles(${currentPage + 1}); return false;">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    /**
+     * Create role
+     */
+    function createRole() {
+      const parentOptions = allRoles.map(role => ({
+        value: role.id,
+        label: role.name
+      }));
+
+      modalManager.createEntity({
+        entity: 'Role',
+        fields: [
+          {
+            name: 'name',
+            label: 'Role Name',
+            type: 'text',
+            required: true,
+            placeholder: 'Enter role name'
+          },
+          {
+            name: 'slug',
+            label: 'Slug',
+            type: 'text',
+            required: true,
+            placeholder: 'role-slug',
+            help: 'URL-friendly identifier (auto-generated if left empty)'
+          },
+          {
+            name: 'description',
+            label: 'Description',
+            type: 'textarea',
+            rows: 3,
+            placeholder: 'Describe the role and its purpose'
+          },
+          {
+            name: 'scope',
+            label: 'Scope',
+            type: 'select',
+            required: true,
+            options: [
+              { value: 'global', label: 'Global (system-wide)' },
+              { value: 'service', label: 'Service (specific service)' },
+              { value: 'resource', label: 'Resource (specific resources)' }
+            ],
+            help: 'Defines where this role applies'
+          },
+          {
+            name: 'service',
+            label: 'Service',
+            type: 'text',
+            placeholder: 'e.g., timeline, auth, spark',
+            help: 'Required for service-scoped roles'
+          },
+          {
+            name: 'parentId',
+            label: 'Parent Role',
+            type: 'select',
+            options: parentOptions,
+            help: 'Role to inherit permissions from'
+          },
+          {
+            name: 'priority',
+            label: 'Priority',
+            type: 'number',
+            value: 100,
+            help: 'Higher priority roles override lower priority (0-1000)'
+          },
+          {
+            name: 'isActive',
+            label: 'Active',
+            type: 'checkbox',
+            value: true
+          }
+        ],
+        onSubmit: async (formData) => {
+          const response = await fetch('/api/roles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+
+          const data = await response.json();
+
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to create role');
+          }
+
+          loadRoles();
+          loadStatistics();
+          loadAllRoles();
+        }
+      });
+    }
+
+    /**
+     * Edit role
+     */
+    async function editRole(roleId) {
+      try {
+        const response = await fetch(`/api/roles/${roleId}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error('Failed to load role');
+        }
+
+        const role = data.role;
+        const parentOptions = allRoles.filter(r => r.id !== roleId).map(r => ({
+          value: r.id,
+          label: r.name
+        }));
+
+        modalManager.editEntity({
+          entity: 'Role',
+          entityId: roleId,
+          data: role,
+          fields: [
+            {
+              name: 'name',
+              label: 'Role Name',
+              type: 'text',
+              required: true
+            },
+            {
+              name: 'slug',
+              label: 'Slug',
+              type: 'text',
+              required: true
+            },
+            {
+              name: 'description',
+              label: 'Description',
+              type: 'textarea',
+              rows: 3
+            },
+            {
+              name: 'scope',
+              label: 'Scope',
+              type: 'select',
+              required: true,
+              options: [
+                { value: 'global', label: 'Global (system-wide)' },
+                { value: 'service', label: 'Service (specific service)' },
+                { value: 'resource', label: 'Resource (specific resources)' }
+              ]
+            },
+            {
+              name: 'service',
+              label: 'Service',
+              type: 'text'
+            },
+            {
+              name: 'parentId',
+              label: 'Parent Role',
+              type: 'select',
+              options: parentOptions
+            },
+            {
+              name: 'priority',
+              label: 'Priority',
+              type: 'number'
+            },
+            {
+              name: 'isActive',
+              label: 'Active',
+              type: 'checkbox'
+            }
+          ],
+          onSubmit: async (formData) => {
+            const updateResponse = await fetch(`/api/roles/${roleId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(formData)
+            });
+
+            const updateData = await updateResponse.json();
+
+            if (!updateData.success) {
+              throw new Error(updateData.error || 'Failed to update role');
+            }
+
+            loadRoles();
+            loadStatistics();
+            loadAllRoles();
+          }
+        });
+      } catch (error) {
+        showToast('Error', error.message, 'danger');
+      }
+    }
+
+    /**
+     * View role details
+     */
+    async function viewRole(roleId) {
+      try {
+        const response = await fetch(`/api/roles/${roleId}?includePermissions=true&includeInherited=true`);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error('Failed to load role');
+        }
+
+        const role = data.role;
+        const parentRole = allRoles.find(r => r.id === role.parentId);
+
+        modalManager.create({
+          title: `Role: ${role.name}`,
+          size: 'lg',
+          content: `
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Name</label>
+                <div class="text-muted">${escapeHtml(role.name)}</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Slug</label>
+                <div class="text-muted">${escapeHtml(role.slug)}</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Scope</label>
+                <div><span class="badge bg-primary">${role.scope}</span></div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Priority</label>
+                <div class="text-muted">${role.priority}</div>
+              </div>
+              ${role.service ? `
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Service</label>
+                  <div class="text-muted">${escapeHtml(role.service)}</div>
+                </div>
+              ` : ''}
+              ${parentRole ? `
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Parent Role</label>
+                  <div class="text-muted">${escapeHtml(parentRole.name)}</div>
+                </div>
+              ` : ''}
+              <div class="col-12">
+                <label class="form-label fw-semibold">Description</label>
+                <div class="text-muted">${escapeHtml(role.description || 'No description')}</div>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Permissions (${role.permissions ? role.permissions.length : 0})</label>
+                <div class="list-group">
+                  ${role.permissions && role.permissions.length > 0 ? role.permissions.map(perm => `
+                    <div class="list-group-item">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                          <strong>${escapeHtml(perm.name)}</strong>
+                          <br>
+                          <small class="text-muted">${escapeHtml(perm.slug)}</small>
+                        </div>
+                        <span class="badge bg-${perm.RolePermission?.granted ? 'success' : 'secondary'}">
+                          ${perm.RolePermission?.granted ? 'Granted' : 'Denied'}
+                        </span>
+                      </div>
+                    </div>
+                  `).join('') : '<div class="text-muted">No permissions assigned</div>'}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Status</label>
+                <div>
+                  <span class="badge bg-${role.isActive ? 'success' : 'secondary'}">
+                    ${role.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                  ${role.isSystem ? '<span class="badge bg-warning ms-2">System</span>' : ''}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Created</label>
+                <div class="text-muted">${new Date(role.createdAt).toLocaleString()}</div>
+              </div>
+            </div>
+          `,
+          buttons: [
+            {
+              text: 'Close',
+              variant: 'secondary',
+              action: 'close'
+            }
+          ]
+        });
+      } catch (error) {
+        showToast('Error', error.message, 'danger');
+      }
+    }
+
+    /**
+     * Delete role
+     */
+    function deleteRole(roleId, roleName) {
+      modalManager.deleteEntity({
+        entity: 'Role',
+        entityId: roleId,
+        entityName: roleName,
+        onConfirm: async () => {
+          try {
+            const response = await fetch(`/api/roles/${roleId}`, {
+              method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+              throw new Error(data.error || 'Failed to delete role');
+            }
+
+            loadRoles();
+            loadStatistics();
+            loadAllRoles();
+          } catch (error) {
+            showToast('Error', error.message, 'danger');
+          }
+        }
+      });
+    }
+
+    /**
+     * Manage role permissions
+     */
+    async function managePermissions(roleId, roleName) {
+      try {
+        // Load role with current permissions
+        const response = await fetch(`/api/roles/${roleId}?includePermissions=true`);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error('Failed to load role permissions');
+        }
+
+        const role = data.role;
+        const currentPermissions = new Set((role.permissions || []).map(p => p.id));
+
+        // Group permissions by category
+        const permissionsByCategory = {};
+        allPermissions.forEach(perm => {
+          const category = perm.category || 'Other';
+          if (!permissionsByCategory[category]) {
+            permissionsByCategory[category] = [];
+          }
+          permissionsByCategory[category].push(perm);
+        });
+
+        // Build permission matrix HTML
+        let matrixHTML = '<div class="permission-matrix">';
+
+        for (const [category, permissions] of Object.entries(permissionsByCategory)) {
+          matrixHTML += `
+            <div class="permission-group">
+              <h6 class="text-primary">${category}</h6>
+              ${permissions.map(perm => `
+                <div class="permission-item">
+                  <div class="form-check">
+                    <input class="form-check-input permission-checkbox"
+                           type="checkbox"
+                           value="${perm.id}"
+                           id="perm-${perm.id}"
+                           ${currentPermissions.has(perm.id) ? 'checked' : ''}>
+                    <label class="form-check-label" for="perm-${perm.id}">
+                      <strong>${escapeHtml(perm.name)}</strong>
+                      <br>
+                      <small class="text-muted">${escapeHtml(perm.description || perm.slug)}</small>
+                    </label>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        matrixHTML += '</div>';
+
+        const modal = modalManager.create({
+          id: `permissions-${roleId}`,
+          title: `Manage Permissions: ${roleName}`,
+          size: 'xl',
+          content: matrixHTML,
+          buttons: [
+            {
+              text: 'Cancel',
+              variant: 'secondary',
+              action: 'close'
+            },
+            {
+              text: 'Save Permissions',
+              variant: 'primary',
+              action: 'submit'
+            }
+          ],
+          onSubmit: async () => {
+            const selectedPermissions = Array.from(
+              document.querySelectorAll('.permission-checkbox:checked')
+            ).map(cb => cb.value);
+
+            const updateResponse = await fetch(`/api/roles/${roleId}/permissions`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                permissions: selectedPermissions.map(permId => ({
+                  permissionId: permId,
+                  granted: true
+                }))
+              })
+            });
+
+            const updateData = await updateResponse.json();
+
+            if (!updateData.success) {
+              throw new Error(updateData.error || 'Failed to update permissions');
+            }
+
+            modalManager.close(modal.id);
+            setTimeout(() => modalManager.destroy(modal.id), 500);
+            loadRoles();
+          }
+        });
+      } catch (error) {
+        showToast('Error', error.message, 'danger');
+      }
+    }
+
+    /**
+     * Show toast notification
+     */
+    function showToast(title, message, type = 'info') {
+      const toastContainer = document.getElementById('toastContainer');
+      const toastId = `toast-${Date.now()}`;
+
+      const bgColors = {
+        success: 'bg-success',
+        danger: 'bg-danger',
+        warning: 'bg-warning',
+        info: 'bg-info'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.id = toastId;
+      toast.setAttribute('role', 'alert');
+      toast.innerHTML = `
+        <div class="toast-header ${bgColors[type]} text-white">
+          <strong class="me-auto">${title}</strong>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+          ${message}
+        </div>
+      `;
+
+      toastContainer.appendChild(toast);
+
+      const bsToast = new bootstrap.Toast(toast, { autohide: true, delay: 5000 });
+      bsToast.show();
+
+      toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+      });
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

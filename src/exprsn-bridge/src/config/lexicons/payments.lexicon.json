@@ -1,0 +1,214 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-payments",
+      "version": "1.0.0",
+      "description": "Payment Gateway - Stripe, PayPal, Authorize.Net"
+    },
+    "routes": [
+      {
+        "path": "/api/payments/process",
+        "method": "POST",
+        "description": "Process payment",
+        "target": {
+          "service": "payments",
+          "path": "/api/payments/process",
+          "timeout": 30000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["amount", "currency", "provider"],
+            "properties": {
+              "amount": {
+                "type": "number",
+                "minimum": 0.01
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "provider": {
+                "type": "string",
+                "enum": ["stripe", "paypal", "authorize.net"]
+              },
+              "paymentMethodId": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "metadata": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/payments/refund",
+        "method": "POST",
+        "description": "Refund payment",
+        "target": {
+          "service": "payments",
+          "path": "/api/payments/refund",
+          "timeout": 30000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["transactionId"],
+            "properties": {
+              "transactionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "amount": {
+                "type": "number",
+                "minimum": 0.01
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/payments/transactions",
+        "method": "GET",
+        "description": "List transactions",
+        "target": {
+          "service": "payments",
+          "path": "/api/payments/transactions",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "succeeded", "failed", "refunded"]
+            },
+            "provider": {
+              "type": "string",
+              "enum": ["stripe", "paypal", "authorize.net"]
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/payments/transactions/:id",
+        "method": "GET",
+        "description": "Get transaction details",
+        "target": {
+          "service": "payments",
+          "path": "/api/payments/transactions/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/payments/webhooks/:provider",
+        "method": "POST",
+        "description": "Handle payment provider webhooks",
+        "target": {
+          "service": "payments",
+          "path": "/api/webhooks/:provider",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "params": {
+            "provider": {
+              "type": "string",
+              "enum": ["stripe", "paypal", "authorize-net"]
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 500
+        }
+      },
+      {
+        "path": "/api/payments/health",
+        "method": "GET",
+        "description": "Payments service health check",
+        "target": {
+          "service": "payments",
+          "path": "/health",
+          "timeout": 2000
+        },
+        "auth": {
+          "required": false
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 60000,
+        "max": 100
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

@@ -1,0 +1,149 @@
+<div class="row mb-4">
+  <div class="col-12">
+    <h2><i class="bi bi-key"></i> Token Management</h2>
+    <p class="text-muted">Manage authentication tokens and access credentials</p>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">Status Filter</label>
+            <select class="form-select" id="statusFilter">
+              <option value="">All Statuses</option>
+              <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
+              <option value="expired" <%= status === 'expired' ? 'selected' : '' %>>Expired</option>
+              <option value="revoked" <%= status === 'revoked' ? 'selected' : '' %>>Revoked</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Items Per Page</label>
+            <select class="form-select" id="limitFilter">
+              <option value="10">10</option>
+              <option value="20" <%= limit === 20 ? 'selected' : '' %>>20</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+          <div class="col-md-6 text-end">
+            <button class="btn btn-primary" onclick="applyFilters()">
+              <i class="bi bi-funnel"></i> Apply Filters
+            </button>
+            <button class="btn btn-success" onclick="refreshData()">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-list-ul"></i> Tokens List</h5>
+        <span class="badge bg-primary" id="totalCount">Loading...</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Handle</th>
+                <th>Type</th>
+                <th>User</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Expires</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="dataTableBody">
+              <tr>
+                <td colspan="7" class="text-center py-4">
+                  <div class="spinner-border text-primary"></div>
+                  <p class="mt-2 text-muted">Loading...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer">
+        <nav><ul class="pagination justify-content-center mb-0" id="pagination"></ul></nav>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentPage = <%= page %>, currentLimit = <%= limit %>, currentStatus = '<%= status || '' %>';
+
+  async function loadData() {
+    try {
+      const params = new URLSearchParams({ page: currentPage, limit: currentLimit });
+      if (currentStatus) params.append('status', currentStatus);
+
+      const response = await fetch(`/admin/api/tokens?${params}`);
+      const data = await response.json();
+
+      const tbody = document.getElementById('dataTableBody');
+      tbody.innerHTML = data.tokens.length ? data.tokens.map(token => `
+        <tr>
+          <td><code>${token.handle}</code></td>
+          <td><span class="badge bg-info">${token.token_type}</span></td>
+          <td>${token.user_email || 'N/A'}</td>
+          <td><span class="badge bg-${token.status === 'active' ? 'success' : 'secondary'}">${token.status}</span></td>
+          <td>${formatDate(token.created_at)}</td>
+          <td>${token.expires_at ? formatDate(token.expires_at) : 'Never'}</td>
+          <td>
+            <a href="/admin/tokens/${token.id}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i> View
+            </a>
+          </td>
+        </tr>
+      `).join('') : '<tr><td colspan="7" class="text-center py-4 text-muted">No tokens found</td></tr>';
+
+      document.getElementById('totalCount').textContent = `${data.pagination.total} tokens`;
+      renderPagination(data.pagination);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    }
+  }
+
+  function renderPagination(pagination) {
+    const paginationEl = document.getElementById('pagination');
+    if (pagination.pages <= 1) {
+      paginationEl.innerHTML = '';
+      return;
+    }
+    let html = `<li class="page-item ${pagination.page === 1 ? 'disabled' : ''}">
+      <a class="page-link" href="#" onclick="goToPage(${pagination.page - 1}); return false;">Previous</a>
+    </li>`;
+    for (let i = 1; i <= pagination.pages; i++) {
+      html += `<li class="page-item ${i === pagination.page ? 'active' : ''}">
+        <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
+      </li>`;
+    }
+    html += `<li class="page-item ${pagination.page === pagination.pages ? 'disabled' : ''}">
+      <a class="page-link" href="#" onclick="goToPage(${pagination.page + 1}); return false;">Next</a>
+    </li>`;
+    paginationEl.innerHTML = html;
+  }
+
+  function goToPage(page) { currentPage = page; loadData(); }
+  function applyFilters() {
+    currentStatus = document.getElementById('statusFilter').value;
+    currentLimit = parseInt(document.getElementById('limitFilter').value);
+    currentPage = 1;
+    loadData();
+  }
+  function refreshData() { loadData(); }
+  window.handleTokenCreated = () => refreshData();
+
+  loadData();
+</script>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports Manager - <%= application?.displayName || 'Application' %></title>
+
+  <!-- Bootstrap 5.3.0 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome 6.4.0 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Manager Common Styles -->
+  <link rel="stylesheet" href="/css/manager-common.css">
+
+  <style>
+    /* Report-specific colors */
+    .report-icon-table { background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%); }
+    .report-icon-chart { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .report-icon-pivot { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .report-icon-kpi { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+    .report-icon-custom { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+    .report-icon-default { background: linear-gradient(135deg, #9795f0 0%, #fbc8d4 100%); }
+
+    /* Execution count badge */
+    .execution-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .execution-badge i {
+      font-size: 0.7rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="pageApp">
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-title">
+        <i class="fas fa-chart-line"></i>
+        <div>
+          <h1>Reports</h1>
+          <p class="header-subtitle">Create and manage reports for <%= application?.displayName || 'your application' %></p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-light btn-sm" onclick="window.location.href='/lowcode/applications/<%= applicationId %>'">
+          <i class="fas fa-arrow-left"></i> Back
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="reportsManager.showImportDialog()">
+          <i class="fas fa-file-import"></i> Import
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="reportsManager.createReport()">
+          <i class="fas fa-plus"></i> New Report
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="page-content">
+      <div class="content-wrapper">
+        <!-- Filters Bar -->
+        <div class="filters-bar">
+          <div class="filters-row">
+            <div class="filter-group">
+              <label>Status</label>
+              <select id="statusFilter" onchange="reportsManager.filterReports()">
+                <option value="">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Type</label>
+              <select id="typeFilter" onchange="reportsManager.filterReports()">
+                <option value="">All Types</option>
+                <option value="table">Table</option>
+                <option value="chart">Chart</option>
+                <option value="pivot">Pivot</option>
+                <option value="kpi">KPI</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Sort By</label>
+              <select id="sortBy" onchange="reportsManager.sortReports()">
+                <option value="updated_at">Last Modified</option>
+                <option value="created_at">Last Created</option>
+                <option value="displayName">Name (A-Z)</option>
+                <option value="execution_count">Most Used</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Search</label>
+              <input type="text" id="searchInput" placeholder="Search reports..." onkeyup="reportsManager.filterReports()">
+            </div>
+            <div class="items-counter">
+              <span id="itemCount">0</span> reports
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Grid -->
+        <div class="items-grid" id="reportsGrid">
+          <!-- Reports will be loaded here -->
+        </div>
+
+        <!-- Empty State (hidden by default, shown by JS) -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+          <i class="fas fa-chart-line"></i>
+          <h3>No Reports Yet</h3>
+          <p>Create your first report to get started with data visualization and analytics</p>
+          <button class="btn btn-primary" onclick="reportsManager.createReport()">
+            <i class="fas fa-plus"></i> Create First Report
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    const applicationId = '<%= applicationId %>';
+
+    class ReportsManager {
+      constructor() {
+        this.reports = [];
+        this.filteredReports = [];
+      }
+
+      async init() {
+        await this.loadReports();
+      }
+
+      async loadReports() {
+        try {
+          const response = await fetch(`/lowcode/api/reports?applicationId=${applicationId}`);
+          const data = await response.json();
+
+          if (data.success) {
+            this.reports = data.data || [];
+            this.filteredReports = [...this.reports];
+            this.sortReports();
+            this.renderReports();
+            this.updateCounter();
+          } else {
+            console.error('Failed to load reports:', data.message);
+          }
+        } catch (error) {
+          console.error('Error loading reports:', error);
+        }
+      }
+
+      filterReports() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const typeFilter = document.getElementById('typeFilter').value;
+
+        this.filteredReports = this.reports.filter(report => {
+          const matchesSearch = !searchTerm ||
+            report.displayName.toLowerCase().includes(searchTerm) ||
+            (report.description || '').toLowerCase().includes(searchTerm);
+
+          const matchesStatus = !statusFilter || report.status === statusFilter;
+          const matchesType = !typeFilter || report.reportType === typeFilter;
+
+          return matchesSearch && matchesStatus && matchesType;
+        });
+
+        this.sortReports();
+        this.renderReports();
+        this.updateCounter();
+      }
+
+      sortReports() {
+        const sortBy = document.getElementById('sortBy').value;
+
+        this.filteredReports.sort((a, b) => {
+          if (sortBy === 'displayName') {
+            return a.displayName.localeCompare(b.displayName);
+          } else if (sortBy === 'execution_count') {
+            return (b.executionCount || 0) - (a.executionCount || 0);
+          } else {
+            return new Date(b[sortBy]) - new Date(a[sortBy]);
+          }
+        });
+      }
+
+      renderReports() {
+        const grid = document.getElementById('reportsGrid');
+        const emptyState = document.getElementById('emptyState');
+
+        if (this.filteredReports.length === 0) {
+          grid.style.display = 'none';
+          emptyState.style.display = 'block';
+          return;
+        }
+
+        grid.style.display = 'grid';
+        emptyState.style.display = 'none';
+
+        grid.innerHTML = this.filteredReports.map(report => `
+          <div class="item-card" onclick="reportsManager.openReport('${report.id}')">
+            <!-- Badge -->
+            <div class="card-badge badge-${this.getStatusBadgeClass(report.status)}">
+              ${report.status}
+            </div>
+
+            <!-- Header -->
+            <div class="card-header">
+              <div class="card-icon ${this.getReportIconClass(report.reportType)}">
+                <i class="fas fa-${this.getReportIcon(report.reportType)}"></i>
+              </div>
+              <div class="card-info">
+                <h3 class="card-title">${report.displayName}</h3>
+                <p class="card-description">${report.description || 'No description'}</p>
+              </div>
+            </div>
+
+            <!-- Execution Badge -->
+            ${report.executionCount > 0 ? `
+              <div style="padding: 0 1.25rem; margin-bottom: 0.5rem;">
+                <span class="execution-badge">
+                  <i class="fas fa-play-circle"></i>
+                  ${report.executionCount} ${report.executionCount === 1 ? 'run' : 'runs'}
+                </span>
+              </div>
+            ` : ''}
+
+            <!-- Metadata -->
+            <div class="card-metadata">
+              <div class="metadata-item">
+                <i class="fas fa-chart-${report.reportType === 'table' ? 'bar' : 'line'}"></i>
+                <span>${report.reportType}</span>
+              </div>
+              <div class="metadata-item">
+                <i class="fas fa-clock"></i>
+                <span>${this.formatDate(report.createdAt)}</span>
+              </div>
+              ${(report.tags || []).length > 0 ? `
+                <div class="metadata-item">
+                  <i class="fas fa-tags"></i>
+                  <span>${report.tags.length} ${report.tags.length === 1 ? 'tag' : 'tags'}</span>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- Actions -->
+            <div class="card-actions">
+              <button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); reportsManager.openReport('${report.id}')">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+              <button class="btn btn-outline-success btn-sm" onclick="event.stopPropagation(); reportsManager.executeReport('${report.id}')">
+                <i class="fas fa-play"></i> Execute
+              </button>
+              <button class="btn btn-outline-secondary btn-sm" onclick="event.stopPropagation(); reportsManager.duplicateReport('${report.id}')">
+                <i class="fas fa-copy"></i> Duplicate
+              </button>
+              <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation(); reportsManager.deleteReport('${report.id}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      updateCounter() {
+        document.getElementById('itemCount').textContent = this.filteredReports.length;
+      }
+
+      getReportIcon(type) {
+        const icons = {
+          table: 'table',
+          chart: 'chart-line',
+          pivot: 'th',
+          kpi: 'tachometer-alt',
+          custom: 'cog'
+        };
+        return icons[type] || 'chart-bar';
+      }
+
+      getReportIconClass(type) {
+        return `report-icon-${type || 'default'}`;
+      }
+
+      getStatusBadgeClass(status) {
+        const classes = {
+          draft: 'warning',
+          published: 'success',
+          archived: 'secondary'
+        };
+        return classes[status] || 'secondary';
+      }
+
+      formatDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now - date;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+        if (days === 0) return 'Today';
+        if (days === 1) return 'Yesterday';
+        if (days < 7) return `${days}d ago`;
+        if (days < 30) return `${Math.floor(days / 7)}w ago`;
+        if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+        return `${Math.floor(days / 365)}y ago`;
+      }
+
+      createReport() {
+        window.location.href = `/lowcode/report-designer?applicationId=${applicationId}`;
+      }
+
+      openReport(reportId) {
+        window.location.href = `/lowcode/report-designer?applicationId=${applicationId}&reportId=${reportId}`;
+      }
+
+      async executeReport(reportId) {
+        try {
+          const response = await fetch(`/lowcode/api/reports/${reportId}/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ parameterValues: {} })
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            alert(`Report executed successfully!\nRows returned: ${data.metadata.rowCount}\nExecution time: ${data.metadata.executionTime}ms`);
+          } else {
+            alert('Failed to execute report: ' + data.message);
+          }
+        } catch (error) {
+          alert('Error executing report: ' + error.message);
+        }
+      }
+
+      async duplicateReport(reportId) {
+        try {
+          const response = await fetch(`/lowcode/api/reports/${reportId}/duplicate`, {
+            method: 'POST'
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            await this.loadReports();
+            alert('Report duplicated successfully!');
+          } else {
+            alert('Failed to duplicate report: ' + data.message);
+          }
+        } catch (error) {
+          alert('Error duplicating report: ' + error.message);
+        }
+      }
+
+      async deleteReport(reportId) {
+        if (!confirm('Are you sure you want to delete this report?')) return;
+
+        try {
+          const response = await fetch(`/lowcode/api/reports/${reportId}`, {
+            method: 'DELETE'
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            await this.loadReports();
+          } else {
+            alert('Failed to delete report: ' + data.message);
+          }
+        } catch (error) {
+          alert('Error deleting report: ' + error.message);
+        }
+      }
+
+      exportReport(reportId) {
+        alert('Export functionality coming soon!');
+      }
+
+      showImportDialog() {
+        alert('Import functionality coming soon!');
+      }
+    }
+
+    // Initialize
+    const reportsManager = new ReportsManager();
+    reportsManager.init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<%- include('../partials/header') %>
+
+<div class="row" id="stats">
+  <div class="col-md-3 mb-4">
+    <div class="card stat-card">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Total Accounts</h6>
+        <h2 class="card-title" id="total-accounts">-</h2>
+        <small class="text-success" id="active-accounts">- active</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 mb-4">
+    <div class="card stat-card">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Total Records</h6>
+        <h2 class="card-title" id="total-records">-</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 mb-4">
+    <div class="card stat-card">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Total Blobs</h6>
+        <h2 class="card-title" id="total-blobs">-</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 mb-4">
+    <div class="card stat-card">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Total Events</h6>
+        <h2 class="card-title" id="total-events">-</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>Queue Status</h5>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Queue</th>
+              <th>Waiting</th>
+              <th>Active</th>
+              <th>Completed</th>
+              <th>Failed</th>
+            </tr>
+          </thead>
+          <tbody id="queue-stats">
+            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h5>Recent Activity</h5>
+      </div>
+      <div class="card-body">
+        <div id="recent-activity" style="max-height: 300px; overflow-y: auto;">
+          <p class="text-center text-muted">Loading...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function loadStats() {
+    try {
+      const response = await fetch('/admin/api/stats');
+      const result = await response.json();
+
+      if (result.success) {
+        const { data } = result;
+
+        // Update account stats
+        document.getElementById('total-accounts').textContent = data.accounts.total;
+        document.getElementById('active-accounts').textContent = `${data.accounts.active} active`;
+        document.getElementById('total-records').textContent = data.records;
+        document.getElementById('total-blobs').textContent = data.blobs;
+        document.getElementById('total-events').textContent = data.events;
+
+        // Update queue stats
+        const queueHtml = ['sync', 'moderation', 'notifications', 'workflows']
+          .map(queue => {
+            const stats = data.queues[queue];
+            return `
+              <tr>
+                <td>${queue}</td>
+                <td>${stats.waiting || 0}</td>
+                <td>${stats.active || 0}</td>
+                <td>${stats.completed || 0}</td>
+                <td class="text-danger">${stats.failed || 0}</td>
+              </tr>
+            `;
+          }).join('');
+        document.getElementById('queue-stats').innerHTML = queueHtml;
+
+        // Update recent activity
+        const activityHtml = data.recentActivity.map(event => `
+          <div class="mb-2 pb-2 border-bottom">
+            <small class="text-muted">${new Date(event.created_at).toLocaleString()}</small>
+            <div>
+              <strong>${event.event_type}</strong> - ${event.operation || 'N/A'}
+              ${event.collection ? `<span class="badge bg-secondary">${event.collection}</span>` : ''}
+            </div>
+            ${event.account ? `<small>@${event.account.handle}</small>` : ''}
+          </div>
+        `).join('');
+        document.getElementById('recent-activity').innerHTML = activityHtml || '<p class="text-muted">No recent activity</p>';
+      }
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
+  }
+
+  // Load stats on page load
+  loadStats();
+
+  // Refresh every 10 seconds
+  setInterval(loadStats, 10000);
+
+  // Subscribe to real-time updates
+  socket.on('firehose:event', (event) => {
+    // Refresh stats when new events come in
+    loadStats();
+  });
+</script>
+
+<%- include('../partials/footer') %>

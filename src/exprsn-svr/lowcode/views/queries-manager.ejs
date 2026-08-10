@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code</title>
+
+  <!-- Bootstrap 5.3.0 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome 6.4.0 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Manager Common Styles -->
+  <link rel="stylesheet" href="/css/manager-common.css">
+
+  <style>
+    /* Query-specific colors */
+    .query-icon-entity { background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%); }
+    .query-icon-forge { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .query-icon-database { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .query-icon-rest { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+    .query-icon-json { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+    .query-icon-xml { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+    .query-icon-jsonlex { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+    .query-icon-redis { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); }
+    .query-icon-variable { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
+    .query-icon-custom { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+    .query-icon-default { background: linear-gradient(135deg, #9795f0 0%, #fbc8d4 100%); }
+
+    /* Datasource type badge */
+    .datasource-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      background: rgba(0, 120, 212, 0.1);
+      color: #0078d4;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-top: 0.5rem;
+    }
+
+    .datasource-type-badge i {
+      font-size: 0.75rem;
+    }
+
+    /* Filter count badge */
+    .filter-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 0.35rem;
+      background: #e8eaf6;
+      color: #5e35b1;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div id="pageApp">
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-title">
+        <i class="fas fa-filter"></i>
+        <div>
+          <h1>Visual Queries</h1>
+          <p class="header-subtitle">Build powerful queries with visual filtering and data transformation</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-light btn-sm" onclick="window.history.back()">
+          <i class="fas fa-arrow-left"></i> Back to Designer
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="createNewQuery()">
+          <i class="fas fa-plus"></i> New Query
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="page-content">
+      <div class="content-wrapper">
+        <!-- Filters Bar -->
+        <div class="filters-bar">
+          <div class="filters-row">
+            <div class="filter-group">
+              <label>Datasource Type</label>
+              <select id="filterDatasource" onchange="applyFilters()">
+                <option value="all">All Types</option>
+                <option value="entity">Entity</option>
+                <option value="forge">Forge</option>
+                <option value="database">Database</option>
+                <option value="rest">REST API</option>
+                <option value="json">JSON</option>
+                <option value="xml">XML</option>
+                <option value="jsonlex">JSONLex</option>
+                <option value="redis">Redis</option>
+                <option value="variable">Variable</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Sort By</label>
+              <select id="sortBy" onchange="applyFilters()">
+                <option value="updatedAt">Recently Modified</option>
+                <option value="createdAt">Recently Created</option>
+                <option value="name">Name (A-Z)</option>
+                <option value="filters">Most Filters</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Search</label>
+              <input type="text" id="searchInput" placeholder="Search by name or description..." oninput="applyFilters()">
+            </div>
+            <div class="items-counter">
+              <span id="itemCount">0</span> queries
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Grid -->
+        <div id="queriesContainer" class="items-grid">
+          <!-- Loading state -->
+          <div class="loading-state" style="grid-column: 1 / -1;">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading queries...</p>
+          </div>
+        </div>
+
+        <!-- Empty State (hidden by default, shown by JS) -->
+        <div id="emptyState" class="empty-state d-none">
+          <i class="fas fa-filter"></i>
+          <h3>No Queries Found</h3>
+          <p>Create your first visual query to start building data-driven applications</p>
+          <button class="btn btn-primary" onclick="createNewQuery()">
+            <i class="fas fa-plus"></i> Create Your First Query
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    const APP_ID = '<%= appId %>';
+    let allQueries = [];
+    let filteredQueries = [];
+
+    // Load queries on page load
+    async function loadQueries() {
+      try {
+        const response = await fetch(`/lowcode/api/queries?appId=${APP_ID}`);
+        const data = await response.json();
+
+        if (data.success) {
+          allQueries = data.queries || [];
+          applyFilters();
+        } else {
+          showError('Failed to load queries');
+        }
+      } catch (error) {
+        console.error('Failed to load queries:', error);
+        showError('Failed to load queries: ' + error.message);
+      }
+    }
+
+    // Apply filters
+    function applyFilters() {
+      const datasourceFilter = document.getElementById('filterDatasource').value;
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const sortBy = document.getElementById('sortBy').value;
+
+      filteredQueries = allQueries.filter(query => {
+        const matchesDatasource = datasourceFilter === 'all' || query.datasource?.type === datasourceFilter;
+        const matchesSearch = !searchTerm ||
+          query.name.toLowerCase().includes(searchTerm) ||
+          (query.description && query.description.toLowerCase().includes(searchTerm));
+
+        return matchesDatasource && matchesSearch;
+      });
+
+      // Sort queries
+      filteredQueries.sort((a, b) => {
+        switch (sortBy) {
+          case 'name':
+            return a.name.localeCompare(b.name);
+          case 'filters':
+            return countFilters(b.filters) - countFilters(a.filters);
+          case 'createdAt':
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          case 'updatedAt':
+          default:
+            return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
+        }
+      });
+
+      renderQueries();
+    }
+
+    // Render queries
+    function renderQueries() {
+      const container = document.getElementById('queriesContainer');
+      const emptyState = document.getElementById('emptyState');
+      const counter = document.getElementById('itemCount');
+
+      counter.textContent = filteredQueries.length;
+
+      if (filteredQueries.length === 0) {
+        container.classList.add('d-none');
+        emptyState.classList.remove('d-none');
+        return;
+      }
+
+      container.classList.remove('d-none');
+      emptyState.classList.add('d-none');
+
+      container.innerHTML = filteredQueries.map(query => `
+        <div class="item-card" onclick="openQuery('${query.id}')">
+          <!-- Header --><div class="card-header">
+            <div class="card-icon ${getQueryIconClass(query.datasource?.type)}">
+              <i class="${getQueryIcon(query.datasource?.type)}"></i>
+            </div>
+            <div class="card-info">
+              <h3 class="card-title">${escapeHtml(query.name)}</h3>
+              <p class="card-description">${escapeHtml(query.description || 'No description')}</p>
+            </div>
+          </div>
+
+          <!-- Datasource Badge -->
+          <div style="padding: 0 1.25rem;">
+            <span class="datasource-type-badge">
+              <i class="${getQueryIcon(query.datasource?.type)}"></i>
+              ${getDatasourceName(query.datasource?.type)}
+            </span>
+          </div>
+
+          <!-- Metadata -->
+          <div class="card-metadata">
+            <div class="metadata-item">
+              <i class="fas fa-columns"></i>
+              <span>${query.fields?.length || 0} fields</span>
+            </div>
+            <div class="metadata-item">
+              <i class="fas fa-filter"></i>
+              <span class="filter-count">${countFilters(query.filters)}</span>
+            </div>
+            <div class="metadata-item">
+              <i class="fas fa-clock"></i>
+              <span>${formatDate(query.updatedAt || query.createdAt)}</span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="card-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); openQuery('${query.id}')">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn btn-outline-success btn-sm" onclick="event.stopPropagation(); executeQuery('${query.id}')">
+              <i class="fas fa-play"></i> Execute
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation(); deleteQuery('${query.id}')">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Helper functions
+    function getQueryIcon(type) {
+      const icons = {
+        entity: 'fa-database',
+        forge: 'fa-briefcase',
+        database: 'fa-server',
+        rest: 'fa-cloud',
+        json: 'fa-file-code',
+        xml: 'fa-file-alt',
+        jsonlex: 'fa-code',
+        redis: 'fa-memory',
+        variable: 'fa-variable',
+        custom: 'fa-terminal'
+      };
+      return `fas ${icons[type] || 'fa-question'}`;
+    }
+
+    function getQueryIconClass(type) {
+      return `query-icon-${type || 'default'}`;
+    }
+
+    function getDatasourceName(type) {
+      const names = {
+        entity: 'Entity',
+        forge: 'Forge',
+        database: 'Database',
+        rest: 'REST API',
+        json: 'JSON',
+        xml: 'XML',
+        jsonlex: 'JSONLex',
+        redis: 'Redis',
+        variable: 'Variable',
+        custom: 'Custom'
+      };
+      return names[type] || 'Unknown';
+    }
+
+    function countFilters(filters) {
+      if (!filters || !filters.rules) return 0;
+
+      let count = 0;
+      function countRules(group) {
+        if (!group || !group.rules) return;
+
+        group.rules.forEach(rule => {
+          if (rule.type === 'group') {
+            countRules(rule);
+          } else {
+            count++;
+          }
+        });
+      }
+
+      countRules(filters);
+      return count;
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return 'Never';
+
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+      if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+      return `${Math.floor(diffDays / 365)}y ago`;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showError(message) {
+      const container = document.getElementById('queriesContainer');
+      container.innerHTML = `
+        <div class="empty-state" style="grid-column: 1 / -1;">
+          <i class="fas fa-exclamation-circle"></i>
+          <h3>Error Loading Queries</h3>
+          <p>${message}</p>
+          <button class="btn btn-primary mt-3" onclick="loadQueries()">
+            <i class="fas fa-sync"></i> Retry
+          </button>
+        </div>
+      `;
+    }
+
+    // Query actions
+    function createNewQuery() {
+      window.location.href = `/lowcode/queries/new?appId=${APP_ID}`;
+    }
+
+    function openQuery(queryId) {
+      window.location.href = `/lowcode/queries/${queryId}/designer?appId=${APP_ID}`;
+    }
+
+    async function executeQuery(queryId) {
+      if (!confirm('Execute this query now?')) return;
+
+      try {
+        const response = await fetch(`/lowcode/api/queries/${queryId}/execute`, {
+          method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert(`Query executed successfully!\nRows returned: ${data.results?.length || 0}`);
+        } else {
+          alert('Failed to execute query: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function deleteQuery(queryId) {
+      if (!confirm('Are you sure you want to delete this query? This action cannot be undone.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/lowcode/api/queries/${queryId}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          loadQueries();
+        } else {
+          alert('Failed to delete query: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadQueries();
+    });
+  </script>
+</body>
+</html>

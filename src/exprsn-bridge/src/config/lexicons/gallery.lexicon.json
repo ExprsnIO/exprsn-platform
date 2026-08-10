@@ -1,0 +1,644 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-gallery",
+      "version": "1.0.0",
+      "description": "Media Galleries Service"
+    },
+    "routes": [
+      {
+        "path": "/api/gallery/albums",
+        "method": "GET",
+        "description": "List user albums",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/albums",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          },
+          "certificateBinding": false
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "sort": {
+              "type": "string",
+              "enum": ["created", "updated", "name"],
+              "default": "created"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/gallery/albums",
+        "method": "POST",
+        "description": "Create new album",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/albums",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "visibility": {
+                "type": "string",
+                "enum": ["public", "private", "unlisted"],
+                "default": "private"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/gallery/albums/:id",
+        "method": "GET",
+        "description": "Get album details",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/albums/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/gallery/albums/:id",
+        "method": "PUT",
+        "description": "Update album",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/albums/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "visibility": {
+                "type": "string",
+                "enum": ["public", "private", "unlisted"]
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/gallery/albums/:id",
+        "method": "DELETE",
+        "description": "Delete album",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/albums/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/gallery/media",
+        "method": "GET",
+        "description": "List media items",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/media",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "albumId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": {
+              "type": "string",
+              "enum": ["image", "video", "gif"]
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/gallery/media",
+        "method": "POST",
+        "description": "Upload media file",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/media",
+          "timeout": 30000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["file"],
+            "properties": {
+              "albumId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/gallery/media/:id",
+        "method": "GET",
+        "description": "Get media item details",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/media/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/gallery/media/:id",
+        "method": "DELETE",
+        "description": "Delete media item",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/media/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/gallery/processing/transform",
+        "method": "POST",
+        "description": "Apply transformations to media",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/processing/transform",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["mediaId", "transformations"],
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "transformations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["type"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["resize", "crop", "rotate", "flip", "brightness", "contrast", "saturation"]
+                    },
+                    "params": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/gallery/processing/variants",
+        "method": "POST",
+        "description": "Generate media variants",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/processing/variants",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["mediaId", "sizes"],
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "sizes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["thumbnail", "small", "medium", "large"]
+                }
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/gallery/processing/filter",
+        "method": "POST",
+        "description": "Apply filter to media",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/processing/filter",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["mediaId", "filter"],
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "filter": {
+                "type": "string",
+                "minLength": 1
+              },
+              "intensity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "default": 1
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/gallery/processing/colors",
+        "method": "POST",
+        "description": "Extract dominant colors from media",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/processing/colors",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["mediaId"],
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10,
+                "default": 5
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/gallery/processing/watermark",
+        "method": "POST",
+        "description": "Apply watermark to media",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/processing/watermark",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["mediaId", "watermark"],
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "watermark": {
+                "type": "string",
+                "minLength": 1
+              },
+              "position": {
+                "type": "string",
+                "enum": ["top-left", "top-right", "bottom-left", "bottom-right", "center"],
+                "default": "bottom-right"
+              },
+              "opacity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "default": 0.5
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/gallery/processing/convert",
+        "method": "POST",
+        "description": "Convert media format",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/processing/convert",
+          "timeout": 15000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["mediaId", "format"],
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "format": {
+                "type": "string",
+                "enum": ["jpg", "png", "webp", "gif"]
+              },
+              "quality": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 85
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/gallery/processing/filters",
+        "method": "GET",
+        "description": "List available filters",
+        "target": {
+          "service": "gallery",
+          "path": "/api/gallery/processing/filters",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 3000
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

@@ -1,0 +1,317 @@
+/* Exprsn Payments Dashboard Styles */
+
+:root {
+  --primary-color: #4e73df;
+  --success-color: #1cc88a;
+  --warning-color: #f6c23e;
+  --danger-color: #e74a3b;
+  --info-color: #36b9cc;
+  --dark-color: #5a5c69;
+  --gray-100: #f8f9fc;
+  --gray-300: #dddfeb;
+  --gray-600: #858796;
+  --gray-800: #5a5c69;
+}
+
+body {
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--gray-100);
+}
+
+/* Sidebar Styles */
+.sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  padding: 48px 0 0;
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+}
+
+.sidebar-sticky {
+  position: relative;
+  top: 0;
+  height: calc(100vh - 48px);
+  padding-top: .5rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sidebar .nav-link {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+}
+
+.sidebar .nav-link:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar .nav-link.active {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar .nav-link i {
+  margin-right: 4px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.sidebar-heading {
+  font-size: .75rem;
+  text-transform: uppercase;
+}
+
+/* Card Borders */
+.border-left-primary {
+  border-left: 0.25rem solid var(--primary-color) !important;
+}
+
+.border-left-success {
+  border-left: 0.25rem solid var(--success-color) !important;
+}
+
+.border-left-warning {
+  border-left: 0.25rem solid var(--warning-color) !important;
+}
+
+.border-left-danger {
+  border-left: 0.25rem solid var(--danger-color) !important;
+}
+
+.border-left-info {
+  border-left: 0.25rem solid var(--info-color) !important;
+}
+
+/* Text Colors */
+.text-primary {
+  color: var(--primary-color) !important;
+}
+
+.text-success {
+  color: var(--success-color) !important;
+}
+
+.text-warning {
+  color: var(--warning-color) !important;
+}
+
+.text-danger {
+  color: var(--danger-color) !important;
+}
+
+.text-gray-300 {
+  color: var(--gray-300) !important;
+}
+
+.text-gray-600 {
+  color: var(--gray-600) !important;
+}
+
+.text-gray-800 {
+  color: var(--gray-800) !important;
+}
+
+/* Card Styles */
+.card {
+  border: none;
+  border-radius: 0.35rem;
+}
+
+.card-header {
+  background-color: var(--gray-100);
+  border-bottom: 1px solid var(--gray-300);
+}
+
+/* Badges */
+.badge-status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-active {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.badge-trialing {
+  background-color: var(--info-color);
+  color: white;
+}
+
+.badge-past_due {
+  background-color: var(--warning-color);
+  color: white;
+}
+
+.badge-canceled {
+  background-color: var(--gray-600);
+  color: white;
+}
+
+.badge-open {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.badge-paid {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.badge-void {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.badge-won {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.badge-lost {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.badge-needs_response {
+  background-color: var(--warning-color);
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Tables */
+.table-hover tbody tr:hover {
+  background-color: var(--gray-100);
+  cursor: pointer;
+}
+
+.table thead th {
+  border-bottom: 2px solid var(--gray-300);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: var(--gray-800);
+}
+
+/* Buttons */
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Utility Classes */
+.text-xs {
+  font-size: 0.7rem;
+}
+
+.font-weight-bold {
+  font-weight: 700;
+}
+
+.shadow {
+  box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+
+.no-gutters {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+/* Loading States */
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.2em;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 767.98px) {
+  .sidebar {
+    top: 5rem;
+  }
+}
+
+/* Alert Styles */
+.alert-dismissible .btn-close {
+  padding: 0.75rem 1.25rem;
+}
+
+/* Status Icons */
+.status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.status-icon.success {
+  background-color: rgba(28, 200, 138, 0.1);
+  color: var(--success-color);
+}
+
+.status-icon.warning {
+  background-color: rgba(246, 194, 62, 0.1);
+  color: var(--warning-color);
+}
+
+.status-icon.danger {
+  background-color: rgba(231, 74, 59, 0.1);
+  color: var(--danger-color);
+}
+
+.status-icon.info {
+  background-color: rgba(54, 185, 204, 0.1);
+  color: var(--info-color);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--gray-600);
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Deadline Badge */
+.deadline-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.deadline-urgent {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.deadline-soon {
+  background-color: var(--warning-color);
+  color: white;
+}
+
+.deadline-normal {
+  background-color: var(--gray-300);
+  color: var(--gray-800);
+}

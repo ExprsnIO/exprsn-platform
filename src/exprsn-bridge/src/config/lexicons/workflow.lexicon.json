@@ -1,0 +1,495 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-workflow",
+      "version": "1.0.0",
+      "description": "Workflow Automation Service"
+    },
+    "routes": [
+      {
+        "path": "/api/workflow/workflows",
+        "method": "GET",
+        "description": "List workflows",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/workflows",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          },
+          "certificateBinding": false
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "status": {
+              "type": "string",
+              "enum": ["active", "inactive", "draft"]
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/workflow/workflows",
+        "method": "POST",
+        "description": "Create new workflow",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/workflows",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["name", "trigger"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "trigger": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["manual", "webhook", "schedule", "event"]
+                  },
+                  "config": {
+                    "type": "object"
+                  }
+                }
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/workflow/workflows/:id",
+        "method": "GET",
+        "description": "Get workflow details",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/workflows/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/workflow/workflows/:id",
+        "method": "PUT",
+        "description": "Update workflow",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/workflows/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "status": {
+                "type": "string",
+                "enum": ["active", "inactive", "draft"]
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/workflow/workflows/:id",
+        "method": "DELETE",
+        "description": "Delete workflow",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/workflows/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/workflow/workflows/:id/execute",
+        "method": "POST",
+        "description": "Execute workflow",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/workflows/:id/execute",
+          "timeout": 30000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "object"
+              },
+              "variables": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/workflow/executions",
+        "method": "GET",
+        "description": "List workflow executions",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/executions",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "workflowId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "running", "completed", "failed", "cancelled"]
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/workflow/executions/:id",
+        "method": "GET",
+        "description": "Get execution details",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/executions/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/workflow/executions/:id/cancel",
+        "method": "POST",
+        "description": "Cancel workflow execution",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/executions/:id/cancel",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/workflow/approvals/:id/approve",
+        "method": "POST",
+        "description": "Approve workflow step",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/approvals/:id/approve",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "comments": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "data": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/workflow/approvals/:id/reject",
+        "method": "POST",
+        "description": "Reject workflow step",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/approvals/:id/reject",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "required": ["reason"],
+            "properties": {
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "comments": {
+                "type": "string",
+                "maxLength": 1000
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/workflow/templates",
+        "method": "GET",
+        "description": "List workflow templates",
+        "target": {
+          "service": "workflow",
+          "path": "/api/workflow/templates",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "category": {
+              "type": "string"
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 1500
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

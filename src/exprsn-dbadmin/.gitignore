@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.local
+logs/
+*.log
+coverage/
+.DS_Store
+dist/
+build/
+*.swp
+*.swo
+*~
+
+# TLS/SSL Certificates (auto-generated or custom)
+certs/
+*.key
+*.crt
+*.pem
+*.csr

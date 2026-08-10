@@ -1,0 +1,883 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-auth",
+      "version": "1.0.0",
+      "description": "Authentication & Authorization Service with OAuth2/OIDC support"
+    },
+    "routes": [
+      {
+        "path": "/api/auth/register",
+        "method": "POST",
+        "description": "Register new user",
+        "target": {
+          "service": "auth",
+          "path": "/api/auth/register",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["email", "password"],
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email",
+                "maxLength": 255
+              },
+              "password": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 128
+              },
+              "displayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "firstName": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "lastName": {
+                "type": "string",
+                "maxLength": 100
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 900000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/auth/login",
+        "method": "POST",
+        "description": "User login",
+        "target": {
+          "service": "auth",
+          "path": "/api/auth/login",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["email", "password"],
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "password": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 900000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/auth/logout",
+        "method": "POST",
+        "description": "User logout",
+        "target": {
+          "service": "auth",
+          "path": "/api/auth/logout",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/auth/me",
+        "method": "GET",
+        "description": "Get current authenticated user",
+        "target": {
+          "service": "auth",
+          "path": "/api/auth/me",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/auth/forgot-password",
+        "method": "POST",
+        "description": "Initiate password reset",
+        "target": {
+          "service": "auth",
+          "path": "/api/auth/forgot-password",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["email"],
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 900000,
+          "max": 3
+        }
+      },
+      {
+        "path": "/api/auth/reset-password",
+        "method": "POST",
+        "description": "Complete password reset",
+        "target": {
+          "service": "auth",
+          "path": "/api/auth/reset-password",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["token", "password"],
+            "properties": {
+              "token": {
+                "type": "string",
+                "minLength": 1
+              },
+              "password": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 128
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 900000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/auth/change-password",
+        "method": "POST",
+        "description": "Change password for authenticated user",
+        "target": {
+          "service": "auth",
+          "path": "/api/auth/change-password",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["currentPassword", "newPassword"],
+            "properties": {
+              "currentPassword": {
+                "type": "string",
+                "minLength": 1
+              },
+              "newPassword": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 128
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/auth/verify-email",
+        "method": "POST",
+        "description": "Verify email address with token",
+        "target": {
+          "service": "auth",
+          "path": "/api/auth/verify-email",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["token"],
+            "properties": {
+              "token": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/auth/resend-verification",
+        "method": "POST",
+        "description": "Resend email verification",
+        "target": {
+          "service": "auth",
+          "path": "/api/auth/resend-verification",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["email"],
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 900000,
+          "max": 3
+        }
+      },
+      {
+        "path": "/api/mfa/setup",
+        "method": "POST",
+        "description": "Generate MFA secret and QR code",
+        "target": {
+          "service": "auth",
+          "path": "/api/mfa/setup",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        }
+      },
+      {
+        "path": "/api/mfa/verify",
+        "method": "POST",
+        "description": "Verify MFA token and enable MFA",
+        "target": {
+          "service": "auth",
+          "path": "/api/mfa/verify",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["token"],
+            "properties": {
+              "token": {
+                "type": "string",
+                "pattern": "^[0-9]{6}$|^[A-F0-9]{8}$"
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/mfa/validate",
+        "method": "POST",
+        "description": "Validate MFA token during login",
+        "target": {
+          "service": "auth",
+          "path": "/api/mfa/validate",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["token"],
+            "properties": {
+              "token": {
+                "type": "string",
+                "pattern": "^[0-9]{6}$|^[A-F0-9]{8}$"
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/mfa/disable",
+        "method": "POST",
+        "description": "Disable MFA for user",
+        "target": {
+          "service": "auth",
+          "path": "/api/mfa/disable",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["password"],
+            "properties": {
+              "password": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/mfa/regenerate-backup-codes",
+        "method": "POST",
+        "description": "Regenerate MFA backup codes",
+        "target": {
+          "service": "auth",
+          "path": "/api/mfa/regenerate-backup-codes",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["password"],
+            "properties": {
+              "password": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/mfa/status",
+        "method": "GET",
+        "description": "Get MFA status for current user",
+        "target": {
+          "service": "auth",
+          "path": "/api/mfa/status",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/users",
+        "method": "GET",
+        "description": "List all users",
+        "target": {
+          "service": "auth",
+          "path": "/api/users",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "status": {
+              "type": "string",
+              "enum": ["active", "inactive", "suspended"]
+            },
+            "search": {
+              "type": "string",
+              "maxLength": 255
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/users/:id",
+        "method": "GET",
+        "description": "Get user by ID",
+        "target": {
+          "service": "auth",
+          "path": "/api/users/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/users/:id",
+        "method": "PUT",
+        "description": "Update user profile",
+        "target": {
+          "service": "auth",
+          "path": "/api/users/:id",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "firstName": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "lastName": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "bio": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "avatarUrl": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/users/:id",
+        "method": "DELETE",
+        "description": "Delete user account",
+        "target": {
+          "service": "auth",
+          "path": "/api/users/:id",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/organizations",
+        "method": "POST",
+        "description": "Create new organization",
+        "target": {
+          "service": "auth",
+          "path": "/api/organizations",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["name", "slug"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "slug": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "type": {
+                "type": "string",
+                "enum": ["personal", "team", "enterprise"]
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 3600000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/organizations",
+        "method": "GET",
+        "description": "List user's organizations",
+        "target": {
+          "service": "auth",
+          "path": "/api/organizations",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/organizations/:id",
+        "method": "GET",
+        "description": "Get organization by ID",
+        "target": {
+          "service": "auth",
+          "path": "/api/organizations/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/organizations/:id/members",
+        "method": "GET",
+        "description": "List organization members",
+        "target": {
+          "service": "auth",
+          "path": "/api/organizations/:id/members",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/roles",
+        "method": "GET",
+        "description": "List all roles",
+        "target": {
+          "service": "auth",
+          "path": "/api/roles",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/roles",
+        "method": "POST",
+        "description": "Create new role",
+        "target": {
+          "service": "auth",
+          "path": "/api/roles",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "permissions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/applications",
+        "method": "POST",
+        "description": "Create OAuth2 application",
+        "target": {
+          "service": "auth",
+          "path": "/api/applications",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["name", "redirectUris"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "redirectUris": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "grantTypes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["authorization_code", "implicit", "client_credentials", "refresh_token"]
+                }
+              },
+              "scopes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["openid", "profile", "email", "offline_access"]
+                }
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 3600000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/applications",
+        "method": "GET",
+        "description": "List OAuth2 applications",
+        "target": {
+          "service": "auth",
+          "path": "/api/applications",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "organizationId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/sessions",
+        "method": "GET",
+        "description": "List user sessions",
+        "target": {
+          "service": "auth",
+          "path": "/api/sessions",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/sessions/:id",
+        "method": "DELETE",
+        "description": "Revoke session",
+        "target": {
+          "service": "auth",
+          "path": "/api/sessions/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 60000,
+        "max": 100
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

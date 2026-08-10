@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exprsn Business Hub - Application Portal</title>
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <!-- Shared Exprsn Dashboard CSS -->
+    <link rel="stylesheet" href="/shared/css/exprsn-dashboard.css">
+
+    <style>
+        /* Additional styles for landing page layout */
+        body {
+            background: var(--exprsn-bg-secondary);
+        }
+
+        .hero-section {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            background: var(--exprsn-gradient-primary);
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1.125rem;
+            opacity: 0.95;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .platform-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1.5rem 3rem;
+        }
+
+        .platform-card {
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-xl);
+            padding: 2rem;
+            transition: var(--exprsn-transition-base);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .platform-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--exprsn-shadow-xl);
+            border-color: var(--exprsn-primary);
+        }
+
+        .platform-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: var(--exprsn-radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            margin-bottom: 1.5rem;
+        }
+
+        .platform-title {
+            font-size: 1.375rem;
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .platform-description {
+            color: var(--exprsn-text-secondary);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+            flex-grow: 1;
+        }
+
+        .platform-features {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 1.5rem;
+        }
+
+        .platform-features li {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0;
+            font-size: 0.875rem;
+            color: var(--exprsn-text-secondary);
+        }
+
+        .platform-features li i {
+            color: var(--exprsn-success);
+            font-size: 1rem;
+        }
+
+        .platform-meta {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        .stats-section {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1.5rem 3rem;
+        }
+
+        .stats-title {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .hero-subtitle {
+                font-size: 1rem;
+            }
+
+            .platform-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1 class="hero-title">
+            <i class="bi bi-grid-3x3-gap"></i> Exprsn Business Hub
+        </h1>
+        <p class="hero-subtitle">
+            Unified platform for building powerful business applications with Low-Code tools,
+            Workflow automation, and comprehensive CRM/ERP/Groupware solutions
+        </p>
+    </div>
+
+    <!-- Platform Cards Grid -->
+    <div class="platform-grid">
+        <!-- Low-Code Platform -->
+        <div class="platform-card" onclick="window.location.href='/lowcode/applications'">
+            <div class="platform-icon" style="background: var(--exprsn-gradient-primary);">
+                <i class="bi bi-layers"></i>
+            </div>
+            <h2 class="platform-title">Low-Code Platform</h2>
+            <div class="platform-meta">
+                <span class="badge badge-primary">
+                    <i class="bi bi-lightning"></i> Rapid Development
+                </span>
+                <span class="badge badge-success">
+                    <i class="bi bi-check-circle"></i> Production Ready
+                </span>
+            </div>
+            <p class="platform-description">
+                Build sophisticated business applications without code using visual designers.
+                Create entities, forms, grids, and workflows with drag-and-drop simplicity.
+            </p>
+            <ul class="platform-features">
+                <li><i class="bi bi-check2-circle"></i> Entity Designer Pro</li>
+                <li><i class="bi bi-check2-circle"></i> Form Designer (27+ Components)</li>
+                <li><i class="bi bi-check2-circle"></i> Visual Query Builder</li>
+                <li><i class="bi bi-check2-circle"></i> Grid Designer & Data Views</li>
+                <li><i class="bi bi-check2-circle"></i> JSONLex Expression Engine</li>
+                <li><i class="bi bi-check2-circle"></i> HTML/CSS/JS Projects</li>
+            </ul>
+            <button class="btn btn-primary w-100">
+                <i class="bi bi-box-arrow-up-right"></i> Launch Low-Code
+            </button>
+        </div>
+
+        <!-- Workflow Engine -->
+        <div class="platform-card" onclick="window.location.href='/workflow/dashboard'">
+            <div class="platform-icon" style="background: var(--exprsn-gradient-success);">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <h2 class="platform-title">Workflow Automation</h2>
+            <div class="platform-meta">
+                <span class="badge badge-success">
+                    <i class="bi bi-gear"></i> Automation
+                </span>
+                <span class="badge badge-info">
+                    <i class="bi bi-broadcast"></i> Real-time
+                </span>
+            </div>
+            <p class="platform-description">
+                Design and execute complex business workflows with a visual builder.
+                Automate processes, integrate services, and monitor execution in real-time.
+            </p>
+            <ul class="platform-features">
+                <li><i class="bi bi-check2-circle"></i> Visual Workflow Designer</li>
+                <li><i class="bi bi-check2-circle"></i> 15+ Step Types</li>
+                <li><i class="bi bi-check2-circle"></i> Conditional Branching & Loops</li>
+                <li><i class="bi bi-check2-circle"></i> JavaScript Execution (VM2)</li>
+                <li><i class="bi bi-check2-circle"></i> Real-time Tracking (Socket.IO)</li>
+                <li><i class="bi bi-check2-circle"></i> Service Integrations</li>
+            </ul>
+            <button class="btn btn-primary w-100">
+                <i class="bi bi-box-arrow-up-right"></i> Launch Workflow
+            </button>
+        </div>
+
+        <!-- Forge Business Platform -->
+        <div class="platform-card" onclick="window.location.href='/forge/dashboard'">
+            <div class="platform-icon" style="background: var(--exprsn-gradient-warm);">
+                <i class="bi bi-briefcase"></i>
+            </div>
+            <h2 class="platform-title">Forge Business Suite</h2>
+            <div class="platform-meta">
+                <span class="badge badge-warning">
+                    <i class="bi bi-building"></i> Enterprise
+                </span>
+                <span class="badge badge-success">
+                    <i class="bi bi-check-circle"></i> Integrated
+                </span>
+            </div>
+            <p class="platform-description">
+                Complete business management solution with CRM, ERP, and Groupware modules.
+                Manage customers, finances, inventory, HR, and collaboration in one platform.
+            </p>
+            <ul class="platform-features">
+                <li><i class="bi bi-check2-circle"></i> CRM (92 Endpoints)</li>
+                <li><i class="bi bi-check2-circle"></i> ERP (Finance, Inventory, HR)</li>
+                <li><i class="bi bi-check2-circle"></i> Groupware (Calendar, Tasks, Docs)</li>
+                <li><i class="bi bi-check2-circle"></i> Project Management</li>
+                <li><i class="bi bi-check2-circle"></i> Reporting & Analytics</li>
+                <li><i class="bi bi-check2-circle"></i> Real-time Collaboration</li>
+            </ul>
+            <button class="btn btn-primary w-100">
+                <i class="bi bi-box-arrow-up-right"></i> Launch Forge
+            </button>
+        </div>
+    </div>
+
+    <!-- Platform Statistics -->
+    <div class="stats-section">
+        <h3 class="stats-title">
+            <i class="bi bi-bar-chart-line"></i> Platform Statistics
+        </h3>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="bi bi-app"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stat-applications">--</div>
+                    <div class="stat-label">Low-Code Applications</div>
+                    <div class="stat-change positive">
+                        <i class="bi bi-arrow-up"></i>
+                        <span>Ready to use</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="bi bi-database"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stat-entities">--</div>
+                    <div class="stat-label">Custom Entities</div>
+                    <div class="stat-change positive">
+                        <i class="bi bi-arrow-up"></i>
+                        <span>Data models</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="bi bi-diagram-3"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stat-workflows">--</div>
+                    <div class="stat-label">Active Workflows</div>
+                    <div class="stat-change positive">
+                        <i class="bi bi-arrow-up"></i>
+                        <span>Automation ready</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon danger">
+                    <i class="bi bi-ui-checks"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="stat-forms">--</div>
+                    <div class="stat-label">Dynamic Forms</div>
+                    <div class="stat-change positive">
+                        <i class="bi bi-arrow-up"></i>
+                        <span>UI components</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Platform Features -->
+    <div class="stats-section">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">
+                    <i class="bi bi-rocket"></i> Quick Access
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="grid grid-3">
+                    <!-- Low-Code Quick Links -->
+                    <div>
+                        <h5 class="mb-3 fw-600 text-primary">
+                            <i class="bi bi-layers"></i> Low-Code Tools
+                        </h5>
+                        <div class="d-flex flex-column gap-2">
+                            <a href="/lowcode/applications" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-app"></i> Applications
+                            </a>
+                            <a href="/lowcode/entities" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-database"></i> Entity Designer
+                            </a>
+                            <a href="/lowcode/forms" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-ui-checks"></i> Form Designer
+                            </a>
+                            <a href="/lowcode/grids" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-table"></i> Grid Designer
+                            </a>
+                            <a href="/lowcode/html-projects" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-code-square"></i> HTML Projects
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Workflow Quick Links -->
+                    <div>
+                        <h5 class="mb-3 fw-600 text-success">
+                            <i class="bi bi-diagram-3"></i> Workflow Tools
+                        </h5>
+                        <div class="d-flex flex-column gap-2">
+                            <a href="/workflow/dashboard" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-speedometer"></i> Dashboard
+                            </a>
+                            <a href="/workflow/designer" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-bezier"></i> Designer
+                            </a>
+                            <a href="/workflow/executions" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-play-circle"></i> Executions
+                            </a>
+                            <a href="/workflow/schedules" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-calendar-check"></i> Schedules
+                            </a>
+                            <a href="/workflow/logs" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-file-text"></i> Logs
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Forge Quick Links -->
+                    <div>
+                        <h5 class="mb-3 fw-600 text-warning">
+                            <i class="bi bi-briefcase"></i> Forge Modules
+                        </h5>
+                        <div class="d-flex flex-column gap-2">
+                            <a href="/forge/crm" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-people"></i> CRM
+                            </a>
+                            <a href="/forge/erp" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-graph-up"></i> ERP
+                            </a>
+                            <a href="/forge/groupware" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-calendar3"></i> Groupware
+                            </a>
+                            <a href="/forge/projects" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-kanban"></i> Projects
+                            </a>
+                            <a href="/forge/reports" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-file-earmark-bar-graph"></i> Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Load platform statistics from APIs
+         */
+        async function loadStatistics() {
+            try {
+                // Load Low-Code applications count
+                const appsResponse = await fetch('/lowcode/api/applications');
+                if (appsResponse.ok) {
+                    const appsData = await appsResponse.json();
+                    const count = appsData.data?.length || 0;
+                    document.getElementById('stat-applications').textContent = count;
+                }
+
+                // Load entities count
+                const entitiesResponse = await fetch('/lowcode/api/entities');
+                if (entitiesResponse.ok) {
+                    const entitiesData = await entitiesResponse.json();
+                    const count = entitiesData.data?.length || 0;
+                    document.getElementById('stat-entities').textContent = count;
+                }
+
+                // Load forms count
+                const formsResponse = await fetch('/lowcode/api/forms');
+                if (formsResponse.ok) {
+                    const formsData = await formsResponse.json();
+                    const count = formsData.data?.length || 0;
+                    document.getElementById('stat-forms').textContent = count;
+                }
+
+                // Load workflows count
+                const workflowsResponse = await fetch('/workflow/api/workflows');
+                if (workflowsResponse.ok) {
+                    const workflowsData = await workflowsResponse.json();
+                    const count = workflowsData.data?.length || 0;
+                    document.getElementById('stat-workflows').textContent = count;
+                }
+            } catch (error) {
+                console.error('Failed to load statistics:', error);
+                // Set to 0 on error
+                document.querySelectorAll('.stat-value').forEach(el => {
+                    if (el.textContent === '--') {
+                        el.textContent = '0';
+                    }
+                });
+            }
+        }
+
+        // Load statistics on page load
+        document.addEventListener('DOMContentLoaded', loadStatistics);
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + 1 = Low-Code
+            if ((e.ctrlKey || e.metaKey) && e.key === '1') {
+                e.preventDefault();
+                window.location.href = '/lowcode/applications';
+            }
+            // Ctrl/Cmd + 2 = Workflow
+            if ((e.ctrlKey || e.metaKey) && e.key === '2') {
+                e.preventDefault();
+                window.location.href = '/workflow/dashboard';
+            }
+            // Ctrl/Cmd + 3 = Forge
+            if ((e.ctrlKey || e.metaKey) && e.key === '3') {
+                e.preventDefault();
+                window.location.href = '/forge/dashboard';
+            }
+        });
+    </script>
+</body>
+</html>

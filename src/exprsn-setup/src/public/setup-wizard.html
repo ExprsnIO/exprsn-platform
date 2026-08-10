@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Setup Wizard - Exprsn Setup</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --exprsn-primary: #DC382D;
+      --exprsn-secondary: #1a1a1a;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem 0;
+    }
+
+    .wizard-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .wizard-card {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+
+    .wizard-header {
+      background: linear-gradient(135deg, var(--exprsn-primary) 0%, #ff6b5a 100%);
+      color: white;
+      padding: 2rem;
+    }
+
+    .wizard-header h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 600;
+    }
+
+    .wizard-header p {
+      margin: 0.5rem 0 0 0;
+      opacity: 0.9;
+    }
+
+    .wizard-progress {
+      background: #f8f9fa;
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .progress-steps {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .progress-steps::before {
+      content: '';
+      position: absolute;
+      top: 1.5rem;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #dee2e6;
+      z-index: 0;
+    }
+
+    .progress-line {
+      position: absolute;
+      top: 1.5rem;
+      left: 0;
+      height: 2px;
+      background: var(--exprsn-primary);
+      z-index: 1;
+      transition: width 0.3s;
+    }
+
+    .progress-step {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      flex: 1;
+    }
+
+    .progress-step-circle {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid #dee2e6;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      transition: all 0.3s;
+    }
+
+    .progress-step.active .progress-step-circle {
+      border-color: var(--exprsn-primary);
+      background: var(--exprsn-primary);
+      color: white;
+    }
+
+    .progress-step.completed .progress-step-circle {
+      border-color: #28a745;
+      background: #28a745;
+      color: white;
+    }
+
+    .progress-step-label {
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+
+    .progress-step.active .progress-step-label {
+      color: var(--exprsn-primary);
+      font-weight: 600;
+    }
+
+    .wizard-body {
+      padding: 2rem;
+    }
+
+    .wizard-step {
+      display: none;
+    }
+
+    .wizard-step.active {
+      display: block;
+    }
+
+    .wizard-footer {
+      padding: 1.5rem 2rem;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .form-label {
+      font-weight: 600;
+      color: var(--exprsn-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .info-box {
+      background: #e7f3ff;
+      border-left: 4px solid #0d6efd;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      border-radius: 4px;
+    }
+
+    .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      border-radius: 4px;
+    }
+
+    .success-box {
+      background: #d1e7dd;
+      border-left: 4px solid #28a745;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      border-radius: 4px;
+    }
+
+    .dependency-badge {
+      display: inline-block;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      background: #e9ecef;
+      color: #495057;
+    }
+
+    .config-section {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .config-section h5 {
+      margin-bottom: 1rem;
+      color: var(--exprsn-secondary);
+    }
+
+    .loading-spinner {
+      text-align: center;
+      padding: 3rem;
+    }
+
+    .completion-icon {
+      font-size: 4rem;
+      color: #28a745;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .btn-primary {
+      background-color: var(--exprsn-primary);
+      border-color: var(--exprsn-primary);
+    }
+
+    .btn-primary:hover {
+      background-color: #c32920;
+      border-color: #c32920;
+    }
+  </style>
+</head>
+<body>
+  <div class="wizard-container">
+    <div class="wizard-card">
+      <!-- Header -->
+      <div class="wizard-header">
+        <h1 id="serviceTitle">Service Setup Wizard</h1>
+        <p id="serviceDescription">Configure and initialize the service</p>
+      </div>
+
+      <!-- Progress -->
+      <div class="wizard-progress">
+        <div class="progress-steps">
+          <div class="progress-line" id="progressLine" style="width: 0%"></div>
+
+          <div class="progress-step active" data-step="1">
+            <div class="progress-step-circle">1</div>
+            <div class="progress-step-label">Overview</div>
+          </div>
+
+          <div class="progress-step" data-step="2">
+            <div class="progress-step-circle">2</div>
+            <div class="progress-step-label">Configuration</div>
+          </div>
+
+          <div class="progress-step" data-step="3">
+            <div class="progress-step-circle">3</div>
+            <div class="progress-step-label">Database</div>
+          </div>
+
+          <div class="progress-step" data-step="4">
+            <div class="progress-step-circle">4</div>
+            <div class="progress-step-label">Environment</div>
+          </div>
+
+          <div class="progress-step" data-step="5">
+            <div class="progress-step-circle">5</div>
+            <div class="progress-step-label">Complete</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="wizard-body">
+        <!-- Step 1: Overview -->
+        <div class="wizard-step active" data-step="1">
+          <h4>Service Overview</h4>
+          <p class="text-muted mb-4">Review the service details before configuration</p>
+
+          <div id="overviewContent">
+            <div class="loading-spinner">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="mt-3">Loading service information...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Configuration -->
+        <div class="wizard-step" data-step="2">
+          <h4>Service Configuration</h4>
+          <p class="text-muted mb-4">Configure basic service settings and features</p>
+
+          <div class="config-section">
+            <h5><i class="bi bi-gear"></i> Basic Settings</h5>
+
+            <div class="mb-3">
+              <label for="servicePort" class="form-label">Port Number</label>
+              <input type="number" class="form-control" id="servicePort" placeholder="3000">
+              <small class="form-text text-muted">Port on which the service will listen</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="serviceEnabled" class="form-check-label">
+                <input type="checkbox" class="form-check-input" id="serviceEnabled" checked>
+                Enable service on startup
+              </label>
+            </div>
+          </div>
+
+          <!-- Dynamic Feature Configuration -->
+          <div id="featuresConfigSection"></div>
+
+          <div class="config-section">
+            <h5><i class="bi bi-sliders"></i> Advanced Settings</h5>
+
+            <div class="mb-3">
+              <label for="healthCheckUrl" class="form-label">Health Check URL</label>
+              <input type="text" class="form-control" id="healthCheckUrl" placeholder="/health">
+              <small class="form-text text-muted">Endpoint for health checks</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="healthCheckInterval" class="form-label">Health Check Interval (ms)</label>
+              <input type="number" class="form-control" id="healthCheckInterval" value="30000">
+              <small class="form-text text-muted">How often to check service health</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="serviceNotes" class="form-label">Notes</label>
+              <textarea class="form-control" id="serviceNotes" rows="3" placeholder="Additional configuration notes..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Database -->
+        <div class="wizard-step" data-step="3">
+          <h4>Database Configuration</h4>
+          <p class="text-muted mb-4">Configure PostgreSQL database settings and run migrations</p>
+
+          <div id="databaseContent">
+            <!-- Database Metadata -->
+            <div id="databaseMetadataSection"></div>
+
+            <div class="mb-3">
+              <label for="databaseEnabled" class="form-check-label">
+                <input type="checkbox" class="form-check-input" id="databaseEnabled">
+                <strong>Enable PostgreSQL Database</strong>
+              </label>
+            </div>
+
+            <div id="databaseFields" style="display: none;">
+              <div class="config-section">
+                <h6><i class="bi bi-database"></i> Connection Settings</h6>
+
+                <div class="mb-3">
+                  <label for="databaseName" class="form-label">Database Name</label>
+                  <input type="text" class="form-control" id="databaseName" placeholder="exprsn_service">
+                  <small class="text-muted">The database will be created automatically if it doesn't exist</small>
+                </div>
+
+                <div class="mb-3">
+                  <label for="databaseHost" class="form-label">Database Host</label>
+                  <input type="text" class="form-control" id="databaseHost" value="localhost">
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="databasePort" class="form-label">Port</label>
+                      <input type="number" class="form-control" id="databasePort" value="5432">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="databaseUser" class="form-label">Username</label>
+                      <input type="text" class="form-control" id="databaseUser" value="postgres">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <button class="btn btn-secondary" onclick="testDatabaseConnection()">
+                    <i class="bi bi-plug"></i> Test Connection
+                  </button>
+                  <div id="dbTestResult" class="mt-2"></div>
+                </div>
+              </div>
+
+              <!-- Migration Management -->
+              <div id="migrationSection" class="config-section">
+                <h6><i class="bi bi-arrow-repeat"></i> Database Migrations</h6>
+                <p class="text-muted small mb-3">Migrations will create the database schema</p>
+
+                <div id="migrationStatus" class="mb-3">
+                  <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  <span class="ms-2">Checking migration status...</span>
+                </div>
+
+                <button class="btn btn-primary" id="btnRunMigrations" onclick="runMigrations()" disabled>
+                  <i class="bi bi-play-circle"></i> Run Migrations
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Environment -->
+        <div class="wizard-step" data-step="4">
+          <h4>Environment Configuration</h4>
+          <p class="text-muted mb-4">Configure environment variables organized by category</p>
+
+          <div class="info-box mb-3">
+            <i class="bi bi-info-circle"></i>
+            <strong>Environment Variables:</strong> These settings will be used to generate the service's <code>.env</code> file.
+            Sensitive values (passwords, API keys) are marked with <i class="bi bi-lock-fill text-warning"></i>.
+          </div>
+
+          <!-- Redis Configuration (if enabled) -->
+          <div id="redisConfigSection"></div>
+
+          <!-- Dynamic Environment Variables by Category -->
+          <div id="environmentVariablesSection"></div>
+        </div>
+
+        <!-- Step 5: Complete -->
+        <div class="wizard-step" data-step="5">
+          <div id="completionContent">
+            <div class="loading-spinner">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Saving...</span>
+              </div>
+              <p class="mt-3">Saving configuration...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="wizard-footer">
+        <button class="btn btn-secondary" id="btnPrevious" onclick="previousStep()" disabled>
+          <i class="bi bi-arrow-left"></i> Previous
+        </button>
+        <div>
+          <a href="/admin/services" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-x-circle"></i> Cancel
+          </a>
+          <button class="btn btn-primary" id="btnNext" onclick="nextStep()">
+            Next <i class="bi bi-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let currentStep = 1;
+    let serviceId = null;
+    let serviceData = null;
+
+    // Extract serviceId from URL
+    const pathParts = window.location.pathname.split('/');
+    serviceId = pathParts[pathParts.length - 1];
+
+    // Load service data
+    async function loadServiceData() {
+      try {
+        // First, load service metadata
+        const metadataResponse = await fetch(`/api/service-config/${serviceId}/metadata`);
+        if (!metadataResponse.ok) {
+          showError('Service metadata not found');
+          return;
+        }
+
+        const metadataData = await metadataResponse.json();
+        const metadata = metadataData.metadata;
+
+        // Then try to load existing configuration
+        const configResponse = await fetch(`/api/service-config/${serviceId}`);
+        let existingConfig = null;
+
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          existingConfig = configData.service;
+        }
+
+        // Merge metadata with existing config
+        serviceData = {
+          ...metadata,
+          ...(existingConfig || {}),
+          metadata // Keep full metadata accessible
+        };
+
+        populateServiceOverview();
+        populateFormFields();
+      } catch (error) {
+        showError('Failed to load service data: ' + error.message);
+      }
+    }
+
+    function populateServiceOverview() {
+      if (!serviceData) return;
+
+      document.getElementById('serviceTitle').textContent = `${serviceData.serviceName || serviceId} Setup`;
+      document.getElementById('serviceDescription').textContent = serviceData.description || 'Configure and initialize the service';
+
+      const metadata = serviceData.metadata || serviceData;
+
+      // Status badge color
+      const statusColors = {
+        'production': 'success',
+        'beta': 'warning',
+        'alpha': 'info',
+        'deprecated': 'danger'
+      };
+      const statusColor = statusColors[metadata.status] || 'secondary';
+
+      // Category icon
+      const categoryIcons = {
+        'core': 'shield-lock',
+        'infrastructure': 'server',
+        'communication': 'chat-dots',
+        'content': 'file-earmark-text',
+        'media': 'image',
+        'business': 'briefcase',
+        'automation': 'gear-wide-connected',
+        'utility': 'tools'
+      };
+      const categoryIcon = categoryIcons[metadata.category] || 'box';
+
+      const content = `
+        <!-- Service Header -->
+        <div class="info-box mb-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h5 class="mb-2">
+                <i class="bi bi-${metadata.icon || categoryIcon}"></i>
+                ${metadata.serviceName || serviceId}
+                <span class="badge bg-${statusColor} ms-2">${metadata.status || 'unknown'}</span>
+                ${metadata.version ? `<small class="text-muted ms-2">v${metadata.version}</small>` : ''}
+              </h5>
+              <p class="mb-0">${metadata.description || 'No description available'}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Key Information -->
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <div class="config-section py-2">
+              <strong><i class="bi bi-hdd-network"></i> Primary Port</strong><br>
+              <span class="text-primary fs-5">${metadata.port || 'Not configured'}</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="config-section py-2">
+              <strong><i class="bi bi-tag"></i> Category</strong><br>
+              <span class="text-muted">${metadata.category || 'N/A'}</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="config-section py-2">
+              <strong><i class="bi bi-code-square"></i> API Endpoints</strong><br>
+              <span class="text-muted">${metadata.apiEndpoints?.length || 0} endpoints</span>
+            </div>
+          </div>
+        </div>
+
+        ${metadata.additionalPorts && metadata.additionalPorts.length > 0 ? `
+          <div class="info-box mb-3">
+            <strong><i class="bi bi-diagram-3"></i> Additional Ports:</strong>
+            ${metadata.additionalPorts.map(p =>
+              `<span class="dependency-badge">${p.port} - ${p.description}</span>`
+            ).join('')}
+          </div>
+        ` : ''}
+
+        <!-- Database Information -->
+        ${metadata.database?.enabled ? `
+          <div class="config-section mb-3">
+            <h6><i class="bi bi-database"></i> Database Configuration</h6>
+            <div class="row">
+              <div class="col-md-6">
+                <strong>Database Name:</strong> <code>${metadata.database.name}</code>
+              </div>
+              <div class="col-md-3">
+                <strong>Tables:</strong> ${metadata.database.tables?.length || 0}
+              </div>
+              <div class="col-md-3">
+                <strong>Migrations:</strong> ${metadata.database.migrations || 0}
+              </div>
+            </div>
+            ${metadata.database.tables && metadata.database.tables.length > 0 ? `
+              <details class="mt-2">
+                <summary class="text-muted" style="cursor: pointer;">View database tables</summary>
+                <div class="mt-2">
+                  ${metadata.database.tables.map(t => `<span class="dependency-badge">${t}</span>`).join('')}
+                </div>
+              </details>
+            ` : ''}
+          </div>
+        ` : '<div class="info-box mb-3"><i class="bi bi-info-circle"></i> This service does not require a database.</div>'}
+
+        <!-- Redis Information -->
+        ${metadata.redis?.enabled ? `
+          <div class="config-section mb-3">
+            <h6><i class="bi bi-lightning-charge"></i> Redis Configuration</h6>
+            <div class="mb-2">
+              <strong>Key Prefix:</strong> <code>${metadata.redis.prefix || 'N/A'}</code>
+            </div>
+            ${metadata.redis.keyPatterns && metadata.redis.keyPatterns.length > 0 ? `
+              <details class="mt-2">
+                <summary class="text-muted" style="cursor: pointer;">View Redis key patterns (${metadata.redis.keyPatterns.length})</summary>
+                <div class="mt-2">
+                  ${metadata.redis.keyPatterns.map(k => `
+                    <div class="mb-2">
+                      <code>${k.pattern}</code><br>
+                      <small class="text-muted">${k.description} ${k.ttl ? `• TTL: ${k.ttl}` : ''}</small>
+                    </div>
+                  `).join('')}
+                </div>
+              </details>
+            ` : ''}
+          </div>
+        ` : '<div class="info-box mb-3"><i class="bi bi-info-circle"></i> This service does not use Redis caching.</div>'}
+
+        <!-- Dependencies -->
+        ${metadata.dependencies && metadata.dependencies.length > 0 ? `
+          <div class="warning-box mb-3">
+            <strong><i class="bi bi-exclamation-triangle"></i> Service Dependencies:</strong><br>
+            <small class="text-muted">These services must be running before starting this service:</small>
+            <div class="mt-2">
+              ${metadata.dependencies.map(dep => {
+                const depUpper = dep.toUpperCase();
+                return `<span class="dependency-badge">${depUpper}</span>`;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- External Dependencies -->
+        ${metadata.externalDependencies && metadata.externalDependencies.length > 0 ? `
+          <div class="${metadata.externalDependencies.some(d => !d.optional) ? 'warning' : 'info'}-box mb-3">
+            <strong><i class="bi bi-cloud"></i> External Service Dependencies:</strong>
+            <div class="mt-2">
+              ${metadata.externalDependencies.map(dep => `
+                <div class="mb-1">
+                  <span class="dependency-badge ${dep.optional ? '' : 'bg-warning'}">${dep.name}</span>
+                  <small class="text-muted">${dep.description}</small>
+                  ${!dep.optional ? '<span class="badge bg-warning text-dark ms-1">Required</span>' : '<span class="badge bg-secondary ms-1">Optional</span>'}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Features -->
+        ${metadata.features && metadata.features.length > 0 ? `
+          <div class="config-section mb-3">
+            <h6><i class="bi bi-star"></i> Available Features</h6>
+            <div class="row">
+              ${metadata.features.slice(0, 6).map(feature => `
+                <div class="col-md-6 mb-2">
+                  <strong>${feature.name}:</strong>
+                  <small class="text-muted">${feature.description || 'N/A'}</small>
+                </div>
+              `).join('')}
+            </div>
+            ${metadata.features.length > 6 ? `
+              <small class="text-muted">+ ${metadata.features.length - 6} more features available</small>
+            ` : ''}
+          </div>
+        ` : ''}
+
+        <!-- Resource Requirements -->
+        ${metadata.resourceRequirements ? `
+          <div class="info-box mb-3">
+            <strong><i class="bi bi-speedometer2"></i> Resource Requirements:</strong>
+            <div class="row mt-2">
+              <div class="col-4">
+                <small class="text-muted">CPU:</small> <strong>${metadata.resourceRequirements.cpu || 'N/A'}</strong>
+              </div>
+              <div class="col-4">
+                <small class="text-muted">Memory:</small> <strong>${metadata.resourceRequirements.memory || 'N/A'}</strong>
+              </div>
+              <div class="col-4">
+                <small class="text-muted">Storage:</small> <strong>${metadata.resourceRequirements.storage || 'N/A'}</strong>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Setup Notes -->
+        ${metadata.setupNotes ? `
+          <div class="warning-box mb-3">
+            <strong><i class="bi bi-info-circle"></i> Important Setup Notes:</strong><br>
+            <small>${metadata.setupNotes}</small>
+          </div>
+        ` : ''}
+
+        <!-- Ready to Configure -->
+        <div class="success-box">
+          <strong><i class="bi bi-check-circle"></i> Ready to configure!</strong><br>
+          Click <strong>Next</strong> to begin the configuration wizard.
+        </div>
+      `;
+
+      document.getElementById('overviewContent').innerHTML = content;
+    }
+
+    function populateFormFields() {
+      if (!serviceData) return;
+
+      const metadata = serviceData.metadata || serviceData;
+
+      // Basic settings
+      document.getElementById('servicePort').value = serviceData.port || metadata.port || '';
+      document.getElementById('serviceEnabled').checked = serviceData.enabled !== false;
+      document.getElementById('healthCheckUrl').value = serviceData.healthCheckUrl || '/health';
+      document.getElementById('healthCheckInterval').value = serviceData.healthCheckInterval || 30000;
+      document.getElementById('serviceNotes').value = serviceData.notes || '';
+
+      // Populate features configuration
+      populateFeaturesConfig();
+
+      // Database settings
+      const dbEnabled = metadata.database?.enabled || serviceData.databaseEnabled || false;
+      document.getElementById('databaseEnabled').checked = dbEnabled;
+      document.getElementById('databaseName').value = serviceData.databaseName || metadata.database?.name || `exprsn_${serviceId}`;
+      document.getElementById('databaseHost').value = 'localhost';
+      document.getElementById('databasePort').value = '5432';
+      document.getElementById('databaseUser').value = 'postgres';
+
+      if (dbEnabled) {
+        document.getElementById('databaseFields').style.display = 'block';
+        populateDatabaseMetadata();
+        checkMigrationStatus();
+      } else {
+        populateDatabaseMetadata(); // Show "no database required" message
+      }
+
+      // Redis and Environment Variables
+      populateRedisConfig();
+      populateEnvironmentVariables();
+    }
+
+    function populateFeaturesConfig() {
+      const metadata = serviceData.metadata || serviceData;
+      const features = metadata.features || [];
+      const existingFeatures = serviceData.features || {};
+
+      if (features.length === 0) {
+        return; // No features to configure
+      }
+
+      const featuresHtml = `
+        <div class="config-section">
+          <h5><i class="bi bi-star"></i> Feature Flags</h5>
+          <p class="text-muted small mb-3">Enable or disable optional features for this service</p>
+
+          ${features.map((feature, index) => {
+            const featureKey = feature.key;
+            const isEnabled = existingFeatures[featureKey] !== undefined
+              ? existingFeatures[featureKey]
+              : feature.default;
+
+            return `
+              <div class="mb-3 pb-3 ${index < features.length - 1 ? 'border-bottom' : ''}">
+                <div class="form-check form-switch">
+                  <input
+                    class="form-check-input feature-toggle"
+                    type="checkbox"
+                    id="feature_${featureKey}"
+                    data-feature-key="${featureKey}"
+                    ${isEnabled ? 'checked' : ''}>
+                  <label class="form-check-label" for="feature_${featureKey}">
+                    <strong>${feature.name}</strong>
+                  </label>
+                </div>
+                <small class="text-muted">${feature.description || 'No description available'}</small>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+
+      document.getElementById('featuresConfigSection').innerHTML = featuresHtml;
+    }
+
+    function populateDatabaseMetadata() {
+      const metadata = serviceData.metadata || serviceData;
+      const database = metadata.database || {};
+
+      if (!database.enabled) {
+        document.getElementById('databaseMetadataSection').innerHTML = `
+          <div class="info-box mb-3">
+            <i class="bi bi-info-circle"></i>
+            <strong>No Database Required:</strong> This service does not require a PostgreSQL database.
+          </div>
+        `;
+        return;
+      }
+
+      const metadataHtml = `
+        <div class="config-section mb-3">
+          <h6><i class="bi bi-database-gear"></i> Database Schema Information</h6>
+          <div class="row">
+            <div class="col-md-4">
+              <strong>Expected Database:</strong><br>
+              <code>${database.name || 'N/A'}</code>
+            </div>
+            <div class="col-md-4">
+              <strong>Total Tables:</strong><br>
+              <span class="badge bg-primary">${database.tables?.length || 0}</span>
+            </div>
+            <div class="col-md-4">
+              <strong>Migrations:</strong><br>
+              <span class="badge bg-info">${database.migrations || 0}</span>
+            </div>
+          </div>
+          ${database.tables && database.tables.length > 0 ? `
+            <details class="mt-2">
+              <summary class="text-muted" style="cursor: pointer;">View database tables (${database.tables.length})</summary>
+              <div class="mt-2">
+                ${database.tables.map(t => `<span class="dependency-badge">${t}</span>`).join('')}
+              </div>
+            </details>
+          ` : ''}
+        </div>
+      `;
+
+      document.getElementById('databaseMetadataSection').innerHTML = metadataHtml;
+    }
+
+    // Database enabled toggle
+    document.getElementById('databaseEnabled').addEventListener('change', (e) => {
+      const isEnabled = e.target.checked;
+      document.getElementById('databaseFields').style.display = isEnabled ? 'block' : 'none';
+
+      if (isEnabled) {
+        populateDatabaseMetadata();
+        checkMigrationStatus();
+      }
+    });
+
+    async function testDatabaseConnection() {
+      const resultDiv = document.getElementById('dbTestResult');
+      resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Testing connection...';
+
+      try {
+        // TODO: Replace with actual API endpoint when available
+        const response = await fetch(`/api/database/test-connection`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host: document.getElementById('databaseHost').value,
+            port: parseInt(document.getElementById('databasePort').value),
+            database: document.getElementById('databaseName').value,
+            user: document.getElementById('databaseUser').value
+          })
+        });
+
+        if (response.ok) {
+          resultDiv.innerHTML = '<div class="alert alert-success mb-0"><i class="bi bi-check-circle"></i> Connection successful!</div>';
+        } else {
+          const error = await response.json();
+          resultDiv.innerHTML = `<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle"></i> ${error.message || 'Connection failed'}</div>`;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = '<div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> Connection test endpoint not yet implemented. This will be available in production.</div>';
+      }
+    }
+
+    async function checkMigrationStatus() {
+      const statusDiv = document.getElementById('migrationStatus');
+      statusDiv.innerHTML = '<div class="spinner-border spinner-border-sm"></div> <span class="ms-2">Checking migration status...</span>';
+
+      try {
+        // TODO: Replace with actual API endpoint when available
+        const response = await fetch(`/api/service-config/${serviceId}/migrations`);
+
+        if (response.ok) {
+          const data = await response.json();
+          const { pending, completed } = data;
+
+          statusDiv.innerHTML = `
+            <div class="alert alert-info mb-0">
+              <strong>Migration Status:</strong><br>
+              Completed: <span class="badge bg-success">${completed || 0}</span>
+              Pending: <span class="badge bg-warning">${pending || 0}</span>
+            </div>
+          `;
+
+          document.getElementById('btnRunMigrations').disabled = pending === 0;
+        } else {
+          throw new Error('Migration status endpoint not available');
+        }
+      } catch (error) {
+        const metadata = serviceData.metadata || serviceData;
+        const database = metadata.database || {};
+
+        statusDiv.innerHTML = `
+          <div class="alert alert-info mb-0">
+            <strong>Migration Info:</strong> This service has ${database.migrations || 0} migration(s) defined.
+            <br><small class="text-muted">Run migrations during initial setup to create database schema.</small>
+          </div>
+        `;
+
+        // Enable button if database is configured
+        document.getElementById('btnRunMigrations').disabled = false;
+      }
+    }
+
+    async function runMigrations() {
+      const btn = document.getElementById('btnRunMigrations');
+      const statusDiv = document.getElementById('migrationStatus');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+
+      try {
+        // TODO: Replace with actual API endpoint when available
+        const response = await fetch(`/api/service-config/${serviceId}/migrate`, {
+          method: 'POST'
+        });
+
+        if (response.ok) {
+          statusDiv.innerHTML = `
+            <div class="alert alert-success mb-0">
+              <i class="bi bi-check-circle"></i> <strong>Migrations completed successfully!</strong>
+            </div>
+          `;
+          btn.innerHTML = '<i class="bi bi-check-circle"></i> Migrations Complete';
+        } else {
+          const error = await response.json();
+          throw new Error(error.message || 'Migration failed');
+        }
+      } catch (error) {
+        statusDiv.innerHTML = `
+          <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle"></i> <strong>Migration endpoint not yet implemented.</strong><br>
+            <small>Migrations should be run using: <code>cd ${serviceId} && npm run migrate</code></small>
+          </div>
+        `;
+        btn.innerHTML = '<i class="bi bi-play-circle"></i> Run Migrations';
+        btn.disabled = false;
+      }
+    }
+
+    function populateRedisConfig() {
+      const metadata = serviceData.metadata || serviceData;
+      const redis = metadata.redis || {};
+      const redisEnabled = redis.enabled || false;
+
+      if (!redisEnabled) {
+        document.getElementById('redisConfigSection').innerHTML = '';
+        return;
+      }
+
+      const redisHtml = `
+        <div class="config-section mb-3">
+          <h5><i class="bi bi-lightning-charge"></i> Redis Configuration</h5>
+
+          <div class="mb-3">
+            <label for="redisEnabled" class="form-check-label">
+              <input type="checkbox" class="form-check-input" id="redisEnabled" checked>
+              <strong>Enable Redis Caching</strong>
+            </label>
+          </div>
+
+          <div id="redisFields">
+            <div class="mb-3">
+              <label for="redisPrefix" class="form-label">Redis Key Prefix</label>
+              <input type="text" class="form-control" id="redisPrefix" value="${redis.prefix || 'service:'}">
+              <small class="form-text text-muted">Prefix for all Redis keys used by this service</small>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="redisHost" class="form-label">Redis Host</label>
+                  <input type="text" class="form-control" id="redisHost" value="localhost">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="redisPort" class="form-label">Redis Port</label>
+                  <input type="number" class="form-control" id="redisPort" value="6379">
+                </div>
+              </div>
+            </div>
+
+            ${redis.keyPatterns && redis.keyPatterns.length > 0 ? `
+              <details class="mt-2">
+                <summary class="text-muted" style="cursor: pointer;">Redis Key Patterns (${redis.keyPatterns.length})</summary>
+                <div class="mt-2">
+                  ${redis.keyPatterns.map(k => `
+                    <div class="mb-2">
+                      <code>${k.pattern}</code><br>
+                      <small class="text-muted">${k.description} ${k.ttl ? `• TTL: ${k.ttl}` : ''}</small>
+                    </div>
+                  `).join('')}
+                </div>
+              </details>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('redisConfigSection').innerHTML = redisHtml;
+
+      // Add toggle event listener
+      const toggleElement = document.getElementById('redisEnabled');
+      if (toggleElement) {
+        toggleElement.addEventListener('change', (e) => {
+          document.getElementById('redisFields').style.display = e.target.checked ? 'block' : 'none';
+        });
+      }
+    }
+
+    function populateEnvironmentVariables() {
+      const metadata = serviceData.metadata || serviceData;
+      const envVars = metadata.environmentVariables || {};
+      const existingEnvVars = serviceData.envVars || {};
+
+      if (Object.keys(envVars).length === 0) {
+        document.getElementById('environmentVariablesSection').innerHTML = `
+          <div class="info-box">
+            <i class="bi bi-info-circle"></i>
+            No additional environment variables required for this service.
+          </div>
+        `;
+        return;
+      }
+
+      // Category display names and icons
+      const categoryInfo = {
+        core: { name: 'Core Settings', icon: 'gear' },
+        database: { name: 'Database Settings', icon: 'database' },
+        redis: { name: 'Redis Settings', icon: 'lightning-charge' },
+        security: { name: 'Security & Authentication', icon: 'shield-lock' },
+        ca: { name: 'Certificate Authority', icon: 'award' },
+        auth: { name: 'Authentication', icon: 'key' },
+        oauth: { name: 'OAuth Providers', icon: 'box-arrow-in-right' },
+        email: { name: 'Email Configuration', icon: 'envelope' },
+        sms: { name: 'SMS Configuration', icon: 'phone' },
+        push: { name: 'Push Notifications', icon: 'bell' },
+        storage: { name: 'File Storage', icon: 'cloud' },
+        streaming: { name: 'Live Streaming', icon: 'broadcast' },
+        ai: { name: 'AI Services', icon: 'cpu' },
+        payment: { name: 'Payment Integration', icon: 'credit-card' },
+        features: { name: 'Feature Configuration', icon: 'star' },
+        external: { name: 'External Services', icon: 'cloud-arrow-up' }
+      };
+
+      let envHtml = '';
+
+      Object.entries(envVars).forEach(([category, variables]) => {
+        if (!variables || variables.length === 0) return;
+
+        const catInfo = categoryInfo[category] || { name: category, icon: 'gear' };
+
+        envHtml += `
+          <div class="config-section mb-3">
+            <h6><i class="bi bi-${catInfo.icon}"></i> ${catInfo.name}</h6>
+
+            ${variables.map(envVar => {
+              const currentValue = existingEnvVars[envVar.key] || envVar.default || '';
+              const isRequired = envVar.required;
+              const isSensitive = envVar.sensitive;
+              const inputType = isSensitive ? 'password' : 'text';
+
+              // Determine input element based on possible values or type
+              let inputElement = '';
+
+              if (envVar.key === 'NODE_ENV') {
+                inputElement = `
+                  <select class="form-select env-var-input" data-env-key="${envVar.key}">
+                    <option value="development" ${currentValue === 'development' ? 'selected' : ''}>development</option>
+                    <option value="production" ${currentValue === 'production' ? 'selected' : ''}>production</option>
+                    <option value="test" ${currentValue === 'test' ? 'selected' : ''}>test</option>
+                  </select>
+                `;
+              } else if (envVar.key === 'LOG_LEVEL') {
+                inputElement = `
+                  <select class="form-select env-var-input" data-env-key="${envVar.key}">
+                    <option value="debug" ${currentValue === 'debug' ? 'selected' : ''}>debug</option>
+                    <option value="info" ${currentValue === 'info' || !currentValue ? 'selected' : ''}>info</option>
+                    <option value="warn" ${currentValue === 'warn' ? 'selected' : ''}>warn</option>
+                    <option value="error" ${currentValue === 'error' ? 'selected' : ''}>error</option>
+                  </select>
+                `;
+              } else if (['PORT', 'DB_PORT', 'REDIS_PORT'].includes(envVar.key)) {
+                inputElement = `
+                  <input type="number" class="form-control env-var-input" data-env-key="${envVar.key}"
+                    value="${currentValue}" placeholder="${envVar.default || ''}" ${isRequired ? 'required' : ''}>
+                `;
+              } else {
+                inputElement = `
+                  <input type="${inputType}" class="form-control env-var-input" data-env-key="${envVar.key}"
+                    value="${currentValue}" placeholder="${envVar.default || ''}" ${isRequired ? 'required' : ''}>
+                `;
+              }
+
+              return `
+                <div class="mb-3">
+                  <label class="form-label">
+                    <strong>${envVar.key}</strong>
+                    ${isRequired ? '<span class="badge bg-danger ms-1">Required</span>' : ''}
+                    ${isSensitive ? '<i class="bi bi-lock-fill text-warning ms-1"></i>' : ''}
+                  </label>
+                  ${inputElement}
+                  ${envVar.description ? `<small class="form-text text-muted">${envVar.description}</small>` : ''}
+                  ${envVar.generate ? '<small class="text-info d-block"><i class="bi bi-magic"></i> This value can be auto-generated</small>' : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      });
+
+      document.getElementById('environmentVariablesSection').innerHTML = envHtml;
+    }
+
+    function nextStep() {
+      if (currentStep < 5) {
+        if (currentStep === 4) {
+          // Last step - save configuration
+          saveConfiguration();
+        } else {
+          currentStep++;
+          updateStepDisplay();
+        }
+      }
+    }
+
+    function previousStep() {
+      if (currentStep > 1) {
+        currentStep--;
+        updateStepDisplay();
+      }
+    }
+
+    function updateStepDisplay() {
+      // Update step visibility
+      document.querySelectorAll('.wizard-step').forEach(step => {
+        step.classList.remove('active');
+      });
+      document.querySelector(`.wizard-step[data-step="${currentStep}"]`).classList.add('active');
+
+      // Update progress indicators
+      document.querySelectorAll('.progress-step').forEach(step => {
+        const stepNum = parseInt(step.dataset.step);
+        step.classList.remove('active', 'completed');
+        if (stepNum === currentStep) {
+          step.classList.add('active');
+        } else if (stepNum < currentStep) {
+          step.classList.add('completed');
+        }
+      });
+
+      // Update progress line
+      const progress = ((currentStep - 1) / 4) * 100;
+      document.getElementById('progressLine').style.width = progress + '%';
+
+      // Update buttons
+      document.getElementById('btnPrevious').disabled = currentStep === 1;
+
+      if (currentStep === 5) {
+        document.getElementById('btnNext').style.display = 'none';
+      } else if (currentStep === 4) {
+        document.getElementById('btnNext').innerHTML = '<i class="bi bi-check-circle"></i> Complete Setup';
+      } else {
+        document.getElementById('btnNext').innerHTML = 'Next <i class="bi bi-arrow-right"></i>';
+        document.getElementById('btnNext').style.display = 'inline-block';
+      }
+    }
+
+    async function saveConfiguration() {
+      currentStep = 5;
+      updateStepDisplay();
+
+      // Collect feature flags
+      const features = {};
+      document.querySelectorAll('.feature-toggle').forEach(toggle => {
+        const featureKey = toggle.dataset.featureKey;
+        features[featureKey] = toggle.checked;
+      });
+
+      // Collect all environment variables from dynamic inputs
+      const envVars = {};
+      document.querySelectorAll('.env-var-input').forEach(input => {
+        const envKey = input.dataset.envKey;
+        envVars[envKey] = input.value;
+      });
+
+      // Add database settings if enabled
+      if (document.getElementById('databaseEnabled')?.checked) {
+        envVars.DB_HOST = document.getElementById('databaseHost')?.value || 'localhost';
+        envVars.DB_PORT = document.getElementById('databasePort')?.value || '5432';
+        envVars.DB_USER = document.getElementById('databaseUser')?.value || 'postgres';
+        envVars.DB_NAME = document.getElementById('databaseName')?.value || '';
+      }
+
+      // Add Redis settings if enabled
+      const redisToggle = document.getElementById('redisEnabled');
+      if (redisToggle && redisToggle.checked) {
+        envVars.REDIS_HOST = document.getElementById('redisHost')?.value || 'localhost';
+        envVars.REDIS_PORT = document.getElementById('redisPort')?.value || '6379';
+      }
+
+      const config = {
+        enabled: document.getElementById('serviceEnabled').checked,
+        port: parseInt(document.getElementById('servicePort').value),
+        databaseEnabled: document.getElementById('databaseEnabled')?.checked || false,
+        databaseName: document.getElementById('databaseName')?.value || '',
+        redisEnabled: redisToggle ? redisToggle.checked : false,
+        redisPrefix: document.getElementById('redisPrefix')?.value || '',
+        healthCheckUrl: document.getElementById('healthCheckUrl').value,
+        healthCheckInterval: parseInt(document.getElementById('healthCheckInterval').value),
+        notes: document.getElementById('serviceNotes').value,
+        features: features,
+        envVars: envVars
+      };
+
+      try {
+        const response = await fetch(`/api/service-config/${serviceId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+
+        if (response.ok) {
+          // Mark as completed
+          await fetch(`/api/service-config/${serviceId}/complete-setup`, {
+            method: 'POST'
+          });
+
+          showCompletion(true);
+        } else {
+          const error = await response.json();
+          showCompletion(false, error.message);
+        }
+      } catch (error) {
+        showCompletion(false, error.message);
+      }
+    }
+
+    function showCompletion(success, errorMessage = null) {
+      const content = success ? `
+        <div class="text-center">
+          <div class="completion-icon">
+            <i class="bi bi-check-circle-fill"></i>
+          </div>
+          <h4 class="mb-3">Setup Complete!</h4>
+          <p class="text-muted mb-4">
+            ${serviceData?.serviceName || serviceId} has been configured successfully.
+          </p>
+          <div class="success-box mb-4">
+            <strong>What's next?</strong><br>
+            You can now start the service from the Services Overview dashboard.
+          </div>
+          <div class="d-flex justify-content-center gap-2">
+            <a href="/admin/services" class="btn btn-primary">
+              <i class="bi bi-arrow-left"></i> Back to Services
+            </a>
+            <button class="btn btn-success" onclick="startService()">
+              <i class="bi bi-play-fill"></i> Start Service Now
+            </button>
+          </div>
+        </div>
+      ` : `
+        <div class="text-center">
+          <div class="completion-icon" style="color: #dc3545;">
+            <i class="bi bi-x-circle-fill"></i>
+          </div>
+          <h4 class="mb-3">Setup Failed</h4>
+          <p class="text-danger mb-4">${errorMessage || 'An error occurred during setup'}</p>
+          <button class="btn btn-primary" onclick="currentStep = 1; updateStepDisplay();">
+            <i class="bi bi-arrow-left"></i> Try Again
+          </button>
+        </div>
+      `;
+
+      document.getElementById('completionContent').innerHTML = content;
+    }
+
+    async function testDatabaseConnection() {
+      // TODO: Implement database connection test
+      alert('Database connection test - to be implemented');
+    }
+
+    async function startService() {
+      alert('Starting service - to be implemented');
+      window.location.href = '/admin/services';
+    }
+
+    function showError(message) {
+      document.getElementById('overviewContent').innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle"></i> ${message}
+        </div>
+      `;
+    }
+
+    // Initialize
+    loadServiceData();
+  </script>
+</body>
+</html>

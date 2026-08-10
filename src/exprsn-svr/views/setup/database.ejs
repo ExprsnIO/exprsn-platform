@@ -1,0 +1,155 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Database Overview</h1>
+            <p class="page-subtitle">Monitor database connections, performance, and backups</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh
+            </button>
+            <button class="btn btn-primary">
+                <i class="bi bi-database-add"></i>
+                Backup Now
+            </button>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-database-check"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">23</div>
+                <div class="stat-label">Active Databases</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-check-circle"></i>
+                    All healthy
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-speedometer2"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">1,234</div>
+                <div class="stat-label">Queries/sec</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    12% from last hour
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">45</div>
+                <div class="stat-label">Active Connections</div>
+                <div class="stat-change">
+                    Normal load
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon danger">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">12.5ms</div>
+                <div class="stat-label">Avg Latency</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-down"></i>
+                    3ms improvement
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Database List</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="sortable">Database</th>
+                            <th class="sortable">Status</th>
+                            <th class="sortable">Size</th>
+                            <th class="sortable">Tables</th>
+                            <th class="sortable">Last Backup</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>exprsn_ca</strong></td>
+                            <td><span class="badge badge-success">Connected</span></td>
+                            <td>45 MB</td>
+                            <td>12</td>
+                            <td>2 hours ago</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Backup">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Manage">
+                                        <i class="bi bi-gear"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>exprsn_auth</strong></td>
+                            <td><span class="badge badge-success">Connected</span></td>
+                            <td>128 MB</td>
+                            <td>18</td>
+                            <td>2 hours ago</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Backup">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Manage">
+                                        <i class="bi bi-gear"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>exprsn_timeline</strong></td>
+                            <td><span class="badge badge-success">Connected</span></td>
+                            <td>2.1 GB</td>
+                            <td>25</td>
+                            <td>2 hours ago</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Backup">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Manage">
+                                        <i class="bi bi-gear"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Prism.js for Syntax Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .navbar {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      color: #fff !important;
+      font-size: 1.5rem;
+    }
+
+    .navbar-nav .nav-link {
+      color: rgba(255,255,255,0.9) !important;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .navbar-nav .nav-link:hover {
+      color: #fff !important;
+      background-color: rgba(255,255,255,0.1);
+      border-radius: 0.25rem;
+    }
+
+    .search-bar {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      margin-bottom: 2rem;
+    }
+
+    .category-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .category-badge {
+      padding: 0.5rem 1rem;
+      border-radius: 2rem;
+      border: 2px solid #e9ecef;
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      color: #495057;
+    }
+
+    .category-badge:hover {
+      border-color: #667eea;
+      color: #667eea;
+    }
+
+    .category-badge.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .component-card {
+      background: #fff;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .component-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .component-header {
+      padding: 1.25rem;
+      border-bottom: 1px solid #e9ecef;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .component-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.5rem;
+      margin-right: 1rem;
+    }
+
+    .component-title-section {
+      flex: 1;
+    }
+
+    .component-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin: 0;
+      color: #212529;
+    }
+
+    .component-category {
+      font-size: 0.875rem;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .component-body {
+      padding: 1.25rem;
+    }
+
+    .component-description {
+      color: #6c757d;
+      font-size: 0.9375rem;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .component-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1rem;
+      border-top: 1px solid #e9ecef;
+    }
+
+    .component-stats {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .rating-stars {
+      color: #ffc107;
+    }
+
+    .system-badge {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: #28a745;
+      color: #fff;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .component-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn-install {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn-install:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-installed {
+      background: #28a745;
+      color: #fff;
+    }
+
+    .btn-view {
+      background: #fff;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+
+    .btn-view:hover {
+      background: #667eea;
+      color: #fff;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+
+    .empty-state-icon {
+      font-size: 4rem;
+      color: #dee2e6;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state-text {
+      color: #6c757d;
+      font-size: 1.125rem;
+    }
+
+    /* Modal Styles */
+    .modal-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border-bottom: none;
+    }
+
+    .modal-title {
+      font-weight: 700;
+    }
+
+    .btn-close {
+      filter: invert(1);
+    }
+
+    .property-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .property-item {
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .property-name {
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .property-type {
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+
+    .dependency-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      background: #e7f3ff;
+      color: #0066cc;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .code-preview {
+      background: #2d2d2d;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .code-header {
+      background: #1e1e1e;
+      padding: 0.75rem 1rem;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .code-body {
+      padding: 1rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .code-body pre {
+      margin: 0;
+    }
+
+    .loading-spinner {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/lowcode">
+        <i class="fas fa-cube me-2"></i>Exprsn Low-Code
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/lowcode/html-projects">
+              <i class="fas fa-folder-open me-1"></i>Projects
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/lowcode/html-components">
+              <i class="fas fa-puzzle-piece me-1"></i>Components
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/lowcode/applications">
+              <i class="fas fa-th me-1"></i>Applications
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container-fluid mt-4">
+    <!-- Search & Filter Bar -->
+    <div class="search-bar">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <h2 class="mb-0">
+            <i class="fas fa-puzzle-piece me-2"></i>Component Marketplace
+          </h2>
+          <p class="text-muted mb-0 mt-1">Browse and install reusable UI components</p>
+        </div>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="fas fa-search"></i>
+            </span>
+            <input
+              type="text"
+              class="form-control form-control-lg"
+              id="searchInput"
+              placeholder="Search components..."
+            >
+            <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Filter -->
+      <div class="category-filter">
+        <div class="category-badge active" data-category="all">
+          <i class="fas fa-th me-1"></i>All Categories
+        </div>
+        <div class="category-badge" data-category="layout">
+          <i class="fas fa-columns me-1"></i>Layout
+        </div>
+        <div class="category-badge" data-category="forms">
+          <i class="fas fa-edit me-1"></i>Forms
+        </div>
+        <div class="category-badge" data-category="data">
+          <i class="fas fa-table me-1"></i>Data
+        </div>
+        <div class="category-badge" data-category="charts">
+          <i class="fas fa-chart-line me-1"></i>Charts
+        </div>
+        <div class="category-badge" data-category="navigation">
+          <i class="fas fa-compass me-1"></i>Navigation
+        </div>
+        <div class="category-badge" data-category="display">
+          <i class="fas fa-eye me-1"></i>Display
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="loadingSpinner">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2 text-muted">Loading components...</p>
+    </div>
+
+    <!-- Component Grid -->
+    <div class="component-grid" id="componentGrid">
+      <!-- Components will be rendered here -->
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state d-none" id="emptyState">
+      <div class="empty-state-icon">
+        <i class="fas fa-inbox"></i>
+      </div>
+      <div class="empty-state-text">No components found</div>
+      <p class="text-muted">Try adjusting your search or filters</p>
+    </div>
+  </div>
+
+  <!-- Component Detail Modal -->
+  <div class="modal fade" id="componentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitle">Component Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <!-- Component details will be loaded here -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-install" id="modalInstallBtn">
+            <i class="fas fa-download me-1"></i>Install Component
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project Selection Modal -->
+  <div class="modal fade" id="projectModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Select Project</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Choose a project to install this component:</p>
+          <select class="form-select" id="projectSelect">
+            <option value="">Loading projects...</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-install" id="confirmInstallBtn">Install</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Prism.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+
+  <script>
+    let allComponents = [];
+    let filteredComponents = [];
+    let currentCategory = 'all';
+    let currentSearch = '';
+    let selectedComponent = null;
+    let projects = [];
+
+    // Load components on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadComponents();
+      await loadProjects();
+      setupEventListeners();
+    });
+
+    // Load all components from API
+    async function loadComponents() {
+      try {
+        showLoading();
+        const response = await fetch('/lowcode/api/html-components');
+        const result = await response.json();
+
+        if (result.success) {
+          allComponents = result.data.components;
+          filteredComponents = allComponents;
+          renderComponents();
+        } else {
+          showError('Failed to load components');
+        }
+      } catch (error) {
+        console.error('Error loading components:', error);
+        showError('Error loading components');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Load projects for installation
+    async function loadProjects() {
+      try {
+        const response = await fetch('/lowcode/api/html-projects');
+        const result = await response.json();
+
+        if (result.success) {
+          projects = result.data.projects;
+          renderProjectSelect();
+        }
+      } catch (error) {
+        console.error('Error loading projects:', error);
+      }
+    }
+
+    // Render project selection dropdown
+    function renderProjectSelect() {
+      const select = document.getElementById('projectSelect');
+
+      if (projects.length === 0) {
+        select.innerHTML = '<option value="">No projects available</option>';
+        return;
+      }
+
+      select.innerHTML = '<option value="">-- Select a project --</option>' +
+        projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    }
+
+    // Render component grid
+    function renderComponents() {
+      const grid = document.getElementById('componentGrid');
+      const emptyState = document.getElementById('emptyState');
+
+      if (filteredComponents.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('d-none');
+        return;
+      }
+
+      emptyState.classList.add('d-none');
+
+      grid.innerHTML = filteredComponents.map(component => `
+        <div class="component-card" onclick="viewComponent('${component.id}')">
+          ${component.isSystem ? '<div class="system-badge">System</div>' : ''}
+
+          <div class="component-header">
+            <div class="d-flex align-items-center flex-grow-1">
+              <div class="component-icon">
+                <i class="${component.icon || 'fas fa-cube'}"></i>
+              </div>
+              <div class="component-title-section">
+                <h3 class="component-title">${component.name}</h3>
+                <div class="component-category">${component.category}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="component-body">
+            <p class="component-description">${component.description || 'No description available'}</p>
+
+            <div class="component-meta">
+              <div class="component-stats">
+                <div class="stat-item">
+                  <i class="fas fa-download"></i>
+                  <span>${component.downloads || 0}</span>
+                </div>
+                <div class="stat-item rating-stars">
+                  ${renderStars(component.averageRating || 0)}
+                  <span class="text-muted">(${component.ratingCount || 0})</span>
+                </div>
+              </div>
+              <div class="component-actions" onclick="event.stopPropagation()">
+                <button class="btn btn-sm btn-install" onclick="installComponent('${component.id}')">
+                  <i class="fas fa-download"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render star rating
+    function renderStars(rating) {
+      const fullStars = Math.floor(rating);
+      const halfStar = rating % 1 >= 0.5;
+      const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+      let html = '';
+      for (let i = 0; i < fullStars; i++) html += '<i class="fas fa-star"></i>';
+      if (halfStar) html += '<i class="fas fa-star-half-alt"></i>';
+      for (let i = 0; i < emptyStars; i++) html += '<i class="far fa-star"></i>';
+
+      return html;
+    }
+
+    // View component details
+    async function viewComponent(componentId) {
+      try {
+        const response = await fetch(`/lowcode/api/html-components/${componentId}`);
+        const result = await response.json();
+
+        if (result.success) {
+          selectedComponent = result.data;
+          renderComponentModal(result.data);
+
+          const modal = new bootstrap.Modal(document.getElementById('componentModal'));
+          modal.show();
+        }
+      } catch (error) {
+        console.error('Error loading component details:', error);
+        showError('Error loading component details');
+      }
+    }
+
+    // Render component detail modal
+    function renderComponentModal(component) {
+      const modalTitle = document.getElementById('modalTitle');
+      const modalBody = document.getElementById('modalBody');
+      const installBtn = document.getElementById('modalInstallBtn');
+
+      modalTitle.textContent = component.name;
+
+      modalBody.innerHTML = `
+        <div class="mb-4">
+          <h6 class="fw-bold mb-2">Description</h6>
+          <p>${component.description || 'No description available'}</p>
+        </div>
+
+        <div class="mb-4">
+          <h6 class="fw-bold mb-2">Category</h6>
+          <span class="badge bg-primary">${component.category}</span>
+          <span class="badge bg-secondary ms-2">v${component.version}</span>
+          ${component.isSystem ? '<span class="badge bg-success ms-2">System Component</span>' : ''}
+        </div>
+
+        ${component.dependencies && component.dependencies.length > 0 ? `
+          <div class="mb-4">
+            <h6 class="fw-bold mb-2">Dependencies</h6>
+            ${component.dependencies.map(dep => `<span class="dependency-badge">${dep}</span>`).join('')}
+          </div>
+        ` : ''}
+
+        ${component.properties && component.properties.length > 0 ? `
+          <div class="mb-4">
+            <h6 class="fw-bold mb-2">Configurable Properties</h6>
+            <ul class="property-list">
+              ${component.properties.map(prop => `
+                <li class="property-item">
+                  <span class="property-name">${prop.label || prop.name}</span>
+                  <span class="property-type ms-2">(${prop.type})</span>
+                  ${prop.default !== undefined ? `<div class="text-muted small">Default: ${JSON.stringify(prop.default)}</div>` : ''}
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : ''}
+
+        ${component.htmlTemplate ? `
+          <div class="mb-4">
+            <div class="code-preview">
+              <div class="code-header">HTML Template</div>
+              <div class="code-body">
+                <pre><code class="language-markup">${escapeHtml(component.htmlTemplate)}</code></pre>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${component.css ? `
+          <div class="mb-4">
+            <div class="code-preview">
+              <div class="code-header">CSS</div>
+              <div class="code-body">
+                <pre><code class="language-css">${escapeHtml(component.css)}</code></pre>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${component.javascript ? `
+          <div class="mb-4">
+            <div class="code-preview">
+              <div class="code-header">JavaScript</div>
+              <div class="code-body">
+                <pre><code class="language-javascript">${escapeHtml(component.javascript)}</code></pre>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="mb-3">
+          <h6 class="fw-bold mb-2">Stats</h6>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="text-center p-3 bg-light rounded">
+                <div class="fs-4 fw-bold">${component.downloads || 0}</div>
+                <div class="text-muted small">Downloads</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="text-center p-3 bg-light rounded">
+                <div class="fs-4 fw-bold rating-stars">${renderStars(component.averageRating || 0)}</div>
+                <div class="text-muted small">${component.ratingCount || 0} Ratings</div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="text-center p-3 bg-light rounded">
+                <div class="fs-4 fw-bold">${component.version}</div>
+                <div class="text-muted small">Version</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Apply syntax highlighting
+      Prism.highlightAll();
+
+      // Setup install button
+      installBtn.onclick = () => installComponent(component.id);
+    }
+
+    // Install component to project
+    async function installComponent(componentId) {
+      selectedComponent = allComponents.find(c => c.id === componentId);
+
+      if (!selectedComponent) {
+        showError('Component not found');
+        return;
+      }
+
+      // Show project selection modal
+      const projectModal = new bootstrap.Modal(document.getElementById('projectModal'));
+      projectModal.show();
+    }
+
+    // Confirm installation
+    document.getElementById('confirmInstallBtn')?.addEventListener('click', async () => {
+      const projectId = document.getElementById('projectSelect').value;
+
+      if (!projectId) {
+        alert('Please select a project');
+        return;
+      }
+
+      if (!selectedComponent) {
+        showError('No component selected');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/lowcode/api/html-components/${selectedComponent.id}/install`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Close modals
+          bootstrap.Modal.getInstance(document.getElementById('projectModal')).hide();
+          const componentModal = bootstrap.Modal.getInstance(document.getElementById('componentModal'));
+          if (componentModal) componentModal.hide();
+
+          // Show success message
+          showSuccess(`Component "${selectedComponent.name}" installed successfully!`);
+
+          // Reload components to update download count
+          await loadComponents();
+        } else {
+          showError(result.message || 'Failed to install component');
+        }
+      } catch (error) {
+        console.error('Error installing component:', error);
+        showError('Error installing component');
+      }
+    });
+
+    // Setup event listeners
+    function setupEventListeners() {
+      // Search input
+      const searchInput = document.getElementById('searchInput');
+      searchInput.addEventListener('input', (e) => {
+        currentSearch = e.target.value.toLowerCase();
+        filterComponents();
+      });
+
+      // Clear search
+      document.getElementById('clearSearch').addEventListener('click', () => {
+        searchInput.value = '';
+        currentSearch = '';
+        filterComponents();
+      });
+
+      // Category filters
+      document.querySelectorAll('.category-badge').forEach(badge => {
+        badge.addEventListener('click', (e) => {
+          document.querySelectorAll('.category-badge').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          currentCategory = e.target.dataset.category;
+          filterComponents();
+        });
+      });
+    }
+
+    // Filter components by search and category
+    function filterComponents() {
+      filteredComponents = allComponents.filter(component => {
+        // Category filter
+        const categoryMatch = currentCategory === 'all' || component.category === currentCategory;
+
+        // Search filter
+        const searchMatch = !currentSearch ||
+          component.name.toLowerCase().includes(currentSearch) ||
+          (component.description && component.description.toLowerCase().includes(currentSearch)) ||
+          component.category.toLowerCase().includes(currentSearch);
+
+        return categoryMatch && searchMatch;
+      });
+
+      renderComponents();
+    }
+
+    // Utility functions
+    function showLoading() {
+      document.getElementById('loadingSpinner').style.display = 'block';
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingSpinner').style.display = 'none';
+    }
+
+    function showError(message) {
+      alert('Error: ' + message);
+    }
+
+    function showSuccess(message) {
+      // Create toast notification
+      const toast = document.createElement('div');
+      toast.className = 'position-fixed bottom-0 end-0 p-3';
+      toast.style.zIndex = '9999';
+      toast.innerHTML = `
+        <div class="toast show" role="alert">
+          <div class="toast-header bg-success text-white">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong class="me-auto">Success</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+          </div>
+          <div class="toast-body">${message}</div>
+        </div>
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 5000);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

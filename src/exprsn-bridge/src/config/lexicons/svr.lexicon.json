@@ -1,0 +1,464 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-svr",
+      "version": "1.0.0",
+      "description": "Dynamic page server with EJS templating and Socket.IO"
+    },
+    "routes": [
+      {
+        "path": "/api/svr/pages",
+        "method": "GET",
+        "description": "List all pages",
+        "target": {
+          "service": "svr",
+          "path": "/editor/pages",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "status": {
+              "type": "string",
+              "enum": ["draft", "published", "archived"]
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "ownerId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/svr/pages/:id",
+        "method": "GET",
+        "description": "Get page by ID or slug",
+        "target": {
+          "service": "svr",
+          "path": "/api/pages/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/svr/pages",
+        "method": "POST",
+        "description": "Create new page",
+        "target": {
+          "service": "svr",
+          "path": "/editor/pages",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["title"],
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "slug": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 5000
+              },
+              "htmlContent": {
+                "type": "string"
+              },
+              "cssContent": {
+                "type": "string"
+              },
+              "javascriptContent": {
+                "type": "string"
+              },
+              "serverCode": {
+                "type": "string"
+              },
+              "isStatic": {
+                "type": "boolean",
+                "default": false
+              },
+              "isPublic": {
+                "type": "boolean",
+                "default": false
+              },
+              "status": {
+                "type": "string",
+                "enum": ["draft", "published", "archived"],
+                "default": "draft"
+              },
+              "pageData": {
+                "type": "object"
+              },
+              "socketEvents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "event": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/svr/pages/:id",
+        "method": "PUT",
+        "description": "Update page",
+        "target": {
+          "service": "svr",
+          "path": "/editor/pages/:id",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "slug": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "description": {
+                "type": "string"
+              },
+              "htmlContent": {
+                "type": "string"
+              },
+              "cssContent": {
+                "type": "string"
+              },
+              "javascriptContent": {
+                "type": "string"
+              },
+              "serverCode": {
+                "type": "string"
+              },
+              "isStatic": {
+                "type": "boolean"
+              },
+              "isPublic": {
+                "type": "boolean"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["draft", "published", "archived"]
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/svr/pages/:id",
+        "method": "DELETE",
+        "description": "Delete page",
+        "target": {
+          "service": "svr",
+          "path": "/editor/pages/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/svr/pages/:id/publish",
+        "method": "POST",
+        "description": "Publish page",
+        "target": {
+          "service": "svr",
+          "path": "/editor/pages/:id/publish",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/svr/pages/:id/execute",
+        "method": "POST",
+        "description": "Execute page server code",
+        "target": {
+          "service": "svr",
+          "path": "/api/pages/:id/execute",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 60
+        }
+      },
+      {
+        "path": "/api/svr/templates",
+        "method": "GET",
+        "description": "List available templates",
+        "target": {
+          "service": "svr",
+          "path": "/api/templates",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "query": {
+            "category": {
+              "type": "string",
+              "enum": ["landing", "dashboard", "documentation", "blog", "all"]
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/svr/templates/:templateId/create-page",
+        "method": "POST",
+        "description": "Create page from template",
+        "target": {
+          "service": "svr",
+          "path": "/api/templates/:templateId/create-page",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "templateId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "required": ["title", "slug"],
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "slug": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "customizations": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/svr/components",
+        "method": "GET",
+        "description": "List available components",
+        "target": {
+          "service": "svr",
+          "path": "/api/components",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "query": {
+            "category": {
+              "type": "string"
+            },
+            "search": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/svr/editor/preview",
+        "method": "POST",
+        "description": "Preview page without saving",
+        "target": {
+          "service": "svr",
+          "path": "/editor/preview",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["htmlContent"],
+            "properties": {
+              "htmlContent": {
+                "type": "string"
+              },
+              "cssContent": {
+                "type": "string"
+              },
+              "javascriptContent": {
+                "type": "string"
+              },
+              "serverCode": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 120
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": false,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 1000
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

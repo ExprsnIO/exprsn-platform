@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .settings-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg-primary);
+      overflow: hidden;
+    }
+
+    /* Header */
+    .settings-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header-title h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text-primary);
+    }
+
+    .header-title p {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Main Layout */
+    .settings-main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar - Categories */
+    .categories-panel {
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .categories-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    .category-item {
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.25rem;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s;
+      color: var(--text-primary);
+    }
+
+    .category-item:hover {
+      background: var(--bg-primary);
+    }
+
+    .category-item.active {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .category-icon {
+      margin-right: 0.75rem;
+      width: 20px;
+      text-align: center;
+    }
+
+    .category-count {
+      background: rgba(0, 0, 0, 0.1);
+      color: var(--text-secondary);
+      padding: 0.125rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+    }
+
+    .category-item.active .category-count {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    /* Center - Settings List */
+    .settings-panel {
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .settings-toolbar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .environment-select {
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .settings-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    .settings-table {
+      width: 100%;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .settings-table thead {
+      background: var(--bg-tertiary);
+    }
+
+    .settings-table th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .settings-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    .settings-table tbody tr:hover {
+      background: var(--bg-primary);
+    }
+
+    .setting-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .setting-key {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: 'Courier New', monospace;
+    }
+
+    .setting-value {
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+      max-width: 300px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .data-type-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .setting-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .icon-btn {
+      padding: 0.375rem 0.5rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 4px;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--primary-color);
+    }
+
+    /* Right Sidebar - Editor */
+    .editor-panel {
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .editor-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .editor-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-secondary);
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .editor-empty i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .form-textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .form-checkbox {
+      margin-right: 0.5rem;
+    }
+
+    .form-checkbox-label {
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .editor-actions {
+      padding: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+
+    .modal-header {
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--text-primary);
+    }
+
+    .modal-footer {
+      margin-top: 1.5rem;
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    .empty-state h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .empty-state p {
+      margin-bottom: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="settings-container">
+    <!-- Header -->
+    <header class="settings-header">
+      <div class="header-left">
+        <div class="header-title">
+          <h1>Application Settings & Variables</h1>
+          <p id="appName">Loading...</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" onclick="window.location.href='/lowcode/designer?appId=<%= appId %>'">
+          <i class="fas fa-arrow-left"></i> Back to Designer
+        </button>
+        <button class="btn btn-primary" id="createDefaultBtn">
+          <i class="fas fa-magic"></i> Create Defaults
+        </button>
+        <button class="btn btn-primary" id="addSettingBtn">
+          <i class="fas fa-plus"></i> New Setting
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Layout -->
+    <main class="settings-main">
+      <!-- Left Sidebar - Categories -->
+      <aside class="categories-panel">
+        <div class="panel-header">Categories</div>
+        <div class="categories-list">
+          <div class="category-item active" data-category="all">
+            <span><i class="fas fa-list category-icon"></i> All Settings</span>
+            <span class="category-count" id="count-all">0</span>
+          </div>
+          <div class="category-item" data-category="general">
+            <span><i class="fas fa-info-circle category-icon"></i> General</span>
+            <span class="category-count" id="count-general">0</span>
+          </div>
+          <div class="category-item" data-category="api">
+            <span><i class="fas fa-plug category-icon"></i> API</span>
+            <span class="category-count" id="count-api">0</span>
+          </div>
+          <div class="category-item" data-category="ui">
+            <span><i class="fas fa-paint-brush category-icon"></i> UI</span>
+            <span class="category-count" id="count-ui">0</span>
+          </div>
+          <div class="category-item" data-category="security">
+            <span><i class="fas fa-shield-alt category-icon"></i> Security</span>
+            <span class="category-count" id="count-security">0</span>
+          </div>
+          <div class="category-item" data-category="features">
+            <span><i class="fas fa-star category-icon"></i> Features</span>
+            <span class="category-count" id="count-features">0</span>
+          </div>
+          <div class="category-item" data-category="database">
+            <span><i class="fas fa-database category-icon"></i> Database</span>
+            <span class="category-count" id="count-database">0</span>
+          </div>
+          <div class="category-item" data-category="custom">
+            <span><i class="fas fa-code category-icon"></i> Custom</span>
+            <span class="category-count" id="count-custom">0</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center - Settings List -->
+      <div class="settings-panel">
+        <div class="settings-toolbar">
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Search settings...">
+          <select id="environmentFilter" class="environment-select">
+            <option value="all">All Environments</option>
+            <option value="development">Development</option>
+            <option value="staging">Staging</option>
+            <option value="production">Production</option>
+          </select>
+        </div>
+        <div class="settings-content" id="settingsContent">
+          <!-- Settings will be loaded here -->
+          <div class="empty-state">
+            <i class="fas fa-cog"></i>
+            <h3>No Settings Yet</h3>
+            <p>Create default settings or add custom settings to get started</p>
+            <button class="btn btn-primary" onclick="createDefaultSettings()">
+              <i class="fas fa-magic"></i> Create Default Settings
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar - Setting Editor -->
+      <aside class="editor-panel">
+        <div class="panel-header">Setting Editor</div>
+        <div class="editor-content" id="editorContent">
+          <div class="editor-empty">
+            <i class="fas fa-edit"></i>
+            <p>Select a setting to edit or create a new one</p>
+          </div>
+        </div>
+        <div class="editor-actions" id="editorActions" style="display: none;">
+          <button class="btn btn-secondary flex-1" onclick="cancelEdit()">Cancel</button>
+          <button class="btn btn-primary flex-1" id="saveSettingBtn">Save</button>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Add New Setting Modal -->
+  <div class="modal" id="addSettingModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Create New Setting</h2>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Display Name *</label>
+        <input type="text" class="form-input" id="new-displayName" placeholder="e.g., API Timeout">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Key *</label>
+        <input type="text" class="form-input" id="new-key" placeholder="e.g., apiTimeout (lowercase, no spaces)">
+        <small style="color: var(--text-secondary); font-size: 0.813rem;">Unique identifier for this setting</small>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Category *</label>
+        <select class="form-input" id="new-category">
+          <option value="General">General</option>
+          <option value="Security">Security</option>
+          <option value="API">API</option>
+          <option value="Database">Database</option>
+          <option value="Cache">Cache</option>
+          <option value="Email">Email</option>
+          <option value="Storage">Storage</option>
+          <option value="Feature Flags">Feature Flags</option>
+          <option value="Integration">Integration</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Data Type *</label>
+        <select class="form-input" id="new-dataType">
+          <option value="string">String</option>
+          <option value="number">Number</option>
+          <option value="boolean">Boolean</option>
+          <option value="json">JSON</option>
+          <option value="array">Array</option>
+          <option value="date">Date</option>
+          <option value="datetime">Date & Time</option>
+          <option value="password">Password</option>
+          <option value="url">URL</option>
+          <option value="email">Email</option>
+          <option value="color">Color</option>
+          <option value="file">File Path</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Environment *</label>
+        <select class="form-input" id="new-environment">
+          <option value="all">All Environments</option>
+          <option value="development">Development</option>
+          <option value="staging">Staging</option>
+          <option value="production">Production</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Default Value</label>
+        <textarea class="form-input" id="new-defaultValue" rows="3" placeholder="Enter default value (JSON format for objects/arrays)"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-input" id="new-description" rows="2" placeholder="Describe the purpose of this setting"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" class="form-checkbox" id="new-isRequired">
+          Required (cannot be empty)
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" class="form-checkbox" id="new-isSensitive">
+          Sensitive (value will be masked)
+        </label>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAddSettingModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createNewSetting()">Create Setting</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global state
+    const APP_ID = '<%= appId %>';
+    let allSettings = [];
+    let currentCategory = 'all';
+    let currentEnvironment = 'all';
+    let editingSettingId = null;
+
+    // Data types configuration
+    const DATA_TYPES = [
+      { value: 'string', label: 'String', icon: 'font' },
+      { value: 'number', label: 'Number', icon: 'hashtag' },
+      { value: 'boolean', label: 'Boolean', icon: 'toggle-on' },
+      { value: 'json', label: 'JSON', icon: 'code' },
+      { value: 'array', label: 'Array', icon: 'list' },
+      { value: 'date', label: 'Date', icon: 'calendar' },
+      { value: 'datetime', label: 'Date & Time', icon: 'clock' },
+      { value: 'password', label: 'Password', icon: 'key' },
+      { value: 'url', label: 'URL', icon: 'link' },
+      { value: 'email', label: 'Email', icon: 'envelope' },
+      { value: 'color', label: 'Color', icon: 'palette' },
+      { value: 'file', label: 'File Path', icon: 'file' }
+    ];
+
+    // Load app and settings on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadApplication();
+      loadSettings();
+      setupEventListeners();
+    });
+
+    async function loadApplication() {
+      try {
+        const response = await fetch(`/lowcode/api/applications/${APP_ID}`);
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('appName').textContent = data.data.displayName;
+          document.title = `Settings - ${data.data.displayName}`;
+        }
+      } catch (error) {
+        console.error('Failed to load application:', error);
+      }
+    }
+
+    async function loadSettings() {
+      try {
+        const response = await fetch(`/lowcode/api/settings?applicationId=${APP_ID}&includeSystem=true`);
+        const data = await response.json();
+
+        if (data.success) {
+          allSettings = data.data;
+          updateCategoryCounts();
+          renderSettings();
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
+    }
+
+    function updateCategoryCounts() {
+      const counts = { all: allSettings.length };
+
+      allSettings.forEach(setting => {
+        counts[setting.category] = (counts[setting.category] || 0) + 1;
+      });
+
+      Object.keys(counts).forEach(category => {
+        const elem = document.getElementById(`count-${category}`);
+        if (elem) elem.textContent = counts[category];
+      });
+    }
+
+    function renderSettings() {
+      const container = document.getElementById('settingsContent');
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+      let filtered = allSettings.filter(setting => {
+        const matchesCategory = currentCategory === 'all' || setting.category === currentCategory;
+        const matchesEnvironment = currentEnvironment === 'all' || setting.environment === currentEnvironment || setting.environment === 'all';
+        const matchesSearch = !searchTerm ||
+          setting.displayName.toLowerCase().includes(searchTerm) ||
+          setting.key.toLowerCase().includes(searchTerm) ||
+          setting.description?.toLowerCase().includes(searchTerm);
+
+        return matchesCategory && matchesEnvironment && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-search"></i>
+            <h3>No Settings Found</h3>
+            <p>Try adjusting your filters or search term</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="settings-table">
+          <thead>
+            <tr>
+              <th>Setting</th>
+              <th>Type</th>
+              <th>Value</th>
+              <th>Environment</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(setting => `
+              <tr>
+                <td>
+                  <div class="setting-name">${setting.displayName}</div>
+                  <div class="setting-key">${setting.key}</div>
+                </td>
+                <td>
+                  <span class="data-type-badge">${setting.dataType}</span>
+                </td>
+                <td>
+                  <div class="setting-value">${formatValue(setting)}</div>
+                </td>
+                <td>${setting.environment}</td>
+                <td>
+                  <div class="setting-actions">
+                    <button class="icon-btn" onclick="editSetting('${setting.id}')" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    ${!setting.isSystemSetting && !setting.isRequired ? `
+                      <button class="icon-btn" onclick="deleteSetting('${setting.id}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    ` : ''}
+                    ${setting.value !== setting.defaultValue ? `
+                      <button class="icon-btn" onclick="resetSetting('${setting.id}')" title="Reset to Default">
+                        <i class="fas fa-undo"></i>
+                      </button>
+                    ` : ''}
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function formatValue(setting) {
+      if (setting.isEncrypted) {
+        return '••••••••';
+      }
+
+      const value = setting.parsedValue;
+
+      if (value === null || value === undefined || value === '') {
+        return '<em style="color: var(--text-secondary);">Not set</em>';
+      }
+
+      if (typeof value === 'boolean') {
+        return value ? 'True' : 'False';
+      }
+
+      if (typeof value === 'object') {
+        return JSON.stringify(value);
+      }
+
+      return String(value);
+    }
+
+    function editSetting(id) {
+      const setting = allSettings.find(s => s.id === id);
+      if (!setting) return;
+
+      editingSettingId = id;
+
+      const editorContent = document.getElementById('editorContent');
+      const editorActions = document.getElementById('editorActions');
+
+      editorContent.innerHTML = `
+        <div class="form-group">
+          <label class="form-label">Display Name *</label>
+          <input type="text" class="form-input" id="edit-displayName" value="${setting.displayName}" ${!setting.isUserCustomizable ? 'disabled' : ''}>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Key *</label>
+          <input type="text" class="form-input" id="edit-key" value="${setting.key}" disabled>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-textarea" id="edit-description" ${!setting.isUserCustomizable ? 'disabled' : ''}>${setting.description || ''}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-select" id="edit-category" ${!setting.isUserCustomizable ? 'disabled' : ''}>
+            <option value="general" ${setting.category === 'general' ? 'selected' : ''}>General</option>
+            <option value="api" ${setting.category === 'api' ? 'selected' : ''}>API</option>
+            <option value="ui" ${setting.category === 'ui' ? 'selected' : ''}>UI</option>
+            <option value="security" ${setting.category === 'security' ? 'selected' : ''}>Security</option>
+            <option value="features" ${setting.category === 'features' ? 'selected' : ''}>Features</option>
+            <option value="database" ${setting.category === 'database' ? 'selected' : ''}>Database</option>
+            <option value="custom" ${setting.category === 'custom' ? 'selected' : ''}>Custom</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Data Type</label>
+          <select class="form-select" id="edit-dataType" ${!setting.isUserCustomizable ? 'disabled' : ''}>
+            ${DATA_TYPES.map(dt => `
+              <option value="${dt.value}" ${setting.dataType === dt.value ? 'selected' : ''}>${dt.label}</option>
+            `).join('')}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Value</label>
+          <input type="${setting.dataType === 'password' ? 'password' : 'text'}"
+                 class="form-input"
+                 id="edit-value"
+                 value="${setting.isEncrypted ? '' : (setting.value || '')}"
+                 placeholder="${setting.isEncrypted ? 'Enter new value to change' : ''}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Default Value</label>
+          <input type="text" class="form-input" id="edit-defaultValue" value="${setting.defaultValue || ''}" ${!setting.isUserCustomizable ? 'disabled' : ''}>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Environment</label>
+          <select class="form-select" id="edit-environment" disabled>
+            <option value="all" ${setting.environment === 'all' ? 'selected' : ''}>All</option>
+            <option value="development" ${setting.environment === 'development' ? 'selected' : ''}>Development</option>
+            <option value="staging" ${setting.environment === 'staging' ? 'selected' : ''}>Staging</option>
+            <option value="production" ${setting.environment === 'production' ? 'selected' : ''}>Production</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-checkbox-label">
+            <input type="checkbox" class="form-checkbox" id="edit-isEncrypted" ${setting.isEncrypted ? 'checked' : ''} disabled>
+            Encrypted (for passwords/secrets)
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label class="form-checkbox-label">
+            <input type="checkbox" class="form-checkbox" id="edit-isRequired" ${setting.isRequired ? 'checked' : ''} ${!setting.isUserCustomizable ? 'disabled' : ''}>
+            Required
+          </label>
+        </div>
+      `;
+
+      editorActions.style.display = 'flex';
+    }
+
+    function cancelEdit() {
+      editingSettingId = null;
+      document.getElementById('editorContent').innerHTML = `
+        <div class="editor-empty">
+          <i class="fas fa-edit"></i>
+          <p>Select a setting to edit or create a new one</p>
+        </div>
+      `;
+      document.getElementById('editorActions').style.display = 'none';
+    }
+
+    async function saveSetting() {
+      if (!editingSettingId) return;
+
+      const setting = {
+        displayName: document.getElementById('edit-displayName').value,
+        description: document.getElementById('edit-description').value,
+        category: document.getElementById('edit-category').value,
+        dataType: document.getElementById('edit-dataType').value,
+        value: document.getElementById('edit-value').value,
+        defaultValue: document.getElementById('edit-defaultValue').value,
+        isRequired: document.getElementById('edit-isRequired').checked
+      };
+
+      try {
+        const response = await fetch(`/lowcode/api/settings/${editingSettingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(setting)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('Setting updated successfully');
+          await loadSettings();
+          cancelEdit();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Failed to save setting:', error);
+        alert('Failed to save setting');
+      }
+    }
+
+    async function deleteSetting(id) {
+      if (!confirm('Are you sure you want to delete this setting?')) return;
+
+      try {
+        const response = await fetch(`/lowcode/api/settings/${id}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          await loadSettings();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Failed to delete setting:', error);
+        alert('Failed to delete setting');
+      }
+    }
+
+    async function resetSetting(id) {
+      if (!confirm('Reset this setting to its default value?')) return;
+
+      try {
+        const response = await fetch(`/lowcode/api/settings/${id}/reset`, {
+          method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          await loadSettings();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Failed to reset setting:', error);
+        alert('Failed to reset setting');
+      }
+    }
+
+    async function createDefaultSettings() {
+      if (!confirm('Create default settings for this application? This will add 18 pre-configured settings.')) return;
+
+      try {
+        const response = await fetch('/lowcode/api/settings/defaults', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ applicationId: APP_ID })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert(`Created ${data.data.length} default settings`);
+          await loadSettings();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Failed to create defaults:', error);
+        alert('Failed to create default settings');
+      }
+    }
+
+    function setupEventListeners() {
+      // Category filtering
+      document.querySelectorAll('.category-item').forEach(item => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          currentCategory = item.getAttribute('data-category');
+          renderSettings();
+        });
+      });
+
+      // Search
+      document.getElementById('searchInput').addEventListener('input', renderSettings);
+
+      // Environment filter
+      document.getElementById('environmentFilter').addEventListener('change', (e) => {
+        currentEnvironment = e.target.value;
+        renderSettings();
+      });
+
+      // Create defaults button
+      document.getElementById('createDefaultBtn').addEventListener('click', createDefaultSettings);
+
+      // Save button
+      document.getElementById('saveSettingBtn').addEventListener('click', saveSetting);
+
+      // Add setting button
+      document.getElementById('addSettingBtn').addEventListener('click', showAddSettingModal);
+    }
+
+    // Modal functions
+    function showAddSettingModal() {
+      // Reset form
+      document.getElementById('new-displayName').value = '';
+      document.getElementById('new-key').value = '';
+      document.getElementById('new-category').value = 'General';
+      document.getElementById('new-dataType').value = 'string';
+      document.getElementById('new-environment').value = 'all';
+      document.getElementById('new-defaultValue').value = '';
+      document.getElementById('new-description').value = '';
+      document.getElementById('new-isRequired').checked = false;
+      document.getElementById('new-isSensitive').checked = false;
+
+      // Show modal
+      document.getElementById('addSettingModal').classList.add('active');
+    }
+
+    function closeAddSettingModal() {
+      document.getElementById('addSettingModal').classList.remove('active');
+    }
+
+    async function createNewSetting() {
+      // Validate required fields
+      const displayName = document.getElementById('new-displayName').value.trim();
+      const key = document.getElementById('new-key').value.trim();
+      const category = document.getElementById('new-category').value;
+      const dataType = document.getElementById('new-dataType').value;
+      const environment = document.getElementById('new-environment').value;
+
+      if (!displayName || !key) {
+        alert('Please fill in Display Name and Key fields');
+        return;
+      }
+
+      // Check if key already exists
+      const keyExists = allSettings.some(s => s.key === key && s.environment === environment);
+      if (keyExists) {
+        alert(`Setting with key "${key}" already exists in ${environment} environment`);
+        return;
+      }
+
+      // Validate key format (lowercase, alphanumeric, underscores only)
+      if (!/^[a-z0-9_]+$/.test(key)) {
+        alert('Key must be lowercase with only letters, numbers, and underscores');
+        return;
+      }
+
+      // Prepare setting object
+      const newSetting = {
+        key,
+        displayName,
+        category,
+        dataType,
+        environment,
+        defaultValue: document.getElementById('new-defaultValue').value || '',
+        value: document.getElementById('new-defaultValue').value || '',
+        description: document.getElementById('new-description').value || '',
+        isRequired: document.getElementById('new-isRequired').checked,
+        isSensitive: document.getElementById('new-isSensitive').checked,
+        isSystemSetting: false,
+        isUserCustomizable: true
+      };
+
+      try {
+        const response = await fetch(`/lowcode/api/settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            appId: APP_ID,
+            ...newSetting
+          })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to create setting');
+        }
+
+        // Close modal
+        closeAddSettingModal();
+
+        // Reload settings
+        await loadSettings();
+
+        // Show success message
+        alert('Setting created successfully!');
+      } catch (error) {
+        console.error('Failed to create setting:', error);
+        alert(`Error: ${error.message}`);
+      }
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('addSettingModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'addSettingModal') {
+        closeAddSettingModal();
+      }
+    });
+  </script>
+</body>
+</html>

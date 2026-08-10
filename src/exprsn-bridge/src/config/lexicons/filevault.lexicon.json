@@ -1,0 +1,579 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-filevault",
+      "version": "1.0.0",
+      "description": "Versioning and Tokenized File Storage System with S3/IPFS support"
+    },
+    "routes": [
+      {
+        "path": "/api/filevault/files/upload",
+        "method": "POST",
+        "description": "Upload file",
+        "target": {
+          "service": "filevault",
+          "path": "/api/files/upload",
+          "timeout": 60000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/filevault/files/:fileId",
+        "method": "GET",
+        "description": "Get file metadata",
+        "target": {
+          "service": "filevault",
+          "path": "/api/files/:fileId",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "fileId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/files/:fileId/download",
+        "method": "GET",
+        "description": "Download file",
+        "target": {
+          "service": "filevault",
+          "path": "/api/files/:fileId/download",
+          "timeout": 60000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "fileId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/filevault/files/:fileId",
+        "method": "DELETE",
+        "description": "Delete file",
+        "target": {
+          "service": "filevault",
+          "path": "/api/files/:fileId",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "fileId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/files/:fileId/versions",
+        "method": "GET",
+        "description": "Get file version history",
+        "target": {
+          "service": "filevault",
+          "path": "/api/files/:fileId/versions",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "fileId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/files/:fileId/versions/:versionId",
+        "method": "GET",
+        "description": "Download specific file version",
+        "target": {
+          "service": "filevault",
+          "path": "/api/files/:fileId/versions/:versionId",
+          "timeout": 60000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "fileId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "versionId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/files/:fileId/restore/:versionId",
+        "method": "POST",
+        "description": "Restore file to specific version",
+        "target": {
+          "service": "filevault",
+          "path": "/api/files/:fileId/restore/:versionId",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "fileId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "versionId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/directories",
+        "method": "POST",
+        "description": "Create directory",
+        "target": {
+          "service": "filevault",
+          "path": "/api/directories",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "parentId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/directories/:directoryId",
+        "method": "GET",
+        "description": "Get directory",
+        "target": {
+          "service": "filevault",
+          "path": "/api/directories/:directoryId",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "directoryId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/directories",
+        "method": "GET",
+        "description": "List directory contents",
+        "target": {
+          "service": "filevault",
+          "path": "/api/directories",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "directoryId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/directories/:directoryId/rename",
+        "method": "PUT",
+        "description": "Rename directory",
+        "target": {
+          "service": "filevault",
+          "path": "/api/directories/:directoryId/rename",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "directoryId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/directories/:directoryId",
+        "method": "DELETE",
+        "description": "Delete directory",
+        "target": {
+          "service": "filevault",
+          "path": "/api/directories/:directoryId",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "directoryId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/share",
+        "method": "POST",
+        "description": "Create file share link",
+        "target": {
+          "service": "filevault",
+          "path": "/api/share",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["fileId"],
+            "properties": {
+              "fileId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "maxDownloads": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "password": {
+                "type": "string",
+                "minLength": 8
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/share/:shareId",
+        "method": "GET",
+        "description": "Get share details",
+        "target": {
+          "service": "filevault",
+          "path": "/api/share/:shareId",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "params": {
+            "shareId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/share/:shareId/download",
+        "method": "GET",
+        "description": "Download file via share link",
+        "target": {
+          "service": "filevault",
+          "path": "/api/share/:shareId/download",
+          "timeout": 60000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "params": {
+            "shareId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "query": {
+            "password": {
+              "type": "string"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 30
+        }
+      },
+      {
+        "path": "/api/filevault/share/:shareId",
+        "method": "DELETE",
+        "description": "Revoke share link",
+        "target": {
+          "service": "filevault",
+          "path": "/api/share/:shareId",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "shareId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/search",
+        "method": "GET",
+        "description": "Search files and directories",
+        "target": {
+          "service": "filevault",
+          "path": "/api/search",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "type": {
+              "type": "string",
+              "enum": ["file", "directory", "all"]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/filevault/storage/stats",
+        "method": "GET",
+        "description": "Get storage usage statistics",
+        "target": {
+          "service": "filevault",
+          "path": "/api/storage/stats",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/storage/backends",
+        "method": "GET",
+        "description": "List available storage backends",
+        "target": {
+          "service": "filevault",
+          "path": "/api/storage/backends",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/health",
+        "method": "GET",
+        "description": "FileVault service health check",
+        "target": {
+          "service": "filevault",
+          "path": "/api/health",
+          "timeout": 2000
+        },
+        "auth": {
+          "required": false
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 300
+        }
+      },
+      {
+        "path": "/api/filevault/health/storage",
+        "method": "GET",
+        "description": "Storage backend health check",
+        "target": {
+          "service": "filevault",
+          "path": "/api/health/storage",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/filevault/admin/cleanup",
+        "method": "POST",
+        "description": "Cleanup orphaned files and versions",
+        "target": {
+          "service": "filevault",
+          "path": "/api/admin/cleanup",
+          "timeout": 60000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true,
+            "delete": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 3600000,
+          "max": 5
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 60000,
+        "max": 200
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

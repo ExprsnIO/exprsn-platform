@@ -1,0 +1,261 @@
+<div class="row mb-4">
+  <div class="col-12">
+    <h2><i class="bi bi-people"></i> User Management</h2>
+    <p class="text-muted">Manage platform users and permissions</p>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">Status Filter</label>
+            <select class="form-select" id="statusFilter">
+              <option value="">All Statuses</option>
+              <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
+              <option value="suspended" <%= status === 'suspended' ? 'selected' : '' %>>Suspended</option>
+              <option value="deleted" <%= status === 'deleted' ? 'selected' : '' %>>Deleted</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Items Per Page</label>
+            <select class="form-select" id="limitFilter">
+              <option value="10">10</option>
+              <option value="20" <%= limit === 20 ? 'selected' : '' %>>20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <div class="col-md-6 text-end">
+            <button class="btn btn-primary" onclick="applyFilters()">
+              <i class="bi bi-funnel"></i> Apply Filters
+            </button>
+            <button class="btn btn-secondary" onclick="resetFilters()">
+              <i class="bi bi-x-circle"></i> Reset
+            </button>
+            <button class="btn btn-success" onclick="refreshUsers()">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Users Table -->
+<div class="row">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-list-ul"></i> Users List</h5>
+        <span class="badge bg-primary" id="totalCount">Loading...</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Roles</th>
+                <th>Created</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr>
+                <td colspan="7" class="text-center py-4">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  <p class="mt-2 text-muted">Loading users...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer">
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center mb-0" id="pagination">
+            <!-- Pagination will be dynamically generated -->
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentPage = <%= page %>;
+  let currentLimit = <%= limit %>;
+  let currentStatus = '<%= status || '' %>';
+
+  // Load users
+  async function loadUsers() {
+    try {
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: currentLimit,
+      });
+
+      if (currentStatus) {
+        params.append('status', currentStatus);
+      }
+
+      const response = await fetch(`/admin/api/users?${params}`);
+      const data = await response.json();
+
+      renderUsersTable(data.users);
+      renderPagination(data.pagination);
+      document.getElementById('totalCount').textContent = `${data.pagination.total} users`;
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      document.getElementById('usersTableBody').innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center py-4 text-danger">
+            <i class="bi bi-exclamation-triangle"></i>
+            Failed to load users. Please try again.
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  function renderUsersTable(users) {
+    const tbody = document.getElementById('usersTableBody');
+
+    if (!users || users.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center py-4 text-muted">
+            <i class="bi bi-inbox"></i>
+            No users found
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = users.map(user => `
+      <tr>
+        <td><strong>${user.email}</strong></td>
+        <td>${user.display_name || 'N/A'}</td>
+        <td>
+          <span class="badge bg-${getStatusColor(user.status)}">${user.status}</span>
+          ${user.email_verified ? '<i class="bi bi-patch-check-fill text-success" title="Email Verified"></i>' : ''}
+          ${user.mfa_enabled ? '<i class="bi bi-shield-lock-fill text-primary" title="MFA Enabled"></i>' : ''}
+        </td>
+        <td>
+          ${user.roles.map(role => `<span class="badge bg-secondary">${role}</span>`).join(' ')}
+        </td>
+        <td>${formatDate(user.created_at)}</td>
+        <td>${user.last_login_at ? formatRelativeTime(user.last_login_at) : 'Never'}</td>
+        <td>
+          <a href="/admin/users/${user.id}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-eye"></i> View
+          </a>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function renderPagination(pagination) {
+    const paginationEl = document.getElementById('pagination');
+    const { page, pages } = pagination;
+
+    if (pages <= 1) {
+      paginationEl.innerHTML = '';
+      return;
+    }
+
+    let html = '';
+
+    // Previous button
+    html += `
+      <li class="page-item ${page === 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="goToPage(${page - 1}); return false;">
+          <i class="bi bi-chevron-left"></i> Previous
+        </a>
+      </li>
+    `;
+
+    // Page numbers
+    for (let i = 1; i <= pages; i++) {
+      if (i === 1 || i === pages || (i >= page - 2 && i <= page + 2)) {
+        html += `
+          <li class="page-item ${i === page ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
+          </li>
+        `;
+      } else if (i === page - 3 || i === page + 3) {
+        html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+      }
+    }
+
+    // Next button
+    html += `
+      <li class="page-item ${page === pages ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="goToPage(${page + 1}); return false;">
+          Next <i class="bi bi-chevron-right"></i>
+        </a>
+      </li>
+    `;
+
+    paginationEl.innerHTML = html;
+  }
+
+  function getStatusColor(status) {
+    switch (status) {
+      case 'active': return 'success';
+      case 'suspended': return 'warning';
+      case 'deleted': return 'danger';
+      default: return 'secondary';
+    }
+  }
+
+  function goToPage(page) {
+    currentPage = page;
+    loadUsers();
+  }
+
+  function applyFilters() {
+    currentStatus = document.getElementById('statusFilter').value;
+    currentLimit = parseInt(document.getElementById('limitFilter').value);
+    currentPage = 1;
+    loadUsers();
+  }
+
+  function resetFilters() {
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('limitFilter').value = '20';
+    currentStatus = '';
+    currentLimit = 20;
+    currentPage = 1;
+    loadUsers();
+  }
+
+  function refreshUsers() {
+    loadUsers();
+  }
+
+  // Handle real-time user updates
+  window.handleUserCreated = (data) => {
+    // Refresh the list when a new user is created
+    refreshUsers();
+  };
+
+  window.handleUserUpdated = (data) => {
+    // Refresh the list when a user is updated
+    refreshUsers();
+  };
+
+  // Load users on page load
+  loadUsers();
+</script>

@@ -1,0 +1,551 @@
+<%- include('../partials/header') %>
+
+<!-- Main Content -->
+<main id="main-content" class="flex-fill">
+  <div class="container-fluid h-100">
+    <div class="row h-100">
+      <!-- Sidebar -->
+      <aside class="col-md-3 col-lg-2 bg-light border-end sidebar p-3" role="complementary" aria-label="Sidebar navigation">
+        <div class="d-flex flex-column h-100">
+          <!-- Quick Actions -->
+          <div class="mb-4">
+            <button class="btn btn-primary w-100 mb-2" id="btnUploadFile" aria-label="Upload files">
+              <i class="bi bi-cloud-upload-fill me-2" aria-hidden="true"></i>
+              Upload Files
+            </button>
+            <button class="btn btn-outline-primary w-100" id="btnNewFolder" aria-label="Create new folder">
+              <i class="bi bi-folder-plus me-2" aria-hidden="true"></i>
+              New Folder
+            </button>
+          </div>
+
+          <!-- Navigation Menu -->
+          <nav class="flex-fill" aria-label="File navigation">
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
+            <ul class="nav nav-pills flex-column mb-4">
+              <li class="nav-item">
+                <a class="nav-link active" href="#" data-view="all-files" aria-current="page">
+                  <i class="bi bi-files me-2" aria-hidden="true"></i>
+                  All Files
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#" data-view="recent">
+                  <i class="bi bi-clock-history me-2" aria-hidden="true"></i>
+                  Recent
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#" data-view="shared-with-me">
+                  <i class="bi bi-people me-2" aria-hidden="true"></i>
+                  Shared With Me
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#" data-view="favorites">
+                  <i class="bi bi-star-fill me-2" aria-hidden="true"></i>
+                  Favorites
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#" data-view="trash">
+                  <i class="bi bi-trash me-2" aria-hidden="true"></i>
+                  Trash
+                </a>
+              </li>
+            </ul>
+
+            <!-- File Type Filters -->
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">File Types</h6>
+            <ul class="nav nav-pills flex-column">
+              <li class="nav-item">
+                <a class="nav-link" href="#" data-filter="images">
+                  <i class="bi bi-image me-2" aria-hidden="true"></i>
+                  Images
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#" data-filter="videos">
+                  <i class="bi bi-camera-video me-2" aria-hidden="true"></i>
+                  Videos
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#" data-filter="documents">
+                  <i class="bi bi-file-text me-2" aria-hidden="true"></i>
+                  Documents
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#" data-filter="code">
+                  <i class="bi bi-code-slash me-2" aria-hidden="true"></i>
+                  Code
+                </a>
+              </li>
+            </ul>
+          </nav>
+
+          <!-- Storage Usage Card -->
+          <div class="card mt-auto">
+            <div class="card-body p-3">
+              <h6 class="card-title small mb-2">Storage</h6>
+              <div class="progress mb-2" style="height: 8px;" role="progressbar" aria-label="Storage usage"
+                   aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar" id="storageProgressBar" style="width: 0%"></div>
+              </div>
+              <small class="text-muted">
+                <span id="sidebarStorageUsed">0 MB</span> of <span id="sidebarStorageQuota">1 GB</span> used
+              </small>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <div class="col-md-9 col-lg-10 px-4 py-3">
+        <!-- Breadcrumb Navigation -->
+        <nav aria-label="Breadcrumb" class="mb-3">
+          <ol class="breadcrumb" id="breadcrumb">
+            <li class="breadcrumb-item active" aria-current="page">
+              <i class="bi bi-house-fill me-1" aria-hidden="true"></i>
+              Home
+            </li>
+          </ol>
+        </nav>
+
+        <!-- Toolbar -->
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <div class="btn-group" role="group" aria-label="View options">
+            <button type="button" class="btn btn-outline-secondary active" id="btnGridView" aria-label="Grid view" title="Grid view">
+              <i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="btnListView" aria-label="List view" title="List view">
+              <i class="bi bi-list-ul" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <div class="btn-toolbar gap-2" role="toolbar" aria-label="File operations toolbar">
+            <div class="btn-group" role="group" aria-label="Sort options">
+              <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"
+                      aria-expanded="false" aria-label="Sort by">
+                <i class="bi bi-sort-down me-1" aria-hidden="true"></i>
+                Sort
+              </button>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" data-sort="name">Name</a></li>
+                <li><a class="dropdown-item" href="#" data-sort="modified">Modified</a></li>
+                <li><a class="dropdown-item" href="#" data-sort="size">Size</a></li>
+                <li><a class="dropdown-item" href="#" data-sort="type">Type</a></li>
+              </ul>
+            </div>
+
+            <button type="button" class="btn btn-outline-secondary" id="btnRefresh" aria-label="Refresh" title="Refresh">
+              <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+            </button>
+
+            <button type="button" class="btn btn-outline-secondary" id="btnSelectMode" aria-label="Select mode" title="Select multiple files">
+              <i class="bi bi-check-square" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Selected Items Actions (Hidden by default) -->
+        <div class="alert alert-info d-none align-items-center justify-content-between" id="selectionAlert" role="alert">
+          <span>
+            <strong id="selectedCount">0</strong> item(s) selected
+          </span>
+          <div class="btn-group btn-group-sm" role="group" aria-label="Bulk actions">
+            <button type="button" class="btn btn-outline-primary" id="btnBulkDownload">
+              <i class="bi bi-download me-1" aria-hidden="true"></i>
+              Download
+            </button>
+            <button type="button" class="btn btn-outline-primary" id="btnBulkShare">
+              <i class="bi bi-share me-1" aria-hidden="true"></i>
+              Share
+            </button>
+            <button type="button" class="btn btn-outline-danger" id="btnBulkDelete">
+              <i class="bi bi-trash me-1" aria-hidden="true"></i>
+              Delete
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="btnClearSelection">
+              <i class="bi bi-x-circle me-1" aria-hidden="true"></i>
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- File Browser Container -->
+        <div id="fileBrowser" class="file-browser" role="region" aria-label="File browser">
+          <!-- Grid View -->
+          <div id="gridView" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-3">
+            <!-- Files will be dynamically loaded here -->
+          </div>
+
+          <!-- List View (Hidden by default) -->
+          <div id="listView" class="d-none">
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col" style="width: 40px;"></th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Modified</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Type</th>
+                    <th scope="col" class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="listViewBody">
+                  <!-- Files will be dynamically loaded here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div id="emptyState" class="text-center py-5 d-none">
+            <i class="bi bi-inbox display-1 text-muted" aria-hidden="true"></i>
+            <h3 class="mt-3">No files yet</h3>
+            <p class="text-muted">Upload your first file to get started</p>
+            <button class="btn btn-primary" id="btnEmptyStateUpload">
+              <i class="bi bi-cloud-upload me-2" aria-hidden="true"></i>
+              Upload Files
+            </button>
+          </div>
+
+          <!-- Loading State -->
+          <div id="loadingState" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading files...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading your files...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="uploadModalLabel">
+          <i class="bi bi-cloud-upload me-2" aria-hidden="true"></i>
+          Upload Files
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="fileInput" class="form-label">Select files to upload</label>
+          <input class="form-control" type="file" id="fileInput" multiple aria-describedby="fileInputHelp">
+          <div id="fileInputHelp" class="form-text">You can select multiple files at once</div>
+        </div>
+
+        <!-- Drag and Drop Area -->
+        <div class="border border-2 border-dashed rounded p-5 text-center mb-3" id="dropZone">
+          <i class="bi bi-cloud-arrow-up display-1 text-muted" aria-hidden="true"></i>
+          <p class="mt-3 mb-0">Drag and drop files here</p>
+          <p class="text-muted small">or click to select files</p>
+        </div>
+
+        <!-- Upload Progress -->
+        <div id="uploadProgress" class="d-none">
+          <h6>Uploading files...</h6>
+          <div class="progress mb-2">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" id="uploadProgressBar"
+                 role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+          <small class="text-muted" id="uploadStatus">Preparing upload...</small>
+        </div>
+
+        <!-- Upload Queue -->
+        <div id="uploadQueue" class="mt-3">
+          <!-- Upload items will be added here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btnStartUpload">
+          <i class="bi bi-upload me-2" aria-hidden="true"></i>
+          Start Upload
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- File Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="previewModalLabel">
+          <i class="bi bi-eye me-2" aria-hidden="true"></i>
+          <span id="previewFileName">File Preview</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="previewBody" style="min-height: 400px;">
+        <!-- Preview content will be loaded here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="btnDownloadFromPreview">
+          <i class="bi bi-download me-2" aria-hidden="true"></i>
+          Download
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- File Editor Modal -->
+<div class="modal fade" id="editorModal" tabindex="-1" aria-labelledby="editorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editorModalLabel">
+          <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>
+          <span id="editorFileName">Edit File</span>
+        </h5>
+        <div class="ms-auto me-3">
+          <span class="badge bg-success" id="editorSaved" style="display: none;">Saved</span>
+          <span class="badge bg-warning" id="editorUnsaved" style="display: none;">Unsaved changes</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <textarea id="fileEditor" class="form-control font-monospace"
+                  style="height: calc(100vh - 140px); resize: none; border: none; border-radius: 0;"
+                  aria-label="File editor"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="btnSaveFile">
+          <i class="bi bi-save me-2" aria-hidden="true"></i>
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="shareModalLabel">
+          <i class="bi bi-share me-2" aria-hidden="true"></i>
+          Share File
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">File: <strong id="shareFileName"></strong></label>
+        </div>
+
+        <!-- Share Link -->
+        <div class="mb-3">
+          <label for="shareLink" class="form-label">Share Link</label>
+          <div class="input-group">
+            <input type="text" class="form-control" id="shareLink" readonly>
+            <button class="btn btn-outline-secondary" type="button" id="btnCopyLink">
+              <i class="bi bi-clipboard" aria-hidden="true"></i>
+              Copy
+            </button>
+          </div>
+        </div>
+
+        <!-- Permissions -->
+        <div class="mb-3">
+          <label class="form-label">Permissions</label>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="sharePermRead" checked disabled>
+            <label class="form-check-label" for="sharePermRead">Read (view and download)</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="sharePermWrite">
+            <label class="form-check-label" for="sharePermWrite">Write (edit)</label>
+          </div>
+        </div>
+
+        <!-- Expiration -->
+        <div class="mb-3">
+          <label for="shareExpiration" class="form-label">Link expires in</label>
+          <select class="form-select" id="shareExpiration">
+            <option value="3600">1 hour</option>
+            <option value="86400">24 hours</option>
+            <option value="604800" selected>7 days</option>
+            <option value="2592000">30 days</option>
+            <option value="0">Never</option>
+          </select>
+        </div>
+
+        <!-- Max Uses -->
+        <div class="mb-3">
+          <label for="shareMaxUses" class="form-label">Maximum uses (0 = unlimited)</label>
+          <input type="number" class="form-control" id="shareMaxUses" value="0" min="0">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="btnCreateShareLink">
+          <i class="bi bi-link-45deg me-2" aria-hidden="true"></i>
+          Create Share Link
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WebDAV Modal -->
+<div class="modal fade" id="webdavModal" tabindex="-1" aria-labelledby="webdavModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="webdavModalLabel">
+          <i class="bi bi-hdd-network me-2" aria-hidden="true"></i>
+          WebDAV Connection
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle me-2" aria-hidden="true"></i>
+          Connect your FileVault to any WebDAV-compatible application
+        </div>
+
+        <!-- Connection Details -->
+        <div class="mb-3">
+          <label for="webdavUrl" class="form-label">WebDAV URL</label>
+          <div class="input-group">
+            <input type="text" class="form-control font-monospace" id="webdavUrl" readonly>
+            <button class="btn btn-outline-secondary" type="button" id="btnCopyWebDAVUrl">
+              <i class="bi bi-clipboard" aria-hidden="true"></i>
+              Copy
+            </button>
+          </div>
+        </div>
+
+        <!-- Authentication -->
+        <div class="mb-3">
+          <label class="form-label">Authentication</label>
+          <p class="text-muted small">Use your FileVault credentials or create a dedicated WebDAV token for enhanced security.</p>
+          <button type="button" class="btn btn-outline-primary" id="btnGenerateWebDAVToken">
+            <i class="bi bi-key me-2" aria-hidden="true"></i>
+            Generate WebDAV Token
+          </button>
+        </div>
+
+        <!-- Platform-specific Instructions -->
+        <div class="accordion" id="webdavInstructions">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                      data-bs-target="#windowsInstructions" aria-expanded="false" aria-controls="windowsInstructions">
+                <i class="bi bi-windows me-2" aria-hidden="true"></i>
+                Windows
+              </button>
+            </h2>
+            <div id="windowsInstructions" class="accordion-collapse collapse" data-bs-parent="#webdavInstructions">
+              <div class="accordion-body">
+                <ol class="small">
+                  <li>Open File Explorer</li>
+                  <li>Right-click on "This PC" and select "Map network drive"</li>
+                  <li>Click "Connect to a Web site that you can use to store your documents and pictures"</li>
+                  <li>Paste the WebDAV URL above</li>
+                  <li>Enter your credentials when prompted</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                      data-bs-target="#macInstructions" aria-expanded="false" aria-controls="macInstructions">
+                <i class="bi bi-apple me-2" aria-hidden="true"></i>
+                macOS
+              </button>
+            </h2>
+            <div id="macInstructions" class="accordion-collapse collapse" data-bs-parent="#webdavInstructions">
+              <div class="accordion-body">
+                <ol class="small">
+                  <li>Open Finder</li>
+                  <li>Press Cmd+K or select "Go" → "Connect to Server"</li>
+                  <li>Paste the WebDAV URL above</li>
+                  <li>Click "Connect" and enter your credentials</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                      data-bs-target="#linuxInstructions" aria-expanded="false" aria-controls="linuxInstructions">
+                <i class="bi bi-ubuntu me-2" aria-hidden="true"></i>
+                Linux
+              </button>
+            </h2>
+            <div id="linuxInstructions" class="accordion-collapse collapse" data-bs-parent="#webdavInstructions">
+              <div class="accordion-body">
+                <ol class="small">
+                  <li>Open your file manager (Nautilus, Dolphin, etc.)</li>
+                  <li>Look for "Connect to Server" or "Network"</li>
+                  <li>Paste the WebDAV URL above</li>
+                  <li>Enter your credentials when prompted</li>
+                </ol>
+                <p class="small mb-0"><strong>Or use command line:</strong></p>
+                <code class="small">davfs2, cadaver, or mount -t davfs</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Context Menu (Right-click menu) -->
+<div class="dropdown-menu" id="contextMenu" style="display: none; position: absolute; z-index: 1050;">
+  <a class="dropdown-item" href="#" data-action="preview">
+    <i class="bi bi-eye me-2" aria-hidden="true"></i>Preview
+  </a>
+  <a class="dropdown-item" href="#" data-action="download">
+    <i class="bi bi-download me-2" aria-hidden="true"></i>Download
+  </a>
+  <a class="dropdown-item" href="#" data-action="edit">
+    <i class="bi bi-pencil me-2" aria-hidden="true"></i>Edit
+  </a>
+  <div class="dropdown-divider"></div>
+  <a class="dropdown-item" href="#" data-action="share">
+    <i class="bi bi-share me-2" aria-hidden="true"></i>Share
+  </a>
+  <a class="dropdown-item" href="#" data-action="versions">
+    <i class="bi bi-clock-history me-2" aria-hidden="true"></i>Version History
+  </a>
+  <a class="dropdown-item" href="#" data-action="info">
+    <i class="bi bi-info-circle me-2" aria-hidden="true"></i>File Info
+  </a>
+  <div class="dropdown-divider"></div>
+  <a class="dropdown-item" href="#" data-action="rename">
+    <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Rename
+  </a>
+  <a class="dropdown-item" href="#" data-action="move">
+    <i class="bi bi-folder-symlink me-2" aria-hidden="true"></i>Move
+  </a>
+  <a class="dropdown-item text-danger" href="#" data-action="delete">
+    <i class="bi bi-trash me-2" aria-hidden="true"></i>Delete
+  </a>
+</div>
+
+<%- include('../partials/footer') %>

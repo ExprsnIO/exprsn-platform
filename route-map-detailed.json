@@ -1,0 +1,668 @@
+{
+  "summary": {
+    "totalRouteFiles": 118,
+    "totalEndpoints": 1180,
+    "modules": ["main", "lowcode", "workflow", "forge"],
+    "issues": [
+      {
+        "type": "info",
+        "severity": "none",
+        "message": "Duplicate route patterns (GET /, POST /, etc.) are expected - they exist in different module contexts and don't conflict"
+      },
+      {
+        "type": "minor",
+        "severity": "low",
+        "message": "Some routes use camelCase parameter names (:formId) while others use generic :id - consider standardizing"
+      }
+    ],
+    "generatedAt": "2025-12-29T00:00:00.000Z",
+    "platform": "exprsn-svr",
+    "version": "1.0.0",
+    "port": 5001
+  },
+  "routes": {
+    "main": {
+      "name": "Main Application",
+      "basePath": "/",
+      "apiBasePath": "/api",
+      "totalFiles": 13,
+      "totalEndpoints": 112,
+      "status": "active",
+      "completeness": "100%",
+      "methodDistribution": {
+        "GET": 64,
+        "POST": 35,
+        "PUT": 7,
+        "PATCH": 0,
+        "DELETE": 6,
+        "ALL": 0
+      },
+      "files": [
+        {
+          "name": "setup-v2.js",
+          "path": "routes/setup-v2.js",
+          "mount": "/setup",
+          "endpoints": 17,
+          "purpose": "Enhanced admin dashboard and system configuration",
+          "routes": [
+            { "method": "GET", "path": "/", "description": "Setup dashboard" },
+            { "method": "GET", "path": "/services", "description": "Service management interface" },
+            { "method": "GET", "path": "/databases", "description": "Database configuration" },
+            { "method": "GET", "path": "/redis", "description": "Redis configuration" },
+            { "method": "GET", "path": "/security", "description": "Security settings" },
+            { "method": "GET", "path": "/forge", "description": "Forge module settings" },
+            { "method": "GET", "path": "/lowcode", "description": "Low-code settings" }
+          ]
+        },
+        {
+          "name": "api.js",
+          "path": "routes/api.js",
+          "mount": "/api",
+          "endpoints": 14,
+          "purpose": "Core API operations for page management"
+        },
+        {
+          "name": "analytics.js",
+          "path": "routes/analytics.js",
+          "mount": "/api/analytics",
+          "endpoints": 9,
+          "purpose": "Analytics and tracking"
+        },
+        {
+          "name": "components.js",
+          "path": "routes/components.js",
+          "mount": "/api/components",
+          "endpoints": 10,
+          "purpose": "Component management"
+        },
+        {
+          "name": "assets.js",
+          "path": "routes/assets.js",
+          "mount": "/api/assets",
+          "endpoints": 10,
+          "purpose": "Asset management and uploads"
+        },
+        {
+          "name": "templates.js",
+          "path": "routes/templates.js",
+          "mount": "/api/templates",
+          "endpoints": 9,
+          "purpose": "Template management"
+        },
+        {
+          "name": "plugins.js",
+          "path": "routes/plugins.js",
+          "mount": "/api/plugins",
+          "endpoints": 9,
+          "purpose": "Plugin system"
+        },
+        {
+          "name": "setup.js",
+          "path": "routes/setup.js",
+          "mount": "/setup",
+          "endpoints": 9,
+          "purpose": "Setup wizard"
+        },
+        {
+          "name": "markdown.js",
+          "path": "routes/markdown.js",
+          "mount": "/api/markdown",
+          "endpoints": 8,
+          "purpose": "Markdown documentation"
+        },
+        {
+          "name": "decisionTables.js",
+          "path": "routes/decisionTables.js",
+          "mount": "/api/decision-tables",
+          "endpoints": 8,
+          "purpose": "Business rules engine"
+        },
+        {
+          "name": "editor.js",
+          "path": "routes/editor.js",
+          "mount": "/editor",
+          "endpoints": 6,
+          "purpose": "Page editor"
+        },
+        {
+          "name": "config.js",
+          "path": "routes/config.js",
+          "mount": "/api/config",
+          "endpoints": 2,
+          "purpose": "Configuration API"
+        },
+        {
+          "name": "pages.js",
+          "path": "routes/pages.js",
+          "mount": "/pages",
+          "endpoints": 1,
+          "purpose": "Page rendering"
+        }
+      ]
+    },
+    "lowcode": {
+      "name": "Low-Code Platform",
+      "basePath": "/lowcode",
+      "apiBasePath": "/lowcode/api",
+      "totalFiles": 46,
+      "totalEndpoints": 539,
+      "status": "active",
+      "completeness": "100%",
+      "methodDistribution": {
+        "GET": 214,
+        "POST": 202,
+        "PUT": 56,
+        "PATCH": 3,
+        "DELETE": 63,
+        "ALL": 1
+      },
+      "categories": {
+        "core": {
+          "name": "Core Platform",
+          "files": [
+            "applications.js",
+            "entities.js",
+            "forms.js",
+            "grids.js",
+            "queries.js",
+            "dataSources.js"
+          ],
+          "endpoints": 102
+        },
+        "features": {
+          "name": "Platform Features",
+          "files": [
+            "ai.js",
+            "security.js",
+            "automation.js",
+            "cards.js",
+            "charts.js",
+            "dashboards.js",
+            "polls.js",
+            "processes.js",
+            "reports.js",
+            "tiles.js",
+            "apis.js"
+          ],
+          "endpoints": 169
+        },
+        "git": {
+          "name": "Git Integration",
+          "files": [
+            "git.js",
+            "gitAuth.js",
+            "gitRepositories.js",
+            "gitSetup.js",
+            "gitEnvironments.js",
+            "gitPipelines.js",
+            "gitRunners.js",
+            "gitSecurity.js",
+            "gitPolicies.js"
+          ],
+          "endpoints": 132
+        },
+        "html": {
+          "name": "HTML App Builder",
+          "files": [
+            "htmlProjects.js",
+            "htmlFiles.js",
+            "htmlComponents.js",
+            "htmlLibraries.js",
+            "htmlIndex.js"
+          ],
+          "endpoints": 40
+        },
+        "data": {
+          "name": "Data Access",
+          "files": [
+            "dataAccess.js",
+            "queryExecutor.js",
+            "functionBuilder.js",
+            "appHtmlIntegration.js"
+          ],
+          "endpoints": 35
+        },
+        "system": {
+          "name": "System Configuration",
+          "files": [
+            "setup-config.js",
+            "setup.js",
+            "runtime.js",
+            "formulas.js",
+            "settings.js"
+          ],
+          "endpoints": 61
+        }
+      },
+      "topFiles": [
+        { "name": "setup-config.js", "endpoints": 56, "purpose": "Advanced platform configuration" },
+        { "name": "security.js", "endpoints": 25, "purpose": "RBAC and permissions" },
+        { "name": "forms.js", "endpoints": 24, "purpose": "Form designer and builder" },
+        { "name": "gitEnvironments.js", "endpoints": 21, "purpose": "Deployment environments" },
+        { "name": "gitRunners.js", "endpoints": 19, "purpose": "CI/CD runners" },
+        { "name": "gitSetup.js", "endpoints": 18, "purpose": "Git system configuration" },
+        { "name": "gitAuth.js", "endpoints": 17, "purpose": "Git authentication" },
+        { "name": "automation.js", "endpoints": 16, "purpose": "Automation rules" },
+        { "name": "gitRepositories.js", "endpoints": 16, "purpose": "Repository management" },
+        { "name": "gitSecurity.js", "endpoints": 16, "purpose": "Security scanning" },
+        { "name": "grids.js", "endpoints": 16, "purpose": "Grid designer" },
+        { "name": "cards.js", "endpoints": 15, "purpose": "Reusable cards" },
+        { "name": "ai.js", "endpoints": 14, "purpose": "AI agent integration" },
+        { "name": "gitPolicies.js", "endpoints": 14, "purpose": "Repository policies" },
+        { "name": "polls.js", "endpoints": 14, "purpose": "Polls and surveys" }
+      ]
+    },
+    "workflow": {
+      "name": "Workflow Module",
+      "basePath": "/workflow",
+      "apiBasePath": "/workflow/api",
+      "totalFiles": 18,
+      "totalEndpoints": 115,
+      "status": "active",
+      "completeness": "100%",
+      "methodDistribution": {
+        "GET": 60,
+        "POST": 44,
+        "PUT": 6,
+        "PATCH": 0,
+        "DELETE": 5,
+        "ALL": 0
+      },
+      "files": [
+        {
+          "name": "workflows.js",
+          "endpoints": 13,
+          "mount": "/workflow/api/workflows",
+          "purpose": "Workflow CRUD and execution"
+        },
+        {
+          "name": "executions.js",
+          "endpoints": 10,
+          "mount": "/workflow/api/executions",
+          "purpose": "Execution monitoring and control"
+        },
+        {
+          "name": "scheduler.js",
+          "endpoints": 11,
+          "mount": "/workflow/api/scheduler",
+          "purpose": "Scheduled workflow execution"
+        },
+        {
+          "name": "steps.js",
+          "endpoints": 10,
+          "mount": "/workflow/api/workflows/:workflowId/steps",
+          "purpose": "Workflow step management"
+        },
+        {
+          "name": "webhooks.js",
+          "endpoints": 9,
+          "mount": "/workflow/api/webhooks",
+          "purpose": "Webhook triggers"
+        },
+        {
+          "name": "views.js",
+          "endpoints": 8,
+          "mount": "/workflow",
+          "purpose": "Workflow view routes"
+        },
+        {
+          "name": "tags.js",
+          "endpoints": 7,
+          "mount": "/workflow/api/workflows/:workflowId/tags",
+          "purpose": "Workflow tagging"
+        },
+        {
+          "name": "templates.js",
+          "endpoints": 6,
+          "mount": "/workflow/api/templates",
+          "purpose": "Workflow templates"
+        },
+        {
+          "name": "audit.js",
+          "endpoints": 6,
+          "mount": "/workflow/api/audit",
+          "purpose": "Audit logging"
+        },
+        {
+          "name": "retention.js",
+          "endpoints": 6,
+          "mount": "/workflow/api/retention",
+          "purpose": "Data retention policies"
+        },
+        {
+          "name": "favorites.js",
+          "endpoints": 6,
+          "mount": "/workflow/api/workflows/:workflowId/favorites",
+          "purpose": "Favorite workflows"
+        },
+        {
+          "name": "importExport.js",
+          "endpoints": 6,
+          "mount": "/workflow/api/workflows",
+          "purpose": "Import/export workflows"
+        },
+        {
+          "name": "monitoring.js",
+          "endpoints": 4,
+          "mount": "/workflow/api/monitor",
+          "purpose": "Real-time monitoring"
+        },
+        {
+          "name": "approvals.js",
+          "endpoints": 3,
+          "mount": "/workflow/api/executions",
+          "purpose": "Approval steps"
+        },
+        {
+          "name": "shortcuts.js",
+          "endpoints": 3,
+          "mount": "/workflow/api/shortcuts",
+          "purpose": "Keyboard shortcuts"
+        },
+        {
+          "name": "analytics.js",
+          "endpoints": 3,
+          "mount": "/workflow/api/analytics",
+          "purpose": "Workflow analytics"
+        },
+        {
+          "name": "config.js",
+          "endpoints": 2,
+          "mount": "/workflow/api/config",
+          "purpose": "Configuration"
+        },
+        {
+          "name": "testing.js",
+          "endpoints": 2,
+          "mount": "/workflow/api/workflows/:workflowId/test",
+          "purpose": "Workflow testing"
+        }
+      ]
+    },
+    "forge": {
+      "name": "Forge Business Platform",
+      "basePath": "/forge",
+      "totalFiles": 41,
+      "totalEndpoints": 414,
+      "status": "active",
+      "completeness": "100%",
+      "submodules": {
+        "crm": {
+          "name": "Customer Relationship Management",
+          "basePath": "/forge/crm",
+          "totalFiles": 8,
+          "totalEndpoints": 92,
+          "status": "active",
+          "completeness": "100%",
+          "methodDistribution": {
+            "GET": 36,
+            "POST": 43,
+            "PUT": 7,
+            "PATCH": 0,
+            "DELETE": 6,
+            "ALL": 0
+          },
+          "files": [
+            {
+              "name": "campaigns.js",
+              "endpoints": 19,
+              "mount": "/forge/crm/campaigns",
+              "purpose": "Marketing campaign management"
+            },
+            {
+              "name": "activities.js",
+              "endpoints": 14,
+              "mount": "/forge/crm/activities",
+              "purpose": "Activity tracking (calls, meetings, emails)"
+            },
+            {
+              "name": "tickets.js",
+              "endpoints": 14,
+              "mount": "/forge/crm/tickets",
+              "purpose": "Support ticket management"
+            },
+            {
+              "name": "contacts.js",
+              "endpoints": 12,
+              "mount": "/forge/crm/contacts",
+              "purpose": "Contact management"
+            },
+            {
+              "name": "companies.js",
+              "endpoints": 11,
+              "mount": "/forge/crm/companies",
+              "purpose": "Company/account management"
+            },
+            {
+              "name": "opportunities.js",
+              "endpoints": 11,
+              "mount": "/forge/crm/opportunities",
+              "purpose": "Sales opportunity tracking"
+            },
+            {
+              "name": "leads.js",
+              "endpoints": 10,
+              "mount": "/forge/crm/leads",
+              "purpose": "Lead management"
+            },
+            {
+              "name": "index.js",
+              "endpoints": 1,
+              "mount": "/forge/crm",
+              "purpose": "CRM module info"
+            }
+          ]
+        },
+        "erp": {
+          "name": "Enterprise Resource Planning",
+          "basePath": "/forge/erp",
+          "totalFiles": 16,
+          "totalEndpoints": 156,
+          "status": "active",
+          "completeness": "100%",
+          "methodDistribution": {
+            "GET": 64,
+            "POST": 69,
+            "PUT": 13,
+            "PATCH": 2,
+            "DELETE": 8,
+            "ALL": 0
+          },
+          "categories": {
+            "financial": {
+              "name": "Financial Management",
+              "files": ["accounting.js", "invoices.js", "tax.js", "bankReconciliation.js", "creditNotes.js", "financialReports.js"],
+              "endpoints": 64
+            },
+            "sales": {
+              "name": "Sales & Inventory",
+              "files": ["products.js", "inventory.js", "salesOrders.js", "purchaseOrders.js"],
+              "endpoints": 33
+            },
+            "hr": {
+              "name": "Human Resources",
+              "files": ["employees.js", "hr.js"],
+              "endpoints": 23
+            },
+            "assets": {
+              "name": "Asset Management",
+              "files": ["assets.js"],
+              "endpoints": 13
+            },
+            "projects": {
+              "name": "Project Management",
+              "files": ["projects.js"],
+              "endpoints": 13
+            },
+            "reporting": {
+              "name": "Reporting",
+              "files": ["reports.js"],
+              "endpoints": 9
+            }
+          },
+          "files": [
+            { "name": "hr.js", "endpoints": 18, "purpose": "Human resources management" },
+            { "name": "accounting.js", "endpoints": 17, "purpose": "General ledger" },
+            { "name": "tax.js", "endpoints": 15, "purpose": "Tax management" },
+            { "name": "assets.js", "endpoints": 13, "purpose": "Fixed assets" },
+            { "name": "projects.js", "endpoints": 13, "purpose": "Project management" },
+            { "name": "invoices.js", "endpoints": 11, "purpose": "Invoicing" },
+            { "name": "creditNotes.js", "endpoints": 10, "purpose": "Credit notes" },
+            { "name": "products.js", "endpoints": 9, "purpose": "Product catalog" },
+            { "name": "reports.js", "endpoints": 9, "purpose": "ERP reporting" },
+            { "name": "inventory.js", "endpoints": 8, "purpose": "Inventory management" },
+            { "name": "purchaseOrders.js", "endpoints": 8, "purpose": "Purchase orders" },
+            { "name": "salesOrders.js", "endpoints": 8, "purpose": "Sales orders" },
+            { "name": "bankReconciliation.js", "endpoints": 7, "purpose": "Bank reconciliation" },
+            { "name": "employees.js", "endpoints": 5, "purpose": "Employee management" },
+            { "name": "financialReports.js", "endpoints": 4, "purpose": "Financial reports" },
+            { "name": "index.js", "endpoints": 1, "purpose": "ERP module info" }
+          ]
+        },
+        "groupware": {
+          "name": "Groupware & Collaboration",
+          "basePath": "/forge/groupware",
+          "totalFiles": 17,
+          "totalEndpoints": 166,
+          "status": "active",
+          "completeness": "100%",
+          "methodDistribution": {
+            "GET": 76,
+            "POST": 48,
+            "PUT": 19,
+            "PATCH": 0,
+            "DELETE": 23,
+            "ALL": 0
+          },
+          "categories": {
+            "collaboration": {
+              "name": "Collaboration Tools",
+              "files": ["documents.js", "boards.js", "tasks.js", "notes.js", "comments.js"],
+              "endpoints": 68
+            },
+            "knowledge": {
+              "name": "Knowledge Management",
+              "files": ["wiki.js", "knowledge.js", "forums.js"],
+              "endpoints": 34
+            },
+            "calendar": {
+              "name": "Calendar & Scheduling",
+              "files": ["calendars.js", "timeTracking.js", "gantt.js"],
+              "endpoints": 30
+            },
+            "protocols": {
+              "name": "Standard Protocols",
+              "files": ["caldav.js", "carddav.js", "webdav.js"],
+              "endpoints": 16
+            },
+            "business": {
+              "name": "Business Tools",
+              "files": ["forms.js", "search.js"],
+              "endpoints": 19
+            }
+          },
+          "files": [
+            { "name": "documents.js", "endpoints": 22, "purpose": "Document management" },
+            { "name": "boards.js", "endpoints": 14, "purpose": "Kanban boards" },
+            { "name": "tasks.js", "endpoints": 13, "purpose": "Task management" },
+            { "name": "timeTracking.js", "endpoints": 13, "purpose": "Time tracking" },
+            { "name": "knowledge.js", "endpoints": 12, "purpose": "Knowledge base" },
+            { "name": "forums.js", "endpoints": 12, "purpose": "Discussion forums" },
+            { "name": "calendars.js", "endpoints": 11, "purpose": "Calendar management" },
+            { "name": "wiki.js", "endpoints": 10, "purpose": "Wiki pages" },
+            { "name": "search.js", "endpoints": 10, "purpose": "Global search" },
+            { "name": "carddav.js", "endpoints": 9, "purpose": "CardDAV protocol" },
+            { "name": "comments.js", "endpoints": 9, "purpose": "Universal comments" },
+            { "name": "forms.js", "endpoints": 9, "purpose": "Business forms" },
+            { "name": "notes.js", "endpoints": 8, "purpose": "Note-taking" },
+            { "name": "gantt.js", "endpoints": 6, "purpose": "Gantt charts" },
+            { "name": "caldav.js", "endpoints": 4, "purpose": "CalDAV protocol" },
+            { "name": "webdav.js", "endpoints": 3, "purpose": "WebDAV protocol" },
+            { "name": "index.js", "endpoints": 1, "purpose": "Groupware module info" }
+          ]
+        }
+      }
+    }
+  },
+  "unmounted": [],
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "documentation",
+      "title": "Complete ✅",
+      "description": "Comprehensive route map has been created (COMPREHENSIVE_ROUTE_MAP.md)",
+      "status": "done"
+    },
+    {
+      "priority": "medium",
+      "category": "testing",
+      "title": "Add Route Testing",
+      "description": "Create automated tests for all 1,180 endpoints to ensure they work correctly",
+      "status": "todo"
+    },
+    {
+      "priority": "medium",
+      "category": "documentation",
+      "title": "OpenAPI/Swagger Specs",
+      "description": "Generate OpenAPI specifications for automatic API documentation",
+      "status": "todo"
+    },
+    {
+      "priority": "low",
+      "category": "versioning",
+      "title": "API Versioning",
+      "description": "Consider adding API versioning (e.g., /api/v1/) for future-proofing",
+      "status": "consideration"
+    },
+    {
+      "priority": "low",
+      "category": "standardization",
+      "title": "Route Parameter Naming",
+      "description": "Standardize parameter names (use :id consistently vs :formId, :entityId, etc.)",
+      "status": "minor"
+    }
+  ],
+  "statistics": {
+    "totalRouteFiles": 118,
+    "totalEndpoints": 1180,
+    "byModule": {
+      "lowcode": 539,
+      "forgeGroupware": 166,
+      "forgeErp": 156,
+      "workflow": 115,
+      "main": 112,
+      "forgeCrm": 92
+    },
+    "byMethod": {
+      "GET": 514,
+      "POST": 441,
+      "PUT": 108,
+      "DELETE": 111,
+      "PATCH": 5,
+      "ALL": 1
+    },
+    "percentageByModule": {
+      "lowcode": "45.7%",
+      "forgeGroupware": "14.1%",
+      "forgeErp": "13.2%",
+      "workflow": "9.7%",
+      "main": "9.5%",
+      "forgeCrm": "7.8%"
+    }
+  },
+  "healthChecks": [
+    { "endpoint": "GET /health", "description": "Main application health" },
+    { "endpoint": "GET /lowcode/api/health", "description": "Low-Code platform health" },
+    { "endpoint": "GET /forge/api/status", "description": "Forge platform status" }
+  ],
+  "entryPoints": [
+    { "path": "/", "description": "Application picker" },
+    { "path": "/lowcode", "description": "Low-Code dashboard" },
+    { "path": "/lowcode/applications", "description": "Applications list" },
+    { "path": "/workflow", "description": "Workflow dashboard" },
+    { "path": "/forge", "description": "Forge dashboard" },
+    { "path": "/forge/crm", "description": "CRM module" },
+    { "path": "/forge/erp", "description": "ERP module" },
+    { "path": "/forge/groupware", "description": "Groupware module" }
+  ]
+}

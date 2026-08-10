@@ -1,0 +1,125 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">System Settings</h1>
+            <p class="page-subtitle">Configure system preferences and integrations</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary">
+                <i class="bi bi-save"></i>
+                Save Changes
+            </button>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">General Settings</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">System Name</label>
+                <input type="text" class="form-control" value="Exprsn Platform">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Environment</label>
+                <select class="form-select">
+                    <option value="development" selected>Development</option>
+                    <option value="staging">Staging</option>
+                    <option value="production">Production</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Default Language</label>
+                <select class="form-select">
+                    <option value="en" selected>English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">Email Configuration</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">SMTP Host</label>
+                <input type="text" class="form-control" placeholder="smtp.example.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">SMTP Port</label>
+                <input type="number" class="form-control" value="587">
+            </div>
+            <div class="form-group">
+                <label class="form-label">SMTP Username</label>
+                <input type="text" class="form-control" placeholder="user@example.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">From Email</label>
+                <input type="email" class="form-control" value="noreply@exprsn.io">
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">Security Settings</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">Password Minimum Length</label>
+                <input type="number" class="form-control" value="8">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Session Timeout (minutes)</label>
+                <input type="number" class="form-control" value="30">
+            </div>
+            <div class="form-group">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="checkbox" id="mfa" class="form-check-input" checked>
+                    <label class="form-label mb-0" for="mfa">Enable Multi-Factor Authentication</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="checkbox" id="ssl" class="form-check-input" checked>
+                    <label class="form-label mb-0" for="ssl">Enforce SSL/TLS</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">System Preferences</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="checkbox" id="logging" class="form-check-input" checked>
+                    <label class="form-label mb-0" for="logging">Enable Audit Logging</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="checkbox" id="analytics" class="form-check-input" checked>
+                    <label class="form-label mb-0" for="analytics">Enable Analytics</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="checkbox" id="backup" class="form-check-input" checked>
+                    <label class="form-label mb-0" for="backup">Automatic Backups</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

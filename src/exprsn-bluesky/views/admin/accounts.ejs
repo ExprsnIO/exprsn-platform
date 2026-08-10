@@ -1,0 +1,124 @@
+<%- include('../partials/header') %>
+
+<div class="row mb-3">
+  <div class="col-md-6">
+    <input type="text" class="form-control" id="search" placeholder="Search by handle, name, or email...">
+  </div>
+  <div class="col-md-3">
+    <select class="form-select" id="status-filter">
+      <option value="">All Statuses</option>
+      <option value="active">Active</option>
+      <option value="suspended">Suspended</option>
+      <option value="deleted">Deleted</option>
+    </select>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Handle</th>
+          <th>DID</th>
+          <th>Display Name</th>
+          <th>Email</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Records</th>
+        </tr>
+      </thead>
+      <tbody id="accounts-table">
+        <tr><td colspan="7" class="text-center">Loading...</td></tr>
+      </tbody>
+    </table>
+
+    <nav id="pagination" class="mt-3">
+      <!-- Pagination will be inserted here -->
+    </nav>
+  </div>
+</div>
+
+<script>
+  let currentPage = 1;
+  let searchTimeout;
+
+  async function loadAccounts(page = 1) {
+    const search = document.getElementById('search').value;
+    const status = document.getElementById('status-filter').value;
+
+    const params = new URLSearchParams({
+      page,
+      limit: 20,
+      ...(search && { search }),
+      ...(status && { status })
+    });
+
+    try {
+      const response = await fetch(`/admin/api/accounts?${params}`);
+      const result = await response.json();
+
+      if (result.success) {
+        const { accounts, pagination } = result.data;
+        currentPage = page;
+
+        // Update table
+        const tableHtml = accounts.map(account => `
+          <tr>
+            <td><strong>@${account.handle}</strong></td>
+            <td><code>${account.did.substring(0, 24)}...</code></td>
+            <td>${account.display_name || '-'}</td>
+            <td>${account.email}</td>
+            <td>
+              <span class="badge bg-${account.status === 'active' ? 'success' : 'secondary'}">
+                ${account.status}
+              </span>
+            </td>
+            <td>${new Date(account.created_at).toLocaleDateString()}</td>
+            <td>${account.repository?.record_count || 0}</td>
+          </tr>
+        `).join('');
+        document.getElementById('accounts-table').innerHTML = tableHtml || '<tr><td colspan="7" class="text-center">No accounts found</td></tr>';
+
+        // Update pagination
+        const paginationHtml = `
+          <ul class="pagination justify-content-center">
+            <li class="page-item ${pagination.page === 1 ? 'disabled' : ''}">
+              <a class="page-link" href="#" onclick="loadAccounts(${pagination.page - 1}); return false;">Previous</a>
+            </li>
+            ${Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
+              const pageNum = i + 1;
+              return `
+                <li class="page-item ${pagination.page === pageNum ? 'active' : ''}">
+                  <a class="page-link" href="#" onclick="loadAccounts(${pageNum}); return false;">${pageNum}</a>
+                </li>
+              `;
+            }).join('')}
+            <li class="page-item ${pagination.page >= pagination.totalPages ? 'disabled' : ''}">
+              <a class="page-link" href="#" onclick="loadAccounts(${pagination.page + 1}); return false;">Next</a>
+            </li>
+          </ul>
+        `;
+        document.getElementById('pagination').innerHTML = paginationHtml;
+      }
+    } catch (error) {
+      console.error('Failed to load accounts:', error);
+    }
+  }
+
+  // Load on page load
+  loadAccounts();
+
+  // Search handler
+  document.getElementById('search').addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => loadAccounts(1), 500);
+  });
+
+  // Status filter handler
+  document.getElementById('status-filter').addEventListener('change', () => {
+    loadAccounts(1);
+  });
+</script>
+
+<%- include('../partials/footer') %>

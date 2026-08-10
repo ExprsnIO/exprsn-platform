@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Monaco Editor -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/editor/editor.main.css">
+
+  <style>
+    :root {
+      --designer-header-height: 60px;
+      --designer-toolbar-height: 50px;
+      --designer-sidebar-width: 300px;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* Designer Layout */
+    .designer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .designer-header {
+      height: var(--designer-header-height);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .designer-header h1 {
+      font-size: 1.25rem;
+      margin: 0;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .designer-header .actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .designer-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .designer-sidebar {
+      width: var(--designer-sidebar-width);
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .designer-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .designer-tabs {
+      display: flex;
+      gap: 0.25rem;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.5rem 1rem 0;
+    }
+
+    .designer-tab {
+      padding: 0.5rem 1rem;
+      border-radius: 6px 6px 0 0;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+      border-bottom: none;
+    }
+
+    .designer-tab:hover {
+      background: rgba(var(--primary-rgb), 0.1);
+    }
+
+    .designer-tab.active {
+      background: var(--bg-primary);
+      border-color: var(--border-color);
+      border-bottom-color: var(--bg-primary);
+      position: relative;
+      bottom: -1px;
+    }
+
+    .designer-content {
+      flex: 1;
+      overflow: auto;
+      padding: 1.5rem;
+      background: var(--bg-primary);
+    }
+
+    /* Form Sections */
+    .form-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .form-section-header h3 {
+      margin: 0;
+      font-size: 1.125rem;
+      flex: 1;
+    }
+
+    .form-section-header .icon {
+      color: var(--primary-color);
+      font-size: 1.25rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .form-group label .required {
+      color: var(--danger-color);
+      margin-left: 0.25rem;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.625rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+    }
+
+    .form-group textarea {
+      font-family: 'Monaco', 'Courier New', monospace;
+      resize: vertical;
+    }
+
+    .form-group small {
+      display: block;
+      margin-top: 0.375rem;
+      color: var(--text-secondary);
+      font-size: 0.8125rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    /* Code Editor */
+    .code-editor-container {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+      height: 300px;
+    }
+
+    .code-editor-toolbar {
+      background: var(--bg-tertiary);
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    /* Handler Type Cards */
+    .handler-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .handler-card {
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .handler-card:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .handler-card.selected {
+      border-color: var(--primary-color);
+      background: rgba(var(--primary-rgb), 0.1);
+    }
+
+    .handler-card .icon {
+      font-size: 2rem;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+    }
+
+    .handler-card .title {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      color: var(--text-primary);
+    }
+
+    .handler-card .description {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+
+    /* Preview Panel */
+    .preview-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .preview-content {
+      background: var(--bg-primary);
+      border-radius: 4px;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+      overflow-x: auto;
+    }
+
+    /* Test Panel */
+    .test-results {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .test-results.success {
+      border-color: var(--success-color);
+      background: rgba(var(--success-rgb), 0.05);
+    }
+
+    .test-results.error {
+      border-color: var(--danger-color);
+      background: rgba(var(--danger-rgb), 0.05);
+    }
+
+    /* Sidebar Sections */
+    .sidebar-section {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-section:last-child {
+      border-bottom: none;
+    }
+
+    .sidebar-section h4 {
+      margin: 0 0 1rem 0;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .sidebar-item {
+      padding: 0.625rem;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .sidebar-item:hover {
+      background: rgba(var(--primary-rgb), 0.1);
+    }
+
+    .sidebar-item.active {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .sidebar-item .icon {
+      width: 20px;
+      text-align: center;
+    }
+
+    .sidebar-item .label {
+      flex: 1;
+      font-size: 0.875rem;
+    }
+
+    /* Status Badge */
+    .status-badge {
+      padding: 0.25rem 0.625rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .status-badge.active {
+      background: var(--success-color);
+      color: white;
+    }
+
+    .status-badge.inactive {
+      background: var(--gray-300);
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="designer-container">
+    <!-- Header -->
+    <div class="designer-header">
+      <h1>
+        <i class="fas fa-code"></i>
+        <span id="apiTitle"><%= api ? api.displayName : 'New API Endpoint' %></span>
+        <span id="statusBadge" class="status-badge <%= api && api.enabled ? 'active' : 'inactive' %>">
+          <%= api && api.enabled ? 'Active' : 'Inactive' %>
+        </span>
+      </h1>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="window.history.back()">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <button class="btn btn-success" onclick="testEndpoint()">
+          <i class="fas fa-play"></i> Test
+        </button>
+        <button class="btn btn-primary" onclick="saveAPI()">
+          <i class="fas fa-save"></i> Save
+        </button>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="designer-body">
+      <!-- Sidebar -->
+      <div class="designer-sidebar">
+        <div class="sidebar-section">
+          <h4>Navigation</h4>
+          <div class="sidebar-item active" onclick="showTab('basic')">
+            <i class="fas fa-info-circle icon"></i>
+            <span class="label">Basic Info</span>
+          </div>
+          <div class="sidebar-item" onclick="showTab('handler')">
+            <i class="fas fa-cogs icon"></i>
+            <span class="label">Handler</span>
+          </div>
+          <div class="sidebar-item" onclick="showTab('schema')">
+            <i class="fas fa-file-code icon"></i>
+            <span class="label">Request/Response</span>
+          </div>
+          <div class="sidebar-item" onclick="showTab('auth')">
+            <i class="fas fa-shield-alt icon"></i>
+            <span class="label">Security</span>
+          </div>
+          <div class="sidebar-item" onclick="showTab('advanced')">
+            <i class="fas fa-sliders-h icon"></i>
+            <span class="label">Advanced</span>
+          </div>
+          <div class="sidebar-item" onclick="showTab('test')">
+            <i class="fas fa-flask icon"></i>
+            <span class="label">Test</span>
+          </div>
+        </div>
+
+        <% if (api) { %>
+        <div class="sidebar-section">
+          <h4>Statistics</h4>
+          <div style="font-size: 0.875rem; color: var(--text-secondary);">
+            <div style="margin-bottom: 0.5rem;">
+              <strong>Calls:</strong> <%= api.callCount || 0 %>
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+              <strong>Errors:</strong> <%= api.errorCount || 0 %>
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+              <strong>Avg Response:</strong> <%= Math.round(api.avgResponseTime || 0) %>ms
+            </div>
+            <% if (api.lastCalledAt) { %>
+            <div>
+              <strong>Last Called:</strong> <%= new Date(api.lastCalledAt).toLocaleString() %>
+            </div>
+            <% } %>
+          </div>
+        </div>
+        <% } %>
+      </div>
+
+      <!-- Main Content -->
+      <div class="designer-main">
+        <div class="designer-content" id="designerContent">
+          <!-- Content will be dynamically loaded based on active tab -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monaco Editor -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+
+  <!-- Designer Script -->
+  <script src="/lowcode/static/js/api-designer.js"></script>
+
+  <script>
+    // Initialize with existing API data if editing
+    const apiData = <%- api ? JSON.stringify(api) : 'null' %>;
+    const appId = '<%= appId || "" %>';
+
+    // Initialize designer
+    document.addEventListener('DOMContentLoaded', () => {
+      window.apiDesigner = new APIDesigner(apiData, appId);
+      window.apiDesigner.init();
+    });
+  </script>
+</body>
+</html>

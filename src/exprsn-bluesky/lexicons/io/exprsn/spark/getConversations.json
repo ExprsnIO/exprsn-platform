@@ -1,0 +1,43 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.spark.getConversations",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "Get user's conversations list",
+      "parameters": {
+        "type": "params",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string"
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["conversations"],
+          "properties": {
+            "cursor": {
+              "type": "string"
+            },
+            "conversations": {
+              "type": "array",
+              "items": {
+                "type": "ref",
+                "ref": "io.exprsn.spark.conversation#view"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

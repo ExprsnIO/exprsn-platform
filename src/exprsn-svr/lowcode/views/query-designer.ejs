@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Query Builder Styles -->
+  <link rel="stylesheet" href="/lowcode/static/css/query-builder.css">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    #queryBuilderApp {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <div id="queryBuilderApp"></div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Query Builder Scripts -->
+  <script src="/lowcode/static/js/form-query-builder-simple.js"></script>
+
+  <script>
+    const APP_ID = '<%= appId %>';
+    let QUERY_ID = '<%= queryId %>';
+    const EXISTING_QUERY = <%- queryId ? JSON.stringify(query) : 'null' %>;
+
+    // Make QUERY_ID globally accessible and mutable
+    window.QUERY_ID = QUERY_ID;
+
+    // Initialize global state
+    window.FORM_DESIGNER_STATE = {
+      applicationId: APP_ID,
+      queries: []
+    };
+
+    // Initialize query builder
+    document.addEventListener('DOMContentLoaded', () => {
+      const queryManager = new QueryBuilderManager(null);
+      const queryUI = new QueryBuilderUI(queryManager);
+      const queryTabsUI = new QueryBuilderTabsUI(queryManager);
+      const queryAdvancedUI = new QueryBuilderAdvancedUI(queryManager);
+
+      // Store references globally
+      window.queryBuilderManager = queryManager;
+      window.queryBuilderUI = queryUI;
+      window.queryBuilderTabsUI = queryTabsUI;
+      window.queryBuilderAdvancedUI = queryAdvancedUI;
+
+      // Load existing query or create new one
+      if (EXISTING_QUERY) {
+        queryManager.currentQuery = EXISTING_QUERY;
+        window.FORM_DESIGNER_STATE.queries = [EXISTING_QUERY];
+      } else {
+        // Create new query
+        const newQuery = {
+          id: generateUUID(),
+          applicationId: APP_ID,
+          name: 'New Query',
+          description: '',
+          datasource: {
+            type: 'entity',
+            config: {}
+          },
+          fields: [],
+          filters: {
+            condition: 'AND',
+            rules: []
+          },
+          groupBy: [],
+          aggregations: [],
+          orderBy: [],
+          limit: 100,
+          offset: 0,
+          distinct: false,
+          enableCache: false,
+          cacheDuration: 300
+        };
+
+        queryManager.currentQuery = newQuery;
+        window.FORM_DESIGNER_STATE.queries = [newQuery];
+      }
+
+      // Render the query builder UI
+      renderQueryBuilder();
+
+      // Auto-save every 30 seconds
+      setInterval(() => {
+        if (queryManager.currentQuery) {
+          saveQuery(false);
+        }
+      }, 30000);
+    });
+
+    function renderQueryBuilder() {
+      const app = document.getElementById('queryBuilderApp');
+      const query = window.queryBuilderManager.currentQuery;
+
+      app.innerHTML = `
+        <div class="query-builder-wrapper">
+          <!-- Header -->
+          <div class="query-builder-header">
+            <div class="query-info">
+              <input type="text"
+                class="query-name-input"
+                value="${escapeHtml(query.name)}"
+                onchange="updateQueryName(this.value)"
+                placeholder="Query Name">
+              <div class="query-status">
+                <i class="fas fa-circle text-success" style="font-size: 0.5rem;"></i>
+                <span>Auto-saved</span>
+              </div>
+            </div>
+            <div class="query-actions">
+              <button class="btn btn-outline-secondary btn-sm" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i> Back
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="saveQuery(true)">
+                <i class="fas fa-save"></i> Save
+              </button>
+              <button class="btn btn-success btn-sm" onclick="testQuery()">
+                <i class="fas fa-play"></i> Test Query
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="query-builder-tabs">
+            <button class="query-tab active" data-tab="datasource" onclick="switchTab('datasource')">
+              <i class="fas fa-database"></i> Datasource
+            </button>
+            <button class="query-tab" data-tab="fields" onclick="switchTab('fields')">
+              <i class="fas fa-columns"></i> Fields
+            </button>
+            <button class="query-tab" data-tab="filters" onclick="switchTab('filters')">
+              <i class="fas fa-filter"></i> Filters
+            </button>
+            <button class="query-tab" data-tab="aggregation" onclick="switchTab('aggregation')">
+              <i class="fas fa-chart-bar"></i> Aggregation
+            </button>
+            <button class="query-tab" data-tab="order" onclick="switchTab('order')">
+              <i class="fas fa-sort"></i> Order & Limit
+            </button>
+            <button class="query-tab" data-tab="preview" onclick="switchTab('preview')">
+              <i class="fas fa-eye"></i> Preview
+            </button>
+          </div>
+
+          <!-- Content Area -->
+          <div class="query-builder-content">
+            <div id="queryTabContent" class="tab-content-area"></div>
+          </div>
+        </div>
+      `;
+
+      // Render initial tab
+      switchTab('datasource');
+    }
+
+    function switchTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.query-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+      });
+
+      const container = document.getElementById('queryTabContent');
+      const queryUI = window.queryBuilderUI;
+      const queryTabsUI = window.queryBuilderTabsUI;
+      const queryAdvancedUI = window.queryBuilderAdvancedUI;
+
+      switch (tabName) {
+        case 'datasource':
+          queryUI.renderDatasourceTab(container);
+          break;
+        case 'fields':
+          queryTabsUI.renderFieldsTab(container);
+          break;
+        case 'filters':
+          queryTabsUI.renderFiltersTab(container);
+          break;
+        case 'aggregation':
+          queryAdvancedUI.renderAggregationTab(container);
+          break;
+        case 'order':
+          queryAdvancedUI.renderOrderTab(container);
+          break;
+        case 'preview':
+          queryAdvancedUI.renderPreviewTab(container);
+          break;
+      }
+    }
+
+    function updateQueryName(name) {
+      window.queryBuilderManager.currentQuery.name = name;
+      saveQuery(false);
+    }
+
+    async function saveQuery(showMessage = false) {
+      const query = window.queryBuilderManager.currentQuery;
+
+      try {
+        const url = window.QUERY_ID
+          ? `/lowcode/api/queries/${window.QUERY_ID}`
+          : `/lowcode/api/queries`;
+
+        const method = window.QUERY_ID ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(query)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          if (showMessage) {
+            alert('Query saved successfully!');
+          }
+
+          // Update query ID if this was a new query
+          if (!window.QUERY_ID && data.query) {
+            // Update the current URL without reloading the page
+            const newUrl = `/lowcode/queries/${data.query.id}/designer?appId=${APP_ID}`;
+            window.history.pushState({}, '', newUrl);
+            // Update global QUERY_ID
+            window.QUERY_ID = data.query.id;
+            QUERY_ID = data.query.id; // Also update the local variable
+          }
+        } else {
+          console.error('Failed to save query:', data.message);
+          if (showMessage) {
+            alert('Failed to save query: ' + data.message);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to save query:', error);
+        if (showMessage) {
+          alert('Failed to save query');
+        }
+      }
+    }
+
+    async function testQuery() {
+      const query = window.queryBuilderManager.currentQuery;
+
+      try {
+        const response = await fetch('/lowcode/api/query/execute', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            query: query,
+            options: {
+              preview: true,
+              limit: 10
+            }
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          console.log('Query results:', data.data);
+          alert(`Query executed successfully! Returned ${data.data.rowCount} rows in ${data.data.executionTime}ms`);
+
+          // Switch to preview tab to show results
+          switchTab('preview');
+        } else {
+          alert('Query failed: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Query execution failed:', error);
+        alert('Query execution failed');
+      }
+    }
+
+    function goBack() {
+      window.location.href = `/lowcode/queries?appId=${APP_ID}`;
+    }
+
+    // Helper functions
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function generateUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+  </script>
+</body>
+</html>

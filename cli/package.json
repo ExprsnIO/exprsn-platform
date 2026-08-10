@@ -1,0 +1,39 @@
+{
+  "name": "exprsn-installer",
+  "version": "1.0.0",
+  "description": "Cross-platform installer CLI for Exprsn Certificate Authority Ecosystem",
+  "main": "index.js",
+  "bin": {
+    "exprsn-install": "./exprsn-install.js"
+  },
+  "scripts": {
+    "install:local": "npm link"
+  },
+  "keywords": [
+    "exprsn",
+    "installer",
+    "cli",
+    "setup"
+  ],
+  "author": "Rick Holland <engineering@exprsn.com>",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "inquirer": "^8.2.6",
+    "ora": "^5.4.1",
+    "boxen": "^5.1.2",
+    "node-fetch": "^2.7.0",
+    "semver": "^7.5.4",
+    "shelljs": "^0.8.5",
+    "cli-table3": "^0.6.3",
+    "dotenv": "^16.3.1",
+    "execa": "^5.1.1",
+    "listr": "^0.14.3",
+    "update-notifier": "^6.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

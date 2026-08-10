@@ -1,0 +1,274 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-atlas",
+      "version": "1.0.0",
+      "description": "Geospatial & Mapping Service with PostGIS"
+    },
+    "routes": [
+      {
+        "path": "/api/atlas/geocode",
+        "method": "POST",
+        "description": "Geocode address to coordinates",
+        "target": {
+          "service": "atlas",
+          "path": "/api/geocode",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["address"],
+            "properties": {
+              "address": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "provider": {
+                "type": "string",
+                "enum": ["osm", "google"],
+                "default": "osm"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/atlas/reverse-geocode",
+        "method": "POST",
+        "description": "Reverse geocode coordinates to address",
+        "target": {
+          "service": "atlas",
+          "path": "/api/reverse-geocode",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["latitude", "longitude"],
+            "properties": {
+              "latitude": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "longitude": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "provider": {
+                "type": "string",
+                "enum": ["osm", "google"],
+                "default": "osm"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/atlas/route",
+        "method": "POST",
+        "description": "Calculate route between points",
+        "target": {
+          "service": "atlas",
+          "path": "/api/route",
+          "timeout": 15000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["origin", "destination"],
+            "properties": {
+              "origin": {
+                "type": "object",
+                "required": ["latitude", "longitude"],
+                "properties": {
+                  "latitude": { "type": "number" },
+                  "longitude": { "type": "number" }
+                }
+              },
+              "destination": {
+                "type": "object",
+                "required": ["latitude", "longitude"],
+                "properties": {
+                  "latitude": { "type": "number" },
+                  "longitude": { "type": "number" }
+                }
+              },
+              "mode": {
+                "type": "string",
+                "enum": ["driving", "walking", "cycling"],
+                "default": "driving"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/atlas/geofences",
+        "method": "GET",
+        "description": "List geofences",
+        "target": {
+          "service": "atlas",
+          "path": "/api/geofences",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/atlas/geofences",
+        "method": "POST",
+        "description": "Create geofence",
+        "target": {
+          "service": "atlas",
+          "path": "/api/geofences",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["name", "type", "coordinates"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "type": {
+                "type": "string",
+                "enum": ["circle", "polygon"]
+              },
+              "coordinates": {
+                "type": "array"
+              },
+              "radius": {
+                "type": "number",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/atlas/locations/track",
+        "method": "POST",
+        "description": "Track location update",
+        "target": {
+          "service": "atlas",
+          "path": "/api/locations/track",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["latitude", "longitude"],
+            "properties": {
+              "latitude": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "longitude": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "accuracy": {
+                "type": "number"
+              },
+              "altitude": {
+                "type": "number"
+              },
+              "speed": {
+                "type": "number"
+              },
+              "heading": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 360
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 300
+        }
+      },
+      {
+        "path": "/api/atlas/health",
+        "method": "GET",
+        "description": "Atlas service health check",
+        "target": {
+          "service": "atlas",
+          "path": "/health",
+          "timeout": 2000
+        },
+        "auth": {
+          "required": false
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 60000,
+        "max": 200
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

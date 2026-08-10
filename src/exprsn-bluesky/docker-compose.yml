@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: exprsn-bluesky-postgres
+    environment:
+      POSTGRES_DB: exprsn_bluesky
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - exprsn-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: exprsn-bluesky-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - exprsn-network
+    command: redis-server --appendonly yes
+
+  # BlueSky PDS Service
+  bluesky:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: exprsn-bluesky
+    environment:
+      # Node Environment
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3018
+
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: exprsn_bluesky
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+
+      # Redis
+      REDIS_ENABLED: 'true'
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # Service Configuration
+      BLUESKY_DOMAIN: ${BLUESKY_DOMAIN:-exprsn.io}
+      PDS_ENDPOINT: ${PDS_ENDPOINT:-http://localhost:3018}
+
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-1h}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-30d}
+
+      # Encryption
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+
+      # CORS
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+
+      # Features
+      FIREHOSE_ENABLED: ${FIREHOSE_ENABLED:-true}
+
+      # External Services
+      CA_URL: ${CA_URL:-http://host.docker.internal:3000}
+      AUTH_URL: ${AUTH_URL:-http://host.docker.internal:3001}
+      TIMELINE_URL: ${TIMELINE_URL:-http://host.docker.internal:3004}
+      HERALD_URL: ${HERALD_URL:-http://host.docker.internal:3014}
+      FILEVAULT_URL: ${FILEVAULT_URL:-http://host.docker.internal:3007}
+
+    ports:
+      - "3018:3018"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Mount source code in development mode
+      - ./:/app
+      - /app/node_modules
+    networks:
+      - exprsn-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3018/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Migration Service (runs once to set up database)
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: exprsn-bluesky-migration
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: exprsn_bluesky
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - exprsn-network
+    command: npm run migrate
+    restart: "no"
+
+networks:
+  exprsn-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <style>
+    .report-section {
+      min-height: 100px;
+      border: 2px dashed #dee2e6;
+      border-radius: 0.375rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .report-section.drag-over {
+      border-color: #28a745;
+      background-color: #f0fff4;
+    }
+
+    .viz-item {
+      cursor: move;
+    }
+
+    .viz-item:hover {
+      background-color: #f8f9fa;
+    }
+  </style>
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Main Content (Full Width) -->
+      <main class="col-12 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-file-earmark-bar-graph text-success"></i>
+            <%= report ? 'Edit Report' : 'Create Report' %>
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+              <button type="button" class="btn btn-success" onclick="saveReport()">
+                <i class="bi bi-save"></i> Save
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="previewReport()">
+                <i class="bi bi-eye"></i> Preview
+              </button>
+            </div>
+            <a href="/reports" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle"></i> Cancel
+            </a>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Report Properties -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <label for="report-name" class="form-label">Report Name *</label>
+                <input type="text" class="form-control" id="report-name"
+                       value="<%= report ? report.name : '' %>" required>
+              </div>
+              <div class="col-md-4">
+                <label for="report-description" class="form-label">Description</label>
+                <input type="text" class="form-control" id="report-description"
+                       value="<%= report ? report.description || '' : '' %>">
+              </div>
+              <div class="col-md-4">
+                <label for="default-format" class="form-label">Default Format</label>
+                <select class="form-select" id="default-format">
+                  <option value="pdf" <%= report && report.defaultFormat === 'pdf' ? 'selected' : '' %>>PDF</option>
+                  <option value="excel" <%= report && report.defaultFormat === 'excel' ? 'selected' : '' %>>Excel</option>
+                  <option value="csv" <%= report && report.defaultFormat === 'csv' ? 'selected' : '' %>>CSV</option>
+                  <option value="html" <%= report && report.defaultFormat === 'html' ? 'selected' : '' %>>HTML</option>
+                  <option value="json" <%= report && report.defaultFormat === 'json' ? 'selected' : '' %>>JSON</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Builder Grid Layout -->
+        <div class="row">
+          <!-- Report Canvas -->
+          <div class="col-lg-9">
+            <!-- Header Section -->
+            <div class="card mb-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-file-text"></i> Report Header</h6>
+                <button class="btn btn-sm btn-outline-primary" onclick="addToSection('header')">
+                  <i class="bi bi-plus-circle"></i> Add
+                </button>
+              </div>
+              <div class="card-body">
+                <div class="report-section" id="section-header"
+                     ondrop="drop(event, 'header')"
+                     ondragover="allowDrop(event)"
+                     ondragleave="clearDragOver(event)">
+                  <p class="text-muted text-center mb-0">
+                    <i class="bi bi-box-arrow-in-down"></i>
+                    Drag visualizations here or click Add
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Body Section -->
+            <div class="card mb-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-file-earmark-text"></i> Report Body</h6>
+                <button class="btn btn-sm btn-outline-primary" onclick="addToSection('body')">
+                  <i class="bi bi-plus-circle"></i> Add
+                </button>
+              </div>
+              <div class="card-body">
+                <div class="report-section" id="section-body"
+                     ondrop="drop(event, 'body')"
+                     ondragover="allowDrop(event)"
+                     ondragleave="clearDragOver(event)">
+                  <p class="text-muted text-center mb-0">
+                    <i class="bi bi-box-arrow-in-down"></i>
+                    Drag visualizations here or click Add
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer Section -->
+            <div class="card mb-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-file-earmark-ruled"></i> Report Footer</h6>
+                <button class="btn btn-sm btn-outline-primary" onclick="addToSection('footer')">
+                  <i class="bi bi-plus-circle"></i> Add
+                </button>
+              </div>
+              <div class="card-body">
+                <div class="report-section" id="section-footer"
+                     ondrop="drop(event, 'footer')"
+                     ondragover="allowDrop(event)"
+                     ondragleave="clearDragOver(event)">
+                  <p class="text-muted text-center mb-0">
+                    <i class="bi bi-box-arrow-in-down"></i>
+                    Drag visualizations here or click Add
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toolbox Sidebar -->
+          <div class="col-lg-3">
+            <!-- Visualizations Toolbox -->
+            <div class="card mb-3">
+              <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Visualizations</h6>
+              </div>
+              <div class="card-body">
+                <input type="text" class="form-control form-control-sm mb-2" id="search-viz"
+                       placeholder="Search...">
+
+                <div id="viz-list" style="max-height: 300px; overflow-y: auto;">
+                  <% if (visualizations.length === 0) { %>
+                    <p class="text-muted small">No visualizations available</p>
+                  <% } else { %>
+                    <% visualizations.forEach(viz => { %>
+                      <div class="viz-item p-2 mb-2 border rounded"
+                           draggable="true"
+                           ondragstart="drag(event)"
+                           data-viz-id="<%= viz.id %>"
+                           data-viz-name="<%= viz.name %>"
+                           data-viz-type="<%= viz.type %>">
+                        <i class="bi bi-grip-vertical text-muted"></i>
+                        <strong class="small"><%= viz.name %></strong>
+                        <br>
+                        <span class="badge bg-secondary" style="font-size: 0.65rem;">
+                          <%= viz.type %>
+                        </span>
+                      </div>
+                    <% }) %>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+
+            <!-- Parameters -->
+            <div class="card mb-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-sliders"></i> Parameters</h6>
+                <button class="btn btn-sm btn-outline-info" onclick="addParameter()">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
+              </div>
+              <div class="card-body">
+                <div id="parameters-list">
+                  <p class="text-muted small mb-0">No parameters</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-funnel"></i> Filters</h6>
+                <button class="btn btn-sm btn-outline-info" onclick="addFilter()">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
+              </div>
+              <div class="card-body">
+                <div id="filters-list">
+                  <p class="text-muted small mb-0">No filters</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <script>
+    let reportSections = {
+      header: [],
+      body: [],
+      footer: []
+    };
+
+    let parameters = [];
+    let filters = [];
+
+    <% if (report) { %>
+      // Load existing report data
+      reportSections = <%= report.definition ? JSON.stringify(report.definition.sections || { header: [], body: [], footer: [] }) : '{ header: [], body: [], footer: [] }' %>;
+      parameters = <%= report.parameters ? JSON.stringify(report.parameters) : '[]' %>;
+      filters = <%= report.filters ? JSON.stringify(report.filters) : '[]' %>;
+
+      // Render existing content
+      Object.keys(reportSections).forEach(section => {
+        renderSection(section);
+      });
+      renderParameters();
+      renderFilters();
+    <% } %>
+
+    // Drag and drop functions
+    function drag(ev) {
+      ev.dataTransfer.setData('vizId', ev.target.dataset.vizId);
+      ev.dataTransfer.setData('vizName', ev.target.dataset.vizName);
+      ev.dataTransfer.setData('vizType', ev.target.dataset.vizType);
+      ev.target.classList.add('dragging');
+    }
+
+    function allowDrop(ev) {
+      ev.preventDefault();
+      $(ev.currentTarget).addClass('drag-over');
+    }
+
+    function clearDragOver(ev) {
+      $(ev.currentTarget).removeClass('drag-over');
+    }
+
+    function drop(ev, section) {
+      ev.preventDefault();
+      $(ev.currentTarget).removeClass('drag-over');
+
+      const vizId = ev.dataTransfer.getData('vizId');
+      const vizName = ev.dataTransfer.getData('vizName');
+      const vizType = ev.dataTransfer.getData('vizType');
+
+      $('.viz-item').removeClass('dragging');
+
+      addVisualization(section, vizId, vizName, vizType);
+    }
+
+    function addToSection(section) {
+      const vizId = prompt('Enter Visualization ID:');
+      if (!vizId) return;
+
+      const viz = $(`[data-viz-id="${vizId}"]`);
+      if (viz.length === 0) {
+        alert('Visualization not found');
+        return;
+      }
+
+      addVisualization(section, vizId, viz.data('vizName'), viz.data('vizType'));
+    }
+
+    function addVisualization(section, vizId, vizName, vizType) {
+      reportSections[section].push({
+        visualizationId: vizId,
+        name: vizName,
+        type: vizType,
+        width: 12
+      });
+
+      renderSection(section);
+    }
+
+    function renderSection(section) {
+      const $container = $(`#section-${section}`);
+      const items = reportSections[section];
+
+      if (items.length === 0) {
+        $container.html(`
+          <p class="text-muted text-center mb-0">
+            <i class="bi bi-box-arrow-in-down"></i>
+            Drag visualizations here or click Add
+          </p>
+        `);
+        return;
+      }
+
+      let html = '<div class="row">';
+      items.forEach((item, index) => {
+        html += `
+          <div class="col-${item.width} mb-2">
+            <div class="card">
+              <div class="card-body p-2 d-flex justify-content-between align-items-center">
+                <div>
+                  <i class="bi bi-bar-chart"></i>
+                  <strong class="small">${item.name}</strong>
+                  <br>
+                  <span class="badge bg-secondary" style="font-size: 0.65rem;">${item.type}</span>
+                </div>
+                <div>
+                  <button class="btn btn-sm btn-outline-danger" onclick="removeItem('${section}', ${index})">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+
+      $container.html(html);
+    }
+
+    function removeItem(section, index) {
+      reportSections[section].splice(index, 1);
+      renderSection(section);
+    }
+
+    // Search visualizations
+    $('#search-viz').on('keyup', function() {
+      const term = $(this).val().toLowerCase();
+      $('.viz-item').each(function() {
+        const name = $(this).data('vizName').toLowerCase();
+        $(this).toggle(name.includes(term));
+      });
+    });
+
+    // Parameters
+    function addParameter() {
+      const name = prompt('Parameter name:');
+      if (!name) return;
+
+      const type = prompt('Type (text, number, date, daterange, select):') || 'text';
+
+      parameters.push({
+        name,
+        type,
+        label: name,
+        required: true
+      });
+
+      renderParameters();
+    }
+
+    function renderParameters() {
+      if (parameters.length === 0) {
+        $('#parameters-list').html('<p class="text-muted small mb-0">No parameters</p>');
+        return;
+      }
+
+      let html = '<div class="list-group list-group-flush">';
+      parameters.forEach((param, index) => {
+        html += `
+          <div class="list-group-item p-2 d-flex justify-content-between align-items-center">
+            <div>
+              <strong class="small">${param.name}</strong>
+              <br>
+              <span class="badge bg-info" style="font-size: 0.65rem;">${param.type}</span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeParameter(${index})">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        `;
+      });
+      html += '</div>';
+
+      $('#parameters-list').html(html);
+    }
+
+    function removeParameter(index) {
+      parameters.splice(index, 1);
+      renderParameters();
+    }
+
+    // Filters
+    function addFilter() {
+      const field = prompt('Field name:');
+      if (!field) return;
+
+      const operator = prompt('Operator (eq, neq, gt, lt, contains):') || 'eq';
+
+      filters.push({
+        field,
+        operator,
+        value: ''
+      });
+
+      renderFilters();
+    }
+
+    function renderFilters() {
+      if (filters.length === 0) {
+        $('#filters-list').html('<p class="text-muted small mb-0">No filters</p>');
+        return;
+      }
+
+      let html = '<div class="list-group list-group-flush">';
+      filters.forEach((filter, index) => {
+        html += `
+          <div class="list-group-item p-2 d-flex justify-content-between align-items-center">
+            <div>
+              <strong class="small">${filter.field}</strong>
+              <br>
+              <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">${filter.operator}</span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeFilter(${index})">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        `;
+      });
+      html += '</div>';
+
+      $('#filters-list').html(html);
+    }
+
+    function removeFilter(index) {
+      filters.splice(index, 1);
+      renderFilters();
+    }
+
+    // Preview report
+    function previewReport() {
+      alert('Preview functionality coming soon!');
+    }
+
+    // Save report
+    async function saveReport() {
+      const reportData = {
+        name: $('#report-name').val(),
+        description: $('#report-description').val(),
+        defaultFormat: $('#default-format').val(),
+        definition: {
+          sections: reportSections,
+          parameters: parameters,
+          filters: filters
+        }
+      };
+
+      if (!reportData.name) {
+        PulseUtils.showAlert('Please enter a report name', 'warning');
+        return;
+      }
+
+      try {
+        PulseUtils.showLoading();
+
+        <% if (report) { %>
+          await PulseAPI.reports.update('<%= report.id %>', reportData);
+          PulseUtils.showAlert('Report updated successfully!', 'success');
+        <% } else { %>
+          const result = await PulseAPI.reports.create(reportData);
+          PulseUtils.showAlert('Report created successfully!', 'success');
+          setTimeout(() => {
+            window.location.href = '/reports/' + result.data.id + '/execute';
+          }, 1000);
+        <% } %>
+
+        PulseUtils.hideLoading();
+      } catch (error) {
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Failed to save report: ' + error.message, 'danger');
+      }
+    }
+  </script>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

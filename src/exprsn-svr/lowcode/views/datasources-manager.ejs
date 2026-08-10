@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Query Builder Styles (reusing for consistency) -->
+  <link rel="stylesheet" href="/lowcode/static/css/query-builder.css">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f5;
+    }
+
+    #datasourcesApp {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header matching query builder */
+    .datasources-header {
+      background: #2c3e50;
+      border-bottom: 3px solid #0078d4;
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: #ffffff;
+    }
+
+    .header-title h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .header-title i {
+      font-size: 1.75rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Content area */
+    .datasources-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+
+    .content-wrapper {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Filters bar */
+    .filters-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      align-items: center;
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .filter-group label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #6c757d;
+      margin: 0;
+    }
+
+    .filter-group select {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    /* Datasources grid */
+    .datasources-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .datasource-card {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1.5rem;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .datasource-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 120, 212, 0.15);
+      border-color: #0078d4;
+    }
+
+    .datasource-header {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      align-items: center;
+    }
+
+    .datasource-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .datasource-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .datasource-info h3 {
+      margin: 0 0 0.25rem 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #2c3e50;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .datasource-type {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background: #e3f2fd;
+      color: #0078d4;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .datasource-description {
+      margin: 1rem 0;
+      color: #6c757d;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .datasource-meta {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #dee2e6;
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .connection-status {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .connection-status.active {
+      background: rgba(40, 167, 69, 0.15);
+      color: #28a745;
+    }
+
+    .connection-status.inactive {
+      background: rgba(108, 117, 125, 0.15);
+      color: #6c757d;
+    }
+
+    .connection-status.error {
+      background: rgba(220, 53, 69, 0.15);
+      color: #dc3545;
+    }
+
+    .connection-status i {
+      font-size: 0.5rem;
+    }
+
+    .datasource-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .datasource-actions .btn {
+      flex: 1;
+      font-size: 0.875rem;
+      padding: 0.5rem;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .empty-state-icon {
+      font-size: 4rem;
+      color: #dee2e6;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+      margin: 0 0 0.5rem 0;
+      color: #2c3e50;
+      font-size: 1.5rem;
+    }
+
+    .empty-state p {
+      margin: 0 0 2rem 0;
+      color: #6c757d;
+    }
+  </style>
+</head>
+<body>
+  <div id="datasourcesApp">
+    <!-- Header -->
+    <div class="datasources-header">
+      <div class="header-title">
+        <i class="fas fa-database"></i>
+        <h1>Data Sources</h1>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-light btn-sm" onclick="window.location.href='/lowcode/designer?appId=<%= appId %>'">
+          <i class="fas fa-arrow-left"></i> Back to Designer
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="createNewDatasource()">
+          <i class="fas fa-plus"></i> New Data Source
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="datasources-content">
+      <div class="content-wrapper">
+        <!-- Filters -->
+        <div class="filters-bar">
+          <div class="filter-group">
+            <label>Type:</label>
+            <select id="typeFilter" onchange="filterDataSources()">
+              <option value="">All Types</option>
+              <option value="postgresql">PostgreSQL</option>
+              <option value="redis">Redis</option>
+              <option value="mysql">MySQL</option>
+              <option value="mongodb">MongoDB</option>
+              <option value="forge">Forge CRM/ERP</option>
+              <option value="rest">REST API</option>
+              <option value="graphql">GraphQL</option>
+              <option value="soap">SOAP</option>
+              <option value="json">JSON Feed</option>
+              <option value="xml">XML Feed</option>
+              <option value="csv">CSV File</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Status:</label>
+            <select id="statusFilter" onchange="filterDataSources()">
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="error">Error</option>
+            </select>
+          </div>
+          <div style="margin-left: auto; color: #6c757d; font-size: 0.875rem; font-weight: 500;">
+            <span id="datasourceCount">0</span> data sources
+          </div>
+        </div>
+
+        <!-- Data Sources Grid -->
+        <div id="datasourcesGrid" class="datasources-grid">
+          <!-- Data sources will be loaded here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+          <div class="empty-state-icon">
+            <i class="fas fa-database"></i>
+          </div>
+          <h3>No Data Sources Yet</h3>
+          <p>Connect to databases, APIs, and external services to power your application</p>
+          <button class="btn btn-primary" onclick="createNewDatasource()">
+            <i class="fas fa-plus"></i> Create Your First Data Source
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    const APP_ID = '<%= appId %>';
+    let dataSources = [];
+    let filteredDataSources = [];
+
+    const typeConfigs = {
+      postgresql: { icon: 'fa-database', color: '#336791' },
+      redis: { icon: 'fa-bolt', color: '#DC382D' },
+      mysql: { icon: 'fa-database', color: '#00758F' },
+      mongodb: { icon: 'fa-leaf', color: '#47A248' },
+      forge: { icon: 'fa-industry', color: '#FF6B35' },
+      rest: { icon: 'fa-code', color: '#4A90E2' },
+      graphql: { icon: 'fa-project-diagram', color: '#E10098' },
+      soap: { icon: 'fa-exchange-alt', color: '#8E44AD' },
+      json: { icon: 'fa-file-code', color: '#F7DF1E' },
+      xml: { icon: 'fa-code', color: '#E34F26' },
+      csv: { icon: 'fa-file-csv', color: '#34A853' }
+    };
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDataSources();
+    });
+
+    async function loadDataSources() {
+      try {
+        const response = await fetch(`/lowcode/api/datasources?applicationId=${APP_ID}`);
+        const data = await response.json();
+
+        if (data.success) {
+          dataSources = data.data.dataSources || [];
+          filteredDataSources = dataSources;
+          renderDataSources();
+        }
+      } catch (error) {
+        console.error('Failed to load data sources:', error);
+      }
+    }
+
+    function renderDataSources() {
+      const grid = document.getElementById('datasourcesGrid');
+      const emptyState = document.getElementById('emptyState');
+      const count = document.getElementById('datasourceCount');
+
+      count.textContent = filteredDataSources.length;
+
+      if (filteredDataSources.length === 0) {
+        grid.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      grid.style.display = 'grid';
+      emptyState.style.display = 'none';
+
+      grid.innerHTML = filteredDataSources.map(ds => {
+        const config = typeConfigs[ds.sourceType] || { icon: 'fa-database', color: '#667eea' };
+        const iconStyle = `background: ${ds.color || config.color}`;
+        const statusClass = ds.status || 'inactive';
+
+        return `
+          <div class="datasource-card" onclick="editDataSource('${ds.id}')">
+            <div class="connection-status ${statusClass}">
+              <i class="fas fa-circle"></i>
+              ${statusClass.charAt(0).toUpperCase() + statusClass.slice(1)}
+            </div>
+            <div class="datasource-header">
+              <div class="datasource-icon" style="${iconStyle}">
+                <i class="fas ${ds.icon || config.icon}"></i>
+              </div>
+              <div class="datasource-info">
+                <h3 title="${escapeHtml(ds.displayName)}">${escapeHtml(ds.displayName)}</h3>
+                <span class="datasource-type">${ds.sourceType}</span>
+              </div>
+            </div>
+            <div class="datasource-description">
+              ${escapeHtml(ds.description || 'No description provided')}
+            </div>
+            <div class="datasource-meta">
+              <div class="meta-item">
+                <i class="fas fa-clock"></i>
+                ${formatDate(ds.updatedAt)}
+              </div>
+              ${ds.lastTestedAt ? `
+                <div class="meta-item">
+                  <i class="fas fa-check-circle"></i>
+                  Tested ${formatDate(ds.lastTestedAt)}
+                </div>
+              ` : ''}
+            </div>
+            <div class="datasource-actions" onclick="event.stopPropagation()">
+              <button class="btn btn-outline-secondary btn-sm" onclick="testDataSource('${ds.id}')">
+                <i class="fas fa-plug"></i> Test
+              </button>
+              <button class="btn btn-outline-primary btn-sm" onclick="editDataSource('${ds.id}')">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+              <button class="btn btn-outline-danger btn-sm" onclick="deleteDataSource('${ds.id}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterDataSources() {
+      const typeFilter = document.getElementById('typeFilter').value;
+      const statusFilter = document.getElementById('statusFilter').value;
+
+      filteredDataSources = dataSources.filter(ds => {
+        if (typeFilter && ds.sourceType !== typeFilter) return false;
+        if (statusFilter && ds.status !== statusFilter) return false;
+        return true;
+      });
+
+      renderDataSources();
+    }
+
+    function createNewDatasource() {
+      window.location.href = `/lowcode/datasources/new?appId=${APP_ID}`;
+    }
+
+    function editDataSource(id) {
+      window.location.href = `/lowcode/datasources/${id}/designer?appId=${APP_ID}`;
+    }
+
+    async function testDataSource(id) {
+      const ds = dataSources.find(d => d.id === id);
+      if (!ds) return;
+
+      try {
+        const response = await fetch('/lowcode/api/datasources/test-connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceType: ds.sourceType,
+            connectionConfig: ds.connectionConfig
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert(`✓ Connection successful!\n\n${result.message}`);
+        } else {
+          alert(`✗ Connection failed\n\n${result.message}\n\n${result.error || ''}`);
+        }
+      } catch (error) {
+        console.error('Test failed:', error);
+        alert('Connection test failed');
+      }
+    }
+
+    async function deleteDataSource(id) {
+      if (!confirm('Are you sure you want to delete this data source?')) return;
+
+      try {
+        const response = await fetch(`/lowcode/api/datasources/${id}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert('Data source deleted successfully');
+          loadDataSources();
+        } else {
+          alert('Failed to delete data source: ' + result.message);
+        }
+      } catch (error) {
+        console.error('Delete failed:', error);
+        alert('Failed to delete data source');
+      }
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 30) return `${diffDays}d ago`;
+      return date.toLocaleDateString();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

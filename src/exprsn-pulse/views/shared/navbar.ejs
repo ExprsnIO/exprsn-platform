@@ -1,0 +1,67 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand d-flex align-items-center" href="/">
+      <i class="bi bi-graph-up-arrow me-2"></i>
+      <strong>Exprsn Pulse</strong>
+    </a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-item <%= currentPage === 'home' ? 'active' : '' %>" href="/">
+            <i class="bi bi-house-door"></i> Home
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= currentPage === 'dashboards' ? 'active' : '' %>" href="/dashboards">
+            <i class="bi bi-grid-3x3-gap"></i> Dashboards
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= currentPage === 'reports' ? 'active' : '' %>" href="/reports">
+            <i class="bi bi-file-earmark-bar-graph"></i> Reports
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= currentPage === 'data' ? 'active' : '' %>" href="/data/sources">
+            <i class="bi bi-database"></i> Data Sources
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link <%= currentPage === 'schedules' ? 'active' : '' %>" href="/schedules">
+            <i class="bi bi-clock-history"></i> Schedules
+          </a>
+        </li>
+      </ul>
+
+      <!-- Search -->
+      <form class="d-flex me-3" role="search">
+        <input class="form-control form-control-sm" type="search" placeholder="Search... (Ctrl+K)" id="global-search">
+      </form>
+
+      <!-- Theme Toggle -->
+      <button type="button" class="btn btn-link text-white me-2" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme (Ctrl+D)">
+        <i class="bi bi-moon-stars"></i>
+      </button>
+
+      <!-- User Menu -->
+      <div class="dropdown">
+        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="bi bi-person-circle me-2"></i>
+          <span><%= locals.user?.username || 'Guest' %></span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end text-small shadow">
+          <li><a class="dropdown-item" href="/profile"><i class="bi bi-person"></i> Profile</a></li>
+          <li><a class="dropdown-item" href="/settings"><i class="bi bi-gear"></i> Settings</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="/help"><i class="bi bi-question-circle"></i> Help</a></li>
+          <li><a class="dropdown-item" href="/api/logout"><i class="bi bi-box-arrow-right"></i> Sign out</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>

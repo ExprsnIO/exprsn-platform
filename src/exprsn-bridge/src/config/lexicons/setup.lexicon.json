@@ -1,0 +1,266 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-setup",
+      "version": "1.0.0",
+      "description": "Setup and Service Management Service"
+    },
+    "routes": [
+      {
+        "path": "/api/setup/services",
+        "method": "GET",
+        "description": "List all Exprsn services",
+        "target": {
+          "service": "setup",
+          "path": "/api/services",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/setup/services/:name/status",
+        "method": "GET",
+        "description": "Get service status",
+        "target": {
+          "service": "setup",
+          "path": "/api/services/:name/status",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z\\-]+$"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/setup/services/:name/start",
+        "method": "POST",
+        "description": "Start service",
+        "target": {
+          "service": "setup",
+          "path": "/api/services/:name/start",
+          "timeout": 30000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "params": {
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z\\-]+$"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/setup/services/:name/stop",
+        "method": "POST",
+        "description": "Stop service",
+        "target": {
+          "service": "setup",
+          "path": "/api/services/:name/stop",
+          "timeout": 30000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "params": {
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z\\-]+$"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/setup/database/init",
+        "method": "POST",
+        "description": "Initialize database schema",
+        "target": {
+          "service": "setup",
+          "path": "/api/database/init",
+          "timeout": 60000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": true
+        },
+        "rateLimit": {
+          "windowMs": 3600000,
+          "max": 3
+        }
+      },
+      {
+        "path": "/api/setup/database/migrate",
+        "method": "POST",
+        "description": "Run database migrations",
+        "target": {
+          "service": "setup",
+          "path": "/api/database/migrate",
+          "timeout": 60000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string",
+                "enum": ["all", "ca", "timeline", "spark", "nexus", "filevault", "gallery", "live", "moderator", "pulse", "vault", "herald", "workflow"]
+              },
+              "direction": {
+                "type": "string",
+                "enum": ["up", "down"],
+                "default": "up"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 3600000,
+          "max": 5
+        }
+      },
+      {
+        "path": "/api/setup/config/generate",
+        "method": "POST",
+        "description": "Generate service configuration files",
+        "target": {
+          "service": "setup",
+          "path": "/api/config/generate",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["services"],
+            "properties": {
+              "services": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z\\-]+$"
+                },
+                "minItems": 1
+              },
+              "environment": {
+                "type": "string",
+                "enum": ["development", "staging", "production"],
+                "default": "development"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/setup/health",
+        "method": "GET",
+        "description": "Setup service health check",
+        "target": {
+          "service": "setup",
+          "path": "/health",
+          "timeout": 2000
+        },
+        "auth": {
+          "required": false
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 300
+        }
+      },
+      {
+        "path": "/api/setup/discovery",
+        "method": "GET",
+        "description": "Service discovery information",
+        "target": {
+          "service": "setup",
+          "path": "/api/discovery",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 500
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

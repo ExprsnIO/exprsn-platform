@@ -1,0 +1,281 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-vault",
+      "version": "1.0.0",
+      "description": "Secrets and Credentials Management Service"
+    },
+    "routes": [
+      {
+        "path": "/api/vault/secrets",
+        "method": "POST",
+        "description": "Create secret",
+        "target": {
+          "service": "vault",
+          "path": "/api/secrets",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["key", "value"],
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "pattern": "^[a-zA-Z0-9_\\-\\.]+$"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 50
+                },
+                "maxItems": 10
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/vault/secrets/:key",
+        "method": "GET",
+        "description": "Get secret value",
+        "target": {
+          "service": "vault",
+          "path": "/api/secrets/:key",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "params": {
+            "key": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_\\-\\.]+$"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 500
+        }
+      },
+      {
+        "path": "/api/vault/secrets/:key",
+        "method": "PUT",
+        "description": "Update secret",
+        "target": {
+          "service": "vault",
+          "path": "/api/secrets/:key",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "params": {
+            "key": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_\\-\\.]+$"
+            }
+          },
+          "body": {
+            "type": "object",
+            "required": ["value"],
+            "properties": {
+              "value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/vault/secrets/:key",
+        "method": "DELETE",
+        "description": "Delete secret",
+        "target": {
+          "service": "vault",
+          "path": "/api/secrets/:key",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "params": {
+            "key": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_\\-\\.]+$"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/vault/keys/generate",
+        "method": "POST",
+        "description": "Generate encryption key",
+        "target": {
+          "service": "vault",
+          "path": "/api/keys/generate",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["name", "algorithm"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "algorithm": {
+                "type": "string",
+                "enum": ["aes-256-gcm", "rsa-4096"]
+              },
+              "purpose": {
+                "type": "string",
+                "enum": ["encryption", "signing"]
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/vault/keys",
+        "method": "GET",
+        "description": "List encryption keys",
+        "target": {
+          "service": "vault",
+          "path": "/api/keys",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/vault/keys/:keyId/rotate",
+        "method": "POST",
+        "description": "Rotate encryption key",
+        "target": {
+          "service": "vault",
+          "path": "/api/keys/:keyId/rotate",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": true
+        },
+        "validation": {
+          "params": {
+            "keyId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 3600000,
+          "max": 5
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 1000
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.timeline.post",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Timeline post record for Exprsn social feed",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["text", "createdAt"],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "maxGraphemes": 5000,
+            "description": "Post content text"
+          },
+          "facets": {
+            "type": "array",
+            "description": "Annotations of text (mentions, links, tags)",
+            "items": {
+              "type": "ref",
+              "ref": "app.bsky.richtext.facet"
+            }
+          },
+          "reply": {
+            "type": "ref",
+            "ref": "#replyRef",
+            "description": "Reference to parent post if this is a reply"
+          },
+          "embed": {
+            "type": "union",
+            "refs": [
+              "io.exprsn.timeline.embed#images",
+              "io.exprsn.timeline.embed#video",
+              "io.exprsn.timeline.embed#external",
+              "io.exprsn.timeline.embed#record"
+            ],
+            "description": "Embedded content (images, video, links, quoted posts)"
+          },
+          "langs": {
+            "type": "array",
+            "description": "Language codes (ISO 639-1)",
+            "maxLength": 3,
+            "items": {
+              "type": "string",
+              "format": "language"
+            }
+          },
+          "labels": {
+            "type": "union",
+            "refs": ["com.atproto.label.defs#selfLabels"],
+            "description": "Self-applied content labels"
+          },
+          "tags": {
+            "type": "array",
+            "description": "User-defined tags",
+            "maxLength": 8,
+            "items": {
+              "type": "string",
+              "maxLength": 640,
+              "maxGraphemes": 64
+            }
+          },
+          "visibility": {
+            "type": "string",
+            "enum": ["public", "followers", "private"],
+            "default": "public",
+            "description": "Post visibility setting"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Client-declared timestamp"
+          }
+        }
+      }
+    },
+    "replyRef": {
+      "type": "object",
+      "required": ["root", "parent"],
+      "properties": {
+        "root": {
+          "type": "ref",
+          "ref": "com.atproto.repo.strongRef",
+          "description": "Root post of the thread"
+        },
+        "parent": {
+          "type": "ref",
+          "ref": "com.atproto.repo.strongRef",
+          "description": "Direct parent post"
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["uri", "cid", "author", "record", "indexedAt"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "author": {
+          "type": "ref",
+          "ref": "app.bsky.actor.defs#profileViewBasic"
+        },
+        "record": {
+          "type": "unknown"
+        },
+        "embed": {
+          "type": "union",
+          "refs": [
+            "io.exprsn.timeline.embed#imagesView",
+            "io.exprsn.timeline.embed#videoView",
+            "io.exprsn.timeline.embed#externalView",
+            "io.exprsn.timeline.embed#recordView"
+          ]
+        },
+        "replyCount": {
+          "type": "integer"
+        },
+        "repostCount": {
+          "type": "integer"
+        },
+        "likeCount": {
+          "type": "integer"
+        },
+        "indexedAt": {
+          "type": "string",
+          "format": "datetime"
+        },
+        "viewer": {
+          "type": "ref",
+          "ref": "#viewerState"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "com.atproto.label.defs#label"
+          }
+        }
+      }
+    },
+    "viewerState": {
+      "type": "object",
+      "description": "Viewer's interaction state with the post",
+      "properties": {
+        "repost": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "like": {
+          "type": "string",
+          "format": "at-uri"
+        }
+      }
+    }
+  }
+}

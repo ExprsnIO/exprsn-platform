@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML Designer - Exprsn Low-Code Platform</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Monaco Editor -->
+  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow: hidden;
+    }
+
+    .designer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Header */
+    .designer-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .back-btn {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0.5rem;
+    }
+
+    .project-info h1 {
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+
+    .project-info p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: var(--gray-200);
+      color: var(--text-primary);
+    }
+
+    /* Main Layout */
+    .designer-main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar - File Tree */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-title {
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .sidebar-actions {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .sidebar-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 0.25rem;
+      font-size: 0.875rem;
+    }
+
+    .sidebar-btn:hover {
+      color: var(--primary-color);
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    /* File Tree */
+    .file-tree {
+      list-style: none;
+    }
+
+    .file-tree-item {
+      padding: 0.5rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      transition: background 0.2s ease;
+    }
+
+    .file-tree-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .file-tree-item.active {
+      background: var(--primary-light);
+      color: var(--primary-color);
+    }
+
+    .file-tree-item i {
+      width: 16px;
+    }
+
+    .file-tree-folder {
+      font-weight: 500;
+    }
+
+    .file-tree-children {
+      list-style: none;
+      padding-left: 1rem;
+    }
+
+    /* Editor Area */
+    .editor-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+    }
+
+    .editor-tabs {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      gap: 0.25rem;
+      padding: 0.5rem 0.5rem 0;
+      overflow-x: auto;
+    }
+
+    .editor-tab {
+      padding: 0.5rem 1rem;
+      background: var(--bg-tertiary);
+      border: none;
+      border-top-left-radius: var(--radius-sm);
+      border-top-right-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+
+    .editor-tab.active {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .editor-tab-close {
+      background: none;
+      border: none;
+      color: currentColor;
+      cursor: pointer;
+      padding: 0;
+      margin-left: 0.5rem;
+    }
+
+    .editor-content {
+      flex: 1;
+      position: relative;
+    }
+
+    #monaco-editor {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+
+    /* Right Panel - Preview/Properties */
+    .right-panel {
+      width: 400px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .panel-tab {
+      flex: 1;
+      padding: 0.75rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .panel-tab.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .preview-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: white;
+    }
+
+    .component-list {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .component-item {
+      padding: 0.75rem;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .component-item:hover {
+      background: var(--primary-light);
+      transform: translateY(-2px);
+    }
+
+    .component-name {
+      font-weight: 500;
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .component-category {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--gray-300);
+      border-top-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="designer-container">
+    <!-- Header -->
+    <header class="designer-header">
+      <div class="header-left">
+        <button class="back-btn" onclick="goBack()">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <div class="project-info">
+          <h1 id="projectName">Loading...</h1>
+          <p id="projectStatus">...</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" onclick="saveFile()">
+          <i class="fas fa-save"></i>
+          Save
+        </button>
+        <button class="btn btn-primary" onclick="previewProject()">
+          <i class="fas fa-eye"></i>
+          Preview
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="designer-main">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <span class="sidebar-title">Files</span>
+          <div class="sidebar-actions">
+            <button class="sidebar-btn" onclick="newFile()" title="New File">
+              <i class="fas fa-file-plus"></i>
+            </button>
+            <button class="sidebar-btn" onclick="newFolder()" title="New Folder">
+              <i class="fas fa-folder-plus"></i>
+            </button>
+          </div>
+        </div>
+        <div class="sidebar-content">
+          <div id="fileTree" class="file-tree">
+            <div class="loading">
+              <div class="spinner"></div>
+              <span>Loading files...</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Editor -->
+      <div class="editor-area">
+        <div class="editor-tabs" id="editorTabs">
+          <!-- Tabs will be dynamically added -->
+        </div>
+        <div class="editor-content">
+          <div id="monaco-editor"></div>
+        </div>
+      </div>
+
+      <!-- Right Panel -->
+      <aside class="right-panel">
+        <div class="panel-tabs">
+          <button class="panel-tab active" onclick="switchPanel('preview')">Preview</button>
+          <button class="panel-tab" onclick="switchPanel('components')">Components</button>
+        </div>
+        <div class="panel-content">
+          <div id="previewPanel">
+            <iframe id="previewFrame" class="preview-frame"></iframe>
+          </div>
+          <div id="componentsPanel" style="display: none;">
+            <div id="componentsList" class="component-list">
+              <div class="loading">
+                <div class="spinner"></div>
+                <span>Loading components...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Monaco Editor -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+
+  <script>
+    const PROJECT_ID = '<%= projectId %>';
+    const USER_ID = '00000000-0000-0000-0000-000000000001'; // TODO: Get from session
+
+    let project = null;
+    let fileTree = null;
+    let currentFile = null;
+    let editor = null;
+    let openFiles = new Map();
+    let components = [];
+
+    // Initialize Monaco Editor
+    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+
+    require(['vs/editor/editor.main'], function() {
+      editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+        value: '// Select a file to start editing',
+        language: 'html',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        fontSize: 14,
+        minimap: { enabled: true },
+        scrollBeyondLastLine: false
+      });
+
+      // Auto-save on content change (debounced)
+      let saveTimeout;
+      editor.onDidChangeModelContent(() => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+          if (currentFile) {
+            autoSaveFile();
+          }
+        }, 2000);
+      });
+    });
+
+    // Load project on page load
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadProject();
+      await loadFileTree();
+      await loadComponents();
+    });
+
+    async function loadProject() {
+      try {
+        const response = await fetch(`/lowcode/api/html-projects/${PROJECT_ID}`);
+        const result = await response.json();
+
+        if (result.success) {
+          project = result.data;
+          document.getElementById('projectName').textContent = project.name;
+          document.getElementById('projectStatus').textContent = `Status: ${project.status}`;
+        }
+      } catch (error) {
+        console.error('Error loading project:', error);
+      }
+    }
+
+    async function loadFileTree() {
+      try {
+        const response = await fetch(`/lowcode/api/html-files/projects/${PROJECT_ID}/tree`);
+        const result = await response.json();
+
+        if (result.success) {
+          fileTree = result.data;
+          renderFileTree();
+        }
+      } catch (error) {
+        console.error('Error loading file tree:', error);
+      }
+    }
+
+    function renderFileTree() {
+      const container = document.getElementById('fileTree');
+      container.innerHTML = renderTreeNode(fileTree);
+    }
+
+    function renderTreeNode(nodes, level = 0) {
+      if (!nodes || nodes.length === 0) return '';
+
+      return `<ul class="file-tree-children">
+        ${nodes.map(node => `
+          <li>
+            <div class="file-tree-item ${node.type === 'folder' ? 'file-tree-folder' : ''}"
+                 onclick="selectFile('${node.id}', '${node.type}', '${node.name}', '${node.path}')">
+              <i class="fas fa-${getFileIcon(node)}"></i>
+              <span>${node.name}</span>
+            </div>
+            ${node.children ? renderTreeNode(node.children, level + 1) : ''}
+          </li>
+        `).join('')}
+      </ul>`;
+    }
+
+    function getFileIcon(node) {
+      if (node.type === 'folder') return 'folder';
+      if (node.type === 'html') return 'file-code';
+      if (node.type === 'css') return 'file-css';
+      if (node.type === 'javascript') return 'file-code';
+      if (node.type === 'json') return 'file-alt';
+      if (node.type === 'image') return 'file-image';
+      return 'file';
+    }
+
+    async function selectFile(fileId, type, name, path) {
+      if (type === 'folder') return;
+
+      // Check if file is already open
+      if (openFiles.has(fileId)) {
+        switchToFile(fileId);
+        return;
+      }
+
+      // Load file content
+      try {
+        const response = await fetch(`/lowcode/api/html-files/${fileId}`);
+        const result = await response.json();
+
+        if (result.success) {
+          const file = result.data;
+          openFiles.set(fileId, file);
+          addEditorTab(fileId, name);
+          switchToFile(fileId);
+        }
+      } catch (error) {
+        console.error('Error loading file:', error);
+      }
+    }
+
+    function addEditorTab(fileId, name) {
+      const tabsContainer = document.getElementById('editorTabs');
+      const tab = document.createElement('button');
+      tab.className = 'editor-tab';
+      tab.dataset.fileId = fileId;
+      tab.innerHTML = `
+        ${name}
+        <button class="editor-tab-close" onclick="closeFile('${fileId}'); event.stopPropagation();">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+      tab.onclick = () => switchToFile(fileId);
+      tabsContainer.appendChild(tab);
+    }
+
+    function switchToFile(fileId) {
+      const file = openFiles.get(fileId);
+      if (!file) return;
+
+      currentFile = file;
+
+      // Update tabs
+      document.querySelectorAll('.editor-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.fileId === fileId);
+      });
+
+      // Update editor
+      const language = getLanguageFromType(file.type);
+      monaco.editor.setModelLanguage(editor.getModel(), language);
+      editor.setValue(file.content || '');
+
+      // Update preview if HTML
+      if (file.type === 'html') {
+        updatePreview();
+      }
+    }
+
+    function getLanguageFromType(type) {
+      const map = {
+        html: 'html',
+        css: 'css',
+        javascript: 'javascript',
+        json: 'json'
+      };
+      return map[type] || 'plaintext';
+    }
+
+    function closeFile(fileId) {
+      openFiles.delete(fileId);
+      const tab = document.querySelector(`.editor-tab[data-file-id="${fileId}"]`);
+      if (tab) tab.remove();
+
+      // Switch to another file if available
+      const remaining = document.querySelectorAll('.editor-tab');
+      if (remaining.length > 0) {
+        const nextFileId = remaining[0].dataset.fileId;
+        switchToFile(nextFileId);
+      } else {
+        currentFile = null;
+        editor.setValue('// Select a file to start editing');
+      }
+    }
+
+    async function saveFile() {
+      if (!currentFile) return;
+
+      const content = editor.getValue();
+
+      try {
+        const response = await fetch(`/lowcode/api/html-files/${currentFile.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content,
+            userId: USER_ID
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          console.log('File saved successfully');
+          // Update local copy
+          currentFile.content = content;
+          openFiles.set(currentFile.id, currentFile);
+        }
+      } catch (error) {
+        console.error('Error saving file:', error);
+      }
+    }
+
+    async function autoSaveFile() {
+      await saveFile();
+    }
+
+    function updatePreview() {
+      if (!currentFile || currentFile.type !== 'html') return;
+
+      const iframe = document.getElementById('previewFrame');
+      const content = editor.getValue();
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(content);
+      doc.close();
+    }
+
+    async function loadComponents() {
+      try {
+        const response = await fetch('/lowcode/api/html-components?isSystem=true');
+        const result = await response.json();
+
+        if (result.success) {
+          components = result.data.components;
+          renderComponents();
+        }
+      } catch (error) {
+        console.error('Error loading components:', error);
+      }
+    }
+
+    function renderComponents() {
+      const container = document.getElementById('componentsList');
+      container.innerHTML = components.map(comp => `
+        <div class="component-item" onclick="insertComponent('${comp.id}')">
+          <div class="component-name">
+            <i class="${comp.icon || 'fas fa-cube'}"></i>
+            ${comp.name}
+          </div>
+          <div class="component-category">${comp.category}</div>
+        </div>
+      `).join('');
+    }
+
+    function insertComponent(componentId) {
+      const component = components.find(c => c.id === componentId);
+      if (!component || !editor) return;
+
+      const position = editor.getPosition();
+      editor.executeEdits('', [{
+        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+        text: component.htmlTemplate
+      }]);
+
+      editor.setPosition(position);
+      editor.focus();
+    }
+
+    function switchPanel(panel) {
+      document.querySelectorAll('.panel-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      document.getElementById('previewPanel').style.display = panel === 'preview' ? 'block' : 'none';
+      document.getElementById('componentsPanel').style.display = panel === 'components' ? 'block' : 'none';
+    }
+
+    function previewProject() {
+      const file = Array.from(openFiles.values()).find(f => f.isEntryPoint);
+      if (file) {
+        window.open(`/lowcode/html-preview/${PROJECT_ID}`, '_blank');
+      } else {
+        alert('No entry point file found. Please mark index.html as entry point.');
+      }
+    }
+
+    function newFile() {
+      const name = prompt('Enter file name (e.g., about.html):');
+      if (!name) return;
+
+      createFile(name, determineFileType(name));
+    }
+
+    function newFolder() {
+      const name = prompt('Enter folder name:');
+      if (!name) return;
+
+      createFile(name, 'folder');
+    }
+
+    async function createFile(name, type) {
+      try {
+        const response = await fetch('/lowcode/api/html-files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: PROJECT_ID,
+            parentId: null,
+            name,
+            type,
+            content: type !== 'folder' ? '' : undefined,
+            userId: USER_ID
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          loadFileTree();
+        }
+      } catch (error) {
+        console.error('Error creating file:', error);
+      }
+    }
+
+    function determineFileType(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const map = {
+        html: 'html',
+        htm: 'html',
+        css: 'css',
+        js: 'javascript',
+        json: 'json',
+        jpg: 'image',
+        jpeg: 'image',
+        png: 'image',
+        gif: 'image',
+        svg: 'image'
+      };
+      return map[ext] || 'other';
+    }
+
+    function goBack() {
+      window.location.href = '/lowcode/html-projects';
+    }
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<%- include('../partials/header') %>
+
+<div class="row">
+  <div class="col-md-3 mb-4">
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0">Sync Queue</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          <small class="text-muted">Waiting:</small>
+          <strong id="sync-waiting">-</strong>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Active:</small>
+          <strong id="sync-active">-</strong>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Completed:</small>
+          <strong class="text-success" id="sync-completed">-</strong>
+        </div>
+        <div>
+          <small class="text-muted">Failed:</small>
+          <strong class="text-danger" id="sync-failed">-</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 mb-4">
+    <div class="card">
+      <div class="card-header bg-warning text-dark">
+        <h6 class="mb-0">Moderation Queue</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          <small class="text-muted">Waiting:</small>
+          <strong id="moderation-waiting">-</strong>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Active:</small>
+          <strong id="moderation-active">-</strong>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Completed:</small>
+          <strong class="text-success" id="moderation-completed">-</strong>
+        </div>
+        <div>
+          <small class="text-muted">Failed:</small>
+          <strong class="text-danger" id="moderation-failed">-</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 mb-4">
+    <div class="card">
+      <div class="card-header bg-info text-white">
+        <h6 class="mb-0">Notifications Queue</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          <small class="text-muted">Waiting:</small>
+          <strong id="notifications-waiting">-</strong>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Active:</small>
+          <strong id="notifications-active">-</strong>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Completed:</small>
+          <strong class="text-success" id="notifications-completed">-</strong>
+        </div>
+        <div>
+          <small class="text-muted">Failed:</small>
+          <strong class="text-danger" id="notifications-failed">-</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3 mb-4">
+    <div class="card">
+      <div class="card-header bg-success text-white">
+        <h6 class="mb-0">Workflows Queue</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          <small class="text-muted">Waiting:</small>
+          <strong id="workflows-waiting">-</strong>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Active:</small>
+          <strong id="workflows-active">-</strong>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Completed:</small>
+          <strong class="text-success" id="workflows-completed">-</strong>
+        </div>
+        <div>
+          <small class="text-muted">Failed:</small>
+          <strong class="text-danger" id="workflows-failed">-</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function loadQueueStats() {
+    try {
+      const response = await fetch('/admin/api/stats');
+      const result = await response.json();
+
+      if (result.success) {
+        const queues = result.data.queues;
+
+        ['sync', 'moderation', 'notifications', 'workflows'].forEach(queue => {
+          const stats = queues[queue];
+          document.getElementById(`${queue}-waiting`).textContent = stats.waiting || 0;
+          document.getElementById(`${queue}-active`).textContent = stats.active || 0;
+          document.getElementById(`${queue}-completed`).textContent = stats.completed || 0;
+          document.getElementById(`${queue}-failed`).textContent = stats.failed || 0;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load queue stats:', error);
+    }
+  }
+
+  // Load on page load
+  loadQueueStats();
+
+  // Refresh every 5 seconds
+  setInterval(loadQueueStats, 5000);
+</script>
+
+<%- include('../partials/footer') %>

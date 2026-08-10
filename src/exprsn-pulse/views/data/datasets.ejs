@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+        <%- include('../shared/sidebar') %>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-table text-primary"></i>
+            Datasets
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <button type="button" class="btn btn-primary" onclick="createDataset()">
+              <i class="bi bi-plus-circle"></i> New Dataset
+            </button>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Description -->
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i>
+          <strong>Datasets</strong> are cached, transformed results from queries. They can be used in multiple visualizations and reports for better performance.
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <input type="text" class="form-control" id="search-dataset" placeholder="Search datasets...">
+          </div>
+          <div class="col-md-3">
+            <select class="form-select" id="filter-type">
+              <option value="">All Types</option>
+              <option value="query">Query Result</option>
+              <option value="static">Static Data</option>
+              <option value="computed">Computed</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <select class="form-select" id="sort-by">
+              <option value="name">Name</option>
+              <option value="updated">Last Updated</option>
+              <option value="size">Size</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Datasets Grid -->
+        <div class="row">
+          <% if (datasets.length === 0) { %>
+            <div class="col-12">
+              <div class="card shadow">
+                <div class="card-body text-center py-5">
+                  <i class="bi bi-table" style="font-size: 4rem; color: #dee2e6;"></i>
+                  <h4 class="mt-3">No datasets yet</h4>
+                  <p class="text-muted">Create datasets from query results to power your visualizations</p>
+                  <button type="button" class="btn btn-primary" onclick="createDataset()">
+                    <i class="bi bi-plus-circle"></i> Create Dataset
+                  </button>
+                </div>
+              </div>
+            </div>
+          <% } else { %>
+            <% datasets.forEach(dataset => { %>
+              <div class="col-md-6 col-lg-4 mb-4 dataset-card"
+                   data-name="<%= dataset.name.toLowerCase() %>"
+                   data-type="<%= dataset.datasetType %>">
+                <div class="card h-100 shadow-sm">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                      <i class="bi bi-table"></i>
+                      <%= dataset.name %>
+                    </h6>
+                    <div class="dropdown">
+                      <button class="btn btn-sm btn-link text-muted" type="button"
+                              data-bs-toggle="dropdown">
+                        <i class="bi bi-three-dots-vertical"></i>
+                      </button>
+                      <ul class="dropdown-menu">
+                        <li>
+                          <button class="dropdown-item" onclick="viewDataset('<%= dataset.id %>')">
+                            <i class="bi bi-eye"></i> View Data
+                          </button>
+                        </li>
+                        <li>
+                          <button class="dropdown-item" onclick="refreshDataset('<%= dataset.id %>')">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                          </button>
+                        </li>
+                        <li>
+                          <button class="dropdown-item" onclick="exportDataset('<%= dataset.id %>')">
+                            <i class="bi bi-download"></i> Export
+                          </button>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                          <button class="dropdown-item text-danger" onclick="deleteDataset('<%= dataset.id %>')">
+                            <i class="bi bi-trash"></i> Delete
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <% if (dataset.description) { %>
+                      <p class="card-text text-muted small"><%= dataset.description %></p>
+                    <% } %>
+
+                    <div class="mb-2">
+                      <strong>Type:</strong>
+                      <span class="badge bg-<%= dataset.datasetType === 'query' ? 'primary' : dataset.datasetType === 'static' ? 'secondary' : 'info' %>">
+                        <%= dataset.datasetType %>
+                      </span>
+                    </div>
+
+                    <% if (dataset.rowCount) { %>
+                      <div class="mb-2">
+                        <strong>Rows:</strong> <%= dataset.rowCount.toLocaleString() %>
+                      </div>
+                    <% } %>
+
+                    <% if (dataset.columnCount) { %>
+                      <div class="mb-2">
+                        <strong>Columns:</strong> <%= dataset.columnCount %>
+                      </div>
+                    <% } %>
+
+                    <div class="text-muted small mt-3">
+                      <i class="bi bi-clock"></i>
+                      Updated <%= new Date(dataset.updatedAt).toLocaleDateString() %>
+                    </div>
+                  </div>
+                  <div class="card-footer bg-white">
+                    <button class="btn btn-sm btn-outline-primary w-100" onclick="viewDataset('<%= dataset.id %>')">
+                      <i class="bi bi-eye"></i> View Data
+                    </button>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          <% } %>
+        </div>
+
+        <!-- Statistics -->
+        <% if (datasets.length > 0) { %>
+          <div class="row mt-4">
+            <div class="col-md-3">
+              <div class="card text-center">
+                <div class="card-body">
+                  <h5 class="card-title">Total Datasets</h5>
+                  <p class="display-6"><%= datasets.length %></p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center">
+                <div class="card-body">
+                  <h5 class="card-title">Query Results</h5>
+                  <p class="display-6"><%= datasets.filter(d => d.datasetType === 'query').length %></p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center">
+                <div class="card-body">
+                  <h5 class="card-title">Total Rows</h5>
+                  <p class="display-6"><%= datasets.reduce((sum, d) => sum + (d.rowCount || 0), 0).toLocaleString() %></p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center">
+                <div class="card-body">
+                  <h5 class="card-title">Avg Columns</h5>
+                  <p class="display-6"><%= Math.round(datasets.reduce((sum, d) => sum + (d.columnCount || 0), 0) / datasets.length) %></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </main>
+    </div>
+  </div>
+
+  <!-- View Data Modal -->
+  <div class="modal fade" id="viewDataModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Dataset Preview</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="data-preview-container" style="max-height: 500px; overflow-y: auto;">
+            <div class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <script>
+    let viewModal;
+
+    $(document).ready(function() {
+      viewModal = new bootstrap.Modal('#viewDataModal');
+
+      // Search
+      $('#search-dataset').on('keyup', filterDatasets);
+
+      // Type filter
+      $('#filter-type').on('change', filterDatasets);
+
+      // Sort
+      $('#sort-by').on('change', sortDatasets);
+    });
+
+    function filterDatasets() {
+      const searchTerm = $('#search-dataset').val().toLowerCase();
+      const typeFilter = $('#filter-type').val();
+
+      $('.dataset-card').each(function() {
+        const $card = $(this);
+        const name = $card.data('name');
+        const type = $card.data('type');
+
+        let show = true;
+
+        if (searchTerm && !name.includes(searchTerm)) {
+          show = false;
+        }
+
+        if (typeFilter && type !== typeFilter) {
+          show = false;
+        }
+
+        $card.toggle(show);
+      });
+    }
+
+    function sortDatasets() {
+      // TODO: Implement sorting
+      alert('Sorting functionality to be implemented');
+    }
+
+    function createDataset() {
+      const name = prompt('Dataset name:');
+      if (!name) return;
+
+      const type = prompt('Type (query, static, computed):') || 'query';
+
+      PulseUtils.showLoading();
+
+      // TODO: Implement dataset creation
+      setTimeout(() => {
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Dataset creation requires query selection', 'info');
+      }, 500);
+    }
+
+    async function viewDataset(id) {
+      viewModal.show();
+      $('#data-preview-container').html(`
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      `);
+
+      try {
+        const result = await PulseAPI.datasets.getData(id);
+        const data = result.data;
+
+        if (data && data.length > 0) {
+          const columns = Object.keys(data[0]);
+          let html = `
+            <div class="table-responsive">
+              <table class="table table-sm table-striped">
+                <thead>
+                  <tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>
+                </thead>
+                <tbody>
+                  ${data.slice(0, 100).map(row => `
+                    <tr>${columns.map(col => `<td>${row[col]}</td>`).join('')}</tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            ${data.length > 100 ? `<p class="text-muted text-center">Showing first 100 of ${data.length} rows</p>` : ''}
+          `;
+          $('#data-preview-container').html(html);
+        } else {
+          $('#data-preview-container').html('<p class="text-muted text-center">No data available</p>');
+        }
+      } catch (error) {
+        $('#data-preview-container').html(`
+          <p class="text-danger text-center">Failed to load data: ${error.message}</p>
+        `);
+      }
+    }
+
+    async function refreshDataset(id) {
+      try {
+        PulseUtils.showLoading();
+        await PulseAPI.datasets.refresh(id);
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Dataset refreshed successfully', 'success');
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (error) {
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Failed to refresh dataset: ' + error.message, 'danger');
+      }
+    }
+
+    async function exportDataset(id) {
+      window.location.href = `/api/datasets/${id}/export?format=csv`;
+    }
+
+    async function deleteDataset(id) {
+      const card = $(`.dataset-card`).filter(function() {
+        return $(this).find('button[onclick*="' + id + '"]').length > 0;
+      });
+      const name = card.find('h6').text().trim();
+
+      PulseModals.showDeleteConfirm('Dataset', name, async function() {
+        try {
+          await PulseAPI.datasets.delete(id);
+          PulseUtils.showAlert('Dataset deleted successfully', 'success');
+          setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+          PulseUtils.showAlert('Failed to delete dataset: ' + error.message, 'danger');
+        }
+      });
+    }
+  </script>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

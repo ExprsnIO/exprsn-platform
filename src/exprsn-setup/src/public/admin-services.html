@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Services Overview - Exprsn Setup</title>
+
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <style>
+    :root {
+      --primary-color: #2563eb;
+      --secondary-color: #64748b;
+      --success-color: #10b981;
+      --danger-color: #ef4444;
+      --warning-color: #f59e0b;
+      --info-color: #06b6d4;
+    }
+
+    body {
+      background-color: #f8fafc;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .page-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%);
+      color: white;
+      padding: 2rem 0;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .stats-card {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      height: 100%;
+    }
+
+    .stats-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .stats-card .icon {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      margin-bottom: 1rem;
+    }
+
+    .stats-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 0.25rem;
+    }
+
+    .stats-card .label {
+      font-size: 0.875rem;
+      color: var(--secondary-color);
+      font-weight: 500;
+    }
+
+    .service-card {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1rem;
+      transition: all 0.2s;
+      border-left: 4px solid transparent;
+    }
+
+    .service-card:hover {
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+      transform: translateX(2px);
+    }
+
+    .service-card.running {
+      border-left-color: var(--success-color);
+    }
+
+    .service-card.configured {
+      border-left-color: var(--info-color);
+    }
+
+    .service-card.not-configured {
+      border-left-color: var(--warning-color);
+    }
+
+    .service-card.error {
+      border-left-color: var(--danger-color);
+    }
+
+    .service-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .service-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 0;
+    }
+
+    .service-id {
+      font-size: 0.875rem;
+      color: var(--secondary-color);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    .service-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .service-status.running {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+
+    .service-status.configured {
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+
+    .service-status.not-configured {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+
+    .service-status.stopped {
+      background-color: #f1f5f9;
+      color: #475569;
+    }
+
+    .service-status.error {
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+
+    .service-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .service-info-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--secondary-color);
+    }
+
+    .service-description {
+      font-size: 0.875rem;
+      color: var(--secondary-color);
+      margin-bottom: 1rem;
+    }
+
+    .service-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .dependency-badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      background-color: #f1f5f9;
+      color: #475569;
+      font-size: 0.75rem;
+      margin-right: 0.25rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .progress-ring {
+      width: 120px;
+      height: 120px;
+    }
+
+    .progress-ring__circle {
+      transition: stroke-dashoffset 0.35s;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .filter-pill {
+      padding: 0.5rem 1rem;
+      border-radius: 2rem;
+      border: 2px solid #e2e8f0;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .filter-pill:hover {
+      border-color: var(--primary-color);
+      background-color: #eff6ff;
+    }
+
+    .filter-pill.active {
+      border-color: var(--primary-color);
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(0, 0, 0, 0.1);
+      border-left-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+    }
+
+    .setup-progress {
+      background-color: #f8fafc;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .setup-step {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .setup-step.completed {
+      color: var(--success-color);
+    }
+
+    .setup-step.pending {
+      color: var(--secondary-color);
+    }
+  </style>
+</head>
+<body>
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="mb-2">
+            <i class="bi bi-grid-3x3"></i> Services Overview
+          </h1>
+          <p class="mb-0 opacity-90">Manage and configure all Exprsn microservices</p>
+        </div>
+        <div>
+          <button class="btn btn-light" onclick="window.location.href='/unified'">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+          </button>
+          <button class="btn btn-success" onclick="setupAllServices()">
+            <i class="bi bi-play-circle"></i> Setup All Services
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container-fluid">
+    <!-- Statistics -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--primary-color);">
+            <i class="bi bi-server"></i>
+          </div>
+          <div class="value" id="totalServices">18</div>
+          <div class="label">Total Services</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--success-color);">
+            <i class="bi bi-check-circle"></i>
+          </div>
+          <div class="value" id="runningServices">0</div>
+          <div class="label">Running</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--info-color);">
+            <i class="bi bi-gear"></i>
+          </div>
+          <div class="value" id="configuredServices">0</div>
+          <div class="label">Configured</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--warning-color);">
+            <i class="bi bi-exclamation-triangle"></i>
+          </div>
+          <div class="value" id="notConfiguredServices">18</div>
+          <div class="label">Not Configured</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-pills">
+      <div class="filter-pill active" data-filter="all">
+        <i class="bi bi-grid"></i> All Services
+      </div>
+      <div class="filter-pill" data-filter="running">
+        <i class="bi bi-check-circle"></i> Running
+      </div>
+      <div class="filter-pill" data-filter="configured">
+        <i class="bi bi-gear"></i> Configured
+      </div>
+      <div class="filter-pill" data-filter="not-configured">
+        <i class="bi bi-exclamation-triangle"></i> Not Configured
+      </div>
+      <div class="filter-pill" data-filter="stopped">
+        <i class="bi bi-stop-circle"></i> Stopped
+      </div>
+    </div>
+
+    <!-- Services Grid -->
+    <div id="servicesGrid">
+      <div class="text-center py-5">
+        <div class="loading-spinner mx-auto mb-3" style="width: 3rem; height: 3rem;"></div>
+        <div class="text-muted">Loading services...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Bootstrap Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Modal Manager -->
+  <script src="/js/modal-manager.js"></script>
+
+  <script>
+    // State management
+    let socket = null;
+    let services = [];
+    let currentFilter = 'all';
+    let healthStatuses = {};
+
+    // Service definitions with metadata
+    const SERVICE_METADATA = [
+      {
+        serviceId: 'ca',
+        serviceName: 'Certificate Authority',
+        port: 3000,
+        description: 'X.509 Certificate Authority with OCSP and CRL support',
+        databaseEnabled: true,
+        databaseName: 'exprsn_ca',
+        redisEnabled: true,
+        redisPrefix: 'ca:',
+        dependencies: [],
+        category: 'core',
+        icon: 'shield-lock',
+        color: '#DC382D'
+      },
+      {
+        serviceId: 'auth',
+        serviceName: 'Authentication & SSO',
+        port: 3001,
+        description: 'OAuth2/OIDC provider with SAML SSO and MFA support',
+        databaseEnabled: true,
+        databaseName: 'exprsn_auth',
+        redisEnabled: true,
+        redisPrefix: 'auth:',
+        dependencies: ['ca'],
+        category: 'core',
+        icon: 'key',
+        color: '#2563eb'
+      },
+      {
+        serviceId: 'spark',
+        serviceName: 'Real-time Messaging',
+        port: 3002,
+        description: 'Real-time messaging with E2EE support',
+        databaseEnabled: true,
+        databaseName: 'exprsn_spark',
+        redisEnabled: true,
+        redisPrefix: 'spark:',
+        dependencies: ['ca', 'auth'],
+        category: 'communication',
+        icon: 'chat-dots',
+        color: '#10b981'
+      },
+      {
+        serviceId: 'timeline',
+        serviceName: 'Social Feed',
+        port: 3004,
+        description: 'Social timeline with Bull queue processing',
+        databaseEnabled: true,
+        databaseName: 'exprsn_timeline',
+        redisEnabled: true,
+        redisPrefix: 'timeline:',
+        dependencies: ['ca', 'auth'],
+        category: 'social',
+        icon: 'newspaper',
+        color: '#8b5cf6'
+      },
+      {
+        serviceId: 'prefetch',
+        serviceName: 'Timeline Prefetching',
+        port: 3005,
+        description: 'Timeline caching and prefetching service',
+        databaseEnabled: false,
+        redisEnabled: true,
+        redisPrefix: 'prefetch:',
+        dependencies: ['timeline'],
+        category: 'social',
+        icon: 'lightning',
+        color: '#f59e0b'
+      },
+      {
+        serviceId: 'moderator',
+        serviceName: 'Content Moderation',
+        port: 3006,
+        description: 'AI-powered content moderation',
+        databaseEnabled: true,
+        databaseName: 'exprsn_moderator',
+        redisEnabled: true,
+        redisPrefix: 'moderator:',
+        dependencies: ['ca', 'auth'],
+        category: 'content',
+        icon: 'shield-check',
+        color: '#ec4899'
+      },
+      {
+        serviceId: 'filevault',
+        serviceName: 'File Storage',
+        port: 3007,
+        description: 'File storage with S3/Disk/IPFS backends',
+        databaseEnabled: true,
+        databaseName: 'exprsn_filevault',
+        redisEnabled: true,
+        redisPrefix: 'filevault:',
+        dependencies: ['ca', 'auth'],
+        category: 'storage',
+        icon: 'folder',
+        color: '#06b6d4'
+      },
+      {
+        serviceId: 'gallery',
+        serviceName: 'Media Galleries',
+        port: 3008,
+        description: 'Media galleries with AI tagging and face detection',
+        databaseEnabled: true,
+        databaseName: 'exprsn_gallery',
+        redisEnabled: true,
+        redisPrefix: 'gallery:',
+        dependencies: ['ca', 'auth', 'filevault'],
+        category: 'media',
+        icon: 'images',
+        color: '#f59e0b'
+      },
+      {
+        serviceId: 'live',
+        serviceName: 'Live Streaming',
+        port: 3009,
+        description: 'Live streaming with WebRTC signaling',
+        databaseEnabled: true,
+        databaseName: 'exprsn_live',
+        redisEnabled: true,
+        redisPrefix: 'live:',
+        dependencies: ['ca', 'auth'],
+        category: 'media',
+        icon: 'broadcast',
+        color: '#ef4444'
+      },
+      {
+        serviceId: 'bridge',
+        serviceName: 'API Gateway',
+        port: 3010,
+        description: 'API gateway with rate limiting and lexicon routing',
+        databaseEnabled: false,
+        redisEnabled: true,
+        redisPrefix: 'bridge:',
+        dependencies: ['ca'],
+        category: 'core',
+        icon: 'signpost-split',
+        color: '#64748b'
+      },
+      {
+        serviceId: 'nexus',
+        serviceName: 'Groups & Events',
+        port: 3011,
+        description: 'Groups, events, CalDAV/CardDAV',
+        databaseEnabled: true,
+        databaseName: 'exprsn_nexus',
+        redisEnabled: true,
+        redisPrefix: 'nexus:',
+        dependencies: ['ca', 'auth'],
+        category: 'collaboration',
+        icon: 'people',
+        color: '#8b5cf6'
+      },
+      {
+        serviceId: 'pulse',
+        serviceName: 'Analytics & Metrics',
+        port: 3012,
+        description: 'Analytics and metrics collection',
+        databaseEnabled: true,
+        databaseName: 'exprsn_pulse',
+        redisEnabled: true,
+        redisPrefix: 'pulse:',
+        dependencies: ['ca', 'auth'],
+        category: 'monitoring',
+        icon: 'graph-up',
+        color: '#10b981'
+      },
+      {
+        serviceId: 'vault',
+        serviceName: 'Secrets Management',
+        port: 3013,
+        description: 'Secrets management with encryption at rest',
+        databaseEnabled: true,
+        databaseName: 'exprsn_vault',
+        redisEnabled: true,
+        redisPrefix: 'vault:',
+        dependencies: ['ca', 'auth'],
+        category: 'security',
+        icon: 'safe',
+        color: '#059669'
+      },
+      {
+        serviceId: 'herald',
+        serviceName: 'Notifications & Alerts',
+        port: 3014,
+        description: 'Multi-channel notification delivery',
+        databaseEnabled: true,
+        databaseName: 'exprsn_herald',
+        redisEnabled: true,
+        redisPrefix: 'herald:',
+        dependencies: ['ca', 'auth'],
+        category: 'communication',
+        icon: 'bell',
+        color: '#f59e0b'
+      },
+      {
+        serviceId: 'setup',
+        serviceName: 'Setup & Management',
+        port: 3015,
+        description: 'Service discovery, health monitoring, and configuration',
+        databaseEnabled: true,
+        databaseName: 'exprsn_setup',
+        redisEnabled: true,
+        redisPrefix: 'setup:',
+        dependencies: [],
+        category: 'core',
+        icon: 'gear',
+        color: '#2563eb'
+      },
+      {
+        serviceId: 'forge',
+        serviceName: 'Business Platform',
+        port: 3016,
+        description: 'CRM, Groupware, and ERP modules',
+        databaseEnabled: true,
+        databaseName: 'exprsn_forge',
+        redisEnabled: true,
+        redisPrefix: 'forge:',
+        dependencies: ['ca', 'auth'],
+        category: 'business',
+        icon: 'briefcase',
+        color: '#6366f1'
+      },
+      {
+        serviceId: 'workflow',
+        serviceName: 'Workflow Automation',
+        port: 3017,
+        description: 'Visual workflow automation with 15 step types',
+        databaseEnabled: true,
+        databaseName: 'exprsn_workflow',
+        redisEnabled: true,
+        redisPrefix: 'workflow:',
+        dependencies: ['ca', 'auth'],
+        category: 'automation',
+        icon: 'diagram-3',
+        color: '#8b5cf6'
+      },
+      {
+        serviceId: 'svr',
+        serviceName: 'Dynamic Page Server',
+        port: 5000,
+        description: 'Dynamic page server with Low-Code Platform',
+        databaseEnabled: true,
+        databaseName: 'exprsn_svr',
+        redisEnabled: true,
+        redisPrefix: 'svr:',
+        dependencies: ['ca', 'auth'],
+        category: 'platform',
+        icon: 'code-square',
+        color: '#06b6d4'
+      }
+    ];
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeSocketIO();
+      loadServices();
+      setupFilterButtons();
+
+      // Auto-refresh every 10 seconds
+      setInterval(() => {
+        loadServices();
+      }, 10000);
+    });
+
+    /**
+     * Socket.IO initialization
+     */
+    function initializeSocketIO() {
+      socket = io();
+
+      socket.on('connect', () => {
+        console.log('Socket.IO connected');
+      });
+
+      socket.on('service-config:updated', (data) => {
+        showToast('Service Updated', `${data.serviceId} configuration updated`, 'info');
+        loadServices();
+      });
+
+      socket.on('service-config:setup-completed', (data) => {
+        showToast('Setup Complete', `${data.serviceName} setup completed`, 'success');
+        loadServices();
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Socket.IO disconnected');
+      });
+    }
+
+    /**
+     * Load services and their health status
+     */
+    async function loadServices() {
+      try {
+        // Try to load from API first, fallback to metadata
+        try {
+          const response = await fetch('/api/service-config');
+          const data = await response.json();
+
+          if (data.success) {
+            services = data.services;
+          } else {
+            throw new Error('Failed to load from API');
+          }
+        } catch (apiError) {
+          // Fallback to metadata
+          services = SERVICE_METADATA.map(meta => ({
+            ...meta,
+            status: 'not_configured',
+            setupCompleted: false,
+            enabled: true
+          }));
+        }
+
+        // Load health statuses
+        const healthResponse = await fetch('/api/status');
+        const healthData = await healthResponse.json();
+
+        if (healthData.success) {
+          healthStatuses = {};
+          healthData.services.forEach(service => {
+            healthStatuses[service.id] = service.status === 'running';
+          });
+        }
+
+        // Update statistics
+        updateStatistics();
+
+        // Render services
+        renderServices();
+      } catch (error) {
+        console.error('Failed to load services:', error);
+        // Render with metadata anyway
+        renderServices();
+      }
+    }
+
+    /**
+     * Update statistics
+     */
+    function updateStatistics() {
+      const running = services.filter(s => healthStatuses[s.serviceId]).length;
+      const configured = services.filter(s => s.setupCompleted).length;
+      const notConfigured = services.length - configured;
+
+      document.getElementById('runningServices').textContent = running;
+      document.getElementById('configuredServices').textContent = configured;
+      document.getElementById('notConfiguredServices').textContent = notConfigured;
+    }
+
+    /**
+     * Setup filter buttons
+     */
+    function setupFilterButtons() {
+      document.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+          pill.classList.add('active');
+          currentFilter = pill.dataset.filter;
+          renderServices();
+        });
+      });
+    }
+
+    /**
+     * Render services grid
+     */
+    function renderServices() {
+      const grid = document.getElementById('servicesGrid');
+
+      // Merge metadata with services
+      const enrichedServices = SERVICE_METADATA.map(meta => {
+        const service = services.find(s => s.serviceId === meta.serviceId) || {};
+        const isRunning = healthStatuses[meta.serviceId];
+
+        let status = 'not-configured';
+        if (isRunning) status = 'running';
+        else if (service.setupCompleted) status = 'configured';
+        else if (service.status) status = service.status;
+
+        return {
+          ...meta,
+          ...service,
+          status,
+          isRunning
+        };
+      });
+
+      // Filter services
+      let filtered = enrichedServices;
+      if (currentFilter !== 'all') {
+        filtered = enrichedServices.filter(s => {
+          if (currentFilter === 'running') return s.isRunning;
+          if (currentFilter === 'configured') return s.setupCompleted && !s.isRunning;
+          if (currentFilter === 'not-configured') return !s.setupCompleted;
+          if (currentFilter === 'stopped') return !s.isRunning && s.setupCompleted;
+          return true;
+        });
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 4rem; color: #cbd5e1;"></i>
+            <p class="text-muted mt-3">No services found matching the current filter</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(service => renderServiceCard(service)).join('');
+    }
+
+    /**
+     * Render individual service card
+     */
+    function renderServiceCard(service) {
+      const statusClass = service.isRunning ? 'running' : (service.setupCompleted ? 'configured' : 'not-configured');
+      const statusText = service.isRunning ? 'Running' : (service.setupCompleted ? 'Configured' : 'Not Configured');
+      const statusIcon = service.isRunning ? 'check-circle-fill' : (service.setupCompleted ? 'gear-fill' : 'exclamation-triangle-fill');
+
+      return `
+        <div class="service-card ${statusClass}">
+          <div class="service-header">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="bi bi-${service.icon}" style="font-size: 1.5rem; color: ${service.color};"></i>
+                <h3 class="service-title">${service.serviceName}</h3>
+              </div>
+              <div class="service-id">exprsn-${service.serviceId}</div>
+            </div>
+            <div class="service-status ${statusClass}">
+              <i class="bi bi-${statusIcon}"></i>
+              ${statusText}
+            </div>
+          </div>
+
+          <div class="service-description">${service.description}</div>
+
+          <div class="service-info">
+            <div class="service-info-item">
+              <i class="bi bi-hdd-network"></i>
+              <span>Port ${service.port}</span>
+            </div>
+            ${service.databaseEnabled ? `
+              <div class="service-info-item">
+                <i class="bi bi-database"></i>
+                <span>${service.databaseName}</span>
+              </div>
+            ` : ''}
+            ${service.redisEnabled ? `
+              <div class="service-info-item">
+                <i class="bi bi-lightning"></i>
+                <span>Redis: ${service.redisPrefix}</span>
+              </div>
+            ` : ''}
+            ${service.category ? `
+              <div class="service-info-item">
+                <i class="bi bi-tag"></i>
+                <span>${service.category}</span>
+              </div>
+            ` : ''}
+          </div>
+
+          ${service.dependencies && service.dependencies.length > 0 ? `
+            <div class="mb-2">
+              <small class="text-muted">Dependencies:</small><br>
+              ${service.dependencies.map(dep => `<span class="dependency-badge">${dep}</span>`).join('')}
+            </div>
+          ` : ''}
+
+          <div class="service-actions">
+            ${!service.setupCompleted ? `
+              <button class="btn btn-sm btn-primary" onclick="setupService('${service.serviceId}')">
+                <i class="bi bi-play-circle"></i> Setup
+              </button>
+            ` : `
+              <button class="btn btn-sm btn-outline-primary" onclick="configureService('${service.serviceId}')">
+                <i class="bi bi-gear"></i> Configure
+              </button>
+            `}
+            <button class="btn btn-sm btn-outline-secondary" onclick="viewServiceDetails('${service.serviceId}')">
+              <i class="bi bi-eye"></i> Details
+            </button>
+            ${service.isRunning ? `
+              <button class="btn btn-sm btn-outline-danger" onclick="stopService('${service.serviceId}')">
+                <i class="bi bi-stop-circle"></i> Stop
+              </button>
+            ` : `
+              <button class="btn btn-sm btn-outline-success" onclick="startService('${service.serviceId}')">
+                <i class="bi bi-play-circle"></i> Start
+              </button>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * Setup service wizard
+     */
+    function setupService(serviceId) {
+      const service = SERVICE_METADATA.find(s => s.serviceId === serviceId);
+      if (!service) return;
+
+      window.location.href = `/setup/${serviceId}`;
+    }
+
+    /**
+     * Configure service
+     */
+    function configureService(serviceId) {
+      const service = SERVICE_METADATA.find(s => s.serviceId === serviceId);
+      if (!service) return;
+
+      window.location.href = `/setup/${serviceId}`;
+    }
+
+    /**
+     * View service details
+     */
+    async function viewServiceDetails(serviceId) {
+      const service = SERVICE_METADATA.find(s => s.serviceId === serviceId);
+      if (!service) return;
+
+      const isRunning = healthStatuses[serviceId];
+      const currentService = services.find(s => s.serviceId === serviceId) || service;
+
+      modalManager.create({
+        title: `Service: ${service.serviceName}`,
+        size: 'lg',
+        content: `
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Service ID</label>
+              <div class="text-muted"><code>exprsn-${service.serviceId}</code></div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Status</label>
+              <div>
+                <span class="service-status ${isRunning ? 'running' : 'stopped'}">
+                  <i class="bi bi-${isRunning ? 'check-circle-fill' : 'stop-circle'}"></i>
+                  ${isRunning ? 'Running' : 'Stopped'}
+                </span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Port</label>
+              <div class="text-muted">${service.port}</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Category</label>
+              <div class="text-muted">${service.category}</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Description</label>
+              <div class="text-muted">${service.description}</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Database</label>
+              <div class="text-muted">
+                ${service.databaseEnabled ? `<i class="bi bi-check-circle text-success"></i> ${service.databaseName}` : '<i class="bi bi-x-circle text-muted"></i> Not used'}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Redis Cache</label>
+              <div class="text-muted">
+                ${service.redisEnabled ? `<i class="bi bi-check-circle text-success"></i> Prefix: ${service.redisPrefix}` : '<i class="bi bi-x-circle text-muted"></i> Not used'}
+              </div>
+            </div>
+            ${service.dependencies && service.dependencies.length > 0 ? `
+              <div class="col-12">
+                <label class="form-label fw-semibold">Dependencies</label>
+                <div>
+                  ${service.dependencies.map(dep => `<span class="dependency-badge">${dep}</span>`).join('')}
+                </div>
+              </div>
+            ` : ''}
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Setup Status</label>
+              <div class="text-muted">
+                ${currentService.setupCompleted ? '<i class="bi bi-check-circle text-success"></i> Completed' : '<i class="bi bi-x-circle text-warning"></i> Not completed'}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Health Check</label>
+              <div class="text-muted">
+                <code>${service.port ? `http://localhost:${service.port}/health` : 'N/A'}</code>
+              </div>
+            </div>
+          </div>
+        `,
+        buttons: [
+          { text: 'Close', variant: 'secondary', action: 'close' },
+          { text: 'Setup', variant: 'primary', action: 'custom:setup' }
+        ],
+        customActions: {
+          setup: (modal) => {
+            modalManager.close(modal.id);
+            setTimeout(() => {
+              modalManager.destroy(modal.id);
+              setupService(serviceId);
+            }, 300);
+          }
+        }
+      });
+    }
+
+    /**
+     * Start service
+     */
+    function startService(serviceId) {
+      showToast('Starting Service', `Attempting to start ${serviceId}...`, 'info');
+      // Implementation would integrate with process manager
+    }
+
+    /**
+     * Stop service
+     */
+    function stopService(serviceId) {
+      showToast('Stopping Service', `Attempting to stop ${serviceId}...`, 'warning');
+      // Implementation would integrate with process manager
+    }
+
+    /**
+     * Setup all services
+     */
+    function setupAllServices() {
+      alert('This would launch a wizard to setup all unconfigured services in dependency order.');
+    }
+
+    /**
+     * Show toast notification
+     */
+    function showToast(title, message, type = 'info') {
+      const toastContainer = document.getElementById('toastContainer');
+      const toastId = `toast-${Date.now()}`;
+
+      const bgColors = {
+        success: 'bg-success',
+        danger: 'bg-danger',
+        warning: 'bg-warning',
+        info: 'bg-info'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.id = toastId;
+      toast.setAttribute('role', 'alert');
+      toast.innerHTML = `
+        <div class="toast-header ${bgColors[type]} text-white">
+          <strong class="me-auto">${title}</strong>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+          ${message}
+        </div>
+      `;
+
+      toastContainer.appendChild(toast);
+
+      const bsToast = new bootstrap.Toast(toast, { autohide: true, delay: 5000 });
+      bsToast.show();
+
+      toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+      });
+    }
+  </script>
+</body>
+</html>

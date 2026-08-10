@@ -1,0 +1,144 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.nexus.group",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Group/community record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Group name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "avatar": {
+            "type": "blob",
+            "accept": ["image/*"],
+            "maxSize": 2000000
+          },
+          "banner": {
+            "type": "blob",
+            "accept": ["image/*"],
+            "maxSize": 5000000
+          },
+          "visibility": {
+            "type": "string",
+            "enum": ["public", "private", "secret"],
+            "default": "public"
+          },
+          "membershipType": {
+            "type": "string",
+            "enum": ["open", "approval", "invite"],
+            "default": "open"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "maxLength": 20
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 50
+            },
+            "maxLength": 10
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["uri", "cid", "name", "creator", "memberCount", "createdAt"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "avatar": {
+          "type": "string",
+          "format": "uri"
+        },
+        "banner": {
+          "type": "string",
+          "format": "uri"
+        },
+        "creator": {
+          "type": "ref",
+          "ref": "app.bsky.actor.defs#profileViewBasic"
+        },
+        "visibility": {
+          "type": "string"
+        },
+        "membershipType": {
+          "type": "string"
+        },
+        "memberCount": {
+          "type": "integer"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "viewer": {
+          "type": "ref",
+          "ref": "#viewerState"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    },
+    "viewerState": {
+      "type": "object",
+      "properties": {
+        "member": {
+          "type": "boolean",
+          "description": "Whether viewer is a member"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["owner", "admin", "moderator", "member"]
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    }
+  }
+}

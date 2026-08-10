@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Certificates Administration - Exprsn Setup</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --exprsn-primary: #DC382D;
+      --exprsn-secondary: #1a1a1a;
+    }
+
+    body {
+      background: #f5f7fa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .navbar-custom {
+      background: linear-gradient(135deg, var(--exprsn-primary) 0%, #ff6b5a 100%);
+      padding: 1rem 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .navbar-custom .navbar-brand {
+      color: white;
+      font-weight: 700;
+      font-size: 1.5rem;
+    }
+
+    .navbar-custom .nav-link {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .navbar-custom .nav-link:hover {
+      color: white;
+    }
+
+    .page-header {
+      background: white;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .stats-card {
+      background: white;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      margin-bottom: 1.5rem;
+      border-left: 4px solid;
+    }
+
+    .stats-card.stat-primary { border-left-color: var(--exprsn-primary); }
+    .stats-card.stat-success { border-left-color: #28a745; }
+    .stats-card.stat-warning { border-left-color: #ffc107; }
+    .stats-card.stat-danger { border-left-color: #dc3545; }
+
+    .stats-card .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .stats-card .stat-label {
+      color: #6c757d;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+    }
+
+    .content-card {
+      background: white;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      margin-bottom: 1.5rem;
+    }
+
+    .cert-item {
+      padding: 1rem;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      transition: box-shadow 0.2s;
+    }
+
+    .cert-item:hover {
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .cert-type-badge {
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .cert-type-root { background: #dc3545; color: white; }
+    .cert-type-intermediate { background: #ffc107; color: #1a1a1a; }
+    .cert-type-server { background: #17a2b8; color: white; }
+    .cert-type-client { background: #28a745; color: white; }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+
+    .status-valid { background-color: #28a745; }
+    .status-expired { background-color: #dc3545; }
+    .status-revoked { background-color: #6c757d; }
+    .status-pending { background-color: #ffc107; }
+
+    .filter-pills .btn {
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #6c757d;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">
+        <i class="bi bi-shield-lock"></i> Exprsn Setup
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/services">
+              <i class="bi bi-boxes"></i> Services
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/admin/certificates">
+              <i class="bi bi-shield-lock"></i> Certificates
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/postgresql">
+              <i class="bi bi-database"></i> PostgreSQL
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/admin/redis">
+              <i class="bi bi-lightning-charge"></i> Redis
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1><i class="bi bi-shield-lock"></i> Certificates & CA Administration</h1>
+          <p class="text-muted mb-0">Manage X.509 certificates, OCSP, and Certificate Authority</p>
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="generateCertificate()">
+            <i class="bi bi-plus-circle"></i> Generate Certificate
+          </button>
+          <button class="btn btn-outline-secondary" onclick="refreshCertificates()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="stats-card stat-primary">
+          <div class="stat-value" id="totalCerts">-</div>
+          <div class="stat-label">Total Certificates</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card stat-success">
+          <div class="stat-value" id="validCerts">-</div>
+          <div class="stat-label">Valid</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card stat-warning">
+          <div class="stat-value" id="expiringSoon">-</div>
+          <div class="stat-label">Expiring Soon</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card stat-danger">
+          <div class="stat-value" id="revokedCerts">-</div>
+          <div class="stat-label">Revoked</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Main Content -->
+      <div class="col-lg-8">
+        <div class="content-card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Certificate List</h5>
+            <div class="filter-pills">
+              <button class="btn btn-sm btn-primary active" data-filter="all" onclick="filterCertificates('all')">
+                All
+              </button>
+              <button class="btn btn-sm btn-outline-primary" data-filter="valid" onclick="filterCertificates('valid')">
+                Valid
+              </button>
+              <button class="btn btn-sm btn-outline-primary" data-filter="expired" onclick="filterCertificates('expired')">
+                Expired
+              </button>
+              <button class="btn btn-sm btn-outline-primary" data-filter="revoked" onclick="filterCertificates('revoked')">
+                Revoked
+              </button>
+            </div>
+          </div>
+
+          <!-- Search -->
+          <div class="mb-3">
+            <input type="text" class="form-control" placeholder="Search certificates..." id="searchInput" onkeyup="searchCertificates()">
+          </div>
+
+          <!-- Certificate List -->
+          <div id="certificateList">
+            <div class="empty-state">
+              <i class="bi bi-shield-lock"></i>
+              <p>Loading certificates...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <!-- CA Status -->
+        <div class="content-card">
+          <h5><i class="bi bi-shield-check"></i> Certificate Authority Status</h5>
+          <hr>
+          <div class="mb-3">
+            <strong>Service Status:</strong>
+            <span class="badge bg-secondary ms-2" id="caStatus">Checking...</span>
+          </div>
+          <div class="mb-3">
+            <strong>OCSP Responder:</strong>
+            <span class="badge bg-secondary ms-2" id="ocspStatus">Checking...</span>
+          </div>
+          <div class="mb-3">
+            <strong>CRL Enabled:</strong>
+            <span class="badge bg-secondary ms-2" id="crlStatus">Checking...</span>
+          </div>
+          <div class="mb-3">
+            <strong>CA Port:</strong>
+            <span class="badge bg-secondary ms-2">3000</span>
+          </div>
+          <div class="mb-3">
+            <strong>OCSP Port:</strong>
+            <span class="badge bg-secondary ms-2">2560</span>
+          </div>
+          <hr>
+          <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="viewCAConfig()">
+            <i class="bi bi-gear"></i> View Configuration
+          </button>
+          <button class="btn btn-outline-success btn-sm w-100" onclick="startCAService()">
+            <i class="bi bi-play-fill"></i> Start CA Service
+          </button>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="content-card">
+          <h5><i class="bi bi-lightning-charge-fill"></i> Quick Actions</h5>
+          <hr>
+          <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="generateRootCA()">
+            <i class="bi bi-shield-plus"></i> Generate Root CA
+          </button>
+          <button class="btn btn-outline-secondary btn-sm w-100 mb-2" onclick="generateIntermediate()">
+            <i class="bi bi-diagram-3"></i> Generate Intermediate CA
+          </button>
+          <button class="btn btn-outline-info btn-sm w-100 mb-2" onclick="viewCRL()">
+            <i class="bi bi-file-earmark-text"></i> View CRL
+          </button>
+          <button class="btn btn-outline-warning btn-sm w-100" onclick="exportCertificates()">
+            <i class="bi bi-download"></i> Export All Certificates
+          </button>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="content-card">
+          <h5><i class="bi bi-clock-history"></i> Recent Activity</h5>
+          <hr>
+          <div id="recentActivity">
+            <p class="text-muted text-center">No recent activity</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let certificates = [];
+    let currentFilter = 'all';
+
+    // Mock data for demonstration
+    const mockCertificates = [
+      {
+        id: '1',
+        commonName: 'Exprsn Root CA',
+        type: 'root',
+        serialNumber: '01',
+        issuer: 'Self-signed',
+        validFrom: '2024-01-01',
+        validTo: '2034-01-01',
+        status: 'valid',
+        keySize: 4096
+      },
+      {
+        id: '2',
+        commonName: 'exprsn-ca.local',
+        type: 'server',
+        serialNumber: '02',
+        issuer: 'Exprsn Root CA',
+        validFrom: '2024-01-01',
+        validTo: '2025-01-01',
+        status: 'valid',
+        keySize: 2048
+      },
+      {
+        id: '3',
+        commonName: 'exprsn-auth.local',
+        type: 'server',
+        serialNumber: '03',
+        issuer: 'Exprsn Root CA',
+        validFrom: '2024-01-01',
+        validTo: '2025-01-01',
+        status: 'valid',
+        keySize: 2048
+      }
+    ];
+
+    // Initialize
+    async function init() {
+      await checkCAStatus();
+      await loadCertificates();
+    }
+
+    async function checkCAStatus() {
+      try {
+        const response = await fetch('http://localhost:3000/health');
+        if (response.ok) {
+          document.getElementById('caStatus').innerHTML = '<span class="badge bg-success">Running</span>';
+          document.getElementById('ocspStatus').innerHTML = '<span class="badge bg-success">Active</span>';
+          document.getElementById('crlStatus').innerHTML = '<span class="badge bg-success">Enabled</span>';
+        } else {
+          throw new Error('CA not responding');
+        }
+      } catch (error) {
+        document.getElementById('caStatus').innerHTML = '<span class="badge bg-danger">Stopped</span>';
+        document.getElementById('ocspStatus').innerHTML = '<span class="badge bg-secondary">N/A</span>';
+        document.getElementById('crlStatus').innerHTML = '<span class="badge bg-secondary">N/A</span>';
+      }
+    }
+
+    async function loadCertificates() {
+      try {
+        // Try to fetch from CA service
+        const response = await fetch('http://localhost:3000/api/certificates');
+        if (response.ok) {
+          const data = await response.json();
+          certificates = data.certificates || mockCertificates;
+        } else {
+          // Use mock data
+          certificates = mockCertificates;
+        }
+      } catch (error) {
+        // Use mock data
+        certificates = mockCertificates;
+      }
+
+      updateStatistics();
+      renderCertificates();
+    }
+
+    function updateStatistics() {
+      const total = certificates.length;
+      const valid = certificates.filter(c => c.status === 'valid').length;
+      const revoked = certificates.filter(c => c.status === 'revoked').length;
+      const expiring = certificates.filter(c => {
+        const daysUntilExpiry = Math.floor((new Date(c.validTo) - new Date()) / (1000 * 60 * 60 * 24));
+        return daysUntilExpiry < 30 && daysUntilExpiry > 0;
+      }).length;
+
+      document.getElementById('totalCerts').textContent = total;
+      document.getElementById('validCerts').textContent = valid;
+      document.getElementById('expiringSoon').textContent = expiring;
+      document.getElementById('revokedCerts').textContent = revoked;
+    }
+
+    function renderCertificates() {
+      const container = document.getElementById('certificateList');
+      const filtered = certificates.filter(cert => {
+        if (currentFilter === 'all') return true;
+        return cert.status === currentFilter;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <p>No certificates found</p>
+          </div>
+        `;
+        return;
+      }
+
+      const html = filtered.map(cert => `
+        <div class="cert-item">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <span class="cert-type-badge cert-type-${cert.type}">${cert.type.toUpperCase()}</span>
+              <strong class="ms-2">${cert.commonName}</strong>
+            </div>
+            <div>
+              <span class="status-indicator status-${cert.status}"></span>
+              <span class="text-capitalize">${cert.status}</span>
+            </div>
+          </div>
+          <div class="row text-muted small">
+            <div class="col-md-6">
+              <strong>Serial:</strong> ${cert.serialNumber}
+            </div>
+            <div class="col-md-6">
+              <strong>Key Size:</strong> ${cert.keySize} bits
+            </div>
+            <div class="col-md-6">
+              <strong>Issuer:</strong> ${cert.issuer}
+            </div>
+            <div class="col-md-6">
+              <strong>Valid Until:</strong> ${cert.validTo}
+            </div>
+          </div>
+          <div class="mt-2">
+            <button class="btn btn-sm btn-outline-primary" onclick="viewCertificate('${cert.id}')">
+              <i class="bi bi-eye"></i> View
+            </button>
+            <button class="btn btn-sm btn-outline-info" onclick="downloadCertificate('${cert.id}')">
+              <i class="bi bi-download"></i> Download
+            </button>
+            ${cert.status === 'valid' ? `
+              <button class="btn btn-sm btn-outline-danger" onclick="revokeCertificate('${cert.id}')">
+                <i class="bi bi-x-circle"></i> Revoke
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+
+      container.innerHTML = html;
+    }
+
+    function filterCertificates(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('[data-filter]').forEach(btn => {
+        btn.classList.remove('active', 'btn-primary');
+        btn.classList.add('btn-outline-primary');
+      });
+      document.querySelector(`[data-filter="${filter}"]`).classList.add('active', 'btn-primary');
+      document.querySelector(`[data-filter="${filter}"]`).classList.remove('btn-outline-primary');
+      renderCertificates();
+    }
+
+    function searchCertificates() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = certificates.filter(cert =>
+        cert.commonName.toLowerCase().includes(search) ||
+        cert.serialNumber.toLowerCase().includes(search)
+      );
+      // Update display with filtered results
+      renderCertificates();
+    }
+
+    function refreshCertificates() {
+      loadCertificates();
+    }
+
+    // Action functions
+    function generateCertificate() {
+      alert('Generate Certificate dialog - to be implemented');
+    }
+
+    function viewCertificate(id) {
+      alert(`View certificate ${id} - to be implemented`);
+    }
+
+    function downloadCertificate(id) {
+      alert(`Download certificate ${id} - to be implemented`);
+    }
+
+    function revokeCertificate(id) {
+      if (confirm('Are you sure you want to revoke this certificate?')) {
+        alert(`Revoke certificate ${id} - to be implemented`);
+      }
+    }
+
+    function generateRootCA() {
+      alert('Generate Root CA - to be implemented');
+    }
+
+    function generateIntermediate() {
+      alert('Generate Intermediate CA - to be implemented');
+    }
+
+    function viewCRL() {
+      window.open('http://localhost:3000/crl', '_blank');
+    }
+
+    function exportCertificates() {
+      alert('Export certificates - to be implemented');
+    }
+
+    function viewCAConfig() {
+      alert('View CA configuration - to be implemented');
+    }
+
+    function startCAService() {
+      alert('Start CA service - to be implemented');
+    }
+
+    // Initialize on load
+    init();
+  </script>
+</body>
+</html>

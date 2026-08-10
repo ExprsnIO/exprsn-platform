@@ -1,0 +1,270 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-bluesky",
+      "version": "1.0.0",
+      "description": "AT Protocol/Bluesky Personal Data Server Integration"
+    },
+    "routes": [
+      {
+        "path": "/api/bluesky/posts",
+        "method": "POST",
+        "description": "Create Bluesky post",
+        "target": {
+          "service": "bluesky",
+          "path": "/api/posts",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["text"],
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "replyTo": {
+                "type": "string"
+              },
+              "images": {
+                "type": "array",
+                "maxItems": 4,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "facets": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/bluesky/posts/:id",
+        "method": "GET",
+        "description": "Get Bluesky post by ID",
+        "target": {
+          "service": "bluesky",
+          "path": "/api/posts/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/bluesky/posts/:id",
+        "method": "DELETE",
+        "description": "Delete Bluesky post",
+        "target": {
+          "service": "bluesky",
+          "path": "/api/posts/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/bluesky/feed",
+        "method": "GET",
+        "description": "Get Bluesky feed",
+        "target": {
+          "service": "bluesky",
+          "path": "/api/feed",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "cursor": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/bluesky/profile",
+        "method": "GET",
+        "description": "Get Bluesky profile",
+        "target": {
+          "service": "bluesky",
+          "path": "/api/profile",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/bluesky/profile",
+        "method": "PUT",
+        "description": "Update Bluesky profile",
+        "target": {
+          "service": "bluesky",
+          "path": "/api/profile",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 256
+              },
+              "avatar": {
+                "type": "string"
+              },
+              "banner": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/bluesky/sync",
+        "method": "POST",
+        "description": "Sync with Bluesky network",
+        "target": {
+          "service": "bluesky",
+          "path": "/api/sync",
+          "timeout": 30000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/bluesky/did",
+        "method": "GET",
+        "description": "Get DID document",
+        "target": {
+          "service": "bluesky",
+          "path": "/api/did",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": false
+        }
+      },
+      {
+        "path": "/api/bluesky/xrpc/:method",
+        "method": "POST",
+        "description": "XRPC method call",
+        "target": {
+          "service": "bluesky",
+          "path": "/xrpc/:method",
+          "timeout": 15000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "params": {
+            "method": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/bluesky/health",
+        "method": "GET",
+        "description": "Bluesky service health check",
+        "target": {
+          "service": "bluesky",
+          "path": "/health",
+          "timeout": 2000
+        },
+        "auth": {
+          "required": false
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 60000,
+        "max": 200
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

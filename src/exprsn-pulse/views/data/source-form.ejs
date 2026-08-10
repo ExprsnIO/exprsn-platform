@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Main Content -->
+      <main class="col-12 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-database text-info"></i>
+            <%= dataSource ? 'Edit Data Source' : 'New Data Source' %>
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="/data/sources" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left"></i> Back
+            </a>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <div class="row">
+          <div class="col-md-8 offset-md-2">
+            <!-- Basic Info -->
+            <div class="card shadow mb-3">
+              <div class="card-header">
+                <h6 class="m-0">
+                  <i class="bi bi-info-circle"></i> Basic Information
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label for="source-type" class="form-label">Data Source Type *</label>
+                  <select class="form-select" id="source-type" required>
+                    <option value="">Select type...</option>
+                    <option value="exprsn-service" <%= dataSource && dataSource.type === 'exprsn-service' ? 'selected' : '' %>>
+                      Exprsn Service (CA, Auth, Timeline, etc.)
+                    </option>
+                    <option value="postgresql" <%= dataSource && dataSource.type === 'postgresql' ? 'selected' : '' %>>
+                      PostgreSQL Database
+                    </option>
+                    <option value="rest-api" <%= dataSource && dataSource.type === 'rest-api' ? 'selected' : '' %>>
+                      REST API
+                    </option>
+                    <option value="custom-query" <%= dataSource && dataSource.type === 'custom-query' ? 'selected' : '' %>>
+                      Custom Query (JSONLex/JavaScript)
+                    </option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label for="source-name" class="form-label">Name *</label>
+                  <input type="text" class="form-control" id="source-name"
+                         value="<%= dataSource ? dataSource.name : '' %>"
+                         placeholder="e.g., User Analytics DB" required>
+                </div>
+
+                <div class="mb-3">
+                  <label for="source-description" class="form-label">Description</label>
+                  <textarea class="form-control" id="source-description" rows="2"
+                            placeholder="Optional description of this data source"><%= dataSource ? dataSource.description || '' : '' %></textarea>
+                </div>
+
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="is-active"
+                         <%= !dataSource || dataSource.isActive ? 'checked' : '' %>>
+                  <label class="form-check-label" for="is-active">
+                    Active (available for queries)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Exprsn Service Config -->
+            <div class="card shadow mb-3" id="exprsn-service-config" style="display: none;">
+              <div class="card-header">
+                <h6 class="m-0">
+                  <i class="bi bi-globe"></i> Exprsn Service Configuration
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label for="service-name" class="form-label">Service Name *</label>
+                  <select class="form-select" id="service-name">
+                    <option value="">Select service...</option>
+                    <option value="ca">CA (Certificate Authority) - Port 3000</option>
+                    <option value="auth">Auth (Authentication) - Port 3001</option>
+                    <option value="spark">Spark (Messaging) - Port 3002</option>
+                    <option value="timeline">Timeline (Social Feed) - Port 3004</option>
+                    <option value="prefetch">Prefetch (Cache) - Port 3005</option>
+                    <option value="moderator">Moderator (Content) - Port 3006</option>
+                    <option value="filevault">FileVault (Storage) - Port 3007</option>
+                    <option value="gallery">Gallery (Media) - Port 3008</option>
+                    <option value="live">Live (Streaming) - Port 3009</option>
+                    <option value="bridge">Bridge (API Gateway) - Port 3010</option>
+                    <option value="nexus">Nexus (Groups/Events) - Port 3011</option>
+                    <option value="vault">Vault (Secrets) - Port 3013</option>
+                    <option value="herald">Herald (Notifications) - Port 3014</option>
+                    <option value="setup">Setup (Discovery) - Port 3015</option>
+                    <option value="forge">Forge (Business/CRM) - Port 3016</option>
+                    <option value="workflow">Workflow (Automation) - Port 3017</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label for="service-url" class="form-label">Service URL (Optional)</label>
+                  <input type="url" class="form-control" id="service-url"
+                         placeholder="http://localhost:3000 (auto-detected if empty)">
+                  <small class="text-muted">Leave empty to auto-detect based on service name</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- PostgreSQL Config -->
+            <div class="card shadow mb-3" id="postgresql-config" style="display: none;">
+              <div class="card-header">
+                <h6 class="m-0">
+                  <i class="bi bi-database-fill"></i> PostgreSQL Configuration
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-8 mb-3">
+                    <label for="pg-host" class="form-label">Host *</label>
+                    <input type="text" class="form-control" id="pg-host" placeholder="localhost">
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <label for="pg-port" class="form-label">Port *</label>
+                    <input type="number" class="form-control" id="pg-port" value="5432">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="pg-database" class="form-label">Database Name *</label>
+                  <input type="text" class="form-control" id="pg-database" placeholder="my_database">
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="pg-user" class="form-label">Username *</label>
+                    <input type="text" class="form-control" id="pg-user" placeholder="postgres">
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label for="pg-password" class="form-label">Password *</label>
+                    <input type="password" class="form-control" id="pg-password">
+                  </div>
+                </div>
+
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="pg-ssl">
+                  <label class="form-check-label" for="pg-ssl">
+                    Use SSL
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- REST API Config -->
+            <div class="card shadow mb-3" id="rest-api-config" style="display: none;">
+              <div class="card-header">
+                <h6 class="m-0">
+                  <i class="bi bi-cloud"></i> REST API Configuration
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label for="api-url" class="form-label">Base URL *</label>
+                  <input type="url" class="form-control" id="api-url"
+                         placeholder="https://api.example.com">
+                </div>
+
+                <div class="mb-3">
+                  <label for="api-auth-type" class="form-label">Authentication Type</label>
+                  <select class="form-select" id="api-auth-type">
+                    <option value="none">None</option>
+                    <option value="bearer">Bearer Token</option>
+                    <option value="api-key">API Key</option>
+                    <option value="basic">Basic Auth</option>
+                  </select>
+                </div>
+
+                <div id="api-auth-config"></div>
+
+                <div class="mb-3">
+                  <label for="api-headers" class="form-label">Custom Headers (JSON)</label>
+                  <textarea class="form-control" id="api-headers" rows="3"
+                            placeholder='{"X-Custom-Header": "value"}'>{}</textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom Query Config -->
+            <div class="card shadow mb-3" id="custom-query-config" style="display: none;">
+              <div class="card-header">
+                <h6 class="m-0">
+                  <i class="bi bi-code-square"></i> Custom Query Configuration
+                </h6>
+              </div>
+              <div class="card-body">
+                <p class="text-muted">
+                  Custom queries allow you to execute JSONLex expressions or JavaScript code to generate data.
+                </p>
+                <div class="mb-3">
+                  <label for="custom-type" class="form-label">Query Type</label>
+                  <select class="form-select" id="custom-type">
+                    <option value="jsonlex">JSONLex Expression</option>
+                    <option value="javascript">JavaScript Function</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="card shadow mb-3">
+              <div class="card-body">
+                <div class="d-flex justify-content-between">
+                  <button type="button" class="btn btn-outline-success" onclick="testConnection()">
+                    <i class="bi bi-check-circle"></i> Test Connection
+                  </button>
+                  <div>
+                    <a href="/data/sources" class="btn btn-outline-secondary me-2">Cancel</a>
+                    <button type="button" class="btn btn-info" onclick="saveDataSource()">
+                      <i class="bi bi-save"></i> Save Data Source
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <script>
+    const dataSourceId = <%= dataSource ? `'${dataSource.id}'` : 'null' %>;
+
+    $(document).ready(function() {
+      // Show/hide config based on type
+      $('#source-type').on('change', function() {
+        const type = $(this).val();
+        $('#exprsn-service-config, #postgresql-config, #rest-api-config, #custom-query-config').hide();
+
+        if (type === 'exprsn-service') $('#exprsn-service-config').show();
+        if (type === 'postgresql') $('#postgresql-config').show();
+        if (type === 'rest-api') $('#rest-api-config').show();
+        if (type === 'custom-query') $('#custom-query-config').show();
+      });
+
+      // Show/hide auth config
+      $('#api-auth-type').on('change', function() {
+        const authType = $(this).val();
+        let html = '';
+
+        if (authType === 'bearer') {
+          html = `
+            <div class="mb-3">
+              <label for="api-token" class="form-label">Bearer Token *</label>
+              <input type="text" class="form-control" id="api-token" placeholder="your-token-here">
+            </div>
+          `;
+        } else if (authType === 'api-key') {
+          html = `
+            <div class="mb-3">
+              <label for="api-key-name" class="form-label">Header Name *</label>
+              <input type="text" class="form-control" id="api-key-name" value="X-API-Key">
+            </div>
+            <div class="mb-3">
+              <label for="api-key-value" class="form-label">API Key *</label>
+              <input type="text" class="form-control" id="api-key-value">
+            </div>
+          `;
+        } else if (authType === 'basic') {
+          html = `
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="api-username" class="form-label">Username *</label>
+                <input type="text" class="form-control" id="api-username">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="api-password" class="form-label">Password *</label>
+                <input type="password" class="form-control" id="api-password">
+              </div>
+            </div>
+          `;
+        }
+
+        $('#api-auth-config').html(html);
+      });
+
+      // Load existing data
+      <% if (dataSource) { %>
+        $('#source-type').val('<%= dataSource.type %>').trigger('change');
+
+        <% if (dataSource.type === 'exprsn-service') { %>
+          $('#service-name').val('<%= dataSource.serviceName %>');
+          $('#service-url').val('<%= dataSource.config.url || "" %>');
+        <% } else if (dataSource.type === 'postgresql') { %>
+          $('#pg-host').val('<%= dataSource.config.host %>');
+          $('#pg-port').val('<%= dataSource.config.port || 5432 %>');
+          $('#pg-database').val('<%= dataSource.config.database %>');
+          $('#pg-user').val('<%= dataSource.config.user %>');
+          $('#pg-ssl').prop('checked', <%= dataSource.config.ssl || false %>);
+        <% } else if (dataSource.type === 'rest-api') { %>
+          $('#api-url').val('<%= dataSource.config.baseURL %>');
+          $('#api-auth-type').val('<%= dataSource.config.authType || "none" %>').trigger('change');
+          $('#api-headers').val(JSON.stringify(<%= JSON.stringify(dataSource.config.headers || {}) %>, null, 2));
+        <% } %>
+      <% } %>
+    });
+
+    // Test connection
+    async function testConnection() {
+      const config = collectConfig();
+      if (!config) return;
+
+      try {
+        PulseUtils.showLoading();
+
+        // Create temporary data source for testing
+        const testData = {
+          name: 'Test Connection',
+          type: config.type,
+          config: config.config
+        };
+
+        if (config.type === 'exprsn-service') {
+          testData.serviceName = config.serviceName;
+        }
+
+        const result = await PulseAPI.dataSources.test(testData);
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Connection successful!', 'success');
+      } catch (error) {
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Connection failed: ' + error.message, 'danger');
+      }
+    }
+
+    // Save data source
+    async function saveDataSource() {
+      const config = collectConfig();
+      if (!config) return;
+
+      try {
+        PulseUtils.showLoading();
+
+        let result;
+        if (dataSourceId) {
+          result = await PulseAPI.dataSources.update(dataSourceId, config);
+        } else {
+          result = await PulseAPI.dataSources.create(config);
+        }
+
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Data source saved successfully', 'success');
+
+        setTimeout(() => {
+          window.location.href = '/data/sources';
+        }, 1000);
+      } catch (error) {
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Failed to save data source: ' + error.message, 'danger');
+      }
+    }
+
+    // Collect configuration
+    function collectConfig() {
+      const type = $('#source-type').val();
+      const name = $('#source-name').val().trim();
+
+      if (!type || !name) {
+        PulseUtils.showAlert('Please fill in required fields', 'warning');
+        return null;
+      }
+
+      const config = {
+        name,
+        type,
+        description: $('#source-description').val().trim(),
+        isActive: $('#is-active').is(':checked'),
+        config: {}
+      };
+
+      if (type === 'exprsn-service') {
+        config.serviceName = $('#service-name').val();
+        const url = $('#service-url').val().trim();
+        if (url) config.config.url = url;
+      } else if (type === 'postgresql') {
+        config.config = {
+          host: $('#pg-host').val(),
+          port: parseInt($('#pg-port').val()) || 5432,
+          database: $('#pg-database').val(),
+          user: $('#pg-user').val(),
+          password: $('#pg-password').val(),
+          ssl: $('#pg-ssl').is(':checked')
+        };
+      } else if (type === 'rest-api') {
+        config.config = {
+          baseURL: $('#api-url').val(),
+          authType: $('#api-auth-type').val(),
+          headers: JSON.parse($('#api-headers').val() || '{}')
+        };
+
+        const authType = $('#api-auth-type').val();
+        if (authType === 'bearer') {
+          config.config.token = $('#api-token').val();
+        } else if (authType === 'api-key') {
+          config.config.apiKeyName = $('#api-key-name').val();
+          config.config.apiKey = $('#api-key-value').val();
+        } else if (authType === 'basic') {
+          config.config.username = $('#api-username').val();
+          config.config.password = $('#api-password').val();
+        }
+      } else if (type === 'custom-query') {
+        config.config = {
+          queryType: $('#custom-type').val()
+        };
+      }
+
+      return config;
+    }
+  </script>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

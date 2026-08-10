@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exprsn Dashboard - Advanced Bootstrap Theme</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+
+    <!-- Prism.js for Code Syntax Highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet">
+
+    <!-- Chart.js for Dashboard Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+
+    <!-- Sortable.js for Drag and Drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.1/Sortable.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --info-color: #3b82f6;
+            --dark-bg: #1f2937;
+            --darker-bg: #111827;
+            --sidebar-width: 260px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f3f4f6;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--dark-bg) 0%, var(--darker-bg) 100%);
+            padding: 1.5rem 0;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-brand {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar-nav li {
+            margin-bottom: 0.25rem;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: #9ca3af;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            gap: 0.75rem;
+        }
+
+        .sidebar-nav a:hover, .sidebar-nav a.active {
+            background-color: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .sidebar-nav i {
+            font-size: 1.25rem;
+            width: 24px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        /* Top Navigation Bar */
+        .top-nav {
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-bar {
+            position: relative;
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 0.5rem 1rem 0.5rem 2.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-bar input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-bar i {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .notification-badge {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .notification-badge .badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+        }
+
+        /* Dashboard Cards */
+        .stat-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .stat-card-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            color: #6b7280;
+            margin: 0;
+        }
+
+        .stat-trend {
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        .trend-up {
+            color: var(--success-color);
+        }
+
+        .trend-down {
+            color: var(--danger-color);
+        }
+
+        /* Drag and Drop Container */
+        .drag-container {
+            min-height: 100px;
+            padding: 1rem;
+            background: #f9fafb;
+            border: 2px dashed #d1d5db;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .drag-item {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-radius: 0.5rem;
+            cursor: move;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .drag-item:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .drag-item.sortable-ghost {
+            opacity: 0.4;
+            background: var(--primary-color);
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: #9ca3af;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* Filter Panel */
+        .filter-panel {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .filter-group {
+            margin-bottom: 1rem;
+        }
+
+        .filter-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .filter-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .filter-tag {
+            padding: 0.25rem 0.75rem;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-tag i {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+
+        .filter-tag i:hover {
+            opacity: 1;
+        }
+
+        /* Code Viewer */
+        .code-viewer {
+            background: #2d2d2d;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .code-viewer-header {
+            background: #1a1a1a;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #444;
+        }
+
+        .code-viewer-title {
+            color: #e5e7eb;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .code-viewer-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-viewer-actions button {
+            background: transparent;
+            border: 1px solid #444;
+            color: #9ca3af;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .code-viewer-actions button:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .code-viewer pre {
+            margin: 0;
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        /* Data Table */
+        .data-table {
+            background: white;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .data-table table {
+            width: 100%;
+            margin: 0;
+        }
+
+        .data-table thead {
+            background: #f9fafb;
+        }
+
+        .data-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-pending {
+            background: #fed7aa;
+            color: #92400e;
+        }
+
+        .status-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .chart-container h4 {
+            margin-bottom: 1rem;
+            color: #374151;
+        }
+
+        /* Activity Feed */
+        .activity-feed {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .activity-content h5 {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+            color: #374151;
+        }
+
+        .activity-content p {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        /* Modal Enhancements */
+        .modal-content {
+            border-radius: 0.75rem;
+            border: none;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 0.75rem 0.75rem 0 0;
+        }
+
+        /* Tabs */
+        .nav-tabs {
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .nav-tabs .nav-link {
+            color: #6b7280;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .nav-tabs .nav-link:hover {
+            border-bottom-color: var(--primary-color);
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: transparent;
+        }
+
+        /* Progress Bars */
+        .progress {
+            height: 8px;
+            border-radius: 1rem;
+            background: #e5e7eb;
+        }
+
+        .progress-bar {
+            border-radius: 1rem;
+        }
+
+        /* Alerts */
+        .alert {
+            border-radius: 0.5rem;
+            border: none;
+            padding: 1rem 1.5rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .top-nav {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .search-bar {
+                max-width: 100%;
+            }
+        }
+
+        /* Utility Classes */
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .bg-gradient-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .bg-gradient-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .bg-gradient-warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .bg-gradient-info {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f3f4f6;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #9ca3af;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>Exprsn</span>
+        </div>
+
+        <ul class="sidebar-nav">
+            <li><a href="#dashboard" class="active"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+            <li><a href="#analytics"><i class="bi bi-graph-up"></i> Analytics</a></li>
+            <li><a href="#projects"><i class="bi bi-folder"></i> Projects</a></li>
+            <li><a href="#tasks"><i class="bi bi-list-check"></i> Tasks</a></li>
+            <li><a href="#code-review"><i class="bi bi-code-slash"></i> Code Review</a></li>
+            <li><a href="#team"><i class="bi bi-people"></i> Team</a></li>
+            <li><a href="#api"><i class="bi bi-plug"></i> API</a></li>
+            <li><a href="#databases"><i class="bi bi-database"></i> Databases</a></li>
+            <li><a href="#logs"><i class="bi bi-file-text"></i> Logs</a></li>
+            <li><a href="#monitoring"><i class="bi bi-activity"></i> Monitoring</a></li>
+            <li><a href="#security"><i class="bi bi-shield-lock"></i> Security</a></li>
+            <li><a href="#settings"><i class="bi bi-gear"></i> Settings</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Navigation -->
+        <div class="top-nav">
+            <button class="btn d-md-none" id="sidebarToggle">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <div class="search-bar">
+                <i class="bi bi-search"></i>
+                <input type="text" placeholder="Search projects, tasks, code..." id="searchInput">
+            </div>
+
+            <div class="user-menu">
+                <div class="notification-badge">
+                    <i class="bi bi-bell fs-5"></i>
+                    <span class="badge bg-danger rounded-pill">5</span>
+                </div>
+
+                <div class="dropdown">
+                    <button class="btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=6366f1&color=fff"
+                             alt="User" class="rounded-circle" width="35" height="35">
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Stats -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stat-card fade-in">
+                    <div class="stat-card-icon bg-gradient-primary">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                    <h3>1,247</h3>
+                    <p>Total Users</p>
+                    <div class="stat-trend trend-up">
+                        <i class="bi bi-arrow-up"></i> 12.5% from last month
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stat-card fade-in" style="animation-delay: 0.1s">
+                    <div class="stat-card-icon bg-gradient-success">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <h3>$42.5K</h3>
+                    <p>Revenue</p>
+                    <div class="stat-trend trend-up">
+                        <i class="bi bi-arrow-up"></i> 8.2% from last month
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stat-card fade-in" style="animation-delay: 0.2s">
+                    <div class="stat-card-icon bg-gradient-info">
+                        <i class="bi bi-folder-fill"></i>
+                    </div>
+                    <h3>89</h3>
+                    <p>Active Projects</p>
+                    <div class="stat-trend trend-up">
+                        <i class="bi bi-arrow-up"></i> 4 new this week
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stat-card fade-in" style="animation-delay: 0.3s">
+                    <div class="stat-card-icon bg-gradient-warning">
+                        <i class="bi bi-cpu-fill"></i>
+                    </div>
+                    <h3>98.5%</h3>
+                    <p>System Uptime</p>
+                    <div class="stat-trend trend-down">
+                        <i class="bi bi-arrow-down"></i> 0.2% from last month
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="filter-panel">
+            <h5 class="mb-3"><i class="bi bi-funnel"></i> Advanced Filters</h5>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="filter-group">
+                        <label>Date Range</label>
+                        <select class="form-select" id="dateFilter">
+                            <option>Last 7 days</option>
+                            <option>Last 30 days</option>
+                            <option>Last 3 months</option>
+                            <option>Last year</option>
+                            <option>Custom range</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select class="form-select" id="statusFilter">
+                            <option>All Statuses</option>
+                            <option>Active</option>
+                            <option>Pending</option>
+                            <option>Completed</option>
+                            <option>Archived</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="filter-group">
+                        <label>Category</label>
+                        <select class="form-select" id="categoryFilter" multiple>
+                            <option>Development</option>
+                            <option>Design</option>
+                            <option>Marketing</option>
+                            <option>Support</option>
+                            <option>Research</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="filter-group">
+                        <label>Priority</label>
+                        <select class="form-select" id="priorityFilter">
+                            <option>All Priorities</option>
+                            <option>High</option>
+                            <option>Medium</option>
+                            <option>Low</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-tags" id="activeFilters">
+                <span class="filter-tag">
+                    Last 7 days <i class="bi bi-x" onclick="removeFilter(this)"></i>
+                </span>
+                <span class="filter-tag">
+                    Active <i class="bi bi-x" onclick="removeFilter(this)"></i>
+                </span>
+            </div>
+
+            <div class="mt-3">
+                <button class="btn btn-primary btn-sm" onclick="applyFilters()">
+                    <i class="bi bi-check2"></i> Apply Filters
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Clear All
+                </button>
+            </div>
+        </div>
+
+        <!-- Drag and Drop Section -->
+        <div class="row mb-4">
+            <div class="col-lg-4">
+                <h5 class="mb-3"><i class="bi bi-grip-vertical"></i> To Do</h5>
+                <div class="drag-container" id="todoList">
+                    <div class="drag-item" data-id="1">
+                        <i class="bi bi-grip-vertical drag-handle"></i>
+                        <div class="flex-grow-1">
+                            <strong>Update API Documentation</strong>
+                            <p class="mb-0 small text-muted">Due: Today</p>
+                        </div>
+                        <span class="badge bg-danger">High</span>
+                    </div>
+                    <div class="drag-item" data-id="2">
+                        <i class="bi bi-grip-vertical drag-handle"></i>
+                        <div class="flex-grow-1">
+                            <strong>Code Review: Feature #245</strong>
+                            <p class="mb-0 small text-muted">Due: Tomorrow</p>
+                        </div>
+                        <span class="badge bg-warning">Medium</span>
+                    </div>
+                    <div class="drag-item" data-id="3">
+                        <i class="bi bi-grip-vertical drag-handle"></i>
+                        <div class="flex-grow-1">
+                            <strong>Database Optimization</strong>
+                            <p class="mb-0 small text-muted">Due: This week</p>
+                        </div>
+                        <span class="badge bg-success">Low</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <h5 class="mb-3"><i class="bi bi-hourglass-split"></i> In Progress</h5>
+                <div class="drag-container" id="inProgressList">
+                    <div class="drag-item" data-id="4">
+                        <i class="bi bi-grip-vertical drag-handle"></i>
+                        <div class="flex-grow-1">
+                            <strong>Implement Authentication</strong>
+                            <p class="mb-0 small text-muted">Started: 2h ago</p>
+                        </div>
+                        <span class="badge bg-primary">In Progress</span>
+                    </div>
+                    <div class="drag-item" data-id="5">
+                        <i class="bi bi-grip-vertical drag-handle"></i>
+                        <div class="flex-grow-1">
+                            <strong>UI/UX Improvements</strong>
+                            <p class="mb-0 small text-muted">Started: Yesterday</p>
+                        </div>
+                        <span class="badge bg-primary">In Progress</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <h5 class="mb-3"><i class="bi bi-check-circle"></i> Done</h5>
+                <div class="drag-container" id="doneList">
+                    <div class="drag-item" data-id="6">
+                        <i class="bi bi-grip-vertical drag-handle"></i>
+                        <div class="flex-grow-1">
+                            <strong>Security Audit</strong>
+                            <p class="mb-0 small text-muted">Completed: Today</p>
+                        </div>
+                        <span class="badge bg-success">Done</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="chart-container">
+                    <h4><i class="bi bi-bar-chart-line"></i> Performance Overview</h4>
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="chart-container">
+                    <h4><i class="bi bi-pie-chart"></i> Project Distribution</h4>
+                    <canvas id="projectChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Viewer Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h5 class="mb-3"><i class="bi bi-code-square"></i> Code Viewer with Syntax Highlighting</h5>
+
+                <!-- Tabs for different code examples -->
+                <ul class="nav nav-tabs mb-3" id="codeTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="javascript-tab" data-bs-toggle="tab"
+                                data-bs-target="#javascript" type="button">JavaScript</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="python-tab" data-bs-toggle="tab"
+                                data-bs-target="#python" type="button">Python</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="json-tab" data-bs-toggle="tab"
+                                data-bs-target="#json" type="button">JSON</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="sql-tab" data-bs-toggle="tab"
+                                data-bs-target="#sql" type="button">SQL</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="codeTabContent">
+                    <!-- JavaScript Code -->
+                    <div class="tab-pane fade show active" id="javascript" role="tabpanel">
+                        <div class="code-viewer">
+                            <div class="code-viewer-header">
+                                <span class="code-viewer-title">
+                                    <i class="bi bi-file-code"></i> server.js
+                                </span>
+                                <div class="code-viewer-actions">
+                                    <button onclick="copyCode('js-code')">
+                                        <i class="bi bi-clipboard"></i> Copy
+                                    </button>
+                                    <button onclick="downloadCode('js-code', 'server.js')">
+                                        <i class="bi bi-download"></i> Download
+                                    </button>
+                                </div>
+                            </div>
+                            <pre class="line-numbers"><code class="language-javascript" id="js-code">// Express.js server setup with middleware
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+
+class ExpressServer {
+    constructor(port = 3000) {
+        this.app = express();
+        this.port = port;
+        this.initializeMiddleware();
+        this.initializeRoutes();
+    }
+
+    initializeMiddleware() {
+        // Security middleware
+        this.app.use(helmet());
+        this.app.use(cors({
+            origin: process.env.ALLOWED_ORIGINS?.split(','),
+            credentials: true
+        }));
+
+        // Request parsing
+        this.app.use(express.json());
+        this.app.use(express.urlencoded({ extended: true }));
+
+        // Logging
+        this.app.use(morgan('combined'));
+
+        // Rate limiting
+        const limiter = rateLimit({
+            windowMs: 15 * 60 * 1000, // 15 minutes
+            max: 100 // limit each IP to 100 requests per windowMs
+        });
+        this.app.use('/api/', limiter);
+    }
+
+    initializeRoutes() {
+        this.app.get('/health', (req, res) => {
+            res.json({ status: 'healthy', timestamp: new Date() });
+        });
+
+        this.app.get('/api/data', async (req, res) => {
+            try {
+                const data = await this.fetchData();
+                res.json({ success: true, data });
+            } catch (error) {
+                res.status(500).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+        });
+    }
+
+    async fetchData() {
+        // Simulate async data fetching
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve({ message: 'Data retrieved successfully' });
+            }, 100);
+        });
+    }
+
+    start() {
+        this.app.listen(this.port, () => {
+            console.log(`Server running on port ${this.port}`);
+        });
+    }
+}
+
+// Initialize and start server
+const server = new ExpressServer(process.env.PORT || 3000);
+server.start();</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- Python Code -->
+                    <div class="tab-pane fade" id="python" role="tabpanel">
+                        <div class="code-viewer">
+                            <div class="code-viewer-header">
+                                <span class="code-viewer-title">
+                                    <i class="bi bi-file-code"></i> data_processor.py
+                                </span>
+                                <div class="code-viewer-actions">
+                                    <button onclick="copyCode('py-code')">
+                                        <i class="bi bi-clipboard"></i> Copy
+                                    </button>
+                                    <button onclick="downloadCode('py-code', 'data_processor.py')">
+                                        <i class="bi bi-download"></i> Download
+                                    </button>
+                                </div>
+                            </div>
+                            <pre class="line-numbers"><code class="language-python" id="py-code">#!/usr/bin/env python3
+"""
+Advanced Data Processor with async support
+Handles data transformation, validation, and analysis
+"""
+
+import asyncio
+import logging
+from typing import List, Dict, Optional
+from dataclasses import dataclass
+from datetime import datetime
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class DataPoint:
+    """Represents a single data point in the system"""
+    id: str
+    timestamp: datetime
+    value: float
+    metadata: Optional[Dict] = None
+
+    def validate(self) -> bool:
+        """Validate data point integrity"""
+        return (
+            self.id is not None and
+            self.value >= 0 and
+            self.timestamp is not None
+        )
+
+
+class DataProcessor:
+    """Process and analyze data streams"""
+
+    def __init__(self, batch_size: int = 100):
+        self.batch_size = batch_size
+        self.processed_count = 0
+
+    async def process_batch(self, data: List[DataPoint]) -> Dict:
+        """Process a batch of data points"""
+        logger.info(f"Processing batch of {len(data)} items")
+
+        valid_data = [dp for dp in data if dp.validate()]
+        invalid_count = len(data) - len(valid_data)
+
+        if invalid_count > 0:
+            logger.warning(f"Found {invalid_count} invalid data points")
+
+        # Simulate async processing
+        await asyncio.sleep(0.1)
+
+        results = {
+            'total': len(data),
+            'valid': len(valid_data),
+            'invalid': invalid_count,
+            'average': sum(dp.value for dp in valid_data) / len(valid_data)
+                      if valid_data else 0,
+            'timestamp': datetime.now().isoformat()
+        }
+
+        self.processed_count += len(valid_data)
+        return results
+
+    async def analyze(self, data: List[DataPoint]) -> Dict:
+        """Perform statistical analysis on data"""
+        if not data:
+            return {'error': 'No data provided'}
+
+        values = [dp.value for dp in data if dp.validate()]
+
+        return {
+            'count': len(values),
+            'mean': sum(values) / len(values),
+            'min': min(values),
+            'max': max(values),
+            'total_processed': self.processed_count
+        }
+
+
+async def main():
+    """Main execution function"""
+    processor = DataProcessor(batch_size=50)
+
+    # Generate sample data
+    sample_data = [
+        DataPoint(
+            id=f"data_{i}",
+            timestamp=datetime.now(),
+            value=float(i * 10),
+            metadata={'source': 'sensor_1'}
+        )
+        for i in range(100)
+    ]
+
+    # Process in batches
+    results = await processor.process_batch(sample_data[:50])
+    analysis = await processor.analyze(sample_data)
+
+    logger.info(f"Results: {results}")
+    logger.info(f"Analysis: {analysis}")
+
+
+if __name__ == '__main__':
+    asyncio.run(main())</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- JSON Code -->
+                    <div class="tab-pane fade" id="json" role="tabpanel">
+                        <div class="code-viewer">
+                            <div class="code-viewer-header">
+                                <span class="code-viewer-title">
+                                    <i class="bi bi-file-code"></i> config.json
+                                </span>
+                                <div class="code-viewer-actions">
+                                    <button onclick="copyCode('json-code')">
+                                        <i class="bi bi-clipboard"></i> Copy
+                                    </button>
+                                    <button onclick="downloadCode('json-code', 'config.json')">
+                                        <i class="bi bi-download"></i> Download
+                                    </button>
+                                </div>
+                            </div>
+                            <pre class="line-numbers"><code class="language-json" id="json-code">{
+  "application": {
+    "name": "Exprsn Dashboard",
+    "version": "2.0.0",
+    "environment": "production",
+    "debug": false
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3000,
+    "ssl": {
+      "enabled": true,
+      "cert": "/path/to/cert.pem",
+      "key": "/path/to/key.pem"
+    },
+    "cors": {
+      "enabled": true,
+      "allowedOrigins": [
+        "https://app.example.com",
+        "https://dashboard.example.com"
+      ],
+      "credentials": true
+    }
+  },
+  "database": {
+    "type": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "name": "exprsn_db",
+    "pool": {
+      "min": 2,
+      "max": 10,
+      "idleTimeoutMillis": 30000
+    },
+    "ssl": true,
+    "migrations": {
+      "directory": "./migrations",
+      "tableName": "knex_migrations"
+    }
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": null,
+    "db": 0,
+    "keyPrefix": "exprsn:",
+    "ttl": 3600
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "outputs": [
+      {
+        "type": "console",
+        "colorize": true
+      },
+      {
+        "type": "file",
+        "filename": "logs/app.log",
+        "maxSize": "10m",
+        "maxFiles": 5
+      }
+    ]
+  },
+  "security": {
+    "rateLimit": {
+      "windowMs": 900000,
+      "max": 100,
+      "message": "Too many requests"
+    },
+    "jwt": {
+      "secret": "${JWT_SECRET}",
+      "expiresIn": "24h",
+      "algorithm": "HS256"
+    },
+    "encryption": {
+      "algorithm": "aes-256-gcm",
+      "saltRounds": 12
+    }
+  },
+  "features": {
+    "analytics": true,
+    "realtime": true,
+    "notifications": true,
+    "fileUpload": {
+      "enabled": true,
+      "maxSize": 10485760,
+      "allowedTypes": [
+        "image/jpeg",
+        "image/png",
+        "application/pdf"
+      ]
+    }
+  },
+  "monitoring": {
+    "healthCheck": {
+      "enabled": true,
+      "interval": 30000
+    },
+    "metrics": {
+      "enabled": true,
+      "provider": "prometheus"
+    }
+  }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- SQL Code -->
+                    <div class="tab-pane fade" id="sql" role="tabpanel">
+                        <div class="code-viewer">
+                            <div class="code-viewer-header">
+                                <span class="code-viewer-title">
+                                    <i class="bi bi-file-code"></i> schema.sql
+                                </span>
+                                <div class="code-viewer-actions">
+                                    <button onclick="copyCode('sql-code')">
+                                        <i class="bi bi-clipboard"></i> Copy
+                                    </button>
+                                    <button onclick="downloadCode('sql-code', 'schema.sql')">
+                                        <i class="bi bi-download"></i> Download
+                                    </button>
+                                </div>
+                            </div>
+                            <pre class="line-numbers"><code class="language-sql" id="sql-code">-- Database schema for Exprsn application
+-- PostgreSQL 14+
+
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Users table
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    avatar_url TEXT,
+    role VARCHAR(50) DEFAULT 'user',
+    is_active BOOLEAN DEFAULT true,
+    email_verified BOOLEAN DEFAULT false,
+    last_login TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Projects table
+CREATE TABLE projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    owner_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'active',
+    priority VARCHAR(20) DEFAULT 'medium',
+    start_date DATE,
+    end_date DATE,
+    budget DECIMAL(12, 2),
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tasks table
+CREATE TABLE tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(50) DEFAULT 'todo',
+    priority VARCHAR(20) DEFAULT 'medium',
+    due_date TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    estimated_hours DECIMAL(5, 2),
+    actual_hours DECIMAL(5, 2),
+    tags TEXT[],
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Activity logs
+CREATE TABLE activity_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id UUID NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    details JSONB,
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for better query performance
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_projects_owner ON projects(owner_id);
+CREATE INDEX idx_projects_status ON projects(status);
+CREATE INDEX idx_tasks_project ON tasks(project_id);
+CREATE INDEX idx_tasks_assigned ON tasks(assigned_to);
+CREATE INDEX idx_tasks_status ON tasks(status);
+CREATE INDEX idx_activity_user ON activity_logs(user_id);
+CREATE INDEX idx_activity_entity ON activity_logs(entity_type, entity_id);
+CREATE INDEX idx_activity_created ON activity_logs(created_at DESC);
+
+-- Full text search index
+CREATE INDEX idx_tasks_search ON tasks
+USING GIN(to_tsvector('english', title || ' ' || COALESCE(description, '')));
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create triggers for updated_at
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_projects_updated_at
+    BEFORE UPDATE ON projects
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_tasks_updated_at
+    BEFORE UPDATE ON tasks
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Sample view for project analytics
+CREATE VIEW project_analytics AS
+SELECT
+    p.id,
+    p.name,
+    p.status,
+    COUNT(DISTINCT t.id) as total_tasks,
+    COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks,
+    AVG(t.actual_hours) as avg_task_hours,
+    SUM(t.estimated_hours) as total_estimated_hours,
+    SUM(t.actual_hours) as total_actual_hours
+FROM projects p
+LEFT JOIN tasks t ON p.id = t.project_id
+GROUP BY p.id, p.name, p.status;</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h5 class="mb-3"><i class="bi bi-table"></i> Recent Activities</h5>
+                <div class="data-table">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Project</th>
+                                <th>Status</th>
+                                <th>Timestamp</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>#1247</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img src="https://ui-avatars.com/api/?name=John+Doe&background=6366f1&color=fff"
+                                             class="rounded-circle me-2" width="30" height="30">
+                                        John Doe
+                                    </div>
+                                </td>
+                                <td>Updated code</td>
+                                <td>Dashboard UI</td>
+                                <td><span class="status-badge status-active">Active</span></td>
+                                <td>2 mins ago</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#1246</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img src="https://ui-avatars.com/api/?name=Jane+Smith&background=8b5cf6&color=fff"
+                                             class="rounded-circle me-2" width="30" height="30">
+                                        Jane Smith
+                                    </div>
+                                </td>
+                                <td>Created task</td>
+                                <td>API Integration</td>
+                                <td><span class="status-badge status-pending">Pending</span></td>
+                                <td>15 mins ago</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#1245</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img src="https://ui-avatars.com/api/?name=Mike+Johnson&background=10b981&color=fff"
+                                             class="rounded-circle me-2" width="30" height="30">
+                                        Mike Johnson
+                                    </div>
+                                </td>
+                                <td>Merged PR</td>
+                                <td>Authentication</td>
+                                <td><span class="status-badge status-active">Active</span></td>
+                                <td>1 hour ago</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#1244</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img src="https://ui-avatars.com/api/?name=Sarah+Lee&background=ef4444&color=fff"
+                                             class="rounded-circle me-2" width="30" height="30">
+                                        Sarah Lee
+                                    </div>
+                                </td>
+                                <td>Closed issue</td>
+                                <td>Bug Fixes</td>
+                                <td><span class="status-badge status-inactive">Closed</span></td>
+                                <td>3 hours ago</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#1243</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img src="https://ui-avatars.com/api/?name=Tom+Brown&background=f59e0b&color=fff"
+                                             class="rounded-circle me-2" width="30" height="30">
+                                        Tom Brown
+                                    </div>
+                                </td>
+                                <td>Deployed update</td>
+                                <td>Production</td>
+                                <td><span class="status-badge status-active">Active</span></td>
+                                <td>5 hours ago</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="activity-feed">
+                    <h5 class="mb-3"><i class="bi bi-clock-history"></i> Recent Activity</h5>
+
+                    <div class="activity-item">
+                        <div class="activity-icon bg-gradient-primary">
+                            <i class="bi bi-code-slash text-white"></i>
+                        </div>
+                        <div class="activity-content">
+                            <h5>Code Review Completed</h5>
+                            <p>Feature #245 has been reviewed and approved</p>
+                            <small class="text-muted">5 minutes ago</small>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon bg-gradient-success">
+                            <i class="bi bi-check-circle text-white"></i>
+                        </div>
+                        <div class="activity-content">
+                            <h5>Deployment Successful</h5>
+                            <p>Version 2.1.0 deployed to production</p>
+                            <small class="text-muted">1 hour ago</small>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon bg-gradient-warning">
+                            <i class="bi bi-exclamation-triangle text-white"></i>
+                        </div>
+                        <div class="activity-content">
+                            <h5>Performance Alert</h5>
+                            <p>API response time increased by 15%</p>
+                            <small class="text-muted">2 hours ago</small>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon bg-gradient-info">
+                            <i class="bi bi-people text-white"></i>
+                        </div>
+                        <div class="activity-content">
+                            <h5>New Team Member</h5>
+                            <p>Alex Williams joined the development team</p>
+                            <small class="text-muted">4 hours ago</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="activity-feed">
+                    <h5 class="mb-3"><i class="bi bi-list-task"></i> System Status</h5>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>CPU Usage</span>
+                            <span class="fw-bold">45%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                 style="width: 45%" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Memory Usage</span>
+                            <span class="fw-bold">68%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" role="progressbar"
+                                 style="width: 68%" aria-valuenow="68" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Disk Space</span>
+                            <span class="fw-bold">82%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-danger" role="progressbar"
+                                 style="width: 82%" aria-valuenow="82" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Network Bandwidth</span>
+                            <span class="fw-bold">34%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" role="progressbar"
+                                 style="width: 34%" aria-valuenow="34" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>System Health:</strong> All services operating normally
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Prism.js for Syntax Highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+
+    <script>
+        // Sidebar Toggle for Mobile
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('show');
+        });
+
+        // Initialize Drag and Drop with Sortable.js
+        const todoList = document.getElementById('todoList');
+        const inProgressList = document.getElementById('inProgressList');
+        const doneList = document.getElementById('doneList');
+
+        [todoList, inProgressList, doneList].forEach(list => {
+            if (list) {
+                new Sortable(list, {
+                    group: 'tasks',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    handle: '.drag-handle',
+                    onEnd: function(evt) {
+                        console.log('Item moved:', evt.item.dataset.id, 'to', evt.to.id);
+                        // Here you would typically make an API call to update the task status
+                    }
+                });
+            }
+        });
+
+        // Initialize Charts
+        // Performance Chart
+        const perfCtx = document.getElementById('performanceChart');
+        if (perfCtx) {
+            new Chart(perfCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [{
+                        label: 'Revenue',
+                        data: [12, 19, 15, 25, 22, 30, 28, 35, 32, 38, 42, 45],
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Users',
+                        data: [8, 12, 10, 15, 18, 20, 22, 25, 28, 30, 35, 40],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Project Distribution Chart
+        const projCtx = document.getElementById('projectChart');
+        if (projCtx) {
+            new Chart(projCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Development', 'Design', 'Marketing', 'Support', 'Research'],
+                    datasets: [{
+                        data: [35, 25, 20, 12, 8],
+                        backgroundColor: [
+                            '#6366f1',
+                            '#8b5cf6',
+                            '#10b981',
+                            '#f59e0b',
+                            '#3b82f6'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Filter Functions
+        function applyFilters() {
+            const dateFilter = document.getElementById('dateFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const categoryFilter = document.getElementById('categoryFilter');
+            const priorityFilter = document.getElementById('priorityFilter').value;
+
+            console.log('Applying filters:', {
+                date: dateFilter,
+                status: statusFilter,
+                category: Array.from(categoryFilter.selectedOptions).map(opt => opt.value),
+                priority: priorityFilter
+            });
+
+            // Here you would typically make an API call to fetch filtered data
+            alert('Filters applied! Check console for details.');
+        }
+
+        function clearFilters() {
+            document.getElementById('dateFilter').selectedIndex = 0;
+            document.getElementById('statusFilter').selectedIndex = 0;
+            document.getElementById('categoryFilter').selectedIndex = -1;
+            document.getElementById('priorityFilter').selectedIndex = 0;
+            document.getElementById('activeFilters').innerHTML = '';
+            console.log('Filters cleared');
+        }
+
+        function removeFilter(element) {
+            element.parentElement.remove();
+        }
+
+        // Code Viewer Functions
+        function copyCode(elementId) {
+            const codeElement = document.getElementById(elementId);
+            const code = codeElement.textContent;
+
+            navigator.clipboard.writeText(code).then(() => {
+                alert('Code copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy code:', err);
+            });
+        }
+
+        function downloadCode(elementId, filename) {
+            const codeElement = document.getElementById(elementId);
+            const code = codeElement.textContent;
+
+            const blob = new Blob([code], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Search Functionality
+        document.getElementById('searchInput')?.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            console.log('Searching for:', searchTerm);
+            // Implement search logic here
+        });
+
+        // Active Navigation
+        document.querySelectorAll('.sidebar-nav a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('.sidebar-nav a').forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Log initialization
+        console.log('Exprsn Dashboard Theme initialized successfully!');
+        console.log('Features loaded:', {
+            bootstrap: '5.3.2',
+            charts: 'Chart.js 4.4.1',
+            dragDrop: 'Sortable.js 1.15.1',
+            syntaxHighlighting: 'Prism.js 1.29.0'
+        });
+    </script>
+</body>
+</html>

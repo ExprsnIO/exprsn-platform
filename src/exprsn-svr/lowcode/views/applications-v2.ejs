@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Applications Dashboard | Exprsn Low-Code Platform</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* ============================================================================
+           CSS CUSTOM PROPERTIES - WCAG COMPLIANT COLOR SYSTEM
+           ============================================================================ */
+        :root {
+            /* Primary Brand Colors */
+            --exprsn-primary: #0066ff;
+            --exprsn-primary-hover: #0052cc;
+            --exprsn-primary-light: #4d94ff;
+            --exprsn-primary-dark: #0047b3;
+            --exprsn-primary-glow: rgba(0, 102, 255, 0.3);
+
+            /* Secondary Colors */
+            --exprsn-secondary: #7c3aed;
+            --exprsn-secondary-hover: #6d28d9;
+            --exprsn-secondary-light: #a78bfa;
+
+            /* Accent Colors */
+            --exprsn-accent-pink: #ec4899;
+            --exprsn-accent-orange: #f97316;
+            --exprsn-accent-green: #10b981;
+            --exprsn-accent-cyan: #06b6d4;
+            --exprsn-accent-yellow: #eab308;
+
+            /* Semantic Colors */
+            --exprsn-success: #10b981;
+            --exprsn-success-bg: #d1fae5;
+            --exprsn-danger: #ef4444;
+            --exprsn-danger-bg: #fee2e2;
+            --exprsn-warning: #f59e0b;
+            --exprsn-warning-bg: #fef3c7;
+            --exprsn-info: #3b82f6;
+            --exprsn-info-bg: #dbeafe;
+
+            /* Neutral Colors */
+            --exprsn-white: #ffffff;
+            --exprsn-black: #0a0a0a;
+            --exprsn-gray-50: #fafafa;
+            --exprsn-gray-100: #f5f5f5;
+            --exprsn-gray-200: #e5e5e5;
+            --exprsn-gray-300: #d4d4d4;
+            --exprsn-gray-400: #a3a3a3;
+            --exprsn-gray-500: #737373;
+            --exprsn-gray-600: #525252;
+            --exprsn-gray-700: #404040;
+            --exprsn-gray-800: #262626;
+            --exprsn-gray-900: #171717;
+
+            /* Background & Surface */
+            --exprsn-bg-primary: #ffffff;
+            --exprsn-bg-secondary: #fafafa;
+            --exprsn-bg-tertiary: #f5f5f5;
+            --exprsn-surface-raised: #ffffff;
+
+            /* Text Colors */
+            --exprsn-text-primary: #171717;
+            --exprsn-text-secondary: #525252;
+            --exprsn-text-muted: #737373;
+            --exprsn-text-inverse: #ffffff;
+
+            /* Border Colors */
+            --exprsn-border-color: #e5e5e5;
+            --exprsn-border-color-strong: #a3a3a3;
+
+            /* Shadows */
+            --exprsn-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+            --exprsn-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --exprsn-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --exprsn-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+            /* Border Radius */
+            --exprsn-radius-sm: 0.375rem;
+            --exprsn-radius-md: 0.5rem;
+            --exprsn-radius-lg: 0.75rem;
+            --exprsn-radius-xl: 1rem;
+
+            /* Typography */
+            --exprsn-font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --exprsn-font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+            /* Transitions */
+            --exprsn-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+            --exprsn-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+
+            /* Sidebar */
+            --sidebar-width: 280px;
+            --sidebar-collapsed-width: 70px;
+        }
+
+        /* ============================================================================
+           DARK THEME
+           ============================================================================ */
+        [data-theme="dark"] {
+            --exprsn-primary: #3b82f6;
+            --exprsn-primary-hover: #60a5fa;
+            --exprsn-bg-primary: #0a0a0a;
+            --exprsn-bg-secondary: #171717;
+            --exprsn-bg-tertiary: #262626;
+            --exprsn-surface-raised: #1f1f1f;
+            --exprsn-text-primary: #fafafa;
+            --exprsn-text-secondary: #d4d4d4;
+            --exprsn-text-muted: #a3a3a3;
+            --exprsn-border-color: #404040;
+            --exprsn-border-color-strong: #525252;
+        }
+
+        /* ============================================================================
+           BASE STYLES
+           ============================================================================ */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--exprsn-font-family);
+            background-color: var(--exprsn-bg-secondary);
+            color: var(--exprsn-text-primary);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ============================================================================
+           TOP NAVBAR
+           ============================================================================ */
+        .top-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: var(--exprsn-bg-primary);
+            border-bottom: 1px solid var(--exprsn-border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            z-index: 1050;
+            box-shadow: var(--exprsn-shadow-sm);
+        }
+
+        .navbar-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: var(--exprsn-text-secondary);
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: var(--exprsn-radius-md);
+            transition: all var(--exprsn-transition-fast);
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--exprsn-bg-tertiary);
+            color: var(--exprsn-text-primary);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--exprsn-primary);
+            text-decoration: none;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--exprsn-primary), var(--exprsn-secondary));
+            border-radius: var(--exprsn-radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: var(--exprsn-text-secondary);
+            font-size: 1.125rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: var(--exprsn-radius-md);
+            transition: all var(--exprsn-transition-fast);
+        }
+
+        .theme-toggle:hover {
+            background: var(--exprsn-bg-tertiary);
+            color: var(--exprsn-text-primary);
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: none;
+            border: 1px solid var(--exprsn-border-color);
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--exprsn-radius-lg);
+            cursor: pointer;
+            transition: all var(--exprsn-transition-fast);
+            color: var(--exprsn-text-primary);
+        }
+
+        .user-btn:hover {
+            background: var(--exprsn-bg-tertiary);
+            border-color: var(--exprsn-border-color-strong);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--exprsn-accent-pink), var(--exprsn-accent-orange));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            right: 0;
+            min-width: 200px;
+            background: var(--exprsn-surface-raised);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            box-shadow: var(--exprsn-shadow-xl);
+            display: none;
+            z-index: 1100;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--exprsn-border-color);
+        }
+
+        .user-dropdown-item {
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--exprsn-text-primary);
+            text-decoration: none;
+            transition: background var(--exprsn-transition-fast);
+            cursor: pointer;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--exprsn-bg-tertiary);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--exprsn-border-color);
+            margin: 0.5rem 0;
+        }
+
+        /* ============================================================================
+           SIDEBAR
+           ============================================================================ */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 64px;
+            bottom: 0;
+            width: var(--sidebar-width);
+            background: var(--exprsn-bg-primary);
+            border-right: 1px solid var(--exprsn-border-color);
+            overflow-y: auto;
+            transition: transform var(--exprsn-transition-base);
+            z-index: 1040;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(calc(-1 * var(--sidebar-width)));
+        }
+
+        .sidebar-nav {
+            padding: 1rem;
+        }
+
+        .nav-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--exprsn-text-muted);
+            padding: 0 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-item {
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: var(--exprsn-radius-md);
+            color: var(--exprsn-text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all var(--exprsn-transition-fast);
+            position: relative;
+        }
+
+        .nav-link:hover {
+            background: var(--exprsn-bg-tertiary);
+            color: var(--exprsn-text-primary);
+        }
+
+        .nav-link.active {
+            background: var(--exprsn-primary);
+            color: white;
+        }
+
+        .nav-link .nav-icon {
+            width: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem;
+        }
+
+        .nav-link .badge {
+            margin-left: auto;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        /* ============================================================================
+           MAIN CONTENT
+           ============================================================================ */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            margin-top: 64px;
+            padding: 2rem;
+            min-height: calc(100vh - 64px);
+            transition: margin-left var(--exprsn-transition-base);
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* ============================================================================
+           PAGE HEADER
+           ============================================================================ */
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--exprsn-text-primary);
+            margin: 0 0 0.5rem 0;
+        }
+
+        .page-subtitle {
+            font-size: 1rem;
+            color: var(--exprsn-text-muted);
+            margin: 0;
+        }
+
+        /* ============================================================================
+           TOOLBAR
+           ============================================================================ */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.75rem;
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            background: var(--exprsn-bg-primary);
+            color: var(--exprsn-text-primary);
+            font-size: 0.9375rem;
+            transition: all var(--exprsn-transition-fast);
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--exprsn-primary);
+            box-shadow: 0 0 0 3px var(--exprsn-primary-glow);
+        }
+
+        .search-box .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--exprsn-text-muted);
+            pointer-events: none;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-select {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            background: var(--exprsn-bg-primary);
+            color: var(--exprsn-text-primary);
+            font-size: 0.9375rem;
+            cursor: pointer;
+            transition: all var(--exprsn-transition-fast);
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--exprsn-primary);
+        }
+
+        .view-toggle {
+            display: flex;
+            background: var(--exprsn-bg-tertiary);
+            border-radius: var(--exprsn-radius-lg);
+            padding: 0.25rem;
+        }
+
+        .view-btn {
+            padding: 0.5rem 1rem;
+            background: none;
+            border: none;
+            border-radius: var(--exprsn-radius-md);
+            color: var(--exprsn-text-secondary);
+            cursor: pointer;
+            transition: all var(--exprsn-transition-fast);
+        }
+
+        .view-btn.active {
+            background: var(--exprsn-bg-primary);
+            color: var(--exprsn-text-primary);
+            box-shadow: var(--exprsn-shadow-sm);
+        }
+
+        .btn-primary {
+            background: var(--exprsn-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--exprsn-radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--exprsn-transition-fast);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary:hover {
+            background: var(--exprsn-primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--exprsn-shadow-md);
+        }
+
+        /* ============================================================================
+           CARDS GRID
+           ============================================================================ */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .app-card {
+            background: var(--exprsn-surface-raised);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-xl);
+            padding: 1.5rem;
+            transition: all var(--exprsn-transition-base);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--exprsn-primary), var(--exprsn-secondary));
+            opacity: 0;
+            transition: opacity var(--exprsn-transition-fast);
+        }
+
+        .app-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--exprsn-shadow-lg);
+        }
+
+        .app-card:hover::before {
+            opacity: 1;
+        }
+
+        .app-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .app-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--exprsn-radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .app-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .card-action-btn {
+            background: none;
+            border: none;
+            color: var(--exprsn-text-muted);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: var(--exprsn-radius-sm);
+            transition: all var(--exprsn-transition-fast);
+            font-size: 1rem;
+        }
+
+        .card-action-btn:hover {
+            background: var(--exprsn-bg-tertiary);
+            color: var(--exprsn-text-primary);
+        }
+
+        .card-action-btn.pinned {
+            color: var(--exprsn-accent-yellow);
+        }
+
+        .app-card-body {
+            margin-bottom: 1rem;
+        }
+
+        .app-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+            margin: 0 0 0.5rem 0;
+        }
+
+        .app-description {
+            font-size: 0.875rem;
+            color: var(--exprsn-text-muted);
+            margin: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .app-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 1rem;
+            border-top: 1px solid var(--exprsn-border-color);
+        }
+
+        .app-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: var(--exprsn-text-muted);
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--exprsn-radius-full);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-badge.active {
+            background: var(--exprsn-success-bg);
+            color: var(--exprsn-success);
+        }
+
+        .status-badge.inactive {
+            background: var(--exprsn-gray-200);
+            color: var(--exprsn-gray-600);
+        }
+
+        .status-badge.development {
+            background: var(--exprsn-info-bg);
+            color: var(--exprsn-info);
+        }
+
+        /* ============================================================================
+           TABLE VIEW
+           ============================================================================ */
+        .table-view {
+            display: none;
+        }
+
+        .table-view.active {
+            display: block;
+        }
+
+        .data-table {
+            width: 100%;
+            background: var(--exprsn-surface-raised);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-xl);
+            overflow: hidden;
+        }
+
+        .data-table thead {
+            background: var(--exprsn-bg-tertiary);
+        }
+
+        .data-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--exprsn-text-secondary);
+            border-bottom: 1px solid var(--exprsn-border-color);
+        }
+
+        .data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--exprsn-border-color);
+        }
+
+        .data-table tr:hover {
+            background: var(--exprsn-bg-secondary);
+        }
+
+        /* ============================================================================
+           EMPTY STATE
+           ============================================================================ */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            color: var(--exprsn-text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .empty-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+            margin: 0 0 0.5rem 0;
+        }
+
+        .empty-description {
+            color: var(--exprsn-text-muted);
+            margin: 0 0 1.5rem 0;
+        }
+
+        /* ============================================================================
+           CONTEXT MENU
+           ============================================================================ */
+        .context-menu {
+            position: fixed;
+            background: var(--exprsn-surface-raised);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            box-shadow: var(--exprsn-shadow-xl);
+            min-width: 200px;
+            z-index: 2000;
+            display: none;
+            padding: 0.5rem 0;
+        }
+
+        .context-menu.show {
+            display: block;
+        }
+
+        .context-menu-item {
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--exprsn-text-primary);
+            cursor: pointer;
+            transition: background var(--exprsn-transition-fast);
+            font-size: 0.9375rem;
+        }
+
+        .context-menu-item:hover {
+            background: var(--exprsn-bg-tertiary);
+        }
+
+        .context-menu-item i {
+            width: 16px;
+            text-align: center;
+            color: var(--exprsn-text-secondary);
+        }
+
+        .context-menu-item.danger:hover {
+            background: var(--exprsn-danger-bg);
+            color: var(--exprsn-danger);
+        }
+
+        .context-menu-item.danger:hover i {
+            color: var(--exprsn-danger);
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: var(--exprsn-border-color);
+            margin: 0.5rem 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+        <div class="navbar-left">
+            <button type="button" class="sidebar-toggle" id="sidebarToggle">
+                <i class="bi bi-list"></i>
+            </button>
+            <a href="/lowcode" class="navbar-brand">
+                <div class="brand-icon">E</div>
+                <span>Exprsn</span>
+            </a>
+        </div>
+
+        <div class="navbar-right">
+            <button type="button" class="theme-toggle" id="themeToggle">
+                <i class="bi bi-moon-fill"></i>
+            </button>
+
+            <div class="user-menu">
+                <button type="button" class="user-btn" id="userMenuBtn">
+                    <div class="user-avatar">
+                        <span id="userInitials">JD</span>
+                    </div>
+                    <span id="userName">John Doe</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div style="font-weight: 600;" id="userFullName">John Doe</div>
+                        <div style="font-size: 0.875rem; color: var(--exprsn-text-muted);" id="userEmail">john.doe@example.com</div>
+                    </div>
+                    <a href="/profile" class="user-dropdown-item">
+                        <i class="bi bi-person"></i>
+                        <span>Profile</span>
+                    </a>
+                    <a href="/settings" class="user-dropdown-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="#" class="user-dropdown-item" id="switchUserBtn">
+                        <i class="bi bi-arrow-left-right"></i>
+                        <span>Switch User</span>
+                    </a>
+                    <a href="#" class="user-dropdown-item" id="logoutBtn">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Main</div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link active" data-view="applications">
+                        <span class="nav-icon"><i class="bi bi-grid-3x3-gap"></i></span>
+                        <span>Applications</span>
+                        <span class="badge bg-primary" id="appsCount">0</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link" data-view="cards">
+                        <span class="nav-icon"><i class="bi bi-card-text"></i></span>
+                        <span>Cards</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link" data-view="datasources">
+                        <span class="nav-icon"><i class="bi bi-database"></i></span>
+                        <span>Data Sources</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link" data-view="queries">
+                        <span class="nav-icon"><i class="bi bi-search"></i></span>
+                        <span>Queries</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link" data-view="pages">
+                        <span class="nav-icon"><i class="bi bi-file-earmark"></i></span>
+                        <span>Pages</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link" data-view="workflows">
+                        <span class="nav-icon"><i class="bi bi-diagram-3"></i></span>
+                        <span>Workflows</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link" data-view="functions">
+                        <span class="nav-icon"><i class="bi bi-code-square"></i></span>
+                        <span>Functions</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Favorites</div>
+                <div id="favoritesContainer">
+                    <div class="empty-state" style="padding: 1rem;">
+                        <div style="font-size: 0.875rem; color: var(--exprsn-text-muted);">
+                            No favorites yet
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Designers</div>
+                <div class="nav-item">
+                    <a href="/lowcode/entity-designer-pro" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-diagram-3"></i></span>
+                        <span>Entity Designer Pro</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/lowcode/forms" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-ui-checks"></i></span>
+                        <span>Form Designer</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/lowcode/grids" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-table"></i></span>
+                        <span>Grid Designer</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/lowcode/dashboard-designer" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-layout-three-columns"></i></span>
+                        <span>Dashboard Designer</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/lowcode/html-visual-designer" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-palette"></i></span>
+                        <span>HTML Designer</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Builders</div>
+                <div class="nav-item">
+                    <a href="/lowcode/queries" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-search"></i></span>
+                        <span>Query Builder</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/lowcode/apis" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-plugin"></i></span>
+                        <span>API Builder</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/lowcode/automation" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-lightning"></i></span>
+                        <span>Automation Builder</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/lowcode/git-setup-dashboard" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-git"></i></span>
+                        <span>Git Setup</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Plugins</div>
+                <div class="nav-item">
+                    <a href="/lowcode/plugins" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-puzzle"></i></span>
+                        <span>Installed Plugins</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/lowcode/plugins/marketplace" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-shop"></i></span>
+                        <span>Plugin Marketplace</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="/lowcode/plugins/create" class="nav-link tool-link">
+                        <span class="nav-icon"><i class="bi bi-file-code"></i></span>
+                        <span>Create Plugin</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Applications</h1>
+            <p class="page-subtitle">Manage and organize your low-code applications</p>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="search-box">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" placeholder="Search applications..." id="searchInput">
+            </div>
+
+            <div class="filter-group">
+                <select class="filter-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="development">Development</option>
+                </select>
+
+                <select class="filter-select" id="sortBy">
+                    <option value="name">Name</option>
+                    <option value="created">Created Date</option>
+                    <option value="updated">Updated Date</option>
+                </select>
+            </div>
+
+            <div class="view-toggle">
+                <button type="button" class="view-btn active" data-view="grid">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                </button>
+                <button type="button" class="view-btn" data-view="table">
+                    <i class="bi bi-list-ul"></i>
+                </button>
+            </div>
+
+            <button type="button" class="btn-primary" id="newAppBtn">
+                <i class="bi bi-plus-lg"></i>
+                New Application
+            </button>
+        </div>
+
+        <!-- Cards Grid View -->
+        <div class="cards-grid" id="cardsGrid">
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState" style="grid-column: 1 / -1;">
+                <div class="empty-icon">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                </div>
+                <h2 class="empty-title">No applications yet</h2>
+                <p class="empty-description">Get started by creating your first application</p>
+                <button type="button" class="btn-primary" id="emptyCreateBtn">
+                    <i class="bi bi-plus-lg"></i>
+                    Create Application
+                </button>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div class="table-view" id="tableView">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="checkbox" id="selectAll">
+                        </th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Updated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Table rows will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" data-action="open">
+            <i class="bi bi-box-arrow-up-right"></i>
+            <span>Open</span>
+        </div>
+        <div class="context-menu-item" data-action="edit">
+            <i class="bi bi-pencil"></i>
+            <span>Edit Settings</span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="clone">
+            <i class="bi bi-files"></i>
+            <span>Clone</span>
+        </div>
+        <div class="context-menu-item" data-action="export">
+            <i class="bi bi-download"></i>
+            <span>Export</span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" data-action="delete">
+            <i class="bi bi-trash"></i>
+            <span>Delete</span>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        // ============================================================================
+        // STATE MANAGEMENT
+        // ============================================================================
+        const AppState = {
+            theme: 'light',
+            sidebarCollapsed: false,
+            currentView: 'grid',
+            applications: [],
+            favorites: new Set(),
+            searchQuery: '',
+            statusFilter: '',
+            sortBy: 'name',
+            sortOrder: 'DESC',
+            socket: null,
+            contextMenuAppId: null,
+            user: {
+                id: 1,
+                name: 'John Doe',
+                email: 'john.doe@example.com',
+                initials: 'JD'
+            }
+        };
+
+        // ============================================================================
+        // SOCKET.IO CONNECTION
+        // ============================================================================
+        function initializeSocket() {
+            AppState.socket = io({
+                transports: ['websocket', 'polling']
+            });
+
+            AppState.socket.on('connect', () => {
+                console.log('Socket.IO connected');
+
+                // Join the applications room for this user
+                AppState.socket.emit('application:join', {
+                    userId: AppState.user.id
+                });
+            });
+
+            AppState.socket.on('application:joined', (data) => {
+                console.log('Joined applications room:', data);
+            });
+
+            AppState.socket.on('application:error', (error) => {
+                console.error('Socket.IO application error:', error);
+                showToast('error', error.message || 'Socket.IO error');
+            });
+
+            AppState.socket.on('application:created', (app) => {
+                console.log('New application created:', app);
+                AppState.applications.unshift(app);
+                renderApplications();
+                updateAppsCount();
+                showToast('success', 'New application created');
+            });
+
+            AppState.socket.on('application:updated', (app) => {
+                console.log('Application updated:', app);
+                const index = AppState.applications.findIndex(a => a.id === app.id);
+                if (index !== -1) {
+                    AppState.applications[index] = app;
+                    renderApplications();
+                    showToast('info', 'Application updated');
+                }
+            });
+
+            AppState.socket.on('application:deleted', (appId) => {
+                console.log('Application deleted:', appId);
+                AppState.applications = AppState.applications.filter(a => a.id !== appId);
+                AppState.favorites.delete(appId);
+                saveFavorites();
+                renderApplications();
+                renderFavorites();
+                updateAppsCount();
+                showToast('info', 'Application deleted');
+            });
+
+            AppState.socket.on('disconnect', () => {
+                console.log('Socket.IO disconnected');
+            });
+
+            // Hot reload events
+            AppState.socket.on('route:reloaded', (data) => {
+                console.log('Route reloaded:', data);
+                showToast('info', `Route reloaded: ${data.path}`);
+            });
+
+            AppState.socket.on('view:reloaded', (data) => {
+                console.log('View reloaded:', data);
+                showToast('info', `View updated: ${data.view}`);
+            });
+
+            AppState.socket.on('client:refresh', (data) => {
+                console.log('Client refresh requested:', data);
+                if (confirm(`Page needs to refresh (${data.reason}). Reload now?`)) {
+                    window.location.reload();
+                }
+            });
+
+            AppState.socket.on('socket:handler:reloaded', (data) => {
+                console.log('Socket handler reloaded:', data);
+                showToast('warning', data.message);
+            });
+
+            AppState.socket.on('plugin:reloaded', (data) => {
+                console.log('Plugin reloaded:', data);
+                showToast('success', `Plugin reloaded: ${data.plugin}`);
+            });
+
+            AppState.socket.on('plugin:unloaded', (data) => {
+                console.log('Plugin unloaded:', data);
+                showToast('info', `Plugin unloaded: ${data.plugin}`);
+            });
+
+            AppState.socket.on('route:reload:error', (data) => {
+                console.error('Route reload error:', data);
+                showToast('error', `Route reload failed: ${data.filePath}`);
+            });
+
+            AppState.socket.on('plugin:reload:error', (data) => {
+                console.error('Plugin reload error:', data);
+                showToast('error', `Plugin reload failed: ${data.filePath}`);
+            });
+        }
+
+        // ============================================================================
+        // THEME MANAGEMENT
+        // ============================================================================
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('exprsn-theme') || 'light';
+            AppState.theme = savedTheme;
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            const newTheme = AppState.theme === 'light' ? 'dark' : 'light';
+            AppState.theme = newTheme;
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('exprsn-theme', newTheme);
+            updateThemeIcon();
+        }
+
+        function updateThemeIcon() {
+            const icon = document.querySelector('#themeToggle i');
+            if (AppState.theme === 'light') {
+                icon.className = 'bi bi-moon-fill';
+            } else {
+                icon.className = 'bi bi-sun-fill';
+            }
+        }
+
+        // ============================================================================
+        // SIDEBAR MANAGEMENT
+        // ============================================================================
+        function toggleSidebar() {
+            AppState.sidebarCollapsed = !AppState.sidebarCollapsed;
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+
+            if (AppState.sidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('expanded');
+            }
+
+            localStorage.setItem('sidebar-collapsed', AppState.sidebarCollapsed);
+        }
+
+        // ============================================================================
+        // USER MENU
+        // ============================================================================
+        function toggleUserMenu() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function closeUserMenu() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.remove('show');
+        }
+
+        function switchUser() {
+            alert('Switch user functionality coming soon!');
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        // ============================================================================
+        // VIEW MANAGEMENT
+        // ============================================================================
+        function switchView(view) {
+            AppState.currentView = view;
+
+            // Update view toggle buttons
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === view);
+            });
+
+            // Toggle views
+            const cardsGrid = document.getElementById('cardsGrid');
+            const tableView = document.getElementById('tableView');
+
+            if (view === 'grid') {
+                cardsGrid.style.display = 'grid';
+                tableView.classList.remove('active');
+            } else {
+                cardsGrid.style.display = 'none';
+                tableView.classList.add('active');
+                renderTableView();
+            }
+
+            localStorage.setItem('preferred-view', view);
+        }
+
+        // ============================================================================
+        // FAVORITES MANAGEMENT
+        // ============================================================================
+        function toggleFavorite(appId) {
+            if (AppState.favorites.has(appId)) {
+                AppState.favorites.delete(appId);
+            } else {
+                AppState.favorites.add(appId);
+            }
+            saveFavorites();
+            renderApplications();
+            renderFavorites();
+        }
+
+        function saveFavorites() {
+            localStorage.setItem('favorites', JSON.stringify([...AppState.favorites]));
+        }
+
+        function loadFavorites() {
+            const saved = localStorage.getItem('favorites');
+            if (saved) {
+                AppState.favorites = new Set(JSON.parse(saved));
+            }
+        }
+
+        function renderFavorites() {
+            const container = document.getElementById('favoritesContainer');
+            const favoriteApps = AppState.applications.filter(app => AppState.favorites.has(app.id));
+
+            if (favoriteApps.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding: 1rem;">
+                        <div style="font-size: 0.875rem; color: var(--exprsn-text-muted);">
+                            No favorites yet
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = favoriteApps.map(app => `
+                <div class="nav-item">
+                    <a href="#" class="nav-link" onclick="openApplication(${app.id}); return false;">
+                        <span class="nav-icon"><i class="bi bi-star-fill" style="color: var(--exprsn-accent-yellow);"></i></span>
+                        <span>${app.name}</span>
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        // ============================================================================
+        // APPLICATIONS MANAGEMENT
+        // ============================================================================
+        async function loadApplications() {
+            try {
+                const params = new URLSearchParams({
+                    sortBy: AppState.sortBy,
+                    sortOrder: AppState.sortOrder,
+                    limit: 100
+                });
+
+                if (AppState.statusFilter) {
+                    params.append('status', AppState.statusFilter);
+                }
+
+                const response = await fetch(`/lowcode/api/applications?${params}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    AppState.applications = (data.data.applications || []).map(app => ({
+                        ...app,
+                        icon: app.icon || 'bi-grid-3x3-gap',
+                        color: app.color || `linear-gradient(135deg, ${generateRandomColor()}, ${generateRandomColor()})`
+                    }));
+                    renderApplications();
+                    updateAppsCount();
+                } else {
+                    throw new Error(data.message || 'Failed to load applications');
+                }
+            } catch (error) {
+                console.error('Failed to load applications:', error);
+                showToast('error', 'Failed to load applications from server');
+                // Show mock data as fallback
+                AppState.applications = getMockApplications();
+                renderApplications();
+                updateAppsCount();
+            }
+        }
+
+        function generateRandomColor() {
+            const colors = [
+                '#0066ff', '#7c3aed', '#ec4899', '#f97316',
+                '#10b981', '#06b6d4', '#eab308', '#ef4444'
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function getMockApplications() {
+            return [
+                {
+                    id: 1,
+                    name: 'Task Manager',
+                    displayName: 'Task Manager Pro',
+                    description: 'Comprehensive task and project management application',
+                    status: 'active',
+                    icon: 'bi-check2-square',
+                    color: 'linear-gradient(135deg, #0066ff, #7c3aed)',
+                    createdAt: new Date('2024-01-15'),
+                    updatedAt: new Date('2024-12-28')
+                },
+                {
+                    id: 2,
+                    name: 'CRM System',
+                    displayName: 'Customer CRM',
+                    description: 'Customer relationship management and sales tracking',
+                    status: 'active',
+                    icon: 'bi-people',
+                    color: 'linear-gradient(135deg, #10b981, #06b6d4)',
+                    createdAt: new Date('2024-02-10'),
+                    updatedAt: new Date('2024-12-27')
+                },
+                {
+                    id: 3,
+                    name: 'Inventory',
+                    displayName: 'Inventory Manager',
+                    description: 'Track and manage inventory across multiple warehouses',
+                    status: 'development',
+                    icon: 'bi-box-seam',
+                    color: 'linear-gradient(135deg, #f97316, #ec4899)',
+                    createdAt: new Date('2024-03-05'),
+                    updatedAt: new Date('2024-12-20')
+                },
+                {
+                    id: 4,
+                    name: 'HR Portal',
+                    displayName: 'HR Management Portal',
+                    description: 'Employee management, payroll, and benefits administration',
+                    status: 'active',
+                    icon: 'bi-person-badge',
+                    color: 'linear-gradient(135deg, #ec4899, #7c3aed)',
+                    createdAt: new Date('2024-04-12'),
+                    updatedAt: new Date('2024-12-25')
+                },
+                {
+                    id: 5,
+                    name: 'Support Desk',
+                    displayName: 'Help Desk System',
+                    description: 'Customer support ticketing and knowledge base',
+                    status: 'inactive',
+                    icon: 'bi-headset',
+                    color: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
+                    createdAt: new Date('2024-05-20'),
+                    updatedAt: new Date('2024-11-15')
+                },
+                {
+                    id: 6,
+                    name: 'Analytics',
+                    displayName: 'Business Analytics',
+                    description: 'Data visualization and business intelligence platform',
+                    status: 'development',
+                    icon: 'bi-graph-up',
+                    color: 'linear-gradient(135deg, #eab308, #f97316)',
+                    createdAt: new Date('2024-06-08'),
+                    updatedAt: new Date('2024-12-26')
+                }
+            ];
+        }
+
+        function filterAndDisplayApplications() {
+            let filtered = [...AppState.applications];
+
+            // Apply search filter
+            if (AppState.searchQuery) {
+                const query = AppState.searchQuery.toLowerCase();
+                filtered = filtered.filter(app =>
+                    app.name.toLowerCase().includes(query) ||
+                    app.displayName.toLowerCase().includes(query) ||
+                    app.description.toLowerCase().includes(query)
+                );
+            }
+
+            // Apply status filter
+            if (AppState.statusFilter) {
+                filtered = filtered.filter(app => app.status === AppState.statusFilter);
+            }
+
+            // Apply sorting
+            filtered.sort((a, b) => {
+                switch (AppState.sortBy) {
+                    case 'name':
+                        return a.name.localeCompare(b.name);
+                    case 'created':
+                        return new Date(b.createdAt) - new Date(a.createdAt);
+                    case 'updated':
+                        return new Date(b.updatedAt) - new Date(a.updatedAt);
+                    default:
+                        return 0;
+                }
+            });
+
+            renderApplicationsGrid(filtered);
+        }
+
+        function renderApplications() {
+            filterAndDisplayApplications();
+        }
+
+        function renderApplicationsGrid(apps) {
+            const grid = document.getElementById('cardsGrid');
+            const emptyState = document.getElementById('emptyState');
+
+            if (apps.length === 0) {
+                emptyState.style.display = 'block';
+                // Remove existing app cards
+                grid.querySelectorAll('.app-card').forEach(card => card.remove());
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            // Remove existing app cards
+            grid.querySelectorAll('.app-card').forEach(card => card.remove());
+
+            // Add new cards
+            apps.forEach(app => {
+                const card = createAppCard(app);
+                grid.appendChild(card);
+            });
+        }
+
+        function createAppCard(app) {
+            const isFavorite = AppState.favorites.has(app.id);
+            const card = document.createElement('div');
+            card.className = 'app-card';
+            card.innerHTML = `
+                <div class="app-card-header">
+                    <div class="app-icon" style="background: ${app.color}">
+                        <i class="${app.icon}"></i>
+                    </div>
+                    <div class="app-actions">
+                        <button type="button" class="card-action-btn ${isFavorite ? 'pinned' : ''}" onclick="toggleFavorite(${app.id}); event.stopPropagation();">
+                            <i class="bi ${isFavorite ? 'bi-star-fill' : 'bi-star'}"></i>
+                        </button>
+                        <button type="button" class="card-action-btn" onclick="showAppMenu(${app.id}, event)">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="app-card-body">
+                    <h3 class="app-name">${app.displayName}</h3>
+                    <p class="app-description">${app.description}</p>
+                </div>
+                <div class="app-card-footer">
+                    <div class="app-meta">
+                        <span><i class="bi bi-clock"></i> ${formatDate(app.updatedAt)}</span>
+                    </div>
+                    <span class="status-badge ${app.status}">${app.status}</span>
+                </div>
+            `;
+
+            card.addEventListener('click', () => openApplication(app.id));
+            return card;
+        }
+
+        function renderTableView() {
+            const tbody = document.getElementById('tableBody');
+            const apps = AppState.applications;
+
+            if (apps.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 3rem;">
+                            <div class="empty-icon"><i class="bi bi-grid-3x3-gap"></i></div>
+                            <div class="empty-title">No applications yet</div>
+                            <div class="empty-description">Get started by creating your first application</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = apps.map(app => {
+                const isFavorite = AppState.favorites.has(app.id);
+                return `
+                    <tr onclick="openApplication(${app.id})" style="cursor: pointer;">
+                        <td>
+                            <input type="checkbox" onclick="event.stopPropagation();">
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div class="app-icon" style="background: ${app.color}; width: 32px; height: 32px; font-size: 1rem;">
+                                    <i class="${app.icon}"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600;">${app.displayName}</div>
+                                    <div style="font-size: 0.875rem; color: var(--exprsn-text-muted);">${app.name}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${app.description}</td>
+                        <td><span class="status-badge ${app.status}">${app.status}</span></td>
+                        <td>${formatDate(app.createdAt)}</td>
+                        <td>${formatDate(app.updatedAt)}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button type="button" class="card-action-btn ${isFavorite ? 'pinned' : ''}" onclick="toggleFavorite(${app.id}); event.stopPropagation();">
+                                    <i class="bi ${isFavorite ? 'bi-star-fill' : 'bi-star'}"></i>
+                                </button>
+                                <button type="button" class="card-action-btn" onclick="showAppMenu(${app.id}); event.stopPropagation();">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateAppsCount() {
+            const count = AppState.applications.length;
+            document.getElementById('appsCount').textContent = count;
+        }
+
+        function formatDate(date) {
+            const d = new Date(date);
+            const now = new Date();
+            const diff = now - d;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return `${days} days ago`;
+            return d.toLocaleDateString();
+        }
+
+        function openApplication(id) {
+            console.log('Opening application:', id);
+            // Redirect to application builder or preview
+            window.location.href = `/lowcode/apps/${id}`;
+        }
+
+        function showAppMenu(id, event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            AppState.contextMenuAppId = id;
+            const menu = document.getElementById('contextMenu');
+
+            // Position menu at mouse location
+            menu.style.left = `${event.pageX}px`;
+            menu.style.top = `${event.pageY}px`;
+            menu.classList.add('show');
+
+            // Close menu when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', closeContextMenu, { once: true });
+            }, 0);
+        }
+
+        function closeContextMenu() {
+            const menu = document.getElementById('contextMenu');
+            menu.classList.remove('show');
+            AppState.contextMenuAppId = null;
+        }
+
+        async function handleContextMenuAction(action) {
+            const appId = AppState.contextMenuAppId;
+            if (!appId) return;
+
+            const app = AppState.applications.find(a => a.id === appId);
+            if (!app) return;
+
+            closeContextMenu();
+
+            switch (action) {
+                case 'open':
+                    openApplication(appId);
+                    break;
+
+                case 'edit':
+                    editApplication(appId);
+                    break;
+
+                case 'clone':
+                    await cloneApplication(app);
+                    break;
+
+                case 'export':
+                    await exportApplication(app);
+                    break;
+
+                case 'delete':
+                    await deleteApplication(appId, app.name);
+                    break;
+            }
+        }
+
+        function editApplication(id) {
+            window.location.href = `/lowcode/app-designer?appId=${id}`;
+        }
+
+        async function cloneApplication(app) {
+            const newName = prompt(`Clone "${app.name}" as:`, `${app.name}-copy`);
+            if (!newName) return;
+
+            try {
+                const response = await fetch(`/lowcode/api/applications/${app.id}/clone`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: newName,
+                        displayName: `${app.displayName} (Copy)`,
+                        cloneOptions: {
+                            entities: true,
+                            forms: true,
+                            data: false
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast('success', `Application "${newName}" cloned successfully`);
+                    loadApplications();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                showToast('error', `Failed to clone application: ${error.message}`);
+            }
+        }
+
+        async function exportApplication(app) {
+            try {
+                const response = await fetch(`/lowcode/api/applications/${app.id}/export`);
+                const blob = await response.blob();
+
+                // Download file
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${app.name}-export.json`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                showToast('success', `Application "${app.name}" exported`);
+            } catch (error) {
+                showToast('error', `Failed to export application: ${error.message}`);
+            }
+        }
+
+        async function deleteApplication(id, name) {
+            if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/lowcode/api/applications/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast('success', `Application "${name}" deleted`);
+                    // Emit socket event for real-time update to other clients
+                    if (AppState.socket && AppState.socket.connected) {
+                        AppState.socket.emit('application:deleted', {
+                            applicationId: id,
+                            userId: AppState.user.id
+                        });
+                    }
+                    // Remove from local state
+                    AppState.applications = AppState.applications.filter(a => a.id !== id);
+                    AppState.favorites.delete(id);
+                    saveFavorites();
+                    renderApplications();
+                    renderFavorites();
+                    updateAppsCount();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                showToast('error', `Failed to delete application: ${error.message}`);
+            }
+        }
+
+        function showToast(type, message) {
+            // Simple toast notification (you can enhance this with a library)
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                background: ${type === 'success' ? 'var(--exprsn-success)' : type === 'error' ? 'var(--exprsn-danger)' : 'var(--exprsn-info)'};
+                color: white;
+                border-radius: var(--exprsn-radius-lg);
+                box-shadow: var(--exprsn-shadow-xl);
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
+        function openNewApplicationModal() {
+            // Redirect to wizard
+            window.location.href = '/lowcode/applications?modal=new';
+        }
+
+        // ============================================================================
+        // INITIALIZATION
+        // ============================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved preferences
+            loadTheme();
+            loadFavorites();
+
+            const savedView = localStorage.getItem('preferred-view') || 'grid';
+            switchView(savedView);
+
+            // Initialize user info
+            document.getElementById('userInitials').textContent = AppState.user.initials;
+            document.getElementById('userName').textContent = AppState.user.name.split(' ')[0];
+            document.getElementById('userFullName').textContent = AppState.user.name;
+            document.getElementById('userEmail').textContent = AppState.user.email;
+
+            // Load applications
+            loadApplications();
+            renderFavorites();
+
+            // Event listeners
+            document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+            document.getElementById('userMenuBtn').addEventListener('click', toggleUserMenu);
+            document.getElementById('switchUserBtn').addEventListener('click', switchUser);
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+            document.getElementById('newAppBtn').addEventListener('click', openNewApplicationModal);
+            document.getElementById('emptyCreateBtn').addEventListener('click', openNewApplicationModal);
+
+            // Search and filters
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                AppState.searchQuery = e.target.value;
+                filterAndDisplayApplications();
+            });
+
+            document.getElementById('statusFilter').addEventListener('change', (e) => {
+                AppState.statusFilter = e.target.value;
+                filterAndDisplayApplications();
+            });
+
+            document.getElementById('sortBy').addEventListener('change', (e) => {
+                AppState.sortBy = e.target.value;
+                loadApplications(); // Reload from API with new sort
+            });
+
+            // Context menu listeners
+            document.querySelectorAll('.context-menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const action = item.dataset.action;
+                    handleContextMenuAction(action);
+                });
+            });
+
+            // Initialize Socket.IO
+            initializeSocket();
+
+            // View toggle
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    switchView(btn.dataset.view);
+                });
+            });
+
+            // Close user menu when clicking outside
+            document.addEventListener('click', (e) => {
+                const userMenu = document.querySelector('.user-menu');
+                if (!userMenu.contains(e.target)) {
+                    closeUserMenu();
+                }
+            });
+
+            // Navigation links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    // Only prevent default for internal view switching (data-view attribute)
+                    // Tool links (.tool-link) should navigate normally
+                    if (link.dataset.view && !link.classList.contains('tool-link')) {
+                        e.preventDefault();
+                        // Update active state
+                        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                        link.classList.add('active');
+                        // Handle view switching
+                        console.log('Switch to view:', link.dataset.view);
+                    }
+                    // Tool links will navigate normally via href
+                });
+            });
+        });
+    </script>
+</body>
+</html>

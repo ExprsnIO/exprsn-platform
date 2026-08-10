@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grid Designer - Exprsn Low-Code Platform</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: background-color 0.3s ease, color 0.3s ease;
+      overflow: hidden;
+    }
+
+    .designer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ============================================================================
+       HEADER
+       ============================================================================ */
+
+    .designer-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .back-btn {
+      padding: 0.5rem;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+      font-size: 1.25rem;
+    }
+
+    .back-btn:hover {
+      background: var(--gray-100);
+      color: var(--text-primary);
+    }
+
+    .grid-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .grid-name-input {
+      font-size: 1.25rem;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-primary);
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+      min-width: 250px;
+    }
+
+    .grid-name-input:hover {
+      border-color: var(--border-color);
+      background: var(--bg-primary);
+    }
+
+    .grid-name-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: var(--bg-primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* ============================================================================
+       MAIN CONTENT
+       ============================================================================ */
+
+    .designer-main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Left Panel - Column Configuration */
+    .left-panel {
+      width: 320px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .columns-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .column-item {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .column-item:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .column-item.active {
+      border-color: var(--primary);
+      background: var(--primary-lightest);
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.25rem;
+    }
+
+    .column-name {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+    }
+
+    .column-type {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      background: var(--gray-100);
+      padding: 0.125rem 0.5rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .column-actions {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .column-action-btn {
+      padding: 0.25rem 0.5rem;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .column-action-btn:hover {
+      background: var(--gray-100);
+      color: var(--text-primary);
+    }
+
+    /* Center Panel - Preview */
+    .center-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+      overflow: hidden;
+    }
+
+    .preview-header {
+      padding: 1rem 1.5rem;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .preview-content {
+      flex: 1;
+      overflow: auto;
+      padding: 2rem;
+    }
+
+    #gridPreviewContainer {
+      min-height: 400px;
+    }
+
+    /* Right Panel - Settings */
+    .right-panel {
+      width: 320px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .settings-section {
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem;
+    }
+
+    .settings-section:last-child {
+      border-bottom: none;
+    }
+
+    .section-title {
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-primary);
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .form-check {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-check input[type="checkbox"] {
+      cursor: pointer;
+    }
+
+    .form-check label {
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+
+    /* ============================================================================
+       MODALS
+       ============================================================================ */
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1.25rem;
+      padding: 0.25rem;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background: var(--gray-100);
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    /* ============================================================================
+       BUTTONS
+       ============================================================================ */
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-md);
+      border: none;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--gray-200);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+      background: var(--gray-300);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: var(--success-dark);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: var(--danger-dark);
+    }
+
+    .btn-sm {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.8125rem;
+    }
+
+    /* ============================================================================
+       UTILITIES
+       ============================================================================ */
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-state p {
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="designer-container">
+    <!-- Header -->
+    <header class="designer-header">
+      <div class="header-left">
+        <button class="back-btn" onclick="goBack()">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <div class="grid-title-group">
+          <input
+            type="text"
+            id="gridDisplayName"
+            class="grid-name-input"
+            placeholder="Unnamed Grid"
+            value="<%= grid?.displayName || 'Unnamed Grid' %>">
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-secondary" onclick="GridDesigner.previewGrid()">
+          <i class="fas fa-eye"></i>
+          Preview
+        </button>
+        <button class="btn btn-primary" onclick="GridDesigner.save()">
+          <i class="fas fa-save"></i>
+          Save
+        </button>
+        <button class="btn btn-success" onclick="GridDesigner.publish()">
+          <i class="fas fa-rocket"></i>
+          Publish
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="designer-main">
+      <!-- Left Panel - Columns -->
+      <aside class="left-panel">
+        <div class="panel-header">
+          <h3 class="panel-title">Columns</h3>
+          <button class="btn btn-primary btn-sm" onclick="GridDesigner.openAddColumnModal()">
+            <i class="fas fa-plus"></i>
+            Add Column
+          </button>
+        </div>
+        <div class="panel-content">
+          <div class="columns-list" id="columnsList">
+            <!-- Columns will be rendered here -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center Panel - Preview -->
+      <div class="center-panel">
+        <div class="preview-header">
+          <h3 class="panel-title">Live Preview</h3>
+          <button class="btn btn-secondary btn-sm" onclick="GridDesigner.refreshPreview()">
+            <i class="fas fa-sync-alt"></i>
+            Refresh
+          </button>
+        </div>
+        <div class="preview-content">
+          <div id="gridPreviewContainer"></div>
+        </div>
+      </div>
+
+      <!-- Right Panel - Settings -->
+      <aside class="right-panel">
+        <div class="panel-content">
+          <!-- Data Source Settings -->
+          <div class="settings-section">
+            <h4 class="section-title">Data Source</h4>
+            <div class="form-group">
+              <label class="form-label">Entity/Data Source</label>
+              <select class="form-control" id="dataSourceId">
+                <option value="">Select data source...</option>
+                <!-- Options populated dynamically -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Pagination Settings -->
+          <div class="settings-section">
+            <h4 class="section-title">Pagination</h4>
+            <div class="form-check">
+              <input type="checkbox" id="paginationEnabled" checked>
+              <label for="paginationEnabled">Enable Pagination</label>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Page Size</label>
+              <select class="form-control" id="pageSize">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Feature Settings -->
+          <div class="settings-section">
+            <h4 class="section-title">Features</h4>
+            <div class="form-check">
+              <input type="checkbox" id="sortingEnabled" checked>
+              <label for="sortingEnabled">Enable Sorting</label>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" id="filteringEnabled" checked>
+              <label for="filteringEnabled">Enable Filtering</label>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" id="exportEnabled">
+              <label for="exportEnabled">Enable Export</label>
+            </div>
+          </div>
+
+          <!-- Grid Type -->
+          <div class="settings-section">
+            <h4 class="section-title">Grid Type</h4>
+            <div class="form-group">
+              <select class="form-control" id="gridType">
+                <option value="readonly">Read-Only</option>
+                <option value="editable">Editable</option>
+                <option value="master-detail">Master-Detail</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Add Column Modal -->
+  <div class="modal-overlay" id="addColumnModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Column</h3>
+        <button class="modal-close" onclick="GridDesigner.closeAddColumnModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Column Name (ID)</label>
+          <input type="text" class="form-control" id="columnName" placeholder="e.g., firstName">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Display Name</label>
+          <input type="text" class="form-control" id="columnDisplayName" placeholder="e.g., First Name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data Type</label>
+          <select class="form-control" id="columnType">
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="date">Date</option>
+            <option value="datetime">Date & Time</option>
+            <option value="boolean">Boolean</option>
+            <option value="currency">Currency</option>
+            <option value="email">Email</option>
+            <option value="link">Link/URL</option>
+            <option value="image">Image</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Width (pixels)</label>
+          <input type="number" class="form-control" id="columnWidth" placeholder="e.g., 150" min="50" max="1000">
+        </div>
+        <div class="form-check">
+          <input type="checkbox" id="columnSortable" checked>
+          <label for="columnSortable">Sortable</label>
+        </div>
+        <div class="form-check">
+          <input type="checkbox" id="columnVisible" checked>
+          <label for="columnVisible">Visible</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="GridDesigner.closeAddColumnModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="GridDesigner.addColumn()">Add Column</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Data -->
+  <script>
+    window.GRID_ID = '<%= grid?.id || null %>';
+    window.APPLICATION_ID = '<%= applicationId %>';
+    window.GRID_DATA = <%- JSON.stringify(grid || {}) %>;
+  </script>
+
+  <!-- Grid Runtime Engine -->
+  <script src="/lowcode/static/js/lowcode-grid-runtime.js"></script>
+
+  <!-- Grid Designer Script -->
+  <script src="/lowcode/static/js/grid-designer.js"></script>
+</body>
+</html>

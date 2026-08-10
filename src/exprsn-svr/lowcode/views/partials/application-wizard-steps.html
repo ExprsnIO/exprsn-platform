@@ -1,0 +1,429 @@
+<!-- WIZARD STEP CONTENT PANELS -->
+
+<!-- Step 1: Basic Information -->
+<div class="wizard-step-panel active" data-step-panel="1">
+  <h3 class="step-panel-title">
+    <i class="fas fa-info-circle"></i>
+    Basic Information
+  </h3>
+  <p class="step-panel-desc">Set up your application's name, description, and initial configuration.</p>
+
+  <div class="form-group">
+    <label class="form-label" for="appName">Application Name *</label>
+    <input
+      type="text"
+      class="form-input"
+      id="appName"
+      placeholder="my-app"
+      required
+      pattern="[a-zA-Z][a-zA-Z0-9_-]*"
+    >
+    <small style="color: var(--text-secondary); font-size: 0.75rem;">
+      Must start with a letter, can contain letters, numbers, hyphens, and underscores
+    </small>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="appDisplayName">Display Name *</label>
+    <input
+      type="text"
+      class="form-input"
+      id="appDisplayName"
+      placeholder="My Application"
+      required
+    >
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="appDescription">Description</label>
+    <textarea
+      class="form-textarea"
+      id="appDescription"
+      placeholder="Brief description of your application"
+      style="min-height: 100px;"
+    ></textarea>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="appVersion">Initial Version</label>
+    <input
+      type="text"
+      class="form-input"
+      id="appVersion"
+      placeholder="1.0.0"
+      value="1.0.0"
+      pattern="^\d+\.\d+\.\d+$"
+    >
+  </div>
+</div>
+
+<!-- Step 2: CA & Authentication -->
+<div class="wizard-step-panel" data-step-panel="2">
+  <h3 class="step-panel-title">
+    <i class="fas fa-shield-alt"></i>
+    Certificate Authority & Authentication
+  </h3>
+  <p class="step-panel-desc">Configure authentication, authorization, and access control for your application.</p>
+
+  <div class="form-group">
+    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+      <input type="checkbox" id="useCAAuth" checked style="width: auto;">
+      <span class="form-label" style="margin: 0;">Use CA Token Authentication</span>
+    </label>
+    <small style="color: var(--text-secondary); font-size: 0.75rem; margin-left: 1.5rem;">
+      Secure API authentication using certificate authority tokens
+    </small>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Default User Groups</label>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;">
+        <input type="checkbox" id="groupAdmins" value="admins" style="width: auto;">
+        <span>Administrators</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;">
+        <input type="checkbox" id="groupEditors" value="editors" checked style="width: auto;">
+        <span>Editors</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;">
+        <input type="checkbox" id="groupViewers" value="viewers" checked style="width: auto;">
+        <span>Viewers</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;">
+        <input type="checkbox" id="groupPublic" value="public" style="width: auto;">
+        <span>Public Access</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Default Roles</label>
+    <div id="defaultRolesContainer">
+      <div class="role-item" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <input type="text" class="form-input" placeholder="Role name" value="Owner" style="flex: 1;">
+        <select class="form-input" style="flex: 1;">
+          <option value="all">All Permissions</option>
+          <option value="read-write">Read & Write</option>
+          <option value="read">Read Only</option>
+        </select>
+        <button type="button" class="btn btn-secondary" style="padding: 0.5rem 0.75rem;">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+    <button type="button" class="btn btn-secondary" id="addRole" style="margin-top: 0.5rem;">
+      <i class="fas fa-plus"></i>
+      Add Role
+    </button>
+  </div>
+</div>
+
+<!-- Step 3: Git Integration -->
+<div class="wizard-step-panel" data-step-panel="3">
+  <h3 class="step-panel-title">
+    <i class="fab fa-git-alt"></i>
+    Git Integration
+  </h3>
+  <p class="step-panel-desc">Set up version control for your application artifacts.</p>
+
+  <div class="form-group">
+    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+      <input type="checkbox" id="initGitRepo" checked style="width: auto;">
+      <span class="form-label" style="margin: 0;">Initialize Git Repository</span>
+    </label>
+  </div>
+
+  <div id="gitOptions" style="padding-left: 1.5rem;">
+    <div class="form-group">
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="generateReadme" checked style="width: auto;">
+        <span class="form-label" style="margin: 0;">Generate README.md</span>
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="generateGitignore" checked style="width: auto;">
+        <span class="form-label" style="margin: 0;">Generate .gitignore</span>
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+        <input type="checkbox" id="initialCommit" checked style="width: auto;">
+        <span class="form-label" style="margin: 0;">Create Initial Commit</span>
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="licenseType">License</label>
+      <select class="form-input" id="licenseType">
+        <option value="">No License</option>
+        <option value="mit" selected>MIT License</option>
+        <option value="apache-2.0">Apache License 2.0</option>
+        <option value="gpl-3.0">GPL 3.0</option>
+        <option value="bsd-3-clause">BSD 3-Clause</option>
+        <option value="unlicense">The Unlicense</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="gitRemoteUrl">Remote Repository URL (Optional)</label>
+      <input
+        type="url"
+        class="form-input"
+        id="gitRemoteUrl"
+        placeholder="https://github.com/user/repo.git"
+      >
+      <small style="color: var(--text-secondary); font-size: 0.75rem;">
+        Link to an existing GitHub/GitLab repository
+      </small>
+    </div>
+  </div>
+</div>
+
+<!-- Step 4: Application Template -->
+<div class="wizard-step-panel" data-step-panel="4">
+  <h3 class="step-panel-title">
+    <i class="fas fa-clone"></i>
+    Application Template
+  </h3>
+  <p class="step-panel-desc">Choose a starting template or build from scratch.</p>
+
+  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+    <div class="template-card active" data-template="blank">
+      <i class="fas fa-file-alt" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem;"></i>
+      <h4 style="margin-bottom: 0.5rem;">Blank Application</h4>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0;">Start from scratch with no pre-built components</p>
+    </div>
+
+    <div class="template-card" data-template="crm">
+      <i class="fas fa-users" style="font-size: 3rem; color: var(--success); margin-bottom: 1rem;"></i>
+      <h4 style="margin-bottom: 0.5rem;">CRM Application</h4>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0;">Customer relationship management with contacts, leads, and opportunities</p>
+    </div>
+
+    <div class="template-card" data-template="project-management">
+      <i class="fas fa-tasks" style="font-size: 3rem; color: var(--warning); margin-bottom: 1rem;"></i>
+      <h4 style="margin-bottom: 0.5rem;">Project Management</h4>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0;">Task tracking, projects, and team collaboration</p>
+    </div>
+
+    <div class="template-card" data-template="helpdesk">
+      <i class="fas fa-headset" style="font-size: 3rem; color: var(--danger); margin-bottom: 1rem;"></i>
+      <h4 style="margin-bottom: 0.5rem;">Help Desk</h4>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0;">Support ticketing and customer service</p>
+    </div>
+
+    <div class="template-card" data-template="inventory">
+      <i class="fas fa-boxes" style="font-size: 3rem; color: var(--info); margin-bottom: 1rem;"></i>
+      <h4 style="margin-bottom: 0.5rem;">Inventory Management</h4>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0;">Stock tracking, warehouses, and suppliers</p>
+    </div>
+
+    <div class="template-card" data-template="employee-directory">
+      <i class="fas fa-id-card" style="font-size: 3rem; color: var(--purple); margin-bottom: 1rem;"></i>
+      <h4 style="margin-bottom: 0.5rem;">Employee Directory</h4>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0;">Employee profiles and organizational structure</p>
+    </div>
+  </div>
+
+  <input type="hidden" id="selectedTemplate" value="blank">
+</div>
+
+<!-- Step 5: Data Sources -->
+<div class="wizard-step-panel" data-step-panel="5">
+  <h3 class="step-panel-title">
+    <i class="fas fa-database"></i>
+    Data Sources
+  </h3>
+  <p class="step-panel-desc">Configure connections to Forge, databases, and external APIs.</p>
+
+  <div class="form-group">
+    <label class="form-label">Select Data Sources</label>
+    <div id="dataSourcesList">
+      <!-- Forge CRM -->
+      <div class="datasource-item" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem;">
+        <label style="display: flex; align-items: start; gap: 0.75rem; cursor: pointer;">
+          <input type="checkbox" id="dsForge" value="forge" style="margin-top: 0.25rem; width: auto;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+              <i class="fas fa-industry" style="color: var(--primary);"></i>
+              <strong>Exprsn Forge (CRM/ERP)</strong>
+            </div>
+            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
+              Integrated CRM, ERP, and Groupware modules
+            </p>
+          </div>
+        </label>
+      </div>
+
+      <!-- PostgreSQL -->
+      <div class="datasource-item" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem;">
+        <label style="display: flex; align-items: start; gap: 0.75rem; cursor: pointer;">
+          <input type="checkbox" id="dsPostgres" value="postgres" checked style="margin-top: 0.25rem; width: auto;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+              <i class="fas fa-database" style="color: var(--info);"></i>
+              <strong>PostgreSQL Database</strong>
+            </div>
+            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
+              Direct SQL database connection (automatically configured)
+            </p>
+          </div>
+        </label>
+      </div>
+
+      <!-- REST API -->
+      <div class="datasource-item" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem;">
+        <label style="display: flex; align-items: start; gap: 0.75rem; cursor: pointer;">
+          <input type="checkbox" id="dsRestAPI" value="rest-api" style="margin-top: 0.25rem; width: auto;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+              <i class="fas fa-plug" style="color: var(--success);"></i>
+              <strong>REST API</strong>
+            </div>
+            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
+              Connect to external REST APIs
+            </p>
+            <input type="url" class="form-input" placeholder="API Base URL" style="margin-top: 0.5rem; display: none;" id="restAPIUrl">
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 6: Queries -->
+<div class="wizard-step-panel" data-step-panel="6">
+  <h3 class="step-panel-title">
+    <i class="fas fa-search"></i>
+    Queries
+  </h3>
+  <p class="step-panel-desc">Define database queries for your application (optional, can be added later).</p>
+
+  <div style="text-align: center; padding: 2rem; background: var(--bg-tertiary); border-radius: var(--radius-md);">
+    <i class="fas fa-search" style="font-size: 3rem; color: var(--text-tertiary); margin-bottom: 1rem;"></i>
+    <h4 style="margin-bottom: 0.5rem;">No Queries Yet</h4>
+    <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+      Queries can be created after application setup using the Visual Query Builder
+    </p>
+    <button type="button" class="btn btn-secondary" id="skipQueries">
+      <i class="fas fa-forward"></i>
+      Skip this step
+    </button>
+  </div>
+</div>
+
+<!-- Step 7: Forms -->
+<div class="wizard-step-panel" data-step-panel="7">
+  <h3 class="step-panel-title">
+    <i class="fas fa-wpforms"></i>
+    Forms
+  </h3>
+  <p class="step-panel-desc">Create data entry forms (optional, can be added later).</p>
+
+  <div style="text-align: center; padding: 2rem; background: var(--bg-tertiary); border-radius: var(--radius-md);">
+    <i class="fas fa-wpforms" style="font-size: 3rem; color: var(--text-tertiary); margin-bottom: 1rem;"></i>
+    <h4 style="margin-bottom: 0.5rem;">No Forms Yet</h4>
+    <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+      Forms can be created after application setup using the Form Designer Pro
+    </p>
+    <button type="button" class="btn btn-secondary" id="skipForms">
+      <i class="fas fa-forward"></i>
+      Skip this step
+    </button>
+  </div>
+</div>
+
+<!-- Step 8: HTML Applications -->
+<div class="wizard-step-panel" data-step-panel="8">
+  <h3 class="step-panel-title">
+    <i class="fas fa-code"></i>
+    HTML Applications
+  </h3>
+  <p class="step-panel-desc">Create custom HTML pages for your application (optional).</p>
+
+  <div class="form-group">
+    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+      <input type="checkbox" id="createLandingPage" checked style="width: auto;">
+      <span class="form-label" style="margin: 0;">Create Default Landing Page</span>
+    </label>
+    <small style="color: var(--text-secondary); font-size: 0.75rem; margin-left: 1.5rem;">
+      Automatically generates a home page for your application
+    </small>
+  </div>
+
+  <div class="form-group">
+    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+      <input type="checkbox" id="createAboutPage" style="width: auto;">
+      <span class="form-label" style="margin: 0;">Create About Page</span>
+    </label>
+  </div>
+
+  <div class="form-group">
+    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+      <input type="checkbox" id="createContactPage" style="width: auto;">
+      <span class="form-label" style="margin: 0;">Create Contact Page</span>
+    </label>
+  </div>
+</div>
+
+<!-- Step 9: Charts & Functions -->
+<div class="wizard-step-panel" data-step-panel="9">
+  <h3 class="step-panel-title">
+    <i class="fas fa-chart-bar"></i>
+    Charts & Functions
+  </h3>
+  <p class="step-panel-desc">Configure data visualization and custom functions (optional).</p>
+
+  <div class="form-group">
+    <label class="form-label">Default Chart Library</label>
+    <select class="form-input" id="chartLibrary">
+      <option value="none">None (add later)</option>
+      <option value="chartjs" selected>Chart.js</option>
+      <option value="d3">D3.js</option>
+      <option value="plotly">Plotly.js</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Function Templates</label>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;">
+        <input type="checkbox" id="funcValidation" value="validation" checked style="width: auto;">
+        <span>Data Validation</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;">
+        <input type="checkbox" id="funcFormatting" value="formatting" checked style="width: auto;">
+        <span>Formatting Helpers</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;">
+        <input type="checkbox" id="funcCalculations" value="calculations" style="width: auto;">
+        <span>Calculations</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer;">
+        <input type="checkbox" id="funcUtilities" value="utilities" checked style="width: auto;">
+        <span>Utilities</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Global Variables</label>
+    <div id="globalVariablesContainer">
+      <div class="variable-item" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <input type="text" class="form-input" placeholder="Variable name" value="APP_NAME" style="flex: 1;">
+        <input type="text" class="form-input" placeholder="Value" style="flex: 1;">
+        <button type="button" class="btn btn-secondary" style="padding: 0.5rem 0.75rem;">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+    <button type="button" class="btn btn-secondary" id="addVariable" style="margin-top: 0.5rem;">
+      <i class="fas fa-plus"></i>
+      Add Variable
+    </button>
+  </div>
+</div>

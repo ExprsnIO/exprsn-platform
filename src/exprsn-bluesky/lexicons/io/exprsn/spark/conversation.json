@@ -1,0 +1,124 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.spark.conversation",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Conversation (chat) record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["participants", "createdAt"],
+        "properties": {
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "did"
+            },
+            "minLength": 2,
+            "maxLength": 50,
+            "description": "Conversation participants (2-50 users)"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Group conversation name (optional for 1:1)"
+          },
+          "avatar": {
+            "type": "blob",
+            "accept": ["image/*"],
+            "maxSize": 1000000,
+            "description": "Group avatar"
+          },
+          "isGroup": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether this is a group conversation"
+          },
+          "isEncrypted": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether messages are end-to-end encrypted"
+          },
+          "settings": {
+            "type": "ref",
+            "ref": "#conversationSettings"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "conversationSettings": {
+      "type": "object",
+      "properties": {
+        "muteUntil": {
+          "type": "string",
+          "format": "datetime",
+          "description": "Mute notifications until this time"
+        },
+        "isPinned": {
+          "type": "boolean",
+          "default": false
+        },
+        "customColor": {
+          "type": "string",
+          "description": "Hex color for conversation UI"
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["uri", "cid", "participants", "createdAt"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "app.bsky.actor.defs#profileViewBasic"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "avatar": {
+          "type": "string",
+          "format": "uri"
+        },
+        "isGroup": {
+          "type": "boolean"
+        },
+        "isEncrypted": {
+          "type": "boolean"
+        },
+        "lastMessage": {
+          "type": "ref",
+          "ref": "io.exprsn.spark.message#view"
+        },
+        "unreadCount": {
+          "type": "integer",
+          "description": "Number of unread messages for current user"
+        },
+        "settings": {
+          "type": "ref",
+          "ref": "#conversationSettings"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    }
+  }
+}

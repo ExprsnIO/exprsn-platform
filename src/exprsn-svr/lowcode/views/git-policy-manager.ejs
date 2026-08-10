@@ -1,0 +1,334 @@
+<%
+    const title = 'Repository Policies';
+    const currentPath = '/lowcode/git/policies';
+%>
+<%- include('./partials/git-header') %>
+<%- include('./partials/git-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-shield-check me-2"></i>
+                Repository Policies
+            </h1>
+            <p class="page-subtitle">Manage branch protection, code owners, and merge strategies</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCodeownersModal">
+                <i class="bi bi-file-earmark-person"></i>
+                Edit CODEOWNERS
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPolicyModal">
+                <i class="bi bi-plus-circle"></i>
+                Add Policy
+            </button>
+        </div>
+    </div>
+
+    <!-- Branch Protection Rules -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-git me-2"></i>
+                Branch Protection Rules
+            </h3>
+            <span class="badge badge-primary">2 Active</span>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Branch Pattern</th>
+                            <th>Required Reviewers</th>
+                            <th>Status Checks</th>
+                            <th>Restrictions</th>
+                            <th class="sortable">Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>main</code></td>
+                            <td><span class="badge badge-success">2 Required</span></td>
+                            <td><span class="badge badge-primary">CI/CD</span></td>
+                            <td>
+                                <span class="badge badge-warning me-1">No Force Push</span>
+                                <span class="badge badge-warning">No Deletions</span>
+                            </td>
+                            <td>2025-12-15</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>release/*</code></td>
+                            <td><span class="badge badge-success">1 Required</span></td>
+                            <td><span class="badge badge-primary">Tests</span></td>
+                            <td>
+                                <span class="badge badge-warning">No Force Push</span>
+                            </td>
+                            <td>2025-12-10</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Merge Strategies -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-diagram-3 me-2"></i>
+                Merge Strategies
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Default Merge Method</label>
+                        <select class="form-control form-select">
+                            <option selected>Merge Commit</option>
+                            <option>Squash and Merge</option>
+                            <option>Rebase and Merge</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Auto Delete Head Branches</label>
+                        <select class="form-control form-select">
+                            <option selected>Enabled</option>
+                            <option>Disabled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Require Linear History</label>
+                        <select class="form-control form-select">
+                            <option>Enabled</option>
+                            <option selected>Disabled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    Save Merge Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Required Status Checks -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-check-circle me-2"></i>
+                Required Status Checks
+            </h3>
+            <button class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-circle"></i>
+                Add Check
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Check Name</th>
+                            <th>Branch Pattern</th>
+                            <th>Required</th>
+                            <th>Timeout (min)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Build & Test</strong></td>
+                            <td><code>main, release/*</code></td>
+                            <td><span class="badge badge-danger">Required</span></td>
+                            <td>30</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Security Scan</strong></td>
+                            <td><code>main</code></td>
+                            <td><span class="badge badge-danger">Required</span></td>
+                            <td>15</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Code Coverage</strong></td>
+                            <td><code>main, develop</code></td>
+                            <td><span class="badge badge-success">Optional</span></td>
+                            <td>20</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- CODEOWNERS -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-file-earmark-person me-2"></i>
+                CODEOWNERS Configuration
+            </h3>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">
+                Define code owners for automatic review requests. Pattern matching follows .gitignore rules.
+            </p>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Current CODEOWNERS file:</strong> 15 rules configured
+            </div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editCodeownersModal">
+                <i class="bi bi-pencil"></i>
+                Edit CODEOWNERS File
+            </button>
+        </div>
+    </div>
+</main>
+
+<!-- Add Policy Modal -->
+<div class="modal fade" id="addPolicyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background: var(--exprsn-bg-primary); border: 1px solid var(--exprsn-border-color); border-radius: var(--exprsn-radius-xl);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--exprsn-border-color);">
+                <h5 class="modal-title">Add Branch Protection Rule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Branch Pattern</label>
+                    <input type="text" class="form-control" placeholder="main, release/*, feature/*">
+                    <small class="text-muted">Use glob patterns to match multiple branches</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Required Reviewers</label>
+                    <input type="number" class="form-control" value="1" min="0" max="10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Protection Rules</label>
+                    <div class="d-flex flex-column gap-2">
+                        <div>
+                            <input type="checkbox" id="no-force-push" checked>
+                            <label for="no-force-push">Prevent force push</label>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="no-delete">
+                            <label for="no-delete">Prevent deletion</label>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="require-status">
+                            <label for="require-status">Require status checks to pass</label>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="require-review">
+                            <label for="require-review">Require pull request reviews</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid var(--exprsn-border-color);">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Create Rule</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit CODEOWNERS Modal -->
+<div class="modal fade" id="editCodeownersModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="background: var(--exprsn-bg-primary); border: 1px solid var(--exprsn-border-color); border-radius: var(--exprsn-radius-xl);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--exprsn-border-color);">
+                <h5 class="modal-title">Edit CODEOWNERS File</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <textarea class="form-control" rows="20" style="font-family: var(--exprsn-font-family-mono); font-size: 0.875rem;"># CODEOWNERS
+# Each line is a file pattern followed by one or more owners
+
+# Default owners for everything in the repo
+*       @exprsn/core-team
+
+# Order matters - the last matching pattern takes precedence
+*.js    @exprsn/javascript-team
+*.ts    @exprsn/typescript-team
+
+# Documentation
+/docs/  @exprsn/docs-team
+
+# CI/CD
+/.github/       @exprsn/devops-team
+/.gitlab-ci.yml @exprsn/devops-team
+
+# Security-critical files
+/src/auth/      @exprsn/security-team
+/src/ca/        @exprsn/security-team</textarea>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid var(--exprsn-border-color);">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Save CODEOWNERS</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('./partials/git-footer') %>

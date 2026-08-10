@@ -1,0 +1,64 @@
+<div class="row mb-4">
+  <div class="col-12">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="/admin/certificates">Certificates</a></li>
+        <li class="breadcrumb-item active"><%= certificate.serial_number %></li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-12">
+    <h2><i class="bi bi-shield-check"></i> Certificate Details</h2>
+    <p class="text-muted"><%= certificate.serial_number %></p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="table-card">
+      <div class="card-header"><h5 class="mb-0"><i class="bi bi-info-circle"></i> Certificate Information</h5></div>
+      <div class="card-body">
+        <table class="table table-borderless mb-0">
+          <tr><th width="40%">ID:</th><td><code><%= certificate.id %></code></td></tr>
+          <tr><th>Serial Number:</th><td><code><%= certificate.serial_number %></code></td></tr>
+          <tr><th>Type:</th><td><span class="badge bg-info"><%= certificate.certificate_type %></span></td></tr>
+          <tr><th>Status:</th><td><span class="badge bg-<%= certificate.status === 'active' ? 'success' : 'danger' %>"><%= certificate.status %></span></td></tr>
+          <tr><th>User:</th><td><%= certificate.user_email || 'N/A' %></td></tr>
+          <tr><th>Subject:</th><td><code><%= certificate.subject_dn %></code></td></tr>
+          <tr><th>Issuer:</th><td><code><%= certificate.issuer_dn %></code></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="table-card">
+      <div class="card-header"><h5 class="mb-0"><i class="bi bi-clock-history"></i> Validity Information</h5></div>
+      <div class="card-body">
+        <table class="table table-borderless mb-0">
+          <tr><th width="40%">Issued:</th><td><%= new Date(certificate.issued_at).toLocaleString() %></td></tr>
+          <tr><th>Expires:</th><td><%= new Date(certificate.expires_at).toLocaleString() %></td></tr>
+          <tr><th>Not Before:</th><td><%= new Date(certificate.not_before).toLocaleString() %></td></tr>
+          <tr><th>Not After:</th><td><%= new Date(certificate.not_after).toLocaleString() %></td></tr>
+          <% if (certificate.revoked_at) { %>
+          <tr><th>Revoked:</th><td><%= new Date(certificate.revoked_at).toLocaleString() %></td></tr>
+          <tr><th>Revocation Reason:</th><td><%= certificate.revocation_reason %></td></tr>
+          <% } %>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-header"><h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Certificate PEM</h5></div>
+      <div class="card-body">
+        <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><%= certificate.pem %></pre>
+      </div>
+    </div>
+  </div>
+</div>

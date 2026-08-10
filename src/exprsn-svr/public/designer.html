@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVR Visual Designer - Exprsn</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/editor/editor.main.css">
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/static/css/designer.css">
+</head>
+<body>
+    <!-- Top Toolbar -->
+    <div class="designer-toolbar">
+        <div class="toolbar-left">
+            <div class="logo">
+                <i class="fas fa-rocket"></i>
+                <span>SVR Designer</span>
+            </div>
+            <div class="page-info">
+                <input type="text" id="pageTitle" class="form-control form-control-sm" placeholder="Page Title" value="">
+                <input type="text" id="pageSlug" class="form-control form-control-sm" placeholder="page-slug" value="">
+            </div>
+        </div>
+
+        <div class="toolbar-center">
+            <!-- View Mode Toggle -->
+            <div class="btn-group view-mode-toggle" role="group">
+                <button type="button" class="btn btn-sm btn-outline-primary active" data-mode="design">
+                    <i class="fas fa-paint-brush"></i> Design
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-mode="code">
+                    <i class="fas fa-code"></i> Code
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-mode="preview">
+                    <i class="fas fa-eye"></i> Preview
+                </button>
+            </div>
+
+            <!-- Responsive Preview -->
+            <div class="btn-group responsive-toggle ms-3" role="group">
+                <button type="button" class="btn btn-sm btn-outline-secondary active" data-device="desktop" title="Desktop">
+                    <i class="fas fa-desktop"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-device="tablet" title="Tablet">
+                    <i class="fas fa-tablet-alt"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-device="mobile" title="Mobile">
+                    <i class="fas fa-mobile-alt"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="toolbar-right">
+            <button type="button" class="btn btn-sm btn-secondary" id="undoBtn" title="Undo">
+                <i class="fas fa-undo"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary" id="redoBtn" title="Redo">
+                <i class="fas fa-redo"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-info" id="save-custom-component-btn" title="Save selected element as reusable component">
+                <i class="fas fa-cube"></i> Save Component
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-info" id="view-history-btn" title="View version history">
+                <i class="fas fa-history"></i> History
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="create-version-btn" title="Create version snapshot">
+                <i class="fas fa-save"></i> Snapshot
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="settingsBtn" title="Settings">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-success" id="saveBtn">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" id="publishBtn">
+                <i class="fas fa-cloud-upload-alt"></i> Publish
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Designer Area -->
+    <div class="designer-main">
+        <!-- Left Sidebar - Components & Layers -->
+        <div class="designer-sidebar left-sidebar">
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#componentsTab" type="button">
+                        <i class="fas fa-puzzle-piece"></i> Components
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#layersTab" type="button">
+                        <i class="fas fa-layer-group"></i> Layers
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#assetsTab" type="button">
+                        <i class="fas fa-image"></i> Assets
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#libraryTab" type="button">
+                        <i class="fas fa-book"></i> Library
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- Components Tab -->
+                <div class="tab-pane fade show active" id="componentsTab">
+                    <div class="component-search">
+                        <input type="text" class="form-control form-control-sm" placeholder="Search components...">
+                    </div>
+
+                    <div class="component-categories">
+                        <!-- Layout Components -->
+                        <div class="component-category">
+                            <div class="category-header" data-bs-toggle="collapse" data-bs-target="#layoutComponents">
+                                <i class="fas fa-chevron-down"></i> Layout
+                            </div>
+                            <div class="collapse show" id="layoutComponents">
+                                <div class="component-item" draggable="true" data-component="container">
+                                    <i class="fas fa-square"></i> Container
+                                </div>
+                                <div class="component-item" draggable="true" data-component="row">
+                                    <i class="fas fa-grip-horizontal"></i> Row
+                                </div>
+                                <div class="component-item" draggable="true" data-component="column">
+                                    <i class="fas fa-columns"></i> Column
+                                </div>
+                                <div class="component-item" draggable="true" data-component="section">
+                                    <i class="fas fa-window-maximize"></i> Section
+                                </div>
+                                <div class="component-item" draggable="true" data-component="divider">
+                                    <i class="fas fa-minus"></i> Divider
+                                </div>
+                                <div class="component-item" draggable="true" data-component="spacer">
+                                    <i class="fas fa-arrows-alt-v"></i> Spacer
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Typography Components -->
+                        <div class="component-category">
+                            <div class="category-header" data-bs-toggle="collapse" data-bs-target="#typographyComponents">
+                                <i class="fas fa-chevron-down"></i> Typography
+                            </div>
+                            <div class="collapse show" id="typographyComponents">
+                                <div class="component-item" draggable="true" data-component="heading">
+                                    <i class="fas fa-heading"></i> Heading
+                                </div>
+                                <div class="component-item" draggable="true" data-component="paragraph">
+                                    <i class="fas fa-paragraph"></i> Paragraph
+                                </div>
+                                <div class="component-item" draggable="true" data-component="text">
+                                    <i class="fas fa-font"></i> Text
+                                </div>
+                                <div class="component-item" draggable="true" data-component="link">
+                                    <i class="fas fa-link"></i> Link
+                                </div>
+                                <div class="component-item" draggable="true" data-component="list">
+                                    <i class="fas fa-list"></i> List
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Components -->
+                        <div class="component-category">
+                            <div class="category-header" data-bs-toggle="collapse" data-bs-target="#formComponents">
+                                <i class="fas fa-chevron-down"></i> Forms
+                            </div>
+                            <div class="collapse" id="formComponents">
+                                <div class="component-item" draggable="true" data-component="form">
+                                    <i class="fas fa-wpforms"></i> Form
+                                </div>
+                                <div class="component-item" draggable="true" data-component="input">
+                                    <i class="fas fa-keyboard"></i> Input
+                                </div>
+                                <div class="component-item" draggable="true" data-component="textarea">
+                                    <i class="fas fa-align-left"></i> Textarea
+                                </div>
+                                <div class="component-item" draggable="true" data-component="select">
+                                    <i class="fas fa-caret-square-down"></i> Select
+                                </div>
+                                <div class="component-item" draggable="true" data-component="checkbox">
+                                    <i class="fas fa-check-square"></i> Checkbox
+                                </div>
+                                <div class="component-item" draggable="true" data-component="radio">
+                                    <i class="fas fa-dot-circle"></i> Radio
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- UI Components -->
+                        <div class="component-category">
+                            <div class="category-header" data-bs-toggle="collapse" data-bs-target="#uiComponents">
+                                <i class="fas fa-chevron-down"></i> UI Elements
+                            </div>
+                            <div class="collapse" id="uiComponents">
+                                <div class="component-item" draggable="true" data-component="button">
+                                    <i class="fas fa-hand-pointer"></i> Button
+                                </div>
+                                <div class="component-item" draggable="true" data-component="image">
+                                    <i class="fas fa-image"></i> Image
+                                </div>
+                                <div class="component-item" draggable="true" data-component="video">
+                                    <i class="fas fa-video"></i> Video
+                                </div>
+                                <div class="component-item" draggable="true" data-component="icon">
+                                    <i class="fas fa-icons"></i> Icon
+                                </div>
+                                <div class="component-item" draggable="true" data-component="card">
+                                    <i class="fas fa-id-card"></i> Card
+                                </div>
+                                <div class="component-item" draggable="true" data-component="alert">
+                                    <i class="fas fa-exclamation-triangle"></i> Alert
+                                </div>
+                                <div class="component-item" draggable="true" data-component="badge">
+                                    <i class="fas fa-certificate"></i> Badge
+                                </div>
+                                <div class="component-item" draggable="true" data-component="progress">
+                                    <i class="fas fa-tasks"></i> Progress Bar
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Navigation Components -->
+                        <div class="component-category">
+                            <div class="category-header" data-bs-toggle="collapse" data-bs-target="#navComponents">
+                                <i class="fas fa-chevron-down"></i> Navigation
+                            </div>
+                            <div class="collapse" id="navComponents">
+                                <div class="component-item" draggable="true" data-component="navbar">
+                                    <i class="fas fa-bars"></i> Navbar
+                                </div>
+                                <div class="component-item" draggable="true" data-component="breadcrumb">
+                                    <i class="fas fa-map-signs"></i> Breadcrumb
+                                </div>
+                                <div class="component-item" draggable="true" data-component="pagination">
+                                    <i class="fas fa-ellipsis-h"></i> Pagination
+                                </div>
+                                <div class="component-item" draggable="true" data-component="tabs">
+                                    <i class="fas fa-folder"></i> Tabs
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data Components -->
+                        <div class="component-category">
+                            <div class="category-header" data-bs-toggle="collapse" data-bs-target="#dataComponents">
+                                <i class="fas fa-chevron-down"></i> Data
+                            </div>
+                            <div class="collapse" id="dataComponents">
+                                <div class="component-item" draggable="true" data-component="table">
+                                    <i class="fas fa-table"></i> Table
+                                </div>
+                                <div class="component-item" draggable="true" data-component="chart">
+                                    <i class="fas fa-chart-bar"></i> Chart
+                                </div>
+                                <div class="component-item" draggable="true" data-component="code-block">
+                                    <i class="fas fa-code"></i> Code Block
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layers Tab -->
+                <div class="tab-pane fade" id="layersTab">
+                    <div class="layers-tree" id="layersTree">
+                        <div class="layer-item root-layer" data-element-id="root">
+                            <div class="layer-header">
+                                <i class="fas fa-chevron-down toggle-icon"></i>
+                                <i class="fas fa-file-code layer-icon"></i>
+                                <span class="layer-name">Body</span>
+                                <div class="layer-actions">
+                                    <button class="btn-icon" title="Toggle visibility"><i class="fas fa-eye"></i></button>
+                                    <button class="btn-icon" title="Lock"><i class="fas fa-unlock"></i></button>
+                                </div>
+                            </div>
+                            <div class="layer-children"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assets Tab -->
+                <div class="tab-pane fade" id="assetsTab">
+                    <div class="assets-toolbar">
+                        <button class="btn btn-sm btn-primary w-100" id="uploadAssetBtn">
+                            <i class="fas fa-upload"></i> Upload Asset
+                        </button>
+                    </div>
+                    <div class="assets-grid" id="assetsGrid">
+                        <div class="asset-item" data-type="image">
+                            <img src="https://via.placeholder.com/150" alt="Placeholder">
+                            <div class="asset-name">placeholder.jpg</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Library Tab -->
+                <div class="tab-pane fade" id="libraryTab">
+                    <div class="library-toolbar p-2 border-bottom">
+                        <div class="btn-group btn-group-sm w-100 mb-2" role="group">
+                            <button type="button" class="btn btn-outline-secondary library-filter-btn active" data-filter="all">All</button>
+                            <button type="button" class="btn btn-outline-secondary library-filter-btn" data-filter="my">My Components</button>
+                            <button type="button" class="btn btn-outline-secondary library-filter-btn" data-filter="public">Public</button>
+                        </div>
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" class="form-control" id="library-search" placeholder="Search components...">
+                            <button class="btn btn-outline-secondary" type="button" id="refresh-library-btn">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                        </div>
+                        <select class="form-select form-select-sm" id="library-category-filter">
+                            <option value="all">All Categories</option>
+                            <option value="layout">Layout</option>
+                            <option value="navigation">Navigation</option>
+                            <option value="content">Content</option>
+                            <option value="forms">Forms</option>
+                            <option value="data">Data</option>
+                            <option value="feedback">Feedback</option>
+                            <option value="media">Media</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="library-list p-2" id="custom-library-list">
+                        <div class="empty-state text-center p-4">
+                            <i class="fas fa-cube fa-3x text-muted mb-3"></i>
+                            <p class="text-muted mb-2">No custom components found</p>
+                            <small class="text-muted">Save your first component to get started!</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="designer-canvas-wrapper">
+            <div class="canvas-toolbar">
+                <div class="zoom-controls">
+                    <button class="btn btn-sm btn-outline-secondary" id="zoomOut">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <span class="zoom-level">100%</span>
+                    <button class="btn btn-sm btn-outline-secondary" id="zoomIn">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="zoomReset">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="canvas-container" id="canvasContainer">
+                <div class="canvas-viewport" id="canvasViewport">
+                    <!-- Design Canvas -->
+                    <div class="designer-canvas" id="designerCanvas" data-device="desktop">
+                        <div class="canvas-dropzone" id="canvasDropzone">
+                            <div class="empty-canvas">
+                                <i class="fas fa-plus-circle"></i>
+                                <p>Drag components here to start building</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Code Editor View (Hidden by default) -->
+                    <div class="code-editor-view" id="codeEditorView" style="display: none;">
+                        <div class="code-tabs">
+                            <button class="code-tab active" data-editor="html">HTML</button>
+                            <button class="code-tab" data-editor="css">CSS</button>
+                            <button class="code-tab" data-editor="javascript">JavaScript</button>
+                            <button class="code-tab" data-editor="server">Server Code</button>
+                        </div>
+                        <div class="code-toolbar">
+                            <button id="code-sync-btn" class="btn btn-sm btn-primary" title="Sync code to canvas">
+                                <i class="fas fa-sync"></i> Sync to Canvas
+                            </button>
+                            <div class="auto-sync-controls">
+                                <button id="auto-sync-toggle" class="btn btn-sm btn-outline-secondary" title="Toggle automatic sync">
+                                    <i class="fas fa-magic"></i> Auto-sync: OFF
+                                </button>
+                                <span id="auto-sync-indicator" class="sync-indicator" style="opacity: 0;">
+                                    <i class="fas fa-check-circle text-success"></i> Synced
+                                </span>
+                            </div>
+                        </div>
+                        <div class="code-editors">
+                            <div id="htmlEditor" class="monaco-editor-container" data-language="html"></div>
+                            <div id="cssEditor" class="monaco-editor-container" data-language="css" style="display: none;"></div>
+                            <div id="jsEditor" class="monaco-editor-container" data-language="javascript" style="display: none;"></div>
+                            <div id="serverEditor" class="monaco-editor-container" data-language="javascript" style="display: none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Mode -->
+                    <div class="preview-view" id="previewView" style="display: none;">
+                        <iframe id="previewFrame" frameborder="0"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar - Properties & Styles -->
+        <div class="designer-sidebar right-sidebar">
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#propertiesTab" type="button">
+                        <i class="fas fa-sliders-h"></i> Properties
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#stylesTab" type="button">
+                        <i class="fas fa-palette"></i> Styles
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#settingsTabPanel" type="button">
+                        <i class="fas fa-cog"></i> Settings
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <!-- Properties Tab -->
+                <div class="tab-pane fade show active" id="propertiesTab">
+                    <div class="properties-panel" id="propertiesPanel">
+                        <div class="no-selection">
+                            <i class="fas fa-mouse-pointer"></i>
+                            <p>Select an element to edit properties</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Styles Tab -->
+                <div class="tab-pane fade" id="stylesTab">
+                    <div class="styles-panel" id="stylesPanel">
+                        <div class="no-selection">
+                            <i class="fas fa-mouse-pointer"></i>
+                            <p>Select an element to edit styles</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div class="tab-pane fade" id="settingsTabPanel">
+                    <div class="settings-panel">
+                        <div class="settings-group">
+                            <h6>Page Settings</h6>
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select class="form-select form-select-sm" id="pageStatus">
+                                    <option value="draft">Draft</option>
+                                    <option value="published">Published</option>
+                                    <option value="archived">Archived</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control form-control-sm" id="pageDescription" rows="3"></textarea>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="isStatic">
+                                <label class="form-check-label" for="isStatic">
+                                    Static Page (No server-side rendering)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isPublic" checked>
+                                <label class="form-check-label" for="isPublic">
+                                    Public Access
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h6>Socket.IO Events</h6>
+                            <textarea class="form-control form-control-sm" id="socketEvents" rows="4" placeholder='["event-name"]'></textarea>
+                            <small class="form-text text-muted">JSON array of socket event names</small>
+                        </div>
+
+                        <div class="settings-group">
+                            <h6>API Routes</h6>
+                            <textarea class="form-control form-control-sm" id="apiRoutes" rows="4" placeholder='["/api/endpoint"]'></textarea>
+                            <small class="form-text text-muted">JSON array of allowed API routes</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu" style="display: none;">
+        <button class="context-menu-item" data-action="edit"><i class="fas fa-edit"></i> Edit</button>
+        <button class="context-menu-item" data-action="duplicate"><i class="fas fa-copy"></i> Duplicate</button>
+        <button class="context-menu-item" data-action="copy"><i class="fas fa-clipboard"></i> Copy</button>
+        <button class="context-menu-item" data-action="paste"><i class="fas fa-paste"></i> Paste</button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" data-action="moveUp"><i class="fas fa-arrow-up"></i> Move Up</button>
+        <button class="context-menu-item" data-action="moveDown"><i class="fas fa-arrow-down"></i> Move Down</button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item text-danger" data-action="delete"><i class="fas fa-trash"></i> Delete</button>
+    </div>
+
+    <!-- Modals -->
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Designer Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Auto-save</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="autoSave">
+                            <label class="form-check-label" for="autoSave">
+                                Enable auto-save every 5 minutes
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Grid Snap</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="gridSnap" checked>
+                            <label class="form-check-label" for="gridSnap">
+                                Snap elements to grid
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Show Guides</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="showGuides" checked>
+                            <label class="form-check-label" for="showGuides">
+                                Show alignment guides
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.5.0/dist/socket.io.min.js"></script>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+
+    <!-- Designer Scripts -->
+    <script src="/static/js/designer/designer-config.js"></script>
+    <script src="/static/js/designer/designer-components.js"></script>
+    <script src="/static/js/designer/designer-canvas.js"></script>
+    <script src="/static/js/designer/designer-properties.js"></script>
+    <script src="/static/js/designer/designer-code.js"></script>
+    <script src="/static/js/designer/designer-assets.js"></script>
+    <script src="/static/js/designer/designer-layers.js"></script>
+    <script src="/static/js/designer/designer-library.js"></script>
+    <script src="/static/js/designer/designer-versions.js"></script>
+    <script src="/static/js/designer/designer-app.js"></script>
+</body>
+</html>

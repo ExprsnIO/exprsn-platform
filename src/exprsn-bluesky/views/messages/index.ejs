@@ -1,0 +1,437 @@
+<!-- Messages View -->
+<div class="messages-container h-100">
+    <div class="row g-0 h-100">
+        <!-- Conversations List -->
+        <div class="col-12 col-md-4 border-end conversations-panel">
+            <!-- Header -->
+            <div class="card border-0 border-bottom rounded-0 sticky-top bg-white">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold">Messages</h5>
+                        <button class="btn btn-primary btn-sm rounded-circle"
+                                data-bs-toggle="modal"
+                                data-bs-target="#newMessageModal">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="input-group mt-3">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text"
+                               class="form-control bg-light border-start-0"
+                               placeholder="Search messages..."
+                               id="searchConversations">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversations List -->
+            <div class="conversations-list" id="conversationsList">
+                <!-- Loading -->
+                <div class="text-center py-4" id="conversationsLoading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- Conversations will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Message Thread -->
+        <div class="col-12 col-md-8 d-none d-md-flex flex-column message-thread-panel">
+            <!-- Empty State -->
+            <div class="h-100 d-flex align-items-center justify-content-center" id="emptyState">
+                <div class="text-center text-muted">
+                    <i class="bi bi-chat-dots fs-1"></i>
+                    <p class="mt-3">Select a conversation to start messaging</p>
+                </div>
+            </div>
+
+            <!-- Active Conversation -->
+            <div class="h-100 d-none flex-column" id="activeConversation">
+                <!-- Conversation Header -->
+                <div class="card border-0 border-bottom rounded-0 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center">
+                            <img src="" alt="" id="conversationAvatar" class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;">
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold" id="conversationName"></div>
+                                <div class="small text-muted" id="conversationInfo"></div>
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="#" onclick="viewConversationInfo(); return false;">
+                                        <i class="bi bi-info-circle me-2"></i>Conversation info
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="muteConversation(); return false;">
+                                        <i class="bi bi-volume-mute me-2"></i>Mute
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteConversation(); return false;">
+                                        <i class="bi bi-trash me-2"></i>Delete conversation
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages Container -->
+                <div class="flex-grow-1 overflow-auto p-3" id="messagesContainer">
+                    <!-- Messages will be loaded here -->
+                </div>
+
+                <!-- Message Input -->
+                <div class="card border-0 border-top rounded-0 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex gap-2 align-items-end">
+                            <button class="btn btn-light" onclick="attachFile()">
+                                <i class="bi bi-paperclip"></i>
+                            </button>
+                            <button class="btn btn-light" onclick="attachImage()">
+                                <i class="bi bi-image"></i>
+                            </button>
+                            <div class="flex-grow-1">
+                                <textarea class="form-control"
+                                          placeholder="Type a message..."
+                                          rows="1"
+                                          id="messageInput"
+                                          style="resize: none;"></textarea>
+                            </div>
+                            <button class="btn btn-primary" onclick="sendMessage()" id="sendBtn">
+                                <i class="bi bi-send-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Message Modal -->
+<div class="modal fade" id="newMessageModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">New Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">To:</label>
+                <input type="text"
+                       class="form-control mb-3"
+                       placeholder="Search people..."
+                       id="recipientSearch">
+
+                <div id="recipientResults"></div>
+
+                <label class="form-label mt-3">Message:</label>
+                <textarea class="form-control"
+                          rows="4"
+                          placeholder="Type your message..."
+                          id="newMessageText"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="startNewConversation()">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentConversationId = null;
+let conversations = [];
+let messageSocket = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadConversations();
+    connectWebSocket();
+
+    // Auto-expand textarea
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        // Send on Enter (Shift+Enter for new line)
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
+
+    // Recipient search
+    const recipientSearch = document.getElementById('recipientSearch');
+    if (recipientSearch) {
+        recipientSearch.addEventListener('input', debounce(searchRecipients, 300));
+    }
+});
+
+async function loadConversations() {
+    try {
+        const response = await fetch('/api/messages/conversations');
+        const data = await response.json();
+
+        document.getElementById('conversationsLoading').style.display = 'none';
+
+        if (data.success) {
+            conversations = data.data.conversations;
+            renderConversations(conversations);
+        }
+    } catch (error) {
+        console.error('Failed to load conversations:', error);
+        showToast('Failed to load conversations', 'error');
+    }
+}
+
+function renderConversations(convs) {
+    const container = document.getElementById('conversationsList');
+
+    if (convs.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox fs-1"></i>
+                <p class="mt-3">No messages yet</p>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newMessageModal">
+                    Start a conversation
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = convs.map(conv => `
+        <div class="conversation-item p-3 border-bottom ${conv.id === currentConversationId ? 'active' : ''}"
+             onclick="loadConversation('${conv.id}')">
+            <div class="d-flex gap-3">
+                <div class="position-relative">
+                    <img src="${conv.avatar || '/images/default-avatar.png'}"
+                         alt="${conv.name}"
+                         class="rounded-circle"
+                         style="width: 48px; height: 48px; object-fit: cover;">
+                    ${conv.unreadCount > 0 ? `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary">${conv.unreadCount}</span>` : ''}
+                </div>
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="fw-semibold text-truncate">${conv.name}</div>
+                        <small class="text-muted">${formatMessageTime(conv.lastMessage?.createdAt)}</small>
+                    </div>
+                    <div class="text-muted small text-truncate">
+                        ${conv.lastMessage?.text || 'No messages yet'}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadConversation(conversationId) {
+    currentConversationId = conversationId;
+
+    // Update UI
+    document.getElementById('emptyState').classList.add('d-none');
+    document.getElementById('activeConversation').classList.remove('d-none');
+    document.getElementById('activeConversation').classList.add('d-flex');
+
+    // Highlight active conversation
+    document.querySelectorAll('.conversation-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.target.closest('.conversation-item')?.classList.add('active');
+
+    // Load conversation details
+    const conv = conversations.find(c => c.id === conversationId);
+    if (conv) {
+        document.getElementById('conversationAvatar').src = conv.avatar || '/images/default-avatar.png';
+        document.getElementById('conversationName').textContent = conv.name;
+        document.getElementById('conversationInfo').textContent = conv.isGroup ? `${conv.participants.length} members` : '@' + conv.handle;
+    }
+
+    // Load messages
+    try {
+        const response = await fetch(`/api/messages/conversations/${conversationId}/messages`);
+        const data = await response.json();
+
+        if (data.success) {
+            renderMessages(data.data.messages);
+        }
+    } catch (error) {
+        console.error('Failed to load messages:', error);
+        showToast('Failed to load messages', 'error');
+    }
+}
+
+function renderMessages(messages) {
+    const container = document.getElementById('messagesContainer');
+    container.innerHTML = messages.map(msg => `
+        <div class="message mb-3 ${msg.author.did === '<%= locals.user?.did %>' ? 'message-own' : ''}">
+            <div class="d-flex gap-2 ${msg.author.did === '<%= locals.user?.did %>' ? 'flex-row-reverse' : ''}">
+                <img src="${msg.author.avatar || '/images/default-avatar.png'}"
+                     alt="${msg.author.displayName}"
+                     class="rounded-circle"
+                     style="width: 32px; height: 32px; object-fit: cover;">
+                <div class="flex-grow-1" style="max-width: 70%;">
+                    <div class="message-bubble p-2 px-3 rounded-3 ${msg.author.did === '<%= locals.user?.did %>' ? 'bg-primary text-white' : 'bg-light'}">
+                        ${msg.content.text}
+                    </div>
+                    <small class="text-muted">${formatMessageTime(msg.createdAt)}</small>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+
+    if (!text || !currentConversationId) return;
+
+    try {
+        const response = await fetch(`/api/messages/conversations/${currentConversationId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content: { type: 'text', text }
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            input.value = '';
+            input.style.height = 'auto';
+            // Message will be added via WebSocket
+        }
+    } catch (error) {
+        console.error('Failed to send message:', error);
+        showToast('Failed to send message', 'error');
+    }
+}
+
+function connectWebSocket() {
+    if (typeof io === 'undefined') return;
+
+    messageSocket = io('/messages');
+
+    messageSocket.on('message:new', (data) => {
+        if (data.conversationId === currentConversationId) {
+            // Add message to current conversation
+            const container = document.getElementById('messagesContainer');
+            container.innerHTML += renderMessage(data.message);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Update conversation list
+        loadConversations();
+    });
+}
+
+async function searchRecipients() {
+    const query = document.getElementById('recipientSearch').value.trim();
+    if (!query) {
+        document.getElementById('recipientResults').innerHTML = '';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/search/users?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+
+        if (data.success) {
+            const results = document.getElementById('recipientResults');
+            results.innerHTML = data.data.users.map(user => `
+                <div class="d-flex align-items-center gap-2 p-2 border-bottom user-result" onclick="selectRecipient('${user.handle}')">
+                    <img src="${user.avatar || '/images/default-avatar.png'}" class="rounded-circle" style="width: 32px; height: 32px;">
+                    <div>
+                        <div class="fw-semibold">${user.displayName}</div>
+                        <div class="small text-muted">@${user.handle}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Failed to search recipients:', error);
+    }
+}
+
+function formatMessageTime(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h`;
+    return date.toLocaleDateString();
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+</script>
+
+<style>
+.messages-container {
+    height: calc(100vh - 56px);
+}
+
+.conversations-panel,
+.message-thread-panel {
+    height: 100%;
+    overflow-y: auto;
+}
+
+.conversation-item {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.conversation-item:hover,
+.conversation-item.active {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.message-bubble {
+    word-wrap: break-word;
+}
+
+.message-own .message-bubble {
+    margin-left: auto;
+}
+
+.user-result {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.user-result:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+#messagesContainer {
+    max-height: calc(100vh - 240px);
+}
+</style>

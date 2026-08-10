@@ -1,0 +1,121 @@
+<div class="position-sticky pt-3 sidebar-sticky">
+  <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+    <span>Quick Actions</span>
+  </h6>
+  <ul class="nav flex-column">
+    <li class="nav-item">
+      <a class="nav-link" href="/dashboards/new">
+        <i class="bi bi-plus-circle"></i> New Dashboard
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/reports/new">
+        <i class="bi bi-plus-circle"></i> New Report
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/data/sources/new">
+        <i class="bi bi-plus-circle"></i> New Data Source
+      </a>
+    </li>
+  </ul>
+
+  <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+    <span>Browse</span>
+  </h6>
+  <ul class="nav flex-column">
+    <li class="nav-item">
+      <a class="nav-link <%= currentPage === 'dashboards' ? 'active' : '' %>" href="/dashboards">
+        <i class="bi bi-grid-3x3-gap"></i> All Dashboards
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/dashboards?filter=favorites">
+        <i class="bi bi-star"></i> Favorites
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/dashboards?filter=recent">
+        <i class="bi bi-clock"></i> Recently Viewed
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/dashboards?filter=shared">
+        <i class="bi bi-people"></i> Shared With Me
+      </a>
+    </li>
+  </ul>
+
+  <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+    <span>Reports</span>
+  </h6>
+  <ul class="nav flex-column mb-2">
+    <li class="nav-item">
+      <a class="nav-link <%= currentPage === 'reports' ? 'active' : '' %>" href="/reports">
+        <i class="bi bi-file-earmark-bar-graph"></i> All Reports
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/reports?category=sales">
+        <i class="bi bi-cash-stack"></i> Sales Reports
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/reports?category=operations">
+        <i class="bi bi-gear-wide-connected"></i> Operations
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/reports?category=analytics">
+        <i class="bi bi-graph-up"></i> Analytics
+      </a>
+    </li>
+  </ul>
+
+  <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+    <span>Data</span>
+  </h6>
+  <ul class="nav flex-column mb-2">
+    <li class="nav-item">
+      <a class="nav-link" href="/data/sources">
+        <i class="bi bi-database"></i> Data Sources
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/data/queries">
+        <i class="bi bi-search"></i> Queries
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/data/datasets">
+        <i class="bi bi-table"></i> Datasets
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/data/variables">
+        <i class="bi bi-code-square"></i> Variables & Functions
+      </a>
+    </li>
+  </ul>
+
+  <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase">
+    <span>Administration</span>
+  </h6>
+  <ul class="nav flex-column mb-2">
+    <li class="nav-item">
+      <a class="nav-link" href="/schedules">
+        <i class="bi bi-calendar-event"></i> Schedules
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/admin/permissions">
+        <i class="bi bi-shield-lock"></i> Permissions
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="/admin/audit">
+        <i class="bi bi-list-check"></i> Audit Log
+      </a>
+    </li>
+  </ul>
+</div>

@@ -1,0 +1,275 @@
+<div class="row mb-4">
+  <div class="col-12">
+    <h2><i class="bi bi-speedometer2"></i> Dashboard Overview</h2>
+    <p class="text-muted">Real-time statistics and system health monitoring</p>
+  </div>
+</div>
+
+<!-- Users Statistics -->
+<div class="row g-4 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card primary">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-users-total"><%= stats.users.total %></h3>
+          <p>Total Users</p>
+        </div>
+        <i class="bi bi-people text-primary"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card success">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-users-active"><%= stats.users.active %></h3>
+          <p>Active Users</p>
+        </div>
+        <i class="bi bi-person-check text-success"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card warning">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-users-suspended"><%= stats.users.suspended %></h3>
+          <p>Suspended</p>
+        </div>
+        <i class="bi bi-person-x text-warning"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card primary">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-users-recent"><%= stats.users.recent %></h3>
+          <p>New (24h)</p>
+        </div>
+        <i class="bi bi-person-plus text-primary"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Certificates Statistics -->
+<div class="row g-4 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card primary">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-certs-total"><%= stats.certificates.total %></h3>
+          <p>Total Certificates</p>
+        </div>
+        <i class="bi bi-shield-check text-primary"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card success">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-certs-active"><%= stats.certificates.active %></h3>
+          <p>Active Certs</p>
+        </div>
+        <i class="bi bi-patch-check text-success"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card danger">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-certs-revoked"><%= stats.certificates.revoked %></h3>
+          <p>Revoked</p>
+        </div>
+        <i class="bi bi-shield-x text-danger"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card warning">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-certs-expiring"><%= stats.certificates.expiring %></h3>
+          <p>Expiring Soon</p>
+        </div>
+        <i class="bi bi-exclamation-triangle text-warning"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tokens Statistics -->
+<div class="row g-4 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card primary">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-tokens-total"><%= stats.tokens.total %></h3>
+          <p>Total Tokens</p>
+        </div>
+        <i class="bi bi-key text-primary"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card success">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-tokens-active"><%= stats.tokens.active %></h3>
+          <p>Active Tokens</p>
+        </div>
+        <i class="bi bi-key-fill text-success"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card danger">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-tokens-expired"><%= stats.tokens.expired %></h3>
+          <p>Expired</p>
+        </div>
+        <i class="bi bi-hourglass-split text-danger"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card primary">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-tokens-recent"><%= stats.tokens.recent %></h3>
+          <p>New (24h)</p>
+        </div>
+        <i class="bi bi-plus-circle text-primary"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Webhooks Statistics -->
+<div class="row g-4 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card primary">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-webhooks-total"><%= stats.webhooks.total %></h3>
+          <p>Total Webhooks</p>
+        </div>
+        <i class="bi bi-webhook text-primary"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card success">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-webhooks-active"><%= stats.webhooks.active %></h3>
+          <p>Active</p>
+        </div>
+        <i class="bi bi-check-circle text-success"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card primary">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-webhooks-deliveries"><%= stats.webhooks.deliveries %></h3>
+          <p>Deliveries</p>
+        </div>
+        <i class="bi bi-send text-primary"></i>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card danger">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h3 id="stat-webhooks-failed"><%= stats.webhooks.failed %></h3>
+          <p>Failed</p>
+        </div>
+        <i class="bi bi-x-circle text-danger"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <a href="/admin/users" class="btn btn-outline-primary w-100">
+              <i class="bi bi-people"></i> Manage Users
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a href="/admin/certificates" class="btn btn-outline-primary w-100">
+              <i class="bi bi-shield-check"></i> Manage Certificates
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a href="/admin/tokens" class="btn btn-outline-primary w-100">
+              <i class="bi bi-key"></i> Manage Tokens
+            </a>
+          </div>
+          <div class="col-md-3">
+            <a href="/admin/webhooks" class="btn btn-outline-primary w-100">
+              <i class="bi bi-webhook"></i> Manage Webhooks
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Handle real-time stats updates
+  window.handleStatsUpdate = (data) => {
+    if (data.users) {
+      document.getElementById('stat-users-total').textContent = data.users.total;
+      document.getElementById('stat-users-active').textContent = data.users.active;
+      document.getElementById('stat-users-suspended').textContent = data.users.suspended;
+      document.getElementById('stat-users-recent').textContent = data.users.recent;
+    }
+    if (data.certificates) {
+      document.getElementById('stat-certs-total').textContent = data.certificates.total;
+      document.getElementById('stat-certs-active').textContent = data.certificates.active;
+      document.getElementById('stat-certs-revoked').textContent = data.certificates.revoked;
+      document.getElementById('stat-certs-expiring').textContent = data.certificates.expiring;
+    }
+    if (data.tokens) {
+      document.getElementById('stat-tokens-total').textContent = data.tokens.total;
+      document.getElementById('stat-tokens-active').textContent = data.tokens.active;
+      document.getElementById('stat-tokens-expired').textContent = data.tokens.expired;
+      document.getElementById('stat-tokens-recent').textContent = data.tokens.recent;
+    }
+    if (data.webhooks) {
+      document.getElementById('stat-webhooks-total').textContent = data.webhooks.total;
+      document.getElementById('stat-webhooks-active').textContent = data.webhooks.active;
+      document.getElementById('stat-webhooks-deliveries').textContent = data.webhooks.deliveries;
+      document.getElementById('stat-webhooks-failed').textContent = data.webhooks.failed;
+    }
+  };
+
+  // Refresh stats every 30 seconds
+  setInterval(() => {
+    fetch('/admin/api/stats')
+      .then(res => res.json())
+      .then(data => {
+        if (data.stats) {
+          handleStatsUpdate(data.stats);
+        }
+      })
+      .catch(err => console.error('Failed to refresh stats:', err));
+  }, 30000);
+</script>

@@ -1,0 +1,314 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">System overview and health monitoring</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh
+            </button>
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Quick Actions
+            </button>
+        </div>
+    </div>
+
+    <!-- System Health Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">15/23</div>
+                <div class="stat-label">Services Running</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    2 services started
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-cpu"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">42%</div>
+                <div class="stat-label">System Load</div>
+                <div class="stat-change negative">
+                    <i class="bi bi-arrow-down"></i>
+                    5% from last hour
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-database"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">23</div>
+                <div class="stat-label">Active Databases</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    All healthy
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon danger">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">3</div>
+                <div class="stat-label">Pending Migrations</div>
+                <div class="stat-change">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Requires attention
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <!-- Service Status -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Service Status</h3>
+                <button class="btn btn-sm btn-outline-primary">View All</button>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th class="sortable">Service</th>
+                                <th class="sortable">Status</th>
+                                <th class="sortable">Port</th>
+                                <th class="sortable">Uptime</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-shield-check text-success"></i>
+                                        <strong>exprsn-ca</strong>
+                                    </div>
+                                </td>
+                                <td><span class="badge badge-success"><span class="status-dot online"></span>Running</span></td>
+                                <td>3000</td>
+                                <td>5d 12h</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button class="table-action-btn" title="Restart">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                        <button class="table-action-btn danger" title="Stop">
+                                            <i class="bi bi-stop-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-key text-primary"></i>
+                                        <strong>exprsn-auth</strong>
+                                    </div>
+                                </td>
+                                <td><span class="badge badge-success"><span class="status-dot online"></span>Running</span></td>
+                                <td>3001</td>
+                                <td>5d 11h</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button class="table-action-btn" title="Restart">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                        <button class="table-action-btn danger" title="Stop">
+                                            <i class="bi bi-stop-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-chat-dots text-info"></i>
+                                        <strong>exprsn-spark</strong>
+                                    </div>
+                                </td>
+                                <td><span class="badge badge-success"><span class="status-dot online"></span>Running</span></td>
+                                <td>3002</td>
+                                <td>5d 10h</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button class="table-action-btn" title="Restart">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                        <button class="table-action-btn danger" title="Stop">
+                                            <i class="bi bi-stop-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-journal-text text-warning"></i>
+                                        <strong>exprsn-timeline</strong>
+                                    </div>
+                                </td>
+                                <td><span class="badge badge-warning"><span class="status-dot warning"></span>Degraded</span></td>
+                                <td>3004</td>
+                                <td>2h 15m</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button class="table-action-btn" title="Restart">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                        <button class="table-action-btn danger" title="Stop">
+                                            <i class="bi bi-stop-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-briefcase text-muted"></i>
+                                        <strong>exprsn-svr</strong>
+                                    </div>
+                                </td>
+                                <td><span class="badge badge-secondary"><span class="status-dot offline"></span>Stopped</span></td>
+                                <td>5001</td>
+                                <td>-</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button class="table-action-btn" title="Start">
+                                            <i class="bi bi-play-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Panel -->
+        <div>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3 class="card-title">Quick Actions</h3>
+                </div>
+                <div class="card-body">
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <button class="btn btn-outline-primary w-100">
+                            <i class="bi bi-play-circle"></i>
+                            Start All Services
+                        </button>
+                        <button class="btn btn-outline-primary w-100">
+                            <i class="bi bi-arrow-repeat"></i>
+                            Run Migrations
+                        </button>
+                        <button class="btn btn-outline-primary w-100">
+                            <i class="bi bi-database-add"></i>
+                            Backup Databases
+                        </button>
+                        <button class="btn btn-outline-primary w-100">
+                            <i class="bi bi-shield-check"></i>
+                            Security Scan
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">System Info</h3>
+                </div>
+                <div class="card-body">
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.875rem;">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Node Version</span>
+                            <strong>v18.17.0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Platform</span>
+                            <strong>darwin</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Environment</span>
+                            <span class="badge badge-warning">Development</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Uptime</span>
+                            <strong>5d 12h 34m</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Activity</h3>
+            <button class="btn btn-sm btn-secondary">Clear All</button>
+        </div>
+        <div class="card-body">
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle alert-icon"></i>
+                    <div class="alert-content">
+                        <div class="alert-title">Service Started</div>
+                        <div class="alert-message">exprsn-ca service started successfully on port 3000</div>
+                        <small class="text-muted">2 minutes ago</small>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle alert-icon"></i>
+                    <div class="alert-content">
+                        <div class="alert-title">Migration Applied</div>
+                        <div class="alert-message">Database migration 20251226000000-create-ai-agent-core-system applied</div>
+                        <small class="text-muted">15 minutes ago</small>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle alert-icon"></i>
+                    <div class="alert-content">
+                        <div class="alert-title">High Memory Usage</div>
+                        <div class="alert-message">exprsn-timeline service using 85% of allocated memory</div>
+                        <small class="text-muted">1 hour ago</small>
+                    </div>
+                </div>
+
+                <div class="alert alert-success">
+                    <i class="bi bi-shield-check alert-icon"></i>
+                    <div class="alert-content">
+                        <div class="alert-title">Security Scan Complete</div>
+                        <div class="alert-message">No vulnerabilities detected in dependency scan</div>
+                        <small class="text-muted">3 hours ago</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

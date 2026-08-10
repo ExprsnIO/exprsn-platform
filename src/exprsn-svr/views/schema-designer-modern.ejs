@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schema Designer | Exprsn Forge Platform</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        <%- include('/Users/rickholland/Downloads/dashboard-ui.html', {extractCSS: true}) %>
+    </style>
+</head>
+<body>
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+        <a href="/forge" class="navbar-brand">
+            <div class="brand-icon">
+                <i class="bi bi-diagram-3-fill"></i>
+            </div>
+            <span>Schema Designer</span>
+        </a>
+
+        <!-- Global Search -->
+        <div class="global-search">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="search-input" placeholder="Search schemas..." id="globalSearch">
+            <kbd class="search-shortcut">⌘K</kbd>
+        </div>
+
+        <!-- Navbar Actions -->
+        <div class="navbar-actions">
+            <button class="nav-action-btn" onclick="toggleTheme()" title="Toggle Theme">
+                <i class="bi bi-moon-stars"></i>
+            </button>
+            <button class="nav-action-btn" title="Notifications">
+                <i class="bi bi-bell"></i>
+                <span class="badge">3</span>
+            </button>
+            <button class="nav-action-btn" title="Help">
+                <i class="bi bi-question-circle"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <i class="bi bi-list"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/forge" class="nav-link">
+                <i class="bi bi-house-door"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/forge/designer" class="nav-link active">
+                <i class="bi bi-diagram-3"></i>
+                <span>Schemas</span>
+                <span class="nav-badge" id="schemaCount">0</span>
+            </a>
+            <a href="/lowcode/applications" class="nav-link">
+                <i class="bi bi-grid"></i>
+                <span>Applications</span>
+            </a>
+            <a href="/lowcode/entities" class="nav-link">
+                <i class="bi bi-table"></i>
+                <span>Entities</span>
+            </a>
+        </nav>
+
+        <!-- Filters Section -->
+        <div class="sidebar-section">
+            <div class="sidebar-section-header">
+                <h3>Filters</h3>
+                <button class="btn-icon-sm" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">Status</label>
+                <div class="filter-options">
+                    <label class="filter-checkbox">
+                        <input type="checkbox" checked data-filter="status" value="draft">
+                        <span>Draft</span>
+                        <span class="filter-count">0</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" checked data-filter="status" value="active">
+                        <span>Active</span>
+                        <span class="filter-count">0</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" data-filter="status" value="deprecated">
+                        <span>Deprecated</span>
+                        <span class="filter-count">0</span>
+                    </label>
+                    <label class="filter-checkbox">
+                        <input type="checkbox" data-filter="status" value="archived">
+                        <span>Archived</span>
+                        <span class="filter-count">0</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">Sort By</label>
+                <select class="filter-select" id="sortBy" onchange="applySorting()">
+                    <option value="updated">Recently Updated</option>
+                    <option value="created">Recently Created</option>
+                    <option value="name">Name (A-Z)</option>
+                    <option value="name-desc">Name (Z-A)</option>
+                    <option value="tables">Most Tables</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="user-avatar">
+                    <i class="bi bi-person"></i>
+                </div>
+                <div class="user-info">
+                    <div class="user-name">Admin User</div>
+                    <div class="user-role">Administrator</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="page-title-wrapper">
+                <div class="page-icon">
+                    <i class="bi bi-diagram-3-fill"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Database Schemas</h1>
+                    <p class="page-subtitle">Design and manage your database schemas visually</p>
+                </div>
+            </div>
+
+            <div class="page-actions">
+                <div class="view-toggle">
+                    <button class="view-toggle-btn active" data-view="grid" onclick="switchView('grid')">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                    </button>
+                    <button class="view-toggle-btn" data-view="list" onclick="switchView('list')">
+                        <i class="bi bi-list-ul"></i>
+                    </button>
+                </div>
+
+                <button class="btn-primary" onclick="showCreateSchemaModal()">
+                    <i class="bi bi-plus-lg"></i>
+                    Create Schema
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon stat-primary">
+                    <i class="bi bi-diagram-3"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="totalSchemas">0</div>
+                    <div class="stat-label">Total Schemas</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon stat-success">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="activeSchemas">0</div>
+                    <div class="stat-label">Active Schemas</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon stat-info">
+                    <i class="bi bi-table"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="totalTables">0</div>
+                    <div class="stat-label">Total Tables</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon stat-warning">
+                    <i class="bi bi-link-45deg"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value" id="totalRelationships">0</div>
+                    <div class="stat-label">Relationships</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schemas Grid/List -->
+        <div class="schemas-container">
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3">Loading schemas...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-state-icon">
+                    <i class="bi bi-diagram-3"></i>
+                </div>
+                <h3>No schemas found</h3>
+                <p>Get started by creating your first database schema</p>
+                <button class="btn-primary" onclick="showCreateSchemaModal()">
+                    <i class="bi bi-plus-lg"></i>
+                    Create Your First Schema
+                </button>
+            </div>
+
+            <!-- Grid View -->
+            <div id="gridView" class="schema-grid">
+                <!-- Schema cards will be inserted here -->
+            </div>
+
+            <!-- List View -->
+            <div id="listView" class="schema-list" style="display: none;">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Database</th>
+                                <th>Tables</th>
+                                <th>Status</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listViewBody">
+                            <!-- Table rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create Schema Modal -->
+    <div class="modal fade" id="createSchemaModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Schema</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createSchemaForm">
+                        <div class="mb-3">
+                            <label for="schemaName" class="form-label">Schema Name</label>
+                            <input type="text" class="form-control" id="schemaName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="schemaSlug" class="form-label">Slug</label>
+                            <input type="text" class="form-control" id="schemaSlug" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="schemaDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="schemaDescription" rows="3"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="schemaDatabaseName" class="form-label">Database Name</label>
+                                <input type="text" class="form-control" id="schemaDatabaseName">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="schemaSchemaName" class="form-label">PG Schema</label>
+                                <input type="text" class="form-control" id="schemaSchemaName" value="public">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn-primary" onclick="createSchema()">Create Schema</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allSchemas = [];
+        let filteredSchemas = [];
+        let currentView = 'grid';
+        let sidebarCollapsed = false;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSchemas();
+            setupSearch();
+            setupFilters();
+        });
+
+        // Load Schemas
+        async function loadSchemas() {
+            try {
+                const response = await fetch('/forge/schema-designer');
+                const result = await response.json();
+
+                if (result.success) {
+                    allSchemas = result.data;
+                    filteredSchemas = [...allSchemas];
+                    updateStats();
+                    applyFilters();
+                }
+            } catch (error) {
+                console.error('Error loading schemas:', error);
+                showError('Failed to load schemas');
+            }
+        }
+
+        // Update Statistics
+        function updateStats() {
+            const active = allSchemas.filter(s => s.status === 'active').length;
+            const totalTables = allSchemas.reduce((sum, s) => sum + (s.tables?.length || 0), 0);
+            const totalRels = allSchemas.reduce((sum, s) => sum + (s.relationships?.length || 0), 0);
+
+            document.getElementById('totalSchemas').textContent = allSchemas.length;
+            document.getElementById('activeSchemas').textContent = active;
+            document.getElementById('totalTables').textContent = totalTables;
+            document.getElementById('totalRelationships').textContent = totalRels;
+            document.getElementById('schemaCount').textContent = allSchemas.length;
+        }
+
+        // Apply Filters
+        function applyFilters() {
+            const searchTerm = document.getElementById('globalSearch').value.toLowerCase();
+            const statusFilters = Array.from(document.querySelectorAll('[data-filter="status"]:checked'))
+                .map(cb => cb.value);
+
+            filteredSchemas = allSchemas.filter(schema => {
+                // Search filter
+                const matchesSearch = !searchTerm ||
+                    schema.name.toLowerCase().includes(searchTerm) ||
+                    schema.description?.toLowerCase().includes(searchTerm);
+
+                // Status filter
+                const matchesStatus = statusFilters.length === 0 || statusFilters.includes(schema.status);
+
+                return matchesSearch && matchesStatus;
+            });
+
+            applySorting();
+            renderSchemas();
+        }
+
+        // Apply Sorting
+        function applySorting() {
+            const sortBy = document.getElementById('sortBy').value;
+
+            filteredSchemas.sort((a, b) => {
+                switch (sortBy) {
+                    case 'updated':
+                        return new Date(b.updatedAt) - new Date(a.updatedAt);
+                    case 'created':
+                        return new Date(b.createdAt) - new Date(a.createdAt);
+                    case 'name':
+                        return a.name.localeCompare(b.name);
+                    case 'name-desc':
+                        return b.name.localeCompare(a.name);
+                    case 'tables':
+                        return (b.tables?.length || 0) - (a.tables?.length || 0);
+                    default:
+                        return 0;
+                }
+            });
+        }
+
+        // Render Schemas
+        function renderSchemas() {
+            document.getElementById('loadingState').style.display = 'none';
+
+            if (filteredSchemas.length === 0) {
+                document.getElementById('emptyState').style.display = 'flex';
+                document.getElementById('gridView').style.display = 'none';
+                document.getElementById('listView').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('emptyState').style.display = 'none';
+
+            if (currentView === 'grid') {
+                renderGridView();
+            } else {
+                renderListView();
+            }
+        }
+
+        // Render Grid View
+        function renderGridView() {
+            const grid = document.getElementById('gridView');
+            grid.innerHTML = filteredSchemas.map(schema => `
+                <div class="schema-card" onclick="openSchema('${schema.id}')">
+                    <div class="schema-card-header">
+                        <div class="schema-icon">
+                            <i class="bi bi-diagram-3"></i>
+                        </div>
+                        <div class="schema-status status-${schema.status}">${schema.status}</div>
+                    </div>
+                    <div class="schema-card-body">
+                        <h3 class="schema-name">${escapeHtml(schema.name)}</h3>
+                        <p class="schema-description">${escapeHtml(schema.description || 'No description')}</p>
+
+                        <div class="schema-meta">
+                            <div class="meta-item">
+                                <i class="bi bi-hdd"></i>
+                                <span>${escapeHtml(schema.databaseName || 'N/A')}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="bi bi-table"></i>
+                                <span>${schema.tables?.length || 0} tables</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="schema-card-footer">
+                        <span class="text-muted">Updated ${formatDate(schema.updatedAt)}</span>
+                        <div class="schema-actions" onclick="event.stopPropagation()">
+                            <button class="btn-icon-sm" onclick="editSchema('${schema.id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn-icon-sm" onclick="deleteSchema('${schema.id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            grid.style.display = 'grid';
+            document.getElementById('listView').style.display = 'none';
+        }
+
+        // Render List View
+        function renderListView() {
+            const tbody = document.getElementById('listViewBody');
+            tbody.innerHTML = filteredSchemas.map(schema => `
+                <tr onclick="openSchema('${schema.id}')" style="cursor: pointer;">
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="schema-icon-sm">
+                                <i class="bi bi-diagram-3"></i>
+                            </div>
+                            <div>
+                                <div class="fw-semibold">${escapeHtml(schema.name)}</div>
+                                <small class="text-muted">${escapeHtml(schema.slug)}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${escapeHtml(schema.databaseName || 'N/A')}</td>
+                    <td>${schema.tables?.length || 0}</td>
+                    <td><span class="badge status-${schema.status}">${schema.status}</span></td>
+                    <td>${formatDate(schema.updatedAt)}</td>
+                    <td onclick="event.stopPropagation()">
+                        <button class="btn-icon-sm" onclick="editSchema('${schema.id}')">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn-icon-sm" onclick="deleteSchema('${schema.id}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('listView').style.display = 'block';
+            document.getElementById('gridView').style.display = 'none';
+        }
+
+        // Switch View
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === view);
+            });
+            renderSchemas();
+        }
+
+        // Setup Search
+        function setupSearch() {
+            const searchInput = document.getElementById('globalSearch');
+            let debounceTimer;
+
+            searchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => applyFilters(), 300);
+            });
+
+            // Keyboard shortcut (Cmd/Ctrl + K)
+            document.addEventListener('keydown', (e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+            });
+        }
+
+        // Setup Filters
+        function setupFilters() {
+            document.querySelectorAll('[data-filter]').forEach(input => {
+                input.addEventListener('change', applyFilters);
+            });
+        }
+
+        // Clear Filters
+        function clearFilters() {
+            document.querySelectorAll('[data-filter="status"]').forEach(cb => {
+                cb.checked = true;
+            });
+            document.getElementById('globalSearch').value = '';
+            applyFilters();
+        }
+
+        // Create Schema
+        async function createSchema() {
+            const data = {
+                name: document.getElementById('schemaName').value,
+                slug: document.getElementById('schemaSlug').value,
+                description: document.getElementById('schemaDescription').value,
+                databaseName: document.getElementById('schemaDatabaseName').value,
+                schemaName: document.getElementById('schemaSchemaName').value
+            };
+
+            try {
+                const response = await fetch('/forge/schema-designer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('createSchemaModal')).hide();
+                    document.getElementById('createSchemaForm').reset();
+                    await loadSchemas();
+                    openSchema(result.data.id);
+                }
+            } catch (error) {
+                console.error('Error creating schema:', error);
+                showError('Failed to create schema');
+            }
+        }
+
+        // Show Create Modal
+        function showCreateSchemaModal() {
+            new bootstrap.Modal(document.getElementById('createSchemaModal')).show();
+        }
+
+        // Auto-generate slug
+        document.getElementById('schemaName').addEventListener('input', (e) => {
+            const slug = e.target.value.toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/(^-|-$)/g, '');
+            document.getElementById('schemaSlug').value = slug;
+        });
+
+        // Open Schema
+        function openSchema(id) {
+            window.location.href = `/forge/designer/${id}`;
+        }
+
+        // Edit Schema
+        function editSchema(id) {
+            // TODO: Implement edit modal
+            console.log('Edit schema:', id);
+        }
+
+        // Delete Schema
+        function deleteSchema(id) {
+            if (confirm('Are you sure you want to delete this schema?')) {
+                // TODO: Implement delete
+                console.log('Delete schema:', id);
+            }
+        }
+
+        // Toggle Sidebar
+        function toggleSidebar() {
+            sidebarCollapsed = !sidebarCollapsed;
+            document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
+            document.querySelector('.main-content').classList.toggle('sidebar-collapsed', sidebarCollapsed);
+        }
+
+        // Toggle Theme
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // Utility Functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(date) {
+            return new Date(date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        function showError(message) {
+            // TODO: Implement toast notifications
+            alert(message);
+        }
+    </script>
+</body>
+</html>

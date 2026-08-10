@@ -1,0 +1,119 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Security Overview</h1>
+            <p class="page-subtitle">Monitor security status and recent authentication attempts</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary">
+                <i class="bi bi-shield-check"></i>
+                Run Security Scan
+            </button>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-shield-fill-check"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">98</div>
+                <div class="stat-label">Security Score</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    Excellent
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-key"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">1,234</div>
+                <div class="stat-label">Active Tokens</div>
+                <div class="stat-change">
+                    Normal activity
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">12</div>
+                <div class="stat-label">Failed Logins (24h)</div>
+                <div class="stat-change negative">
+                    <i class="bi bi-arrow-up"></i>
+                    Review needed
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-file-earmark-lock"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">Valid</div>
+                <div class="stat-label">SSL Certificate</div>
+                <div class="stat-change positive">
+                    Expires in 90 days
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Login Attempts</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="sortable">Time</th>
+                            <th>User</th>
+                            <th>IP Address</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2025-12-27 10:45</td>
+                            <td>admin@exprsn.io</td>
+                            <td>192.168.1.100</td>
+                            <td>Password</td>
+                            <td><span class="badge badge-success">Success</span></td>
+                        </tr>
+                        <tr>
+                            <td>2025-12-27 10:42</td>
+                            <td>user@example.com</td>
+                            <td>10.0.0.50</td>
+                            <td>OAuth</td>
+                            <td><span class="badge badge-success">Success</span></td>
+                        </tr>
+                        <tr>
+                            <td>2025-12-27 10:38</td>
+                            <td>hacker@evil.com</td>
+                            <td>203.0.113.5</td>
+                            <td>Password</td>
+                            <td><span class="badge badge-danger">Failed</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

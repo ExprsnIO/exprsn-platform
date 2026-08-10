@@ -1,0 +1,98 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.moderator.report",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Content moderation report",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["subject", "reasonType", "createdAt"],
+        "properties": {
+          "subject": {
+            "type": "union",
+            "refs": ["com.atproto.admin.defs#repoRef", "com.atproto.repo.strongRef"],
+            "description": "Content being reported"
+          },
+          "reasonType": {
+            "type": "string",
+            "enum": [
+              "spam",
+              "violation",
+              "misleading",
+              "sexual",
+              "rude",
+              "other"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Additional context"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "moderationAction": {
+      "type": "object",
+      "required": ["action", "createdBy", "createdAt"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["takedown", "flag", "acknowledge", "escalate", "ignore"]
+        },
+        "createdBy": {
+          "type": "string",
+          "format": "did",
+          "description": "Moderator who took action"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    },
+    "label": {
+      "type": "object",
+      "required": ["uri", "val"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "val": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Label value (e.g., 'nsfw', 'graphic-media')"
+        },
+        "neg": {
+          "type": "boolean",
+          "description": "Negation (removes label if true)"
+        },
+        "src": {
+          "type": "string",
+          "format": "did",
+          "description": "Label creator"
+        },
+        "cts": {
+          "type": "string",
+          "format": "datetime",
+          "description": "Created timestamp"
+        }
+      }
+    }
+  }
+}

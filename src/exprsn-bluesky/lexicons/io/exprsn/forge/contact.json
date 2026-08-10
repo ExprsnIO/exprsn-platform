@@ -1,0 +1,210 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.forge.contact",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "CRM contact record (CardDAV compatible)",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["displayName", "createdAt"],
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "givenName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "familyName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "organization": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "emails": {
+            "type": "array",
+            "items": {
+              "type": "ref",
+              "ref": "#emailAddress"
+            }
+          },
+          "phones": {
+            "type": "array",
+            "items": {
+              "type": "ref",
+              "ref": "#phoneNumber"
+            }
+          },
+          "addresses": {
+            "type": "array",
+            "items": {
+              "type": "ref",
+              "ref": "#postalAddress"
+            }
+          },
+          "socialProfiles": {
+            "type": "array",
+            "items": {
+              "type": "ref",
+              "ref": "#socialProfile"
+            }
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          "customFields": {
+            "type": "unknown",
+            "description": "Custom CRM fields"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "emailAddress": {
+      "type": "object",
+      "required": ["value"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["work", "home", "other"],
+          "default": "other"
+        },
+        "value": {
+          "type": "string",
+          "format": "email"
+        },
+        "isPrimary": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "phoneNumber": {
+      "type": "object",
+      "required": ["value"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["work", "home", "mobile", "fax", "other"],
+          "default": "other"
+        },
+        "value": {
+          "type": "string"
+        },
+        "isPrimary": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "postalAddress": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["work", "home", "other"],
+          "default": "other"
+        },
+        "street": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        }
+      }
+    },
+    "socialProfile": {
+      "type": "object",
+      "required": ["platform", "handle"],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "description": "e.g., 'twitter', 'linkedin', 'bluesky'"
+        },
+        "handle": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["uri", "cid", "displayName", "createdAt"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "organization": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "emails": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "#emailAddress"
+          }
+        },
+        "phones": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "#phoneNumber"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    }
+  }
+}

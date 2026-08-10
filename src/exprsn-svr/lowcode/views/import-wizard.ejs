@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Import Wizard - Exprsn Low-Code</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --wizard-header-height: 70px;
+      --wizard-footer-height: 80px;
+      --wizard-sidebar-width: 250px;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* Wizard Container */
+    .wizard-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Header */
+    .wizard-header {
+      height: var(--wizard-header-height);
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      flex-shrink: 0;
+    }
+
+    .wizard-header h1 {
+      font-size: 1.5rem;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* Body */
+    .wizard-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Step Navigation Sidebar */
+    .wizard-steps {
+      width: var(--wizard-sidebar-width);
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .step-item {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .step-item:hover {
+      background: rgba(var(--primary-rgb), 0.05);
+    }
+
+    .step-item.active {
+      background: var(--primary-color);
+      color: white;
+      border-left: 4px solid var(--primary-dark);
+    }
+
+    .step-item.active .step-icon {
+      color: white;
+    }
+
+    .step-item.completed {
+      background: rgba(var(--success-rgb), 0.1);
+    }
+
+    .step-item.completed .step-number {
+      background: var(--success-color);
+      color: white;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--gray-200);
+      color: var(--text-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-right: 0.75rem;
+    }
+
+    .step-item.active .step-number {
+      background: white;
+      color: var(--primary-color);
+    }
+
+    .step-title {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .step-description {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+
+    .step-item.active .step-description {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Main Content */
+    .wizard-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      background: var(--bg-primary);
+    }
+
+    .step-panel {
+      display: none;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .step-panel.active {
+      display: block;
+      animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Footer */
+    .wizard-footer {
+      height: var(--wizard-footer-height);
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      flex-shrink: 0;
+    }
+
+    /* Form Sections */
+    .form-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-section h3 {
+      margin: 0 0 1.5rem 0;
+      font-size: 1.125rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    /* Source Type Cards */
+    .source-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .source-card {
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .source-card:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .source-card.selected {
+      border-color: var(--primary-color);
+      background: rgba(var(--primary-rgb), 0.1);
+    }
+
+    .source-card .icon {
+      font-size: 2.5rem;
+      color: var(--primary-color);
+      margin-bottom: 0.75rem;
+    }
+
+    .source-card .title {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .source-card .description {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+
+    /* File Upload */
+    .upload-area {
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 3rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .upload-area:hover,
+    .upload-area.dragover {
+      border-color: var(--primary-color);
+      background: rgba(var(--primary-rgb), 0.05);
+    }
+
+    .upload-area .icon {
+      font-size: 3rem;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+
+    /* Data Preview Table */
+    .preview-table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .preview-table th {
+      background: var(--bg-tertiary);
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .preview-table td {
+      padding: 0.625rem 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .preview-table tr:hover {
+      background: rgba(var(--primary-rgb), 0.05);
+    }
+
+    /* Column Configuration */
+    .column-list {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .column-item {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr auto;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .column-item .column-name {
+      font-weight: 600;
+    }
+
+    .column-item select {
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-secondary);
+    }
+
+    /* Transformation Steps */
+    .transformation-list {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .transformation-step {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .transformation-step .step-order {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .transformation-step .step-details {
+      flex: 1;
+    }
+
+    .transformation-step .step-type {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .transformation-step .step-params {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+
+    /* Progress Indicator */
+    .progress-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .progress-indicator .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border-color);
+      border-top-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Summary Cards */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .summary-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+
+    .summary-card .label {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .summary-card .value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+  </style>
+</head>
+<body>
+  <div class="wizard-container">
+    <!-- Header -->
+    <div class="wizard-header">
+      <h1>
+        <i class="fas fa-file-import"></i>
+        Data Import Wizard
+      </h1>
+      <button class="btn btn-secondary" onclick="cancelWizard()">
+        <i class="fas fa-times"></i> Cancel
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="wizard-body">
+      <!-- Steps Sidebar -->
+      <div class="wizard-steps">
+        <div class="step-item active" data-step="1" onclick="goToStep(1)">
+          <span class="step-number">1</span>
+          <div>
+            <div class="step-title">Source</div>
+            <div class="step-description">Select data source type</div>
+          </div>
+        </div>
+        <div class="step-item" data-step="2" onclick="goToStep(2)">
+          <span class="step-number">2</span>
+          <div>
+            <div class="step-title">Configure</div>
+            <div class="step-description">Configure import options</div>
+          </div>
+        </div>
+        <div class="step-item" data-step="3" onclick="goToStep(3)">
+          <span class="step-number">3</span>
+          <div>
+            <div class="step-title">Preview</div>
+            <div class="step-description">Preview and validate data</div>
+          </div>
+        </div>
+        <div class="step-item" data-step="4" onclick="goToStep(4)">
+          <span class="step-number">4</span>
+          <div>
+            <div class="step-title">Transform</div>
+            <div class="step-description">Add transformation steps</div>
+          </div>
+        </div>
+        <div class="step-item" data-step="5" onclick="goToStep(5)">
+          <span class="step-number">5</span>
+          <div>
+            <div class="step-title">Schema</div>
+            <div class="step-description">Configure column types</div>
+          </div>
+        </div>
+        <div class="step-item" data-step="6" onclick="goToStep(6)">
+          <span class="step-number">6</span>
+          <div>
+            <div class="step-title">Summary</div>
+            <div class="step-description">Review and import</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="wizard-content">
+        <!-- Step 1: Select Source -->
+        <div class="step-panel active" id="step1">
+          <div class="form-section">
+            <h3><i class="fas fa-database"></i> Select Data Source Type</h3>
+            <div class="source-cards">
+              <div class="source-card" data-type="csv" onclick="selectSourceType('csv')">
+                <i class="fas fa-file-csv icon"></i>
+                <div class="title">CSV File</div>
+                <div class="description">Comma-separated values</div>
+              </div>
+              <div class="source-card" data-type="tsv" onclick="selectSourceType('tsv')">
+                <i class="fas fa-file-alt icon"></i>
+                <div class="title">TSV File</div>
+                <div class="description">Tab-separated values</div>
+              </div>
+              <div class="source-card" data-type="excel" onclick="selectSourceType('excel')">
+                <i class="fas fa-file-excel icon"></i>
+                <div class="title">Excel File</div>
+                <div class="description">.xlsx or .xls files</div>
+              </div>
+              <div class="source-card" data-type="json" onclick="selectSourceType('json')">
+                <i class="fas fa-file-code icon"></i>
+                <div class="title">JSON</div>
+                <div class="description">JSON files or APIs</div>
+              </div>
+              <div class="source-card" data-type="xml" onclick="selectSourceType('xml')">
+                <i class="fas fa-code icon"></i>
+                <div class="title">XML</div>
+                <div class="description">XML files or APIs</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Configure Source -->
+        <div class="step-panel" id="step2">
+          <div class="form-section">
+            <h3><i class="fas fa-cog"></i> Upload File</h3>
+            <div class="upload-area" id="uploadArea">
+              <i class="fas fa-cloud-upload-alt icon"></i>
+              <h4>Drop file here or click to browse</h4>
+              <p style="color: var(--text-secondary);">Supported formats: CSV, TSV, Excel, JSON, XML</p>
+              <input type="file" id="fileInput" style="display: none;" accept=".csv,.tsv,.xlsx,.xls,.json,.xml">
+            </div>
+            <div id="uploadedFileInfo" style="display: none; margin-top: 1rem;">
+              <div style="background: rgba(var(--success-rgb), 0.1); padding: 1rem; border-radius: 6px; border: 1px solid var(--success-color);">
+                <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                <span id="fileName" style="font-weight: 600; margin-left: 0.5rem;"></span>
+                <span id="fileSize" style="margin-left: 0.5rem; color: var(--text-secondary);"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section" id="parserOptions">
+            <!-- Dynamic parser options will be loaded here -->
+          </div>
+        </div>
+
+        <!-- Step 3: Preview Data -->
+        <div class="step-panel" id="step3">
+          <div class="form-section">
+            <h3><i class="fas fa-table"></i> Data Preview</h3>
+            <div id="previewLoading" class="progress-indicator" style="padding: 2rem; text-align: center;">
+              <div class="spinner"></div>
+              <span>Loading preview...</span>
+            </div>
+            <div id="previewContent" style="display: none;">
+              <div class="preview-table-container">
+                <table class="preview-table" id="previewTable">
+                  <!-- Preview data will be rendered here -->
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Transformations -->
+        <div class="step-panel" id="step4">
+          <div class="form-section">
+            <h3>
+              <i class="fas fa-magic"></i> Transformation Steps
+              <button class="btn btn-sm btn-primary" style="margin-left: auto;" onclick="addTransformation()">
+                <i class="fas fa-plus"></i> Add Step
+              </button>
+            </h3>
+            <div class="transformation-list" id="transformationList">
+              <p style="color: var(--text-secondary); text-align: center; padding: 2rem;">
+                No transformations added yet. Click "Add Step" to begin.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5: Schema Configuration -->
+        <div class="step-panel" id="step5">
+          <div class="form-section">
+            <h3><i class="fas fa-columns"></i> Column Configuration</h3>
+            <div class="column-list" id="columnList">
+              <!-- Column configurations will be rendered here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 6: Summary & Import -->
+        <div class="step-panel" id="step6">
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="label">Source Type</div>
+              <div class="value" id="summarySourceType">-</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Total Rows</div>
+              <div class="value" id="summaryRowCount">-</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Columns</div>
+              <div class="value" id="summaryColumnCount">-</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Transformations</div>
+              <div class="value" id="summaryTransformationCount">-</div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3><i class="fas fa-check-circle"></i> Import Summary</h3>
+            <div id="summaryDetails">
+              <!-- Summary details will be rendered here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="wizard-footer">
+      <div class="progress-indicator" id="wizardProgress">
+        Step <span id="currentStep">1</span> of 6
+      </div>
+      <div style="display: flex; gap: 0.75rem;">
+        <button class="btn btn-secondary" id="btnPrevious" onclick="previousStep()" disabled>
+          <i class="fas fa-arrow-left"></i> Previous
+        </button>
+        <button class="btn btn-primary" id="btnNext" onclick="nextStep()">
+          Next <i class="fas fa-arrow-right"></i>
+        </button>
+        <button class="btn btn-success" id="btnImport" onclick="executeImport()" style="display: none;">
+          <i class="fas fa-check"></i> Import Data
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Wizard JavaScript -->
+  <script src="/lowcode/static/js/import-wizard.js"></script>
+
+  <script>
+    const dataSourceId = '<%= dataSourceId || "" %>';
+    const appId = '<%= appId || "" %>';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      window.importWizard = new ImportWizard(dataSourceId, appId);
+      window.importWizard.init();
+    });
+  </script>
+</body>
+</html>

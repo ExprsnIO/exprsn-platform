@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rules Management - Exprsn Moderator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { font-size: 0.875rem; }
+        .sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 100; padding: 48px 0 0; box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1); }
+        .sidebar-sticky { position: relative; top: 0; height: calc(100vh - 48px); padding-top: .5rem; overflow-x: hidden; overflow-y: auto; }
+        .sidebar .nav-link { font-weight: 500; color: #333; }
+        .sidebar .nav-link.active { color: #0d6efd; }
+        .sidebar .nav-link:hover { color: #0d6efd; }
+        main { padding-top: 48px; }
+        .badge-enabled { background-color: #198754; }
+        .badge-disabled { background-color: #6c757d; }
+        .priority-high { color: #dc3545; font-weight: bold; }
+        .priority-medium { color: #ffc107; font-weight: bold; }
+        .priority-low { color: #6c757d; }
+        .json-editor { font-family: monospace; font-size: 0.875rem; }
+        .test-result { border-left: 4px solid #0d6efd; padding: 10px; margin-top: 10px; }
+        .test-result.match { border-color: #198754; background-color: rgba(25, 135, 84, 0.1); }
+        .test-result.no-match { border-color: #6c757d; background-color: rgba(108, 117, 125, 0.1); }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="/">
+            <i class="bi bi-shield-check"></i> Exprsn Moderator
+        </a>
+        <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-nav">
+            <div class="nav-item text-nowrap">
+                <button class="btn btn-link nav-link px-3" id="themeToggle">
+                    <i class="bi bi-moon-fill" id="themeIcon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3 sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/dashboard">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/queue">
+                                <i class="bi bi-list-check"></i> Review Queue
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/reports">
+                                <i class="bi bi-flag"></i> Reports
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/rules">
+                                <i class="bi bi-book"></i> Rules
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/appeals">
+                                <i class="bi bi-arrow-repeat"></i> Appeals
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/workflows">
+                                <i class="bi bi-diagram-3"></i> Workflows
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Rules Management</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button type="button" class="btn btn-sm btn-primary me-2" onclick="showCreateRuleModal()">
+                            <i class="bi bi-plus-circle"></i> Create Rule
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadRules()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Total Rules</h6>
+                                <h3 class="card-title" id="statTotal">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Enabled</h6>
+                                <h3 class="card-title text-success" id="statEnabled">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Disabled</h6>
+                                <h3 class="card-title text-secondary" id="statDisabled">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">High Priority</h6>
+                                <h3 class="card-title text-danger" id="statHighPriority">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="filterEnabled" onchange="applyFilters()">
+                            <option value="">All Rules</option>
+                            <option value="true">Enabled Only</option>
+                            <option value="false">Disabled Only</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="filterPriority" onchange="applyFilters()">
+                            <option value="">All Priorities</option>
+                            <option value="high">High Priority</option>
+                            <option value="medium">Medium Priority</option>
+                            <option value="low">Low Priority</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm" id="searchInput"
+                               placeholder="Search rule name or description..." onkeyup="applyFilters()">
+                    </div>
+                </div>
+
+                <!-- Rules Table -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Priority</th>
+                                <th>Content Type</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rulesTable">
+                            <tr>
+                                <td colspan="7" class="text-center">
+                                    <div class="spinner-border spinner-border-sm" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    Loading rules...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create/Edit Rule Modal -->
+    <div class="modal fade" id="ruleModal" tabindex="-1" aria-labelledby="ruleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="ruleModalLabel">Create Rule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="ruleForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="ruleName" class="form-label">Rule Name *</label>
+                                <input type="text" class="form-control" id="ruleName" required
+                                       placeholder="e.g., Block Spam Links">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="rulePriority" class="form-label">Priority *</label>
+                                <select class="form-select" id="rulePriority" required>
+                                    <option value="high">High</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="ruleEnabled" class="form-label">Status</label>
+                                <select class="form-select" id="ruleEnabled">
+                                    <option value="true" selected>Enabled</option>
+                                    <option value="false">Disabled</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ruleDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="ruleDescription" rows="2"
+                                      placeholder="What does this rule do?"></textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="ruleContentType" class="form-label">Content Type *</label>
+                                <select class="form-select" id="ruleContentType" required>
+                                    <option value="post">Post</option>
+                                    <option value="comment">Comment</option>
+                                    <option value="message">Message</option>
+                                    <option value="user">User Profile</option>
+                                    <option value="all">All Content</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="ruleAction" class="form-label">Action *</label>
+                                <select class="form-select" id="ruleAction" required>
+                                    <option value="flag">Flag for Review</option>
+                                    <option value="hide">Hide Content</option>
+                                    <option value="remove">Remove Content</option>
+                                    <option value="warn">Warn User</option>
+                                    <option value="suspend">Suspend User</option>
+                                    <option value="ban">Ban User</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ruleConditions" class="form-label">
+                                Rule Conditions (JSON) *
+                                <small class="text-muted">Define the conditions that trigger this rule</small>
+                            </label>
+                            <textarea class="form-control json-editor" id="ruleConditions" rows="10" required
+                                      placeholder='Example:
+{
+  "contains": {
+    "keywords": ["spam", "scam", "click here"],
+    "matchAny": true
+  },
+  "length": {
+    "min": 10,
+    "max": 5000
+  },
+  "pattern": {
+    "regex": "https?://suspicious-site\\.com",
+    "flags": "i"
+  },
+  "aiScore": {
+    "toxicity": { "min": 0.8 },
+    "spam": { "min": 0.7 }
+  }
+}'></textarea>
+                            <div class="form-text">
+                                Available conditions: contains, length, pattern (regex), aiScore, metadata
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="ruleId">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveRule()">
+                        <i class="bi bi-check-circle"></i> Save Rule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Rule Modal -->
+    <div class="modal fade" id="testRuleModal" tabindex="-1" aria-labelledby="testRuleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="testRuleModalLabel">Test Rule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Testing Rule:</strong> <span id="testRuleName"></span></label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="testContent" class="form-label">Sample Content</label>
+                        <textarea class="form-control" id="testContent" rows="5"
+                                  placeholder="Enter sample content to test against this rule..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="testMetadata" class="form-label">
+                            Metadata (JSON, optional)
+                            <small class="text-muted">Additional context for testing</small>
+                        </label>
+                        <textarea class="form-control json-editor" id="testMetadata" rows="4"
+                                  placeholder='{"userId": "user-123", "location": "US"}'></textarea>
+                    </div>
+
+                    <div id="testResultContainer"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="runRuleTest()">
+                        <i class="bi bi-play-circle"></i> Run Test
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the rule "<strong id="deleteRuleName"></strong>"?</p>
+                    <p class="text-danger">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDeleteRule()">
+                        <i class="bi bi-trash"></i> Delete Rule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/js/rules.js"></script>
+</body>
+</html>

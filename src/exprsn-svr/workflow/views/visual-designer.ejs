@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visual Workflow Designer - Exprsn Workflow</title>
+
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+
+  <!-- Exprsn Kicks CSS -->
+  <link rel="stylesheet" href="/node_modules/exprsn-kicks/dist/laceview.css">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+
+    .app-header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .main-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .node-palette {
+      width: 280px;
+      background: white;
+      border-right: 1px solid #e2e8f0;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .palette-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .palette-section h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 0.75rem;
+    }
+
+    .palette-node {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      cursor: grab;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .palette-node:hover {
+      border-color: #667eea;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .palette-node:active {
+      cursor: grabbing;
+    }
+
+    .palette-node-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .palette-node-info h4 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem 0;
+      color: #1e293b;
+    }
+
+    .palette-node-info p {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin: 0;
+    }
+
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      background: #f8fafc;
+    }
+
+    .properties-panel {
+      width: 320px;
+      background: white;
+      border-left: 1px solid #e2e8f0;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    .properties-panel h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #1e293b;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #475569;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    .form-group textarea {
+      font-family: 'Courier New', monospace;
+      min-height: 100px;
+    }
+
+    #workspace {
+      width: 100%;
+      height: 100%;
+    }
+
+    .floating-toolbar {
+      position: absolute;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border-radius: 12px;
+      padding: 0.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      display: flex;
+      gap: 0.5rem;
+      z-index: 100;
+    }
+
+    .toolbar-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      color: #64748b;
+    }
+
+    .toolbar-btn:hover {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+
+    .toolbar-btn.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      background: #e2e8f0;
+      margin: 0.25rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <div class="app-header">
+      <div class="d-flex align-items-center gap-3">
+        <h1><i class="bi bi-diagram-3"></i> Visual Workflow Designer</h1>
+        <span class="badge bg-light text-dark">Powered by Exprsn Kicks</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-sm btn-light" id="btn-undo">
+          <i class="bi bi-arrow-counterclockwise"></i> Undo
+        </button>
+        <button class="btn btn-sm btn-light" id="btn-redo">
+          <i class="bi bi-arrow-clockwise"></i> Redo
+        </button>
+        <button class="btn btn-sm btn-light" id="btn-save">
+          <i class="bi bi-save"></i> Save
+        </button>
+        <button class="btn btn-sm btn-success" id="btn-execute">
+          <i class="bi bi-play-fill"></i> Execute
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Node Palette -->
+      <div class="node-palette">
+        <div class="palette-section">
+          <h3><i class="bi bi-play-circle"></i> Control Flow</h3>
+          <div class="palette-node" data-node-type="start">
+            <div class="palette-node-icon" style="background: #10b981; color: white;">
+              <i class="bi bi-play"></i>
+            </div>
+            <div class="palette-node-info">
+              <h4>Start</h4>
+              <p>Workflow entry point</p>
+            </div>
+          </div>
+          <div class="palette-node" data-node-type="condition">
+            <div class="palette-node-icon" style="background: #f59e0b; color: white;">
+              <i class="bi bi-diamond"></i>
+            </div>
+            <div class="palette-node-info">
+              <h4>Condition</h4>
+              <p>If/else branching</p>
+            </div>
+          </div>
+          <div class="palette-node" data-node-type="loop">
+            <div class="palette-node-icon" style="background: #8b5cf6; color: white;">
+              <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <div class="palette-node-info">
+              <h4>Loop</h4>
+              <p>Iterate over items</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="palette-section">
+          <h3><i class="bi bi-database"></i> Low-Code Entities</h3>
+          <div class="palette-node" data-node-type="lowcode_create">
+            <div class="palette-node-icon" style="background: #06b6d4; color: white;">
+              <i class="bi bi-plus-circle"></i>
+            </div>
+            <div class="palette-node-info">
+              <h4>Create Record</h4>
+              <p>Create entity record</p>
+            </div>
+          </div>
+          <div class="palette-node" data-node-type="lowcode_query">
+            <div class="palette-node-icon" style="background: #06b6d4; color: white;">
+              <i class="bi bi-search"></i>
+            </div>
+            <div class="palette-node-info">
+              <h4>Query Records</h4>
+              <p>Search entity data</p>
+            </div>
+          </div>
+          <div class="palette-node" data-node-type="lowcode_update">
+            <div class="palette-node-icon" style="background: #06b6d4; color: white;">
+              <i class="bi bi-pencil"></i>
+            </div>
+            <div class="palette-node-info">
+              <h4>Update Record</h4>
+              <p>Modify entity record</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="palette-section">
+          <h3><i class="bi bi-globe"></i> Network</h3>
+          <div class="palette-node" data-node-type="api_call">
+            <div class="palette-node-icon" style="background: #ec4899; color: white;">
+              <i class="bi bi-cloud-arrow-down"></i>
+            </div>
+            <div class="palette-node-info">
+              <h4>HTTP Request</h4>
+              <p>Call REST APIs</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="palette-section">
+          <h3><i class="bi bi-code-slash"></i> Code</h3>
+          <div class="palette-node" data-node-type="javascript">
+            <div class="palette-node-icon" style="background: #f59e0b; color: white;">
+              <i class="bi bi-code"></i>
+            </div>
+            <div class="palette-node-info">
+              <h4>JavaScript</h4>
+              <p>Custom code execution</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas -->
+      <div class="canvas-container">
+        <div class="floating-toolbar">
+          <button class="toolbar-btn" id="btn-zoom-in" title="Zoom In">
+            <i class="bi bi-zoom-in"></i>
+          </button>
+          <button class="toolbar-btn" id="btn-zoom-out" title="Zoom Out">
+            <i class="bi bi-zoom-out"></i>
+          </button>
+          <button class="toolbar-btn" id="btn-fit" title="Fit to View">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </button>
+          <div class="toolbar-divider"></div>
+          <button class="toolbar-btn" id="btn-grid" title="Toggle Grid">
+            <i class="bi bi-grid-3x3"></i>
+          </button>
+          <button class="toolbar-btn" id="btn-theme" title="Toggle Dark Mode">
+            <i class="bi bi-moon"></i>
+          </button>
+        </div>
+        <div id="workspace"></div>
+      </div>
+
+      <!-- Properties Panel -->
+      <div class="properties-panel">
+        <h3><i class="bi bi-sliders"></i> Properties</h3>
+        <div id="properties-content">
+          <p class="text-muted">Select a node to view its properties</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exprsn Kicks Scripts -->
+  <script src="/node_modules/exprsn-kicks/dist/laceview.js"></script>
+  <script src="/node_modules/exprsn-kicks/dist/workflow-nodes.js"></script>
+  <script src="/node_modules/exprsn-kicks/dist/canvas-controller.js"></script>
+
+  <!-- Bootstrap -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Custom Integration Script -->
+  <script>
+    // Initialize Exprsn Kicks
+    const laceView = new LaceView('workspace', {
+      width: window.innerWidth - 600,
+      height: window.innerHeight - 64,
+      darkMode: false,
+      autoSave: true,
+      gridSize: 20,
+      snapToGrid: true,
+      connectionMode: 'many'
+    });
+
+    const canvasController = new CanvasController(laceView);
+
+    let selectedNode = null;
+
+    // Node palette drag and drop
+    document.querySelectorAll('.palette-node').forEach(paletteNode => {
+      paletteNode.addEventListener('click', (e) => {
+        const nodeType = paletteNode.dataset.nodeType;
+        addNodeToCanvas(nodeType);
+      });
+    });
+
+    // Add node to canvas
+    function addNodeToCanvas(nodeType) {
+      const centerX = (window.innerWidth - 600) / 2;
+      const centerY = (window.innerHeight - 64) / 2;
+
+      let node;
+
+      switch (nodeType) {
+        case 'start':
+          node = laceView.addNode('Start', centerX, centerY, 0, 1, [], ['Flow']);
+          node.color = '#10b981';
+          break;
+
+        case 'condition':
+          node = new ConditionNode(`condition_${Date.now()}`, centerX, centerY);
+          laceView.nodes.set(node.id, node);
+          break;
+
+        case 'loop':
+          node = new LoopNode(`loop_${Date.now()}`, centerX, centerY);
+          laceView.nodes.set(node.id, node);
+          break;
+
+        case 'api_call':
+          node = new HTTPRequestNode(`http_${Date.now()}`, centerX, centerY);
+          laceView.nodes.set(node.id, node);
+          break;
+
+        case 'javascript':
+          node = new CodeExecutionNode(`code_${Date.now()}`, centerX, centerY);
+          laceView.nodes.set(node.id, node);
+          break;
+
+        case 'lowcode_create':
+        case 'lowcode_query':
+        case 'lowcode_update':
+          node = createLowCodeNode(nodeType, centerX, centerY);
+          laceView.nodes.set(node.id, node);
+          break;
+
+        default:
+          node = laceView.addNode(nodeType, centerX, centerY, 1, 1, ['In'], ['Out']);
+      }
+
+      laceView.render();
+    }
+
+    // Create custom Low-Code node
+    function createLowCodeNode(type, x, y) {
+      const config = {
+        lowcode_create: {
+          title: 'Create Record',
+          icon: '+',
+          color: '#06b6d4',
+          inputs: ['Trigger', 'Entity ID', 'Data'],
+          outputs: ['Result', 'Error']
+        },
+        lowcode_query: {
+          title: 'Query Records',
+          icon: '?',
+          color: '#06b6d4',
+          inputs: ['Trigger', 'Entity ID', 'Query'],
+          outputs: ['Records', 'Error']
+        },
+        lowcode_update: {
+          title: 'Update Record',
+          icon: '✎',
+          color: '#06b6d4',
+          inputs: ['Trigger', 'Entity ID', 'Record ID', 'Data'],
+          outputs: ['Result', 'Error']
+        }
+      };
+
+      const nodeConfig = config[type];
+      const node = laceView.addNode(
+        nodeConfig.title,
+        x,
+        y,
+        nodeConfig.inputs.length,
+        nodeConfig.outputs.length,
+        nodeConfig.inputs,
+        nodeConfig.outputs
+      );
+
+      node.type = type;
+      node.color = nodeConfig.color;
+
+      return node;
+    }
+
+    // Toolbar buttons
+    document.getElementById('btn-undo').addEventListener('click', () => laceView.undo());
+    document.getElementById('btn-redo').addEventListener('click', () => laceView.redo());
+    document.getElementById('btn-zoom-in').addEventListener('click', () => canvasController.zoomIn());
+    document.getElementById('btn-zoom-out').addEventListener('click', () => canvasController.zoomOut());
+    document.getElementById('btn-fit').addEventListener('click', () => canvasController.fitToView());
+    document.getElementById('btn-theme').addEventListener('click', () => laceView.toggleDarkMode());
+
+    // Save workflow
+    document.getElementById('btn-save').addEventListener('click', async () => {
+      const workflowData = laceView.toJSON();
+
+      try {
+        const response = await fetch('/api/workflows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Visual Workflow',
+            description: 'Created with visual designer',
+            definition: workflowData,
+            status: 'draft'
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert('Workflow saved successfully!');
+        } else {
+          alert('Error saving workflow: ' + result.error);
+        }
+      } catch (error) {
+        alert('Error saving workflow: ' + error.message);
+      }
+    });
+
+    // Execute workflow
+    document.getElementById('btn-execute').addEventListener('click', async () => {
+      const workflowData = laceView.toJSON();
+      laceView.executeGraph();
+      alert('Workflow execution started! Check the monitoring page for status.');
+    });
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      laceView.resize(
+        window.innerWidth - 600,
+        window.innerHeight - 64
+      );
+    });
+  </script>
+</body>
+</html>

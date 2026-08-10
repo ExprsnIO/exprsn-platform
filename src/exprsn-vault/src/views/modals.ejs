@@ -1,0 +1,199 @@
+<!-- Create Secret Modal -->
+<div class="modal fade" id="createSecretModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-key-fill"></i> Create Secret</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="create-secret-form">
+          <div class="mb-3">
+            <label for="secret-path" class="form-label">Path *</label>
+            <input type="text" class="form-control" id="secret-path" placeholder="/app/database/password" required>
+            <small class="form-text text-muted">Must start with /</small>
+          </div>
+          <div class="mb-3">
+            <label for="secret-key" class="form-label">Key Name *</label>
+            <input type="text" class="form-control" id="secret-key" placeholder="password" required>
+          </div>
+          <div class="mb-3">
+            <label for="secret-value" class="form-label">Value *</label>
+            <textarea class="form-control" id="secret-value" rows="3" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="secret-metadata" class="form-label">Metadata (JSON)</label>
+            <textarea class="form-control" id="secret-metadata" rows="2" placeholder='{"description": "Database password"}'></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="create-secret-btn">Create Secret</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create Key Modal -->
+<div class="modal fade" id="createKeyModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-lock2-fill"></i> Generate Encryption Key</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="create-key-form">
+          <div class="mb-3">
+            <label for="key-name" class="form-label">Name *</label>
+            <input type="text" class="form-control" id="key-name" placeholder="my-encryption-key" required>
+          </div>
+          <div class="mb-3">
+            <label for="key-purpose" class="form-label">Purpose</label>
+            <select class="form-select" id="key-purpose">
+              <option value="general">General</option>
+              <option value="transit">Transit</option>
+              <option value="signing">Signing</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="key-metadata" class="form-label">Metadata (JSON)</label>
+            <textarea class="form-control" id="key-metadata" rows="2" placeholder='{"description": "Production encryption key"}'></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="create-key-btn">Generate Key</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Generate Database Credentials Modal -->
+<div class="modal fade" id="generateDatabaseModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-database"></i> Generate Database Credentials</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="generate-database-form">
+          <div class="mb-3">
+            <label for="db-path" class="form-label">Path *</label>
+            <input type="text" class="form-control" id="db-path" placeholder="/database/credentials" required>
+          </div>
+          <div class="mb-3">
+            <label for="db-type" class="form-label">Database Type</label>
+            <select class="form-select" id="db-type">
+              <option value="postgresql">PostgreSQL</option>
+              <option value="mysql">MySQL</option>
+              <option value="mongodb">MongoDB</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="db-ttl" class="form-label">TTL (seconds)</label>
+            <input type="number" class="form-control" id="db-ttl" value="3600" min="60" max="86400">
+          </div>
+        </form>
+        <div id="db-credentials-result" style="display:none;">
+          <div class="alert alert-success">
+            <h6>Credentials Generated</h6>
+            <p><strong>Username:</strong> <code id="db-username"></code></p>
+            <p><strong>Password:</strong> <code id="db-password"></code></p>
+            <p><strong>Lease ID:</strong> <code id="db-lease-id"></code></p>
+            <p><strong>Expires:</strong> <span id="db-expires"></span></p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="generate-database-btn">Generate</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Generate API Key Modal -->
+<div class="modal fade" id="generateApiKeyModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-key"></i> Generate API Key</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="generate-apikey-form">
+          <div class="mb-3">
+            <label for="apikey-path" class="form-label">Path *</label>
+            <input type="text" class="form-control" id="apikey-path" placeholder="/api/keys" required>
+          </div>
+          <div class="mb-3">
+            <label for="apikey-prefix" class="form-label">Prefix</label>
+            <input type="text" class="form-control" id="apikey-prefix" value="vlt" maxlength="10">
+          </div>
+          <div class="mb-3">
+            <label for="apikey-ttl" class="form-label">TTL (seconds)</label>
+            <input type="number" class="form-control" id="apikey-ttl" value="3600" min="60" max="86400">
+          </div>
+        </form>
+        <div id="apikey-result" style="display:none;">
+          <div class="alert alert-success">
+            <h6>API Key Generated</h6>
+            <p><strong>API Key:</strong> <code id="apikey-value"></code></p>
+            <p><strong>Lease ID:</strong> <code id="apikey-lease-id"></code></p>
+            <p><strong>Expires:</strong> <span id="apikey-expires"></span></p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="generate-apikey-btn">Generate</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- View Secret Modal -->
+<div class="modal fade" id="viewSecretModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-eye-fill"></i> View Secret</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Path</label>
+          <input type="text" class="form-control" id="view-secret-path" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Key</label>
+          <input type="text" class="form-control" id="view-secret-key" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Value</label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="view-secret-value" readonly>
+            <button class="btn btn-outline-secondary" type="button" id="toggle-secret-visibility">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Version</label>
+          <input type="text" class="form-control" id="view-secret-version" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Created</label>
+          <input type="text" class="form-control" id="view-secret-created" readonly>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

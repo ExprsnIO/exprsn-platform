@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exprsn Modern Theme - Complete UI Component Demo">
+  <title>Exprsn Modern Theme - Complete Demo</title>
+
+  <!-- Theme Stylesheets -->
+  <link rel="stylesheet" href="css/exprsn-theme.css">
+  <link rel="stylesheet" href="css/exprsn-components.css">
+  <link rel="stylesheet" href="css/exprsn-modern.css">
+
+  <style>
+    /* Page-specific styles */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--exprsn-font-family);
+    }
+
+    .page-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      flex: 1;
+      margin-left: 280px;
+      transition: margin-left 0.3s ease;
+    }
+
+    .main-content.sidebar-collapsed {
+      margin-left: 80px;
+    }
+
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: var(--exprsn-z-sticky);
+      background: var(--exprsn-surface-raised);
+      border-bottom: 1px solid var(--exprsn-border-color);
+      padding: var(--exprsn-spacing-lg);
+      box-shadow: var(--exprsn-shadow-sm);
+    }
+
+    .top-bar-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--exprsn-spacing-lg);
+    }
+
+    .page-header {
+      margin-bottom: var(--exprsn-spacing-2xl);
+    }
+
+    .page-title {
+      font-size: var(--exprsn-font-size-4xl);
+      font-weight: var(--exprsn-font-weight-bold);
+      background: var(--exprsn-gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: var(--exprsn-spacing-sm);
+    }
+
+    .page-description {
+      font-size: var(--exprsn-font-size-lg);
+      color: var(--exprsn-text-muted);
+    }
+
+    .content-section {
+      padding: var(--exprsn-spacing-2xl);
+    }
+
+    .section-header {
+      margin-bottom: var(--exprsn-spacing-xl);
+    }
+
+    .section-title {
+      font-size: var(--exprsn-font-size-2xl);
+      font-weight: var(--exprsn-font-weight-bold);
+      color: var(--exprsn-text-primary);
+      margin-bottom: var(--exprsn-spacing-sm);
+    }
+
+    .section-description {
+      color: var(--exprsn-text-muted);
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .main-content {
+        margin-left: 0;
+      }
+
+      .modern-sidebar {
+        transform: translateX(-100%);
+      }
+
+      .modern-sidebar.mobile-open {
+        transform: translateX(0);
+      }
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--exprsn-spacing-lg);
+      margin-bottom: var(--exprsn-spacing-2xl);
+    }
+
+    .stat-card {
+      background: var(--exprsn-surface-raised);
+      border-radius: var(--exprsn-radius-xl);
+      padding: var(--exprsn-spacing-lg);
+      box-shadow: var(--exprsn-shadow-md);
+      border: 1px solid var(--exprsn-border-color);
+      transition: var(--exprsn-transition-base);
+    }
+
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--exprsn-shadow-xl);
+    }
+
+    .stat-label {
+      font-size: var(--exprsn-font-size-sm);
+      color: var(--exprsn-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--exprsn-spacing-xs);
+    }
+
+    .stat-value {
+      font-size: var(--exprsn-font-size-3xl);
+      font-weight: var(--exprsn-font-weight-bold);
+      color: var(--exprsn-primary);
+      margin-bottom: var(--exprsn-spacing-xs);
+    }
+
+    .stat-change {
+      font-size: var(--exprsn-font-size-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--exprsn-radius-full);
+    }
+
+    .stat-change.positive {
+      color: var(--exprsn-success);
+      background: var(--exprsn-success-bg);
+    }
+
+    .stat-change.negative {
+      color: var(--exprsn-danger);
+      background: var(--exprsn-danger-bg);
+    }
+  </style>
+</head>
+<body>
+  <!-- Skip to main content -->
+  <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+  <!-- Sidebar Overlay (Mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <!-- Page Container -->
+  <div class="page-container">
+
+    <!-- ========== SIDEBAR NAVIGATION ========== -->
+    <aside class="modern-sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+      <div class="modern-sidebar-header">
+        <a href="#" class="modern-sidebar-logo">
+          <div class="modern-sidebar-logo-icon">E</div>
+          <span class="sidebar-text">Exprsn</span>
+        </a>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle" aria-label="Toggle sidebar">
+          <span aria-hidden="true">‹</span>
+        </button>
+      </div>
+
+      <nav>
+        <ul class="modern-sidebar-nav">
+          <li class="modern-sidebar-nav-item">
+            <a href="#dashboard" class="modern-sidebar-nav-link active">
+              <span class="modern-sidebar-nav-icon">📊</span>
+              <span class="sidebar-text">Dashboard</span>
+            </a>
+          </li>
+          <li class="modern-sidebar-nav-item">
+            <a href="#timeline" class="modern-sidebar-nav-link">
+              <span class="modern-sidebar-nav-icon">📱</span>
+              <span class="sidebar-text">Timeline</span>
+              <span class="modern-sidebar-nav-badge sidebar-text">12</span>
+            </a>
+          </li>
+          <li class="modern-sidebar-nav-item">
+            <a href="#profile" class="modern-sidebar-nav-link">
+              <span class="modern-sidebar-nav-icon">👤</span>
+              <span class="sidebar-text">Profile</span>
+            </a>
+          </li>
+          <li class="modern-sidebar-nav-item">
+            <a href="#certificates" class="modern-sidebar-nav-link">
+              <span class="modern-sidebar-nav-icon">🔐</span>
+              <span class="sidebar-text">Certificates</span>
+            </a>
+          </li>
+          <li class="modern-sidebar-nav-item">
+            <a href="#tokens" class="modern-sidebar-nav-link">
+              <span class="modern-sidebar-nav-icon">🎫</span>
+              <span class="sidebar-text">Tokens</span>
+            </a>
+          </li>
+          <li class="modern-sidebar-nav-item">
+            <a href="#users" class="modern-sidebar-nav-link">
+              <span class="modern-sidebar-nav-icon">👥</span>
+              <span class="sidebar-text">Users</span>
+            </a>
+          </li>
+        </ul>
+
+        <!-- Services Section -->
+        <div class="modern-sidebar-section">
+          <div class="modern-sidebar-section-title sidebar-text">Services</div>
+          <ul class="modern-sidebar-nav">
+            <li class="modern-sidebar-nav-item">
+              <a href="#auth-service" class="modern-sidebar-nav-link">
+                <span class="modern-sidebar-nav-icon">🔑</span>
+                <span class="sidebar-text">Authentication</span>
+              </a>
+            </li>
+            <li class="modern-sidebar-nav-item">
+              <a href="#spark-service" class="modern-sidebar-nav-link">
+                <span class="modern-sidebar-nav-icon">⚡</span>
+                <span class="sidebar-text">Spark (Messaging)</span>
+              </a>
+            </li>
+            <li class="modern-sidebar-nav-item">
+              <a href="#filevault-service" class="modern-sidebar-nav-link">
+                <span class="modern-sidebar-nav-icon">📁</span>
+                <span class="sidebar-text">FileVault</span>
+              </a>
+            </li>
+            <li class="modern-sidebar-nav-item">
+              <a href="#moderator-service" class="modern-sidebar-nav-link">
+                <span class="modern-sidebar-nav-icon">🛡️</span>
+                <span class="sidebar-text">Moderator</span>
+              </a>
+            </li>
+            <li class="modern-sidebar-nav-item">
+              <a href="#live-service" class="modern-sidebar-nav-link">
+                <span class="modern-sidebar-nav-icon">📡</span>
+                <span class="sidebar-text">Live Streaming</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="modern-sidebar-section">
+          <div class="modern-sidebar-section-title sidebar-text">Settings</div>
+          <ul class="modern-sidebar-nav">
+            <li class="modern-sidebar-nav-item">
+              <a href="#configuration" class="modern-sidebar-nav-link">
+                <span class="modern-sidebar-nav-icon">⚙️</span>
+                <span class="sidebar-text">Configuration</span>
+              </a>
+            </li>
+            <li class="modern-sidebar-nav-item">
+              <a href="#security" class="modern-sidebar-nav-link">
+                <span class="modern-sidebar-nav-icon">🔒</span>
+                <span class="sidebar-text">Security</span>
+              </a>
+            </li>
+            <li class="modern-sidebar-nav-item">
+              <a href="#analytics" class="modern-sidebar-nav-link">
+                <span class="modern-sidebar-nav-icon">📈</span>
+                <span class="sidebar-text">Analytics</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <main class="main-content" id="main-content">
+
+      <!-- Top Bar -->
+      <div class="top-bar">
+        <div class="top-bar-content">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="btn-icon btn-ghost" id="mobile-menu-toggle" aria-label="Toggle menu">
+              <span aria-hidden="true">☰</span>
+            </button>
+
+            <div class="modern-search-box" style="min-width: 300px;">
+              <span class="modern-search-icon" aria-hidden="true">🔍</span>
+              <input type="search" class="form-control modern-search-input" placeholder="Search..." aria-label="Search">
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="btn-icon btn-ghost" aria-label="Notifications">
+              <span aria-hidden="true">🔔</span>
+            </button>
+            <button class="btn-icon btn-ghost" id="theme-toggle" aria-label="Toggle theme">
+              <span class="theme-icon">🌙</span>
+            </button>
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--exprsn-gradient-primary); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+              U
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== DASHBOARD SECTION ========== -->
+      <section id="dashboard" class="content-section">
+        <div class="page-header">
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-description">Welcome to the Exprsn Certificate Authority management dashboard</p>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Active Tokens</div>
+            <div class="stat-value">1,284</div>
+            <span class="stat-change positive">↑ 12.5%</span>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Certificates</div>
+            <div class="stat-value">856</div>
+            <span class="stat-change positive">↑ 8.2%</span>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Validations (24h)</div>
+            <div class="stat-value">45.2K</div>
+            <span class="stat-change positive">↑ 23.1%</span>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Users</div>
+            <div class="stat-value">2,451</div>
+            <span class="stat-change negative">↓ 3.2%</span>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="section-header">
+          <h2 class="section-title">Filter & Search Example</h2>
+          <p class="section-description">Modern filter controls with search, dropdowns, and option groups</p>
+        </div>
+
+        <div class="modern-filter-bar">
+          <div class="modern-filter-row">
+            <div class="modern-filter-group">
+              <label class="form-label" for="search-tokens">Search Tokens</label>
+              <div class="modern-search-box">
+                <span class="modern-search-icon" aria-hidden="true">🔍</span>
+                <input type="search" id="search-tokens" class="form-control modern-search-input" placeholder="Search by ID or type...">
+              </div>
+            </div>
+
+            <div class="modern-filter-group">
+              <label class="form-label" for="filter-type">Token Type</label>
+              <select id="filter-type" class="form-select">
+                <option value="">All Types</option>
+                <option value="time">Time-based</option>
+                <option value="use">Use-based</option>
+                <option value="persistent">Persistent</option>
+              </select>
+            </div>
+
+            <div class="modern-filter-group">
+              <label class="form-label" for="filter-status">Status</label>
+              <select id="filter-status" class="form-select">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="expired">Expired</option>
+                <option value="revoked">Revoked</option>
+              </select>
+            </div>
+
+            <div class="modern-filter-group actions">
+              <label class="form-label" style="opacity: 0; pointer-events: none;">Actions</label>
+              <button class="btn btn-primary">Apply</button>
+              <button class="btn btn-ghost">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Radio Button Group Example -->
+        <div class="section-header" style="margin-top: 3rem;">
+          <h2 class="section-title">Option Groups - Radio Buttons</h2>
+          <p class="section-description">Modern radio button groups with descriptions</p>
+        </div>
+
+        <div class="modern-option-group">
+          <label class="modern-option">
+            <input type="radio" name="token-expiry" value="time" checked class="form-check-input">
+            <div class="modern-option-content">
+              <div class="modern-option-title">Time-based Expiry</div>
+              <div class="modern-option-description">Token expires after a specific time period</div>
+            </div>
+          </label>
+
+          <label class="modern-option">
+            <input type="radio" name="token-expiry" value="use" class="form-check-input">
+            <div class="modern-option-content">
+              <div class="modern-option-title">Use-based Expiry</div>
+              <div class="modern-option-description">Token expires after a certain number of uses</div>
+            </div>
+          </label>
+
+          <label class="modern-option">
+            <input type="radio" name="token-expiry" value="persistent" class="form-check-input">
+            <div class="modern-option-content">
+              <div class="modern-option-title">Persistent Token</div>
+              <div class="modern-option-description">Token never expires automatically</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Checkbox Group Example -->
+        <div class="section-header" style="margin-top: 3rem;">
+          <h2 class="section-title">Option Groups - Checkboxes</h2>
+          <p class="section-description">Modern checkbox groups for permissions</p>
+        </div>
+
+        <div class="modern-option-group">
+          <label class="modern-option">
+            <input type="checkbox" name="permission-read" checked class="form-check-input">
+            <div class="modern-option-content">
+              <div class="modern-option-title">Read Permission</div>
+              <div class="modern-option-description">Allow reading resources</div>
+            </div>
+          </label>
+
+          <label class="modern-option">
+            <input type="checkbox" name="permission-write" checked class="form-check-input">
+            <div class="modern-option-content">
+              <div class="modern-option-title">Write Permission</div>
+              <div class="modern-option-description">Allow creating and updating resources</div>
+            </div>
+          </label>
+
+          <label class="modern-option">
+            <input type="checkbox" name="permission-delete" class="form-check-input">
+            <div class="modern-option-content">
+              <div class="modern-option-title">Delete Permission</div>
+              <div class="modern-option-description">Allow deleting resources</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Modern Table Example -->
+        <div class="section-header" style="margin-top: 3rem;">
+          <h2 class="section-title">Data Tables</h2>
+          <p class="section-description">Modern table design with drag-and-drop reordering</p>
+        </div>
+
+        <div class="modern-table-wrapper">
+          <table class="modern-table" id="tokens-table">
+            <caption class="sr-only">Active Tokens List</caption>
+            <thead>
+              <tr>
+                <th style="width: 50px;"></th>
+                <th>Token ID</th>
+                <th>Type</th>
+                <th>Issued</th>
+                <th>Expires</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody data-draggable="table">
+              <tr tabindex="0">
+                <td><button class="drag-handle" aria-label="Drag to reorder">⋮⋮</button></td>
+                <td><code>550e8400-e29b</code></td>
+                <td>Time-based</td>
+                <td>2025-11-01</td>
+                <td>2025-12-01</td>
+                <td><span class="badge badge-success">Active</span></td>
+                <td>
+                  <button class="btn-icon btn-ghost btn-sm" aria-label="View">👁️</button>
+                  <button class="btn-icon btn-ghost btn-sm" aria-label="Edit">✏️</button>
+                </td>
+              </tr>
+              <tr tabindex="0">
+                <td><button class="drag-handle" aria-label="Drag to reorder">⋮⋮</button></td>
+                <td><code>6ba7b810-9dad</code></td>
+                <td>Use-based</td>
+                <td>2025-11-15</td>
+                <td>-</td>
+                <td><span class="badge badge-success">Active</span></td>
+                <td>
+                  <button class="btn-icon btn-ghost btn-sm" aria-label="View">👁️</button>
+                  <button class="btn-icon btn-ghost btn-sm" aria-label="Edit">✏️</button>
+                </td>
+              </tr>
+              <tr tabindex="0">
+                <td><button class="drag-handle" aria-label="Drag to reorder">⋮⋮</button></td>
+                <td><code>7c9e6679-7425</code></td>
+                <td>Persistent</td>
+                <td>2025-10-20</td>
+                <td>Never</td>
+                <td><span class="badge badge-success">Active</span></td>
+                <td>
+                  <button class="btn-icon btn-ghost btn-sm" aria-label="View">👁️</button>
+                  <button class="btn-icon btn-ghost btn-sm" aria-label="Edit">✏️</button>
+                </td>
+              </tr>
+              <tr tabindex="0">
+                <td><button class="drag-handle" aria-label="Drag to reorder">⋮⋮</button></td>
+                <td><code>8d04a276-f2d5</code></td>
+                <td>Time-based</td>
+                <td>2025-11-20</td>
+                <td>2025-11-27</td>
+                <td><span class="badge badge-warning">Expiring</span></td>
+                <td>
+                  <button class="btn-icon btn-ghost btn-sm" aria-label="View">👁️</button>
+                  <button class="btn-icon btn-ghost btn-sm" aria-label="Edit">✏️</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Drag and Drop Between Tables -->
+        <div class="section-header" style="margin-top: 3rem;">
+          <h2 class="section-title">Drag & Drop Between Tables</h2>
+          <p class="section-description">Drag items between different tables</p>
+        </div>
+
+        <div class="modern-grid-2">
+          <div class="modern-table-wrapper">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th colspan="3">Pending Approvals</th>
+                </tr>
+                <tr>
+                  <th style="width: 40px;"></th>
+                  <th>Item</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="pending-table" data-draggable="table">
+                <tr tabindex="0">
+                  <td><button class="drag-handle" aria-label="Drag">⋮⋮</button></td>
+                  <td>Certificate Request #123</td>
+                  <td>Dec 1, 2025</td>
+                </tr>
+                <tr tabindex="0">
+                  <td><button class="drag-handle" aria-label="Drag">⋮⋮</button></td>
+                  <td>Token Renewal #456</td>
+                  <td>Dec 2, 2025</td>
+                </tr>
+                <tr tabindex="0">
+                  <td><button class="drag-handle" aria-label="Drag">⋮⋮</button></td>
+                  <td>Access Request #789</td>
+                  <td>Dec 3, 2025</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="modern-table-wrapper">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th colspan="3">Approved</th>
+                </tr>
+                <tr>
+                  <th style="width: 40px;"></th>
+                  <th>Item</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="approved-table" data-draggable="table">
+                <tr tabindex="0">
+                  <td><button class="drag-handle" aria-label="Drag">⋮⋮</button></td>
+                  <td>User Registration #111</td>
+                  <td>Nov 28, 2025</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== TIMELINE SECTION ========== -->
+      <section id="timeline" class="content-section" style="background: var(--exprsn-bg-secondary);">
+        <div class="page-header">
+          <h1 class="page-title">Timeline</h1>
+          <p class="page-description">Social feed for exprsn-timeline service</p>
+        </div>
+
+        <div class="modern-timeline">
+          <!-- Timeline Post 1 -->
+          <article class="timeline-post">
+            <header class="timeline-post-header">
+              <div class="timeline-post-avatar">JD</div>
+              <div class="timeline-post-author-info">
+                <div class="timeline-post-author-name">John Doe</div>
+                <div class="timeline-post-timestamp">2 hours ago</div>
+              </div>
+              <button class="btn-icon btn-ghost timeline-post-menu" aria-label="More options">
+                <span aria-hidden="true">⋯</span>
+              </button>
+            </header>
+
+            <div class="timeline-post-content">
+              Just deployed the new certificate validation system! The performance improvements are incredible - we're seeing 40% faster validation times. 🚀
+            </div>
+
+            <div class="timeline-post-actions">
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">👍</span>
+                <span>24</span>
+              </button>
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">💬</span>
+                <span>8</span>
+              </button>
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">🔄</span>
+                <span>3</span>
+              </button>
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">🔖</span>
+              </button>
+            </div>
+          </article>
+
+          <!-- Timeline Post 2 with Image -->
+          <article class="timeline-post">
+            <header class="timeline-post-header">
+              <div class="timeline-post-avatar">SA</div>
+              <div class="timeline-post-author-info">
+                <div class="timeline-post-author-name">Sarah Anderson</div>
+                <div class="timeline-post-timestamp">5 hours ago</div>
+              </div>
+              <button class="btn-icon btn-ghost timeline-post-menu" aria-label="More options">
+                <span aria-hidden="true">⋯</span>
+              </button>
+            </header>
+
+            <div class="timeline-post-content">
+              New dashboard design is looking amazing! Check out these analytics visualizations. 📊
+            </div>
+
+            <div class="timeline-post-media">
+              <div style="background: var(--exprsn-gradient-primary); height: 300px; display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem;">
+                📊
+              </div>
+            </div>
+
+            <div class="timeline-post-actions">
+              <button class="timeline-post-action active">
+                <span class="timeline-post-action-icon" aria-hidden="true">👍</span>
+                <span>156</span>
+              </button>
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">💬</span>
+                <span>32</span>
+              </button>
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">🔄</span>
+                <span>12</span>
+              </button>
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">🔖</span>
+              </button>
+            </div>
+          </article>
+
+          <!-- Timeline Post 3 -->
+          <article class="timeline-post">
+            <header class="timeline-post-header">
+              <div class="timeline-post-avatar">MR</div>
+              <div class="timeline-post-author-info">
+                <div class="timeline-post-author-name">Mike Roberts</div>
+                <div class="timeline-post-timestamp">1 day ago</div>
+              </div>
+              <button class="btn-icon btn-ghost timeline-post-menu" aria-label="More options">
+                <span aria-hidden="true">⋯</span>
+              </button>
+            </header>
+
+            <div class="timeline-post-content">
+              Great article on token security best practices. Essential reading for anyone working with the CA system. 🔐<br>
+              <a href="#" style="color: var(--exprsn-primary);">https://exprsn.io/blog/token-security</a>
+            </div>
+
+            <div class="timeline-post-actions">
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">👍</span>
+                <span>89</span>
+              </button>
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">💬</span>
+                <span>15</span>
+              </button>
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">🔄</span>
+                <span>45</span>
+              </button>
+              <button class="timeline-post-action">
+                <span class="timeline-post-action-icon" aria-hidden="true">🔖</span>
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ========== PROFILE SECTION ========== -->
+      <section id="profile" class="content-section">
+        <div class="modern-profile">
+          <!-- Profile Header -->
+          <div class="modern-profile-header">
+            <div class="modern-profile-cover">
+              <!-- Cover image or gradient -->
+            </div>
+
+            <div class="modern-profile-info-wrapper">
+              <div class="modern-profile-info">
+                <div class="modern-profile-avatar-wrapper">
+                  <div class="modern-profile-avatar">RH</div>
+                </div>
+
+                <div class="modern-profile-details">
+                  <h1 class="modern-profile-name">Rick Holland</h1>
+                  <div class="modern-profile-username">@rickholland</div>
+
+                  <p class="modern-profile-bio">
+                    Senior Software Engineer specializing in distributed systems and certificate authority infrastructure. Building secure, scalable authentication solutions.
+                  </p>
+
+                  <div class="modern-profile-meta">
+                    <div class="modern-profile-meta-item">
+                      <span class="modern-profile-meta-icon" aria-hidden="true">📍</span>
+                      <span>San Francisco, CA</span>
+                    </div>
+                    <div class="modern-profile-meta-item">
+                      <span class="modern-profile-meta-icon" aria-hidden="true">🔗</span>
+                      <a href="https://exprsn.io">exprsn.io</a>
+                    </div>
+                    <div class="modern-profile-meta-item">
+                      <span class="modern-profile-meta-icon" aria-hidden="true">📅</span>
+                      <span>Joined November 2025</span>
+                    </div>
+                  </div>
+
+                  <div class="modern-profile-stats">
+                    <div class="modern-profile-stat">
+                      <span class="modern-profile-stat-value">1,234</span>
+                      <span class="modern-profile-stat-label">Posts</span>
+                    </div>
+                    <div class="modern-profile-stat">
+                      <span class="modern-profile-stat-value">5,678</span>
+                      <span class="modern-profile-stat-label">Followers</span>
+                    </div>
+                    <div class="modern-profile-stat">
+                      <span class="modern-profile-stat-value">890</span>
+                      <span class="modern-profile-stat-label">Following</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="modern-profile-actions">
+                  <button class="btn btn-primary">Follow</button>
+                  <button class="btn btn-outline-primary">Message</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile Content -->
+          <div class="modern-grid-3" style="margin-top: 2rem;">
+            <div class="card">
+              <div class="card-body">
+                <h3 style="margin-top: 0;">Certificates</h3>
+                <div class="stat-value" style="margin: 1rem 0;">45</div>
+                <p class="text-muted" style="margin: 0;">Active certificates</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-body">
+                <h3 style="margin-top: 0;">Tokens</h3>
+                <div class="stat-value" style="margin: 1rem 0;">128</div>
+                <p class="text-muted" style="margin: 0;">Tokens issued</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-body">
+                <h3 style="margin-top: 0;">Validations</h3>
+                <div class="stat-value" style="margin: 1rem 0;">12.5K</div>
+                <p class="text-muted" style="margin: 0;">This month</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== CONFIGURATION SECTION ========== -->
+      <section id="configuration" class="content-section" style="background: var(--exprsn-bg-secondary);">
+        <div class="page-header">
+          <h1 class="page-title">Configuration Dashboard</h1>
+          <p class="page-description">Advanced settings for all Exprsn services</p>
+        </div>
+
+        <div class="config-dashboard">
+          <!-- Certificate Authority Configuration -->
+          <div class="config-section">
+            <div class="config-section-header" onclick="toggleConfigSection(this)">
+              <div class="config-section-title-wrapper">
+                <div class="config-section-icon">🔐</div>
+                <div>
+                  <h2 class="config-section-title">Certificate Authority</h2>
+                  <p class="config-section-description">Configure CA settings and certificate management</p>
+                </div>
+              </div>
+              <span class="config-section-toggle">▼</span>
+            </div>
+            <div class="config-section-body">
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label">OCSP Responder</label>
+                  <p class="config-item-description">Enable Online Certificate Status Protocol for real-time certificate validation</p>
+                </div>
+                <div class="config-item-control">
+                  <label class="modern-switch">
+                    <input type="checkbox" checked>
+                    <span class="modern-switch-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label">CRL Distribution</label>
+                  <p class="config-item-description">Publish Certificate Revocation Lists for revocation checking</p>
+                </div>
+                <div class="config-item-control">
+                  <label class="modern-switch">
+                    <input type="checkbox" checked>
+                    <span class="modern-switch-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="ca-key-size">Key Size</label>
+                  <p class="config-item-description">RSA key size for certificate generation</p>
+                </div>
+                <div class="config-item-control">
+                  <select id="ca-key-size" class="form-select">
+                    <option value="2048" selected>2048 bits</option>
+                    <option value="3072">3072 bits</option>
+                    <option value="4096">4096 bits</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="ca-validity">Certificate Validity</label>
+                  <p class="config-item-description">Default validity period for new certificates</p>
+                </div>
+                <div class="config-item-control">
+                  <select id="ca-validity" class="form-select">
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
+                    <option value="365" selected>1 year</option>
+                    <option value="730">2 years</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Authentication Service Configuration -->
+          <div class="config-section">
+            <div class="config-section-header" onclick="toggleConfigSection(this)">
+              <div class="config-section-title-wrapper">
+                <div class="config-section-icon">🔑</div>
+                <div>
+                  <h2 class="config-section-title">Authentication Service</h2>
+                  <p class="config-section-description">SSO and authentication settings (exprsn-auth)</p>
+                </div>
+              </div>
+              <span class="config-section-toggle">▼</span>
+            </div>
+            <div class="config-section-body">
+              <div class="config-subsection">
+                <h3 class="config-subsection-title">🔐 Password Policy</h3>
+
+                <div class="config-item">
+                  <div class="config-item-info">
+                    <label class="config-item-label" for="min-length">Minimum Length</label>
+                    <p class="config-item-description">Minimum password length requirement</p>
+                  </div>
+                  <div class="config-item-control">
+                    <input type="number" id="min-length" class="form-control" value="12" min="8" max="32" style="width: 100px;">
+                  </div>
+                </div>
+
+                <div class="config-item">
+                  <div class="config-item-info">
+                    <label class="config-item-label">Require Special Characters</label>
+                    <p class="config-item-description">Enforce special characters in passwords</p>
+                  </div>
+                  <div class="config-item-control">
+                    <label class="modern-switch">
+                      <input type="checkbox" checked>
+                      <span class="modern-switch-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="config-subsection">
+                <h3 class="config-subsection-title">👥 User Management</h3>
+
+                <div class="config-item">
+                  <div class="config-item-info">
+                    <label class="config-item-label">Allow Self-Registration</label>
+                    <p class="config-item-description">Users can create their own accounts</p>
+                  </div>
+                  <div class="config-item-control">
+                    <label class="modern-switch">
+                      <input type="checkbox" checked>
+                      <span class="modern-switch-slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="config-item">
+                  <div class="config-item-info">
+                    <label class="config-item-label">Email Verification Required</label>
+                    <p class="config-item-description">Require email verification for new accounts</p>
+                  </div>
+                  <div class="config-item-control">
+                    <label class="modern-switch">
+                      <input type="checkbox" checked>
+                      <span class="modern-switch-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="config-subsection">
+                <h3 class="config-subsection-title">🔐 Multi-Factor Authentication</h3>
+
+                <div class="config-item">
+                  <div class="config-item-info">
+                    <label class="config-item-label">Require MFA</label>
+                    <p class="config-item-description">Enforce multi-factor authentication for all users</p>
+                  </div>
+                  <div class="config-item-control">
+                    <label class="modern-switch">
+                      <input type="checkbox">
+                      <span class="modern-switch-slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="config-item">
+                  <div class="config-item-info">
+                    <label class="config-item-label" for="mfa-methods">Allowed MFA Methods</label>
+                    <p class="config-item-description">Select which MFA methods are allowed</p>
+                  </div>
+                  <div class="config-item-control">
+                    <select id="mfa-methods" class="form-select" multiple style="height: 80px;">
+                      <option value="totp" selected>TOTP (Authenticator App)</option>
+                      <option value="sms" selected>SMS</option>
+                      <option value="email">Email</option>
+                      <option value="hardware">Hardware Token</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spark (Messaging) Configuration -->
+          <div class="config-section">
+            <div class="config-section-header" onclick="toggleConfigSection(this)">
+              <div class="config-section-title-wrapper">
+                <div class="config-section-icon">⚡</div>
+                <div>
+                  <h2 class="config-section-title">Spark Messaging</h2>
+                  <p class="config-section-description">Real-time messaging service settings (exprsn-spark)</p>
+                </div>
+              </div>
+              <span class="config-section-toggle">▼</span>
+            </div>
+            <div class="config-section-body">
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label">WebSocket Connections</label>
+                  <p class="config-item-description">Enable real-time WebSocket connections</p>
+                </div>
+                <div class="config-item-control">
+                  <label class="modern-switch">
+                    <input type="checkbox" checked>
+                    <span class="modern-switch-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="max-message-size">Max Message Size</label>
+                  <p class="config-item-description">Maximum size for individual messages (KB)</p>
+                </div>
+                <div class="config-item-control">
+                  <input type="number" id="max-message-size" class="form-control" value="256" min="64" max="2048" style="width: 120px;">
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label">Message Encryption</label>
+                  <p class="config-item-description">End-to-end encryption for all messages</p>
+                </div>
+                <div class="config-item-control">
+                  <label class="modern-switch">
+                    <input type="checkbox" checked>
+                    <span class="modern-switch-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="retention-period">Message Retention</label>
+                  <p class="config-item-description">How long to keep message history</p>
+                </div>
+                <div class="config-item-control">
+                  <select id="retention-period" class="form-select">
+                    <option value="7">7 days</option>
+                    <option value="30" selected>30 days</option>
+                    <option value="90">90 days</option>
+                    <option value="365">1 year</option>
+                    <option value="0">Forever</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Moderator Configuration -->
+          <div class="config-section">
+            <div class="config-section-header" onclick="toggleConfigSection(this)">
+              <div class="config-section-title-wrapper">
+                <div class="config-section-icon">🛡️</div>
+                <div>
+                  <h2 class="config-section-title">Content Moderator</h2>
+                  <p class="config-section-description">Content moderation settings (exprsn-moderator)</p>
+                </div>
+              </div>
+              <span class="config-section-toggle">▼</span>
+            </div>
+            <div class="config-section-body">
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label">Auto-Moderation</label>
+                  <p class="config-item-description">Automatically flag potentially harmful content</p>
+                </div>
+                <div class="config-item-control">
+                  <label class="modern-switch">
+                    <input type="checkbox" checked>
+                    <span class="modern-switch-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="moderation-level">Moderation Level</label>
+                  <p class="config-item-description">How strict should automated moderation be</p>
+                </div>
+                <div class="config-item-control">
+                  <select id="moderation-level" class="form-select">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                    <option value="strict">Strict</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label">User Reports</label>
+                  <p class="config-item-description">Allow users to report inappropriate content</p>
+                </div>
+                <div class="config-item-control">
+                  <label class="modern-switch">
+                    <input type="checkbox" checked>
+                    <span class="modern-switch-slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FileVault Configuration -->
+          <div class="config-section">
+            <div class="config-section-header" onclick="toggleConfigSection(this)">
+              <div class="config-section-title-wrapper">
+                <div class="config-section-icon">📁</div>
+                <div>
+                  <h2 class="config-section-title">FileVault Storage</h2>
+                  <p class="config-section-description">File storage and management (exprsn-filevault)</p>
+                </div>
+              </div>
+              <span class="config-section-toggle">▼</span>
+            </div>
+            <div class="config-section-body">
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="storage-backend">Storage Backend</label>
+                  <p class="config-item-description">Where to store uploaded files</p>
+                </div>
+                <div class="config-item-control">
+                  <select id="storage-backend" class="form-select">
+                    <option value="local">Local Disk</option>
+                    <option value="s3" selected>Amazon S3</option>
+                    <option value="azure">Azure Blob</option>
+                    <option value="gcs">Google Cloud Storage</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="max-file-size">Max File Size</label>
+                  <p class="config-item-description">Maximum file size for uploads (MB)</p>
+                </div>
+                <div class="config-item-control">
+                  <input type="number" id="max-file-size" class="form-control" value="100" min="1" max="1024" style="width: 120px;">
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label">Virus Scanning</label>
+                  <p class="config-item-description">Scan uploaded files for malware</p>
+                </div>
+                <div class="config-item-control">
+                  <label class="modern-switch">
+                    <input type="checkbox" checked>
+                    <span class="modern-switch-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="allowed-types">Allowed File Types</label>
+                  <p class="config-item-description">Which file types can be uploaded</p>
+                </div>
+                <div class="config-item-control">
+                  <select id="allowed-types" class="form-select" multiple style="height: 120px;">
+                    <option value="images" selected>Images (jpg, png, gif)</option>
+                    <option value="documents" selected>Documents (pdf, doc, txt)</option>
+                    <option value="videos">Videos (mp4, mov, avi)</option>
+                    <option value="audio">Audio (mp3, wav, flac)</option>
+                    <option value="archives">Archives (zip, tar, gz)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Streaming Configuration -->
+          <div class="config-section">
+            <div class="config-section-header" onclick="toggleConfigSection(this)">
+              <div class="config-section-title-wrapper">
+                <div class="config-section-icon">📡</div>
+                <div>
+                  <h2 class="config-section-title">Live Streaming</h2>
+                  <p class="config-section-description">Live streaming service settings (exprsn-live)</p>
+                </div>
+              </div>
+              <span class="config-section-toggle">▼</span>
+            </div>
+            <div class="config-section-body">
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="streaming-provider">Streaming Provider</label>
+                  <p class="config-item-description">Which service to use for live streaming</p>
+                </div>
+                <div class="config-item-control">
+                  <select id="streaming-provider" class="form-select">
+                    <option value="cloudflare" selected>Cloudflare Stream</option>
+                    <option value="aws">AWS IVS</option>
+                    <option value="mux">Mux</option>
+                    <option value="self">Self-hosted</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label" for="max-bitrate">Max Bitrate</label>
+                  <p class="config-item-description">Maximum streaming bitrate (Mbps)</p>
+                </div>
+                <div class="config-item-control">
+                  <select id="max-bitrate" class="form-select">
+                    <option value="2">2 Mbps (720p)</option>
+                    <option value="5" selected>5 Mbps (1080p)</option>
+                    <option value="10">10 Mbps (4K)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label">Recording</label>
+                  <p class="config-item-description">Automatically record all live streams</p>
+                </div>
+                <div class="config-item-control">
+                  <label class="modern-switch">
+                    <input type="checkbox" checked>
+                    <span class="modern-switch-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <div class="config-item-info">
+                  <label class="config-item-label">Chat Integration</label>
+                  <p class="config-item-description">Enable live chat during streams (via Spark)</p>
+                </div>
+                <div class="config-item-control">
+                  <label class="modern-switch">
+                    <input type="checkbox" checked>
+                    <span class="modern-switch-slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/theme-switcher.js"></script>
+  <script src="js/drag-drop.js"></script>
+  <script src="js/components.js"></script>
+
+  <script>
+    // Sidebar toggle functionality
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const mainContent = document.querySelector('.main-content');
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+    sidebarToggle?.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      mainContent.classList.toggle('sidebar-collapsed');
+      const icon = sidebarToggle.querySelector('span');
+      icon.textContent = sidebar.classList.contains('collapsed') ? '›' : '‹';
+    });
+
+    // Mobile menu toggle
+    mobileMenuToggle?.addEventListener('click', () => {
+      sidebar.classList.toggle('mobile-open');
+      sidebarOverlay.classList.toggle('show');
+    });
+
+    sidebarOverlay?.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      sidebarOverlay.classList.remove('show');
+    });
+
+    // Config section toggle
+    function toggleConfigSection(header) {
+      const section = header.closest('.config-section');
+      section.classList.toggle('collapsed');
+    }
+
+    // Handle sidebar navigation
+    const navLinks = document.querySelectorAll('.modern-sidebar-nav-link');
+    navLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        // Remove active class from all links
+        navLinks.forEach(l => l.classList.remove('active'));
+        // Add active class to clicked link
+        link.classList.add('active');
+
+        // Close mobile sidebar if open
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('mobile-open');
+          sidebarOverlay.classList.remove('show');
+        }
+      });
+    });
+
+    // Modern option handling
+    const modernOptions = document.querySelectorAll('.modern-option');
+    modernOptions.forEach(option => {
+      const input = option.querySelector('input[type="radio"], input[type="checkbox"]');
+      input?.addEventListener('change', () => {
+        if (input.type === 'radio') {
+          // Remove checked class from all radio options in the same group
+          const group = option.closest('.modern-option-group');
+          group.querySelectorAll('.modern-option').forEach(opt => {
+            opt.classList.remove('checked');
+          });
+        }
+        // Toggle checked class
+        if (input.checked) {
+          option.classList.add('checked');
+        } else {
+          option.classList.remove('checked');
+        }
+      });
+
+      // Initialize checked state
+      if (input?.checked) {
+        option.classList.add('checked');
+      }
+    });
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (href !== '#' && document.querySelector(href)) {
+          e.preventDefault();
+          const target = document.querySelector(href);
+          const topBar = document.querySelector('.top-bar');
+          const offset = topBar ? topBar.offsetHeight : 0;
+
+          window.scrollTo({
+            top: target.offsetTop - offset,
+            behavior: 'smooth'
+          });
+        }
+      });
+    });
+
+    // Initialize drag and drop
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize drag and drop for tokens table
+      const tokensTable = document.querySelector('#tokens-table tbody');
+      if (tokensTable) {
+        new ExpRsnDragDrop({
+          containerSelector: '#tokens-table tbody',
+          onDrop: (element, fromIndex, toIndex) => {
+            console.log(`Moved token from position ${fromIndex} to ${toIndex}`);
+          }
+        });
+      }
+
+      // Initialize drag and drop for pending/approved tables
+      const pendingTable = document.querySelector('#pending-table');
+      const approvedTable = document.querySelector('#approved-table');
+      if (pendingTable) {
+        new ExpRsnDragDrop({
+          containerSelector: '#pending-table'
+        });
+      }
+      if (approvedTable) {
+        new ExpRsnDragDrop({
+          containerSelector: '#approved-table'
+        });
+      }
+    });
+  </script>
+</body>
+</html>

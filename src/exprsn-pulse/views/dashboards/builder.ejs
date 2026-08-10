@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <style>
+    .viz-toolbox-item.dragging {
+      opacity: 0.5;
+    }
+    .dashboard-grid.drag-over {
+      border-color: #007bff;
+      background-color: #f0f8ff;
+    }
+  </style>
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Main Content (Full Width - No Sidebar for Builder) -->
+      <main class="col-12 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-grid-3x3-gap text-primary"></i>
+            <%= dashboard ? 'Edit Dashboard' : 'Create Dashboard' %>
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+              <button type="button" class="btn btn-primary" onclick="saveDashboard()">
+                <i class="bi bi-save"></i> Save
+              </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="previewDashboard()">
+                <i class="bi bi-eye"></i> Preview
+              </button>
+            </div>
+            <a href="/dashboards" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle"></i> Cancel
+            </a>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Dashboard Properties -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <label for="dashboard-name" class="form-label">Dashboard Name *</label>
+                <input type="text" class="form-control" id="dashboard-name"
+                       value="<%= dashboard ? dashboard.name : '' %>" required>
+              </div>
+              <div class="col-md-4">
+                <label for="dashboard-description" class="form-label">Description</label>
+                <input type="text" class="form-control" id="dashboard-description"
+                       value="<%= dashboard ? dashboard.description || '' : '' %>">
+              </div>
+              <div class="col-md-2">
+                <label for="refresh-interval" class="form-label">Refresh (seconds)</label>
+                <input type="number" class="form-control" id="refresh-interval"
+                       value="<%= dashboard ? dashboard.refreshInterval || 0 : 0 %>" min="0">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Options</label>
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="is-realtime"
+                         <%= dashboard && dashboard.isRealtime ? 'checked' : '' %>>
+                  <label class="form-check-label" for="is-realtime">
+                    Real-time Updates
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Builder Grid Layout -->
+        <div class="row">
+          <!-- Visualization Toolbox -->
+          <div class="col-md-3 mb-3">
+            <div class="viz-toolbox">
+              <h6 class="mb-3">
+                <i class="bi bi-tools"></i> Visualizations
+              </h6>
+
+              <div class="input-group mb-3">
+                <span class="input-group-text">
+                  <i class="bi bi-search"></i>
+                </span>
+                <input type="text" class="form-control" id="viz-search" placeholder="Search...">
+              </div>
+
+              <div id="viz-list">
+                <% if (visualizations.length === 0) { %>
+                  <p class="text-muted text-center">
+                    No visualizations available.
+                    <a href="/visualizations/new">Create one</a>
+                  </p>
+                <% } else { %>
+                  <% visualizations.forEach(viz => { %>
+                    <div class="viz-toolbox-item" draggable="true"
+                         data-viz-id="<%= viz.id %>"
+                         data-viz-name="<%= viz.name %>"
+                         data-viz-type="<%= viz.type %>">
+                      <i class="bi bi-<%= getVizIcon(viz.type) %>"></i>
+                      <h6><%= viz.name %></h6>
+                      <p><%= viz.type %></p>
+                    </div>
+                  <% }) %>
+                <% } %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dashboard Canvas -->
+          <div class="col-md-9 mb-3">
+            <div class="dashboard-grid <%= (!dashboard || !dashboard.items || dashboard.items.length === 0) ? 'empty' : '' %>"
+                 id="dashboard-canvas"
+                 ondrop="drop(event)"
+                 ondragover="allowDrop(event)"
+                 ondragleave="dragLeave(event)">
+              <% if (dashboard && dashboard.items && dashboard.items.length > 0) { %>
+                <% dashboard.items.forEach(item => { %>
+                  <div class="dashboard-item"
+                       data-item-id="<%= item.id %>"
+                       data-viz-id="<%= item.visualizationId %>"
+                       style="grid-column: span <%= item.width || 4 %>; grid-row: span <%= item.height || 1 %>;">
+                    <div class="dashboard-item-header">
+                      <h6 class="dashboard-item-title">
+                        <%= item.visualization ? item.visualization.name : item.title %>
+                      </h6>
+                      <div class="dashboard-item-actions">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="configureItem(this)">
+                          <i class="bi bi-gear"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="dashboard-item-content">
+                      <p class="text-muted text-center">Visualization preview</p>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Item Configuration Modal -->
+  <div class="modal fade" id="itemConfigModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Configure Dashboard Item</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="item-title" class="form-label">Title Override</label>
+            <input type="text" class="form-control" id="item-title">
+          </div>
+          <div class="row">
+            <div class="col-6">
+              <label for="item-width" class="form-label">Width (columns)</label>
+              <input type="number" class="form-control" id="item-width" min="1" max="12" value="4">
+            </div>
+            <div class="col-6">
+              <label for="item-height" class="form-label">Height (rows)</label>
+              <input type="number" class="form-control" id="item-height" min="1" max="6" value="1">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveItemConfig()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <script>
+    const dashboardId = <%= dashboard ? `'${dashboard.id}'` : 'null' %>;
+    let currentItem = null;
+    let itemConfigModal = null;
+
+    $(document).ready(function() {
+      itemConfigModal = new bootstrap.Modal('#itemConfigModal');
+
+      // Setup drag and drop for visualization items
+      $('.viz-toolbox-item').each(function() {
+        $(this).on('dragstart', function(e) {
+          $(this).addClass('dragging');
+          e.originalEvent.dataTransfer.setData('vizId', $(this).data('viz-id'));
+          e.originalEvent.dataTransfer.setData('vizName', $(this).data('viz-name'));
+          e.originalEvent.dataTransfer.setData('vizType', $(this).data('viz-type'));
+        });
+
+        $(this).on('dragend', function() {
+          $(this).removeClass('dragging');
+        });
+      });
+
+      // Search visualizations
+      $('#viz-search').on('keyup', function() {
+        const search = $(this).val().toLowerCase();
+        $('.viz-toolbox-item').each(function() {
+          const name = $(this).data('viz-name').toLowerCase();
+          const type = $(this).data('viz-type').toLowerCase();
+          if (name.includes(search) || type.includes(search)) {
+            $(this).show();
+          } else {
+            $(this).hide();
+          }
+        });
+      });
+    });
+
+    // Drag and drop handlers
+    function allowDrop(ev) {
+      ev.preventDefault();
+      $('#dashboard-canvas').addClass('drag-over');
+    }
+
+    function dragLeave(ev) {
+      $('#dashboard-canvas').removeClass('drag-over');
+    }
+
+    function drop(ev) {
+      ev.preventDefault();
+      $('#dashboard-canvas').removeClass('drag-over');
+
+      const vizId = ev.dataTransfer.getData('vizId');
+      const vizName = ev.dataTransfer.getData('vizName');
+      const vizType = ev.dataTransfer.getData('vizType');
+
+      addItem(vizId, vizName, vizType);
+    }
+
+    // Add item to dashboard
+    function addItem(vizId, vizName, vizType) {
+      const itemId = 'item-' + Date.now();
+
+      const itemHTML = `
+        <div class="dashboard-item" data-item-id="${itemId}" data-viz-id="${vizId}"
+             style="grid-column: span 4; grid-row: span 1;">
+          <div class="dashboard-item-header">
+            <h6 class="dashboard-item-title">${vizName}</h6>
+            <div class="dashboard-item-actions">
+              <button class="btn btn-sm btn-outline-secondary" onclick="configureItem(this)">
+                <i class="bi bi-gear"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+          <div class="dashboard-item-content">
+            <p class="text-muted text-center">${vizType} visualization</p>
+          </div>
+        </div>
+      `;
+
+      $('#dashboard-canvas').removeClass('empty').append(itemHTML);
+    }
+
+    // Remove item from dashboard
+    function removeItem(btn) {
+      if (confirm('Remove this item from the dashboard?')) {
+        $(btn).closest('.dashboard-item').remove();
+
+        if ($('#dashboard-canvas .dashboard-item').length === 0) {
+          $('#dashboard-canvas').addClass('empty');
+        }
+      }
+    }
+
+    // Configure item
+    function configureItem(btn) {
+      currentItem = $(btn).closest('.dashboard-item');
+
+      // Get current values
+      const title = currentItem.find('.dashboard-item-title').text();
+      const gridColumn = currentItem.css('grid-column');
+      const gridRow = currentItem.css('grid-row');
+
+      // Extract span values
+      const width = gridColumn.match(/span (\d+)/)?.[1] || 4;
+      const height = gridRow.match(/span (\d+)/)?.[1] || 1;
+
+      // Set modal values
+      $('#item-title').val(title);
+      $('#item-width').val(width);
+      $('#item-height').val(height);
+
+      itemConfigModal.show();
+    }
+
+    // Save item configuration
+    function saveItemConfig() {
+      const title = $('#item-title').val();
+      const width = $('#item-width').val();
+      const height = $('#item-height').val();
+
+      if (currentItem) {
+        currentItem.find('.dashboard-item-title').text(title);
+        currentItem.css('grid-column', `span ${width}`);
+        currentItem.css('grid-row', `span ${height}`);
+      }
+
+      itemConfigModal.hide();
+    }
+
+    // Save dashboard
+    async function saveDashboard() {
+      const name = $('#dashboard-name').val().trim();
+      if (!name) {
+        PulseUtils.showAlert('Please enter a dashboard name', 'warning');
+        return;
+      }
+
+      const description = $('#dashboard-description').val().trim();
+      const refreshInterval = parseInt($('#refresh-interval').val()) || 0;
+      const isRealtime = $('#is-realtime').is(':checked');
+
+      // Collect dashboard items
+      const items = [];
+      $('#dashboard-canvas .dashboard-item').each(function() {
+        const $item = $(this);
+        const gridColumn = $item.css('grid-column');
+        const gridRow = $item.css('grid-row');
+
+        items.push({
+          id: $item.data('item-id'),
+          visualizationId: $item.data('viz-id'),
+          title: $item.find('.dashboard-item-title').text(),
+          width: parseInt(gridColumn.match(/span (\d+)/)?.[1] || 4),
+          height: parseInt(gridRow.match(/span (\d+)/)?.[1] || 1),
+          position: items.length
+        });
+      });
+
+      const dashboardData = {
+        name,
+        description,
+        refreshInterval,
+        isRealtime,
+        items
+      };
+
+      try {
+        PulseUtils.showLoading();
+
+        let result;
+        if (dashboardId) {
+          result = await PulseAPI.dashboards.update(dashboardId, dashboardData);
+        } else {
+          result = await PulseAPI.dashboards.create(dashboardData);
+        }
+
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Dashboard saved successfully', 'success');
+
+        setTimeout(() => {
+          window.location.href = `/dashboards/${result.data.id}`;
+        }, 1000);
+      } catch (error) {
+        PulseUtils.hideLoading();
+        PulseUtils.showAlert('Failed to save dashboard: ' + error.message, 'danger');
+      }
+    }
+
+    // Preview dashboard
+    function previewDashboard() {
+      PulseUtils.showAlert('Preview functionality coming soon', 'info');
+    }
+  </script>
+
+  <%
+    function getVizIcon(type) {
+      const iconMap = {
+        'bar': 'bar-chart-fill',
+        'line': 'graph-up',
+        'pie': 'pie-chart-fill',
+        'table': 'table',
+        'metric': 'speedometer2',
+        'gauge': 'speedometer',
+        'heatmap': 'grid-3x3',
+        'scatter': 'diagram-3'
+      };
+      return iconMap[type] || 'bar-chart';
+    }
+  %>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

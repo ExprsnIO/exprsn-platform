@@ -1,0 +1,124 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.forge.opportunity",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Sales opportunity/deal record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "stage", "value", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "contactUri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Associated contact record"
+          },
+          "accountUri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Associated account record"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "prospecting",
+              "qualification",
+              "proposal",
+              "negotiation",
+              "closed_won",
+              "closed_lost"
+            ]
+          },
+          "value": {
+            "type": "integer",
+            "description": "Deal value in cents"
+          },
+          "currency": {
+            "type": "string",
+            "default": "USD",
+            "description": "ISO 4217 currency code"
+          },
+          "probability": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Win probability percentage"
+          },
+          "expectedCloseDate": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          "customFields": {
+            "type": "unknown"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["uri", "cid", "name", "stage", "value", "createdAt"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "contact": {
+          "type": "ref",
+          "ref": "io.exprsn.forge.contact#view"
+        },
+        "stage": {
+          "type": "string"
+        },
+        "value": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "probability": {
+          "type": "integer"
+        },
+        "expectedCloseDate": {
+          "type": "string",
+          "format": "datetime"
+        },
+        "owner": {
+          "type": "ref",
+          "ref": "app.bsky.actor.defs#profileViewBasic"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    }
+  }
+}

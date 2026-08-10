@@ -1,0 +1,216 @@
+version: '3.8'
+
+services:
+  # NGINX - Reverse Proxy & Load Balancer
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: exprsn-nginx
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - api
+      - socket
+    networks:
+      - exprsn-network
+    restart: unless-stopped
+
+  # PostgreSQL - Primary Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: exprsn-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-exprsn}
+      POSTGRES_USER: ${DB_USER:-exprsn}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-exprsn_secure_password}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/database/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - exprsn-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-exprsn}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis - Cache & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: exprsn-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secure_password}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - exprsn-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # RabbitMQ - Message Queue
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: exprsn-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-exprsn}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq_secure_password}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/exprsn}
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - exprsn-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # API Gateway - Main Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: exprsn-api
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-exprsn}
+      DB_USER: ${DB_USER:-exprsn}
+      DB_PASSWORD: ${DB_PASSWORD:-exprsn_secure_password}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secure_password}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-exprsn}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq_secure_password}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/exprsn}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src:delegated
+      - ./certs:/app/certs:ro
+      - ./logs:/app/logs
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - exprsn-network
+    command: npm run dev
+    restart: unless-stopped
+
+  # Socket.io Gateway - Real-time Communication
+  socket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: exprsn-socket
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3001
+      SERVICE_TYPE: socket
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-exprsn}
+      DB_USER: ${DB_USER:-exprsn}
+      DB_PASSWORD: ${DB_PASSWORD:-exprsn_secure_password}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secure_password}
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./src:/app/src:delegated
+      - ./certs:/app/certs:ro
+      - ./logs:/app/logs
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - exprsn-network
+    command: npm run dev:socket
+    restart: unless-stopped
+
+  # Webhook Worker - Background Job Processing
+  webhook-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: exprsn-webhook-worker
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      SERVICE_TYPE: webhook-worker
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-exprsn}
+      DB_USER: ${DB_USER:-exprsn}
+      DB_PASSWORD: ${DB_PASSWORD:-exprsn_secure_password}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secure_password}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-exprsn}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq_secure_password}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/exprsn}
+    volumes:
+      - ./src:/app/src:delegated
+      - ./logs:/app/logs
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - exprsn-network
+    command: npm run dev:worker
+    restart: unless-stopped
+
+networks:
+  exprsn-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local

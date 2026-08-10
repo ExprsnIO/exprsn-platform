@@ -1,0 +1,145 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.herald.notification",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Notification record for Herald multi-channel notifications",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["recipient", "type", "content", "createdAt"],
+        "properties": {
+          "recipient": {
+            "type": "string",
+            "format": "did",
+            "description": "Notification recipient"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "like",
+              "repost",
+              "reply",
+              "mention",
+              "follow",
+              "message",
+              "groupInvite",
+              "eventReminder",
+              "system"
+            ],
+            "description": "Notification type"
+          },
+          "content": {
+            "type": "ref",
+            "ref": "#notificationContent"
+          },
+          "actor": {
+            "type": "string",
+            "format": "did",
+            "description": "User who triggered the notification"
+          },
+          "subject": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Referenced post/message/entity"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["inApp", "push", "email", "sms", "webhook"]
+            },
+            "description": "Delivery channels"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["low", "normal", "high", "urgent"],
+            "default": "normal"
+          },
+          "isRead": {
+            "type": "boolean",
+            "default": false
+          },
+          "readAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "notificationContent": {
+      "type": "object",
+      "required": ["title", "body"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "body": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "image": {
+          "type": "string",
+          "format": "uri"
+        },
+        "actionUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "metadata": {
+          "type": "unknown",
+          "description": "Additional notification-specific data"
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["uri", "cid", "type", "content", "createdAt", "isRead"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "type": {
+          "type": "string"
+        },
+        "content": {
+          "type": "ref",
+          "ref": "#notificationContent"
+        },
+        "actor": {
+          "type": "ref",
+          "ref": "app.bsky.actor.defs#profileViewBasic"
+        },
+        "subject": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "priority": {
+          "type": "string"
+        },
+        "isRead": {
+          "type": "boolean"
+        },
+        "readAt": {
+          "type": "string",
+          "format": "datetime"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,102 @@
+<!-- Left Sidebar Navigation -->
+<div class="sidebar-content p-3">
+    <!-- Main Navigation -->
+    <nav class="nav flex-column gap-2">
+        <a href="/" class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded <%= locals.currentPage === 'home' ? 'active bg-primary text-white' : 'text-dark' %>">
+            <i class="bi bi-house-fill fs-5"></i>
+            <span class="fw-semibold">Home</span>
+        </a>
+
+        <a href="/explore" class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded <%= locals.currentPage === 'explore' ? 'active bg-primary text-white' : 'text-dark' %>">
+            <i class="bi bi-compass-fill fs-5"></i>
+            <span class="fw-semibold">Explore</span>
+        </a>
+
+        <a href="/notifications" class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded position-relative <%= locals.currentPage === 'notifications' ? 'active bg-primary text-white' : 'text-dark' %>">
+            <i class="bi bi-bell-fill fs-5"></i>
+            <span class="fw-semibold">Notifications</span>
+            <span class="badge bg-danger rounded-pill ms-auto" id="sidebarNotificationBadge" style="display: none;">0</span>
+        </a>
+
+        <a href="/messages" class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded position-relative <%= locals.currentPage === 'messages' ? 'active bg-primary text-white' : 'text-dark' %>">
+            <i class="bi bi-envelope-fill fs-5"></i>
+            <span class="fw-semibold">Messages</span>
+            <span class="badge bg-danger rounded-pill ms-auto" id="sidebarMessageBadge" style="display: none;">0</span>
+        </a>
+
+        <a href="/bookmarks" class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded <%= locals.currentPage === 'bookmarks' ? 'active bg-primary text-white' : 'text-dark' %>">
+            <i class="bi bi-bookmark-fill fs-5"></i>
+            <span class="fw-semibold">Bookmarks</span>
+        </a>
+
+        <a href="/lists" class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded <%= locals.currentPage === 'lists' ? 'active bg-primary text-white' : 'text-dark' %>">
+            <i class="bi bi-list-ul fs-5"></i>
+            <span class="fw-semibold">Lists</span>
+        </a>
+
+        <% if (locals.user) { %>
+        <a href="/profile/<%= user.handle %>" class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded <%= locals.currentPage === 'profile' ? 'active bg-primary text-white' : 'text-dark' %>">
+            <i class="bi bi-person-fill fs-5"></i>
+            <span class="fw-semibold">Profile</span>
+        </a>
+        <% } %>
+
+        <a href="/settings" class="nav-link d-flex align-items-center gap-3 px-3 py-2 rounded <%= locals.currentPage === 'settings' ? 'active bg-primary text-white' : 'text-dark' %>">
+            <i class="bi bi-gear-fill fs-5"></i>
+            <span class="fw-semibold">Settings</span>
+        </a>
+    </nav>
+
+    <!-- Create Post Button -->
+    <% if (locals.user) { %>
+    <div class="mt-4">
+        <button class="btn btn-primary w-100 rounded-pill py-2 fw-semibold"
+                data-bs-toggle="modal"
+                data-bs-target="#createPostModal">
+            <i class="bi bi-plus-circle me-2"></i>
+            Create Post
+        </button>
+    </div>
+    <% } %>
+
+    <!-- User Info Card (if logged in) -->
+    <% if (locals.user) { %>
+    <div class="card mt-4 border-0 bg-light">
+        <div class="card-body p-3">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <img src="<%= user.avatar || '/images/default-avatar.png' %>"
+                     alt="<%= user.displayName %>"
+                     class="rounded-circle"
+                     style="width: 40px; height: 40px; object-fit: cover;">
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="fw-semibold text-truncate"><%= user.displayName || user.handle %></div>
+                    <div class="text-muted small text-truncate">@<%= user.handle %></div>
+                </div>
+            </div>
+            <div class="d-flex gap-3 small text-muted">
+                <div>
+                    <span class="fw-semibold text-dark" id="followingCount"><%= user.followingCount || 0 %></span>
+                    Following
+                </div>
+                <div>
+                    <span class="fw-semibold text-dark" id="followersCount"><%= user.followersCount || 0 %></span>
+                    Followers
+                </div>
+            </div>
+        </div>
+    </div>
+    <% } %>
+
+    <!-- Quick Links -->
+    <div class="mt-4">
+        <div class="small text-muted">
+            <a href="/about" class="text-decoration-none text-muted me-2">About</a>
+            <a href="/help" class="text-decoration-none text-muted me-2">Help</a>
+            <a href="/terms" class="text-decoration-none text-muted me-2">Terms</a>
+            <a href="/privacy" class="text-decoration-none text-muted">Privacy</a>
+        </div>
+        <div class="small text-muted mt-2">
+            © 2024 Exprsn BlueSky
+        </div>
+    </div>
+</div>

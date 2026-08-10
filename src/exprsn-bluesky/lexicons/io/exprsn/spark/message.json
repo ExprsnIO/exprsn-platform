@@ -1,0 +1,203 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.spark.message",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Direct message record with E2EE support",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["conversationId", "content", "createdAt"],
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "description": "Reference to conversation"
+          },
+          "content": {
+            "type": "union",
+            "refs": [
+              "#textContent",
+              "#mediaContent",
+              "#encryptedContent"
+            ],
+            "description": "Message content (text, media, or encrypted)"
+          },
+          "replyTo": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Message this is replying to"
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "type": "ref",
+              "ref": "#reaction"
+            },
+            "description": "Emoji reactions"
+          },
+          "isEdited": {
+            "type": "boolean",
+            "default": false
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "textContent": {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "text"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 10000,
+          "description": "Plain text message"
+        },
+        "facets": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "app.bsky.richtext.facet"
+          }
+        }
+      }
+    },
+    "mediaContent": {
+      "type": "object",
+      "required": ["type", "media"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "media"
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "#mediaItem"
+          },
+          "maxLength": 10
+        },
+        "caption": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "mediaItem": {
+      "type": "object",
+      "required": ["blob", "mimeType"],
+      "properties": {
+        "blob": {
+          "type": "blob",
+          "accept": ["image/*", "video/*", "audio/*"],
+          "maxSize": 50000000
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "encryptedContent": {
+      "type": "object",
+      "required": ["type", "ciphertext", "algorithm"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "encrypted"
+        },
+        "ciphertext": {
+          "type": "string",
+          "description": "Base64-encoded encrypted content"
+        },
+        "algorithm": {
+          "type": "string",
+          "description": "Encryption algorithm (e.g., 'AES-256-GCM')"
+        },
+        "keyId": {
+          "type": "string",
+          "description": "Key identifier for decryption"
+        }
+      }
+    },
+    "reaction": {
+      "type": "object",
+      "required": ["emoji", "actor"],
+      "properties": {
+        "emoji": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "actor": {
+          "type": "string",
+          "format": "did"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["uri", "cid", "conversationId", "author", "content", "createdAt"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "conversationId": {
+          "type": "string"
+        },
+        "author": {
+          "type": "ref",
+          "ref": "app.bsky.actor.defs#profileViewBasic"
+        },
+        "content": {
+          "type": "unknown"
+        },
+        "replyTo": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "reactions": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "#reaction"
+          }
+        },
+        "isEdited": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime"
+        },
+        "readBy": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "did"
+          },
+          "description": "List of participants who have read this message"
+        }
+      }
+    }
+  }
+}

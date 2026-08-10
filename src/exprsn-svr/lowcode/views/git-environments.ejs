@@ -1,0 +1,513 @@
+<%
+    const title = 'Deployment Environments';
+    const currentPath = '/lowcode/git/environments';
+%>
+<%- include('./partials/git-header') %>
+<%- include('./partials/git-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-cloud-upload me-2"></i>
+                Deployment Environments
+            </h1>
+            <p class="page-subtitle">Manage deployment environments, variables, and container registries</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEnvironmentModal">
+                <i class="bi bi-plus-circle"></i>
+                New Environment
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-cloud"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">4</div>
+                <div class="stat-label">Total Environments</div>
+                <div class="stat-change">
+                    Production, Staging, QA, Dev
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">142</div>
+                <div class="stat-label">Deployments (30d)</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    +15% from last month
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">12m</div>
+                <div class="stat-label">Avg Deploy Time</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-down"></i>
+                    -3m faster
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-graph-up"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">97.5%</div>
+                <div class="stat-label">Success Rate</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    Excellent
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Environments Table -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-layers me-2"></i>
+                Environments
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>URL</th>
+                            <th>Status</th>
+                            <th class="sortable">Deployments (30d)</th>
+                            <th class="sortable">Last Deployed</th>
+                            <th>Protection</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="status-dot online"></span>
+                                    <strong>Production</strong>
+                                </div>
+                            </td>
+                            <td><a href="https://exprsn.io" target="_blank">https://exprsn.io</a></td>
+                            <td><span class="badge badge-success">Healthy</span></td>
+                            <td>42</td>
+                            <td>2 hours ago</td>
+                            <td><span class="badge badge-danger">Protected</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Variables" onclick="openVariablesModal('production')">
+                                        <i class="bi bi-sliders"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Deploy">
+                                        <i class="bi bi-cloud-upload"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="status-dot online"></span>
+                                    <strong>Staging</strong>
+                                </div>
+                            </td>
+                            <td><a href="https://staging.exprsn.io" target="_blank">https://staging.exprsn.io</a></td>
+                            <td><span class="badge badge-success">Healthy</span></td>
+                            <td>58</td>
+                            <td>30 minutes ago</td>
+                            <td><span class="badge badge-warning">Review Required</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Variables" onclick="openVariablesModal('staging')">
+                                        <i class="bi bi-sliders"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Deploy">
+                                        <i class="bi bi-cloud-upload"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="status-dot online"></span>
+                                    <strong>QA</strong>
+                                </div>
+                            </td>
+                            <td><a href="https://qa.exprsn.io" target="_blank">https://qa.exprsn.io</a></td>
+                            <td><span class="badge badge-success">Healthy</span></td>
+                            <td>89</td>
+                            <td>1 hour ago</td>
+                            <td><span class="badge badge-success">Open</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Variables" onclick="openVariablesModal('qa')">
+                                        <i class="bi bi-sliders"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Deploy">
+                                        <i class="bi bi-cloud-upload"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="status-dot online"></span>
+                                    <strong>Development</strong>
+                                </div>
+                            </td>
+                            <td><a href="https://dev.exprsn.io" target="_blank">https://dev.exprsn.io</a></td>
+                            <td><span class="badge badge-success">Healthy</span></td>
+                            <td>156</td>
+                            <td>15 minutes ago</td>
+                            <td><span class="badge badge-success">Open</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Variables" onclick="openVariablesModal('development')">
+                                        <i class="bi bi-sliders"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Deploy">
+                                        <i class="bi bi-cloud-upload"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <!-- Container Registry Settings -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-box me-2"></i>
+                        Container Registry
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label class="form-label">Registry URL</label>
+                        <input type="text" class="form-control" value="registry.exprsn.io" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Registry Type</label>
+                        <select class="form-control form-select">
+                            <option selected>Docker Hub</option>
+                            <option>Amazon ECR</option>
+                            <option>Google Container Registry</option>
+                            <option>Azure Container Registry</option>
+                            <option>Harbor</option>
+                        </select>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Total Images</span>
+                        <strong>42</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Storage Used</span>
+                        <strong>8.3 GB</strong>
+                    </div>
+                    <button class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-gear"></i>
+                        Configure Registry
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deployment Protection Rules -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-shield-lock me-2"></i>
+                        Protection Rules
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Production Environment</strong>
+                        <div class="mt-2">
+                            <span class="badge badge-primary me-1">Required Approvals: 2</span>
+                            <span class="badge badge-warning">Wait Timer: 30m</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Protected Branches</strong>
+                        <div class="mt-2">
+                            <span class="badge badge-secondary me-1">main</span>
+                            <span class="badge badge-secondary">release/*</span>
+                        </div>
+                    </div>
+                    <div>
+                        <strong>Allowed Deployers</strong>
+                        <div class="mt-2">
+                            <span class="badge badge-success me-1">@exprsn/devops</span>
+                            <span class="badge badge-success">@exprsn/leads</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Deployments -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-clock-history me-2"></i>
+                Recent Deployments
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>Branch</th>
+                            <th>Commit</th>
+                            <th>Deployed By</th>
+                            <th class="sortable">Started</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Production</strong></td>
+                            <td><code>main</code></td>
+                            <td><code>a1b2c3d</code></td>
+                            <td>Admin User</td>
+                            <td>2025-12-27 10:00</td>
+                            <td>12m 34s</td>
+                            <td><span class="badge badge-success">Success</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Staging</strong></td>
+                            <td><code>develop</code></td>
+                            <td><code>e4f5g6h</code></td>
+                            <td>Jane Smith</td>
+                            <td>2025-12-27 09:30</td>
+                            <td>8m 15s</td>
+                            <td><span class="badge badge-success">Success</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>QA</strong></td>
+                            <td><code>feature/new-ui</code></td>
+                            <td><code>i7j8k9l</code></td>
+                            <td>John Doe</td>
+                            <td>2025-12-27 09:00</td>
+                            <td>10m 22s</td>
+                            <td><span class="badge badge-success">Success</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Development</strong></td>
+                            <td><code>develop</code></td>
+                            <td><code>m0n1o2p</code></td>
+                            <td>Bob Wilson</td>
+                            <td>2025-12-27 08:45</td>
+                            <td>15m 02s</td>
+                            <td><span class="badge badge-danger">Failed</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Add Environment Modal -->
+<div class="modal fade" id="addEnvironmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background: var(--exprsn-bg-primary); border: 1px solid var(--exprsn-border-color); border-radius: var(--exprsn-radius-xl);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--exprsn-border-color);">
+                <h5 class="modal-title">New Deployment Environment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Environment Name</label>
+                    <input type="text" class="form-control" placeholder="Production, Staging, QA, etc.">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">URL</label>
+                    <input type="url" class="form-control" placeholder="https://app.exprsn.io">
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Protection Level</label>
+                            <select class="form-control form-select">
+                                <option>No Protection</option>
+                                <option>Review Required</option>
+                                <option>Protected (Approvals Required)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Required Approvals</label>
+                            <input type="number" class="form-control" value="0" min="0" max="10">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Wait Timer (minutes)</label>
+                    <input type="number" class="form-control" value="0" min="0" max="1440">
+                    <small class="text-muted">Delay before deployment starts</small>
+                </div>
+                <div class="form-group mb-0">
+                    <div class="d-flex flex-column gap-2">
+                        <div>
+                            <input type="checkbox" id="env-auto-deploy">
+                            <label for="env-auto-deploy">Auto-deploy from branch</label>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="env-notifications">
+                            <label for="env-notifications">Email notifications on deployment</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid var(--exprsn-border-color);">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Create Environment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Environment Variables Modal -->
+<div class="modal fade" id="variablesModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="background: var(--exprsn-bg-primary); border: 1px solid var(--exprsn-border-color); border-radius: var(--exprsn-radius-xl);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--exprsn-border-color);">
+                <h5 class="modal-title">Environment Variables - <span id="modal-env-name">Production</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <button class="btn btn-sm btn-primary mb-3">
+                    <i class="bi bi-plus-circle"></i>
+                    Add Variable
+                </button>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                                <th>Value</th>
+                                <th>Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="variables-table-body">
+                            <tr>
+                                <td><code>DATABASE_URL</code></td>
+                                <td><code>postgres://...</code></td>
+                                <td><span class="badge badge-danger">Secret</span></td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button class="table-action-btn" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="table-action-btn danger" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>API_KEY</code></td>
+                                <td><code>••••••••••••</code></td>
+                                <td><span class="badge badge-danger">Secret</span></td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button class="table-action-btn" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="table-action-btn danger" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>NODE_ENV</code></td>
+                                <td><code>production</code></td>
+                                <td><span class="badge badge-primary">Variable</span></td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button class="table-action-btn" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="table-action-btn danger" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid var(--exprsn-border-color);">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openVariablesModal(envName) {
+        document.getElementById('modal-env-name').textContent = envName.charAt(0).toUpperCase() + envName.slice(1);
+        // TODO: Load variables for this environment from API
+        new bootstrap.Modal(document.getElementById('variablesModal')).show();
+    }
+</script>
+
+<%- include('./partials/git-footer') %>

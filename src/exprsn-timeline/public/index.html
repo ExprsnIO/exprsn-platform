@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exprsn Timeline - Social Feed Platform</title>
+    <link rel="stylesheet" href="/css/timeline.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-stream"></i>
+                <span>Exprsn Timeline</span>
+            </div>
+
+            <div class="nav-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search posts, users, hashtags...">
+            </div>
+
+            <div class="nav-actions">
+                <button class="btn-icon" id="composeBtn" title="Compose new post">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <button class="btn-icon" id="notificationsBtn" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge" id="notificationsBadge">0</span>
+                </button>
+                <button class="btn-icon" id="themeToggle" title="Toggle theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <div class="user-menu">
+                    <button class="btn-icon" id="userMenuBtn">
+                        <i class="fas fa-user-circle"></i>
+                    </button>
+                    <div class="dropdown-menu" id="userDropdown">
+                        <a href="#" id="profileLink"><i class="fas fa-user"></i> Profile</a>
+                        <a href="#" id="settingsLink"><i class="fas fa-cog"></i> Settings</a>
+                        <a href="#" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Left Sidebar -->
+        <aside class="sidebar sidebar-left">
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-feed="home">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="#" class="nav-item" data-feed="trending">
+                    <i class="fas fa-fire"></i>
+                    <span>Trending</span>
+                </a>
+                <a href="#" class="nav-item" data-feed="explore">
+                    <i class="fas fa-compass"></i>
+                    <span>Explore</span>
+                </a>
+                <a href="#" class="nav-item" data-feed="global">
+                    <i class="fas fa-globe"></i>
+                    <span>Global</span>
+                </a>
+                <a href="#" class="nav-item" data-feed="bookmarks">
+                    <i class="fas fa-bookmark"></i>
+                    <span>Bookmarks</span>
+                </a>
+                <a href="#" class="nav-item" data-feed="lists">
+                    <i class="fas fa-list"></i>
+                    <span>Lists</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="stats-card">
+                    <h4>Your Stats</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-value" id="userPosts">0</span>
+                            <span class="stat-label">Posts</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="userFollowers">0</span>
+                            <span class="stat-label">Followers</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="userFollowing">0</span>
+                            <span class="stat-label">Following</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Post Composer (Hidden by default) -->
+            <div class="post-composer" id="postComposer" style="display: none;">
+                <div class="composer-header">
+                    <h3>Create Post</h3>
+                    <button class="btn-close" id="closeComposer">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="composer-body">
+                    <textarea
+                        id="postContent"
+                        placeholder="What's happening?"
+                        maxlength="500"
+                    ></textarea>
+                    <div class="char-count">
+                        <span id="charCount">0</span> / 500
+                    </div>
+                </div>
+                <div class="composer-footer">
+                    <div class="composer-options">
+                        <button class="btn-icon" title="Add image">
+                            <i class="fas fa-image"></i>
+                        </button>
+                        <button class="btn-icon" title="Add poll">
+                            <i class="fas fa-poll"></i>
+                        </button>
+                        <button class="btn-icon" title="Add emoji">
+                            <i class="fas fa-smile"></i>
+                        </button>
+                        <select id="visibilitySelect" class="visibility-select">
+                            <option value="public">Public</option>
+                            <option value="unlisted">Unlisted</option>
+                            <option value="private">Private</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="publishBtn" disabled>
+                        <i class="fas fa-paper-plane"></i>
+                        Publish
+                    </button>
+                </div>
+            </div>
+
+            <!-- Feed Header -->
+            <div class="feed-header">
+                <h2 id="feedTitle">Home Feed</h2>
+                <div class="feed-filters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="following">Following</button>
+                </div>
+            </div>
+
+            <!-- Posts Feed -->
+            <div class="posts-feed" id="postsFeed">
+                <!-- Loading indicator -->
+                <div class="loading-indicator" id="loadingIndicator">
+                    <div class="spinner"></div>
+                    <p>Loading posts...</p>
+                </div>
+
+                <!-- Posts will be dynamically loaded here -->
+            </div>
+
+            <!-- Load More Button -->
+            <div class="load-more-container" id="loadMoreContainer" style="display: none;">
+                <button class="btn btn-secondary" id="loadMoreBtn">
+                    Load More Posts
+                </button>
+            </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="sidebar sidebar-right">
+            <!-- Trending Topics -->
+            <div class="widget trending-widget">
+                <h3>Trending Topics</h3>
+                <div class="trending-list" id="trendingTopics">
+                    <!-- Trending topics will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Suggestions -->
+            <div class="widget suggestions-widget">
+                <h3>Suggested Follows</h3>
+                <div class="suggestions-list" id="suggestedUsers">
+                    <!-- Suggested users will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Connection Status -->
+            <div class="widget connection-widget">
+                <div class="connection-status" id="connectionStatus">
+                    <div class="status-indicator offline"></div>
+                    <span>Connecting...</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Post Modal (for viewing single post) -->
+    <div class="modal" id="postModal">
+        <div class="modal-overlay" id="modalOverlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Post Details</h3>
+                <button class="btn-close" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Post details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/js/timeline-api.js"></script>
+    <script src="/js/timeline-ui.js"></script>
+    <script src="/js/timeline-socket.js"></script>
+</body>
+</html>

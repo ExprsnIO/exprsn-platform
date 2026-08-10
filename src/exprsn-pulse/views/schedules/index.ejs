@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <%- include('../shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('../shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+        <%- include('../shared/sidebar') %>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-clock text-info"></i>
+            Scheduled Reports
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="/schedules/new" class="btn btn-info">
+              <i class="bi bi-plus-circle"></i> New Schedule
+            </a>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Schedules Table -->
+        <div class="card shadow">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Report</th>
+                    <th>Schedule</th>
+                    <th>Next Execution</th>
+                    <th>Delivery</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (schedules.length === 0) { %>
+                    <tr>
+                      <td colspan="6" class="text-center py-4">
+                        <i class="bi bi-clock" style="font-size: 3rem; color: #dee2e6;"></i>
+                        <p class="mt-2 text-muted">No scheduled reports yet</p>
+                        <a href="/schedules/new" class="btn btn-info">
+                          <i class="bi bi-plus-circle"></i> Create Schedule
+                        </a>
+                      </td>
+                    </tr>
+                  <% } else { %>
+                    <% schedules.forEach(schedule => { %>
+                      <tr>
+                        <td>
+                          <strong><%= schedule.report ? schedule.report.name : 'Unknown' %></strong>
+                        </td>
+                        <td>
+                          <code class="small"><%= schedule.cronExpression %></code>
+                          <br>
+                          <small class="text-muted"><%= schedule.description || '' %></small>
+                        </td>
+                        <td>
+                          <% if (schedule.nextExecution) { %>
+                            <small>
+                              <%= new Date(schedule.nextExecution).toLocaleString() %>
+                            </small>
+                          <% } else { %>
+                            <span class="text-muted">N/A</span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <% if (schedule.deliveryMethod === 'email') { %>
+                            <i class="bi bi-envelope"></i> Email
+                          <% } else if (schedule.deliveryMethod === 'webhook') { %>
+                            <i class="bi bi-link-45deg"></i> Webhook
+                          <% } else if (schedule.deliveryMethod === 's3') { %>
+                            <i class="bi bi-cloud-upload"></i> S3
+                          <% } else { %>
+                            <span class="text-muted">None</span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <% if (schedule.isActive) { %>
+                            <span class="badge bg-success">
+                              <i class="bi bi-check-circle"></i> Active
+                            </span>
+                          <% } else { %>
+                            <span class="badge bg-secondary">
+                              <i class="bi bi-pause-circle"></i> Paused
+                            </span>
+                          <% } %>
+                        </td>
+                        <td>
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-success"
+                                    onclick="executeSchedule('<%= schedule.id %>')"
+                                    title="Execute now">
+                              <i class="bi bi-play-fill"></i>
+                            </button>
+                            <button class="btn btn-outline-<%= schedule.isActive ? 'warning' : 'success' %>"
+                                    onclick="toggleSchedule('<%= schedule.id %>', <%= !schedule.isActive %>)"
+                                    title="<%= schedule.isActive ? 'Pause' : 'Activate' %>">
+                              <i class="bi bi-<%= schedule.isActive ? 'pause' : 'play' %>-fill"></i>
+                            </button>
+                            <a href="/schedules/<%= schedule.id %>/edit"
+                               class="btn btn-outline-primary"
+                               title="Edit">
+                              <i class="bi bi-pencil"></i>
+                            </a>
+                            <button class="btn btn-outline-danger"
+                                    onclick="deleteSchedule('<%= schedule.id %>')"
+                                    title="Delete">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Executions -->
+        <% if (schedules.length > 0) { %>
+          <div class="card shadow mt-4">
+            <div class="card-header">
+              <h6 class="m-0">
+                <i class="bi bi-activity"></i> Recent Executions
+              </h6>
+            </div>
+            <div class="card-body">
+              <p class="text-muted">
+                Execution history will be displayed here
+              </p>
+            </div>
+          </div>
+        <% } %>
+      </main>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <script>
+    // Execute schedule now
+    async function executeSchedule(id) {
+      // Find the schedule name from the card
+      const $card = $(`button[onclick*="executeSchedule('${id}')"]`).closest('.card');
+      const name = $card.find('h6').first().text().trim();
+
+      const confirmed = confirm(`Execute "${name}" now?\n\nThis will run the scheduled report immediately.`);
+      if (!confirmed) return;
+
+      try {
+        await PulseAPI.schedules.execute(id);
+        PulseUtils.showAlert('Schedule executed successfully', 'success');
+      } catch (error) {
+        PulseUtils.showAlert('Failed to execute schedule: ' + error.message, 'danger');
+      }
+    }
+
+    // Toggle schedule active status
+    async function toggleSchedule(id, isActive) {
+      try {
+        await PulseAPI.schedules.update(id, { isActive });
+        PulseUtils.showAlert(`Schedule ${isActive ? 'activated' : 'paused'}`, 'success');
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (error) {
+        PulseUtils.showAlert('Failed to update schedule: ' + error.message, 'danger');
+      }
+    }
+
+    // Delete schedule
+    async function deleteSchedule(id) {
+      // Find the schedule name from the card
+      const $card = $(`button[onclick*="deleteSchedule('${id}')"]`).closest('.card');
+      const name = $card.find('h6').first().text().trim();
+
+      PulseModals.showDeleteConfirm('Schedule', name, async function() {
+        try {
+          await PulseAPI.schedules.delete(id);
+          PulseUtils.showAlert('Schedule deleted successfully', 'success');
+          setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+          PulseUtils.showAlert('Failed to delete schedule: ' + error.message, 'danger');
+        }
+      });
+    }
+  </script>
+
+  <%- include('../shared/body-extra') %>
+</body>
+</html>

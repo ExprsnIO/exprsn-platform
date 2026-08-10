@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Query Builder Styles (reusing for consistency) -->
+  <link rel="stylesheet" href="/lowcode/static/css/query-builder.css">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    #datasourceDesignerApp {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Datasource Type Cards */
+    .datasource-types-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .datasource-type-card {
+      position: relative;
+      background: white;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .datasource-type-card:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 8px rgba(0, 120, 212, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .datasource-type-card.selected {
+      border-color: var(--primary-color);
+      background: rgba(0, 120, 212, 0.05);
+    }
+
+    .datasource-type-card .type-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+
+    .datasource-type-card .type-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    .datasource-type-card .type-description {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .datasource-type-card .card-check {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      color: var(--primary-color);
+      font-size: 1.2rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .datasource-type-card.selected .card-check {
+      opacity: 1;
+    }
+
+    /* Connection Configuration */
+    .connection-config-section {
+      background: #f8f9fa;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .config-form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .config-form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .config-form-group label {
+      display: block;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .config-form-group label .required {
+      color: #dc3545;
+      margin-left: 0.25rem;
+    }
+
+    .config-form-group input,
+    .config-form-group select,
+    .config-form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: white;
+      color: var(--text-primary);
+      transition: all 0.2s;
+    }
+
+    .config-form-group input:focus,
+    .config-form-group select:focus,
+    .config-form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+    }
+
+    .config-form-group small {
+      display: block;
+      margin-top: 0.375rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .config-form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Test Connection Panel */
+    .test-connection-panel {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+
+    .test-connection-panel.success {
+      background: #d4edda;
+      border-color: #28a745;
+    }
+
+    .test-connection-panel.error {
+      background: #f8d7da;
+      border-color: #dc3545;
+    }
+
+    .test-connection-panel .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .test-connection-panel .panel-header i {
+      font-size: 1.5rem;
+    }
+
+    .test-connection-panel .panel-body {
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* Connection Status Badge */
+    .connection-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .connection-status.active {
+      background: rgba(40, 167, 69, 0.15);
+      color: #28a745;
+    }
+
+    .connection-status.inactive {
+      background: rgba(108, 117, 125, 0.15);
+      color: #6c757d;
+    }
+
+    .connection-status.error {
+      background: rgba(220, 53, 69, 0.15);
+      color: #dc3545;
+    }
+
+    .connection-status i {
+      font-size: 0.6rem;
+    }
+
+    /* Advanced Options Toggle */
+    .advanced-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+
+    .advanced-toggle:hover {
+      background: rgba(0, 120, 212, 0.05);
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    .advanced-toggle i {
+      transition: transform 0.2s;
+    }
+
+    .advanced-toggle.expanded i {
+      transform: rotate(90deg);
+    }
+
+    .advanced-options {
+      display: none;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .advanced-options.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="datasourceDesignerApp"></div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Datasource Designer Script -->
+  <script src="/lowcode/static/js/datasource-designer.js"></script>
+
+  <script>
+    const APP_ID = '<%= appId %>';
+    let DATASOURCE_ID = '<%= datasourceId %>';
+    const EXISTING_DATASOURCE = <%- datasourceId ? JSON.stringify(datasource) : 'null' %>;
+
+    // Make DATASOURCE_ID globally accessible and mutable
+    window.DATASOURCE_ID = DATASOURCE_ID;
+
+    // Initialize global state
+    window.DATASOURCE_DESIGNER_STATE = {
+      applicationId: APP_ID,
+      datasources: []
+    };
+
+    // Initialize datasource designer
+    document.addEventListener('DOMContentLoaded', () => {
+      const designer = new DatasourceDesigner();
+
+      // Store reference globally
+      window.datasourceDesigner = designer;
+
+      // Load existing datasource or create new one
+      if (EXISTING_DATASOURCE) {
+        designer.currentDatasource = EXISTING_DATASOURCE;
+        window.DATASOURCE_DESIGNER_STATE.datasources = [EXISTING_DATASOURCE];
+      } else {
+        // Create new datasource
+        const newDatasource = {
+          id: generateUUID(),
+          applicationId: APP_ID,
+          name: '',
+          displayName: 'New Data Source',
+          description: '',
+          sourceType: null,
+          connectionConfig: {},
+          status: 'inactive',
+          icon: 'fa-database',
+          color: '#667eea'
+        };
+
+        designer.currentDatasource = newDatasource;
+        window.DATASOURCE_DESIGNER_STATE.datasources = [newDatasource];
+      }
+
+      // Render the datasource designer UI
+      renderDatasourceDesigner();
+
+      // Auto-save every 30 seconds
+      setInterval(() => {
+        if (designer.currentDatasource && designer.currentDatasource.sourceType) {
+          saveDatasource(false);
+        }
+      }, 30000);
+    });
+
+    function renderDatasourceDesigner() {
+      const app = document.getElementById('datasourceDesignerApp');
+      const datasource = window.datasourceDesigner.currentDatasource;
+
+      app.innerHTML = `
+        <div class="query-builder-wrapper">
+          <!-- Header -->
+          <div class="query-builder-header">
+            <div class="query-info">
+              <input type="text"
+                class="query-name-input"
+                value="${escapeHtml(datasource.displayName)}"
+                onchange="updateDatasourceName(this.value)"
+                placeholder="Data Source Name">
+              <div class="query-status">
+                <i class="fas fa-circle ${datasource.status === 'active' ? 'text-success' : 'text-secondary'}" style="font-size: 0.5rem;"></i>
+                <span>${datasource.status === 'active' ? 'Connected' : 'Not Connected'}</span>
+              </div>
+            </div>
+            <div class="query-actions">
+              <button class="btn btn-outline-secondary btn-sm" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i> Back
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="saveDatasource(true)">
+                <i class="fas fa-save"></i> Save
+              </button>
+              <button class="btn btn-success btn-sm" onclick="testConnection()">
+                <i class="fas fa-plug"></i> Test Connection
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="query-builder-tabs">
+            <button class="query-tab active" data-tab="type" onclick="switchTab('type')">
+              <i class="fas fa-layer-group"></i> Type
+            </button>
+            <button class="query-tab" data-tab="config" onclick="switchTab('config')">
+              <i class="fas fa-cog"></i> Configuration
+            </button>
+            <button class="query-tab" data-tab="settings" onclick="switchTab('settings')">
+              <i class="fas fa-sliders-h"></i> Settings
+            </button>
+            <button class="query-tab" data-tab="test" onclick="switchTab('test')">
+              <i class="fas fa-vial"></i> Test
+            </button>
+          </div>
+
+          <!-- Content Area -->
+          <div class="query-builder-content">
+            <div id="datasourceTabContent" class="tab-content-area"></div>
+          </div>
+        </div>
+      `;
+
+      // Render initial tab
+      switchTab('type');
+    }
+
+    function switchTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.query-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+      });
+
+      const container = document.getElementById('datasourceTabContent');
+      const designer = window.datasourceDesigner;
+
+      switch (tabName) {
+        case 'type':
+          designer.renderTypeTab(container);
+          break;
+        case 'config':
+          designer.renderConfigTab(container);
+          break;
+        case 'settings':
+          designer.renderSettingsTab(container);
+          break;
+        case 'test':
+          designer.renderTestTab(container);
+          break;
+      }
+    }
+
+    function updateDatasourceName(name) {
+      window.datasourceDesigner.currentDatasource.displayName = name;
+      saveDatasource(false);
+    }
+
+    async function saveDatasource(showMessage = false) {
+      const datasource = window.datasourceDesigner.currentDatasource;
+
+      // Validation
+      if (!datasource.displayName || !datasource.sourceType) {
+        if (showMessage) {
+          alert('Please enter a name and select a source type');
+        }
+        return;
+      }
+
+      try {
+        const url = window.DATASOURCE_ID
+          ? `/lowcode/api/datasources/${window.DATASOURCE_ID}`
+          : `/lowcode/api/datasources`;
+
+        const method = window.DATASOURCE_ID ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(datasource)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          if (showMessage) {
+            alert('Data source saved successfully!');
+          }
+
+          // Update datasource ID if this was a new datasource
+          if (!window.DATASOURCE_ID && data.datasource) {
+            const newUrl = `/lowcode/datasources/${data.datasource.id}/designer?appId=${APP_ID}`;
+            window.history.pushState({}, '', newUrl);
+            window.DATASOURCE_ID = data.datasource.id;
+            DATASOURCE_ID = data.datasource.id;
+          }
+        } else {
+          console.error('Failed to save datasource:', data.message);
+          if (showMessage) {
+            alert('Failed to save data source: ' + data.message);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to save datasource:', error);
+        if (showMessage) {
+          alert('Failed to save data source');
+        }
+      }
+    }
+
+    async function testConnection() {
+      const datasource = window.datasourceDesigner.currentDatasource;
+
+      if (!datasource.sourceType) {
+        alert('Please select a source type first');
+        return;
+      }
+
+      try {
+        const response = await fetch('/lowcode/api/datasources/test-connection', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            sourceType: datasource.sourceType,
+            connectionConfig: datasource.connectionConfig
+          })
+        });
+
+        const data = await response.json();
+
+        // Switch to test tab to show results
+        switchTab('test');
+
+        // Update test results
+        window.datasourceDesigner.testResults = data;
+        window.datasourceDesigner.renderTestTab(document.getElementById('datasourceTabContent'));
+
+        if (data.success) {
+          // Update datasource status
+          window.datasourceDesigner.currentDatasource.status = 'active';
+          renderDatasourceDesigner();
+        }
+      } catch (error) {
+        console.error('Connection test failed:', error);
+        alert('Connection test failed');
+      }
+    }
+
+    function goBack() {
+      window.location.href = `/lowcode/datasources?appId=${APP_ID}`;
+    }
+
+    // Helper functions
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function generateUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+  </script>
+</body>
+</html>

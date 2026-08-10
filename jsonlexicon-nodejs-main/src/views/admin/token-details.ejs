@@ -1,0 +1,55 @@
+<div class="row mb-4">
+  <div class="col-12">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="/admin/tokens">Tokens</a></li>
+        <li class="breadcrumb-item active"><%= token.handle %></li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-12">
+    <h2><i class="bi bi-key"></i> Token Details</h2>
+    <p class="text-muted"><%= token.handle %></p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="table-card">
+      <div class="card-header"><h5 class="mb-0"><i class="bi bi-info-circle"></i> Token Information</h5></div>
+      <div class="card-body">
+        <table class="table table-borderless mb-0">
+          <tr><th width="40%">ID:</th><td><code><%= token.id %></code></td></tr>
+          <tr><th>Handle:</th><td><code><%= token.handle %></code></td></tr>
+          <tr><th>Type:</th><td><span class="badge bg-info"><%= token.token_type %></span></td></tr>
+          <tr><th>Status:</th><td><span class="badge bg-<%= token.status === 'active' ? 'success' : 'secondary' %>"><%= token.status %></span></td></tr>
+          <tr><th>User:</th><td><%= token.user_email || 'N/A' %></td></tr>
+          <tr><th>Scope:</th><td><code><%= token.scope || 'N/A' %></code></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="table-card">
+      <div class="card-header"><h5 class="mb-0"><i class="bi bi-clock-history"></i> Validity Information</h5></div>
+      <div class="card-body">
+        <table class="table table-borderless mb-0">
+          <tr><th width="40%">Created:</th><td><%= new Date(token.created_at).toLocaleString() %></td></tr>
+          <tr><th>Expires:</th><td><%= token.expires_at ? new Date(token.expires_at).toLocaleString() : 'Never' %></td></tr>
+          <tr><th>Last Used:</th><td><%= token.last_used_at ? new Date(token.last_used_at).toLocaleString() : 'Never' %></td></tr>
+          <% if (token.use_count !== undefined) { %>
+          <tr><th>Use Count:</th><td><%= token.use_count %></td></tr>
+          <% } %>
+          <% if (token.uses_remaining !== undefined) { %>
+          <tr><th>Uses Remaining:</th><td><%= token.uses_remaining %></td></tr>
+          <% } %>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

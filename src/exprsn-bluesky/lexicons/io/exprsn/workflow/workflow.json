@@ -1,0 +1,189 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.workflow.workflow",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Workflow automation definition",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "trigger", "steps", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "trigger": {
+            "type": "ref",
+            "ref": "#workflowTrigger"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "ref",
+              "ref": "#workflowStep"
+            },
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 50
+            },
+            "maxLength": 10
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "workflowTrigger": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "post.created",
+            "post.liked",
+            "post.reposted",
+            "user.followed",
+            "message.received",
+            "event.created",
+            "schedule",
+            "webhook",
+            "manual"
+          ]
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "#condition"
+          }
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "required": ["field", "operator", "value"],
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "JSONPath expression"
+        },
+        "operator": {
+          "type": "string",
+          "enum": ["equals", "contains", "greaterThan", "lessThan", "exists"]
+        },
+        "value": {
+          "type": "unknown"
+        }
+      }
+    },
+    "workflowStep": {
+      "type": "object",
+      "required": ["type", "config"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "sendNotification",
+            "createPost",
+            "sendMessage",
+            "updateRecord",
+            "httpRequest",
+            "javascript",
+            "delay",
+            "conditional",
+            "loop"
+          ]
+        },
+        "config": {
+          "type": "unknown",
+          "description": "Step-specific configuration"
+        },
+        "onError": {
+          "type": "string",
+          "enum": ["stop", "continue", "retry"],
+          "default": "stop"
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["workflowUri", "status", "startedAt"],
+      "properties": {
+        "workflowUri": {
+          "type": "string",
+          "format": "at-uri"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["running", "completed", "failed", "cancelled"]
+        },
+        "input": {
+          "type": "unknown"
+        },
+        "output": {
+          "type": "unknown"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "#stepExecution"
+          }
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "datetime"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    },
+    "stepExecution": {
+      "type": "object",
+      "required": ["stepIndex", "status"],
+      "properties": {
+        "stepIndex": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "running", "completed", "failed", "skipped"]
+        },
+        "output": {
+          "type": "unknown"
+        },
+        "error": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "datetime"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "datetime"
+        }
+      }
+    }
+  }
+}

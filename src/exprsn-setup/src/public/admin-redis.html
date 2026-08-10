@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redis Infrastructure - Exprsn Setup</title>
+
+  <!-- Bootstrap 5.3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <style>
+    :root {
+      --primary-color: #2563eb;
+      --secondary-color: #64748b;
+      --success-color: #10b981;
+      --danger-color: #ef4444;
+      --warning-color: #f59e0b;
+      --info-color: #06b6d4;
+      --redis-color: #DC382D;
+    }
+
+    body {
+      background-color: #f8fafc;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .page-header {
+      background: linear-gradient(135deg, var(--redis-color) 0%, #a82a21 100%);
+      color: white;
+      padding: 2rem 0;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .stats-card {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      height: 100%;
+    }
+
+    .stats-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .stats-card .icon {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      margin-bottom: 1rem;
+    }
+
+    .stats-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 0.25rem;
+    }
+
+    .stats-card .label {
+      font-size: 0.875rem;
+      color: var(--secondary-color);
+      font-weight: 500;
+    }
+
+    .content-card {
+      background: white;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1.5rem;
+    }
+
+    .prefix-card {
+      border-left: 4px solid var(--redis-color);
+      padding: 1rem;
+      background-color: #f8fafc;
+      border-radius: 0.25rem;
+      margin-bottom: 0.75rem;
+      transition: background-color 0.2s;
+      cursor: pointer;
+    }
+
+    .prefix-card:hover {
+      background-color: #f1f5f9;
+    }
+
+    .prefix-card .prefix-name {
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+    }
+
+    .prefix-card .prefix-stats {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.875rem;
+      color: var(--secondary-color);
+    }
+
+    .key-item {
+      padding: 0.75rem;
+      border-bottom: 1px solid #e2e8f0;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 0.875rem;
+      display: flex;
+      justify-content: between;
+      align-items: center;
+    }
+
+    .key-item:last-child {
+      border-bottom: none;
+    }
+
+    .key-item:hover {
+      background-color: #f8fafc;
+    }
+
+    .memory-chart {
+      height: 300px;
+      display: flex;
+      align-items: flex-end;
+      gap: 0.5rem;
+      padding: 1rem;
+      background-color: #f8fafc;
+      border-radius: 0.5rem;
+    }
+
+    .memory-bar {
+      flex: 1;
+      background: linear-gradient(to top, var(--redis-color), #ff6b5e);
+      border-radius: 0.25rem 0.25rem 0 0;
+      position: relative;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .memory-bar:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .memory-bar-label {
+      position: absolute;
+      bottom: -1.5rem;
+      left: 50%;
+      transform: translateX(-50%) rotate(-45deg);
+      font-size: 0.75rem;
+      white-space: nowrap;
+      color: var(--secondary-color);
+    }
+
+    .memory-bar-value {
+      position: absolute;
+      top: -1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(0, 0, 0, 0.1);
+      border-left-color: var(--redis-color);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+    }
+
+    .code-block {
+      background-color: #1e293b;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 0.875rem;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="mb-2">
+            <i class="bi bi-hdd-network"></i> Redis Infrastructure
+          </h1>
+          <p class="mb-0 opacity-90">Cache management, monitoring, and key operations</p>
+        </div>
+        <div>
+          <button class="btn btn-light" onclick="window.location.href='/unified'">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+          </button>
+          <button class="btn btn-warning" onclick="flushAllCaches()">
+            <i class="bi bi-trash"></i> Flush All Caches
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container-fluid">
+    <!-- Statistics -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--redis-color);">
+            <i class="bi bi-key"></i>
+          </div>
+          <div class="value" id="totalKeys">0</div>
+          <div class="label">Total Keys</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--info-color);">
+            <i class="bi bi-memory"></i>
+          </div>
+          <div class="value" id="usedMemory">0 MB</div>
+          <div class="label">Used Memory</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--success-color);">
+            <i class="bi bi-people"></i>
+          </div>
+          <div class="value" id="connectedClients">0</div>
+          <div class="label">Connected Clients</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stats-card">
+          <div class="icon" style="background-color: var(--warning-color);">
+            <i class="bi bi-graph-up"></i>
+          </div>
+          <div class="value" id="hitRatio">0%</div>
+          <div class="label">Cache Hit Ratio</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Memory Usage by Service -->
+      <div class="col-lg-8">
+        <div class="content-card">
+          <h5 class="mb-3">
+            <i class="bi bi-pie-chart"></i> Memory Usage by Service
+          </h5>
+          <div class="memory-chart" id="memoryChart">
+            <div class="text-center w-100">
+              <div class="loading-spinner mx-auto mb-3"></div>
+              <div class="text-muted">Loading memory data...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Key Browser -->
+        <div class="content-card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+              <i class="bi bi-search"></i> Key Browser
+            </h5>
+            <div class="input-group" style="max-width: 400px;">
+              <select class="form-select" id="prefixFilter" style="max-width: 150px;">
+                <option value="">All Prefixes</option>
+              </select>
+              <input type="text" class="form-control" id="keySearch" placeholder="Search keys...">
+              <button class="btn btn-primary" onclick="searchKeys()">
+                <i class="bi bi-search"></i>
+              </button>
+            </div>
+          </div>
+
+          <div id="keysContainer" style="max-height: 400px; overflow-y: auto;">
+            <div class="text-center py-5">
+              <div class="loading-spinner mx-auto mb-3"></div>
+              <div class="text-muted">Search for keys to view results</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Service Prefixes -->
+      <div class="col-lg-4">
+        <div class="content-card">
+          <h5 class="mb-3">
+            <i class="bi bi-folder"></i> Service Prefixes
+          </h5>
+
+          <div id="prefixesContainer">
+            <div class="text-center py-3">
+              <div class="loading-spinner mx-auto mb-2"></div>
+              <small class="text-muted">Loading prefixes...</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Redis Info -->
+        <div class="content-card">
+          <h5 class="mb-3">
+            <i class="bi bi-info-circle"></i> Redis Info
+          </h5>
+
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span class="text-muted">Version</span>
+              <strong id="redisVersion">—</strong>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span class="text-muted">Uptime</span>
+              <strong id="redisUptime">—</strong>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span class="text-muted">Database</span>
+              <strong id="redisDatabase">db0</strong>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span class="text-muted">Peak Memory</span>
+              <strong id="peakMemory">—</strong>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2 mt-3">
+            <button class="btn btn-outline-primary" onclick="viewRedisConfig()">
+              <i class="bi bi-gear"></i> View Configuration
+            </button>
+            <button class="btn btn-outline-info" onclick="refreshStats()">
+              <i class="bi bi-arrow-clockwise"></i> Refresh Stats
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Bootstrap Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Modal Manager -->
+  <script src="/js/modal-manager.js"></script>
+
+  <script>
+    // State management
+    let socket = null;
+    let refreshInterval = null;
+    let memoryData = {};
+
+    // Service prefixes mapping
+    const servicePrefixes = {
+      'ca:': 'Certificate Authority',
+      'auth:': 'Authentication',
+      'timeline:': 'Timeline',
+      'spark:': 'Messaging',
+      'prefetch:': 'Timeline Prefetch',
+      'moderator:': 'Content Moderator',
+      'filevault:': 'File Vault',
+      'gallery:': 'Gallery',
+      'live:': 'Live Streaming',
+      'bridge:': 'API Bridge',
+      'nexus:': 'Nexus',
+      'pulse:': 'Analytics',
+      'vault:': 'Secrets Vault',
+      'herald:': 'Notifications',
+      'workflow:': 'Workflow Engine',
+      'cache:': 'General Cache',
+      'session:': 'User Sessions',
+      'queue:': 'Job Queues'
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeSocketIO();
+      loadStats();
+      loadMemoryByPrefix();
+      loadPrefixes();
+
+      // Auto-refresh every 5 seconds
+      refreshInterval = setInterval(() => {
+        loadStats();
+        loadMemoryByPrefix();
+      }, 5000);
+
+      // Handle enter key in search
+      document.getElementById('keySearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchKeys();
+      });
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (refreshInterval) clearInterval(refreshInterval);
+    });
+
+    /**
+     * Socket.IO initialization
+     */
+    function initializeSocketIO() {
+      socket = io();
+
+      socket.on('connect', () => {
+        console.log('Socket.IO connected');
+      });
+
+      socket.on('redis:key-deleted', (data) => {
+        showToast('Key Deleted', `Key deleted: ${data.key}`, 'warning');
+        searchKeys(); // Refresh current search
+      });
+
+      socket.on('redis:cache-flushed', (data) => {
+        showToast('Cache Flushed', `${data.prefix} cache has been flushed`, 'warning');
+        loadStats();
+        loadMemoryByPrefix();
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Socket.IO disconnected');
+      });
+    }
+
+    /**
+     * Load Redis statistics
+     */
+    async function loadStats() {
+      try {
+        const response = await fetch('/api/infrastructure/redis/stats');
+        const data = await response.json();
+
+        if (data.success) {
+          const stats = data.stats;
+
+          document.getElementById('totalKeys').textContent = stats.totalKeys || 0;
+          document.getElementById('usedMemory').textContent = formatBytes(stats.usedMemory || 0);
+          document.getElementById('connectedClients').textContent = stats.connectedClients || 0;
+
+          // Calculate hit ratio
+          if (stats.keyspaceHits && stats.keyspaceMisses) {
+            const total = stats.keyspaceHits + stats.keyspaceMisses;
+            const ratio = total > 0 ? (stats.keyspaceHits / total * 100).toFixed(1) : 0;
+            document.getElementById('hitRatio').textContent = `${ratio}%`;
+          }
+
+          // Update Redis info
+          document.getElementById('redisVersion').textContent = stats.version || '—';
+          document.getElementById('redisUptime').textContent = formatUptime(stats.uptime || 0);
+          document.getElementById('peakMemory').textContent = formatBytes(stats.peakMemory || 0);
+        }
+      } catch (error) {
+        console.error('Failed to load Redis stats:', error);
+      }
+    }
+
+    /**
+     * Load memory usage by prefix
+     */
+    async function loadMemoryByPrefix() {
+      try {
+        const response = await fetch('/api/infrastructure/redis/stats/memory');
+        const data = await response.json();
+
+        if (data.success) {
+          memoryData = data.memory;
+          renderMemoryChart(data.memory);
+        }
+      } catch (error) {
+        console.error('Failed to load memory data:', error);
+      }
+    }
+
+    /**
+     * Render memory chart
+     */
+    function renderMemoryChart(memory) {
+      const chart = document.getElementById('memoryChart');
+
+      const entries = Object.entries(memory).sort((a, b) => b[1].bytes - a[1].bytes);
+
+      if (entries.length === 0) {
+        chart.innerHTML = '<div class="text-center w-100 text-muted">No data available</div>';
+        return;
+      }
+
+      const maxMemory = Math.max(...entries.map(([, data]) => data.bytes));
+
+      chart.innerHTML = entries.map(([prefix, data]) => {
+        const percentage = (data.bytes / maxMemory) * 100;
+        const serviceName = servicePrefixes[prefix] || prefix;
+
+        return `
+          <div class="memory-bar" style="height: ${percentage}%;" title="${serviceName}: ${formatBytes(data.bytes)}">
+            <div class="memory-bar-value">${formatBytes(data.bytes)}</div>
+            <div class="memory-bar-label">${serviceName}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Load service prefixes
+     */
+    function loadPrefixes() {
+      const container = document.getElementById('prefixesContainer');
+      const filter = document.getElementById('prefixFilter');
+
+      // Populate prefix filter
+      filter.innerHTML = '<option value="">All Prefixes</option>';
+      Object.entries(servicePrefixes).forEach(([prefix, name]) => {
+        filter.innerHTML += `<option value="${prefix}">${name}</option>`;
+      });
+
+      // Render prefix cards
+      container.innerHTML = Object.entries(servicePrefixes).map(([prefix, name]) => {
+        const memory = memoryData[prefix] || { bytes: 0, keys: 0 };
+
+        return `
+          <div class="prefix-card" onclick="filterByPrefix('${prefix}')">
+            <div class="prefix-name">${name}</div>
+            <div class="prefix-stats">
+              <span><i class="bi bi-key"></i> ${memory.keys} keys</span>
+              <span><i class="bi bi-hdd"></i> ${formatBytes(memory.bytes)}</span>
+            </div>
+            <div class="mt-2">
+              <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); flushPrefix('${prefix}', '${name}')">
+                <i class="bi bi-trash"></i> Flush
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Filter by prefix
+     */
+    function filterByPrefix(prefix) {
+      document.getElementById('prefixFilter').value = prefix;
+      document.getElementById('keySearch').value = '*';
+      searchKeys();
+    }
+
+    /**
+     * Search keys
+     */
+    async function searchKeys() {
+      const prefix = document.getElementById('prefixFilter').value;
+      const pattern = document.getElementById('keySearch').value || '*';
+
+      const container = document.getElementById('keysContainer');
+      container.innerHTML = '<div class="text-center py-3"><div class="loading-spinner mx-auto mb-2"></div><small class="text-muted">Searching...</small></div>';
+
+      try {
+        const url = prefix
+          ? `/api/infrastructure/redis/prefixes/${encodeURIComponent(prefix.replace(':', ''))}/keys?pattern=${encodeURIComponent(pattern)}&limit=100`
+          : `/api/infrastructure/redis/keys?pattern=${encodeURIComponent(pattern)}&limit=100`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          renderKeys(data.keys);
+        } else {
+          throw new Error(data.error || 'Failed to search keys');
+        }
+      } catch (error) {
+        container.innerHTML = `<div class="text-center py-3 text-danger">${error.message}</div>`;
+      }
+    }
+
+    /**
+     * Render keys
+     */
+    function renderKeys(keys) {
+      const container = document.getElementById('keysContainer');
+
+      if (keys.length === 0) {
+        container.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-inbox" style="font-size: 2rem;"></i><p class="mt-3">No keys found</p></div>';
+        return;
+      }
+
+      container.innerHTML = keys.map(key => `
+        <div class="key-item">
+          <div class="flex-grow-1">${escapeHtml(key)}</div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" onclick="viewKey('${escapeHtml(key)}')">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteKey('${escapeHtml(key)}')">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    /**
+     * View key details
+     */
+    async function viewKey(key) {
+      try {
+        const response = await fetch(`/api/infrastructure/redis/keys/${encodeURIComponent(key)}`);
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to get key');
+        }
+
+        const keyData = data.key;
+
+        modalManager.create({
+          title: `Key: ${key}`,
+          size: 'lg',
+          content: `
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Type</label>
+                <div><span class="badge bg-primary">${keyData.type}</span></div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">TTL</label>
+                <div class="text-muted">${keyData.ttl === -1 ? 'No expiry' : `${keyData.ttl}s`}</div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Memory</label>
+                <div class="text-muted">${keyData.memory ? formatBytes(keyData.memory) : '—'}</div>
+              </div>
+            </div>
+            <div>
+              <label class="form-label fw-semibold">Value</label>
+              <div class="code-block">${escapeHtml(JSON.stringify(keyData.value, null, 2))}</div>
+            </div>
+          `,
+          buttons: [
+            { text: 'Close', variant: 'secondary', action: 'close' },
+            { text: 'Delete Key', variant: 'danger', action: 'custom:delete' }
+          ],
+          customActions: {
+            delete: (modal) => {
+              modalManager.close(modal.id);
+              setTimeout(() => {
+                modalManager.destroy(modal.id);
+                deleteKey(key);
+              }, 300);
+            }
+          }
+        });
+      } catch (error) {
+        showToast('Error', error.message, 'danger');
+      }
+    }
+
+    /**
+     * Delete key
+     */
+    async function deleteKey(key) {
+      const confirmed = confirm(`Delete key "${key}"?`);
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch(`/api/infrastructure/redis/keys/${encodeURIComponent(key)}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to delete key');
+        }
+
+        showToast('Success', 'Key deleted successfully', 'success');
+        searchKeys(); // Refresh
+      } catch (error) {
+        showToast('Error', error.message, 'danger');
+      }
+    }
+
+    /**
+     * Flush prefix cache
+     */
+    async function flushPrefix(prefix, name) {
+      const confirmed = confirm(`Flush all keys in "${name}" cache? This action cannot be undone.`);
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch(`/api/infrastructure/redis/prefixes/${encodeURIComponent(prefix.replace(':', ''))}/flush`, {
+          method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to flush cache');
+        }
+
+        showToast('Success', `${name} cache flushed successfully`, 'success');
+        loadStats();
+        loadMemoryByPrefix();
+      } catch (error) {
+        showToast('Error', error.message, 'danger');
+      }
+    }
+
+    /**
+     * Flush all caches
+     */
+    async function flushAllCaches() {
+      const confirmed = confirm('Flush ALL Redis caches? This will clear all data and cannot be undone!');
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch('/api/infrastructure/redis/flush', {
+          method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to flush caches');
+        }
+
+        showToast('Success', 'All caches flushed successfully', 'success');
+        loadStats();
+        loadMemoryByPrefix();
+        document.getElementById('keysContainer').innerHTML = '<div class="text-center py-5 text-muted">All keys have been cleared</div>';
+      } catch (error) {
+        showToast('Error', error.message, 'danger');
+      }
+    }
+
+    /**
+     * View Redis configuration
+     */
+    async function viewRedisConfig() {
+      try {
+        const response = await fetch('/api/infrastructure/redis/config');
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error('Failed to load configuration');
+        }
+
+        const config = data.config;
+
+        modalManager.create({
+          title: 'Redis Configuration',
+          size: 'lg',
+          content: `
+            <div class="code-block">
+${Object.entries(config).map(([key, value]) => `${key}: ${value}`).join('\n')}
+            </div>
+          `,
+          buttons: [{ text: 'Close', variant: 'secondary', action: 'close' }]
+        });
+      } catch (error) {
+        showToast('Error', error.message, 'danger');
+      }
+    }
+
+    /**
+     * Refresh stats manually
+     */
+    function refreshStats() {
+      loadStats();
+      loadMemoryByPrefix();
+      loadPrefixes();
+      showToast('Refreshed', 'Statistics updated', 'info');
+    }
+
+    /**
+     * Format bytes to human-readable size
+     */
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    /**
+     * Format uptime to human-readable format
+     */
+    function formatUptime(seconds) {
+      const days = Math.floor(seconds / 86400);
+      const hours = Math.floor((seconds % 86400) / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+
+      const parts = [];
+      if (days > 0) parts.push(`${days}d`);
+      if (hours > 0) parts.push(`${hours}h`);
+      if (minutes > 0) parts.push(`${minutes}m`);
+
+      return parts.join(' ') || '0m';
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    /**
+     * Show toast notification
+     */
+    function showToast(title, message, type = 'info') {
+      const toastContainer = document.getElementById('toastContainer');
+      const toastId = `toast-${Date.now()}`;
+
+      const bgColors = {
+        success: 'bg-success',
+        danger: 'bg-danger',
+        warning: 'bg-warning',
+        info: 'bg-info'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.id = toastId;
+      toast.setAttribute('role', 'alert');
+      toast.innerHTML = `
+        <div class="toast-header ${bgColors[type]} text-white">
+          <strong class="me-auto">${title}</strong>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+          ${message}
+        </div>
+      `;
+
+      toastContainer.appendChild(toast);
+
+      const bsToast = new bootstrap.Toast(toast, { autohide: true, delay: 5000 });
+      bsToast.show();
+
+      toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+      });
+    }
+  </script>
+</body>
+</html>

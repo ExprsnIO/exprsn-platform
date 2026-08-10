@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> - Exprsn Git</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
+
+    <style>
+        :root {
+            --git-primary: #24292f;
+            --git-secondary: #57606a;
+            --git-success: #1a7f37;
+            --git-danger: #cf222e;
+            --git-warning: #bf8700;
+            --git-info: #0969da;
+            --git-bg: #f6f8fa;
+            --git-border: #d0d7de;
+        }
+
+        body {
+            background-color: var(--git-bg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+        }
+
+        .navbar {
+            background-color: var(--git-primary);
+            border-bottom: 1px solid var(--git-border);
+        }
+
+        .navbar-brand {
+            color: white !important;
+            font-weight: 600;
+        }
+
+        .repo-card {
+            background: white;
+            border: 1px solid var(--git-border);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: box-shadow 0.2s;
+        }
+
+        .repo-card:hover {
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .repo-title {
+            color: var(--git-info);
+            font-size: 20px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .repo-title:hover {
+            text-decoration: underline;
+        }
+
+        .repo-description {
+            color: var(--git-secondary);
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .repo-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--git-secondary);
+        }
+
+        .repo-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .badge-visibility {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .badge-private {
+            background-color: #fef2c0;
+            color: #735c0f;
+            border: 1px solid #d4c5a0;
+        }
+
+        .badge-public {
+            background-color: #ddf4ff;
+            color: #0969da;
+            border: 1px solid #54aeff;
+        }
+
+        .code-editor {
+            height: 600px;
+            border: 1px solid var(--git-border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .file-tree {
+            background: white;
+            border: 1px solid var(--git-border);
+            border-radius: 6px;
+            height: 600px;
+            overflow-y: auto;
+        }
+
+        .file-tree-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--git-border);
+            transition: background-color 0.15s;
+        }
+
+        .file-tree-item:hover {
+            background-color: var(--git-bg);
+        }
+
+        .file-tree-item.active {
+            background-color: #e8f0fe;
+            border-left: 3px solid var(--git-info);
+        }
+
+        .commit-list {
+            background: white;
+            border: 1px solid var(--git-border);
+            border-radius: 6px;
+        }
+
+        .commit-item {
+            padding: 16px;
+            border-bottom: 1px solid var(--git-border);
+        }
+
+        .commit-item:last-child {
+            border-bottom: none;
+        }
+
+        .commit-message {
+            font-weight: 600;
+            color: var(--git-primary);
+        }
+
+        .commit-meta {
+            font-size: 13px;
+            color: var(--git-secondary);
+            margin-top: 4px;
+        }
+
+        .issue-list, .pr-list {
+            background: white;
+            border: 1px solid var(--git-border);
+            border-radius: 6px;
+        }
+
+        .issue-item, .pr-item {
+            padding: 16px;
+            border-bottom: 1px solid var(--git-border);
+            display: flex;
+            gap: 12px;
+        }
+
+        .issue-item:last-child, .pr-item:last-child {
+            border-bottom: none;
+        }
+
+        .issue-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .issue-open {
+            background-color: var(--git-success);
+            color: white;
+        }
+
+        .issue-closed {
+            background-color: #8250df;
+            color: white;
+        }
+
+        .pr-open {
+            background-color: var(--git-success);
+            color: white;
+        }
+
+        .pr-merged {
+            background-color: #8250df;
+            color: white;
+        }
+
+        .label {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-right: 4px;
+        }
+
+        .diff-view {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            background: white;
+            border: 1px solid var(--git-border);
+            border-radius: 6px;
+            padding: 16px;
+            white-space: pre-wrap;
+        }
+
+        .diff-add {
+            background-color: #e6ffec;
+            color: #1a7f37;
+        }
+
+        .diff-remove {
+            background-color: #ffebe9;
+            color: #cf222e;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/lowcode/applications">
+                <i class="fab fa-git-alt"></i> Exprsn Git
+            </a>
+            <div class="d-flex gap-3">
+                <a href="/lowcode/applications" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-arrow-left"></i> Back to Applications
+                </a>
+                <button id="btnNewRepo" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> New Repository
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-4" id="gitTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="repositories-tab" data-bs-toggle="tab" data-bs-target="#repositories" type="button">
+                    <i class="fas fa-folder"></i> Repositories
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="code-tab" data-bs-toggle="tab" data-bs-target="#code" type="button">
+                    <i class="fas fa-code"></i> Code
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="issues-tab" data-bs-toggle="tab" data-bs-target="#issues" type="button">
+                    <i class="fas fa-exclamation-circle"></i> Issues
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="prs-tab" data-bs-toggle="tab" data-bs-target="#prs" type="button">
+                    <i class="fas fa-code-branch"></i> Pull Requests
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pipelines-tab" data-bs-toggle="tab" data-bs-target="#pipelines" type="button">
+                    <i class="fas fa-rocket"></i> CI/CD
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="gitTabsContent">
+            <!-- Repositories Tab -->
+            <div class="tab-pane fade show active" id="repositories" role="tabpanel">
+                <div id="repoList"></div>
+            </div>
+
+            <!-- Code Tab -->
+            <div class="tab-pane fade" id="code" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-3">
+                        <h5>Files</h5>
+                        <div class="file-tree" id="fileTree"></div>
+                    </div>
+                    <div class="col-md-9">
+                        <div class="d-flex justify-content-between mb-3">
+                            <div>
+                                <select id="branchSelect" class="form-select form-select-sm" style="width: 200px;">
+                                    <option value="main">main</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button id="btnCommit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-save"></i> Commit Changes
+                                </button>
+                            </div>
+                        </div>
+                        <div class="code-editor" id="codeEditor"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Issues Tab -->
+            <div class="tab-pane fade" id="issues" role="tabpanel">
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>Issues</h5>
+                    <button id="btnNewIssue" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> New Issue
+                    </button>
+                </div>
+                <div id="issueList"></div>
+            </div>
+
+            <!-- Pull Requests Tab -->
+            <div class="tab-pane fade" id="prs" role="tabpanel">
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>Pull Requests</h5>
+                    <button id="btnNewPR" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> New Pull Request
+                    </button>
+                </div>
+                <div id="prList"></div>
+            </div>
+
+            <!-- CI/CD Tab -->
+            <div class="tab-pane fade" id="pipelines" role="tabpanel">
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>CI/CD Pipelines</h5>
+                    <button id="btnNewPipeline" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> New Pipeline
+                    </button>
+                </div>
+                <div id="pipelineList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <!-- Monaco Editor -->
+    <script>var require = { paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } };</script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.nls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.js"></script>
+
+    <script>
+        const API_BASE = '/lowcode/api/git';
+        let currentRepo = null;
+        let monacoEditor = null;
+        let currentFile = null;
+
+        // Initialize Monaco Editor
+        function initMonacoEditor() {
+            require(['vs/editor/editor.main'], function() {
+                monacoEditor = monaco.editor.create(document.getElementById('codeEditor'), {
+                    value: '// Select a file to edit',
+                    language: 'javascript',
+                    theme: 'vs-light',
+                    automaticLayout: true,
+                    minimap: { enabled: true },
+                    fontSize: 14
+                });
+            });
+        }
+
+        // Load repositories
+        async function loadRepositories() {
+            try {
+                const response = await axios.get(`${API_BASE}/repositories`);
+                const repos = response.data.data.repositories;
+
+                const html = repos.map(repo => `
+                    <div class="repo-card" data-repo-id="${repo.id}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <a href="#" class="repo-title" onclick="selectRepo('${repo.id}'); return false;">
+                                    <i class="fas fa-folder"></i> ${repo.name}
+                                </a>
+                                <span class="badge badge-${repo.visibility} ms-2">${repo.visibility}</span>
+                                ${repo.description ? `<div class="repo-description">${repo.description}</div>` : ''}
+                                <div class="repo-meta">
+                                    <div class="repo-meta-item">
+                                        <i class="fas fa-code-branch"></i> ${repo.defaultBranch}
+                                    </div>
+                                    <div class="repo-meta-item">
+                                        <i class="fas fa-exclamation-circle"></i> ${repo.openIssuesCount} issues
+                                    </div>
+                                    <div class="repo-meta-item">
+                                        <i class="fas fa-code-branch"></i> ${repo.openPrsCount} PRs
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRepo('${repo.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('repoList').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load repositories:', error);
+                alert('Failed to load repositories');
+            }
+        }
+
+        // Select repository
+        async function selectRepo(repoId) {
+            currentRepo = repoId;
+            await loadBranches();
+            await loadFileTree();
+            await loadIssues();
+            await loadPullRequests();
+        }
+
+        // Load branches
+        async function loadBranches() {
+            const response = await axios.get(`${API_BASE}/repositories/${currentRepo}/branches`);
+            const branches = response.data.data;
+
+            const select = document.getElementById('branchSelect');
+            select.innerHTML = branches.map(b =>
+                `<option value="${b.name}">${b.name}</option>`
+            ).join('');
+        }
+
+        // Load file tree
+        async function loadFileTree() {
+            const branch = document.getElementById('branchSelect').value;
+            const response = await axios.get(`${API_BASE}/repositories/${currentRepo}/tree?ref=${branch}`);
+            const files = response.data.data;
+
+            const html = files.map(file => `
+                <div class="file-tree-item" onclick="loadFile('${file.path}')">
+                    <i class="fas fa-${file.type === 'blob' ? 'file' : 'folder'}"></i>
+                    ${file.path}
+                </div>
+            `).join('');
+
+            document.getElementById('fileTree').innerHTML = html;
+        }
+
+        // Load file content
+        async function loadFile(filePath) {
+            const branch = document.getElementById('branchSelect').value;
+            const response = await axios.get(`${API_BASE}/repositories/${currentRepo}/files?ref=${branch}&path=${filePath}`);
+            const file = response.data.data;
+
+            currentFile = filePath;
+            monacoEditor.setValue(file.content);
+
+            // Detect language
+            const ext = filePath.split('.').pop();
+            const langMap = {
+                'js': 'javascript',
+                'ts': 'typescript',
+                'py': 'python',
+                'html': 'html',
+                'css': 'css',
+                'json': 'json',
+                'md': 'markdown'
+            };
+            const lang = langMap[ext] || 'plaintext';
+            monaco.editor.setModelLanguage(monacoEditor.getModel(), lang);
+        }
+
+        // Load issues
+        async function loadIssues() {
+            const response = await axios.get(`${API_BASE}/repositories/${currentRepo}/issues`);
+            const issues = response.data.data.issues;
+
+            const html = issues.map(issue => `
+                <div class="issue-item">
+                    <div class="issue-icon ${issue.state === 'open' ? 'issue-open' : 'issue-closed'}">
+                        <i class="fas fa-${issue.state === 'open' ? 'exclamation-circle' : 'check-circle'}"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div>
+                            <strong>${issue.title}</strong>
+                            <span class="text-muted">#${issue.number}</span>
+                        </div>
+                        <div class="small text-muted mt-1">
+                            ${issue.state} • Priority: ${issue.priority} • Type: ${issue.issueType}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('issueList').innerHTML = html || '<div class="p-4 text-center text-muted">No issues</div>';
+        }
+
+        // Load pull requests
+        async function loadPullRequests() {
+            const response = await axios.get(`${API_BASE}/repositories/${currentRepo}/pulls`);
+            const prs = response.data.data.pullRequests;
+
+            const html = prs.map(pr => `
+                <div class="pr-item">
+                    <div class="issue-icon ${pr.state === 'merged' ? 'pr-merged' : 'pr-open'}">
+                        <i class="fas fa-code-branch"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div>
+                            <strong>${pr.title}</strong>
+                            <span class="text-muted">#${pr.number}</span>
+                        </div>
+                        <div class="small text-muted mt-1">
+                            ${pr.sourceBranch} → ${pr.targetBranch} • ${pr.state} • CI: ${pr.ciStatus}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('prList').innerHTML = html || '<div class="p-4 text-center text-muted">No pull requests</div>';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initMonacoEditor();
+            loadRepositories();
+
+            // Button handlers
+            document.getElementById('btnNewRepo').addEventListener('click', () => {
+                const name = prompt('Repository name:');
+                if (name) {
+                    axios.post(`${API_BASE}/repositories`, {
+                        name,
+                        visibility: 'private',
+                        ownerId: 'current-user-id' // Replace with actual user ID
+                    }).then(() => {
+                        loadRepositories();
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,2409 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exprsn-SVR API & Database Documentation | Exprsn</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --exprsn-primary: #0066ff;
+            --exprsn-primary-hover: #0052cc;
+            --exprsn-secondary: #7c3aed;
+            --exprsn-accent-pink: #ec4899;
+            --exprsn-accent-orange: #f97316;
+            --exprsn-accent-green: #10b981;
+            --exprsn-accent-cyan: #06b6d4;
+            --exprsn-success: #10b981;
+            --exprsn-danger: #ef4444;
+            --exprsn-warning: #f59e0b;
+            --exprsn-info: #3b82f6;
+            --exprsn-bg-primary: #ffffff;
+            --exprsn-bg-secondary: #fafafa;
+            --exprsn-bg-tertiary: #f5f5f5;
+            --exprsn-text-primary: #171717;
+            --exprsn-text-secondary: #525252;
+            --exprsn-text-muted: #737373;
+            --exprsn-border-color: #e5e5e5;
+            --exprsn-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --exprsn-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --exprsn-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --exprsn-radius-md: 0.5rem;
+            --exprsn-radius-lg: 0.75rem;
+            --exprsn-font-family: 'Inter', sans-serif;
+            --exprsn-font-family-mono: 'JetBrains Mono', monospace;
+        }
+
+        [data-theme="dark"] {
+            --exprsn-bg-primary: #0a0a0a;
+            --exprsn-bg-secondary: #171717;
+            --exprsn-bg-tertiary: #262626;
+            --exprsn-text-primary: #fafafa;
+            --exprsn-text-secondary: #d4d4d4;
+            --exprsn-text-muted: #a3a3a3;
+            --exprsn-border-color: #404040;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: var(--exprsn-font-family);
+            background-color: var(--exprsn-bg-secondary);
+            color: var(--exprsn-text-primary);
+            margin: 0;
+            padding: 0;
+        }
+
+        .top-navbar {
+            position: sticky;
+            top: 0;
+            background: var(--exprsn-bg-primary);
+            border-bottom: 1px solid var(--exprsn-border-color);
+            padding: 1rem 2rem;
+            z-index: 1000;
+            box-shadow: var(--exprsn-shadow-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--exprsn-primary);
+            text-decoration: none;
+        }
+
+        .theme-toggle {
+            background: var(--exprsn-bg-tertiary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-md);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--exprsn-primary);
+            color: white;
+        }
+
+        .container-fluid {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 3rem 0 1.5rem;
+            color: var(--exprsn-text-primary);
+            border-bottom: 3px solid var(--exprsn-primary);
+            padding-bottom: 0.5rem;
+        }
+
+        .subsection-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 2rem 0 1rem;
+            color: var(--exprsn-text-primary);
+        }
+
+        .endpoint-card {
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--exprsn-shadow-sm);
+            transition: all 0.2s;
+        }
+
+        .endpoint-card:hover {
+            box-shadow: var(--exprsn-shadow-md);
+            border-color: var(--exprsn-primary);
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .method-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--exprsn-radius-md);
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: var(--exprsn-font-family-mono);
+        }
+
+        .method-GET { background: var(--exprsn-accent-green); color: white; }
+        .method-POST { background: var(--exprsn-accent-cyan); color: white; }
+        .method-PUT { background: var(--exprsn-accent-orange); color: white; }
+        .method-DELETE { background: var(--exprsn-danger); color: white; }
+        .method-PATCH { background: var(--exprsn-secondary); color: white; }
+
+        .endpoint-path {
+            font-family: var(--exprsn-font-family-mono);
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--exprsn-text-primary);
+        }
+
+        .param-table {
+            width: 100%;
+            margin-top: 1rem;
+            border-collapse: collapse;
+        }
+
+        .param-table th {
+            background: var(--exprsn-bg-tertiary);
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            border: 1px solid var(--exprsn-border-color);
+        }
+
+        .param-table td {
+            padding: 0.75rem;
+            border: 1px solid var(--exprsn-border-color);
+        }
+
+        .param-table tr:hover {
+            background: var(--exprsn-bg-secondary);
+        }
+
+        .param-name {
+            font-family: var(--exprsn-font-family-mono);
+            font-weight: 600;
+            color: var(--exprsn-secondary);
+        }
+
+        .param-type {
+            font-family: var(--exprsn-font-family-mono);
+            font-size: 0.875rem;
+            color: var(--exprsn-accent-orange);
+        }
+
+        .required-badge {
+            background: var(--exprsn-danger);
+            color: white;
+            padding: 0.125rem 0.5rem;
+            border-radius: var(--exprsn-radius-md);
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .optional-badge {
+            background: var(--exprsn-text-muted);
+            color: white;
+            padding: 0.125rem 0.5rem;
+            border-radius: var(--exprsn-radius-md);
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .db-table-card {
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--exprsn-shadow-sm);
+        }
+
+        .table-name {
+            font-family: var(--exprsn-font-family-mono);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--exprsn-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .table-description {
+            color: var(--exprsn-text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .column-list {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+        }
+
+        .column-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--exprsn-border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .column-name {
+            font-family: var(--exprsn-font-family-mono);
+            font-weight: 600;
+            color: var(--exprsn-text-primary);
+        }
+
+        .column-type {
+            font-family: var(--exprsn-font-family-mono);
+            font-size: 0.875rem;
+            color: var(--exprsn-accent-cyan);
+        }
+
+        .constraint-badge {
+            font-size: 0.7rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: var(--exprsn-radius-md);
+            margin-left: 0.5rem;
+            font-weight: 600;
+        }
+
+        .pk-badge { background: var(--exprsn-accent-pink); color: white; }
+        .fk-badge { background: var(--exprsn-accent-orange); color: white; }
+        .unique-badge { background: var(--exprsn-secondary); color: white; }
+        .notnull-badge { background: var(--exprsn-info); color: white; }
+
+        .index-section, .relationship-section {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: var(--exprsn-bg-secondary);
+            border-radius: var(--exprsn-radius-md);
+        }
+
+        .index-section h4, .relationship-section h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--exprsn-text-primary);
+        }
+
+        .index-list, .relationship-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .index-item, .relationship-item {
+            font-family: var(--exprsn-font-family-mono);
+            font-size: 0.875rem;
+            padding: 0.25rem 0;
+            color: var(--exprsn-text-secondary);
+        }
+
+        .toc {
+            position: sticky;
+            top: 100px;
+            background: var(--exprsn-bg-primary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--exprsn-shadow-sm);
+        }
+
+        .toc h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .toc-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .toc-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .toc-link {
+            color: var(--exprsn-text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+            display: block;
+            padding: 0.5rem;
+            border-radius: var(--exprsn-radius-md);
+        }
+
+        .toc-link:hover {
+            background: var(--exprsn-bg-secondary);
+            color: var(--exprsn-primary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--exprsn-primary) 0%, var(--exprsn-secondary) 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: var(--exprsn-radius-lg);
+            box-shadow: var(--exprsn-shadow-md);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: var(--exprsn-radius-md);
+            font-family: var(--exprsn-font-family-mono);
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .collapsible-section {
+            margin-bottom: 1rem;
+        }
+
+        .collapse-trigger {
+            cursor: pointer;
+            user-select: none;
+            padding: 1rem;
+            background: var(--exprsn-bg-tertiary);
+            border: 1px solid var(--exprsn-border-color);
+            border-radius: var(--exprsn-radius-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .collapse-trigger:hover {
+            background: var(--exprsn-bg-primary);
+            border-color: var(--exprsn-primary);
+        }
+
+        .collapse-icon {
+            transition: transform 0.2s;
+        }
+
+        .collapse-icon.open {
+            transform: rotate(180deg);
+        }
+
+        @media print {
+            .theme-toggle, .toc { display: none; }
+            .endpoint-card, .db-table-card { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+        <div class="navbar-brand">
+            <i class="bi bi-file-earmark-code"></i>
+            Exprsn-SVR API Documentation
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <i class="bi bi-moon-stars"></i> Toggle Theme
+        </button>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Table of Contents -->
+            <div class="col-lg-3">
+                <div class="toc">
+                    <h3><i class="bi bi-list-ul"></i> Contents</h3>
+                    <ul class="toc-list">
+                        <li class="toc-item"><a href="#overview" class="toc-link">Overview</a></li>
+                        <li class="toc-item"><a href="#lowcode-api" class="toc-link">Low-Code Platform API</a></li>
+                        <li class="toc-item"><a href="#forge-crm" class="toc-link">Forge CRM API</a></li>
+                        <li class="toc-item"><a href="#forge-erp" class="toc-link">Forge ERP API</a></li>
+                        <li class="toc-item"><a href="#forge-groupware" class="toc-link">Forge Groupware API</a></li>
+                        <li class="toc-item"><a href="#socketio" class="toc-link">Socket.IO Events</a></li>
+                        <li class="toc-item"><a href="#database" class="toc-link">Database Schema</a></li>
+                        <li class="toc-item"><a href="#redis" class="toc-link">Redis Cache Keys</a></li>
+                        <li class="toc-item"><a href="#authentication" class="toc-link">Authentication</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-lg-9">
+                <!-- Overview Section -->
+                <section id="overview">
+                    <h1 class="section-title">Exprsn-SVR Complete API & Database Documentation</h1>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value">500+</div>
+                            <div class="stat-label">Total API Endpoints</div>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);">
+                            <div class="stat-value">92</div>
+                            <div class="stat-label">CRM Endpoints</div>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #f97316 0%, #ec4899 100%);">
+                            <div class="stat-value">75+</div>
+                            <div class="stat-label">Database Tables</div>
+                        </div>
+                        <div class="stat-card" style="background: linear-gradient(135deg, #06b6d4 0%, #7c3aed 100%);">
+                            <div class="stat-value">5001</div>
+                            <div class="stat-label">Service Port</div>
+                        </div>
+                    </div>
+
+                    <div class="endpoint-card">
+                        <h3>Service Information</h3>
+                        <p><strong>Service Name:</strong> Exprsn-SVR (Business Hub)</p>
+                        <p><strong>Port:</strong> 5001</p>
+                        <p><strong>Base Path:</strong> <code>/lowcode/api</code> (Low-Code) | <code>/forge</code> (Forge)</p>
+                        <p><strong>Database:</strong> PostgreSQL 15+ with Sequelize ORM</p>
+                        <p><strong>Cache:</strong> Redis 7+ for session storage and caching</p>
+                        <p><strong>Real-time:</strong> Socket.IO for live collaboration and updates</p>
+                        <p><strong>Authentication:</strong> CA Token authentication with fine-grained permissions</p>
+                    </div>
+                </section>
+
+                <!-- Low-Code Platform API -->
+                <section id="lowcode-api">
+                    <h2 class="section-title"><i class="bi bi-gear"></i> Low-Code Platform API</h2>
+                    <p class="text-muted">Comprehensive API for building business applications without code</p>
+
+                    <!-- Applications -->
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Applications</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/applications</span>
+                                </div>
+                                <p>List all applications with optional filtering and pagination</p>
+                                <table class="param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Parameter</th>
+                                            <th>Type</th>
+                                            <th>Required</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><span class="param-name">status</span></td>
+                                            <td><span class="param-type">enum</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Filter by status: draft, active, inactive, archived</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">limit</span></td>
+                                            <td><span class="param-type">integer</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Number of results per page (default: 25, max: 100)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">offset</span></td>
+                                            <td><span class="param-type">integer</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Number of results to skip</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">search</span></td>
+                                            <td><span class="param-type">string</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Search by name or description</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">includeEntities</span></td>
+                                            <td><span class="param-type">boolean</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Include related entities</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/applications/:id</span>
+                                </div>
+                                <p>Get a specific application by ID</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/applications</span>
+                                </div>
+                                <p>Create a new application</p>
+                                <table class="param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Parameter</th>
+                                            <th>Type</th>
+                                            <th>Required</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><span class="param-name">name</span></td>
+                                            <td><span class="param-type">string</span></td>
+                                            <td><span class="required-badge">Required</span></td>
+                                            <td>Unique application identifier (alphanumeric, underscore)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">displayName</span></td>
+                                            <td><span class="param-type">string</span></td>
+                                            <td><span class="required-badge">Required</span></td>
+                                            <td>Human-readable application name</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">description</span></td>
+                                            <td><span class="param-type">text</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Application description</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">icon</span></td>
+                                            <td><span class="param-type">string</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Icon class or URL</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">color</span></td>
+                                            <td><span class="param-type">string</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Brand color (hex format)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">gitRepository</span></td>
+                                            <td><span class="param-type">string</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Git repository URL</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-PUT">PUT</span>
+                                    <span class="endpoint-path">/lowcode/api/applications/:id</span>
+                                </div>
+                                <p>Update an existing application</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-DELETE">DELETE</span>
+                                    <span class="endpoint-path">/lowcode/api/applications/:id</span>
+                                </div>
+                                <p>Delete an application (soft delete)</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/applications/:id/publish</span>
+                                </div>
+                                <p>Publish an application to production</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/applications/:id/stats</span>
+                                </div>
+                                <p>Get application usage statistics</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Entities -->
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Entities (Data Models)</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/entities</span>
+                                </div>
+                                <p>List all entities for an application</p>
+                                <table class="param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Parameter</th>
+                                            <th>Type</th>
+                                            <th>Required</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><span class="param-name">applicationId</span></td>
+                                            <td><span class="param-type">uuid</span></td>
+                                            <td><span class="required-badge">Required</span></td>
+                                            <td>Application ID to filter entities</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">sourceType</span></td>
+                                            <td><span class="param-type">enum</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Filter by source: custom, forge, external</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/entities</span>
+                                </div>
+                                <p>Create a new entity (data model)</p>
+                                <table class="param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Parameter</th>
+                                            <th>Type</th>
+                                            <th>Required</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><span class="param-name">applicationId</span></td>
+                                            <td><span class="param-type">uuid</span></td>
+                                            <td><span class="required-badge">Required</span></td>
+                                            <td>Parent application ID</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">name</span></td>
+                                            <td><span class="param-type">string</span></td>
+                                            <td><span class="required-badge">Required</span></td>
+                                            <td>Entity name (must start with letter)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">displayName</span></td>
+                                            <td><span class="param-type">string</span></td>
+                                            <td><span class="required-badge">Required</span></td>
+                                            <td>Human-readable name</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">schema</span></td>
+                                            <td><span class="param-type">json</span></td>
+                                            <td><span class="required-badge">Required</span></td>
+                                            <td>Field definitions with types and constraints</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">relationships</span></td>
+                                            <td><span class="param-type">json</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Relationship definitions (hasMany, belongsTo, etc.)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">enableAudit</span></td>
+                                            <td><span class="param-type">boolean</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Enable audit trail (default: true)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">softDelete</span></td>
+                                            <td><span class="param-type">boolean</span></td>
+                                            <td><span class="optional-badge">Optional</span></td>
+                                            <td>Enable soft deletes (default: true)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/entities/:id/fields</span>
+                                </div>
+                                <p>Add a field to an existing entity</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/entities/:id/migrations/generate</span>
+                                </div>
+                                <p>Generate migration SQL for schema changes</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/entities/:id/crud-api</span>
+                                </div>
+                                <p>Auto-generate CRUD API endpoints for entity</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Forms -->
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Forms (27 Components)</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="alert alert-info">
+                                <strong>Form Components Available:</strong> TextBox, TextArea, NumberInput, DatePicker, TimePicker, DateTimePicker, Dropdown, ComboBox, Checkbox, CheckboxList, RadioButton, Toggle, Slider, FileUpload, ImageUpload, RichTextEditor, CodeEditor, DataTable, Grid, Chart, Map, TabContainer, Wizard, Accordion, Panel, Button, Label
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/forms</span>
+                                </div>
+                                <p>List all forms with filtering</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/forms</span>
+                                </div>
+                                <p>Create a new form</p>
+                                <div class="code-block">
+{
+  "applicationId": "uuid",
+  "name": "customer_form",
+  "displayName": "Customer Information",
+  "formType": "standard",
+  "controls": [
+    {
+      "type": "TextBox",
+      "name": "firstName",
+      "props": {
+        "label": "First Name",
+        "required": true,
+        "maxLength": 50
+      }
+    }
+  ],
+  "dataSources": [
+    {
+      "name": "customersDS",
+      "type": "entity",
+      "config": { "entityId": "uuid" }
+    }
+  ],
+  "variables": [
+    {
+      "name": "selectedCustomer",
+      "type": "object",
+      "defaultValue": null
+    }
+  ]
+}
+                                </div>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/forms/:id/controls</span>
+                                </div>
+                                <p>Add a control to form</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/forms/:id/datasources</span>
+                                </div>
+                                <p>Add data source to form</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/forms/:id/publish</span>
+                                </div>
+                                <p>Publish form to production</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/forms/:id/submissions</span>
+                                </div>
+                                <p>Get form submissions with filtering</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/forms/:formId/autosave</span>
+                                </div>
+                                <p>Auto-save form state for recovery</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Sources -->
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Data Sources</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="alert alert-info">
+                                <strong>Supported Types:</strong> PostgreSQL, REST API, SOAP, WebHook, JSON, XML, CSV, Redis, Schema (internal entities), Plugin-based
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/datasources</span>
+                                </div>
+                                <p>Create a new data source connection</p>
+                                <div class="code-block">
+{
+  "name": "external_api",
+  "sourceType": "rest",
+  "connectionConfig": {
+    "baseUrl": "https://api.example.com",
+    "method": "GET",
+    "headers": {
+      "Authorization": "Bearer {{token}}"
+    }
+  },
+  "cacheEnabled": true,
+  "cacheTtl": 300,
+  "timeout": 30000
+}
+                                </div>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/datasources/:id/test</span>
+                                </div>
+                                <p>Test data source connection</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/datasources/database/tables</span>
+                                </div>
+                                <p>List available database tables</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/datasources/services</span>
+                                </div>
+                                <p>List available Exprsn microservices for integration</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reports & Analytics -->
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Reports & Analytics</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/reports</span>
+                                </div>
+                                <p>Create a new report with visual query builder</p>
+                                <table class="param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Parameter</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><span class="param-name">displayName</span></td>
+                                            <td><span class="param-type">string</span></td>
+                                            <td>Report title</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">reportType</span></td>
+                                            <td><span class="param-type">enum</span></td>
+                                            <td>table, chart, pivot, kpi, custom</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">dataSourceId</span></td>
+                                            <td><span class="param-type">uuid</span></td>
+                                            <td>Data source to query</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">queryConfig</span></td>
+                                            <td><span class="param-type">json</span></td>
+                                            <td>Visual query builder configuration</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">rawSql</span></td>
+                                            <td><span class="param-type">text</span></td>
+                                            <td>Optional raw SQL query</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="param-name">parameters</span></td>
+                                            <td><span class="param-type">json[]</span></td>
+                                            <td>Report parameter definitions</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/reports/:id/execute</span>
+                                </div>
+                                <p>Execute report and return results</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/reports/:id/schedule</span>
+                                </div>
+                                <p>Schedule automated report execution</p>
+                                <div class="code-block">
+{
+  "cronExpression": "0 9 * * MON-FRI",
+  "timezone": "America/New_York",
+  "deliveryMethod": "email",
+  "deliveryConfig": {
+    "recipients": ["user@example.com"],
+    "subject": "Daily Sales Report"
+  },
+  "exportFormat": "pdf"
+}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Assistant -->
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">AI Assistant (Anthropic, OpenAI, Ollama)</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/ai/providers</span>
+                                </div>
+                                <p>List configured AI providers</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/ai/suggest/entity</span>
+                                </div>
+                                <p>Get AI suggestions for entity structure</p>
+                                <div class="code-block">
+{
+  "description": "Create a customer management system with contact information and order history"
+}
+
+// Response:
+{
+  "suggestion": {
+    "entities": [
+      {
+        "name": "customers",
+        "fields": [
+          {"name": "firstName", "type": "string"},
+          {"name": "lastName", "type": "string"},
+          {"name": "email", "type": "string", "unique": true}
+        ]
+      }
+    ]
+  }
+}
+                                </div>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/ai/chat</span>
+                                </div>
+                                <p>Natural language query interface</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/ai/stats</span>
+                                </div>
+                                <p>Get AI usage statistics and costs</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Git Integration -->
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Git Integration & CI/CD</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/git/repositories</span>
+                                </div>
+                                <p>Create a Git repository for application versioning</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/git/repositories/:id/branches</span>
+                                </div>
+                                <p>Create a new branch</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/git/pull-requests</span>
+                                </div>
+                                <p>Create pull request with CI/CD integration</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/lowcode/api/git/pipelines/:id/run</span>
+                                </div>
+                                <p>Trigger CI/CD pipeline execution</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/lowcode/api/git/issues</span>
+                                </div>
+                                <p>List issues with filtering</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Forge CRM API -->
+                <section id="forge-crm">
+                    <h2 class="section-title"><i class="bi bi-people"></i> Forge CRM API</h2>
+                    <p class="text-muted">Complete CRM with 92 endpoints for customer relationship management</p>
+
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Contacts</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/crm/contacts</span>
+                                </div>
+                                <p>List all contacts with pagination and filtering</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/crm/contacts</span>
+                                </div>
+                                <p>Create a new contact</p>
+                                <div class="code-block">
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "phone": "+1-555-0100",
+  "mobile": "+1-555-0101",
+  "jobTitle": "Marketing Director",
+  "companyName": "Acme Corp",
+  "website": "https://acme.com",
+  "address": {
+    "street": "123 Main St",
+    "city": "New York",
+    "state": "NY",
+    "zip": "10001",
+    "country": "USA"
+  },
+  "source": "website",
+  "tags": ["enterprise", "marketing"],
+  "customFields": {}
+}
+                                </div>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/crm/contacts/:id/timeline</span>
+                                </div>
+                                <p>Get contact activity timeline</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/crm/contacts/:id/merge</span>
+                                </div>
+                                <p>Merge duplicate contacts</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/crm/contacts/import</span>
+                                </div>
+                                <p>Bulk import contacts from CSV/Excel</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Opportunities & Sales Pipeline</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/crm/opportunities</span>
+                                </div>
+                                <p>Create sales opportunity</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/crm/opportunities/:id/stage</span>
+                                </div>
+                                <p>Move opportunity to different pipeline stage</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/crm/opportunities/:id/win</span>
+                                </div>
+                                <p>Mark opportunity as won</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/crm/opportunities/pipeline</span>
+                                </div>
+                                <p>Get pipeline view with opportunities by stage</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/crm/opportunities/forecast</span>
+                                </div>
+                                <p>Get sales forecast and projections</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Support Tickets & SLA</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/crm/tickets</span>
+                                </div>
+                                <p>Create support ticket with SLA tracking</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/crm/tickets/:id/escalate</span>
+                                </div>
+                                <p>Escalate ticket to higher support tier</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/crm/tickets/sla/breaches</span>
+                                </div>
+                                <p>Get SLA breach report</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Forge ERP API -->
+                <section id="forge-erp">
+                    <h2 class="section-title"><i class="bi bi-building"></i> Forge ERP API</h2>
+                    <p class="text-muted">Enterprise Resource Planning with 138 endpoints</p>
+
+                    <div class="alert alert-info">
+                        <strong>ERP Modules:</strong> Products, Inventory, Purchase Orders, Sales Orders, Invoicing, Accounting, Tax Management, Bank Reconciliation, Credit Notes, Financial Reports, HR, Payroll, Assets, Project Management
+                    </div>
+
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Financial Management</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/erp/invoices</span>
+                                </div>
+                                <p>Create invoice with line items</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/erp/accounting/journal-entries</span>
+                                </div>
+                                <p>Post journal entry to general ledger</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/erp/financial-reports/balance-sheet</span>
+                                </div>
+                                <p>Generate balance sheet report</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/erp/financial-reports/profit-loss</span>
+                                </div>
+                                <p>Generate P&L statement</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Inventory & Warehouse</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/erp/inventory/adjustments</span>
+                                </div>
+                                <p>Record inventory adjustment (shrinkage, damage, etc.)</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/erp/inventory/transfers</span>
+                                </div>
+                                <p>Transfer inventory between warehouses</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/erp/inventory/stock-levels</span>
+                                </div>
+                                <p>Get real-time stock levels by warehouse</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Forge Groupware API -->
+                <section id="forge-groupware">
+                    <h2 class="section-title"><i class="bi bi-calendar"></i> Forge Groupware API</h2>
+                    <p class="text-muted">Collaboration suite with 160 endpoints - CalDAV, CardDAV, WebDAV</p>
+
+                    <div class="alert alert-info">
+                        <strong>Groupware Features:</strong> Calendars (CalDAV), Contacts (CardDAV), Documents (WebDAV), Tasks, Wiki, Notes, Kanban Boards, Time Tracking, Gantt Charts, Knowledge Base, Forums, Business Forms
+                    </div>
+
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Calendar & Events (CalDAV)</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/groupware/calendars</span>
+                                </div>
+                                <p>Create calendar (supports CalDAV sync)</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/groupware/calendars/:id/events</span>
+                                </div>
+                                <p>Create calendar event with recurrence rules</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/groupware/caldav</span>
+                                </div>
+                                <p>CalDAV endpoint for external calendar sync (Outlook, Apple Calendar)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Document Management (WebDAV)</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/groupware/documents</span>
+                                </div>
+                                <p>Upload document with versioning</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/groupware/documents/:id/checkout</span>
+                                </div>
+                                <p>Check out document for editing (locks for others)</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/groupware/webdav</span>
+                                </div>
+                                <p>WebDAV endpoint for file system mounting</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapsible-section">
+                        <div class="collapse-trigger" onclick="toggleCollapse(this)">
+                            <h3 class="subsection-title mb-0">Project Management</h3>
+                            <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapse-content" style="display: none;">
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-GET">GET</span>
+                                    <span class="endpoint-path">/forge/groupware/gantt/:projectId</span>
+                                </div>
+                                <p>Get Gantt chart data with critical path analysis</p>
+                            </div>
+
+                            <div class="endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="method-badge method-POST">POST</span>
+                                    <span class="endpoint-path">/forge/groupware/time/:taskId/entries</span>
+                                </div>
+                                <p>Log time entry for billable hours tracking</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Socket.IO Events -->
+                <section id="socketio">
+                    <h2 class="section-title"><i class="bi bi-broadcast"></i> Socket.IO Real-time Events</h2>
+
+                    <div class="db-table-card">
+                        <h4>Connection & Authentication</h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Event</th>
+                                    <th>Direction</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>authenticate</code></td>
+                                    <td>Client → Server</td>
+                                    <td>Authenticate with CA token</td>
+                                </tr>
+                                <tr>
+                                    <td><code>auth:success</code></td>
+                                    <td>Server → Client</td>
+                                    <td>Authentication successful</td>
+                                </tr>
+                                <tr>
+                                    <td><code>auth:error</code></td>
+                                    <td>Server → Client</td>
+                                    <td>Authentication failed</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="db-table-card">
+                        <h4>Page/Room Management</h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Event</th>
+                                    <th>Payload</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>page:join</code></td>
+                                    <td><code>{ page: string }</code></td>
+                                    <td>Join a page room for real-time updates</td>
+                                </tr>
+                                <tr>
+                                    <td><code>page:leave</code></td>
+                                    <td><code>{ page: string }</code></td>
+                                    <td>Leave a page room</td>
+                                </tr>
+                                <tr>
+                                    <td><code>page:message</code></td>
+                                    <td><code>{ page: string, data: any }</code></td>
+                                    <td>Broadcast message to all users on page</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="db-table-card">
+                        <h4>Collaboration Namespace <code>/lowcode/collaboration</code></h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Event</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>cursor:move</code></td>
+                                    <td>Real-time cursor tracking in form/entity designers</td>
+                                </tr>
+                                <tr>
+                                    <td><code>presence:update</code></td>
+                                    <td>User presence (active, idle, away)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>edit:lock</code></td>
+                                    <td>Lock element for editing</td>
+                                </tr>
+                                <tr>
+                                    <td><code>edit:unlock</code></td>
+                                    <td>Release edit lock</td>
+                                </tr>
+                                <tr>
+                                    <td><code>changes:broadcast</code></td>
+                                    <td>Live design changes to collaborators</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="db-table-card">
+                        <h4>Setup Monitoring Namespace <code>/setup/monitoring</code></h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Event</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>service:health</code></td>
+                                    <td>Real-time service health status updates</td>
+                                </tr>
+                                <tr>
+                                    <td><code>config:change</code></td>
+                                    <td>Configuration change notifications</td>
+                                </tr>
+                                <tr>
+                                    <td><code>metrics:update</code></td>
+                                    <td>Live metrics streaming</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Database Schema -->
+                <section id="database">
+                    <h2 class="section-title"><i class="bi bi-database"></i> PostgreSQL Database Schema</h2>
+
+                    <!-- Core Tables -->
+                    <h3 class="subsection-title">Core Application Tables</h3>
+
+                    <div class="db-table-card">
+                        <div class="table-name">applications</div>
+                        <div class="table-description">Top-level container for low-code applications</div>
+
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Constraints</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="param-name">id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td>
+                                        <span class="constraint-badge pk-badge">PK</span>
+                                        <span class="constraint-badge notnull-badge">NOT NULL</span>
+                                    </td>
+                                    <td>Primary key</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">name</span></td>
+                                    <td><span class="param-type">VARCHAR(255)</span></td>
+                                    <td>
+                                        <span class="constraint-badge notnull-badge">NOT NULL</span>
+                                        <span class="constraint-badge unique-badge">UNIQUE</span>
+                                    </td>
+                                    <td>Application identifier</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">display_name</span></td>
+                                    <td><span class="param-type">VARCHAR(255)</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>Human-readable name</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">version</span></td>
+                                    <td><span class="param-type">VARCHAR(50)</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>Semantic version (default: 1.0.0)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">status</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>draft, active, inactive, archived</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">owner_id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>Application owner</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">settings</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td></td>
+                                    <td>Application configuration</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">metadata</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td></td>
+                                    <td>Additional metadata</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">git_repository</span></td>
+                                    <td><span class="param-type">VARCHAR(500)</span></td>
+                                    <td></td>
+                                    <td>Git repository URL</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">created_at</span></td>
+                                    <td><span class="param-type">TIMESTAMP</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>Creation timestamp</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">updated_at</span></td>
+                                    <td><span class="param-type">TIMESTAMP</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>Last update timestamp</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">deleted_at</span></td>
+                                    <td><span class="param-type">TIMESTAMP</span></td>
+                                    <td></td>
+                                    <td>Soft delete timestamp</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="index-section">
+                            <h4>Indexes</h4>
+                            <ul class="index-list">
+                                <li class="index-item">idx_applications_owner_id (owner_id)</li>
+                                <li class="index-item">idx_applications_status (status)</li>
+                                <li class="index-item">idx_applications_created_at (created_at)</li>
+                                <li class="index-item">idx_applications_name (name)</li>
+                            </ul>
+                        </div>
+
+                        <div class="relationship-section">
+                            <h4>Relationships</h4>
+                            <ul class="relationship-list">
+                                <li class="relationship-item">hasMany → app_entities (as 'entities')</li>
+                                <li class="relationship-item">hasMany → app_forms (as 'forms')</li>
+                                <li class="relationship-item">hasMany → app_grids (as 'grids')</li>
+                                <li class="relationship-item">hasMany → data_sources (as 'dataSources')</li>
+                                <li class="relationship-item">belongsToMany → tiles (through application_tiles)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="db-table-card">
+                        <div class="table-name">app_entities</div>
+                        <div class="table-description">Data entity definitions (similar to database tables)</div>
+
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Constraints</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="param-name">id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td><span class="constraint-badge pk-badge">PK</span></td>
+                                    <td>Primary key</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">application_id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td>
+                                        <span class="constraint-badge fk-badge">FK</span>
+                                        <span class="constraint-badge notnull-badge">NOT NULL</span>
+                                    </td>
+                                    <td>→ applications(id)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">name</span></td>
+                                    <td><span class="param-type">VARCHAR(255)</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>Entity name (alphanumeric, underscore)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">schema</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>Field definitions</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">relationships</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td></td>
+                                    <td>Relationship definitions</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">indexes</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td></td>
+                                    <td>Index definitions</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">source_type</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>custom, forge, external</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">enable_audit</span></td>
+                                    <td><span class="param-type">BOOLEAN</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>Enable audit trail (default: true)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">soft_delete</span></td>
+                                    <td><span class="param-type">BOOLEAN</span></td>
+                                    <td><span class="constraint-badge notnull-badge">NOT NULL</span></td>
+                                    <td>Enable soft deletes (default: true)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="index-section">
+                            <h4>Indexes</h4>
+                            <ul class="index-list">
+                                <li class="index-item">idx_entities_application_id (application_id)</li>
+                                <li class="index-item">idx_entities_name (name)</li>
+                                <li class="index-item">unique_entities_app_name (application_id, name) WHERE deleted_at IS NULL</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="db-table-card">
+                        <div class="table-name">app_forms</div>
+                        <div class="table-description">Form definitions with Power Apps-style architecture</div>
+
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="param-name">id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td>Primary key</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">application_id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td>Foreign key → applications(id)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">controls</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td>Array of form controls (27 types available)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">data_sources</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td>Connected data sources</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">collections</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td>In-memory data collections</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">variables</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td>Form-level variables</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">events</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td>Event handlers (OnLoad, OnSave, etc.)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">form_type</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td>standard, wizard, dialog, card, list</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- AI Tables -->
+                    <h3 class="subsection-title">AI Integration Tables</h3>
+
+                    <div class="db-table-card">
+                        <div class="table-name">ai_provider_configs</div>
+                        <div class="table-description">Multi-provider AI configuration (Anthropic, OpenAI, Ollama, custom)</div>
+
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="param-name">provider_name</span></td>
+                                    <td><span class="param-type">VARCHAR(100)</span></td>
+                                    <td>Unique provider identifier</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">provider_type</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td>anthropic, ollama, openai, custom</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">available_models</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td>Array of available models</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">rate_limits</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td>RPM, RPD, TPM limits</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">cost_config</span></td>
+                                    <td><span class="param-type">JSONB</span></td>
+                                    <td>Token costs per 1000 tokens</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="db-table-card">
+                        <div class="table-name">ai_execution_logs</div>
+                        <div class="table-description">Tracks all AI agent executions for debugging, cost tracking, auditing</div>
+
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="param-name">execution_type</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td>schema_generation, data_validation, workflow_optimization, etc.</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">tokens_input</span></td>
+                                    <td><span class="param-type">INTEGER</span></td>
+                                    <td>Input token count</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">tokens_output</span></td>
+                                    <td><span class="param-type">INTEGER</span></td>
+                                    <td>Output token count</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">estimated_cost</span></td>
+                                    <td><span class="param-type">DECIMAL(10,6)</span></td>
+                                    <td>Cost in USD</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">duration_ms</span></td>
+                                    <td><span class="param-type">INTEGER</span></td>
+                                    <td>Execution duration</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="index-section">
+                            <h4>Indexes</h4>
+                            <ul class="index-list">
+                                <li class="index-item">idx_ai_execution_logs_created_at (created_at)</li>
+                                <li class="index-item">idx_ai_execution_logs_provider_created (provider_name, created_at)</li>
+                                <li class="index-item">idx_ai_execution_logs_status (status)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Git Tables -->
+                    <h3 class="subsection-title">Git Integration Tables</h3>
+
+                    <div class="db-table-card">
+                        <div class="table-name">git_repositories</div>
+                        <div class="table-description">Git repositories with low-code integration</div>
+
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="param-name">slug</span></td>
+                                    <td><span class="param-type">VARCHAR</span></td>
+                                    <td>URL-friendly identifier</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">default_branch</span></td>
+                                    <td><span class="param-type">VARCHAR</span></td>
+                                    <td>Default branch (usually 'main')</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">visibility</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td>public, private, internal</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">application_id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td>Linked low-code application</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">html_project_id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td>Linked HTML project</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="db-table-card">
+                        <div class="table-name">git_pull_requests</div>
+                        <div class="table-description">Pull requests with CI/CD integration</div>
+
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="param-name">ci_status</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td>pending, running, success, failure, cancelled</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">ci_pipeline_id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td>Linked CI/CD pipeline</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">review_status</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td>pending, approved, changes_requested</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">approvals_count</span></td>
+                                    <td><span class="param-type">INTEGER</span></td>
+                                    <td>Number of approvals</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- HTML Project Tables -->
+                    <h3 class="subsection-title">HTML App Builder Tables</h3>
+
+                    <div class="db-table-card">
+                        <div class="table-name">html_projects</div>
+                        <div class="table-description">HTML/CSS/JavaScript application projects</div>
+
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="param-name">slug</span></td>
+                                    <td><span class="param-type">VARCHAR(200)</span></td>
+                                    <td>URL-friendly identifier (UNIQUE)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">status</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td>draft, development, staging, production, archived</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">application_id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td>Optional link to low-code application</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="relationship-section">
+                            <h4>Relationships</h4>
+                            <ul class="relationship-list">
+                                <li class="relationship-item">hasMany → html_files</li>
+                                <li class="relationship-item">belongsToMany → html_libraries (component libraries)</li>
+                                <li class="relationship-item">hasMany → html_project_snapshots (version history)</li>
+                                <li class="relationship-item">hasMany → html_project_deployments</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="db-table-card">
+                        <div class="table-name">html_files</div>
+                        <div class="table-description">Individual files and folders in HTML projects</div>
+
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="param-name">type</span></td>
+                                    <td><span class="param-type">ENUM</span></td>
+                                    <td>folder, html, css, javascript, json, image, font, other</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">content</span></td>
+                                    <td><span class="param-type">TEXT</span></td>
+                                    <td>File content (null for binary/folders)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">parent_id</span></td>
+                                    <td><span class="param-type">UUID</span></td>
+                                    <td>Self-referential for folder hierarchy</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="param-name">is_entry_point</span></td>
+                                    <td><span class="param-type">BOOLEAN</span></td>
+                                    <td>Main HTML file flag</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Summary Stats -->
+                    <div class="alert alert-info mt-4">
+                        <h4>Database Statistics</h4>
+                        <ul>
+                            <li><strong>Total Tables:</strong> 75+ tables across all modules</li>
+                            <li><strong>Core Application:</strong> applications, app_entities, app_forms, app_grids</li>
+                            <li><strong>AI Integration:</strong> 10 tables for multi-provider AI capabilities</li>
+                            <li><strong>Git System:</strong> 25+ tables for version control and CI/CD</li>
+                            <li><strong>HTML Projects:</strong> 10 tables for full-stack web development</li>
+                            <li><strong>Reporting:</strong> reports, report_schedules, report_executions</li>
+                            <li><strong>JSONB Fields:</strong> Extensively used for flexible schemas</li>
+                            <li><strong>Indexes:</strong> Foreign keys, status fields, timestamps, GIN on JSONB</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Redis Cache Keys -->
+                <section id="redis">
+                    <h2 class="section-title"><i class="bi bi-hdd-network"></i> Redis Cache Keys</h2>
+
+                    <div class="db-table-card">
+                        <h4>Session Storage</h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Key Pattern</th>
+                                    <th>TTL</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>session:{sessionId}</code></td>
+                                    <td>24 hours</td>
+                                    <td>User session data</td>
+                                </tr>
+                                <tr>
+                                    <td><code>ca_token:{userId}</code></td>
+                                    <td>1 hour</td>
+                                    <td>Cached CA authentication token</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="db-table-card">
+                        <h4>Data Caching</h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Key Pattern</th>
+                                    <th>TTL</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>report:{reportId}:results</code></td>
+                                    <td>5 minutes</td>
+                                    <td>Cached report execution results</td>
+                                </tr>
+                                <tr>
+                                    <td><code>datasource:{id}:schema</code></td>
+                                    <td>1 hour</td>
+                                    <td>Cached data source schema metadata</td>
+                                </tr>
+                                <tr>
+                                    <td><code>form:{formId}:autosave:{userId}</code></td>
+                                    <td>7 days</td>
+                                    <td>Auto-saved form state</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="db-table-card">
+                        <h4>Rate Limiting</h4>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Key Pattern</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>ratelimit:{endpoint}:{userId}</code></td>
+                                    <td>Request count tracking</td>
+                                </tr>
+                                <tr>
+                                    <td><code>ai:ratelimit:{providerId}</code></td>
+                                    <td>AI provider rate limiting</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Authentication -->
+                <section id="authentication">
+                    <h2 class="section-title"><i class="bi bi-shield-check"></i> Authentication & Authorization</h2>
+
+                    <div class="endpoint-card">
+                        <h3>CA Token Authentication</h3>
+                        <p>All API endpoints require CA Token authentication with fine-grained permissions.</p>
+
+                        <h4>Request Header</h4>
+                        <div class="code-block">
+Authorization: Bearer {ca_token}
+                        </div>
+
+                        <h4>Token Structure</h4>
+                        <div class="code-block">
+{
+  "id": "uuid",
+  "version": "1.0",
+  "permissions": {
+    "read": true,
+    "write": true,
+    "update": true,
+    "delete": false,
+    "append": true
+  },
+  "resource": {
+    "type": "url",
+    "value": "https://api.exprsn.io/lowcode/*"
+  },
+  "expiryType": "time",
+  "expiresAt": 1730419200000,
+  "signature": "RSA-SHA256-PSS signature"
+}
+                        </div>
+
+                        <h4>Response Format</h4>
+                        <div class="code-block">
+// Success
+{
+  "success": true,
+  "data": { ... },
+  "message": "Operation completed successfully"
+}
+
+// Error
+{
+  "success": false,
+  "error": "INVALID_TOKEN",
+  "message": "Token validation failed",
+  "details": { ... }
+}
+                        </div>
+                    </div>
+
+                    <div class="endpoint-card">
+                        <h3>Development Mode</h3>
+                        <p>For development, authentication can be bypassed by setting:</p>
+                        <div class="code-block">
+LOW_CODE_DEV_AUTH=true
+                        </div>
+                        <div class="alert alert-warning">
+                            <strong>Warning:</strong> Never use development auth mode in production!
+                        </div>
+                    </div>
+
+                    <div class="endpoint-card">
+                        <h3>Error Codes</h3>
+                        <table class="param-table">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>HTTP Status</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>INVALID_TOKEN</code></td>
+                                    <td>401</td>
+                                    <td>Token validation failed</td>
+                                </tr>
+                                <tr>
+                                    <td><code>EXPIRED_TOKEN</code></td>
+                                    <td>401</td>
+                                    <td>Token has expired</td>
+                                </tr>
+                                <tr>
+                                    <td><code>UNAUTHORIZED</code></td>
+                                    <td>401</td>
+                                    <td>Authentication required</td>
+                                </tr>
+                                <tr>
+                                    <td><code>FORBIDDEN</code></td>
+                                    <td>403</td>
+                                    <td>Insufficient permissions</td>
+                                </tr>
+                                <tr>
+                                    <td><code>NOT_FOUND</code></td>
+                                    <td>404</td>
+                                    <td>Resource not found</td>
+                                </tr>
+                                <tr>
+                                    <td><code>VALIDATION_ERROR</code></td>
+                                    <td>400</td>
+                                    <td>Input validation failed</td>
+                                </tr>
+                                <tr>
+                                    <td><code>RATE_LIMIT_EXCEEDED</code></td>
+                                    <td>429</td>
+                                    <td>Too many requests</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Footer -->
+                <div class="text-center mt-5 mb-4 text-muted">
+                    <p><strong>Exprsn-SVR API Documentation</strong></p>
+                    <p>Generated on <?php echo date('Y-m-d H:i:s'); ?> | Version 1.0.0</p>
+                    <p>For support, visit <a href="https://github.com/anthropics/exprsn">GitHub Repository</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // Collapsible sections
+        function toggleCollapse(trigger) {
+            const content = trigger.nextElementSibling;
+            const icon = trigger.querySelector('.collapse-icon');
+
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                icon.classList.add('open');
+            } else {
+                content.style.display = 'none';
+                icon.classList.remove('open');
+            }
+        }
+
+        // Smooth scrolling for TOC links
+        document.querySelectorAll('.toc-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Highlight current section in TOC
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('section[id]');
+            const scrollPos = window.scrollY + 100;
+
+            sections.forEach(section => {
+                const top = section.offsetTop;
+                const height = section.offsetHeight;
+                const id = section.getAttribute('id');
+                const link = document.querySelector(`.toc-link[href="#${id}"]`);
+
+                if (scrollPos >= top && scrollPos < top + height) {
+                    document.querySelectorAll('.toc-link').forEach(l => l.style.backgroundColor = '');
+                    if (link) link.style.backgroundColor = 'var(--exprsn-bg-secondary)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,518 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-ca",
+      "version": "1.0.0",
+      "description": "Certificate Authority and Token Management Service"
+    },
+    "routes": [
+      {
+        "path": "/api/ca/tokens/generate",
+        "method": "POST",
+        "description": "Generate new CA token",
+        "target": {
+          "service": "ca",
+          "path": "/api/tokens/generate",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": false
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["certificateId", "permissions", "resourceType", "resourceValue"],
+            "properties": {
+              "certificateId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "permissions": {
+                "type": "object",
+                "properties": {
+                  "read": { "type": "boolean" },
+                  "write": { "type": "boolean"},
+                  "delete": { "type": "boolean" },
+                  "update": { "type": "boolean" },
+                  "append": { "type": "boolean" }
+                }
+              },
+              "resourceType": {
+                "type": "string",
+                "enum": ["url", "did", "cid"]
+              },
+              "resourceValue": {
+                "type": "string",
+                "minLength": 1
+              },
+              "expiryType": {
+                "type": "string",
+                "enum": ["time", "use", "persistent"],
+                "default": "time"
+              },
+              "expirySeconds": {
+                "type": "integer",
+                "minimum": 60,
+                "maximum": 31536000
+              },
+              "maxUses": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/ca/tokens/validate",
+        "method": "POST",
+        "description": "Validate CA token",
+        "target": {
+          "service": "ca",
+          "path": "/api/tokens/validate",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["tokenId"],
+            "properties": {
+              "tokenId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "requiredPermission": {
+                "type": "string",
+                "enum": ["read", "write", "delete", "update", "append"]
+              },
+              "resourceValue": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 1000
+        }
+      },
+      {
+        "path": "/api/ca/tokens/:id/revoke",
+        "method": "POST",
+        "description": "Revoke CA token",
+        "target": {
+          "service": "ca",
+          "path": "/api/tokens/:id/revoke",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 50
+        }
+      },
+      {
+        "path": "/api/ca/tokens/:id",
+        "method": "GET",
+        "description": "Get token details",
+        "target": {
+          "service": "ca",
+          "path": "/api/tokens/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/ca/certificates/generate",
+        "method": "POST",
+        "description": "Generate X.509 certificate",
+        "target": {
+          "service": "ca",
+          "path": "/api/certificates/generate",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          },
+          "certificateBinding": false
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["commonName", "validityDays"],
+            "properties": {
+              "commonName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "organization": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "organizationalUnit": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "country": {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              "state": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "locality": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "validityDays": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3650
+              },
+              "keySize": {
+                "type": "integer",
+                "enum": [2048, 4096],
+                "default": 2048
+              },
+              "usage": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["digitalSignature", "keyEncipherment", "dataEncipherment"]
+                }
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 10
+        }
+      },
+      {
+        "path": "/api/ca/certificates/:id/revoke",
+        "method": "POST",
+        "description": "Revoke certificate",
+        "target": {
+          "service": "ca",
+          "path": "/api/certificates/:id/revoke",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "delete": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "body": {
+            "type": "object",
+            "required": ["reason"],
+            "properties": {
+              "reason": {
+                "type": "string",
+                "enum": ["unspecified", "keyCompromise", "caCompromise", "affiliationChanged", "superseded", "cessationOfOperation"]
+              },
+              "notes": {
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 20
+        }
+      },
+      {
+        "path": "/api/ca/certificates/:id",
+        "method": "GET",
+        "description": "Get certificate details",
+        "target": {
+          "service": "ca",
+          "path": "/api/certificates/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/ca/ocsp",
+        "method": "POST",
+        "description": "OCSP certificate status request",
+        "target": {
+          "service": "ca",
+          "path": "/ocsp",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": false
+        },
+        "validation": {
+          "headers": {
+            "Content-Type": {
+              "type": "string",
+              "pattern": "^application/ocsp-request$"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 500
+        }
+      },
+      {
+        "path": "/api/ca/crl",
+        "method": "GET",
+        "description": "Download Certificate Revocation List (PEM)",
+        "target": {
+          "service": "ca",
+          "path": "/crl",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": false
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/ca/crl/der",
+        "method": "GET",
+        "description": "Download Certificate Revocation List (DER)",
+        "target": {
+          "service": "ca",
+          "path": "/crl/der",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": false
+        },
+        "rateLimit": {
+          "windowMs": 300000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/ca/health",
+        "method": "GET",
+        "description": "CA service health check",
+        "target": {
+          "service": "ca",
+          "path": "/health",
+          "timeout": 2000
+        },
+        "auth": {
+          "required": false
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 300
+        }
+      },
+      {
+        "path": "/api/ca/health/db",
+        "method": "GET",
+        "description": "Database health check",
+        "target": {
+          "service": "ca",
+          "path": "/health/db",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/ca/health/cache",
+        "method": "GET",
+        "description": "Redis cache health check",
+        "target": {
+          "service": "ca",
+          "path": "/health/cache",
+          "timeout": 2000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/ca/users",
+        "method": "GET",
+        "description": "List users",
+        "target": {
+          "service": "ca",
+          "path": "/api/users",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "search": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/ca/users/:id",
+        "method": "GET",
+        "description": "Get user details",
+        "target": {
+          "service": "ca",
+          "path": "/api/users/:id",
+          "timeout": 3000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 900000,
+        "max": 5000
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

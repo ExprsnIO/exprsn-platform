@@ -1,0 +1,342 @@
+<!-- Create Post Modal -->
+<div class="modal fade" id="createPostModal" tabindex="-1" aria-labelledby="createPostModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="createPostModalLabel">Create Post</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <% if (locals.user) { %>
+                <div class="d-flex gap-3">
+                    <img src="<%= user.avatar || '/images/default-avatar.png' %>"
+                         alt="<%= user.displayName %>"
+                         class="rounded-circle"
+                         style="width: 48px; height: 48px; object-fit: cover;">
+                    <div class="flex-grow-1">
+                        <!-- Post Text -->
+                        <textarea class="form-control border-0 p-0 mb-3"
+                                  placeholder="What's happening?"
+                                  rows="5"
+                                  id="postText"
+                                  maxlength="5000"
+                                  style="resize: none;"></textarea>
+
+                        <!-- Character Count -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <small class="text-muted">
+                                <span id="charCount">0</span> / 5000
+                            </small>
+                        </div>
+
+                        <!-- Image Preview -->
+                        <div id="imagePreviewContainer" class="mb-3" style="display: none;">
+                            <div class="row g-2" id="imagePreview"></div>
+                        </div>
+
+                        <!-- Link Preview -->
+                        <div id="linkPreviewContainer" class="mb-3" style="display: none;">
+                            <div class="card" id="linkPreview">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-title mb-1" id="linkTitle">Loading...</h6>
+                                            <p class="card-text small text-muted mb-1" id="linkDescription"></p>
+                                            <small class="text-muted" id="linkUrl"></small>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-light" onclick="removeLinkPreview()">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Content Warning -->
+                        <div id="contentWarningContainer" class="mb-3" style="display: none;">
+                            <div class="alert alert-warning d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    <input type="text"
+                                           class="form-control form-control-sm d-inline-block"
+                                           id="contentWarningText"
+                                           placeholder="Content warning reason"
+                                           style="width: auto;">
+                                </div>
+                                <button type="button" class="btn btn-sm btn-light" onclick="removeContentWarning()">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Visibility Selector -->
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">Visibility</label>
+                            <select class="form-select form-select-sm" id="postVisibility">
+                                <option value="public" selected>
+                                    <i class="bi bi-globe"></i> Public - Anyone can see
+                                </option>
+                                <option value="followers">
+                                    <i class="bi bi-people"></i> Followers - Only followers can see
+                                </option>
+                                <option value="private">
+                                    <i class="bi bi-lock"></i> Private - Only me
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Reply Settings (for threads) -->
+                        <div class="mb-3" id="replySettingsContainer" style="display: none;">
+                            <label class="form-label small text-muted">Who can reply?</label>
+                            <select class="form-select form-select-sm" id="replySettings">
+                                <option value="everyone" selected>Everyone</option>
+                                <option value="following">People you follow</option>
+                                <option value="mentioned">Only people mentioned</option>
+                                <option value="none">Nobody</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <% } else { %>
+                <div class="text-center py-4">
+                    <p class="text-muted">You need to be logged in to create a post.</p>
+                    <a href="/login" class="btn btn-primary">Login</a>
+                </div>
+                <% } %>
+            </div>
+            <% if (locals.user) { %>
+            <div class="modal-footer border-0 pt-0">
+                <div class="d-flex justify-content-between align-items-center w-100">
+                    <!-- Media Buttons -->
+                    <div class="btn-toolbar" role="toolbar">
+                        <div class="btn-group btn-group-sm me-2" role="group">
+                            <button type="button" class="btn btn-light" title="Add image" onclick="$('#postImageInput').click()">
+                                <i class="bi bi-image"></i>
+                            </button>
+                            <button type="button" class="btn btn-light" title="Add GIF" onclick="showGifPicker()">
+                                <i class="bi bi-filetype-gif"></i>
+                            </button>
+                            <button type="button" class="btn btn-light" title="Add video" onclick="$('#postVideoInput').click()">
+                                <i class="bi bi-camera-video"></i>
+                            </button>
+                            <button type="button" class="btn btn-light" title="Add poll" onclick="showPollCreator()">
+                                <i class="bi bi-bar-chart"></i>
+                            </button>
+                            <button type="button" class="btn btn-light" title="Add emoji" onclick="showEmojiPicker()">
+                                <i class="bi bi-emoji-smile"></i>
+                            </button>
+                            <button type="button" class="btn btn-light" title="Content warning" onclick="toggleContentWarning()">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Post Button -->
+                    <button type="button" class="btn btn-primary rounded-pill px-4" onclick="createPost()" id="submitPostBtn">
+                        Post
+                    </button>
+                </div>
+            </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="postImageInput" accept="image/*" multiple style="display: none;" onchange="handleImageUpload(this)">
+<input type="file" id="postVideoInput" accept="video/*" style="display: none;" onchange="handleVideoUpload(this)">
+
+<script>
+let selectedImages = [];
+let selectedVideo = null;
+let detectedLink = null;
+
+// Character counter
+document.addEventListener('DOMContentLoaded', () => {
+    const postText = document.getElementById('postText');
+    if (postText) {
+        postText.addEventListener('input', () => {
+            const count = postText.value.length;
+            document.getElementById('charCount').textContent = count;
+
+            // Detect URLs
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const urls = postText.value.match(urlRegex);
+            if (urls && urls.length > 0 && !detectedLink) {
+                fetchLinkPreview(urls[0]);
+            }
+        });
+    }
+});
+
+async function handleImageUpload(input) {
+    const files = Array.from(input.files);
+    if (files.length + selectedImages.length > 4) {
+        showToast('Maximum 4 images allowed', 'warning');
+        return;
+    }
+
+    selectedImages = selectedImages.concat(files);
+    renderImagePreviews();
+}
+
+function renderImagePreviews() {
+    const container = document.getElementById('imagePreviewContainer');
+    const preview = document.getElementById('imagePreview');
+
+    if (selectedImages.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    preview.innerHTML = '';
+
+    selectedImages.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const colClass = selectedImages.length === 1 ? 'col-12' : 'col-6';
+            preview.innerHTML += `
+                <div class="${colClass}">
+                    <div class="position-relative">
+                        <img src="${e.target.result}" class="img-fluid rounded" style="width: 100%; height: 200px; object-fit: cover;">
+                        <button type="button"
+                                class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 rounded-circle"
+                                onclick="removeImage(${index})">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function removeImage(index) {
+    selectedImages.splice(index, 1);
+    renderImagePreviews();
+}
+
+async function handleVideoUpload(input) {
+    if (input.files.length === 0) return;
+    selectedVideo = input.files[0];
+    showToast('Video selected: ' + selectedVideo.name, 'success');
+}
+
+async function fetchLinkPreview(url) {
+    try {
+        const response = await fetch('/api/link-preview?url=' + encodeURIComponent(url));
+        const data = await response.json();
+
+        if (data.success) {
+            detectedLink = data.data;
+            document.getElementById('linkTitle').textContent = data.data.title || url;
+            document.getElementById('linkDescription').textContent = data.data.description || '';
+            document.getElementById('linkUrl').textContent = url;
+            document.getElementById('linkPreviewContainer').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Failed to fetch link preview:', error);
+    }
+}
+
+function removeLinkPreview() {
+    detectedLink = null;
+    document.getElementById('linkPreviewContainer').style.display = 'none';
+}
+
+function toggleContentWarning() {
+    const container = document.getElementById('contentWarningContainer');
+    container.style.display = container.style.display === 'none' ? 'block' : 'none';
+}
+
+function removeContentWarning() {
+    document.getElementById('contentWarningContainer').style.display = 'none';
+    document.getElementById('contentWarningText').value = '';
+}
+
+async function createPost() {
+    const text = document.getElementById('postText').value.trim();
+    const visibility = document.getElementById('postVisibility').value;
+
+    if (!text && selectedImages.length === 0 && !selectedVideo) {
+        showToast('Please add some content to your post', 'warning');
+        return;
+    }
+
+    const submitBtn = document.getElementById('submitPostBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Posting...';
+
+    try {
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('visibility', visibility);
+
+        // Add images
+        selectedImages.forEach(image => {
+            formData.append('images', image);
+        });
+
+        // Add video
+        if (selectedVideo) {
+            formData.append('video', selectedVideo);
+        }
+
+        // Add link preview
+        if (detectedLink) {
+            formData.append('embed', JSON.stringify({
+                type: 'external',
+                ...detectedLink
+            }));
+        }
+
+        const response = await fetch('/api/posts', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Post created successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('createPostModal')).hide();
+
+            // Reset form
+            document.getElementById('postText').value = '';
+            document.getElementById('charCount').textContent = '0';
+            selectedImages = [];
+            selectedVideo = null;
+            detectedLink = null;
+            renderImagePreviews();
+            removeLinkPreview();
+
+            // Reload feed
+            if (typeof loadFeed === 'function') {
+                setTimeout(() => location.reload(), 1000);
+            }
+        } else {
+            showToast(data.message || 'Failed to create post', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to create post:', error);
+        showToast('Failed to create post', 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Post';
+    }
+}
+
+function showGifPicker() {
+    showToast('GIF picker coming soon!', 'info');
+}
+
+function showPollCreator() {
+    showToast('Poll creator coming soon!', 'info');
+}
+
+function showEmojiPicker() {
+    showToast('Emoji picker coming soon!', 'info');
+}
+</script>

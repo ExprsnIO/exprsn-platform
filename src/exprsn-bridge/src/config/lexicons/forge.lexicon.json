@@ -1,0 +1,233 @@
+{
+  "lexicon": {
+    "version": "1.0",
+    "service": {
+      "name": "exprsn-forge",
+      "version": "1.0.0",
+      "description": "Business Platform - CRM, Groupware, and ERP"
+    },
+    "routes": [
+      {
+        "path": "/api/forge/crm/contacts",
+        "method": "GET",
+        "description": "List CRM contacts",
+        "target": {
+          "service": "forge",
+          "path": "/api/crm/contacts",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "query": {
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "search": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "status": {
+              "type": "string",
+              "enum": ["active", "inactive", "archived"]
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 200
+        }
+      },
+      {
+        "path": "/api/forge/crm/contacts",
+        "method": "POST",
+        "description": "Create new contact",
+        "target": {
+          "service": "forge",
+          "path": "/api/crm/contacts",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "write": true
+          }
+        },
+        "validation": {
+          "body": {
+            "type": "object",
+            "required": ["firstName", "lastName", "email"],
+            "properties": {
+              "firstName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "lastName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "phone": {
+                "type": "string",
+                "maxLength": 50
+              },
+              "company": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 100
+              }
+            }
+          }
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 100
+        }
+      },
+      {
+        "path": "/api/forge/crm/contacts/:id",
+        "method": "GET",
+        "description": "Get contact by ID",
+        "target": {
+          "service": "forge",
+          "path": "/api/crm/contacts/:id",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/forge/crm/contacts/:id",
+        "method": "PUT",
+        "description": "Update contact",
+        "target": {
+          "service": "forge",
+          "path": "/api/crm/contacts/:id",
+          "timeout": 10000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "update": true
+          }
+        },
+        "validation": {
+          "params": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      {
+        "path": "/api/forge/crm/companies",
+        "method": "GET",
+        "description": "List CRM companies",
+        "target": {
+          "service": "forge",
+          "path": "/api/crm/companies",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/forge/crm/opportunities",
+        "method": "GET",
+        "description": "List opportunities",
+        "target": {
+          "service": "forge",
+          "path": "/api/crm/opportunities",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/forge/crm/leads",
+        "method": "GET",
+        "description": "List leads",
+        "target": {
+          "service": "forge",
+          "path": "/api/crm/leads",
+          "timeout": 5000
+        },
+        "auth": {
+          "required": true,
+          "permissions": {
+            "read": true
+          }
+        }
+      },
+      {
+        "path": "/api/forge/health",
+        "method": "GET",
+        "description": "Forge service health check",
+        "target": {
+          "service": "forge",
+          "path": "/health",
+          "timeout": 2000
+        },
+        "auth": {
+          "required": false
+        },
+        "rateLimit": {
+          "windowMs": 60000,
+          "max": 300
+        }
+      }
+    ],
+    "policies": {
+      "defaultAuth": true,
+      "defaultRateLimit": {
+        "windowMs": 60000,
+        "max": 500
+      },
+      "cors": {
+        "origin": "*",
+        "credentials": true
+      }
+    }
+  }
+}

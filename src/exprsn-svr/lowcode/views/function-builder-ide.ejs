@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 60px;
+    }
+    .header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+    .header-actions { display: flex; gap: 0.5rem; }
+    .header-btn {
+      padding: 0.5rem 1rem;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .header-btn:hover { background: rgba(255,255,255,0.3); }
+    .header-btn.primary { background: #28a745; border-color: #28a745; }
+    .header-btn.primary:hover { background: #218838; }
+
+    /* Main Layout */
+    .main-container {
+      display: flex;
+      height: calc(100vh - 60px);
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 300px;
+      background: #252526;
+      border-right: 1px solid #3e3e42;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-tabs {
+      display: flex;
+      background: #2d2d30;
+      border-bottom: 1px solid #3e3e42;
+    }
+    .sidebar-tab {
+      flex: 1;
+      padding: 0.75rem;
+      text-align: center;
+      cursor: pointer;
+      color: #969696;
+      border: none;
+      background: transparent;
+      transition: all 0.2s;
+    }
+    .sidebar-tab.active {
+      color: #ffffff;
+      background: #252526;
+      border-bottom: 2px solid #667eea;
+    }
+    .sidebar-tab:hover { color: #ffffff; background: #2a2a2d; }
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    /* Function Library */
+    .function-item {
+      background: #2d2d30;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 3px solid #667eea;
+    }
+    .function-item:hover { background: #37373d; transform: translateX(2px); }
+    .function-name {
+      font-weight: 700;
+      color: #4ec9b0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+    }
+    .function-syntax {
+      color: #969696;
+      font-size: 0.8rem;
+      font-family: 'Courier New', monospace;
+      margin-top: 0.25rem;
+    }
+    .category-header {
+      color: #667eea;
+      font-weight: 700;
+      margin: 1rem 0 0.5rem;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+
+    /* Database Explorer */
+    .db-tree { list-style: none; padding: 0; margin: 0; }
+    .db-tree li { margin: 0.25rem 0; }
+    .db-table {
+      padding: 0.5rem;
+      background: #2d2d30;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 0.25rem;
+    }
+    .db-table:hover { background: #37373d; }
+    .db-table-name { font-weight: 600; color: #dcdcaa; }
+    .db-column {
+      padding: 0.25rem 0.5rem 0.25rem 1.5rem;
+      color: #9cdcfe;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+    }
+    .db-column-type { color: #4ec9b0; margin-left: 0.5rem; }
+
+    /* Query Vault */
+    .query-item {
+      background: #2d2d30;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .query-item:hover { background: #37373d; }
+    .query-name { font-weight: 600; color: #dcdcaa; }
+    .query-desc { color: #969696; font-size: 0.85rem; margin-top: 0.25rem; }
+    .query-meta {
+      color: #608b4e;
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      display: flex;
+      gap: 1rem;
+    }
+
+    /* Editor Area */
+    .editor-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #1e1e1e;
+    }
+    .editor-toolbar {
+      background: #2d2d30;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid #3e3e42;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .toolbar-btn {
+      padding: 0.4rem 0.8rem;
+      background: #3e3e42;
+      border: 1px solid #555555;
+      color: #d4d4d4;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .toolbar-btn:hover { background: #4e4e52; }
+    .toolbar-btn.success { background: #28a745; border-color: #28a745; color: white; }
+    .toolbar-btn.success:hover { background: #218838; }
+    .toolbar-separator {
+      width: 1px;
+      height: 20px;
+      background: #555555;
+      margin: 0 0.5rem;
+    }
+
+    #monaco-editor {
+      height: 300px;
+      border-bottom: 1px solid #3e3e42;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: #2d2d30;
+      border-bottom: 1px solid #3e3e42;
+      overflow-x: auto;
+    }
+    .tab {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      color: #969696;
+      border: none;
+      background: transparent;
+      border-right: 1px solid #3e3e42;
+      white-space: nowrap;
+    }
+    .tab.active {
+      color: #ffffff;
+      background: #1e1e1e;
+    }
+    .tab:hover { background: #37373d; }
+
+    /* Results Area */
+    .results-area {
+      flex: 1;
+      background: #1e1e1e;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .results-content {
+      flex: 1;
+      overflow: auto;
+      padding: 1rem;
+    }
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #252526;
+      font-size: 0.9rem;
+    }
+    .result-table th {
+      background: #2d2d30;
+      padding: 0.75rem;
+      text-align: left;
+      border: 1px solid #3e3e42;
+      font-weight: 600;
+      color: #dcdcaa;
+    }
+    .result-table td {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #3e3e42;
+      color: #d4d4d4;
+    }
+    .result-table tbody tr:hover { background: #2d2d30; }
+    .result-info {
+      padding: 1rem;
+      background: #2d2d30;
+      border-left: 3px solid #4ec9b0;
+      color: #d4d4d4;
+      margin-bottom: 1rem;
+    }
+    .result-error {
+      padding: 1rem;
+      background: #2d2d30;
+      border-left: 3px solid #f48771;
+      color: #f48771;
+    }
+    .result-success {
+      padding: 1rem;
+      background: #2d2d30;
+      border-left: 3px solid #89d185;
+      color: #89d185;
+    }
+
+    /* JSON View */
+    .json-view {
+      background: #1e1e1e;
+      padding: 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      overflow: auto;
+    }
+    .json-key { color: #9cdcfe; }
+    .json-string { color: #ce9178; }
+    .json-number { color: #b5cea8; }
+    .json-boolean { color: #569cd6; }
+    .json-null { color: #569cd6; }
+
+    /* Search */
+    .search-box {
+      padding: 0.5rem;
+      background: #3c3c3c;
+      border: 1px solid #555555;
+      color: #d4d4d4;
+      width: 100%;
+      margin-bottom: 1rem;
+      border-radius: 4px;
+    }
+    .search-box:focus {
+      outline: none;
+      border-color: #667eea;
+      background: #2d2d30;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: #1e1e1e; }
+    ::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4e4e4e; }
+
+    /* Modal */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); }
+    .modal.show { display: flex; align-items: center; justify-content: center; }
+    .modal-content {
+      background: #252526;
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+      border: 1px solid #3e3e42;
+    }
+    .modal-header {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 1rem;
+    }
+    .modal-body { margin-bottom: 1rem; }
+    .modal-footer { display: flex; gap: 0.5rem; justify-content: flex-end; }
+    .modal-input {
+      width: 100%;
+      padding: 0.75rem;
+      background: #3c3c3c;
+      border: 1px solid #555555;
+      color: #d4d4d4;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+    .modal-input:focus { outline: none; border-color: #667eea; }
+    .modal-textarea {
+      min-height: 100px;
+      resize: vertical;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      background: #007acc;
+      color: white;
+      padding: 0.25rem 1rem;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Empty States */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #969696;
+    }
+    .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.3; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1><i class="fas fa-code"></i> Function Builder IDE</h1>
+    </div>
+    <div class="header-actions">
+      <button class="header-btn" onclick="newQuery()"><i class="fas fa-file"></i> New</button>
+      <button class="header-btn" onclick="openSaveModal()"><i class="fas fa-save"></i> Save</button>
+      <button class="header-btn primary" onclick="executeFormula()"><i class="fas fa-play"></i> Execute</button>
+      <button class="header-btn" onclick="window.location.href='/lowcode/function-builder'">
+        <i class="fas fa-book"></i> Library
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" onclick="switchSidebarTab('functions')">
+          <i class="fas fa-function"></i> Functions
+        </button>
+        <button class="sidebar-tab" onclick="switchSidebarTab('database')">
+          <i class="fas fa-database"></i> Database
+        </button>
+        <button class="sidebar-tab" onclick="switchSidebarTab('vault')">
+          <i class="fas fa-archive"></i> Vault
+        </button>
+      </div>
+
+      <div class="sidebar-content">
+        <!-- Functions Tab -->
+        <div id="functions-tab" class="sidebar-tab-content">
+          <input type="text" class="search-box" placeholder="Search functions..." id="function-search">
+          <div id="function-list"></div>
+        </div>
+
+        <!-- Database Tab -->
+        <div id="database-tab" class="sidebar-tab-content" style="display:none;">
+          <input type="text" class="search-box" placeholder="Search tables..." id="table-search">
+          <div id="database-tree"></div>
+        </div>
+
+        <!-- Vault Tab -->
+        <div id="vault-tab" class="sidebar-tab-content" style="display:none;">
+          <input type="text" class="search-box" placeholder="Search queries..." id="vault-search">
+          <button class="toolbar-btn" style="width: 100%; margin-bottom: 1rem;" onclick="openSaveModal()">
+            <i class="fas fa-plus"></i> Save Current Query
+          </button>
+          <div id="vault-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor Area -->
+    <div class="editor-area">
+      <!-- Editor Toolbar -->
+      <div class="editor-toolbar">
+        <button class="toolbar-btn" onclick="formatFormula()"><i class="fas fa-align-left"></i> Format</button>
+        <button class="toolbar-btn" onclick="clearEditor()"><i class="fas fa-eraser"></i> Clear</button>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn success" onclick="executeFormula()">
+          <i class="fas fa-play"></i> Execute (Ctrl+Enter)
+        </button>
+        <div class="toolbar-separator"></div>
+        <span style="color: #969696; font-size: 0.85rem;" id="cursor-position">Ln 1, Col 1</span>
+      </div>
+
+      <!-- Monaco Editor -->
+      <div id="monaco-editor"></div>
+
+      <!-- Results Area -->
+      <div class="results-area">
+        <div class="tabs">
+          <button class="tab active" onclick="switchResultTab('table')">
+            <i class="fas fa-table"></i> Table View
+          </button>
+          <button class="tab" onclick="switchResultTab('json')">
+            <i class="fas fa-code"></i> JSON View
+          </button>
+          <button class="tab" onclick="switchResultTab('chart')">
+            <i class="fas fa-chart-bar"></i> Chart View
+          </button>
+          <button class="tab" onclick="switchResultTab('history')">
+            <i class="fas fa-history"></i> History
+          </button>
+        </div>
+
+        <div class="results-content">
+          <div id="table-view" class="result-view">
+            <div class="empty-state">
+              <i class="fas fa-play-circle"></i>
+              <p>Execute a formula to see results</p>
+            </div>
+          </div>
+          <div id="json-view" class="result-view" style="display:none;">
+            <div class="empty-state">
+              <i class="fas fa-code"></i>
+              <p>No results yet</p>
+            </div>
+          </div>
+          <div id="chart-view" class="result-view" style="display:none;">
+            <div class="empty-state">
+              <i class="fas fa-chart-bar"></i>
+              <p>Chart visualization coming soon</p>
+            </div>
+          </div>
+          <div id="history-view" class="result-view" style="display:none;">
+            <div class="empty-state">
+              <i class="fas fa-history"></i>
+              <p>No execution history yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span id="status-message">Ready</span>
+    <span id="execution-time"></span>
+  </div>
+
+  <!-- Save Query Modal -->
+  <div id="save-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Save Query</div>
+      <div class="modal-body">
+        <input type="text" class="modal-input" id="query-name" placeholder="Query Name">
+        <textarea class="modal-input modal-textarea" id="query-description" placeholder="Description (optional)"></textarea>
+        <input type="text" class="modal-input" id="query-tags" placeholder="Tags (comma-separated)">
+      </div>
+      <div class="modal-footer">
+        <button class="toolbar-btn" onclick="closeSaveModal()">Cancel</button>
+        <button class="toolbar-btn success" onclick="saveQuery()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <script>
+    let editor;
+    let allFunctions = [];
+    let allCategories = [];
+    let allTables = [];
+    let savedQueries = [];
+    let executionHistory = [];
+
+    // Initialize Monaco Editor
+    require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+    require(['vs/editor/editor.main'], function() {
+      // Register custom language
+      monaco.languages.register({ id: 'exprsn-formula' });
+
+      monaco.languages.setMonarchTokensProvider('exprsn-formula', {
+        tokenizer: {
+          root: [
+            [/[A-Z_][A-Z0-9_]*(?=\()/, 'function'],
+            [/"([^"\\]|\\.)*$/, 'string.invalid'],
+            [/"/, 'string', '@string'],
+            [/\d+\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+            [/\d+/, 'number'],
+            [/[;,.]/, 'delimiter'],
+            [/[()\[\]]/, '@brackets'],
+          ],
+          string: [
+            [/[^\\"]+/, 'string'],
+            [/"/, 'string', '@pop']
+          ]
+        }
+      });
+
+      editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+        value: '// Start typing formulas here\n// Example: UPPER("hello world")\n',
+        language: 'exprsn-formula',
+        theme: 'vs-dark',
+        minimap: { enabled: false },
+        fontSize: 14,
+        lineNumbers: 'on',
+        roundedSelection: false,
+        scrollBeyondLastLine: false,
+        automaticLayout: true,
+      });
+
+      // Update cursor position
+      editor.onDidChangeCursorPosition((e) => {
+        document.getElementById('cursor-position').textContent =
+          `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+      });
+
+      // Execute on Ctrl+Enter
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, executeFormula);
+
+      // Setup autocomplete
+      setupAutocomplete();
+    });
+
+    // Setup autocomplete for functions
+    function setupAutocomplete() {
+      monaco.languages.registerCompletionItemProvider('exprsn-formula', {
+        provideCompletionItems: function(model, position) {
+          const suggestions = allFunctions.map(func => ({
+            label: func.name,
+            kind: monaco.languages.CompletionItemKind.Function,
+            detail: func.description,
+            documentation: func.syntax,
+            insertText: func.name + '(${1})',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+          }));
+          return { suggestions };
+        }
+      });
+    }
+
+    // Load data
+    async function loadData() {
+      try {
+        const [categoriesRes, functionsRes, tablesRes, vaultRes] = await Promise.all([
+          fetch('/lowcode/api/function-builder/categories'),
+          fetch('/lowcode/api/function-builder/functions'),
+          fetch('/lowcode/api/function-builder/database/tables'),
+          fetch('/lowcode/api/function-builder/saved-queries')
+        ]);
+
+        const categoriesData = await categoriesRes.json();
+        const functionsData = await functionsRes.json();
+        const tablesData = await tablesRes.json();
+        const vaultData = await vaultRes.json();
+
+        allCategories = categoriesData.categories || [];
+        allFunctions = functionsData.functions || [];
+        allTables = tablesData.tables || [];
+        savedQueries = vaultData.queries || [];
+
+        renderFunctionList();
+        renderDatabaseTree();
+        renderVaultList();
+        setStatus('Ready');
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setStatus('Error loading data', true);
+      }
+    }
+
+    // Render function list
+    function renderFunctionList() {
+      const container = document.getElementById('function-list');
+      const grouped = {};
+
+      allFunctions.forEach(func => {
+        if (!grouped[func.category_display_name]) {
+          grouped[func.category_display_name] = [];
+        }
+        grouped[func.category_display_name].push(func);
+      });
+
+      container.innerHTML = Object.entries(grouped).map(([category, functions]) => `
+        <div class="category-header">${category}</div>
+        ${functions.map(func => `
+          <div class="function-item" onclick="insertFunction('${func.name}')">
+            <div class="function-name">${func.name}</div>
+            <div class="function-syntax">${func.syntax}</div>
+          </div>
+        `).join('')}
+      `).join('');
+    }
+
+    // Render database tree
+    function renderDatabaseTree() {
+      const container = document.getElementById('database-tree');
+      if (!allTables || allTables.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-database"></i><p>No tables found</p></div>';
+        return;
+      }
+
+      container.innerHTML = `
+        <ul class="db-tree">
+          ${allTables.map(table => `
+            <li>
+              <div class="db-table" onclick="toggleTable('${table.table_name}')">
+                <i class="fas fa-table"></i> <span class="db-table-name">${table.table_name}</span>
+              </div>
+              <div id="table-${table.table_name}" style="display:none;">
+                ${table.columns && Array.isArray(table.columns) ? table.columns.map(col => `
+                  <div class="db-column" onclick="insertColumn('${table.table_name}', '${col.column_name}')">
+                    ${col.column_name}<span class="db-column-type">${col.data_type}</span>
+                  </div>
+                `).join('') : ''}
+              </div>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+    }
+
+    // Render vault list
+    function renderVaultList() {
+      const container = document.getElementById('vault-list');
+      if (savedQueries.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-archive"></i><p>No saved queries</p></div>';
+        return;
+      }
+
+      container.innerHTML = savedQueries.map(query => `
+        <div class="query-item" onclick="loadQuery('${query.id}')">
+          <div class="query-name">${query.name}</div>
+          <div class="query-desc">${query.description || ''}</div>
+          <div class="query-meta">
+            <span><i class="fas fa-clock"></i> ${new Date(query.created_at).toLocaleDateString()}</span>
+            ${query.execution_count ? `<span><i class="fas fa-play"></i> ${query.execution_count}</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Switch sidebar tabs
+    function switchSidebarTab(tab) {
+      document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('functions-tab').style.display = tab === 'functions' ? 'block' : 'none';
+      document.getElementById('database-tab').style.display = tab === 'database' ? 'block' : 'none';
+      document.getElementById('vault-tab').style.display = tab === 'vault' ? 'block' : 'none';
+    }
+
+    // Switch result tabs
+    function switchResultTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('table-view').style.display = tab === 'table' ? 'block' : 'none';
+      document.getElementById('json-view').style.display = tab === 'json' ? 'block' : 'none';
+      document.getElementById('chart-view').style.display = tab === 'chart' ? 'block' : 'none';
+      document.getElementById('history-view').style.display = tab === 'history' ? 'block' : 'none';
+    }
+
+    // Insert function into editor
+    function insertFunction(funcName) {
+      const position = editor.getPosition();
+      const func = allFunctions.find(f => f.name === funcName);
+      const params = func.parameters || [];
+      const paramStr = params.map((p, i) => `\${${i + 1}:${p.name}}`).join(', ');
+
+      editor.executeEdits('insert-function', [{
+        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+        text: `${funcName}(${paramStr})`,
+        forceMoveMarkers: true
+      }]);
+      editor.focus();
+    }
+
+    // Insert column into editor
+    function insertColumn(tableName, columnName) {
+      const position = editor.getPosition();
+      editor.executeEdits('insert-column', [{
+        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+        text: `${tableName}.${columnName}`,
+        forceMoveMarkers: true
+      }]);
+      editor.focus();
+    }
+
+    // Toggle table in database tree
+    function toggleTable(tableName) {
+      const tableDiv = document.getElementById(`table-${tableName}`);
+      tableDiv.style.display = tableDiv.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // Execute formula
+    async function executeFormula() {
+      const formula = editor.getValue();
+      if (!formula.trim()) {
+        setStatus('No formula to execute', true);
+        return;
+      }
+
+      setStatus('Executing...');
+      const startTime = Date.now();
+
+      try {
+        const response = await fetch('/lowcode/api/function-builder/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ formula, context: {} })
+        });
+
+        const data = await response.json();
+        const executionTime = Date.now() - startTime;
+
+        if (data.success) {
+          displayResult(data.result, executionTime);
+          addToHistory(formula, data.result, executionTime);
+          setStatus('Execution successful');
+          document.getElementById('execution-time').textContent = `${executionTime}ms`;
+        } else {
+          displayError(data.error || 'Execution failed');
+          setStatus('Execution failed', true);
+        }
+      } catch (error) {
+        displayError(error.message);
+        setStatus('Error executing formula', true);
+      }
+    }
+
+    // Display result
+    function displayResult(result, executionTime) {
+      const tableView = document.getElementById('table-view');
+      const jsonView = document.getElementById('json-view');
+
+      // Table view
+      if (Array.isArray(result)) {
+        tableView.innerHTML = `
+          <div class="result-info">
+            <strong>Results:</strong> ${result.length} row(s) returned in ${executionTime}ms
+          </div>
+          <table class="result-table">
+            <thead>
+              <tr>${Object.keys(result[0] || {}).map(k => `<th>${k}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${result.map(row => `<tr>${Object.values(row).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}
+            </tbody>
+          </table>
+        `;
+      } else {
+        tableView.innerHTML = `
+          <div class="result-success">
+            <strong>Result:</strong> ${JSON.stringify(result, null, 2)}
+          </div>
+        `;
+      }
+
+      // JSON view
+      jsonView.innerHTML = `<pre class="json-view">${JSON.stringify(result, null, 2)}</pre>`;
+    }
+
+    // Display error
+    function displayError(error) {
+      const tableView = document.getElementById('table-view');
+      tableView.innerHTML = `<div class="result-error"><strong>Error:</strong> ${error}</div>`;
+    }
+
+    // Add to execution history
+    function addToHistory(formula, result, executionTime) {
+      executionHistory.unshift({
+        formula,
+        result,
+        executionTime,
+        timestamp: new Date().toISOString()
+      });
+
+      if (executionHistory.length > 50) executionHistory.pop();
+
+      const historyView = document.getElementById('history-view');
+      historyView.innerHTML = executionHistory.map(item => `
+        <div class="query-item" onclick="editor.setValue('${item.formula.replace(/'/g, "\\'")}')">
+          <div class="query-name">${item.formula.substring(0, 100)}${item.formula.length > 100 ? '...' : ''}</div>
+          <div class="query-meta">
+            <span><i class="fas fa-clock"></i> ${new Date(item.timestamp).toLocaleString()}</span>
+            <span><i class="fas fa-bolt"></i> ${item.executionTime}ms</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Save query modal
+    function openSaveModal() {
+      document.getElementById('save-modal').classList.add('show');
+      document.getElementById('query-name').value = '';
+      document.getElementById('query-description').value = '';
+      document.getElementById('query-tags').value = '';
+    }
+
+    function closeSaveModal() {
+      document.getElementById('save-modal').classList.remove('show');
+    }
+
+    async function saveQuery() {
+      const name = document.getElementById('query-name').value;
+      const description = document.getElementById('query-description').value;
+      const tags = document.getElementById('query-tags').value.split(',').map(t => t.trim()).filter(Boolean);
+      const formula = editor.getValue();
+
+      if (!name || !formula) {
+        alert('Name and formula are required');
+        return;
+      }
+
+      try {
+        const response = await fetch('/lowcode/api/function-builder/saved-queries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description, formula, tags })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          savedQueries.unshift(data.query);
+          renderVaultList();
+          closeSaveModal();
+          setStatus('Query saved successfully');
+        }
+      } catch (error) {
+        alert('Error saving query: ' + error.message);
+      }
+    }
+
+    async function loadQuery(queryId) {
+      const query = savedQueries.find(q => q.id === queryId);
+      if (query) {
+        editor.setValue(query.formula);
+        setStatus(`Loaded: ${query.name}`);
+      }
+    }
+
+    // Utility functions
+    function newQuery() {
+      if (confirm('Clear current editor?')) {
+        editor.setValue('');
+        setStatus('New query');
+      }
+    }
+
+    function clearEditor() {
+      if (confirm('Clear editor?')) {
+        editor.setValue('');
+      }
+    }
+
+    function formatFormula() {
+      // Simple formatting - add proper indentation
+      const value = editor.getValue();
+      const formatted = value.split('\n').map(line => line.trim()).join('\n');
+      editor.setValue(formatted);
+    }
+
+    function setStatus(message, isError = false) {
+      const statusEl = document.getElementById('status-message');
+      statusEl.textContent = message;
+      statusEl.style.color = isError ? '#f48771' : 'white';
+    }
+
+    // Search functionality
+    document.getElementById('function-search')?.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      document.querySelectorAll('.function-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(term) ? 'block' : 'none';
+      });
+    });
+
+    document.getElementById('table-search')?.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      document.querySelectorAll('.db-table').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.parentElement.style.display = text.includes(term) ? 'block' : 'none';
+      });
+    });
+
+    document.getElementById('vault-search')?.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      document.querySelectorAll('.query-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(term) ? 'block' : 'none';
+      });
+    });
+
+    // Initialize
+    loadData();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Socket.IO Client -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    .page-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .security-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .security-tab {
+      padding: 1rem 2rem;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .security-tab:hover {
+      color: var(--primary-color);
+    }
+
+    .security-tab.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+
+    .security-content {
+      display: none;
+    }
+
+    .security-content.active {
+      display: block;
+    }
+
+    .security-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      transition: all 0.2s;
+    }
+
+    .security-card:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .security-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 1rem;
+    }
+
+    .security-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #e96443 0%, #904e95 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.25rem;
+      margin-right: 1rem;
+    }
+
+    .security-info {
+      flex: 1;
+    }
+
+    .security-info h3 {
+      margin: 0 0 0.5rem 0;
+      color: var(--text-primary);
+    }
+
+    .security-info p {
+      margin: 0 0 0.25rem 0;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .security-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .security-badge.admin {
+      background: var(--danger-color);
+      color: white;
+    }
+
+    .security-badge.user {
+      background: var(--success-color);
+      color: white;
+    }
+
+    .security-badge.custom {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .permissions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .permission-badge {
+      padding: 0.5rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.75rem;
+      text-align: center;
+    }
+
+    .permission-badge.granted {
+      background: var(--success-color);
+      color: white;
+      border-color: var(--success-color);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state i {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 800px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .form-group .form-check {
+      margin-bottom: 0.5rem;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid p-0">
+    <div class="page-header">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h1><i class="fas fa-shield-alt"></i> Security & Permissions</h1>
+          <p>Manage users, roles, groups, and access controls (RBAC)</p>
+        </div>
+        <div>
+          <button class="btn btn-secondary me-2" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i> Back
+          </button>
+          <button class="btn btn-primary" onclick="showCreateModal()">
+            <i class="fas fa-plus"></i> Create
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="security-tabs">
+        <button class="security-tab active" onclick="switchTab('users')">
+          <i class="fas fa-users"></i> Users
+        </button>
+        <button class="security-tab" onclick="switchTab('roles')">
+          <i class="fas fa-user-tag"></i> Roles
+        </button>
+        <button class="security-tab" onclick="switchTab('groups')">
+          <i class="fas fa-users-cog"></i> Groups
+        </button>
+        <button class="security-tab" onclick="switchTab('permissions')">
+          <i class="fas fa-key"></i> Permissions
+        </button>
+      </div>
+
+      <!-- Users Tab -->
+      <div id="usersContent" class="security-content active">
+        <div id="usersContainer">
+          <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-secondary">Loading users...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Roles Tab -->
+      <div id="rolesContent" class="security-content">
+        <div id="rolesContainer">
+          <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-secondary">Loading roles...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Groups Tab -->
+      <div id="groupsContent" class="security-content">
+        <div id="groupsContainer">
+          <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-secondary">Loading groups...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Permissions Tab -->
+      <div id="permissionsContent" class="security-content">
+        <div id="permissionsContainer">
+          <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-secondary">Loading permissions...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create User Modal -->
+  <div id="createUserModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Create User</h2>
+        <button class="btn-close" onclick="closeCreateUserModal()"></button>
+      </div>
+      <form id="createUserForm" onsubmit="createUser(event)">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Username *</label>
+              <input type="text" id="newUsername" required pattern="[a-zA-Z0-9_-]+" title="Only letters, numbers, underscore, and hyphen">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Email *</label>
+              <input type="email" id="newEmail" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Password *</label>
+              <input type="password" id="newPassword" required minlength="8">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Display Name</label>
+              <input type="text" id="newDisplayName">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Assign Roles * (Select at least one)</label>
+          <select id="newUserRoles" multiple size="5" class="form-control" required>
+            <!-- Populated dynamically -->
+          </select>
+          <small class="text-secondary">Hold Ctrl/Cmd to select multiple</small>
+        </div>
+
+        <div class="form-group">
+          <label>Assign Groups * (Select at least one)</label>
+          <select id="newUserGroups" multiple size="5" class="form-control" required>
+            <!-- Populated dynamically -->
+          </select>
+          <small class="text-secondary">Hold Ctrl/Cmd to select multiple</small>
+        </div>
+
+        <div class="form-group">
+          <label>Grant Access to Services</label>
+          <div class="row">
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="svcCA" value="ca"><label for="svcCA">Certificate Authority</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="svcAuth" value="auth"><label for="svcAuth">Authentication</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="svcBridge" value="bridge"><label for="svcBridge">API Bridge</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="svcTimeline" value="timeline"><label for="svcTimeline">Timeline</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="svcSpark" value="spark"><label for="svcSpark">Messaging</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="svcForge" value="forge"><label for="svcForge">Forge CRM</label></div></div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-info me-2" onclick="importFromAuth()">
+            <i class="fas fa-download"></i> Import from Auth Service
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeCreateUserModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Role Modal -->
+  <div id="createRoleModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Create Role</h2>
+        <button class="btn-close" onclick="closeCreateRoleModal()"></button>
+      </div>
+      <form id="createRoleForm" onsubmit="createRole(event)">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Name *</label>
+              <input type="text" id="newRoleName" required pattern="[a-zA-Z][a-zA-Z0-9_-]*" title="Must start with letter">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Display Name *</label>
+              <input type="text" id="newRoleDisplayName" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="newRoleDescription" rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Target Service/Scope *</label>
+          <select id="newRoleService" class="form-control" required>
+            <option value="">Select service...</option>
+            <option value="global">Global (All Services)</option>
+            <option value="ca">Certificate Authority</option>
+            <option value="auth">Authentication</option>
+            <option value="bridge">API Bridge</option>
+            <option value="timeline">Timeline</option>
+            <option value="spark">Messaging</option>
+            <option value="forge">Forge CRM</option>
+            <option value="lowcode">Low-Code Platform</option>
+            <option value="workflow">Workflow Engine</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Permissions</label>
+          <div class="row">
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="newPermRead"><label for="newPermRead">Read</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="newPermWrite"><label for="newPermWrite">Write</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="newPermUpdate"><label for="newPermUpdate">Update</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="newPermDelete"><label for="newPermDelete">Delete</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="newPermAppend"><label for="newPermAppend">Append</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="newPermExecute"><label for="newPermExecute">Execute</label></div></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Priority (0-100)</label>
+          <input type="number" id="newRolePriority" min="0" max="100" value="50">
+          <small class="text-secondary">Higher priority roles override lower priority</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeCreateRoleModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Role</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Group Modal -->
+  <div id="createGroupModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Create Group</h2>
+        <button class="btn-close" onclick="closeCreateGroupModal()"></button>
+      </div>
+      <form id="createGroupForm" onsubmit="createGroup(event)">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Name *</label>
+              <input type="text" id="newGroupName" required pattern="[a-zA-Z][a-zA-Z0-9_-]*">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Display Name *</label>
+              <input type="text" id="newGroupDisplayName" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="newGroupDescription" rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Parent Group (Optional)</label>
+          <select id="newGroupParent" class="form-control">
+            <option value="">None (Top-level Group)</option>
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Default Roles for Group Members</label>
+          <select id="newGroupDefaultRoles" multiple size="4" class="form-control">
+            <!-- Populated dynamically -->
+          </select>
+          <small class="text-secondary">These roles will be auto-assigned to new group members</small>
+        </div>
+
+        <div class="form-group">
+          <label>Apply Group to Services</label>
+          <div class="row">
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="grpSvcCA" value="ca"><label for="grpSvcCA">Certificate Authority</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="grpSvcAuth" value="auth"><label for="grpSvcAuth">Authentication</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="grpSvcBridge" value="bridge"><label for="grpSvcBridge">API Bridge</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="grpSvcTimeline" value="timeline"><label for="grpSvcTimeline">Timeline</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="grpSvcSpark" value="spark"><label for="grpSvcSpark">Messaging</label></div></div>
+            <div class="col-md-4"><div class="form-check"><input type="checkbox" id="grpSvcForge" value="forge"><label for="grpSvcForge">Forge CRM</label></div></div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeCreateGroupModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Group</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Role Modal -->
+  <div id="editRoleModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Edit Role</h2>
+        <button class="btn-close" onclick="closeEditRoleModal()"></button>
+      </div>
+      <form id="editRoleForm" onsubmit="updateRole(event)">
+        <input type="hidden" id="editRoleId">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="editRoleName" required>
+        </div>
+        <div class="form-group">
+          <label>Display Name</label>
+          <input type="text" id="editRoleDisplayName">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="editRoleDescription" rows="3"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Permissions</label>
+          <div class="form-check">
+            <input type="checkbox" id="editPermRead">
+            <label for="editPermRead">Read</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="editPermWrite">
+            <label for="editPermWrite">Write</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="editPermUpdate">
+            <label for="editPermUpdate">Update</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="editPermDelete">
+            <label for="editPermDelete">Delete</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="editPermAppend">
+            <label for="editPermAppend">Append</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Priority</label>
+          <input type="number" id="editRolePriority" min="0" max="100" value="0">
+          <small class="text-secondary">Higher priority roles override lower priority roles</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeEditRoleModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Group Modal -->
+  <div id="editGroupModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Edit Group</h2>
+        <button class="btn-close" onclick="closeEditGroupModal()"></button>
+      </div>
+      <form id="editGroupForm" onsubmit="updateGroup(event)">
+        <input type="hidden" id="editGroupId">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="editGroupName" required>
+        </div>
+        <div class="form-group">
+          <label>Display Name</label>
+          <input type="text" id="editGroupDisplayName">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="editGroupDescription" rows="3"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Parent Group</label>
+          <select id="editGroupParent">
+            <option value="">None (Top-level Group)</option>
+          </select>
+          <small class="text-secondary">Nested groups inherit permissions from parent groups</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeEditGroupModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manage User Roles Modal -->
+  <div id="manageUserRolesModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Manage User Roles</h2>
+        <button class="btn-close" onclick="closeManageUserRolesModal()"></button>
+      </div>
+      <div id="userRolesContent">
+        <p class="text-secondary">Loading user roles...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage Group Members Modal -->
+  <div id="manageMembersModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Manage Group Members</h2>
+        <button class="btn-close" onclick="closeMembersModal()"></button>
+      </div>
+      <div id="groupMembersContent">
+        <p class="text-secondary">Loading group members...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const APP_ID = '<%= appId %>' || null;
+    let currentTab = 'users';
+    let users = [];
+    let roles = [];
+    let groups = [];
+    let permissions = [];
+
+    function switchTab(tab) {
+      currentTab = tab;
+
+      // Update tabs
+      document.querySelectorAll('.security-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+      event.target.closest('.security-tab').classList.add('active');
+
+      // Update content
+      document.querySelectorAll('.security-content').forEach(c => {
+        c.classList.remove('active');
+      });
+      document.getElementById(`${tab}Content`).classList.add('active');
+
+      // Load data if not loaded yet
+      switch(tab) {
+        case 'users':
+          if (users.length === 0) loadUsers();
+          break;
+        case 'roles':
+          if (roles.length === 0) loadRoles();
+          break;
+        case 'groups':
+          if (groups.length === 0) loadGroups();
+          break;
+        case 'permissions':
+          if (permissions.length === 0) loadPermissions();
+          break;
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const url = APP_ID
+          ? `/lowcode/api/security/users?applicationId=${APP_ID}`
+          : '/lowcode/api/security/users';
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          // SecurityService returns { total, users, limit, offset, hasMore }
+          users = data.data.users || [];
+          renderUsers();
+        }
+      } catch (error) {
+        console.error('Failed to load users:', error);
+        document.getElementById('usersContainer').innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-circle"></i>
+            <h3>Failed to load users</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    async function loadRoles() {
+      try {
+        const url = APP_ID
+          ? `/lowcode/api/security/roles?applicationId=${APP_ID}`
+          : '/lowcode/api/security/roles';
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          // SecurityService returns { total, roles, limit, offset, hasMore }
+          roles = data.data.roles || [];
+          renderRoles();
+        }
+      } catch (error) {
+        console.error('Failed to load roles:', error);
+        document.getElementById('rolesContainer').innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-circle"></i>
+            <h3>Failed to load roles</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    async function loadGroups() {
+      try {
+        const url = APP_ID
+          ? `/lowcode/api/security/groups?applicationId=${APP_ID}`
+          : '/lowcode/api/security/groups';
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          // SecurityService returns { total, groups, limit, offset, hasMore }
+          groups = data.data.groups || [];
+          renderGroups();
+        }
+      } catch (error) {
+        console.error('Failed to load groups:', error);
+        document.getElementById('groupsContainer').innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-circle"></i>
+            <h3>Failed to load groups</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    async function loadPermissions() {
+      try {
+        const url = APP_ID
+          ? `/lowcode/api/security/permissions?applicationId=${APP_ID}`
+          : '/lowcode/api/security/permissions';
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          // SecurityService returns { total, permissions, limit, offset, hasMore }
+          permissions = data.data.permissions || [];
+          renderPermissions();
+        }
+      } catch (error) {
+        console.error('Failed to load permissions:', error);
+        document.getElementById('permissionsContainer').innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-circle"></i>
+            <h3>Failed to load permissions</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderUsers() {
+      const container = document.getElementById('usersContainer');
+      if (users.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-users"></i>
+            <h3>No users yet</h3>
+            <p>Users are managed through exprsn-auth service</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = users.map(user => {
+        const userRoles = Array.isArray(user.roles) ? user.roles : (user.roles ? [user.roles] : []);
+        const userGroups = Array.isArray(user.groups) ? user.groups : [];
+        const serviceAccess = Array.isArray(user.serviceAccess) ? user.serviceAccess : [];
+        return `
+        <div class="security-card">
+          <div class="d-flex">
+            <div class="security-icon">
+              <i class="fas fa-user"></i>
+            </div>
+            <div class="security-header" style="flex: 1;">
+              <div class="security-info">
+                <h3>${user.displayName || user.username}
+                  ${user.status === 'active' ? '<span class="badge bg-success ms-2" style="font-size: 0.7rem;">Active</span>' : ''}
+                </h3>
+                <p><strong>Username:</strong> ${user.username}</p>
+                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>Roles:</strong> ${userRoles.length > 0 ? userRoles.map(r => typeof r === 'string' ? r : r.name).join(', ') : 'None'}</p>
+                <p><strong>Groups:</strong> ${userGroups.length > 0 ? userGroups.map(g => typeof g === 'string' ? g : g.name).join(', ') : 'None'}</p>
+                ${serviceAccess.length > 0 ? `
+                  <div class="mt-2">
+                    <strong>Service Access:</strong>
+                    ${serviceAccess.map(s => `<span class="badge bg-info ms-1">${s.toUpperCase()}</span>`).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 d-flex justify-content-between align-items-center">
+            <small class="text-secondary">Created: ${new Date(user.createdAt || Date.now()).toLocaleDateString()}</small>
+            <div>
+              <button class="btn btn-sm btn-primary me-2" onclick="manageUserRoles('${user.id}')">
+                <i class="fas fa-user-tag"></i> Manage Roles
+              </button>
+              <button class="btn btn-sm btn-info me-2" onclick="viewUserPermissions('${user.id}')">
+                <i class="fas fa-key"></i> View Permissions
+              </button>
+              <button class="btn btn-sm btn-secondary" onclick="editUser('${user.id}')">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      }).join('');
+    }
+
+    function renderRoles() {
+      const container = document.getElementById('rolesContainer');
+      if (roles.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-user-tag"></i>
+            <h3>No roles created yet</h3>
+            <p>Create your first role to manage permissions</p>
+            <button class="btn btn-primary mt-3" onclick="showCreateModal()">
+              <i class="fas fa-plus"></i> Create Role
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = roles.map(role => {
+        const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+        const service = role.service || 'global';
+        const serviceLabel = service === 'global' ? 'All Services' : service.toUpperCase();
+        return `
+        <div class="security-card">
+          <div class="d-flex">
+            <div class="security-icon">
+              <i class="fas fa-user-tag"></i>
+            </div>
+            <div class="security-header" style="flex: 1;">
+              <div class="security-info">
+                <h3>${role.displayName || role.name}
+                  <span class="badge bg-info ms-2" style="font-size: 0.7rem;">${serviceLabel}</span>
+                </h3>
+                <p><strong>Name:</strong> ${role.name}</p>
+                <p>${role.description || 'No description'}</p>
+                <p><strong>Priority:</strong> ${role.priority || 0}</p>
+                <div class="permissions-grid mt-2">
+                  ${permissions.includes('read') ? '<span class="permission-badge granted">Read</span>' : ''}
+                  ${permissions.includes('write') ? '<span class="permission-badge granted">Write</span>' : ''}
+                  ${permissions.includes('update') ? '<span class="permission-badge granted">Update</span>' : ''}
+                  ${permissions.includes('delete') ? '<span class="permission-badge granted">Delete</span>' : ''}
+                  ${permissions.includes('append') ? '<span class="permission-badge granted">Append</span>' : ''}
+                  ${permissions.includes('execute') ? '<span class="permission-badge granted">Execute</span>' : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 d-flex justify-content-between align-items-center">
+            <small class="text-secondary">Created: ${new Date(role.createdAt || Date.now()).toLocaleDateString()}</small>
+            <div>
+              <button class="btn btn-sm btn-primary me-2" onclick="editRole('${role.id}')">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="deleteRole('${role.id}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      }).join('');
+    }
+
+    function renderGroups() {
+      const container = document.getElementById('groupsContainer');
+      if (groups.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-users-cog"></i>
+            <h3>No groups created yet</h3>
+            <p>Create groups to organize users and assign bulk permissions</p>
+            <button class="btn btn-primary mt-3" onclick="showCreateModal()">
+              <i class="fas fa-plus"></i> Create Group
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = groups.map(group => {
+        const services = Array.isArray(group.services) ? group.services : [];
+        const parent = group.parentGroup || (group.parentGroupId ? groups.find(g => g.id === group.parentGroupId) : null);
+        return `
+        <div class="security-card">
+          <div class="d-flex">
+            <div class="security-icon">
+              <i class="fas fa-users-cog"></i>
+            </div>
+            <div class="security-header" style="flex: 1;">
+              <div class="security-info">
+                <h3>${group.displayName || group.name}</h3>
+                <p><strong>Name:</strong> ${group.name}</p>
+                <p>${group.description || 'No description'}</p>
+                <p><strong>Members:</strong> ${group.memberCount || 0} users</p>
+                ${parent ? `<p><strong>Parent Group:</strong> ${parent.displayName || parent.name}</p>` : ''}
+                ${services.length > 0 ? `
+                  <div class="mt-2">
+                    <strong>Services:</strong>
+                    ${services.map(s => `<span class="badge bg-primary ms-1">${s.toUpperCase()}</span>`).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 d-flex justify-content-between align-items-center">
+            <small class="text-secondary">Created: ${new Date(group.createdAt || Date.now()).toLocaleDateString()}</small>
+            <div>
+              <button class="btn btn-sm btn-success me-2" onclick="manageMembers('${group.id}')">
+                <i class="fas fa-users"></i> Manage Members
+              </button>
+              <button class="btn btn-sm btn-primary me-2" onclick="editGroup('${group.id}')">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="deleteGroup('${group.id}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      }).join('');
+    }
+
+    function renderPermissions() {
+      const container = document.getElementById('permissionsContainer');
+      if (permissions.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-key"></i>
+            <h3>No custom permissions defined</h3>
+            <p>Permissions are managed through roles and RBAC</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = permissions.map(perm => `
+        <div class="security-card">
+          <div class="d-flex">
+            <div class="security-icon">
+              <i class="fas fa-key"></i>
+            </div>
+            <div class="security-info">
+              <h3>${perm.name}</h3>
+              <p>${perm.description || 'No description'}</p>
+              <p><strong>Resource:</strong> ${perm.resource}</p>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showCreateModal() {
+      switch(currentTab) {
+        case 'users':
+          showCreateUserModal();
+          break;
+        case 'roles':
+          showCreateRoleModal();
+          break;
+        case 'groups':
+          showCreateGroupModal();
+          break;
+      }
+    }
+
+    // ===== CREATE USER =====
+    function showCreateUserModal() {
+      // Populate roles dropdown
+      const rolesSelect = document.getElementById('newUserRoles');
+      rolesSelect.innerHTML = roles.map(r =>
+        `<option value="${r.id}">${r.displayName || r.name}</option>`
+      ).join('');
+
+      // Populate groups dropdown
+      const groupsSelect = document.getElementById('newUserGroups');
+      groupsSelect.innerHTML = groups.map(g =>
+        `<option value="${g.id}">${g.displayName || g.name}</option>`
+      ).join('');
+
+      document.getElementById('createUserModal').classList.add('active');
+    }
+
+    function closeCreateUserModal() {
+      document.getElementById('createUserModal').classList.remove('active');
+      document.getElementById('createUserForm').reset();
+    }
+
+    async function createUser(event) {
+      event.preventDefault();
+
+      // Gather selected roles
+      const rolesSelect = document.getElementById('newUserRoles');
+      const selectedRoles = Array.from(rolesSelect.selectedOptions).map(opt => opt.value);
+
+      // Gather selected groups
+      const groupsSelect = document.getElementById('newUserGroups');
+      const selectedGroups = Array.from(groupsSelect.selectedOptions).map(opt => opt.value);
+
+      // Gather service access
+      const services = [];
+      if (document.getElementById('svcCA').checked) services.push('ca');
+      if (document.getElementById('svcAuth').checked) services.push('auth');
+      if (document.getElementById('svcBridge').checked) services.push('bridge');
+      if (document.getElementById('svcTimeline').checked) services.push('timeline');
+      if (document.getElementById('svcSpark').checked) services.push('spark');
+      if (document.getElementById('svcForge').checked) services.push('forge');
+
+      const payload = {
+        username: document.getElementById('newUsername').value,
+        email: document.getElementById('newEmail').value,
+        password: document.getElementById('newPassword').value,
+        displayName: document.getElementById('newDisplayName').value || document.getElementById('newUsername').value,
+        roleIds: selectedRoles,
+        groupIds: selectedGroups,
+        serviceAccess: services,
+        applicationId: APP_ID || '00000000-0000-0000-0000-000000000000'
+      };
+
+      try {
+        const response = await fetch('/lowcode/api/security/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeCreateUserModal();
+          loadUsers();
+          alert('User created successfully!');
+        } else {
+          alert(`Failed to create user: ${data.message || 'Unknown error'}`);
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function importFromAuth() {
+      try {
+        const response = await fetch('http://localhost:3001/api/users');
+        const data = await response.json();
+
+        if (data.success && data.data && data.data.length > 0) {
+          const userList = data.data.map((u, i) => `${i + 1}. ${u.username} (${u.email})`).join('\n');
+          alert(`Found ${data.data.length} users from Auth service:\n\n${userList}\n\nComing soon: Select and import users!`);
+        } else {
+          alert('No users found in Auth service');
+        }
+      } catch (error) {
+        alert('Error connecting to Auth service: ' + error.message);
+      }
+    }
+
+    // ===== CREATE ROLE =====
+    function showCreateRoleModal() {
+      document.getElementById('createRoleModal').classList.add('active');
+    }
+
+    function closeCreateRoleModal() {
+      document.getElementById('createRoleModal').classList.remove('active');
+      document.getElementById('createRoleForm').reset();
+    }
+
+    async function createRole(event) {
+      event.preventDefault();
+
+      // Build permissions array
+      const permissionsArray = [];
+      if (document.getElementById('newPermRead').checked) permissionsArray.push('read');
+      if (document.getElementById('newPermWrite').checked) permissionsArray.push('write');
+      if (document.getElementById('newPermUpdate').checked) permissionsArray.push('update');
+      if (document.getElementById('newPermDelete').checked) permissionsArray.push('delete');
+      if (document.getElementById('newPermAppend').checked) permissionsArray.push('append');
+      if (document.getElementById('newPermExecute').checked) permissionsArray.push('execute');
+
+      const payload = {
+        name: document.getElementById('newRoleName').value,
+        displayName: document.getElementById('newRoleDisplayName').value,
+        description: document.getElementById('newRoleDescription').value,
+        service: document.getElementById('newRoleService').value,
+        permissions: permissionsArray,
+        priority: parseInt(document.getElementById('newRolePriority').value),
+        applicationId: APP_ID || '00000000-0000-0000-0000-000000000000'
+      };
+
+      try {
+        const response = await fetch('/lowcode/api/security/roles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeCreateRoleModal();
+          loadRoles();
+          alert('Role created successfully!');
+        } else {
+          alert(`Failed to create role: ${data.message || 'Unknown error'}`);
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // ===== CREATE GROUP =====
+    function showCreateGroupModal() {
+      // Populate parent groups dropdown
+      const parentSelect = document.getElementById('newGroupParent');
+      parentSelect.innerHTML = '<option value="">None (Top-level Group)</option>' +
+        groups.map(g => `<option value="${g.id}">${g.displayName || g.name}</option>`).join('');
+
+      // Populate default roles dropdown
+      const rolesSelect = document.getElementById('newGroupDefaultRoles');
+      rolesSelect.innerHTML = roles.map(r =>
+        `<option value="${r.id}">${r.displayName || r.name}</option>`
+      ).join('');
+
+      document.getElementById('createGroupModal').classList.add('active');
+    }
+
+    function closeCreateGroupModal() {
+      document.getElementById('createGroupModal').classList.remove('active');
+      document.getElementById('createGroupForm').reset();
+    }
+
+    async function createGroup(event) {
+      event.preventDefault();
+
+      // Gather default roles
+      const rolesSelect = document.getElementById('newGroupDefaultRoles');
+      const defaultRoles = Array.from(rolesSelect.selectedOptions).map(opt => opt.value);
+
+      // Gather services
+      const services = [];
+      if (document.getElementById('grpSvcCA').checked) services.push('ca');
+      if (document.getElementById('grpSvcAuth').checked) services.push('auth');
+      if (document.getElementById('grpSvcBridge').checked) services.push('bridge');
+      if (document.getElementById('grpSvcTimeline').checked) services.push('timeline');
+      if (document.getElementById('grpSvcSpark').checked) services.push('spark');
+      if (document.getElementById('grpSvcForge').checked) services.push('forge');
+
+      const payload = {
+        name: document.getElementById('newGroupName').value,
+        displayName: document.getElementById('newGroupDisplayName').value,
+        description: document.getElementById('newGroupDescription').value,
+        parentGroupId: document.getElementById('newGroupParent').value || null,
+        defaultRoles: defaultRoles,
+        services: services,
+        applicationId: APP_ID || '00000000-0000-0000-0000-000000000000'
+      };
+
+      try {
+        const response = await fetch('/lowcode/api/security/groups', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeCreateGroupModal();
+          loadGroups();
+          alert('Group created successfully!');
+        } else {
+          alert(`Failed to create group: ${data.message || 'Unknown error'}`);
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function manageUserRoles(userId) {
+      try {
+        const response = await fetch(`/lowcode/api/security/users/${userId}/roles`);
+        const data = await response.json();
+
+        if (data.success) {
+          const user = users.find(u => u.id === userId);
+          const userRoles = data.data || [];
+
+          const content = `
+            <div class="mb-3">
+              <h4>${user?.username || 'User'}</h4>
+              <p class="text-secondary">${user?.email || ''}</p>
+            </div>
+            <div class="mb-3">
+              <label class="fw-bold">Assigned Roles</label>
+              <div class="list-group mt-2">
+                ${userRoles.length > 0
+                  ? userRoles.map(r => `
+                      <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>${r.name}</span>
+                        <button class="btn btn-sm btn-danger" onclick="removeUserRole('${userId}', '${r.id}')">
+                          <i class="fas fa-times"></i> Remove
+                        </button>
+                      </div>
+                    `).join('')
+                  : '<p class="text-secondary">No roles assigned</p>'
+                }
+              </div>
+            </div>
+            <div>
+              <label class="fw-bold">Available Roles</label>
+              <select id="newRoleSelect" class="form-control mt-2">
+                <option value="">Select a role to assign...</option>
+                ${roles.filter(r => !userRoles.find(ur => ur.id === r.id))
+                  .map(r => `<option value="${r.id}">${r.name}</option>`).join('')}
+              </select>
+              <button class="btn btn-primary mt-2" onclick="assignUserRole('${userId}')">
+                <i class="fas fa-plus"></i> Assign Role
+              </button>
+            </div>
+          `;
+
+          document.getElementById('userRolesContent').innerHTML = content;
+          document.getElementById('manageUserRolesModal').classList.add('active');
+        }
+      } catch (error) {
+        alert('Error loading user roles: ' + error.message);
+      }
+    }
+
+    function closeManageUserRolesModal() {
+      document.getElementById('manageUserRolesModal').classList.remove('active');
+    }
+
+    async function assignUserRole(userId) {
+      const roleId = document.getElementById('newRoleSelect').value;
+      if (!roleId) {
+        alert('Please select a role');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/lowcode/api/security/users/${userId}/roles`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roleId })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          closeManageUserRolesModal();
+          loadUsers();
+        } else {
+          alert('Failed to assign role: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function removeUserRole(userId, roleId) {
+      if (!confirm('Remove this role from the user?')) return;
+
+      try {
+        const response = await fetch(`/lowcode/api/security/users/${userId}/roles/${roleId}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          closeManageUserRolesModal();
+          loadUsers();
+        } else {
+          alert('Failed to remove role: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    function viewUserPermissions(userId) {
+      window.location.href = `/lowcode/security/users/${userId}/permissions`;
+    }
+
+    async function editRole(id) {
+      const role = roles.find(r => r.id === id);
+      if (!role) return;
+
+      document.getElementById('editRoleId').value = role.id;
+      document.getElementById('editRoleName').value = role.name;
+      document.getElementById('editRoleDisplayName').value = role.displayName || '';
+      document.getElementById('editRoleDescription').value = role.description || '';
+      document.getElementById('editRolePriority').value = role.priority || 0;
+
+      // Set permissions checkboxes based on array
+      const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+      document.getElementById('editPermRead').checked = permissions.includes('read');
+      document.getElementById('editPermWrite').checked = permissions.includes('write');
+      document.getElementById('editPermUpdate').checked = permissions.includes('update');
+      document.getElementById('editPermDelete').checked = permissions.includes('delete');
+      document.getElementById('editPermAppend').checked = permissions.includes('append');
+
+      document.getElementById('editRoleModal').classList.add('active');
+    }
+
+    function closeEditRoleModal() {
+      document.getElementById('editRoleModal').classList.remove('active');
+      document.getElementById('editRoleForm').reset();
+    }
+
+    async function updateRole(event) {
+      event.preventDefault();
+      const id = document.getElementById('editRoleId').value;
+
+      // Build permissions array from checkboxes
+      const permissionsArray = [];
+      if (document.getElementById('editPermRead').checked) permissionsArray.push('read');
+      if (document.getElementById('editPermWrite').checked) permissionsArray.push('write');
+      if (document.getElementById('editPermUpdate').checked) permissionsArray.push('update');
+      if (document.getElementById('editPermDelete').checked) permissionsArray.push('delete');
+      if (document.getElementById('editPermAppend').checked) permissionsArray.push('append');
+
+      const payload = {
+        displayName: document.getElementById('editRoleDisplayName').value,
+        description: document.getElementById('editRoleDescription').value,
+        priority: parseInt(document.getElementById('editRolePriority').value),
+        permissions: permissionsArray
+      };
+
+      try {
+        const response = await fetch(`/lowcode/api/security/roles/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          closeEditRoleModal();
+          loadRoles();
+        } else {
+          alert('Failed to update role: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function deleteRole(id) {
+      if (!confirm('Are you sure you want to delete this role?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/lowcode/api/security/roles/${id}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          loadRoles();
+        } else {
+          alert('Failed to delete role: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function manageMembers(groupId) {
+      try {
+        const response = await fetch(`/lowcode/api/security/groups/${groupId}/members`);
+        const data = await response.json();
+
+        if (data.success) {
+          const group = groups.find(g => g.id === groupId);
+          const members = data.data || [];
+
+          const content = `
+            <div class="mb-3">
+              <h4>${group?.name || 'Group'}</h4>
+              <p class="text-secondary">${group?.description || ''}</p>
+            </div>
+            <div class="mb-3">
+              <label class="fw-bold">Current Members</label>
+              <div class="list-group mt-2">
+                ${members.length > 0
+                  ? members.map(m => `
+                      <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                          <strong>${m.username}</strong>
+                          <br><small class="text-secondary">${m.email}</small>
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="removeGroupMember('${groupId}', '${m.id}')">
+                          <i class="fas fa-times"></i> Remove
+                        </button>
+                      </div>
+                    `).join('')
+                  : '<p class="text-secondary">No members yet</p>'
+                }
+              </div>
+            </div>
+            <div>
+              <label class="fw-bold">Add Member</label>
+              <select id="newMemberSelect" class="form-control mt-2">
+                <option value="">Select a user to add...</option>
+                ${users.filter(u => !members.find(m => m.id === u.id))
+                  .map(u => `<option value="${u.id}">${u.username} (${u.email})</option>`).join('')}
+              </select>
+              <button class="btn btn-primary mt-2" onclick="addGroupMember('${groupId}')">
+                <i class="fas fa-plus"></i> Add Member
+              </button>
+            </div>
+          `;
+
+          document.getElementById('groupMembersContent').innerHTML = content;
+          document.getElementById('manageMembersModal').classList.add('active');
+        }
+      } catch (error) {
+        alert('Error loading group members: ' + error.message);
+      }
+    }
+
+    function closeMembersModal() {
+      document.getElementById('manageMembersModal').classList.remove('active');
+    }
+
+    async function addGroupMember(groupId) {
+      const userId = document.getElementById('newMemberSelect').value;
+      if (!userId) {
+        alert('Please select a user');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/lowcode/api/security/groups/${groupId}/members`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          closeMembersModal();
+          loadGroups();
+        } else {
+          alert('Failed to add member: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function removeGroupMember(groupId, userId) {
+      if (!confirm('Remove this user from the group?')) return;
+
+      try {
+        const response = await fetch(`/lowcode/api/security/groups/${groupId}/members/${userId}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          closeMembersModal();
+          loadGroups();
+        } else {
+          alert('Failed to remove member: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function editGroup(id) {
+      const group = groups.find(g => g.id === id);
+      if (!group) return;
+
+      document.getElementById('editGroupId').value = group.id;
+      document.getElementById('editGroupName').value = group.name;
+      document.getElementById('editGroupDisplayName').value = group.displayName || '';
+      document.getElementById('editGroupDescription').value = group.description || '';
+
+      // Populate parent group dropdown
+      const parentSelect = document.getElementById('editGroupParent');
+      parentSelect.innerHTML = '<option value="">None (Top-level Group)</option>';
+      groups.filter(g => g.id !== id).forEach(g => {
+        const option = document.createElement('option');
+        option.value = g.id;
+        option.textContent = g.name;
+        if (group.parentGroupId === g.id) {
+          option.selected = true;
+        }
+        parentSelect.appendChild(option);
+      });
+
+      document.getElementById('editGroupModal').classList.add('active');
+    }
+
+    function closeEditGroupModal() {
+      document.getElementById('editGroupModal').classList.remove('active');
+      document.getElementById('editGroupForm').reset();
+    }
+
+    async function updateGroup(event) {
+      event.preventDefault();
+      const id = document.getElementById('editGroupId').value;
+
+      const payload = {
+        name: document.getElementById('editGroupName').value,
+        displayName: document.getElementById('editGroupDisplayName').value,
+        description: document.getElementById('editGroupDescription').value,
+        parentGroupId: document.getElementById('editGroupParent').value || null
+      };
+
+      try {
+        const response = await fetch(`/lowcode/api/security/groups/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          closeEditGroupModal();
+          loadGroups();
+        } else {
+          alert('Failed to update group: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function deleteGroup(id) {
+      if (!confirm('Are you sure you want to delete this group?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/lowcode/api/security/groups/${id}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          loadGroups();
+        } else {
+          alert('Failed to delete group: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // Socket.IO Real-time Updates
+    let socket;
+
+    function initSocket() {
+      socket = io();
+
+      // User events
+      socket.on('user:created', (data) => {
+        console.log('New user created:', data);
+        loadUsers();
+      });
+
+      socket.on('user:updated', (data) => {
+        console.log('User updated:', data);
+        loadUsers();
+      });
+
+      socket.on('user:deleted', (data) => {
+        console.log('User deleted:', data);
+        loadUsers();
+      });
+
+      socket.on('user:role_assigned', (data) => {
+        console.log('Role assigned to user:', data);
+        loadUsers();
+      });
+
+      socket.on('user:role_removed', (data) => {
+        console.log('Role removed from user:', data);
+        loadUsers();
+      });
+
+      socket.on('user:group_added', (data) => {
+        console.log('User added to group:', data);
+        loadUsers();
+      });
+
+      socket.on('user:group_removed', (data) => {
+        console.log('User removed from group:', data);
+        loadUsers();
+      });
+
+      // Role events
+      socket.on('role:created', (data) => {
+        console.log('New role created:', data);
+        loadRoles();
+      });
+
+      socket.on('role:updated', (data) => {
+        console.log('Role updated:', data);
+        loadRoles();
+      });
+
+      socket.on('role:deleted', (data) => {
+        console.log('Role deleted:', data);
+        loadRoles();
+      });
+
+      // Group events
+      socket.on('group:created', (data) => {
+        console.log('New group created:', data);
+        loadGroups();
+      });
+
+      socket.on('group:updated', (data) => {
+        console.log('Group updated:', data);
+        loadGroups();
+      });
+
+      socket.on('group:deleted', (data) => {
+        console.log('Group deleted:', data);
+        loadGroups();
+      });
+
+      // Permission events
+      socket.on('permission:created', (data) => {
+        console.log('New permission created:', data);
+        loadPermissions();
+      });
+
+      socket.on('permission:updated', (data) => {
+        console.log('Permission updated:', data);
+        loadPermissions();
+      });
+
+      socket.on('permission:deleted', (data) => {
+        console.log('Permission deleted:', data);
+        loadPermissions();
+      });
+    }
+
+    // Load initial data
+    document.addEventListener('DOMContentLoaded', () => {
+      loadUsers();
+      initSocket();
+    });
+  </script>
+</body>
+</html>

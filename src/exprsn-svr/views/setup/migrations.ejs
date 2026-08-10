@@ -1,0 +1,120 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Migration Dashboard</h1>
+            <p class="page-subtitle">Run, rollback, and manage database migrations</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh
+            </button>
+            <button class="btn btn-primary">
+                <i class="bi bi-play-circle"></i>
+                Run Pending
+            </button>
+        </div>
+    </div>
+
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle" style="font-size: 1.25rem;"></i>
+        <div style="flex: 1;">
+            <strong>3 Pending Migrations</strong>
+            <div style="font-size: 0.875rem; opacity: 0.9;">You have migrations that need to be applied</div>
+        </div>
+        <button class="btn btn-sm btn-primary">Run Now</button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">Pending Migrations</h3>
+            <span class="badge badge-warning">3</span>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Migration</th>
+                            <th>Description</th>
+                            <th>Service</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>20251226000001-create-form-autosave</code></td>
+                            <td>Add autosave functionality for forms</td>
+                            <td><span class="badge badge-info">exprsn-svr</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-success">Run</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>20251226120000-create-reports-system</code></td>
+                            <td>Create reports and schedules tables</td>
+                            <td><span class="badge badge-info">exprsn-svr</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-success">Run</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>20251226170000-create-tiles-system</code></td>
+                            <td>Add application tiles system</td>
+                            <td><span class="badge badge-info">exprsn-svr</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-success">Run</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Applied Migrations</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="sortable">Migration</th>
+                            <th class="sortable">Applied At</th>
+                            <th>Service</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>20251226000000-create-ai-agent-core-system</code></td>
+                            <td>2025-12-26 14:30</td>
+                            <td><span class="badge badge-info">exprsn-svr</span></td>
+                            <td><span class="badge badge-success">Success</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" title="Rollback">Rollback</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>20251226120000-enhance-data-sources</code></td>
+                            <td>2025-12-26 12:15</td>
+                            <td><span class="badge badge-info">exprsn-svr</span></td>
+                            <td><span class="badge badge-success">Success</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" title="Rollback">Rollback</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

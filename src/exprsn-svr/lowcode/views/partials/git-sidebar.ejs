@@ -1,0 +1,231 @@
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <!-- Home Section -->
+        <div class="nav-section">
+            <div class="nav-section-title">Home</div>
+            <div class="nav-item">
+                <a href="/lowcode/git" class="nav-link <%= currentPath === '/lowcode/git' || currentPath === '/lowcode/git/' ? 'active' : '' %>">
+                    <i class="bi bi-house-door"></i>
+                    <span>Dashboard</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="/lowcode/git/repositories" class="nav-link <%= currentPath === '/lowcode/git/repositories' ? 'active' : '' %>">
+                    <i class="bi bi-folder"></i>
+                    <span>Repositories</span>
+                    <span class="nav-badge success">0</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- System Section -->
+        <div class="nav-section">
+            <div class="nav-section-title">System</div>
+            <div class="nav-item">
+                <a href="/lowcode/git/setup/config" class="nav-link <%= currentPath === '/lowcode/git/setup/config' ? 'active' : '' %>">
+                    <i class="bi bi-gear"></i>
+                    <span>Configuration</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="/lowcode/git/auth" class="nav-link <%= currentPath === '/lowcode/git/auth' ? 'active' : '' %>">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>Authentication</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Policies Section -->
+        <div class="nav-section">
+            <div class="nav-section-title">Policies</div>
+            <div class="nav-item">
+                <a href="/lowcode/git/policies" class="nav-link <%= currentPath === '/lowcode/git/policies' ? 'active' : '' %>">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Branch Protection</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- CI/CD Section -->
+        <div class="nav-section">
+            <div class="nav-section-title">CI/CD</div>
+            <div class="nav-item">
+                <a href="/lowcode/git/runners" class="nav-link <%= currentPath === '/lowcode/git/runners' ? 'active' : '' %>">
+                    <i class="bi bi-cpu"></i>
+                    <span>Runners</span>
+                    <span class="nav-badge warning">0</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="/lowcode/git/environments" class="nav-link <%= currentPath === '/lowcode/git/environments' ? 'active' : '' %>">
+                    <i class="bi bi-cloud-upload"></i>
+                    <span>Environments</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Security Section -->
+        <div class="nav-section">
+            <div class="nav-section-title">Security</div>
+            <div class="nav-item">
+                <a href="/lowcode/git/security" class="nav-link <%= currentPath === '/lowcode/git/security' ? 'active' : '' %>">
+                    <i class="bi bi-bug"></i>
+                    <span>Scanning</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="system-status">
+            <span class="status-indicator"></span>
+            <span class="system-status-text">Git System Online</span>
+        </div>
+    </div>
+</aside>
+
+<style>
+    /* ============================================================================
+       SIDEBAR STYLES
+       ============================================================================ */
+    .sidebar {
+        position: fixed;
+        top: 64px;
+        left: 0;
+        bottom: 0;
+        width: var(--sidebar-width);
+        background: var(--exprsn-bg-primary);
+        border-right: 1px solid var(--exprsn-border-color);
+        display: flex;
+        flex-direction: column;
+        z-index: 1040;
+        transition: var(--exprsn-transition-base);
+    }
+
+    .sidebar.collapsed {
+        width: var(--sidebar-collapsed-width);
+    }
+
+    .sidebar-nav {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 0;
+    }
+
+    .nav-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .nav-section-title {
+        padding: 0.5rem 1.5rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--exprsn-text-muted);
+    }
+
+    .sidebar.collapsed .nav-section-title {
+        display: none;
+    }
+
+    .nav-item {
+        margin: 0.125rem 0.75rem;
+    }
+
+    .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.625rem 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--exprsn-text-secondary);
+        text-decoration: none;
+        border-radius: var(--exprsn-radius-lg);
+        transition: var(--exprsn-transition-base);
+    }
+
+    .nav-link:hover {
+        background: var(--exprsn-bg-secondary);
+        color: var(--exprsn-text-primary);
+    }
+
+    .nav-link.active {
+        background: var(--exprsn-primary-glow);
+        color: var(--exprsn-primary);
+    }
+
+    .nav-link i {
+        font-size: 1.125rem;
+        width: 24px;
+        text-align: center;
+    }
+
+    .nav-link .nav-badge {
+        margin-left: auto;
+        padding: 0.125rem 0.5rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        background: var(--exprsn-primary);
+        color: white;
+        border-radius: var(--exprsn-radius-full);
+    }
+
+    .nav-link .nav-badge.success {
+        background: var(--exprsn-success);
+    }
+
+    .nav-link .nav-badge.warning {
+        background: var(--exprsn-warning);
+        color: var(--exprsn-text-primary);
+    }
+
+    .nav-link .nav-badge.danger {
+        background: var(--exprsn-danger);
+    }
+
+    .sidebar.collapsed .nav-link span,
+    .sidebar.collapsed .nav-link .nav-badge {
+        display: none;
+    }
+
+    /* Sidebar Footer */
+    .sidebar-footer {
+        padding: 1rem;
+        border-top: 1px solid var(--exprsn-border-color);
+    }
+
+    .system-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: var(--exprsn-success-bg);
+        border-radius: var(--exprsn-radius-lg);
+    }
+
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--exprsn-success);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .system-status-text {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--exprsn-success);
+    }
+
+    .sidebar.collapsed .system-status-text {
+        display: none;
+    }
+</style>

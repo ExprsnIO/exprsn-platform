@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Exprsn Pulse</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/pulse.css">
+
+  <%- include('shared/head-extra') %>
+</head>
+<body>
+  <!-- Navbar -->
+  <%- include('shared/navbar') %>
+
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+        <%- include('shared/sidebar') %>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">
+            <i class="bi bi-graph-up-arrow text-primary"></i>
+            Analytics Dashboard
+          </h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+              <button type="button" onclick="PulseModals.showQuickCreate('Dashboard', function(dashboard) { window.location.href = '/dashboards/' + dashboard.id + '/builder'; })" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-plus-circle"></i> New Dashboard
+              </button>
+              <button type="button" onclick="PulseModals.showQuickCreate('Report', function(report) { window.location.href = '/reports/' + report.id + '/execute'; })" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-file-earmark-plus"></i> New Report
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alert-container"></div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+          <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+              <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                  <div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                      Dashboards
+                    </div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                      <%= stats.dashboards %>
+                    </div>
+                  </div>
+                  <div class="col-auto">
+                    <i class="bi bi-grid-3x3-gap-fill text-primary" style="font-size: 2rem;"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+              <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                  <div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                      Reports
+                    </div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                      <%= stats.reports %>
+                    </div>
+                  </div>
+                  <div class="col-auto">
+                    <i class="bi bi-file-earmark-text-fill text-success" style="font-size: 2rem;"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+              <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                  <div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                      Data Sources
+                    </div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                      <%= stats.dataSources %>
+                    </div>
+                  </div>
+                  <div class="col-auto">
+                    <i class="bi bi-database-fill text-info" style="font-size: 2rem;"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+              <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                  <div class="col mr-2">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                      Visualizations
+                    </div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">
+                      <%= stats.visualizations %>
+                    </div>
+                  </div>
+                  <div class="col-auto">
+                    <i class="bi bi-bar-chart-fill text-warning" style="font-size: 2rem;"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Items -->
+        <div class="row">
+          <!-- Recent Dashboards -->
+          <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">
+                  <i class="bi bi-grid-3x3-gap"></i> Recent Dashboards
+                </h6>
+                <a href="/dashboards" class="btn btn-sm btn-outline-primary">View All</a>
+              </div>
+              <div class="card-body">
+                <% if (recentDashboards.length === 0) { %>
+                  <p class="text-muted text-center">No dashboards yet. <a href="javascript:void(0)" onclick="PulseModals.showQuickCreate('Dashboard', function(dashboard) { window.location.href = '/dashboards/' + dashboard.id + '/builder'; })">Create your first dashboard</a></p>
+                <% } else { %>
+                  <div class="list-group list-group-flush">
+                    <% recentDashboards.forEach(dashboard => { %>
+                      <a href="/dashboards/<%= dashboard.id %>" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                          <h6 class="mb-1">
+                            <%= dashboard.name %>
+                            <% if (dashboard.isRealtime) { %>
+                              <span class="badge bg-success">
+                                <i class="bi bi-broadcast"></i> Real-time
+                              </span>
+                            <% } %>
+                          </h6>
+                          <small class="text-muted">
+                            <%= new Date(dashboard.updatedAt).toLocaleDateString() %>
+                          </small>
+                        </div>
+                        <% if (dashboard.description) { %>
+                          <p class="mb-1 text-muted small"><%= dashboard.description %></p>
+                        <% } %>
+                      </a>
+                    <% }) %>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Reports -->
+          <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-success">
+                  <i class="bi bi-file-earmark-text"></i> Recent Reports
+                </h6>
+                <a href="/reports" class="btn btn-sm btn-outline-success">View All</a>
+              </div>
+              <div class="card-body">
+                <% if (recentReports.length === 0) { %>
+                  <p class="text-muted text-center">No reports yet. <a href="javascript:void(0)" onclick="PulseModals.showQuickCreate('Report', function(report) { window.location.href = '/reports/' + report.id + '/execute'; })">Create your first report</a></p>
+                <% } else { %>
+                  <div class="list-group list-group-flush">
+                    <% recentReports.forEach(report => { %>
+                      <a href="/reports/<%= report.id %>/execute" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                          <h6 class="mb-1"><%= report.name %></h6>
+                          <small class="text-muted">
+                            <%= new Date(report.updatedAt).toLocaleDateString() %>
+                          </small>
+                        </div>
+                        <% if (report.description) { %>
+                          <p class="mb-1 text-muted small"><%= report.description %></p>
+                        <% } %>
+                      </a>
+                    <% }) %>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row">
+          <div class="col-12 mb-4">
+            <div class="card shadow">
+              <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                  <i class="bi bi-lightning-charge"></i> Quick Actions
+                </h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-3 mb-3">
+                    <button type="button" onclick="PulseModals.showQuickCreate('Dashboard', function(dashboard) { window.location.href = '/dashboards/' + dashboard.id + '/builder'; })" class="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3">
+                      <i class="bi bi-grid-3x3-gap-fill" style="font-size: 2rem;"></i>
+                      <span class="mt-2">Create Dashboard</span>
+                    </button>
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    <button type="button" onclick="PulseModals.showQuickCreate('Report', function(report) { window.location.href = '/reports/' + report.id + '/execute'; })" class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3">
+                      <i class="bi bi-file-earmark-plus" style="font-size: 2rem;"></i>
+                      <span class="mt-2">Create Report</span>
+                    </button>
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    <button type="button" onclick="PulseModals.showQuickCreate('Data Source', function(source) { window.location.href = '/data/sources/' + source.id + '/edit'; })" class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3">
+                      <i class="bi bi-database-add" style="font-size: 2rem;"></i>
+                      <span class="mt-2">Add Data Source</span>
+                    </button>
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    <a href="/visualizations/new" class="btn btn-outline-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3">
+                      <i class="bi bi-bar-chart-fill" style="font-size: 2rem;"></i>
+                      <span class="mt-2">Create Visualization</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- D3.js -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- Socket.IO Client -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Core Pulse JS -->
+  <script src="/static/js/pulse-core.js"></script>
+
+  <%- include('shared/body-extra') %>
+</body>
+</html>

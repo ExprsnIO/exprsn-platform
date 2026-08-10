@@ -1,0 +1,315 @@
+<!-- Hero Section -->
+<div class="hero-section mb-5">
+    <div class="hero-content">
+        <div class="hero-icon mb-4">
+            <i class="bi bi-lightning-charge"></i>
+        </div>
+        <h1 class="hero-title mb-3">Exprsn Dynamic Page Server</h1>
+        <p class="hero-subtitle mb-4">
+            Create dynamic HTML pages with live data integration, server-side execution,
+            and real-time Socket.IO updates. Build interactive experiences with EJS templating
+            and custom JavaScript.
+        </p>
+        <div class="hero-actions">
+            <% if (!user) { %>
+                <a class="btn btn-light btn-lg shadow-sm me-3" href="/auth/login">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>
+                    Sign In
+                </a>
+                <a class="btn btn-outline-light btn-lg shadow-sm" href="/auth/register">
+                    <i class="bi bi-person-plus me-2"></i>
+                    Register
+                </a>
+            <% } else { %>
+                <a class="btn btn-light btn-lg shadow-sm me-3" href="/editor">
+                    <i class="bi bi-folder me-2"></i>
+                    My Pages
+                </a>
+                <a class="btn btn-outline-light btn-lg shadow-sm" href="/editor/new">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Create Page
+                </a>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<% if (locals.stats) { %>
+<div class="row g-4 mb-5">
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(102, 126, 234, 0.1); color: var(--exprsn-primary);">
+                <i class="bi bi-file-earmark-code"></i>
+            </div>
+            <div class="stat-value"><%= stats.totalPages || 0 %></div>
+            <div class="stat-label">Total Pages</div>
+            <div class="stat-meta text-muted mt-2 small">
+                <i class="bi bi-globe text-success me-1"></i>
+                <%= stats.publishedPages || 0 %> published
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--exprsn-success);">
+                <i class="bi bi-code-slash"></i>
+            </div>
+            <div class="stat-value"><%= stats.dynamicPages || 0 %></div>
+            <div class="stat-label">Dynamic Pages</div>
+            <div class="stat-meta text-muted mt-2 small">
+                <i class="bi bi-lightning-charge text-warning me-1"></i>
+                With server code
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--exprsn-warning);">
+                <i class="bi bi-broadcast"></i>
+            </div>
+            <div class="stat-value"><%= stats.realtimePages || 0 %></div>
+            <div class="stat-label">Real-time Pages</div>
+            <div class="stat-meta text-muted mt-2 small">
+                <i class="bi bi-diagram-3 text-info me-1"></i>
+                Socket.IO enabled
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--exprsn-success);">
+                <i class="bi bi-activity"></i>
+            </div>
+            <div class="stat-value">
+                <i class="bi bi-circle-fill text-success pulse-icon"></i>
+                Operational
+            </div>
+            <div class="stat-label">System Status</div>
+            <div class="stat-meta text-muted mt-2 small">
+                <i class="bi bi-clock me-1"></i>
+                Server running
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<!-- Features Section -->
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="feature-icon mb-3">
+                    <i class="bi bi-pencil-square"></i>
+                </div>
+                <h5 class="card-title">Visual Page Editor</h5>
+                <p class="card-text text-muted">
+                    Powerful Monaco editor with syntax highlighting for HTML, CSS,
+                    JavaScript, and server-side code. Edit multiple files simultaneously
+                    with tabbed interface.
+                </p>
+                <% if (user) { %>
+                    <a href="/editor/new" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-right me-1"></i>
+                        Create Page
+                    </a>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="feature-icon mb-3">
+                    <i class="bi bi-code-slash"></i>
+                </div>
+                <h5 class="card-title">Server-Side Execution</h5>
+                <p class="card-text text-muted">
+                    Run JavaScript code on the server to generate dynamic content.
+                    Access databases, APIs, and services with full Node.js capabilities
+                    in a sandboxed environment.
+                </p>
+                <% if (user) { %>
+                    <a href="/api/docs" class="btn btn-sm btn-outline-success" target="_blank">
+                        <i class="bi bi-arrow-right me-1"></i>
+                        View API Docs
+                    </a>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="feature-icon mb-3">
+                    <i class="bi bi-broadcast"></i>
+                </div>
+                <h5 class="card-title">Real-Time Updates</h5>
+                <p class="card-text text-muted">
+                    Integrate Socket.IO for live data updates. Subscribe to events,
+                    push updates to clients, and build interactive real-time applications
+                    with ease.
+                </p>
+                <% if (user) { %>
+                    <a href="/editor" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-arrow-right me-1"></i>
+                        Manage Pages
+                    </a>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technical Features -->
+<div class="card border-0 shadow-sm mb-5">
+    <div class="card-body p-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-3">
+                    <i class="bi bi-gear-fill text-primary me-2"></i>
+                    Powerful Features
+                </h4>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <strong>EJS Templating</strong> - Dynamic server-side rendering with full EJS support
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <strong>Custom CSS & JavaScript</strong> - Per-page styling and client-side code
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <strong>Static & Dynamic Modes</strong> - Choose between static HTML or dynamic execution
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <strong>Access Control</strong> - Public and private pages with CA token authentication
+                    </li>
+                    <li class="mb-0">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <strong>Version Tracking</strong> - Keep history of page changes and rollback support
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="security-badge">
+                    <i class="bi bi-shield-check"></i>
+                    <div class="mt-2">
+                        <strong>Sandboxed</strong><br>
+                        <span class="text-muted small">Safe Execution</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<% if (!user) { %>
+<!-- Call to Action -->
+<div class="card border-0 shadow-sm bg-gradient">
+    <div class="card-body p-5 text-center text-white">
+        <h3 class="mb-3">Ready to Build Dynamic Pages?</h3>
+        <p class="lead mb-4">
+            Join Exprsn and start creating interactive web pages with live data and real-time updates.
+        </p>
+        <a href="/auth/register" class="btn btn-light btn-lg shadow-sm">
+            <i class="bi bi-person-plus me-2"></i>
+            Create Your Account
+        </a>
+    </div>
+</div>
+<% } %>
+
+<style>
+    /* Hero Section */
+    .hero-section {
+        background: linear-gradient(135deg, var(--exprsn-primary) 0%, var(--exprsn-secondary) 100%);
+        border-radius: 12px;
+        padding: 4rem 2rem;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .hero-icon {
+        font-size: 4rem;
+        opacity: 0.9;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1.125rem;
+        opacity: 0.95;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+        line-height: 1.6;
+    }
+
+    /* Feature Icons */
+    .feature-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--exprsn-primary) 0%, var(--exprsn-secondary) 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+    }
+
+    /* Security Badge */
+    .security-badge {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--exprsn-primary) 0%, var(--exprsn-secondary) 100%);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        font-size: 2.5rem;
+    }
+
+    /* Gradient Card */
+    .bg-gradient {
+        background: linear-gradient(135deg, var(--exprsn-primary) 0%, var(--exprsn-secondary) 100%);
+    }
+
+    /* Pulse Animation */
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .pulse-icon {
+        animation: pulse 2s ease-in-out infinite;
+        font-size: 0.75rem;
+        vertical-align: middle;
+    }
+
+    /* Dark mode adjustments */
+    [data-bs-theme="dark"] .card {
+        background: var(--bs-dark);
+    }
+
+    [data-bs-theme="dark"] .hero-section {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+</style>

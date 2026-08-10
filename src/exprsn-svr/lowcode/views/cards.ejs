@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code</title>
+
+  <!-- Bootstrap 5.3.0 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome 6.4.0 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Manager Common Styles -->
+  <link rel="stylesheet" href="/css/manager-common.css">
+
+  <style>
+    /* Card category-specific colors */
+    .card-icon-form { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .card-icon-data { background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%); }
+    .card-icon-layout { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .card-icon-navigation { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .card-icon-chart { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    .card-icon-custom { background: linear-gradient(135deg, #fa8bff 0%, #2bd2ff 100%); }
+    .card-icon-default { background: linear-gradient(135deg, #fa8bff 0%, #2bd2ff 100%); }
+
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 800px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #212529;
+      font-size: 0.9rem;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      background: white;
+      color: #212529;
+      font-size: 0.9rem;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #0078d4;
+      box-shadow: 0 0 0 0.2rem rgba(0, 120, 212, 0.1);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .btn-close {
+      background: transparent;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #6c757d;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+
+    .btn-close:hover {
+      background: #f0f0f0;
+      color: #212529;
+    }
+
+    .btn-close::before {
+      content: '×';
+    }
+
+    /* Rating stars */
+    .rating-stars {
+      color: #ffc107;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="pageApp">
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-title">
+        <i class="fas fa-clone"></i>
+        <div>
+          <h1>Reusable Cards</h1>
+          <p class="header-subtitle">Create and share reusable UI components across applications</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-light btn-sm" onclick="window.history.back()">
+          <i class="fas fa-arrow-left"></i> Back to Designer
+        </button>
+        <button class="btn btn-info btn-sm" onclick="alert('Card marketplace coming soon!')">
+          <i class="fas fa-store"></i> Browse Marketplace
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="showCreateModal()">
+          <i class="fas fa-plus"></i> New Card
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="page-content">
+      <div class="content-wrapper">
+        <!-- Filters Bar -->
+        <div class="filters-bar">
+          <div class="filters-row">
+            <div class="filter-group">
+              <label>Category</label>
+              <select id="filterCategory" onchange="applyFilters()">
+                <option value="all">All Categories</option>
+                <option value="form">Form Components</option>
+                <option value="data">Data Display</option>
+                <option value="layout">Layout Components</option>
+                <option value="navigation">Navigation</option>
+                <option value="chart">Charts & Graphs</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Visibility</label>
+              <select id="filterVisibility" onchange="applyFilters()">
+                <option value="all">All Visibility</option>
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+                <option value="shared">Shared</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Sort By</label>
+              <select id="filterSort" onchange="applyFilters()">
+                <option value="name">Name</option>
+                <option value="downloads">Most Downloads</option>
+                <option value="rating">Highest Rated</option>
+                <option value="recent">Recently Added</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Search</label>
+              <input type="text" id="searchInput" placeholder="Search by name or description..." oninput="applyFilters()">
+            </div>
+            <div class="items-counter">
+              <span id="itemCount">0</span> cards
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Grid -->
+        <div id="cardsContainer" class="items-grid">
+          <!-- Loading state -->
+          <div class="loading-state" style="grid-column: 1 / -1;">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading cards...</p>
+          </div>
+        </div>
+
+        <!-- Empty State (hidden by default, shown by JS) -->
+        <div id="emptyState" class="empty-state d-none">
+          <i class="fas fa-clone"></i>
+          <h3>No Cards Found</h3>
+          <p>Create your first reusable card to get started</p>
+          <button class="btn btn-primary" onclick="showCreateModal()">
+            <i class="fas fa-plus"></i> Create Card
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Modal -->
+  <div id="createModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>New Reusable Card</h2>
+        <button class="btn-close" onclick="closeModal()"></button>
+      </div>
+      <form id="createForm" onsubmit="createCard(event)">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Name *</label>
+              <input type="text" id="cardName" required placeholder="my-card">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Display Name *</label>
+              <input type="text" id="cardDisplayName" required placeholder="My Card">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="cardDescription" rows="3" placeholder="Describe what this card does..."></textarea>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Category</label>
+              <select id="cardCategory">
+                <option value="form">Form Components</option>
+                <option value="data">Data Display</option>
+                <option value="layout">Layout Components</option>
+                <option value="navigation">Navigation</option>
+                <option value="chart">Charts & Graphs</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Visibility</label>
+              <select id="cardVisibility">
+                <option value="private">Private (Only me)</option>
+                <option value="shared">Shared (Specific users)</option>
+                <option value="public">Public (Everyone)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Version</label>
+          <input type="text" id="cardVersion" value="1.0.0" placeholder="1.0.0">
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Card</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    const APP_ID = '<%= appId || "" %>';
+    let allCards = [];
+    let filteredCards = [];
+
+    // Load cards on page load
+    async function loadCards() {
+      try {
+        const url = APP_ID && APP_ID !== 'null'
+          ? `/lowcode/api/cards?applicationId=${APP_ID}`
+          : '/lowcode/api/cards';
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          allCards = data.data || [];
+          applyFilters();
+        } else {
+          showError('Failed to load cards');
+        }
+      } catch (error) {
+        console.error('Failed to load cards:', error);
+        showError('Failed to load cards: ' + error.message);
+      }
+    }
+
+    // Apply filters
+    function applyFilters() {
+      const categoryFilter = document.getElementById('filterCategory').value;
+      const visibilityFilter = document.getElementById('filterVisibility').value;
+      const sortBy = document.getElementById('filterSort').value;
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+      filteredCards = allCards.filter(card => {
+        const matchesCategory = categoryFilter === 'all' || card.category === categoryFilter;
+        const matchesVisibility = visibilityFilter === 'all' || card.visibility === visibilityFilter;
+        const matchesSearch = !searchTerm ||
+          card.displayName.toLowerCase().includes(searchTerm) ||
+          card.name.toLowerCase().includes(searchTerm) ||
+          (card.description && card.description.toLowerCase().includes(searchTerm));
+
+        return matchesCategory && matchesVisibility && matchesSearch;
+      });
+
+      // Sort cards
+      filteredCards.sort((a, b) => {
+        switch (sortBy) {
+          case 'downloads':
+            return (b.downloads || 0) - (a.downloads || 0);
+          case 'rating':
+            return (b.rating || 0) - (a.rating || 0);
+          case 'recent':
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          case 'name':
+          default:
+            return (a.displayName || a.name).localeCompare(b.displayName || b.name);
+        }
+      });
+
+      renderCards();
+    }
+
+    // Render cards
+    function renderCards() {
+      const container = document.getElementById('cardsContainer');
+      const emptyState = document.getElementById('emptyState');
+      const counter = document.getElementById('itemCount');
+
+      counter.textContent = filteredCards.length;
+
+      if (filteredCards.length === 0) {
+        container.classList.add('d-none');
+        emptyState.classList.remove('d-none');
+        return;
+      }
+
+      container.classList.remove('d-none');
+      emptyState.classList.add('d-none');
+
+      container.innerHTML = filteredCards.map(card => `
+        <div class="item-card" onclick="editCard('${card.id}')">
+          <!-- Badge -->
+          <div class="card-badge badge-${card.visibility === 'public' ? 'success' : card.visibility === 'private' ? 'secondary' : 'info'}">
+            ${card.visibility}
+          </div>
+
+          <!-- Header -->
+          <div class="card-header">
+            <div class="card-icon ${getCardIconClass(card.category)}">
+              <i class="${getCardIcon(card.category)}"></i>
+            </div>
+            <div class="card-info">
+              <h3 class="card-title">${card.displayName || card.name}</h3>
+              <p class="card-description">${card.description || 'No description provided'}</p>
+              <div style="font-size: 0.75rem; color: #6c757d; margin-top: 0.5rem;">
+                <strong>v${card.version || '1.0.0'}</strong> &bull; ${card.category || 'General'}
+              </div>
+            </div>
+          </div>
+
+          <!-- Metadata -->
+          <div class="card-metadata">
+            <div class="metadata-item">
+              <i class="fas fa-users"></i>
+              <span>${card.usageCount || 0} uses</span>
+            </div>
+            <div class="metadata-item">
+              <i class="fas fa-download"></i>
+              <span>${card.downloads || 0} downloads</span>
+            </div>
+            <div class="metadata-item">
+              <span class="rating-stars">
+                ${generateStars(card.rating || 0)}
+              </span>
+              <span>${(card.rating || 0).toFixed(1)}</span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="card-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); editCard('${card.id}')">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn btn-outline-success btn-sm" onclick="event.stopPropagation(); duplicateCard('${card.id}')">
+              <i class="fas fa-copy"></i> Duplicate
+            </button>
+            <button class="btn btn-outline-info btn-sm" onclick="event.stopPropagation(); exportCard('${card.id}')">
+              <i class="fas fa-download"></i> Export
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation(); deleteCard('${card.id}')">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Helper functions
+    function getCardIcon(category) {
+      const icons = {
+        form: 'fa-wpforms',
+        data: 'fa-table',
+        layout: 'fa-th-large',
+        navigation: 'fa-compass',
+        chart: 'fa-chart-bar',
+        custom: 'fa-puzzle-piece'
+      };
+      return `fas ${icons[category] || 'fa-clone'}`;
+    }
+
+    function getCardIconClass(category) {
+      return `card-icon-${category || 'default'}`;
+    }
+
+    function generateStars(rating) {
+      const fullStars = Math.floor(rating);
+      const hasHalfStar = rating % 1 >= 0.5;
+      const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+      let stars = '';
+      for (let i = 0; i < fullStars; i++) stars += '<i class="fas fa-star"></i>';
+      if (hasHalfStar) stars += '<i class="fas fa-star-half-alt"></i>';
+      for (let i = 0; i < emptyStars; i++) stars += '<i class="far fa-star"></i>';
+
+      return stars;
+    }
+
+    function showError(message) {
+      const container = document.getElementById('cardsContainer');
+      container.innerHTML = `
+        <div class="empty-state" style="grid-column: 1 / -1;">
+          <i class="fas fa-exclamation-circle"></i>
+          <h3>Error Loading Cards</h3>
+          <p>${message}</p>
+          <button class="btn btn-primary mt-3" onclick="loadCards()">
+            <i class="fas fa-sync"></i> Retry
+          </button>
+        </div>
+      `;
+    }
+
+    // Modal functions
+    function showCreateModal() {
+      document.getElementById('createModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('createModal').classList.remove('active');
+      document.getElementById('createForm').reset();
+    }
+
+    // Card actions
+    async function createCard(event) {
+      event.preventDefault();
+
+      const payload = {
+        name: document.getElementById('cardName').value,
+        displayName: document.getElementById('cardDisplayName').value,
+        description: document.getElementById('cardDescription').value,
+        category: document.getElementById('cardCategory').value,
+        visibility: document.getElementById('cardVisibility').value,
+        version: document.getElementById('cardVersion').value,
+        definition: {}
+      };
+
+      if (APP_ID && APP_ID !== 'null') {
+        payload.applicationId = APP_ID;
+      }
+
+      try {
+        const response = await fetch('/lowcode/api/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeModal();
+          loadCards();
+        } else {
+          alert('Failed to create card: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    function editCard(id) {
+      window.location.href = `/lowcode/cards/${id}/edit`;
+    }
+
+    function duplicateCard(id) {
+      alert('Duplicate functionality coming soon!');
+    }
+
+    function exportCard(id) {
+      window.location.href = `/lowcode/api/cards/${id}/export`;
+    }
+
+    async function deleteCard(id) {
+      if (!confirm('Are you sure you want to delete this card? This action cannot be undone.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/lowcode/api/cards/${id}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          loadCards();
+        } else {
+          alert('Failed to delete card: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCards();
+    });
+  </script>
+</body>
+</html>

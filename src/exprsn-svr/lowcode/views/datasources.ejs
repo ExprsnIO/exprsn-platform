@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Socket.IO Client -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    .page-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .datasource-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      transition: all 0.2s;
+    }
+
+    .datasource-card:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .datasource-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 1rem;
+    }
+
+    .datasource-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ee9ae5 0%, #5961f9 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.5rem;
+      margin-right: 1rem;
+    }
+
+    .datasource-info {
+      flex: 1;
+    }
+
+    .datasource-info h3 {
+      margin: 0 0 0.5rem 0;
+      color: var(--text-primary);
+    }
+
+    .datasource-info p {
+      margin: 0 0 0.25rem 0;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .datasource-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .datasource-status.connected {
+      background: var(--success-color);
+      color: white;
+    }
+
+    .datasource-status.disconnected {
+      background: var(--danger-color);
+      color: white;
+    }
+
+    .datasource-status.testing {
+      background: var(--warning-color);
+      color: white;
+    }
+
+    .datasource-meta {
+      display: flex;
+      gap: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-top: 1rem;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .filter-tab {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-tab:hover {
+      border-color: var(--primary-color);
+    }
+
+    .filter-tab.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state i {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 800px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .form-group small {
+      display: block;
+      margin-top: 0.25rem;
+      color: var(--text-secondary);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 2rem;
+    }
+
+    .connection-fields {
+      display: none;
+      padding: 1rem;
+      background: var(--bg-primary);
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+
+    .connection-fields.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid p-0">
+    <div class="page-header">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h1><i class="fas fa-database"></i> Data Sources</h1>
+          <p>Connect to external databases, APIs, and data providers</p>
+        </div>
+        <div>
+          <button class="btn btn-secondary me-2" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i> Back
+          </button>
+          <button class="btn btn-primary" onclick="showCreateModal()">
+            <i class="fas fa-plus"></i> New Data Source
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="filter-tabs">
+        <div class="filter-tab active" onclick="filterByType('all')">
+          All Sources
+        </div>
+        <div class="filter-tab" onclick="filterByType('database')">
+          <i class="fas fa-database"></i> Database
+        </div>
+        <div class="filter-tab" onclick="filterByType('api')">
+          <i class="fas fa-plug"></i> REST API
+        </div>
+        <div class="filter-tab" onclick="filterByType('forge')">
+          <i class="fas fa-briefcase"></i> Forge CRM
+        </div>
+        <div class="filter-tab" onclick="filterByType('file')">
+          <i class="fas fa-file"></i> Files
+        </div>
+      </div>
+
+      <div id="datasourcesContainer">
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-3 text-secondary">Loading data sources...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Modal -->
+  <div id="createModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>New Data Source</h2>
+        <button class="btn-close" onclick="closeModal()"></button>
+      </div>
+      <form id="createForm" onsubmit="createDataSource(event)">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="dsName" required>
+        </div>
+        <div class="form-group">
+          <label>Type *</label>
+          <select id="dsType" onchange="updateConnectionFields()" required>
+            <option value="">Select type...</option>
+            <option value="postgresql">PostgreSQL Database</option>
+            <option value="mysql">MySQL Database</option>
+            <option value="mongodb">MongoDB Database</option>
+            <option value="rest">REST API</option>
+            <option value="soap">SOAP API</option>
+            <option value="graphql">GraphQL API</option>
+            <option value="forge">Forge CRM</option>
+            <option value="webhook">Webhook</option>
+            <option value="json">JSON File</option>
+            <option value="csv">CSV File</option>
+            <option value="xml">XML File</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="dsDescription" rows="2"></textarea>
+        </div>
+
+        <!-- Database Connection Fields -->
+        <div id="databaseFields" class="connection-fields">
+          <div class="form-group">
+            <label>Host *</label>
+            <input type="text" id="dbHost" placeholder="localhost">
+          </div>
+          <div class="form-group">
+            <label>Port *</label>
+            <input type="number" id="dbPort" placeholder="5432">
+          </div>
+          <div class="form-group">
+            <label>Database Name *</label>
+            <input type="text" id="dbName">
+          </div>
+          <div class="form-group">
+            <label>Username *</label>
+            <input type="text" id="dbUsername">
+          </div>
+          <div class="form-group">
+            <label>Password *</label>
+            <input type="password" id="dbPassword">
+          </div>
+          <div class="form-group">
+            <label>SSL Mode</label>
+            <select id="dbSslMode">
+              <option value="disable">Disable</option>
+              <option value="require">Require</option>
+              <option value="verify-ca">Verify CA</option>
+              <option value="verify-full">Verify Full</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- API Connection Fields -->
+        <div id="apiFields" class="connection-fields">
+          <div class="form-group">
+            <label>Base URL *</label>
+            <input type="url" id="apiUrl" placeholder="https://api.example.com">
+          </div>
+          <div class="form-group">
+            <label>Authentication Type</label>
+            <select id="apiAuthType">
+              <option value="none">None</option>
+              <option value="bearer">Bearer Token</option>
+              <option value="basic">Basic Auth</option>
+              <option value="apikey">API Key</option>
+              <option value="oauth2">OAuth 2.0</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>API Key / Token</label>
+            <input type="password" id="apiKey">
+            <small>Will be stored securely in Vault</small>
+          </div>
+          <div class="form-group">
+            <label>Headers (JSON)</label>
+            <textarea id="apiHeaders" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
+          </div>
+        </div>
+
+        <!-- Forge CRM Fields -->
+        <div id="forgeFields" class="connection-fields">
+          <div class="form-group">
+            <label>Forge Instance URL *</label>
+            <input type="url" id="forgeUrl" placeholder="http://localhost:3016">
+          </div>
+          <div class="form-group">
+            <label>Entity Type</label>
+            <select id="forgeEntity">
+              <option value="contact">Contacts</option>
+              <option value="account">Accounts</option>
+              <option value="lead">Leads</option>
+              <option value="opportunity">Opportunities</option>
+              <option value="case">Cases</option>
+              <option value="task">Tasks</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- File Fields -->
+        <div id="fileFields" class="connection-fields">
+          <div class="form-group">
+            <label>File Path / URL *</label>
+            <input type="text" id="filePath" placeholder="/path/to/file.json or https://...">
+          </div>
+          <div class="form-group">
+            <label>Refresh Interval (minutes)</label>
+            <input type="number" id="fileRefresh" value="5" min="1">
+            <small>How often to reload the file data</small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Connection Pool Settings</label>
+          <div class="row">
+            <div class="col-6">
+              <label>Min Connections</label>
+              <input type="number" id="poolMin" value="10" min="1">
+            </div>
+            <div class="col-6">
+              <label>Max Connections</label>
+              <input type="number" id="poolMax" value="30" min="1" max="100">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Cache TTL (seconds)</label>
+          <input type="number" id="cacheTtl" value="300" min="0">
+          <small>Query results cache duration (0 = no cache)</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="button" class="btn btn-info" onclick="testConnection()">
+            <i class="fas fa-plug"></i> Test Connection
+          </button>
+          <button type="submit" class="btn btn-primary">Create Data Source</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Edit Data Source</h2>
+        <button class="btn-close" onclick="closeEditModal()"></button>
+      </div>
+      <form id="editForm" onsubmit="updateDataSource(event)">
+        <input type="hidden" id="editDsId">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="editDsName" required>
+        </div>
+        <div class="form-group">
+          <label>Type *</label>
+          <select id="editDsType" onchange="updateEditConnectionFields()" required>
+            <option value="postgresql">PostgreSQL Database</option>
+            <option value="mysql">MySQL Database</option>
+            <option value="mongodb">MongoDB Database</option>
+            <option value="rest">REST API</option>
+            <option value="soap">SOAP API</option>
+            <option value="graphql">GraphQL API</option>
+            <option value="forge">Forge CRM</option>
+            <option value="webhook">Webhook</option>
+            <option value="json">JSON File</option>
+            <option value="csv">CSV File</option>
+            <option value="xml">XML File</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="editDsDescription" rows="2"></textarea>
+        </div>
+
+        <!-- Database Fields -->
+        <div id="editDatabaseFields" class="connection-fields">
+          <div class="form-group">
+            <label>Host *</label>
+            <input type="text" id="editDbHost">
+          </div>
+          <div class="form-group">
+            <label>Port *</label>
+            <input type="number" id="editDbPort">
+          </div>
+          <div class="form-group">
+            <label>Database Name *</label>
+            <input type="text" id="editDbName">
+          </div>
+          <div class="form-group">
+            <label>Username *</label>
+            <input type="text" id="editDbUsername">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="editDbPassword" placeholder="Leave blank to keep current">
+          </div>
+        </div>
+
+        <!-- API Fields -->
+        <div id="editApiFields" class="connection-fields">
+          <div class="form-group">
+            <label>Base URL *</label>
+            <input type="url" id="editApiUrl">
+          </div>
+          <div class="form-group">
+            <label>Authentication Type</label>
+            <select id="editApiAuthType">
+              <option value="none">None</option>
+              <option value="bearer">Bearer Token</option>
+              <option value="basic">Basic Auth</option>
+              <option value="apikey">API Key</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>API Key / Token</label>
+            <input type="password" id="editApiKey" placeholder="Leave blank to keep current">
+          </div>
+        </div>
+
+        <!-- Forge Fields -->
+        <div id="editForgeFields" class="connection-fields">
+          <div class="form-group">
+            <label>Forge Instance URL *</label>
+            <input type="url" id="editForgeUrl">
+          </div>
+          <div class="form-group">
+            <label>Entity Type</label>
+            <select id="editForgeEntity">
+              <option value="contact">Contacts</option>
+              <option value="account">Accounts</option>
+              <option value="lead">Leads</option>
+              <option value="opportunity">Opportunities</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- File Fields -->
+        <div id="editFileFields" class="connection-fields">
+          <div class="form-group">
+            <label>File Path / URL *</label>
+            <input type="text" id="editFilePath">
+          </div>
+          <div class="form-group">
+            <label>Refresh Interval (minutes)</label>
+            <input type="number" id="editFileRefresh" min="1">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Connection Pool Settings</label>
+          <div class="row">
+            <div class="col-6">
+              <label>Min Connections</label>
+              <input type="number" id="editPoolMin" min="1">
+            </div>
+            <div class="col-6">
+              <label>Max Connections</label>
+              <input type="number" id="editPoolMax" min="1" max="100">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Cache TTL (seconds)</label>
+          <input type="number" id="editCacheTtl" min="0">
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+          <button type="button" class="btn btn-info" onclick="testConnectionEdit()">
+            <i class="fas fa-plug"></i> Test Connection
+          </button>
+          <button type="submit" class="btn btn-primary">Update Data Source</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const APP_ID = '<%= appId %>' || null;
+    let datasources = [];
+    let currentFilter = 'all';
+
+    async function loadDataSources() {
+      try {
+        const url = APP_ID
+          ? `/lowcode/api/datasources?applicationId=${APP_ID}`
+          : '/lowcode/api/datasources';
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          datasources = data.data || [];
+          renderDataSources();
+        }
+      } catch (error) {
+        console.error('Failed to load data sources:', error);
+        document.getElementById('datasourcesContainer').innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-circle"></i>
+            <h3>Failed to load data sources</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function filterByType(type) {
+      currentFilter = type;
+
+      // Update active tab
+      document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.closest('.filter-tab').classList.add('active');
+
+      renderDataSources();
+    }
+
+    function renderDataSources() {
+      const container = document.getElementById('datasourcesContainer');
+      const filtered = currentFilter === 'all'
+        ? datasources
+        : datasources.filter(ds => ds.type === currentFilter || getTypeCategory(ds.type) === currentFilter);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-database"></i>
+            <h3>No data sources ${currentFilter !== 'all' ? 'of this type' : 'configured'}</h3>
+            <p>Connect your first data source to start building</p>
+            <button class="btn btn-primary mt-3" onclick="showCreateModal()">
+              <i class="fas fa-plus"></i> Add Data Source
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(ds => `
+        <div class="datasource-card">
+          <div class="d-flex">
+            <div class="datasource-icon">
+              <i class="${getTypeIcon(ds.type)}"></i>
+            </div>
+            <div class="datasource-header" style="flex: 1;">
+              <div class="datasource-info">
+                <h3>${ds.name}</h3>
+                <p>${ds.description || 'No description'}</p>
+                <p><strong>Type:</strong> ${ds.type} | <strong>Created:</strong> ${new Date(ds.createdAt).toLocaleDateString()}</p>
+              </div>
+              <span class="datasource-status ${ds.status}">${ds.status}</span>
+            </div>
+          </div>
+          <div class="datasource-meta">
+            <div class="meta-item">
+              <i class="fas fa-exchange-alt"></i>
+              <span>${ds.queryCount || 0} queries</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-clock"></i>
+              <span>${ds.cacheTtl || 0}s cache</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-link"></i>
+              <span>Pool: ${ds.poolMin || 0}-${ds.poolMax || 0}</span>
+            </div>
+          </div>
+          <div class="mt-3">
+            <button class="btn btn-sm btn-success me-2" onclick="testConnection('${ds.id}')">
+              <i class="fas fa-plug"></i> Test
+            </button>
+            <button class="btn btn-sm btn-primary me-2" onclick="editDataSource('${ds.id}')">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn btn-sm btn-info me-2" onclick="viewQueries('${ds.id}')">
+              <i class="fas fa-search"></i> Queries
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="deleteDataSource('${ds.id}')">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function getTypeCategory(type) {
+      const categories = {
+        postgresql: 'database',
+        mysql: 'database',
+        mongodb: 'database',
+        rest: 'api',
+        soap: 'api',
+        graphql: 'api',
+        forge: 'forge',
+        webhook: 'api',
+        json: 'file',
+        csv: 'file',
+        xml: 'file'
+      };
+      return categories[type] || 'database';
+    }
+
+    function getTypeIcon(type) {
+      const icons = {
+        postgresql: 'fa-database',
+        mysql: 'fa-database',
+        mongodb: 'fa-leaf',
+        rest: 'fa-plug',
+        soap: 'fa-envelope',
+        graphql: 'fa-project-diagram',
+        forge: 'fa-briefcase',
+        webhook: 'fa-webhook',
+        json: 'fa-file-code',
+        csv: 'fa-file-csv',
+        xml: 'fa-file-code'
+      };
+      return `fas ${icons[type] || 'fa-database'}`;
+    }
+
+    function showCreateModal() {
+      document.getElementById('createModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('createModal').classList.remove('active');
+      document.getElementById('createForm').reset();
+      hideAllConnectionFields();
+    }
+
+    function updateConnectionFields() {
+      const type = document.getElementById('dsType').value;
+      hideAllConnectionFields();
+
+      if (['postgresql', 'mysql', 'mongodb'].includes(type)) {
+        document.getElementById('databaseFields').classList.add('active');
+      } else if (['rest', 'soap', 'graphql', 'webhook'].includes(type)) {
+        document.getElementById('apiFields').classList.add('active');
+      } else if (type === 'forge') {
+        document.getElementById('forgeFields').classList.add('active');
+      } else if (['json', 'csv', 'xml'].includes(type)) {
+        document.getElementById('fileFields').classList.add('active');
+      }
+    }
+
+    function hideAllConnectionFields() {
+      document.querySelectorAll('.connection-fields').forEach(field => {
+        field.classList.remove('active');
+      });
+    }
+
+    async function testConnection(id = null) {
+      const url = id
+        ? `/lowcode/api/datasources/${id}/test`
+        : '/lowcode/api/datasources/test';
+
+      const payload = id ? {} : gatherFormData();
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('Connection successful!');
+        } else {
+          alert('Connection failed: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error testing connection: ' + error.message);
+      }
+    }
+
+    function gatherFormData() {
+      const type = document.getElementById('dsType').value;
+      const payload = {
+        name: document.getElementById('dsName').value,
+        type: type,
+        description: document.getElementById('dsDescription').value,
+        poolMin: parseInt(document.getElementById('poolMin').value),
+        poolMax: parseInt(document.getElementById('poolMax').value),
+        cacheTtl: parseInt(document.getElementById('cacheTtl').value),
+        config: {}
+      };
+
+      if (APP_ID) {
+        payload.applicationId = APP_ID;
+      }
+
+      // Add type-specific config
+      if (['postgresql', 'mysql', 'mongodb'].includes(type)) {
+        payload.config = {
+          host: document.getElementById('dbHost').value,
+          port: parseInt(document.getElementById('dbPort').value),
+          database: document.getElementById('dbName').value,
+          username: document.getElementById('dbUsername').value,
+          password: document.getElementById('dbPassword').value,
+          sslMode: document.getElementById('dbSslMode').value
+        };
+      } else if (['rest', 'soap', 'graphql', 'webhook'].includes(type)) {
+        payload.config = {
+          url: document.getElementById('apiUrl').value,
+          authType: document.getElementById('apiAuthType').value,
+          apiKey: document.getElementById('apiKey').value,
+          headers: document.getElementById('apiHeaders').value
+        };
+      } else if (type === 'forge') {
+        payload.config = {
+          url: document.getElementById('forgeUrl').value,
+          entity: document.getElementById('forgeEntity').value
+        };
+      } else if (['json', 'csv', 'xml'].includes(type)) {
+        payload.config = {
+          path: document.getElementById('filePath').value,
+          refreshInterval: parseInt(document.getElementById('fileRefresh').value)
+        };
+      }
+
+      return payload;
+    }
+
+    async function createDataSource(event) {
+      event.preventDefault();
+      const payload = gatherFormData();
+
+      try {
+        const response = await fetch('/lowcode/api/datasources', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeModal();
+          loadDataSources();
+        } else {
+          alert('Failed to create data source: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function editDataSource(id) {
+      const ds = datasources.find(d => d.id === id);
+      if (!ds) return;
+
+      // Populate form fields
+      document.getElementById('editDsId').value = ds.id;
+      document.getElementById('editDsName').value = ds.name;
+      document.getElementById('editDsType').value = ds.type;
+      document.getElementById('editDsDescription').value = ds.description || '';
+      document.getElementById('editPoolMin').value = ds.poolMin || 10;
+      document.getElementById('editPoolMax').value = ds.poolMax || 30;
+      document.getElementById('editCacheTtl').value = ds.cacheTtl || 0;
+
+      // Populate type-specific fields
+      if (['postgresql', 'mysql', 'mongodb'].includes(ds.type) && ds.config) {
+        document.getElementById('editDbHost').value = ds.config.host || '';
+        document.getElementById('editDbPort').value = ds.config.port || '';
+        document.getElementById('editDbName').value = ds.config.database || '';
+        document.getElementById('editDbUsername').value = ds.config.username || '';
+      } else if (['rest', 'soap', 'graphql', 'webhook'].includes(ds.type) && ds.config) {
+        document.getElementById('editApiUrl').value = ds.config.url || '';
+        document.getElementById('editApiAuthType').value = ds.config.authType || 'none';
+      } else if (ds.type === 'forge' && ds.config) {
+        document.getElementById('editForgeUrl').value = ds.config.url || '';
+        document.getElementById('editForgeEntity').value = ds.config.entity || 'contact';
+      } else if (['json', 'csv', 'xml'].includes(ds.type) && ds.config) {
+        document.getElementById('editFilePath').value = ds.config.path || '';
+        document.getElementById('editFileRefresh').value = ds.config.refreshInterval || 5;
+      }
+
+      // Show appropriate fields
+      updateEditConnectionFields();
+
+      // Show modal
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('active');
+      document.getElementById('editForm').reset();
+      hideAllEditConnectionFields();
+    }
+
+    function updateEditConnectionFields() {
+      const type = document.getElementById('editDsType').value;
+      hideAllEditConnectionFields();
+
+      if (['postgresql', 'mysql', 'mongodb'].includes(type)) {
+        document.getElementById('editDatabaseFields').classList.add('active');
+      } else if (['rest', 'soap', 'graphql', 'webhook'].includes(type)) {
+        document.getElementById('editApiFields').classList.add('active');
+      } else if (type === 'forge') {
+        document.getElementById('editForgeFields').classList.add('active');
+      } else if (['json', 'csv', 'xml'].includes(type)) {
+        document.getElementById('editFileFields').classList.add('active');
+      }
+    }
+
+    function hideAllEditConnectionFields() {
+      document.getElementById('editDatabaseFields').classList.remove('active');
+      document.getElementById('editApiFields').classList.remove('active');
+      document.getElementById('editForgeFields').classList.remove('active');
+      document.getElementById('editFileFields').classList.remove('active');
+    }
+
+    async function updateDataSource(event) {
+      event.preventDefault();
+      const id = document.getElementById('editDsId').value;
+      const type = document.getElementById('editDsType').value;
+
+      const payload = {
+        name: document.getElementById('editDsName').value,
+        type: type,
+        description: document.getElementById('editDsDescription').value,
+        poolMin: parseInt(document.getElementById('editPoolMin').value),
+        poolMax: parseInt(document.getElementById('editPoolMax').value),
+        cacheTtl: parseInt(document.getElementById('editCacheTtl').value),
+        config: {}
+      };
+
+      // Add type-specific config
+      if (['postgresql', 'mysql', 'mongodb'].includes(type)) {
+        payload.config = {
+          host: document.getElementById('editDbHost').value,
+          port: parseInt(document.getElementById('editDbPort').value),
+          database: document.getElementById('editDbName').value,
+          username: document.getElementById('editDbUsername').value
+        };
+        const password = document.getElementById('editDbPassword').value;
+        if (password) payload.config.password = password;
+      } else if (['rest', 'soap', 'graphql', 'webhook'].includes(type)) {
+        payload.config = {
+          url: document.getElementById('editApiUrl').value,
+          authType: document.getElementById('editApiAuthType').value
+        };
+        const apiKey = document.getElementById('editApiKey').value;
+        if (apiKey) payload.config.apiKey = apiKey;
+      } else if (type === 'forge') {
+        payload.config = {
+          url: document.getElementById('editForgeUrl').value,
+          entity: document.getElementById('editForgeEntity').value
+        };
+      } else if (['json', 'csv', 'xml'].includes(type)) {
+        payload.config = {
+          path: document.getElementById('editFilePath').value,
+          refreshInterval: parseInt(document.getElementById('editFileRefresh').value)
+        };
+      }
+
+      try {
+        const response = await fetch(`/lowcode/api/datasources/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeEditModal();
+          loadDataSources();
+        } else {
+          alert('Failed to update data source: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    function testConnectionEdit() {
+      const id = document.getElementById('editDsId').value;
+      testConnection(id);
+    }
+
+    function viewQueries(id) {
+      // Navigate to query builder (to be implemented)
+      window.location.href = `/lowcode/datasources/${id}/queries`;
+    }
+
+    async function deleteDataSource(id) {
+      if (!confirm('Are you sure you want to delete this data source?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/lowcode/api/datasources/${id}`, {
+          method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          loadDataSources();
+        } else {
+          alert('Failed to delete data source: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // Socket.IO Real-time Updates
+    let socket;
+
+    function initSocket() {
+      socket = io();
+
+      // Listen for datasource updates
+      socket.on('datasource:created', (data) => {
+        console.log('New datasource created:', data);
+        loadDataSources();
+      });
+
+      socket.on('datasource:updated', (data) => {
+        console.log('Datasource updated:', data);
+        loadDataSources();
+      });
+
+      socket.on('datasource:deleted', (data) => {
+        console.log('Datasource deleted:', data);
+        loadDataSources();
+      });
+
+      socket.on('datasource:status', (data) => {
+        console.log('Datasource status changed:', data);
+        // Update status in real-time without full reload
+        const ds = datasources.find(d => d.id === data.id);
+        if (ds) {
+          ds.status = data.status;
+          renderDataSources();
+        }
+      });
+
+      // Connection events
+      socket.on('connect', () => {
+        console.log('Socket.IO connected');
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Socket.IO disconnected');
+      });
+    }
+
+    // Load data sources and initialize socket on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDataSources();
+      initSocket();
+    });
+  </script>
+</body>
+</html>

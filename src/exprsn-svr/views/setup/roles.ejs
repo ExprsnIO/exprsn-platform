@@ -1,0 +1,130 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Role Management</h1>
+            <p class="page-subtitle">Define roles and assign permissions</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Create Role
+            </button>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Administrator</h3>
+                <span class="badge badge-primary">5 Users</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted" style="font-size: 0.875rem;">Full system access with all permissions</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                    <span class="badge badge-success">Read</span>
+                    <span class="badge badge-success">Write</span>
+                    <span class="badge badge-success">Delete</span>
+                    <span class="badge badge-success">Admin</span>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Edit</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Permissions</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Editor</h3>
+                <span class="badge badge-info">12 Users</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted" style="font-size: 0.875rem;">Can create and edit content</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                    <span class="badge badge-success">Read</span>
+                    <span class="badge badge-success">Write</span>
+                    <span class="badge badge-secondary">Delete</span>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Edit</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Permissions</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Viewer</h3>
+                <span class="badge badge-secondary">48 Users</span>
+            </div>
+            <div class="card-body">
+                <p class="text-muted" style="font-size: 0.875rem;">Read-only access to content</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                    <span class="badge badge-success">Read</span>
+                    <span class="badge badge-secondary">Write</span>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Edit</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Permissions</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Permission Matrix</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Permission</th>
+                            <th>Administrator</th>
+                            <th>Editor</th>
+                            <th>Viewer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Read Content</strong></td>
+                            <td><i class="bi bi-check-circle text-success"></i></td>
+                            <td><i class="bi bi-check-circle text-success"></i></td>
+                            <td><i class="bi bi-check-circle text-success"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Create Content</strong></td>
+                            <td><i class="bi bi-check-circle text-success"></i></td>
+                            <td><i class="bi bi-check-circle text-success"></i></td>
+                            <td><i class="bi bi-x-circle text-muted"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Delete Content</strong></td>
+                            <td><i class="bi bi-check-circle text-success"></i></td>
+                            <td><i class="bi bi-x-circle text-muted"></i></td>
+                            <td><i class="bi bi-x-circle text-muted"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Manage Users</strong></td>
+                            <td><i class="bi bi-check-circle text-success"></i></td>
+                            <td><i class="bi bi-x-circle text-muted"></i></td>
+                            <td><i class="bi bi-x-circle text-muted"></i></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

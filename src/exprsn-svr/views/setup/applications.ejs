@@ -1,0 +1,78 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Applications</h1>
+            <p class="page-subtitle">Manage installed applications and marketplace</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i>
+                Install App
+            </button>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width: 48px; height: 48px; background: var(--exprsn-gradient-primary); border-radius: var(--exprsn-radius-lg); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
+                        <i class="bi bi-briefcase"></i>
+                    </div>
+                    <div>
+                        <strong>Low-Code Platform</strong>
+                        <div class="text-muted" style="font-size: 0.8125rem;">v2.0.0</div>
+                    </div>
+                </div>
+                <p class="text-muted" style="font-size: 0.875rem;">Build applications with visual designers</p>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-success flex-fill">Launch</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width: 48px; height: 48px; background: var(--exprsn-gradient-warm); border-radius: var(--exprsn-radius-lg); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
+                        <i class="bi bi-diagram-3"></i>
+                    </div>
+                    <div>
+                        <strong>Workflow Designer</strong>
+                        <div class="text-muted" style="font-size: 0.8125rem;">v1.5.2</div>
+                    </div>
+                </div>
+                <p class="text-muted" style="font-size: 0.875rem;">Visual workflow automation builder</p>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-success flex-fill">Launch</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width: 48px; height: 48px; background: var(--exprsn-gradient-success); border-radius: var(--exprsn-radius-lg); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
+                        <i class="bi bi-database"></i>
+                    </div>
+                    <div>
+                        <strong>Database Admin</strong>
+                        <div class="text-muted" style="font-size: 0.8125rem;">v1.0.0</div>
+                    </div>
+                </div>
+                <p class="text-muted" style="font-size: 0.875rem;">Database management interface</p>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-sm btn-secondary flex-fill">Install</button>
+                    <button class="btn btn-sm btn-outline-primary flex-fill">Learn More</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

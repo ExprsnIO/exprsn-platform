@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Monaco Editor -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/editor/editor.main.css">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .designer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg-primary);
+      overflow: hidden;
+    }
+
+    /* Header */
+    .designer-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .form-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .form-name-input {
+      font-size: 1.25rem;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      padding: 0.25rem 0.5rem;
+      min-width: 200px;
+    }
+
+    .form-name-input:focus {
+      outline: 2px solid var(--primary-color);
+      border-radius: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Main Layout - 4 Panels */
+    .designer-main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr 380px;
+      grid-template-rows: 1fr 300px;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar - Toolbox */
+    .toolbox-panel {
+      grid-row: 1 / 3;
+      border-right: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .toolbox-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .toolbox-tab {
+      flex: 1;
+      padding: 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      background: var(--bg-primary);
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .toolbox-tab.active {
+      background: var(--bg-secondary);
+      color: var(--primary-color);
+      border-bottom: 2px solid var(--primary-color);
+    }
+
+    .toolbox-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    /* Component Groups */
+    .component-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .group-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.5px;
+    }
+
+    .component-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+
+    .component-item {
+      padding: 0.75rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: grab;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .component-item:hover {
+      border-color: var(--primary-color);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .component-item:active {
+      cursor: grabbing;
+    }
+
+    .component-icon {
+      font-size: 1.5rem;
+      color: var(--primary-color);
+      margin-bottom: 0.25rem;
+    }
+
+    .component-name {
+      font-size: 0.75rem;
+      color: var(--text-primary);
+    }
+
+    /* Center - Canvas */
+    .canvas-panel {
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .canvas-toolbar {
+      background: white;
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.5rem 1rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .canvas-container {
+      flex: 1;
+      overflow: auto;
+      padding: 2rem;
+      position: relative;
+    }
+
+    .form-canvas {
+      background: white;
+      min-height: 600px;
+      max-width: 1200px;
+      margin: 0 auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      padding: 2rem;
+      position: relative;
+    }
+
+    .form-canvas.empty::before {
+      content: 'Drag components here to build your form';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--text-secondary);
+      font-size: 1.25rem;
+      text-align: center;
+    }
+
+    /* Dropped Components */
+    .form-component {
+      position: relative;
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      border: 2px dashed transparent;
+      border-radius: 4px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .form-component:hover {
+      border-color: var(--primary-color);
+      border-style: dashed;
+      background: rgba(0, 120, 212, 0.03);
+    }
+
+    .form-component.selected {
+      border-color: var(--primary-color);
+      border-style: solid;
+      border-width: 3px;
+      background: rgba(0, 120, 212, 0.08);
+      box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+    }
+
+    /* Prevent text selection on component wrapper */
+    .form-component {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+
+    /* Re-enable text selection for actual form inputs */
+    .form-component input,
+    .form-component textarea,
+    .form-component select {
+      user-select: text;
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      pointer-events: auto;
+    }
+
+    .component-controls {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      display: none;
+      gap: 0.25rem;
+      z-index: 10;
+    }
+
+    .form-component:hover .component-controls,
+    .form-component.selected .component-controls {
+      display: flex;
+    }
+
+    .control-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      color: white;
+      border: 2px solid white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s;
+    }
+
+    .control-btn:hover {
+      background: #005a9e;
+      transform: scale(1.1);
+    }
+
+    /* Right Sidebar - Properties */
+    .properties-panel {
+      grid-row: 1 / 3;
+      border-left: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .properties-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .property-group {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: var(--bg-primary);
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .property-group-title {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-color);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .property-group-title::before {
+      content: '';
+      width: 4px;
+      height: 16px;
+      background: var(--primary-color);
+      border-radius: 2px;
+    }
+
+    .property-field {
+      margin-bottom: 1rem;
+    }
+
+    .property-field:last-child {
+      margin-bottom: 0;
+    }
+
+    .property-label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.375rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .property-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background: white;
+      color: var(--text-primary);
+      transition: all 0.2s;
+    }
+
+    .property-input:hover {
+      border-color: var(--primary-color);
+    }
+
+    .property-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+    }
+
+    .property-input[type="checkbox"] {
+      width: auto;
+      margin-right: 0.5rem;
+    }
+
+    /* Bottom Panel - Code Editor */
+    .code-panel {
+      grid-column: 2;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .code-tabs {
+      display: flex;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .code-tab {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .code-tab.active {
+      color: var(--primary-color);
+      background: var(--bg-secondary);
+    }
+
+    #codeEditor {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Drag Over State */
+    .drag-over {
+      border: 2px dashed var(--primary-color);
+      background: rgba(0, 120, 212, 0.05);
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="designer-container">
+    <!-- Header -->
+    <header class="designer-header">
+      <div class="form-info">
+        <input
+          type="text"
+          id="formDisplayName"
+          class="form-name-input"
+          placeholder="Form Name"
+          value="<%= form ? form.displayName : 'New Form' %>">
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" onclick="window.location.href='/lowcode/designer?appId=<%= appId %>'">
+          <i class="fas fa-arrow-left"></i> Back
+        </button>
+        <button class="btn btn-secondary" id="previewBtn">
+          <i class="fas fa-eye"></i> Preview
+        </button>
+        <button class="btn btn-secondary" id="saveBtn">
+          <i class="fas fa-save"></i> Save
+        </button>
+        <button class="btn btn-primary" id="publishBtn">
+          <i class="fas fa-rocket"></i> Publish
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Designer Layout -->
+    <main class="designer-main">
+      <!-- Left Sidebar - Toolbox -->
+      <aside class="toolbox-panel">
+        <div class="panel-header">
+          <span>Components</span>
+        </div>
+        <div class="toolbox-tabs">
+          <button class="toolbox-tab active" data-tab="basic">Basic</button>
+          <button class="toolbox-tab" data-tab="data">Data</button>
+          <button class="toolbox-tab" data-tab="layout">Layout</button>
+        </div>
+        <div class="toolbox-content" id="toolboxContent">
+          <!-- Components will be loaded here -->
+        </div>
+      </aside>
+
+      <!-- Center - Canvas -->
+      <div class="canvas-panel">
+        <div class="canvas-toolbar">
+          <button class="btn btn-sm" id="undoBtn" title="Undo">
+            <i class="fas fa-undo"></i>
+          </button>
+          <button class="btn btn-sm" id="redoBtn" title="Redo">
+            <i class="fas fa-redo"></i>
+          </button>
+          <div style="width: 1px; height: 20px; background: var(--border-color); margin: 0 0.5rem;"></div>
+          <select id="formTypeSelect" class="property-input" style="width: auto;">
+            <option value="standard">Standard Form</option>
+            <option value="data-browser">Data Browser</option>
+            <option value="crud">CRUD Interface</option>
+            <option value="wizard">Wizard</option>
+            <option value="dashboard">Dashboard</option>
+          </select>
+        </div>
+        <div class="canvas-container">
+          <div class="form-canvas empty" id="formCanvas">
+            <!-- Form components will be dropped here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar - Properties -->
+      <aside class="properties-panel">
+        <div class="panel-header">
+          <span>Properties</span>
+        </div>
+        <div class="properties-content" id="propertiesContent">
+          <div class="property-group">
+            <div class="property-group-title">Form Settings</div>
+            <p style="color: var(--text-secondary); font-size: 0.875rem;">
+              Select a component to edit its properties
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Bottom Panel - Code Editor -->
+      <div class="code-panel">
+        <div class="panel-header">
+          <span>Code & Functions</span>
+          <button class="btn btn-sm" id="addFunctionBtn">
+            <i class="fas fa-plus"></i> Add Function
+          </button>
+        </div>
+        <div class="code-tabs">
+          <button class="code-tab active" data-code-tab="functions">Custom Functions</button>
+          <button class="code-tab" data-code-tab="events">Event Handlers</button>
+          <button class="code-tab" data-code-tab="variables">Variables</button>
+          <button class="code-tab" data-code-tab="permissions">Permissions</button>
+          <button class="code-tab" data-code-tab="workflow">Workflows</button>
+          <button class="code-tab" data-code-tab="forge">Forge CRM</button>
+          <button class="code-tab" data-code-tab="json">Form JSON</button>
+        </div>
+        <div id="codeEditor"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Global state
+    window.FORM_DESIGNER_STATE = {
+      appId: '<%= appId %>',
+      formId: '<%= form ? form.id : null %>',
+      form: <%= form ? JSON.stringify(form) : 'null' %>,
+      selectedComponent: null,
+      components: [],
+      customFunctions: {},
+      variables: {},
+      isDirty: false
+    };
+  </script>
+
+  <!-- Monaco Editor -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+
+  <!-- Form Designer Modules -->
+  <script src="/lowcode/static/js/form-data-binding.js"></script>
+  <script src="/lowcode/static/js/form-event-handlers.js"></script>
+  <script src="/lowcode/static/js/form-permissions.js"></script>
+  <script src="/lowcode/static/js/form-workflow.js"></script>
+  <script src="/lowcode/static/js/form-forge.js"></script>
+  <script src="/lowcode/static/js/form-designer.js"></script>
+</body>
+</html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compare Application Dashboards</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+        }
+
+        .comparison-card {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 3rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6c757d;
+            margin-bottom: 3rem;
+        }
+
+        .version-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 2rem;
+        }
+
+        .version-option {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 1rem;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 3px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .version-option::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .version-option:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+            border-color: #667eea;
+        }
+
+        .version-option:hover::before {
+            opacity: 1;
+        }
+
+        .version-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .version-badge.v1 {
+            background: #4299e1;
+            color: white;
+        }
+
+        .version-badge.v2 {
+            background: #48bb78;
+            color: white;
+        }
+
+        .version-badge.new {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .version-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .version-description {
+            color: #4a5568;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #2d3748;
+        }
+
+        .feature-list i {
+            color: #48bb78;
+            font-size: 1.125rem;
+        }
+
+        .btn-view {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            font-size: 1.125rem;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .btn-view:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .comparison-table {
+            margin-top: 3rem;
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+
+        .comparison-table table {
+            width: 100%;
+            margin: 0;
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .check-icon {
+            color: #48bb78;
+            font-size: 1.25rem;
+        }
+
+        .x-icon {
+            color: #f56565;
+            font-size: 1.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="comparison-card">
+            <h1><i class="bi bi-grid-3x3-gap"></i> Applications Dashboard Comparison</h1>
+            <p class="subtitle">Choose which version you'd like to explore</p>
+
+            <div class="version-grid">
+                <!-- Version 1 -->
+                <div class="version-option" onclick="window.location.href='/lowcode/applications?version=v1'">
+                    <span class="version-badge v1">Version 1</span>
+                    <h2 class="version-title">Original Wizard Interface</h2>
+                    <p class="version-description">
+                        The original interface focused on creating new applications through a comprehensive 9-step wizard.
+                    </p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check-circle-fill"></i> 9-step wizard for app creation</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Git integration setup</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Template selection</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Data source configuration</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Basic grid view</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Search and filters</li>
+                    </ul>
+                    <a href="/lowcode/applications?version=v1" class="btn-view">
+                        <i class="bi bi-box-arrow-up-right"></i> View Version 1
+                    </a>
+                </div>
+
+                <!-- Version 2 -->
+                <div class="version-option" onclick="window.location.href='/lowcode/applications?version=v2'">
+                    <span class="version-badge new">Version 2 ✨ NEW</span>
+                    <h2 class="version-title">Modern Dashboard</h2>
+                    <p class="version-description">
+                        A complete redesign with modern UI, enhanced navigation, and powerful features for managing applications.
+                    </p>
+                    <ul class="feature-list">
+                        <li><i class="bi bi-check-circle-fill"></i> Left sidebar navigation</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Favorites/pinning system</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Grid + Table view modes</li>
+                        <li><i class="bi bi-check-circle-fill"></i> User menu & profile</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Enhanced dark mode</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Advanced search & filters</li>
+                        <li><i class="bi bi-check-circle-fill"></i> Rich application cards</li>
+                        <li><i class="bi bi-check-circle-fill"></i> LocalStorage persistence</li>
+                    </ul>
+                    <a href="/lowcode/applications?version=v2" class="btn-view">
+                        <i class="bi bi-stars"></i> View Version 2
+                    </a>
+                </div>
+            </div>
+
+            <!-- Detailed Comparison Table -->
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">Feature</th>
+                            <th style="text-align: center;">Version 1</th>
+                            <th style="text-align: center;">Version 2</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Primary Purpose</strong></td>
+                            <td>Create applications (wizard)</td>
+                            <td>Browse & manage apps</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Sidebar Navigation</strong></td>
+                            <td style="text-align: center;"><i class="bi bi-x-circle-fill x-icon"></i></td>
+                            <td style="text-align: center;"><i class="bi bi-check-circle-fill check-icon"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Favorites/Pinning</strong></td>
+                            <td style="text-align: center;"><i class="bi bi-x-circle-fill x-icon"></i></td>
+                            <td style="text-align: center;"><i class="bi bi-check-circle-fill check-icon"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>View Modes</strong></td>
+                            <td>Grid only</td>
+                            <td>Grid + Table</td>
+                        </tr>
+                        <tr>
+                            <td><strong>User Menu</strong></td>
+                            <td>Basic</td>
+                            <td>Profile, switch user, logout</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Theme Support</strong></td>
+                            <td style="text-align: center;"><i class="bi bi-check-circle-fill check-icon"></i></td>
+                            <td style="text-align: center;"><i class="bi bi-check-circle-fill check-icon"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Search & Filters</strong></td>
+                            <td>Basic</td>
+                            <td>Real-time with status & sort</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Application Cards</strong></td>
+                            <td>Simple</td>
+                            <td>Rich with actions</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Responsive Design</strong></td>
+                            <td style="text-align: center;"><i class="bi bi-check-circle-fill check-icon"></i></td>
+                            <td style="text-align: center;"><i class="bi bi-check-circle-fill check-icon"></i></td>
+                        </tr>
+                        <tr>
+                            <td><strong>LocalStorage Persistence</strong></td>
+                            <td>Theme only</td>
+                            <td>Theme, favorites, view mode</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 2rem; padding: 1.5rem; background: #f7fafc; border-radius: 0.75rem; border-left: 4px solid #667eea;">
+                <h4 style="margin-bottom: 0.5rem;"><i class="bi bi-info-circle"></i> Quick Access</h4>
+                <p style="margin: 0; color: #4a5568;">
+                    <strong>Version 1:</strong> <code>https://localhost:5001/lowcode/applications</code> or <code>?version=v1</code><br>
+                    <strong>Version 2:</strong> <code>https://localhost:5001/lowcode/applications?version=v2</code>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

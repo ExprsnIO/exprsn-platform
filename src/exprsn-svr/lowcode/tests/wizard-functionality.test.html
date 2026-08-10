@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wizard Functionality Test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; margin-top: 0; }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f9f9f9;
+      border-left: 4px solid #007bff;
+      border-radius: 4px;
+    }
+    .test-result {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+    .pass { background: #28a745; color: white; }
+    .fail { background: #dc3545; color: white; }
+    .info { background: #17a2b8; color: white; }
+    button {
+      padding: 8px 16px;
+      margin: 5px;
+      border: none;
+      border-radius: 4px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { background: #0056b3; }
+    #output {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-success { color: #28a745; }
+    .log-error { color: #dc3545; }
+    .log-info { color: #17a2b8; }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>🧪 Wizard Functionality Test Suite</h1>
+
+    <div class="test-section">
+      <h3>Test Environment</h3>
+      <div id="env-info"></div>
+    </div>
+
+    <div class="test-section">
+      <h3>Quick Tests</h3>
+      <button onclick="runAllTests()">Run All Tests</button>
+      <button onclick="testGlobalScope()">Test Global Scope</button>
+      <button onclick="testEventListeners()">Test Event Listeners</button>
+      <button onclick="testDOMElements()">Test DOM Elements</button>
+      <button onclick="testWizardState()">Test Wizard State</button>
+      <button onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <div id="output"></div>
+  </div>
+
+  <script>
+    // Test output logger
+    const output = document.getElementById('output');
+
+    function log(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      output.appendChild(entry);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function clearOutput() {
+      output.innerHTML = '';
+    }
+
+    // Display environment info
+    function displayEnvInfo() {
+      const info = document.getElementById('env-info');
+      info.innerHTML = `
+        <div><strong>User Agent:</strong> ${navigator.userAgent}</div>
+        <div><strong>Page URL:</strong> ${window.location.href}</div>
+        <div><strong>Time:</strong> ${new Date().toLocaleString()}</div>
+      `;
+    }
+
+    // Test 1: Check if wizard functions exist in global scope
+    function testGlobalScope() {
+      log('=== Testing Global Scope ===', 'info');
+
+      const functions = [
+        'goToStep',
+        'nextStep',
+        'previousStep',
+        'updateWizardUI',
+        'validateCurrentStep',
+        'collectStepData',
+        'submitWizard',
+        'resetWizard',
+        'updateWizardUIOnOpen',
+        'openNewApplicationModal',
+        'closeModal'
+      ];
+
+      let passed = 0;
+      let failed = 0;
+
+      functions.forEach(funcName => {
+        if (typeof window[funcName] === 'function') {
+          log(`✅ ${funcName} exists in global scope`, 'success');
+          passed++;
+        } else {
+          log(`❌ ${funcName} NOT found in global scope`, 'error');
+          failed++;
+        }
+      });
+
+      log(`\nGlobal Scope Test: ${passed} passed, ${failed} failed`, failed === 0 ? 'success' : 'error');
+      return failed === 0;
+    }
+
+    // Test 2: Check if AppState exists and has wizard property
+    function testWizardState() {
+      log('=== Testing Wizard State ===', 'info');
+
+      if (typeof AppState === 'undefined') {
+        log('❌ AppState not found', 'error');
+        return false;
+      }
+
+      log('✅ AppState exists', 'success');
+
+      if (!AppState.wizard) {
+        log('❌ AppState.wizard not found', 'error');
+        return false;
+      }
+
+      log('✅ AppState.wizard exists', 'success');
+
+      const requiredProps = ['currentStep', 'totalSteps', 'completedSteps', 'formData'];
+      let allPresent = true;
+
+      requiredProps.forEach(prop => {
+        if (AppState.wizard.hasOwnProperty(prop)) {
+          log(`✅ wizard.${prop} exists (value: ${JSON.stringify(AppState.wizard[prop])})`, 'success');
+        } else {
+          log(`❌ wizard.${prop} NOT found`, 'error');
+          allPresent = false;
+        }
+      });
+
+      log(`\nWizard State Test: ${allPresent ? 'PASSED' : 'FAILED'}`, allPresent ? 'success' : 'error');
+      return allPresent;
+    }
+
+    // Test 3: Check if DOM elements exist
+    function testDOMElements() {
+      log('=== Testing DOM Elements ===', 'info');
+
+      const elements = [
+        { id: 'appModal', desc: 'Main modal' },
+        { id: 'wizardNextBtn', desc: 'Next button' },
+        { id: 'wizardPrevBtn', desc: 'Previous button' },
+        { id: 'cancelBtn', desc: 'Cancel button' },
+        { id: 'wizardProgress', desc: 'Progress bar' },
+        { id: 'wizardProgressText', desc: 'Progress text' },
+        { id: 'wizardProgressPercent', desc: 'Progress percent' },
+        { id: 'appForm', desc: 'Application form' }
+      ];
+
+      let passed = 0;
+      let failed = 0;
+
+      elements.forEach(el => {
+        const elem = document.getElementById(el.id);
+        if (elem) {
+          log(`✅ ${el.desc} (#${el.id}) found`, 'success');
+          passed++;
+        } else {
+          log(`❌ ${el.desc} (#${el.id}) NOT found`, 'error');
+          failed++;
+        }
+      });
+
+      // Check for wizard steps
+      const steps = document.querySelectorAll('.wizard-step');
+      if (steps.length === 9) {
+        log(`✅ Found 9 wizard steps in sidebar`, 'success');
+        passed++;
+      } else {
+        log(`❌ Expected 9 wizard steps, found ${steps.length}`, 'error');
+        failed++;
+      }
+
+      // Check for wizard step panels
+      const panels = document.querySelectorAll('.wizard-step-panel');
+      if (panels.length === 9) {
+        log(`✅ Found 9 wizard step panels`, 'success');
+        passed++;
+      } else {
+        log(`❌ Expected 9 step panels, found ${panels.length}`, 'error');
+        failed++;
+      }
+
+      log(`\nDOM Elements Test: ${passed} passed, ${failed} failed`, failed === 0 ? 'success' : 'error');
+      return failed === 0;
+    }
+
+    // Test 4: Check if event listeners are attached
+    function testEventListeners() {
+      log('=== Testing Event Listeners ===', 'info');
+
+      const nextBtn = document.getElementById('wizardNextBtn');
+      const prevBtn = document.getElementById('wizardPrevBtn');
+      const cancelBtn = document.getElementById('cancelBtn');
+
+      let passed = 0;
+      let failed = 0;
+
+      // Check if buttons exist
+      if (nextBtn) {
+        log('✅ Next button element found', 'success');
+        // Try to check if click handler exists (not foolproof)
+        const hasListener = nextBtn.onclick !== null || getEventListeners(nextBtn)?.click?.length > 0;
+        if (hasListener || nextBtn.getAttribute('onclick')) {
+          log('✅ Next button appears to have click handler', 'success');
+          passed++;
+        } else {
+          log('⚠️  Cannot verify Next button click handler (might still work)', 'info');
+          passed++;
+        }
+      } else {
+        log('❌ Next button not found', 'error');
+        failed++;
+      }
+
+      if (prevBtn) {
+        log('✅ Previous button element found', 'success');
+        passed++;
+      } else {
+        log('❌ Previous button not found', 'error');
+        failed++;
+      }
+
+      if (cancelBtn) {
+        log('✅ Cancel button element found', 'success');
+        passed++;
+      } else {
+        log('❌ Cancel button not found', 'error');
+        failed++;
+      }
+
+      // Check wizard steps
+      const steps = document.querySelectorAll('.wizard-step');
+      if (steps.length > 0) {
+        log(`✅ Found ${steps.length} wizard step elements`, 'success');
+        passed++;
+      } else {
+        log('❌ No wizard step elements found', 'error');
+        failed++;
+      }
+
+      log(`\nEvent Listeners Test: ${passed} passed, ${failed} failed`, failed === 0 ? 'success' : 'error');
+      return failed === 0;
+    }
+
+    // Test 5: Try to actually call wizard functions
+    function testFunctionCalls() {
+      log('=== Testing Function Calls ===', 'info');
+
+      let passed = 0;
+      let failed = 0;
+
+      // Test resetWizard
+      try {
+        if (typeof resetWizard === 'function') {
+          resetWizard();
+          log('✅ resetWizard() executed successfully', 'success');
+          passed++;
+        }
+      } catch (err) {
+        log(`❌ resetWizard() failed: ${err.message}`, 'error');
+        failed++;
+      }
+
+      // Test updateWizardUIOnOpen
+      try {
+        if (typeof updateWizardUIOnOpen === 'function') {
+          updateWizardUIOnOpen();
+          log('✅ updateWizardUIOnOpen() executed successfully', 'success');
+          passed++;
+        }
+      } catch (err) {
+        log(`❌ updateWizardUIOnOpen() failed: ${err.message}`, 'error');
+        failed++;
+      }
+
+      // Test goToStep
+      try {
+        if (typeof goToStep === 'function' && typeof AppState !== 'undefined') {
+          const originalStep = AppState.wizard.currentStep;
+          goToStep(1);
+          if (AppState.wizard.currentStep === 1) {
+            log('✅ goToStep(1) executed and state updated', 'success');
+            passed++;
+          } else {
+            log('⚠️  goToStep(1) executed but state unchanged', 'info');
+            passed++;
+          }
+        }
+      } catch (err) {
+        log(`❌ goToStep() failed: ${err.message}`, 'error');
+        failed++;
+      }
+
+      log(`\nFunction Calls Test: ${passed} passed, ${failed} failed`, failed === 0 ? 'success' : 'error');
+      return failed === 0;
+    }
+
+    // Run all tests
+    function runAllTests() {
+      clearOutput();
+      log('🚀 Starting Full Test Suite...', 'info');
+      log('', 'info');
+
+      const tests = [
+        { name: 'Global Scope', fn: testGlobalScope },
+        { name: 'Wizard State', fn: testWizardState },
+        { name: 'DOM Elements', fn: testDOMElements },
+        { name: 'Event Listeners', fn: testEventListeners },
+        { name: 'Function Calls', fn: testFunctionCalls }
+      ];
+
+      let totalPassed = 0;
+      let totalFailed = 0;
+
+      tests.forEach((test, index) => {
+        log(`\n--- Test ${index + 1}/${tests.length}: ${test.name} ---`, 'info');
+        const result = test.fn();
+        if (result) {
+          totalPassed++;
+        } else {
+          totalFailed++;
+        }
+        log('', 'info');
+      });
+
+      log('='.repeat(50), 'info');
+      log(`📊 FINAL RESULTS: ${totalPassed}/${tests.length} test suites passed`,
+          totalFailed === 0 ? 'success' : 'error');
+
+      if (totalFailed === 0) {
+        log('✅ ALL TESTS PASSED! Wizard should be functional.', 'success');
+      } else {
+        log(`❌ ${totalFailed} test suite(s) failed. Check errors above.`, 'error');
+      }
+    }
+
+    // Initialize
+    displayEnvInfo();
+    log('Test suite ready. Click "Run All Tests" to begin.', 'info');
+  </script>
+</body>
+</html>

@@ -1,0 +1,450 @@
+<%
+    const title = 'Security Scanning';
+    const currentPath = '/lowcode/git/security';
+%>
+<%- include('./partials/git-header') %>
+<%- include('./partials/git-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-bug me-2"></i>
+                Security Scanning
+            </h1>
+            <p class="page-subtitle">Vulnerability management, SAST, dependency scanning, and compliance</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh Scans
+            </button>
+            <button class="btn btn-primary" onclick="runSecurityScan()">
+                <i class="bi bi-shield-check"></i>
+                Run Full Scan
+            </button>
+        </div>
+    </div>
+
+    <!-- Security Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">A+</div>
+                <div class="stat-label">Security Grade</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    Excellent
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon danger">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">0</div>
+                <div class="stat-label">Critical Issues</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-check-circle"></i>
+                    No issues
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-shield-exclamation"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">2</div>
+                <div class="stat-label">Medium Severity</div>
+                <div class="stat-change">
+                    Requires attention
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">2h ago</div>
+                <div class="stat-label">Last Scan</div>
+                <div class="stat-change">
+                    Automatic scan
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vulnerability Scan Results -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-bug-fill me-2"></i>
+                Vulnerability Scan Results
+            </h3>
+            <span class="badge badge-success">2 Issues Found</span>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>CVE ID</th>
+                            <th>Package</th>
+                            <th>Vulnerability</th>
+                            <th class="sortable">Score (CVSS)</th>
+                            <th>Fix Available</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-warning">Medium</span></td>
+                            <td><code>CVE-2024-12345</code></td>
+                            <td><strong>axios@0.21.0</strong></td>
+                            <td>Server-Side Request Forgery (SSRF)</td>
+                            <td>5.8</td>
+                            <td><span class="badge badge-success">Yes (1.2.1)</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Fix">
+                                        <i class="bi bi-wrench"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Ignore">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">Medium</span></td>
+                            <td><code>CVE-2024-67890</code></td>
+                            <td><strong>lodash@4.17.20</strong></td>
+                            <td>Prototype Pollution</td>
+                            <td>5.3</td>
+                            <td><span class="badge badge-success">Yes (4.17.21)</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Fix">
+                                        <i class="bi bi-wrench"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Ignore">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <!-- SAST Configuration -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-code-slash me-2"></i>
+                        SAST Configuration
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Static Application Security Testing settings</p>
+                    <div class="form-group">
+                        <label class="form-label">Scan Trigger</label>
+                        <select class="form-control form-select">
+                            <option selected>On Every Push</option>
+                            <option>On Pull Request</option>
+                            <option>Manual Only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Severity Threshold</label>
+                        <select class="form-control form-select">
+                            <option>Critical Only</option>
+                            <option selected>High and Above</option>
+                            <option>Medium and Above</option>
+                            <option>All Severities</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <div class="d-flex flex-column gap-2">
+                            <div>
+                                <input type="checkbox" id="sast-fail-build" checked>
+                                <label for="sast-fail-build">Fail build on findings</label>
+                            </div>
+                            <div>
+                                <input type="checkbox" id="sast-notify">
+                                <label for="sast-notify">Email notifications</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dependency Scanning -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-box-seam me-2"></i>
+                        Dependency Scanning
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Third-party dependency vulnerability checks</p>
+                    <div class="form-group">
+                        <label class="form-label">Update Policy</label>
+                        <select class="form-control form-select">
+                            <option>Manual Review</option>
+                            <option selected>Auto-update Patches</option>
+                            <option>Auto-update Minor</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Scan Frequency</label>
+                        <select class="form-control form-select">
+                            <option>Daily</option>
+                            <option selected>Weekly</option>
+                            <option>Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <div class="d-flex flex-column gap-2">
+                            <div>
+                                <input type="checkbox" id="dep-auto-pr" checked>
+                                <label for="dep-auto-pr">Auto-create PRs for updates</label>
+                            </div>
+                            <div>
+                                <input type="checkbox" id="dep-license-check" checked>
+                                <label for="dep-license-check">License compatibility check</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secret Detection -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-key me-2"></i>
+                Secret Detection Rules
+            </h3>
+            <button class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-circle"></i>
+                Add Rule
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Rule Name</th>
+                            <th>Pattern Type</th>
+                            <th>Status</th>
+                            <th>Detections (30d)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>AWS Access Keys</strong></td>
+                            <td><span class="badge badge-primary">Regex</span></td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td>0</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Disable">
+                                        <i class="bi bi-pause-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Private Keys</strong></td>
+                            <td><span class="badge badge-primary">Regex</span></td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td>0</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Disable">
+                                        <i class="bi bi-pause-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>API Tokens</strong></td>
+                            <td><span class="badge badge-primary">Regex</span></td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td>0</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Disable">
+                                        <i class="bi bi-pause-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compliance Policies -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-shield-fill-check me-2"></i>
+                Compliance Policies
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex justify-content-between align-items-center p-3" style="background: var(--exprsn-bg-secondary); border-radius: var(--exprsn-radius-lg);">
+                        <div>
+                            <strong>OWASP Top 10</strong>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">Web application security risks</p>
+                        </div>
+                        <span class="badge badge-success">Compliant</span>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex justify-content-between align-items-center p-3" style="background: var(--exprsn-bg-secondary); border-radius: var(--exprsn-radius-lg);">
+                        <div>
+                            <strong>CWE Top 25</strong>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">Common weakness enumeration</p>
+                        </div>
+                        <span class="badge badge-success">Compliant</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center p-3" style="background: var(--exprsn-bg-secondary); border-radius: var(--exprsn-radius-lg);">
+                        <div>
+                            <strong>PCI DSS</strong>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">Payment card industry standard</p>
+                        </div>
+                        <span class="badge badge-success">Compliant</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center p-3" style="background: var(--exprsn-bg-secondary); border-radius: var(--exprsn-radius-lg);">
+                        <div>
+                            <strong>SOC 2</strong>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">Service organization controls</p>
+                        </div>
+                        <span class="badge badge-success">Compliant</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scan History -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-clock-history me-2"></i>
+                Scan History
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Scan Type</th>
+                            <th class="sortable">Started</th>
+                            <th>Duration</th>
+                            <th>Findings</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Full Security Scan</strong></td>
+                            <td>2025-12-27 10:00</td>
+                            <td>15m 32s</td>
+                            <td>
+                                <span class="badge badge-warning">2 Medium</span>
+                            </td>
+                            <td><span class="badge badge-success">Completed</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="View Report">
+                                        <i class="bi bi-file-text"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Download">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dependency Scan</strong></td>
+                            <td>2025-12-26 14:30</td>
+                            <td>8m 15s</td>
+                            <td>
+                                <span class="badge badge-success">0 Issues</span>
+                            </td>
+                            <td><span class="badge badge-success">Completed</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="View Report">
+                                        <i class="bi bi-file-text"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Download">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    function runSecurityScan() {
+        // TODO: API call to start security scan
+        alert('Security scan started! This may take several minutes.');
+    }
+</script>
+
+<%- include('./partials/git-footer') %>

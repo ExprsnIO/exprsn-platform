@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - Exprsn Low-Code BPM</title>
+
+  <!-- Exprsn Theme -->
+  <link rel="stylesheet" href="/css/exprsn-theme.css">
+  <link rel="stylesheet" href="/css/lowcode-theme.css">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Monaco Editor -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/editor/editor.main.css">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    .designer-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg-primary);
+      overflow: hidden;
+    }
+
+    /* Header */
+    .designer-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .process-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .process-name-input {
+      font-size: 1.25rem;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      padding: 0.25rem 0.5rem;
+      min-width: 250px;
+    }
+
+    .process-name-input:focus {
+      outline: 2px solid var(--primary-color);
+      border-radius: 4px;
+    }
+
+    .process-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .process-status.draft { background: #fef3c7; color: #92400e; }
+    .process-status.active { background: #d1fae5; color: #065f46; }
+    .process-status.deprecated { background: #fee2e2; color: #991b1b; }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    /* Main Layout - 4 Panels */
+    .designer-main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr 380px;
+      grid-template-rows: 1fr 300px;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar - BPMN Toolbox */
+    .toolbox-panel {
+      grid-row: 1 / 3;
+      border-right: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .toolbox-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .element-category {
+      margin-bottom: 1.5rem;
+    }
+
+    .category-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.5px;
+    }
+
+    .element-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .bpmn-element {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: grab;
+      transition: all 0.2s;
+    }
+
+    .bpmn-element:hover {
+      border-color: var(--primary-color);
+      background: var(--primary-bg-light);
+      transform: translateX(4px);
+    }
+
+    .bpmn-element:active {
+      cursor: grabbing;
+    }
+
+    .element-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .element-icon.event { background: #dbeafe; color: #1e40af; }
+    .element-icon.task { background: #fef3c7; color: #92400e; }
+    .element-icon.gateway { background: #e0e7ff; color: #4338ca; }
+    .element-icon.flow { background: #d1fae5; color: #065f46; }
+
+    .element-label {
+      flex: 1;
+    }
+
+    .element-name {
+      font-weight: 500;
+      color: var(--text-primary);
+      font-size: 0.875rem;
+    }
+
+    .element-desc {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* Center - BPMN Canvas */
+    .canvas-panel {
+      grid-row: 1 / 2;
+      grid-column: 2 / 3;
+      background: #f8fafc;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-toolbar {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.5rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 10;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .canvas-toolbar button {
+      background: transparent;
+      border: none;
+      padding: 0.5rem;
+      cursor: pointer;
+      border-radius: 4px;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+
+    .canvas-toolbar button:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    #bpmn-canvas {
+      width: 100%;
+      height: 100%;
+      background-image:
+        linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+      background-size: 20px 20px;
+      background-position: -1px -1px;
+    }
+
+    /* Right Sidebar - Properties */
+    .properties-panel {
+      grid-row: 1 / 2;
+      grid-column: 3 / 4;
+      border-left: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .properties-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .properties-tab {
+      flex: 1;
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+
+    .properties-tab.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+
+    .properties-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .property-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .property-group-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.5px;
+    }
+
+    .property-field {
+      margin-bottom: 1rem;
+    }
+
+    .property-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .property-input,
+    .property-select,
+    .property-textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .property-textarea {
+      min-height: 80px;
+      resize: vertical;
+      font-family: monospace;
+    }
+
+    .property-input:focus,
+    .property-select:focus,
+    .property-textarea:focus {
+      outline: 2px solid var(--primary-color);
+      border-color: transparent;
+    }
+
+    .property-hint {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    .workflow-list,
+    .crm-entity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .workflow-item,
+    .crm-entity-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .workflow-item:hover,
+    .crm-entity-item:hover {
+      border-color: var(--primary-color);
+      background: var(--primary-bg-light);
+    }
+
+    .workflow-item.selected,
+    .crm-entity-item.selected {
+      border-color: var(--primary-color);
+      background: var(--primary-bg-light);
+    }
+
+    /* Bottom Panel - BPMN XML/Code */
+    .code-panel {
+      grid-row: 2 / 3;
+      grid-column: 2 / 4;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      transition: max-height 0.3s ease, min-height 0.3s ease;
+      max-height: 300px;
+      min-height: 300px;
+    }
+
+    .code-panel.collapsed {
+      max-height: 40px !important;
+      min-height: 40px !important;
+    }
+
+    .code-panel.collapsed #bpmn-xml-editor {
+      display: none;
+    }
+
+    .panel-collapse-icon {
+      transition: transform 0.3s ease;
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 4px;
+    }
+
+    .panel-collapse-icon:hover {
+      background: var(--bg-primary);
+    }
+
+    .panel-collapse-icon.collapsed {
+      transform: rotate(180deg);
+    }
+
+    #bpmn-xml-editor {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-secondary);
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    .empty-state p {
+      font-size: 0.875rem;
+      max-width: 300px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: none;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--primary-color);
+      color: white;
+      opacity: 0.95;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      opacity: 1;
+    }
+
+    .btn-primary:active {
+      opacity: 0.9;
+    }
+
+    .btn-secondary {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-secondary);
+    }
+
+    .btn-icon {
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    /* Notifications */
+    .notification {
+      position: fixed;
+      top: 2rem;
+      right: 2rem;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      animation: slideIn 0.3s ease-out;
+      max-width: 400px;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .notification.success { border-left: 4px solid #10b981; }
+    .notification.error { border-left: 4px solid #ef4444; }
+    .notification.info { border-left: 4px solid #3b82f6; }
+
+    .add-mapping-btn {
+      width: 100%;
+      margin-top: 0.5rem;
+    }
+
+    .mapping-item {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .mapping-item input {
+      flex: 1;
+    }
+
+    .mapping-item button {
+      padding: 0.5rem;
+      background: #fee2e2;
+      color: #991b1b;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="designer-container">
+    <!-- Header -->
+    <header class="designer-header">
+      <div class="process-info">
+        <a href="/lowcode" class="btn-icon" title="Back to Applications">
+          <i class="fas fa-arrow-left"></i>
+        </a>
+        <input
+          type="text"
+          class="process-name-input"
+          id="process-name"
+          placeholder="Untitled Process"
+          value="<%= process?.displayName || 'New Process' %>"
+        >
+        <span class="process-status <%= process?.status || 'draft' %>" id="process-status">
+          <%= process?.status || 'draft' %>
+        </span>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-icon" id="undo-btn" title="Undo" disabled>
+          <i class="fas fa-undo"></i>
+        </button>
+        <button class="btn btn-icon" id="redo-btn" title="Redo" disabled>
+          <i class="fas fa-redo"></i>
+        </button>
+        <button class="btn btn-secondary" id="validate-btn">
+          <i class="fas fa-check-circle"></i> Validate
+        </button>
+        <button class="btn btn-secondary" id="test-btn">
+          <i class="fas fa-play-circle"></i> Test Run
+        </button>
+        <button class="btn btn-secondary" id="save-btn">
+          <i class="fas fa-save"></i> Save
+        </button>
+        <button class="btn btn-primary" id="activate-btn">
+          <i class="fas fa-rocket"></i> Activate
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Designer Area -->
+    <main class="designer-main">
+      <!-- Left Sidebar - BPMN Toolbox -->
+      <aside class="toolbox-panel">
+        <div class="panel-header">
+          <span>BPMN Elements</span>
+        </div>
+        <div class="toolbox-content">
+          <!-- Events -->
+          <div class="element-category">
+            <div class="category-title">Events</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="start-event">
+                <div class="element-icon event">
+                  <i class="fas fa-play"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Start Event</div>
+                  <div class="element-desc">Process entry point</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="end-event">
+                <div class="element-icon event">
+                  <i class="fas fa-flag-checkered"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">End Event</div>
+                  <div class="element-desc">Process completion</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="timer-event">
+                <div class="element-icon event">
+                  <i class="fas fa-clock"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Timer Event</div>
+                  <div class="element-desc">Time-based trigger</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tasks -->
+          <div class="element-category">
+            <div class="category-title">Tasks</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="user-task">
+                <div class="element-icon task">
+                  <i class="fas fa-user"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">User Task</div>
+                  <div class="element-desc">Manual user action</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="service-task">
+                <div class="element-icon task">
+                  <i class="fas fa-cog"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Service Task</div>
+                  <div class="element-desc">Automated action</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="workflow-task">
+                <div class="element-icon task">
+                  <i class="fas fa-project-diagram"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Workflow Task</div>
+                  <div class="element-desc">Execute workflow</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="crm-task">
+                <div class="element-icon task">
+                  <i class="fas fa-address-book"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">CRM Task</div>
+                  <div class="element-desc">CRM operation</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="script-task">
+                <div class="element-icon task">
+                  <i class="fas fa-code"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Script Task</div>
+                  <div class="element-desc">Custom JavaScript</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gateways -->
+          <div class="element-category">
+            <div class="category-title">Gateways</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="exclusive-gateway">
+                <div class="element-icon gateway">
+                  <i class="fas fa-code-branch"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Exclusive Gateway</div>
+                  <div class="element-desc">Single path (XOR)</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="parallel-gateway">
+                <div class="element-icon gateway">
+                  <i class="fas fa-plus"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Parallel Gateway</div>
+                  <div class="element-desc">Multiple paths (AND)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Exprsn-Timeline -->
+          <div class="element-category">
+            <div class="category-title">Timeline Service</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="timeline-post">
+                <div class="element-icon task">
+                  <i class="fas fa-stream"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Create Post</div>
+                  <div class="element-desc">Post to timeline</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="timeline-comment">
+                <div class="element-icon task">
+                  <i class="fas fa-comment"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Add Comment</div>
+                  <div class="element-desc">Comment on post</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="timeline-like">
+                <div class="element-icon task">
+                  <i class="fas fa-heart"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Like/React</div>
+                  <div class="element-desc">React to content</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Exprsn-Auth -->
+          <div class="element-category">
+            <div class="category-title">Authentication</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="auth-login">
+                <div class="element-icon task">
+                  <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">User Login</div>
+                  <div class="element-desc">Authenticate user</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="auth-register">
+                <div class="element-icon task">
+                  <i class="fas fa-user-plus"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">User Registration</div>
+                  <div class="element-desc">Create new account</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="auth-mfa">
+                <div class="element-icon task">
+                  <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">MFA Challenge</div>
+                  <div class="element-desc">Multi-factor auth</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="auth-permission">
+                <div class="element-icon task">
+                  <i class="fas fa-key"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Check Permission</div>
+                  <div class="element-desc">Verify access rights</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Exprsn-Spark -->
+          <div class="element-category">
+            <div class="category-title">Messaging</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="spark-message">
+                <div class="element-icon task">
+                  <i class="fas fa-envelope"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Send Message</div>
+                  <div class="element-desc">Direct message</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="spark-broadcast">
+                <div class="element-icon task">
+                  <i class="fas fa-bullhorn"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Broadcast</div>
+                  <div class="element-desc">Group message</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Exprsn-Herald -->
+          <div class="element-category">
+            <div class="category-title">Notifications</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="herald-email">
+                <div class="element-icon task">
+                  <i class="fas fa-at"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Send Email</div>
+                  <div class="element-desc">Email notification</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="herald-sms">
+                <div class="element-icon task">
+                  <i class="fas fa-sms"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Send SMS</div>
+                  <div class="element-desc">Text message</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="herald-push">
+                <div class="element-icon task">
+                  <i class="fas fa-bell"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Push Notification</div>
+                  <div class="element-desc">Mobile/web push</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Exprsn-Bridge -->
+          <div class="element-category">
+            <div class="category-title">API Gateway</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="bridge-api">
+                <div class="element-icon flow">
+                  <i class="fas fa-plug"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">API Call</div>
+                  <div class="element-desc">External API</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="bridge-webhook">
+                <div class="element-icon flow">
+                  <i class="fas fa-link"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Webhook</div>
+                  <div class="element-desc">Incoming webhook</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Exprsn-Nexus -->
+          <div class="element-category">
+            <div class="category-title">Groups & Events</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="nexus-group">
+                <div class="element-icon task">
+                  <i class="fas fa-users"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Manage Group</div>
+                  <div class="element-desc">Group operations</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="nexus-event">
+                <div class="element-icon task">
+                  <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Create Event</div>
+                  <div class="element-desc">Calendar event</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Exprsn-FileVault -->
+          <div class="element-category">
+            <div class="category-title">File Storage</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="filevault-upload">
+                <div class="element-icon task">
+                  <i class="fas fa-upload"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Upload File</div>
+                  <div class="element-desc">Store file</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="filevault-download">
+                <div class="element-icon task">
+                  <i class="fas fa-download"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Retrieve File</div>
+                  <div class="element-desc">Get file</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Exprsn-Payments -->
+          <div class="element-category">
+            <div class="category-title">Payments</div>
+            <div class="element-list">
+              <div class="bpmn-element" draggable="true" data-type="payment-charge">
+                <div class="element-icon task">
+                  <i class="fas fa-credit-card"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Process Payment</div>
+                  <div class="element-desc">Charge customer</div>
+                </div>
+              </div>
+              <div class="bpmn-element" draggable="true" data-type="payment-refund">
+                <div class="element-icon task">
+                  <i class="fas fa-undo-alt"></i>
+                </div>
+                <div class="element-label">
+                  <div class="element-name">Refund</div>
+                  <div class="element-desc">Issue refund</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center - BPMN Canvas -->
+      <section class="canvas-panel">
+        <div class="canvas-toolbar">
+          <button id="connection-mode-btn" title="Connection Mode (C)" style="font-weight: bold;">
+            <i class="fas fa-link"></i>
+          </button>
+          <button id="zoom-in-btn" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+          <button id="zoom-out-btn" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+          <button id="fit-view-btn" title="Fit to View"><i class="fas fa-expand"></i></button>
+          <button id="auto-layout-btn" title="Auto Layout"><i class="fas fa-magic"></i></button>
+        </div>
+        <svg id="bpmn-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </section>
+
+      <!-- Right Sidebar - Properties -->
+      <aside class="properties-panel">
+        <div class="panel-header">
+          <span>Properties</span>
+        </div>
+        <div class="properties-tabs">
+          <button class="properties-tab active" data-tab="general">General</button>
+          <button class="properties-tab" data-tab="integration">Integration</button>
+          <button class="properties-tab" data-tab="data">Data</button>
+        </div>
+        <div class="properties-content" id="properties-content">
+          <div class="empty-state">
+            <i class="fas fa-mouse-pointer"></i>
+            <p>Select an element on the canvas to view and edit its properties</p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Bottom Panel - BPMN XML -->
+      <section class="code-panel" id="code-panel">
+        <div class="panel-header">
+          <span>BPMN XML Definition</span>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-icon" id="copy-xml-btn" title="Copy XML">
+              <i class="fas fa-copy"></i>
+            </button>
+            <i class="fas fa-chevron-down panel-collapse-icon" id="panel-collapse-btn" title="Collapse Panel"></i>
+          </div>
+        </div>
+        <div id="bpmn-xml-editor"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Monaco Editor -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+
+  <!-- Process Designer Enhanced Properties -->
+  <script src="/lowcode/js/process-designer-enhanced.js"></script>
+
+  <!-- Process Designer Engine -->
+  <script src="/lowcode/js/process-designer.js"></script>
+
+  <script>
+    // Initialize designer when page loads
+    window.addEventListener('DOMContentLoaded', () => {
+      const applicationId = '<%= applicationId %>';
+      const processId = '<%= process?.id || "" %>';
+      const processData = <%- JSON.stringify(process || {}) %>;
+
+      window.processDesigner = new ProcessDesigner({
+        applicationId,
+        processId,
+        processData,
+        canvasElement: document.getElementById('bpmn-canvas'),
+        propertiesElement: document.getElementById('properties-content')
+      });
+
+      // Setup collapsible BPMN panel
+      const collapseBtn = document.getElementById('panel-collapse-btn');
+      const codePanel = document.getElementById('code-panel');
+
+      if (collapseBtn && codePanel) {
+        collapseBtn.addEventListener('click', () => {
+          const isCollapsed = codePanel.classList.toggle('collapsed');
+          collapseBtn.classList.toggle('collapsed', isCollapsed);
+          collapseBtn.title = isCollapsed ? 'Expand Panel' : 'Collapse Panel';
+        });
+      }
+    });
+  </script>
+</body>
+</html>

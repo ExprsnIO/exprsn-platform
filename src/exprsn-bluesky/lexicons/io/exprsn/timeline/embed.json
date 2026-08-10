@@ -1,0 +1,207 @@
+{
+  "lexicon": 1,
+  "id": "io.exprsn.timeline.embed",
+  "defs": {
+    "images": {
+      "type": "object",
+      "description": "Multiple images embedded in a post",
+      "required": ["images"],
+      "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "#image"
+          },
+          "maxLength": 4
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "required": ["image", "alt"],
+      "properties": {
+        "image": {
+          "type": "blob",
+          "accept": ["image/*"],
+          "maxSize": 10000000,
+          "description": "Image blob reference"
+        },
+        "alt": {
+          "type": "string",
+          "maxGraphemes": 1000,
+          "description": "Alt text for accessibility"
+        },
+        "aspectRatio": {
+          "type": "ref",
+          "ref": "#aspectRatio"
+        }
+      }
+    },
+    "aspectRatio": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "imagesView": {
+      "type": "object",
+      "required": ["images"],
+      "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "ref",
+            "ref": "#imageView"
+          },
+          "maxLength": 4
+        }
+      }
+    },
+    "imageView": {
+      "type": "object",
+      "required": ["thumb", "fullsize", "alt"],
+      "properties": {
+        "thumb": {
+          "type": "string",
+          "format": "uri",
+          "description": "Thumbnail URL"
+        },
+        "fullsize": {
+          "type": "string",
+          "format": "uri",
+          "description": "Full size image URL"
+        },
+        "alt": {
+          "type": "string"
+        },
+        "aspectRatio": {
+          "type": "ref",
+          "ref": "#aspectRatio"
+        }
+      }
+    },
+    "video": {
+      "type": "object",
+      "description": "Video embedded in a post",
+      "required": ["video"],
+      "properties": {
+        "video": {
+          "type": "blob",
+          "accept": ["video/*"],
+          "maxSize": 100000000,
+          "description": "Video blob reference (max 100MB)"
+        },
+        "caption": {
+          "type": "string",
+          "maxGraphemes": 1000
+        },
+        "aspectRatio": {
+          "type": "ref",
+          "ref": "#aspectRatio"
+        }
+      }
+    },
+    "videoView": {
+      "type": "object",
+      "required": ["cid", "playlist"],
+      "properties": {
+        "cid": {
+          "type": "string",
+          "format": "cid"
+        },
+        "playlist": {
+          "type": "string",
+          "format": "uri",
+          "description": "HLS playlist URL"
+        },
+        "thumbnail": {
+          "type": "string",
+          "format": "uri"
+        },
+        "caption": {
+          "type": "string"
+        },
+        "aspectRatio": {
+          "type": "ref",
+          "ref": "#aspectRatio"
+        }
+      }
+    },
+    "external": {
+      "type": "object",
+      "description": "External link embedded in a post",
+      "required": ["uri", "title", "description"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "thumb": {
+          "type": "blob",
+          "accept": ["image/*"],
+          "maxSize": 1000000
+        }
+      }
+    },
+    "externalView": {
+      "type": "object",
+      "required": ["uri", "title", "description"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "thumb": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "description": "Quoted post",
+      "required": ["record"],
+      "properties": {
+        "record": {
+          "type": "ref",
+          "ref": "com.atproto.repo.strongRef"
+        }
+      }
+    },
+    "recordView": {
+      "type": "object",
+      "required": ["record"],
+      "properties": {
+        "record": {
+          "type": "union",
+          "refs": [
+            "io.exprsn.timeline.post#view",
+            "app.bsky.feed.defs#blockedPost",
+            "app.bsky.feed.defs#notFoundPost"
+          ]
+        }
+      }
+    }
+  }
+}

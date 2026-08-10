@@ -1,0 +1,156 @@
+<%- include('../partials/setup-header') %>
+<%- include('../partials/setup-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Git Repository Management</h1>
+            <p class="page-subtitle">Monitor repository activity and contributors</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh
+            </button>
+            <button class="btn btn-primary">
+                <i class="bi bi-cloud-download"></i>
+                Pull Latest
+            </button>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-git"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">2,345</div>
+                <div class="stat-label">Total Commits</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    15 this week
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">8</div>
+                <div class="stat-label">Active Branches</div>
+                <div class="stat-change">
+                    main + 7 features
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-people"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">12</div>
+                <div class="stat-label">Contributors</div>
+                <div class="stat-change positive">
+                    3 this month
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-tag"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">v1.2.3</div>
+                <div class="stat-label">Latest Version</div>
+                <div class="stat-change">
+                    Released 2 days ago
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">Recent Commits</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>SHA</th>
+                            <th>Author</th>
+                            <th>Message</th>
+                            <th class="sortable">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>6616eaa</code></td>
+                            <td>Admin User</td>
+                            <td>Initial commit: Exprsn Certificate Authority Ecosystem</td>
+                            <td>2025-12-27 10:30</td>
+                        </tr>
+                        <tr>
+                            <td><code>a1b2c3d</code></td>
+                            <td>John Doe</td>
+                            <td>Add authentication middleware</td>
+                            <td>2025-12-26 15:45</td>
+                        </tr>
+                        <tr>
+                            <td><code>e4f5g6h</code></td>
+                            <td>Jane Smith</td>
+                            <td>Fix database migration issue</td>
+                            <td>2025-12-25 09:20</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Branches</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Branch</th>
+                            <th>Last Commit</th>
+                            <th>Protected</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>main</strong> <span class="badge badge-primary">Default</span></td>
+                            <td>2 hours ago</td>
+                            <td><span class="badge badge-success">Yes</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary">View</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>feature/user-auth</td>
+                            <td>1 day ago</td>
+                            <td><span class="badge badge-secondary">No</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary">Merge</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/setup-footer') %>

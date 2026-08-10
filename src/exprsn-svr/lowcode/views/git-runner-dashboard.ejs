@@ -1,0 +1,368 @@
+<%
+    const title = 'CI/CD Runners';
+    const currentPath = '/lowcode/git/runners';
+%>
+<%- include('./partials/git-header') %>
+<%- include('./partials/git-sidebar') %>
+
+<main class="main-content">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">
+                <i class="bi bi-cpu me-2"></i>
+                CI/CD Runners
+            </h1>
+            <p class="page-subtitle">Manage runners, pipeline cache, and build artifacts</p>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>
+                Refresh Status
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRunnerModal">
+                <i class="bi bi-plus-circle"></i>
+                Register Runner
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-play-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">3</div>
+                <div class="stat-label">Active Runners</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    All online
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-gear"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">0</div>
+                <div class="stat-label">Running Jobs</div>
+                <div class="stat-change">
+                    Currently idle
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">142</div>
+                <div class="stat-label">Jobs This Week</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    +12% from last week
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">98.5%</div>
+                <div class="stat-label">Success Rate</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    Excellent
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Runners -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-server me-2"></i>
+                Active Runners
+            </h3>
+            <span class="badge badge-success">3 Online</span>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Tags</th>
+                            <th class="sortable">Jobs Run</th>
+                            <th class="sortable">Uptime</th>
+                            <th>Last Active</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>runner-prod-01</strong></td>
+                            <td>
+                                <span class="status-dot online"></span>
+                                <span class="badge badge-success">Online</span>
+                            </td>
+                            <td>
+                                <span class="badge badge-primary me-1">docker</span>
+                                <span class="badge badge-primary">production</span>
+                            </td>
+                            <td>1,245</td>
+                            <td>15 days</td>
+                            <td>2 minutes ago</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="View Logs">
+                                        <i class="bi bi-file-text"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Pause">
+                                        <i class="bi bi-pause-circle"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Remove">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>runner-dev-01</strong></td>
+                            <td>
+                                <span class="status-dot online"></span>
+                                <span class="badge badge-success">Online</span>
+                            </td>
+                            <td>
+                                <span class="badge badge-primary me-1">shell</span>
+                                <span class="badge badge-primary">development</span>
+                            </td>
+                            <td>892</td>
+                            <td>8 days</td>
+                            <td>5 minutes ago</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="View Logs">
+                                        <i class="bi bi-file-text"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Pause">
+                                        <i class="bi bi-pause-circle"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Remove">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>runner-test-01</strong></td>
+                            <td>
+                                <span class="status-dot online"></span>
+                                <span class="badge badge-success">Online</span>
+                            </td>
+                            <td>
+                                <span class="badge badge-primary me-1">kubernetes</span>
+                                <span class="badge badge-primary">testing</span>
+                            </td>
+                            <td>456</td>
+                            <td>3 days</td>
+                            <td>1 minute ago</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="table-action-btn" title="View Logs">
+                                        <i class="bi bi-file-text"></i>
+                                    </button>
+                                    <button class="table-action-btn" title="Pause">
+                                        <i class="bi bi-pause-circle"></i>
+                                    </button>
+                                    <button class="table-action-btn danger" title="Remove">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <!-- Runner Groups -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-collection me-2"></i>
+                        Runner Groups
+                    </h3>
+                    <button class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus-circle"></i>
+                        Add Group
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <strong>Production</strong>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">High-priority workloads</p>
+                        </div>
+                        <span class="badge badge-success">1 Runner</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <strong>Development</strong>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">Dev and staging environments</p>
+                        </div>
+                        <span class="badge badge-success">1 Runner</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Testing</strong>
+                            <p class="text-muted mb-0" style="font-size: 0.875rem;">Automated test execution</p>
+                        </div>
+                        <span class="badge badge-success">1 Runner</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipeline Cache -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="bi bi-hdd me-2"></i>
+                        Pipeline Cache
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Cache Size</span>
+                        <strong>2.3 GB / 10 GB</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Cache Entries</span>
+                        <strong>142</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Hit Rate</span>
+                        <strong class="text-success">87%</strong>
+                    </div>
+                    <button class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-trash"></i>
+                        Clear Cache
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Build Artifacts -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="bi bi-archive me-2"></i>
+                Build Artifacts Settings
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Retention Period (days)</label>
+                        <input type="number" class="form-control" value="30" min="1" max="365">
+                        <small class="text-muted">How long to keep artifacts</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Max Artifact Size (MB)</label>
+                        <input type="number" class="form-control" value="500" min="1" max="5000">
+                        <small class="text-muted">Maximum size per artifact</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="form-label">Total Storage Limit (GB)</label>
+                        <input type="number" class="form-control" value="50" min="1" max="1000">
+                        <small class="text-muted">Total artifacts storage</small>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Add Runner Modal -->
+<div class="modal fade" id="addRunnerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background: var(--exprsn-bg-primary); border: 1px solid var(--exprsn-border-color); border-radius: var(--exprsn-radius-xl);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--exprsn-border-color);">
+                <h5 class="modal-title">Register New Runner</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Registration Token:</strong> <code>glrt-abc123def456ghi789</code>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Runner Name</label>
+                    <input type="text" class="form-control" placeholder="runner-prod-02">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Runner Type</label>
+                    <select class="form-control form-select">
+                        <option>Docker</option>
+                        <option>Shell</option>
+                        <option>Kubernetes</option>
+                        <option>SSH</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tags (comma-separated)</label>
+                    <input type="text" class="form-control" placeholder="docker, production, linux">
+                    <small class="text-muted">Jobs can target runners by tags</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Maximum Jobs</label>
+                    <input type="number" class="form-control" value="1" min="1" max="100">
+                    <small class="text-muted">Number of concurrent jobs this runner can handle</small>
+                </div>
+                <div class="form-group mb-0">
+                    <div class="d-flex flex-column gap-2">
+                        <div>
+                            <input type="checkbox" id="runner-locked">
+                            <label for="runner-locked">Lock to current project</label>
+                        </div>
+                        <div>
+                            <input type="checkbox" id="runner-protected">
+                            <label for="runner-protected">Protected (only for protected branches)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid var(--exprsn-border-color);">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Register Runner</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('./partials/git-footer') %>

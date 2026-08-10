@@ -729,7 +729,7 @@ release-engineering gaps between "structurally complete + runtime-verified" and
 "deployable to a real environment". None are code-deep, but all are MVP-blocking
 for an actual release. Scanned/confirmed 2026-06-22.
 
-### R1. No source control or CI — IN PROGRESS (SP-1/SP-2, 2026-06-22)
+### R1. No source control or CI — IN PROGRESS (SP-1/SP-2, 2026-06-22; remote wired 2026-08-10)
 ~~There is **no `.git`** in this repo and no pipeline.~~ **Done:** repo is under git
 with a root `.gitignore` (node_modules/.env/certs/web/dist/logs/data excluded);
 initial commit made; `.github/workflows/ci.yml` added (jobs: **lint**, **web-build**
@@ -737,8 +737,23 @@ initial commit made; `.github/workflows/ci.yml` added (jobs: **lint**, **web-bui
 containers, non-blocking while suites stabilize). Added the missing root ESLint
 config (`.eslintrc.json` — lint had never actually run) and an aggregator
 `npm run test:all` (`scripts/test-all.js`) since there is no root Jest runner.
-**Remaining (manual, needs the org remote):** push to the remote and set branch
-protection on `main` requiring the `lint` + `web-build` checks.
+**Remote wired (2026-08-10):** `origin` →
+`https://github.com/ExprsnIO/Exprsn.git` (public). Note the remote pre-existed
+with **unrelated history** — 22 commits of a different project (TransactionDB,
+Payments, CA/Auth docs) plus five `claude/*` branches and PRs #1–#5 — and shares
+no common ancestor with this repo, so landing this history was an explicit
+force-overwrite decision (Rick, 2026-08-10), not a fast-forward.
+
+**Remaining (manual, needs credentials on the pushing machine):** the push itself
+has **not happened yet** — no GitHub credential is configured locally (no stored
+HTTPS credential, no SSH key, no `gh`), so `git push` fails at auth. Run:
+
+```bash
+git push --force-with-lease=main:2daaf5572f36bd5b435c0edbfdbfbb56e6ebbb43 -u origin main
+git push origin --all      # the 8 s26xx sprint branches (all already merged into main)
+```
+
+Then set branch protection on `main` requiring the `lint` + `web-build` checks.
 
 ### R2. Real TLS at the edge — VERIFICATION SLICE DONE (SP-4, 2026-06-24); cert provisioning deploy-time
 Only dev self-signed certs (`npm run gen:certs`); real certs at the nginx edge are

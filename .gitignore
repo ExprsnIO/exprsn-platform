@@ -50,3 +50,12 @@ coverage/
 
 # Claude Code local settings & agent worktrees
 .claude/
+
+# ─── Foreign content from the origin remote's prior history ──────────────────
+# github.com/ExprsnIO/Exprsn previously held an unrelated project (a C++17
+# embedded SQL engine + a Payments service). None of it has ever been part of
+# this repo. These entries are belt-and-braces only: they stop the directories
+# reappearing if that history is ever merged in or the files are copied across.
+# They do NOT remove anything already on the remote — see STATUS.md R1.
+TransactionDB/
+jsonlexicon-nodejs-main/

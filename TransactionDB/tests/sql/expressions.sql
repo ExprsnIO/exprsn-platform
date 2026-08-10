@@ -1,3 +1,0 @@
-SELECT 1 + 2 * 3;
-SELECT 10 / 4, 10.0 / 4;
-SELECT 5 = 5, 5 <> 4, NULL IS NULL;

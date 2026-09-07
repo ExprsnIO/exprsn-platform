@@ -71,6 +71,7 @@ model reference, and a Markdown viewer. It also holds the archived design
 material:
 
 - `docs/runbooks/` — operational how-tos (secrets and rotation, calendar/contacts subscriptions)
+- `docs/plans/Design.md` — the administrative interface design specification (Claude Design brief): shell, universal components, all 14 module sections, configuration tab, database editor, backend prerequisites
 - `docs/plans/` — design and implementation plans, mostly delivered. Two are
   **generated** and must not be hand-edited: `plugins-decisions.md`
   (`npm run plan:plugins`) and `lowcode-clarifications.md`

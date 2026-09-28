@@ -40,11 +40,26 @@ backups/
 # ─── Test / coverage output ──────────────────────────────────────────────────
 coverage/
 **/coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# ─── Tool caches ─────────────────────────────────────────────────────────────
+.eslintcache
+*.tsbuildinfo
+.vite/
 
 # ─── OS / editor cruft ───────────────────────────────────────────────────────
 .DS_Store
 *.local
+# …but the BIND zone file is tracked config, not a local override —
+# docker/bind/etc/named.conf loads it, and `*.local` was silently ignoring it
+# (fresh clones got a named.conf pointing at a file that was never committed).
+!docker/bind/etc/db.exprsn.local
 *.swp
+*.bak
+*.orig
+*.rej
 .idea/
 .vscode/
 
@@ -52,10 +67,11 @@ coverage/
 .claude/
 
 # ─── Foreign content from the origin remote's prior history ──────────────────
-# github.com/ExprsnIO/Exprsn previously held an unrelated project (a C++17
-# embedded SQL engine + a Payments service). None of it has ever been part of
-# this repo. These entries are belt-and-braces only: they stop the directories
-# reappearing if that history is ever merged in or the files are copied across.
-# They do NOT remove anything already on the remote — see STATUS.md R1.
+# The origin remote previously held an unrelated project (a C++17 embedded SQL
+# engine + a Payments service). The unrelated-histories merge (89ff0ef) brought
+# that content into the tree.
+# - TransactionDB/ was removed in d3eb275; this entry stops it reappearing.
+# - jsonlexicon-nodejs-main/ is STILL TRACKED pending the merge cleanup, so this
+#   entry only keeps new files out of it — it does not untrack what is there.
 TransactionDB/
 jsonlexicon-nodejs-main/

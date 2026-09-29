@@ -172,11 +172,12 @@
   --v2-ok-fg: var(--exprsn-success-text);
   --v2-warn-fg: var(--exprsn-warning-text);
   --v2-danger-fg: var(--exprsn-danger-text);
+  --v2-violet-fg: var(--exprsn-secondary-dark);
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --v2-primary-fg: var(--exprsn-primary-hover); --v2-ok-fg: var(--exprsn-success); --v2-warn-fg: var(--exprsn-warning); --v2-danger-fg: var(--exprsn-danger-emphasis); }
+  :root:not([data-theme="light"]) { --v2-primary-fg: var(--exprsn-primary-hover); --v2-ok-fg: var(--exprsn-success); --v2-warn-fg: var(--exprsn-warning); --v2-danger-fg: var(--exprsn-danger-emphasis); --v2-violet-fg: var(--exprsn-secondary-emphasis); }
 }
-[data-theme="dark"] { --v2-primary-fg: var(--exprsn-primary-hover); --v2-ok-fg: var(--exprsn-success); --v2-warn-fg: var(--exprsn-warning); --v2-danger-fg: var(--exprsn-danger-emphasis); }
+[data-theme="dark"] { --v2-primary-fg: var(--exprsn-primary-hover); --v2-ok-fg: var(--exprsn-success); --v2-warn-fg: var(--exprsn-warning); --v2-danger-fg: var(--exprsn-danger-emphasis); --v2-violet-fg: var(--exprsn-secondary-emphasis); }
 @media (prefers-reduced-motion: reduce) {
   :root {
     --exprsn-transition-fast: 0ms linear;

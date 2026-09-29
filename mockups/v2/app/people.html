@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>People · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .person { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 20px 16px 16px; }
+  .person .name { font-weight: 600; color: var(--exprsn-text-primary); }
+  .person .acts { display: flex; gap: 8px; margin-top: 4px; width: 100%; }
+  .person .acts .btn { flex: 1; }
+  .btn[data-toggle][aria-pressed="true"] { background: transparent; border-color: var(--exprsn-border-color); color: var(--exprsn-text-primary); }
+</style>
+</head>
+<body data-shell="app" data-page="people">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">People</h1>
+        <p class="page-sub">Everyone in your organizations and groups who has a public profile. Follow people to see their posts on your timeline.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="../admin/users.html"><i data-i="userPlus" class="sm"></i>Invite people</a>
+      </div>
+    </header>
+
+    <div class="stack">
+      <div class="row wrap">
+        <label class="input-group grow" style="max-width:480px" data-api="/auth/api/users/directory"><i data-i="search" class="sm"></i><input id="pp-q" type="search" placeholder="Search by name, title or @handle"></label>
+        <label class="sr-only" for="pp-org">Organization</label>
+        <select class="select" id="pp-org" style="width:auto"><option>All organizations</option><option>Exprsn HQ</option><option>Northwind</option><option>Contoso</option></select>
+      </div>
+      <div class="row wrap" style="gap:8px">
+        <button class="chip" type="button" aria-pressed="true">Everyone</button>
+        <button class="chip" type="button" aria-pressed="false" data-api="/timeline/api/interactions/users/:id/follow">Following</button>
+        <button class="chip" type="button" aria-pressed="false">Followers</button>
+        <button class="chip" type="button" aria-pressed="false">In my groups</button>
+        <button class="chip" type="button" aria-pressed="false"><i data-i="butterfly" class="sm"></i>Has a verified DID</button>
+        <span class="grow"></span>
+        <div class="seg" role="group" aria-label="Sort people"><button type="button" aria-pressed="true">A–Z</button><button type="button" aria-pressed="false">Recently active</button></div>
+      </div>
+    </div>
+
+    <div data-state="loaded">
+      <p class="small secondary" style="margin-bottom:12px"><span class="num">148</span> people · Exprsn HQ, Northwind, Contoso</p>
+      <div class="grid auto" data-api="/auth/api/users/directory /auth/api/users/profiles">
+        <div class="card person">
+          <a href="profile.html" class="avatar xl g1" aria-label="Maya Diaz profile">MD<span class="presence on"></span></a>
+          <a class="name" href="profile.html">Maya Diaz</a><span class="small secondary">Design lead · Exprsn HQ</span>
+          <span class="pill ok"><i data-i="check" class="sm"></i>did:plc verified</span>
+          <div class="acts"><button class="btn sm tonal" type="button" data-toggle aria-pressed="true" data-api="/timeline/api/interactions/users/:id/follow">Following</button><a class="btn sm outline" href="messages.html" aria-label="Message Maya Diaz" data-api="/spark/api/conversations"><i data-i="chat" class="sm"></i></a></div>
+        </div>
+        <div class="card person">
+          <a href="profile.html" class="avatar xl g2" aria-label="Jonah Okafor profile">JO<span class="presence away"></span></a>
+          <a class="name" href="profile.html">Jonah Okafor</a><span class="small secondary">Founder · Northwind</span>
+          <span class="pill"><i data-i="globe" class="sm"></i>did:web</span>
+          <div class="acts"><button class="btn sm primary" type="button" data-toggle aria-pressed="false">Follow</button><a class="btn sm outline" href="messages.html" aria-label="Message Jonah Okafor"><i data-i="chat" class="sm"></i></a></div>
+        </div>
+        <div class="card person">
+          <a href="profile.html" class="avatar xl g3" aria-label="Priya Raman profile">PR</a>
+          <a class="name" href="profile.html">Priya Raman</a><span class="small secondary">SRE · Exprsn HQ</span>
+          <span class="pill info">Follows you</span>
+          <div class="acts"><button class="btn sm primary" type="button" data-toggle aria-pressed="false">Follow back</button><a class="btn sm outline" href="messages.html" aria-label="Message Priya Raman"><i data-i="chat" class="sm"></i></a></div>
+        </div>
+        <div class="card person">
+          <a href="profile.html" class="avatar xl" aria-label="Sam Kim profile">SK</a>
+          <a class="name" href="profile.html">Sam Kim</a><span class="small secondary">Field designer · Contoso</span>
+          <span class="xs muted">Active 3 days ago</span>
+          <div class="acts"><button class="btn sm primary" type="button" data-toggle aria-pressed="false">Follow</button><a class="btn sm outline" href="messages.html" aria-label="Message Sam Kim"><i data-i="chat" class="sm"></i></a></div>
+        </div>
+        <div class="card person">
+          <a href="profile.html" class="avatar xl g4" aria-label="Ari Lindqvist profile">AL<span class="presence on"></span></a>
+          <a class="name" href="profile.html">Ari Lindqvist</a><span class="small secondary">Trust &amp; safety · Exprsn HQ</span>
+          <span class="pill violet">Moderator</span>
+          <div class="acts"><button class="btn sm tonal" type="button" data-toggle aria-pressed="true">Following</button><a class="btn sm outline" href="messages.html" aria-label="Message Ari Lindqvist"><i data-i="chat" class="sm"></i></a></div>
+        </div>
+        <div class="card person">
+          <span class="avatar xl" style="background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-secondary)" aria-hidden="true">LC</span>
+          <span class="name">Lee Chen</span><span class="small secondary">Northwind</span>
+          <span class="pill"><i data-i="lock" class="sm"></i>Private profile</span>
+          <div class="acts"><button class="btn sm outline" type="button" data-toast="Follow request sent">Request to follow</button></div>
+        </div>
+      </div>
+      <div class="row" style="justify-content:center;margin-top:16px"><button class="btn outline" type="button">Load more</button></div>
+    </div>
+    <div data-state="empty">
+      <div class="empty"><div class="art"><i data-i="people"></i></div><h3>No one matches “quinn”</h3><p>The directory only lists people who share an organization or group with you. Try another name or clear filters.</p><button class="btn outline" type="button">Clear filters</button></div>
+    </div>
+    <div data-state="loading" aria-busy="true" aria-label="Loading people">
+      <div class="grid auto"><span class="sk" style="height:220px"></span><span class="sk" style="height:220px"></span><span class="sk" style="height:220px"></span><span class="sk" style="height:220px"></span></div>
+    </div>
+    <div data-state="error">
+      <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load the directory</h3><p>The auth module returned 503. Correlation id <code>cid 1f0c…8d2</code>.</p><button class="btn outline" type="button">Try again</button></div>
+    </div>
+  </div>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Directory is paged and scoped server-side to people who share an org or group with the viewer. Profiles for the visible page are hydrated in one batch (POST /profiles). Follow is optimistic (button flips to Following, rolls back with a toast on error). Message opens or creates a DM in Spark.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "People grid, search, org filter, paging" },
+    { "m": "POST", "p": "/auth/api/users/profiles", "auth": "user", "ui": "Batch profile hydration (title, org, avatar)" },
+    { "m": "GET", "p": "/timeline/api/interactions/users/:id/follow", "auth": "user", "ui": "Follow state per card, Following chip" },
+    { "m": "POST", "p": "/timeline/api/interactions/users/:id/follow", "auth": "user", "ui": "Follow / Follow back" },
+    { "m": "DELETE", "p": "/timeline/api/interactions/users/:id/follow", "auth": "user", "ui": "Following → Unfollow" },
+    { "m": "GET", "p": "/atproto/users/:uid/dids", "auth": "P", "ui": "DID pill (verified/unverified)" },
+    { "m": "POST", "p": "/spark/api/conversations", "auth": "user", "ui": "Message button (find-or-create DM)" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "There's no followers/following list endpoint; the Following and Followers chips need a proposed GET /timeline/api/interactions/users/:id/followers and /following." },
+    { "sev": "med", "text": "Presence isn't available outside /spark (user:status only reaches joined conversations), so online dots here are stale. Proposed: batch presence endpoint." },
+    { "sev": "med", "text": "Private profiles have no follow-request flow in timeline — 'Request to follow' is proposed." }
+  ]
+}
+</script>
+</body>
+</html>

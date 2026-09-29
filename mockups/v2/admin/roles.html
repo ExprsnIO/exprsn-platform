@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roles · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+  /* kit fix proposal: danger-outline text fails AA in light theme */
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .matrix td, .matrix th { text-align: center; }
+  .matrix td:first-child, .matrix th:first-child { text-align: left; }
+</style>
+</head>
+<body data-shell="admin" data-page="roles">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Infrastructure</span><i data-i="right" class="sm"></i><span>Roles</span></nav>
+        <h1 class="page-title">Roles</h1>
+        <p class="page-sub">Named bundles of permissions. Assign them to people or groups, globally or within one organization or application.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="permissions.html"><i data-i="key" class="sm"></i>Permission catalog</a>
+        <button class="btn primary" type="button" data-open="dlg-role" data-api="/auth/api/roles"><i data-i="plus" class="sm"></i>New role</button>
+      </div>
+    </header>
+
+    <section class="card dt" aria-label="Roles table">
+      <div class="dt-toolbar">
+        <label class="input-group"><i data-i="search" class="sm"></i><input id="r-q" type="search" placeholder="Search roles or permissions" data-api="/auth/api/roles"></label>
+        <button class="chip" type="button" aria-pressed="false">Type</button>
+        <button class="chip" type="button" aria-pressed="false">Organization</button>
+        <span class="grow"></span>
+        <div class="seg" role="group" aria-label="Group by"><button type="button" aria-pressed="true">By type</button><button type="button" aria-pressed="false">No grouping</button></div>
+      </div>
+      <div class="dt-scroll" data-state="loaded">
+        <table class="table" data-api="/auth/api/roles">
+          <thead><tr><th class="pin" aria-sort="ascending"><button type="button">Role <i data-i="up" class="sm"></i></button></th><th>Organization</th><th class="num">Priority</th><th>Permissions</th><th>Service access</th><th class="num">Users</th><th class="num">Groups</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            <tr class="group-row"><td colspan="8">system · 4</td></tr>
+            <tr><td class="pin"><b>admin</b> <span class="pill">system</span></td><td class="muted">global</td><td class="num">100</td><td><span class="pill warn">*</span></td><td class="small">all</td><td class="num">3</td><td class="num">1</td><td class="actions"><button class="btn sm ghost" type="button">View</button></td></tr>
+            <tr><td class="pin"><b>moderator</b> <span class="pill">system</span></td><td class="muted">global</td><td class="num">60</td><td><span class="pill">moderation:*</span> <span class="pill">reports:read</span></td><td class="small">moderator, timeline</td><td class="num">8</td><td class="num">0</td><td class="actions"><button class="btn sm ghost" type="button">View</button></td></tr>
+            <tr class="group-row"><td colspan="8">organization · 2 · custom · 1 shown</td></tr>
+            <tr aria-selected="true"><td class="pin"><b>org-admin</b></td><td>Northwind</td><td class="num">80</td><td><span class="pill">org:*</span> <span class="pill">apps:write</span> <span class="pill">+3</span></td><td class="small">auth, ca</td><td class="num">3</td><td class="num">0</td><td class="actions"><button class="btn sm ghost" type="button">View</button></td></tr>
+            <tr><td class="pin"><b>developer</b></td><td>Northwind</td><td class="num">40</td><td><span class="pill">apps:read</span> <span class="pill">apps:write</span> <span class="pill">tokens:issue</span></td><td class="small">auth, ca, filevault</td><td class="num">0</td><td class="num">1</td><td class="actions"><button class="btn sm ghost" type="button">View</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div data-state="empty"><div class="empty"><div class="art"><i data-i="badge"></i></div><h3>No roles match</h3><p>System roles are always present. Clear the organization filter to see them.</p><button class="btn outline" type="button">Clear filters</button></div></div>
+      <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+      <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load roles</h3><p>Correlation id <code>cid 6ea0…3b2</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+      <div class="dt-foot"><span class="num">4 of 18 · client mode</span></div>
+    </section>
+
+    <!-- ── Role detail ── -->
+    <section class="card" aria-labelledby="rd-t" data-api="/auth/api/roles/:id">
+      <div class="card-head">
+        <div class="stack tight"><h2 id="rd-t">org-admin · Northwind</h2><span class="xs secondary">organization · priority 80 · <span class="id">role_4c0e12</span></span></div>
+        <div class="row wrap" style="gap:8px"><button class="btn sm danger-outline" type="button" data-open="dlg-delete">Delete</button><button class="btn sm outline" type="button" data-open="dlg-role">Edit</button></div>
+      </div>
+      <div class="card-body stack">
+        <div class="tabs" role="tablist" aria-label="Role detail">
+          <button role="tab" id="rt-m" aria-controls="rp-m" aria-selected="true">Permissions</button>
+          <button role="tab" id="rt-u" aria-controls="rp-u">Users <span class="badge neutral">3</span></button>
+          <button role="tab" id="rt-g" aria-controls="rp-g">Groups <span class="badge neutral">0</span></button>
+        </div>
+        <div id="rp-m" role="tabpanel" aria-labelledby="rt-m" class="stack">
+          <div class="dt-scroll">
+            <table class="table matrix">
+              <caption class="sr-only">Permission matrix for org-admin</caption>
+              <thead><tr><th scope="col">Resource</th><th scope="col">read</th><th scope="col">write</th><th scope="col">update</th><th scope="col">delete</th><th scope="col">admin</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">org</th><td><input type="checkbox" class="check" checked aria-label="org read"></td><td><input type="checkbox" class="check" checked aria-label="org write"></td><td><input type="checkbox" class="check" checked aria-label="org update"></td><td><input type="checkbox" class="check" checked aria-label="org delete"></td><td><input type="checkbox" class="check" checked aria-label="org admin"></td></tr>
+                <tr><th scope="row">apps</th><td><input type="checkbox" class="check" checked aria-label="apps read"></td><td><input type="checkbox" class="check" checked aria-label="apps write"></td><td><input type="checkbox" class="check" checked aria-label="apps update"></td><td><input type="checkbox" class="check" aria-label="apps delete"></td><td><input type="checkbox" class="check" aria-label="apps admin"></td></tr>
+                <tr><th scope="row">users</th><td><input type="checkbox" class="check" checked aria-label="users read"></td><td><input type="checkbox" class="check" aria-label="users write"></td><td><input type="checkbox" class="check" checked aria-label="users update"></td><td><input type="checkbox" class="check" aria-label="users delete"></td><td><input type="checkbox" class="check" aria-label="users admin"></td></tr>
+                <tr><th scope="row">tokens</th><td><input type="checkbox" class="check" checked aria-label="tokens read"></td><td><input type="checkbox" class="check" checked aria-label="tokens write"></td><td><input type="checkbox" class="check" aria-label="tokens update"></td><td><input type="checkbox" class="check" checked aria-label="tokens delete"></td><td><input type="checkbox" class="check" aria-label="tokens admin"></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="xs secondary">The org row is <span class="mono">org:*</span>, so every box is implied. Service access: allowed auth and ca, denied none.</p>
+          <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button" data-api="/auth/api/roles/:id" data-toast="org-admin permissions saved">Save permissions</button></div>
+        </div>
+        <div id="rp-u" role="tabpanel" aria-labelledby="rt-u" hidden class="stack">
+          <div class="row"><span class="grow small secondary">Active assignments</span><button class="btn sm primary" type="button" data-open="dlg-assign" data-api="/auth/api/roles/:id/assign-user"><i data-i="userPlus" class="sm"></i>Assign to person</button></div>
+          <div class="dt-scroll">
+            <table class="table" data-api="/auth/api/roles/:id/assignments">
+              <thead><tr><th>Person</th><th>Scope</th><th>Status</th><th class="num">Expires</th><th>Assigned by</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                <tr><td><div class="row" style="gap:8px"><span class="avatar sm g2">JO</span>Jonah Okafor</div></td><td>organization · Northwind</td><td><span class="pill ok">active</span></td><td class="num">never</td><td>system</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-revoke">Revoke</button></td></tr>
+                <tr><td><div class="row" style="gap:8px"><span class="avatar sm">SK</span>Sam Kim</div></td><td>organization · Northwind</td><td><span class="pill ok">active</span></td><td class="num">2026-12-31</td><td>Jonah Okafor</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-revoke">Revoke</button></td></tr>
+                <tr><td><div class="row" style="gap:8px"><span class="avatar sm g3">PR</span>Priya Raman</div></td><td>organization · Northwind</td><td><span class="pill">expired</span></td><td class="num">2026-09-01</td><td>Jonah Okafor</td><td class="actions"></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="rp-g" role="tabpanel" aria-labelledby="rt-g" hidden>
+          <div class="empty"><div class="art"><i data-i="diversity"></i></div><h3>No groups have this role</h3><p>Bind org-admin to a group to give it to everyone in the group.</p><button class="btn outline" type="button" data-open="dlg-assign-g" data-api="/auth/api/roles/:id/assign-group">Bind to group</button></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Create / edit role -->
+  <dialog class="dialog lg" id="dlg-role" aria-labelledby="dlg-role-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-role-t">Edit org-admin</h2><p>Organization role · Northwind</p></div></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><label for="ro-name">Name</label><input class="input" id="ro-name" value="org-admin"></div>
+        <div class="field"><label for="ro-pri">Priority</label><input class="input" id="ro-pri" type="number" value="80" min="0" max="100"><span class="help">Higher wins on conflict</span></div>
+        <div class="field full"><label for="ro-desc">Description</label><input class="input" id="ro-desc" value="Full control of one organization"></div>
+        <div class="field full"><label for="ro-perm">Permissions</label><input class="input" id="ro-perm" placeholder="Search the catalog, or type a wildcard like apps:*"><span class="help">From the permission catalog. Wildcards: <span class="mono">*</span>, <span class="mono">org:*</span>, <span class="mono">admin:*</span></span></div>
+      </div>
+      <div class="row wrap" style="gap:6px"><span class="chip">org:* <span class="x">×</span></span><span class="chip">apps:write <span class="x">×</span></span><span class="chip">users:read <span class="x">×</span></span><span class="chip">users:update <span class="x">×</span></span><span class="chip">tokens:issue <span class="x">×</span></span></div>
+      <div class="form-grid">
+        <div class="field"><label for="ro-allow">Allowed services</label><input class="input" id="ro-allow" value="auth, ca"></div>
+        <div class="field"><label for="ro-deny">Denied services</label><input class="input" id="ro-deny"></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="org-admin saved">Save role</button></div>
+  </dialog>
+
+  <!-- Assign user -->
+  <dialog class="dialog" id="dlg-assign" aria-labelledby="dlg-assign-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-assign-t">Assign org-admin</h2></div></div>
+    <div class="dialog-body"><div class="form-grid">
+      <div class="field full"><label for="as-user">Person</label><div class="input-group"><i data-i="person" class="sm"></i><input id="as-user" placeholder="Name, email or user id"><button class="btn sm ghost" type="button">Look up</button></div></div>
+      <div class="field"><label for="as-scope">Scope</label><select class="select" id="as-scope"><option>global</option><option selected>organization</option><option>application</option></select></div>
+      <div class="field"><label for="as-org">Organization</label><select class="select" id="as-org"><option>Northwind</option></select></div>
+      <div class="field"><label for="as-exp">Expires</label><input class="input" id="as-exp" placeholder="never, +90d or 2026-12-31"><span class="help">Blank = never</span></div>
+    </div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Role assigned">Assign</button></div>
+  </dialog>
+
+  <!-- Assign group -->
+  <dialog class="dialog sm" id="dlg-assign-g" aria-labelledby="dlg-ag-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ag-t">Bind org-admin to a group</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="ag-grp">Group</label><select class="select" id="ag-grp"><option>engineering</option><option>northwind-all</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Bound to engineering">Bind</button></div>
+  </dialog>
+
+  <!-- Revoke -->
+  <dialog class="dialog sm" id="dlg-revoke" aria-labelledby="dlg-revoke-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-revoke-t">Revoke org-admin from Sam Kim?</h2><p>Takes effect on his next token refresh (within 15 minutes).</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="org-admin revoked from Sam Kim" data-api="/auth/api/roles/:id/revoke-user">Revoke role</button></div>
+  </dialog>
+
+  <!-- Delete -->
+  <dialog class="dialog sm" id="dlg-delete" aria-labelledby="dlg-delete-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-delete-t">Delete org-admin?</h2><p>3 people lose it right away. System roles can’t be deleted.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rd-confirm">Type <b>org-admin</b> to confirm</label><input class="input" id="rd-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" disabled>Delete role</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Client-mode roles table. The detail card shows the permission matrix, which is derived from permissionString entries (resource:action). Toggling a box edits the permissions array and Save sends PATCH. Assignments come from /roles/:id/assignments. No live events.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/roles", "auth": "user", "ui": "Roles table (organizationId, type)" },
+    { "m": "POST", "p": "/auth/api/roles", "auth": "A", "ui": "New role" },
+    { "m": "GET", "p": "/auth/api/roles/:id", "auth": "user", "ui": "Role detail" },
+    { "m": "PATCH", "p": "/auth/api/roles/:id", "auth": "A", "ui": "Edit role, Save permissions" },
+    { "m": "DELETE", "p": "/auth/api/roles/:id", "auth": "A", "ui": "Delete role (non-system)" },
+    { "m": "GET", "p": "/auth/api/roles/:id/assignments", "auth": "A", "ui": "Users and Groups tabs" },
+    { "m": "POST", "p": "/auth/api/roles/:id/assign-user", "auth": "A", "ui": "Assign dialog" },
+    { "m": "POST", "p": "/auth/api/roles/:id/revoke-user", "auth": "A", "ui": "Revoke dialog" },
+    { "m": "POST", "p": "/auth/api/roles/:id/assign-group", "auth": "A", "ui": "Bind to group" },
+    { "m": "POST", "p": "/auth/api/roles/:id/revoke-group", "auth": "A", "ui": "Unbind group (Groups page)" },
+    { "m": "GET", "p": "/auth/api/roles/permissions", "auth": "user", "ui": "Permission picker in the role editor" },
+    { "m": "GET", "p": "/auth/api/users", "auth": "A", "ui": "Person lookup in the assign dialog" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "The role list has no user or group assignment counts. Counts need one /assignments call per role (N+1). Proposed: include=counts on GET /auth/api/roles." },
+    { "sev": "med", "text": "The permission matrix is a client-side view: the API stores flat permission strings with wildcards, not a resource×action grid." },
+    { "sev": "med", "text": "The CA role:created emitter is dead code, and no role events reach /_admin." }
+  ]
+}
+</script>
+</body>
+</html>

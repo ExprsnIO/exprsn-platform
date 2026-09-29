@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Settings · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .main :is(p, dd, .help, .d) a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .set-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; align-items: start; }
+  .set-nav { position: sticky; top: calc(var(--v2-topbar-h) + 16px); display: flex; flex-direction: column; gap: 2px; }
+  .set-nav a { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 10px; color: var(--exprsn-text-secondary); font-size: .875rem; font-weight: 500; }
+  .set-nav a:hover { background: var(--exprsn-bg-hover); text-decoration: none; }
+  .set-nav a[aria-current="true"] { background: color-mix(in srgb, var(--exprsn-primary) 10%, transparent); color: var(--v2-primary-fg); font-weight: 600; }
+  .set-nav a.danger { color: var(--v2-danger-fg); }
+  .sec { scroll-margin-top: calc(var(--v2-topbar-h) + 16px); }
+  .card.danger-zone { border-color: color-mix(in srgb, var(--exprsn-danger) 45%, transparent); }
+  .qr { width: 148px; height: 148px; border-radius: 12px; border: 1px solid var(--exprsn-border-color); display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; padding: 10px; background: var(--exprsn-white); flex: none; }
+  .qr i { background: var(--exprsn-gray-900); border-radius: 1px; }
+  .qr i:nth-child(3n), .qr i:nth-child(7n+1) { background: transparent; }
+  .codes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; font-family: var(--exprsn-font-family-mono); font-size: .875rem; }
+  .theme-opt { display: flex; flex-direction: column; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--exprsn-border-color); border-radius: 14px; cursor: pointer; font-size: .8125rem; font-weight: 600; }
+  .theme-opt:has(input:checked) { border-color: var(--exprsn-primary); box-shadow: var(--v2-focus-ring); }
+  .theme-opt input { position: absolute; opacity: 0; }
+  .theme-opt .sw { width: 100%; height: 56px; border-radius: 10px; border: 1px solid var(--exprsn-border-color); }
+  .sw.light { background: var(--exprsn-gray-50); } .sw.dark { background: var(--exprsn-gray-900); } .sw.auto { background: linear-gradient(90deg, var(--exprsn-gray-50) 50%, var(--exprsn-gray-900) 50%); }
+  @media (max-width: 900px) {
+    .set-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .set-nav { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+    .set-nav a { white-space: nowrap; flex: none; }
+  }
+</style>
+</head>
+<body data-shell="app" data-page="settings">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-sub">Your profile, sign-in security, devices and connected identities.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-api="/auth/api/auth/logout" data-toast="Signed out on this device"><i data-i="logout" class="sm"></i>Sign out</button>
+      </div>
+    </header>
+
+    <div class="set-layout">
+      <nav class="set-nav" aria-label="Settings sections">
+        <a href="#s-profile" aria-current="true"><i data-i="person" class="sm"></i>Profile</a>
+        <a href="#s-security"><i data-i="fingerprint" class="sm"></i>Security &amp; MFA</a>
+        <a href="#s-sessions"><i data-i="globe" class="sm"></i>Sessions</a>
+        <a href="#s-tokens"><i data-i="key" class="sm"></i>API tokens</a>
+        <a href="#s-ids"><i data-i="butterfly" class="sm"></i>Linked identities</a>
+        <a href="#s-notif"><i data-i="bell" class="sm"></i>Notifications</a>
+        <a href="#s-appear"><i data-i="sun" class="sm"></i>Appearance</a>
+        <a href="#s-privacy"><i data-i="eyeOff" class="sm"></i>Privacy</a>
+        <a href="#s-danger" class="danger"><i data-i="alert" class="sm"></i>Danger zone</a>
+      </nav>
+
+      <div>
+        <!-- ════ Loaded ════ -->
+        <div class="stack loose" data-state="loaded">
+
+          <!-- Profile -->
+          <section class="card sec" id="s-profile" aria-labelledby="h-profile" data-api="/auth/api/auth/me /auth/api/users/:id /auth/api/users/:id/profile">
+            <div class="card-head"><h2 id="h-profile">Profile</h2><span class="xs muted">Visible to people in your organizations</span></div>
+            <form class="card-body stack loose" data-toast="Profile saved">
+              <div class="row"><span class="avatar xl g1">RH</span><div class="stack tight"><div class="row wrap" style="gap:6px"><button class="btn sm outline" type="button">Change photo</button><button class="btn sm ghost" type="button">Remove</button></div><span class="xs muted">JPG or PNG, at least 256×256.</span></div></div>
+              <div class="form-grid">
+                <div class="field"><label for="p-name">Display name</label><input class="input" id="p-name" value="Rick Holland"></div>
+                <div class="field"><label for="p-user">Username</label><div class="input-group"><span class="small">@</span><input id="p-user" value="rick"></div></div>
+                <div class="field"><label for="p-email">Email</label><input class="input" id="p-email" type="email" value="rick@exprsn.io" aria-describedby="p-email-h"><span class="help" id="p-email-h"><span class="pill ok">Verified</span> Changing it sends a new verification email.</span></div>
+                <div class="field"><label for="p-title">Title</label><input class="input" id="p-title" value="Platform lead"></div>
+                <div class="field full"><label for="p-bio">Bio</label><textarea class="textarea" id="p-bio" style="min-height:72px">Building the consolidated Exprsn platform. Ask me about the gateway.</textarea></div>
+              </div>
+              <div class="row" style="justify-content:flex-end"><button class="btn primary" type="submit" data-api="/auth/api/users/:id">Save profile</button></div>
+            </form>
+          </section>
+
+          <!-- Security -->
+          <section class="card sec" id="s-security" aria-labelledby="h-security" data-api="/auth/api/mfa/status">
+            <div class="card-head"><h2 id="h-security">Security &amp; MFA</h2><span class="pill ok"><i data-i="check" class="sm"></i>Two-step on</span></div>
+            <div class="setting-row"><i data-i="lock"></i><div class="grow"><div class="t">Password</div><div class="d">Last changed Jul 12, 2026</div></div><button class="btn sm outline" type="button" data-open="dlg-pw">Change</button></div>
+            <div class="setting-row"><i data-i="fingerprint"></i><div class="grow"><div class="t">Authenticator app</div><div class="d">Enabled Nov 2, 2025 · Northwind requires two-step for members</div></div><button class="btn sm ghost" type="button" data-open="dlg-mfa-off">Turn off</button></div>
+            <div class="setting-row"><i data-i="key"></i><div class="grow"><div class="t">Backup codes</div><div class="d">7 of 10 unused · use one if you lose your phone</div></div><button class="btn sm outline" type="button" data-open="dlg-codes" data-api="/auth/api/mfa/regenerate-backup-codes">Regenerate</button></div>
+            <div class="setting-row"><i data-i="shield"></i><div class="grow"><div class="t">Set up on a new phone</div><div class="d">Moves two-step to a new authenticator app</div></div><button class="btn sm outline" type="button" data-open="dlg-mfa" data-api="/auth/api/mfa/setup">Set up</button></div>
+          </section>
+
+          <!-- Sessions -->
+          <section class="card sec" id="s-sessions" aria-labelledby="h-sessions">
+            <div class="card-head"><h2 id="h-sessions">Sessions</h2><button class="btn sm danger-outline" type="button" data-open="dlg-sess-all">Sign out everywhere else</button></div>
+            <div class="list" data-api="/auth/api/sessions /auth/api/sessions/current">
+              <div class="list-item"><i data-i="globe"></i><div class="grow stack tight"><span class="title">Safari · macOS <span class="pill ok">This device</span></span><span class="meta">Seattle, US · 203.0.113.24 · active now</span></div><button class="btn sm ghost" type="button" data-api="/auth/api/sessions/refresh" data-toast="Session extended 7 days">Extend</button></div>
+              <div class="list-item"><i data-i="signal"></i><div class="grow stack tight"><span class="title">Exprsn iOS · iPhone 16</span><span class="meta">Seattle, US · 3 hours ago</span></div><button class="btn sm danger-outline" type="button" data-open="dlg-sess" data-api="/auth/api/sessions/:id">Sign out</button></div>
+              <div class="list-item"><i data-i="globe"></i><div class="grow stack tight"><span class="title">Chrome · Windows <span class="pill">via Okta SSO</span></span><span class="meta">Portland, US · Sep 26</span></div><button class="btn sm danger-outline" type="button" data-open="dlg-sess">Sign out</button></div>
+              <div class="list-item"><i data-i="terminal"></i><div class="grow stack tight"><span class="title">Firefox · Ubuntu</span><span class="meta">Frankfurt, DE · Sep 12 <span class="pill warn">New location</span></span></div><button class="btn sm danger-outline" type="button" data-open="dlg-sess">Sign out</button></div>
+            </div>
+          </section>
+
+          <!-- API tokens -->
+          <section class="card sec dt" id="s-tokens" aria-labelledby="h-tokens">
+            <div class="card-head"><div class="stack tight"><h2 id="h-tokens">API tokens</h2><span class="xs muted">Certificate-backed tokens for scripts and integrations. Each is scoped to one resource.</span></div><button class="btn sm primary" type="button" data-open="dlg-token" data-api="/ca/api/tokens/generate"><i data-i="plus" class="sm"></i>New token</button></div>
+            <div class="dt-scroll">
+              <table class="table" data-api="/ca/api/tokens">
+                <thead><tr><th>Name / id</th><th>Access</th><th>Resource</th><th>Expires</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                  <tr><td><div class="stack tight"><b>deploy-bot</b><span class="id">tok_3f9a21</span></div></td><td><span class="pill">read</span> <span class="pill">write</span></td><td class="small"><span class="mono">url</span> https://exprsn.io/filevault/*</td><td class="small">Dec 31, 2026</td><td><span class="pill ok">Active</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-introspect" data-api="/ca/api/tokens/:id/introspect">Inspect</button><button class="btn sm ghost" type="button" data-api="/ca/api/tokens/:id/refresh" data-toast="deploy-bot refreshed · new expiry Mar 31, 2027">Refresh</button><button class="btn sm danger-outline" type="button" data-open="dlg-tok-revoke">Revoke</button></td></tr>
+                  <tr><td><div class="stack tight"><b>backup-sync</b><span class="id">tok_b81c07</span></div></td><td><span class="pill">read</span></td><td class="small"><span class="mono">did</span> did:plc:7ah2k3…q9</td><td class="small">412 of 1,000 uses</td><td><span class="pill ok">Active</span></td><td class="actions"><button class="btn sm ghost" type="button">Inspect</button><button class="btn sm danger-outline" type="button" data-open="dlg-tok-revoke">Revoke</button></td></tr>
+                  <tr><td><div class="stack tight"><b>laptop-cli</b><span class="id">tok_09de44</span></div></td><td><span class="pill">read</span> <span class="pill">update</span></td><td class="small"><span class="mono">url</span> https://exprsn.io/vault/*</td><td class="small">Sep 20, 2026</td><td><span class="pill">Expired</span></td><td class="actions"><button class="btn sm ghost" type="button">Refresh</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Linked identities -->
+          <section class="card sec" id="s-ids" aria-labelledby="h-ids">
+            <div class="card-head"><h2 id="h-ids">Linked identities</h2><button class="btn sm outline" type="button" data-open="dlg-did" data-api="/atproto/users/:uid/dids"><i data-i="plus" class="sm"></i>Link a DID</button></div>
+            <div class="list" data-api="/atproto/users/:uid/dids">
+              <div class="list-item"><i data-i="butterfly"></i><div class="grow stack tight"><span class="title">did:plc:7ah2k3xq9pwm <span class="pill ok"><i data-i="check" class="sm"></i>Verified</span></span><span class="meta">AT Protocol (Bluesky) · @rick.exprsn.io · linked Aug 4</span></div><button class="btn sm danger-outline" type="button" data-open="dlg-did-rm" data-api="/atproto/users/:uid/dids/:method">Unlink</button></div>
+              <div class="list-item"><i data-i="globe"></i><div class="grow stack tight"><span class="title">did:web:rick.exprsn.io <span class="pill warn">Awaiting proof</span></span><span class="meta">Publish the challenge at /.well-known/did.json, then verify</span></div><button class="btn sm tonal" type="button" data-api="/atproto/users/:uid/dids/verify" data-toast="Verified did:web:rick.exprsn.io">Verify now</button></div>
+              <div class="list-item"><i data-i="code"></i><div class="grow stack tight"><span class="title">GitHub · rickholland</span><span class="meta">Sign-in method · linked Jan 3</span></div><span class="pill">Sign-in</span></div>
+              <div class="list-item"><i data-i="globe"></i><div class="grow stack tight"><span class="title">Google · rick@exprsn.io</span><span class="meta">Sign-in method · linked Nov 2, 2025</span></div><span class="pill">Sign-in</span></div>
+            </div>
+          </section>
+
+          <!-- Notifications -->
+          <section class="card sec" id="s-notif" aria-labelledby="h-notif">
+            <div class="card-head"><h2 id="h-notif">Notifications</h2><span class="pill violet">Saved on this device</span></div>
+            <div class="setting-row"><div class="grow"><div class="t">Direct messages</div><div class="d">Push and badge for new DMs</div></div><label class="switch"><input type="checkbox" id="n-dm" checked aria-label="Direct messages"><span></span></label></div>
+            <div class="setting-row"><div class="grow"><div class="t">Mentions and replies</div><div class="d">When someone @mentions you or replies to your post</div></div><label class="switch"><input type="checkbox" id="n-mention" checked aria-label="Mentions and replies"><span></span></label></div>
+            <div class="setting-row"><div class="grow"><div class="t">Event reminders</div><div class="d">Before events you RSVP’d to</div></div><select class="select" id="n-ev" aria-label="Event reminder timing" style="width:auto"><option>15 min before</option><option>1 hour before</option><option>Off</option></select></div>
+            <div class="setting-row"><div class="grow"><div class="t">Security alerts by email</div><div class="d">New sign-ins, token creation, MFA changes. Always on for org admins.</div></div><label class="switch"><input type="checkbox" id="n-sec" checked aria-label="Security alerts by email"><span></span></label></div>
+          </section>
+
+          <!-- Appearance -->
+          <section class="card sec" id="s-appear" aria-labelledby="h-appear">
+            <div class="card-head"><h2 id="h-appear">Appearance</h2></div>
+            <div class="card-body stack loose">
+              <fieldset style="border:0;padding:0;margin:0" class="stack">
+                <legend class="small" style="font-weight:600;margin-bottom:8px">Theme</legend>
+                <div class="grid c3">
+                  <label class="theme-opt"><input type="radio" name="theme" id="th-light"><span class="sw light"></span>Light</label>
+                  <label class="theme-opt"><input type="radio" name="theme" id="th-dark"><span class="sw dark"></span>Dark</label>
+                  <label class="theme-opt"><input type="radio" name="theme" id="th-auto" checked><span class="sw auto"></span>Match system</label>
+                </div>
+              </fieldset>
+            </div>
+            <div class="setting-row"><div class="grow"><div class="t">Reduce motion</div><div class="d">Turns off animations and shimmer. Follows your system setting by default.</div></div><label class="switch"><input type="checkbox" id="a-motion" aria-label="Reduce motion"><span></span></label></div>
+            <div class="setting-row"><div class="grow"><div class="t">Compact density</div><div class="d">Tighter tables and lists on desktop</div></div><label class="switch"><input type="checkbox" id="a-dense" aria-label="Compact density"><span></span></label></div>
+          </section>
+
+          <!-- Privacy -->
+          <section class="card sec" id="s-privacy" aria-labelledby="h-privacy">
+            <div class="card-head"><h2 id="h-privacy">Privacy</h2></div>
+            <div class="setting-row"><div class="grow"><div class="t">Show me in the people directory</div><div class="d">Others in your orgs can find you by name</div></div><label class="switch"><input type="checkbox" id="pv-dir" checked aria-label="Show me in the directory"><span></span></label></div>
+            <div class="setting-row"><div class="grow"><div class="t">Read receipts</div><div class="d">Let people see when you’ve read their messages</div></div><label class="switch"><input type="checkbox" id="pv-read" checked aria-label="Read receipts"><span></span></label></div>
+            <div class="setting-row"><div class="grow"><div class="t">Blocked and muted accounts</div><div class="d">2 blocked · 5 muted</div></div><button class="btn sm outline" type="button" data-open="dlg-blocks" data-api="/timeline/api/interactions/blocks /timeline/api/interactions/mutes">Manage</button></div>
+          </section>
+
+          <!-- Danger -->
+          <section class="card sec danger-zone" id="s-danger" aria-labelledby="h-danger">
+            <div class="card-head"><h2 id="h-danger">Danger zone</h2></div>
+            <div class="setting-row"><div class="grow"><div class="t">Delete account</div><div class="d">Removes your profile, messages you sent and files you own. Organizations you own must be transferred first.</div></div><button class="btn sm danger-outline" type="button" data-open="dlg-delete">Delete account</button></div>
+          </section>
+        </div>
+
+        <!-- ════ Empty (first run / no MFA) ════ -->
+        <div class="stack loose" data-state="empty">
+          <div class="banner warn"><i data-i="fingerprint" class="sm"></i><span class="grow"><b>Protect your account.</b> Two-step verification is off, and Northwind will require it in 6 days.</span><button class="btn sm outline" type="button" data-open="dlg-mfa">Turn on</button></div>
+          <div class="card"><div class="empty"><div class="art"><i data-i="key"></i></div><h3>No API tokens or linked identities yet</h3><p>Create a token to use Exprsn from scripts, or link a DID to bring your Bluesky identity.</p><div class="row wrap" style="justify-content:center"><button class="btn primary" type="button" data-open="dlg-token">New token</button><button class="btn outline" type="button" data-open="dlg-did">Link a DID</button></div></div></div>
+        </div>
+
+        <!-- ════ Loading ════ -->
+        <div class="stack loose" data-state="loading" aria-busy="true" aria-label="Loading settings">
+          <div class="card pad stack"><span class="sk" style="width:20%"></span><div class="row"><span class="avatar xl" style="background:var(--exprsn-bg-tertiary)"></span><span class="sk grow"></span></div><span class="sk" style="height:44px"></span><span class="sk" style="height:44px"></span></div>
+          <div class="card pad stack"><span class="sk" style="width:30%"></span><span class="sk"></span><span class="sk" style="width:70%"></span></div>
+        </div>
+
+        <!-- ════ Error ════ -->
+        <div class="card" data-state="error">
+          <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load your settings</h3><p>The sign-in service didn’t respond. Nothing was changed. Reference <code>cid 3b7c…e40</code>.</p><button class="btn outline" type="button">Try again</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change password -->
+  <dialog class="dialog sm" id="dlg-pw" aria-labelledby="dlg-pw-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-pw-t">Change password</h2><p>Other devices stay signed in unless you sign them out below.</p></div></div>
+      <div class="dialog-body">
+        <div class="field"><label for="pw-cur">Current password</label><input class="input" id="pw-cur" type="password" autocomplete="current-password"></div>
+        <div class="field"><label for="pw-new">New password</label><input class="input" id="pw-new" type="password" autocomplete="new-password"><span class="help">12+ characters. Avoid passwords you use elsewhere.</span></div>
+        <label class="row" style="gap:10px"><input type="checkbox" class="check" id="pw-out" checked><span class="small">Sign out of other sessions</span></label>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Password changed" data-api="/auth/api/auth/change-password">Change password</button></div>
+    </form>
+  </dialog>
+
+  <!-- MFA setup -->
+  <dialog class="dialog" id="dlg-mfa" aria-labelledby="dlg-mfa-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-mfa-t">Set up an authenticator app</h2><p>Scan with 1Password, Google Authenticator, Authy or similar.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <ol class="stepper" aria-label="Setup progress"><li data-done>Scan</li><li aria-current="step">Verify</li><li>Save codes</li></ol>
+      <div class="row top wrap" style="gap:20px" data-api="/auth/api/mfa/setup">
+        <div class="qr" role="img" aria-label="QR code for your authenticator app"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="stack grow" style="min-width:200px">
+          <div class="field"><span class="label">Can’t scan? Enter this key</span><div class="inset row"><code class="grow" style="overflow-wrap:anywhere">JBSW Y3DP EHPK 3PXP</code><button class="btn sm ghost" type="button" data-copy="JBSWY3DPEHPK3PXP">Copy</button></div></div>
+          <fieldset class="stack tight" style="border:0;padding:0;margin:0" data-api="/auth/api/mfa/verify">
+            <legend class="small" style="font-weight:600;margin-bottom:6px">Enter the 6-digit code</legend>
+            <div class="otp"><input id="m-1" inputmode="numeric" maxlength="1" aria-label="Digit 1"><input id="m-2" inputmode="numeric" maxlength="1" aria-label="Digit 2"><input id="m-3" inputmode="numeric" maxlength="1" aria-label="Digit 3"><input id="m-4" inputmode="numeric" maxlength="1" aria-label="Digit 4"><input id="m-5" inputmode="numeric" maxlength="1" aria-label="Digit 5"><input id="m-6" inputmode="numeric" maxlength="1" aria-label="Digit 6"></div>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Two-step verification is on">Verify and turn on</button></div>
+  </dialog>
+
+  <!-- Backup codes -->
+  <dialog class="dialog sm" id="dlg-codes" aria-labelledby="dlg-codes-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-codes-t">New backup codes</h2><p>Your old codes stopped working. Save these somewhere safe — each works once.</p></div></div>
+    <div class="dialog-body">
+      <div class="inset codes"><span>7f3k-9qpl</span><span>m2x8-4hdn</span><span>q9vz-1ktr</span><span>8bwe-5cjm</span><span>t4ny-7rpa</span><span>j6ud-2sxe</span><span>c1lg-8mfo</span><span>w5hb-3qzi</span><span>n0pa-6vkc</span><span>y3re-9dtu</span></div>
+      <div class="row wrap"><button class="btn sm outline" type="button" data-copy="7f3k-9qpl m2x8-4hdn q9vz-1ktr 8bwe-5cjm t4ny-7rpa j6ud-2sxe c1lg-8mfo w5hb-3qzi n0pa-6vkc y3re-9dtu"><i data-i="copy" class="sm"></i>Copy all</button><button class="btn sm outline" type="button"><i data-i="download" class="sm"></i>Download .txt</button></div>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>I’ve saved them</button></div>
+  </dialog>
+
+  <!-- MFA off -->
+  <dialog class="dialog sm" id="dlg-mfa-off" aria-labelledby="dlg-mfa-off-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-mfa-off-t">Turn off two-step verification?</h2><p>Your account will be protected by your password only. Northwind requires two-step, so you’ll be asked to set it up again at next sign-in.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="off-code">Current authenticator code</label><input class="input mono" id="off-code" inputmode="numeric" placeholder="123456" data-api="/auth/api/mfa/validate"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Keep it on</button><button class="btn danger" type="button" data-close data-toast="Two-step verification turned off" data-api="/auth/api/mfa/disable">Turn off</button></div>
+  </dialog>
+
+  <!-- Sign out one session -->
+  <dialog class="dialog sm" id="dlg-sess" aria-labelledby="dlg-sess-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-sess-t">Sign out “Exprsn iOS · iPhone 16”?</h2><p>Its token is revoked right away; the app will ask to sign in again.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Signed out iPhone 16">Sign out</button></div>
+  </dialog>
+
+  <!-- Sign out all -->
+  <dialog class="dialog sm" id="dlg-sess-all" aria-labelledby="dlg-sess-all-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-sess-all-t">Sign out of 3 other sessions?</h2><p>Every device except this one is signed out and its token revoked. API tokens are not affected.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Signed out of 3 sessions" data-api="/auth/api/sessions">Sign out everywhere else</button></div>
+  </dialog>
+
+  <!-- New token -->
+  <dialog class="dialog" id="dlg-token" aria-labelledby="dlg-token-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-token-t">New API token</h2><p>Signed by your certificate. You’ll see the token once.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field full"><label for="tk-name">Name</label><input class="input" id="tk-name" value="ci-uploader"></div>
+        <div class="field"><label for="tk-cert">Signing certificate</label><select class="select" id="tk-cert" data-api="/ca/api/certificates"><option>rick-laptop-client (expires Oct 20)</option><option>rick-ci-client</option></select></div>
+        <div class="field"><label for="tk-rtype">Resource type</label><select class="select" id="tk-rtype"><option>URL</option><option>DID</option><option>CID</option></select></div>
+        <div class="field full"><label for="tk-res">Resource</label><input class="input mono" id="tk-res" value="https://exprsn.io/filevault/api/files/*"></div>
+      </div>
+      <fieldset class="row wrap" style="border:0;padding:0;margin:0;gap:8px">
+        <legend class="small" style="font-weight:600;margin-bottom:6px">Permissions</legend>
+        <button class="chip" type="button" data-toggle aria-pressed="true">read</button><button class="chip" type="button" data-toggle aria-pressed="true">write</button><button class="chip" type="button" data-toggle aria-pressed="false">append</button><button class="chip" type="button" data-toggle aria-pressed="false">update</button><button class="chip" type="button" data-toggle aria-pressed="false">delete</button>
+      </fieldset>
+      <div class="form-grid">
+        <div class="field"><label for="tk-exp">Expires</label><select class="select" id="tk-exp"><option>After 90 days</option><option>After 1,000 uses</option><option>Never (persistent)</option></select></div>
+        <div class="field"><label for="tk-nbf">Not before (optional)</label><input class="input" id="tk-nbf" type="date"></div>
+      </div>
+      <div class="inset stack tight"><span class="small secondary">Your new token</span><div class="row"><code class="grow truncate" id="tk-val" data-value="exp_ca.eyJ0b2siOiJ0b2tfN2M0MSJ9.Q2k…">••••••••••••</code><button class="btn sm ghost" type="button" data-reveal="tk-val" aria-pressed="false">Reveal</button><button class="btn sm ghost" type="button" data-copy="exp_ca.eyJ0b2siOiJ0b2tfN2M0MSJ9">Copy</button></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Token created — copy it now">Create token</button></div>
+  </dialog>
+
+  <!-- Introspect -->
+  <dialog class="dialog" id="dlg-introspect" aria-labelledby="dlg-introspect-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-introspect-t">deploy-bot</h2><p><span class="id">tok_3f9a21</span> · last used 2 hours ago from 198.51.100.7</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <pre class="code">{
+  "active": true,
+  "permissions": { "read": true, "write": true },
+  "resource": { "type": "url", "value": "https://exprsn.io/filevault/*" },
+  "expiryType": "time",
+  "expiresAt": "2026-12-31T00:00:00Z",
+  "certificateId": "crt_rick-laptop-client",
+  "useCount": 1284
+}</pre>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <!-- Revoke token -->
+  <dialog class="dialog sm" id="dlg-tok-revoke" aria-labelledby="dlg-tok-revoke-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-tok-revoke-t">Revoke “deploy-bot”?</h2><p>Anything using this token stops working immediately. This can’t be undone.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rv-reason">Reason (optional)</label><input class="input" id="rv-reason" placeholder="e.g. rotated after contractor offboarding"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="deploy-bot revoked" data-api="/ca/api/tokens/revoke">Revoke token</button></div>
+  </dialog>
+
+  <!-- Link DID -->
+  <dialog class="dialog" id="dlg-did" aria-labelledby="dlg-did-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-did-t">Link a decentralized identity</h2><p>Prove you control a DID so others can verify your posts across the AT Protocol network.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="seg" role="group" aria-label="DID method"><button type="button" aria-pressed="true">did:web</button><button type="button" aria-pressed="false">did:plc</button></div>
+      <div class="field"><label for="did-v">Your DID</label><input class="input mono" id="did-v" value="did:web:rick.exprsn.io" data-api="/atproto/users/:uid/dids"></div>
+      <div class="field"><span class="label">Challenge to publish</span><div class="inset row" data-api="/atproto/users/:uid/dids/challenge"><code class="grow" style="overflow-wrap:anywhere">exprsn-verify=6c1f0a92e4b7d3</code><button class="btn sm ghost" type="button" data-copy="exprsn-verify=6c1f0a92e4b7d3">Copy</button></div><span class="help">Add it to https://rick.exprsn.io/.well-known/did.json, then verify.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Later</button><button class="btn primary" type="button" data-close data-toast="Verified did:web:rick.exprsn.io" data-api="/atproto/users/:uid/dids/verify">Verify</button></div>
+  </dialog>
+
+  <!-- Unlink DID -->
+  <dialog class="dialog sm" id="dlg-did-rm" aria-labelledby="dlg-did-rm-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-did-rm-t">Unlink did:plc:7ah2k3xq9pwm?</h2><p>Your Exprsn posts will no longer be attributed to this identity on Bluesky. You can link it again later.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="DID unlinked">Unlink</button></div>
+  </dialog>
+
+  <!-- Blocks & mutes -->
+  <dialog class="dialog" id="dlg-blocks" aria-labelledby="dlg-blocks-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-blocks-t">Blocked and muted</h2><p>Blocked people can’t see your posts or message you. Muted people just don’t show up in your timeline.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="list card">
+        <div class="list-item"><span class="avatar sm g2">CD</span><span class="grow"><span class="title">@contoso-deals</span><br><span class="meta">Blocked Sep 3</span></span><button class="btn sm outline" type="button" data-toast="Unblocked @contoso-deals">Unblock</button></div>
+        <div class="list-item"><span class="avatar sm g3">SB</span><span class="grow"><span class="title">@spam-bot-44</span><br><span class="meta">Muted Aug 19</span></span><button class="btn sm outline" type="button">Unmute</button></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <!-- Delete account -->
+  <dialog class="dialog sm" id="dlg-delete" aria-labelledby="dlg-delete-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-delete-t">Delete Rick Holland’s account?</h2><p>This permanently removes your profile, files you own and messages you sent. You own <b>Exprsn HQ</b> — transfer it first.</p></div></div>
+    <div class="dialog-body">
+      <div class="banner danger"><i data-i="alert" class="sm"></i><span class="grow small">Ownership transfer required: Exprsn HQ.</span><a class="btn sm outline" href="orgs.html">Transfer</a></div>
+      <div class="field"><label for="del-confirm">Type <b>rick</b> to confirm</label><input class="input" id="del-confirm" autocomplete="off"></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" disabled data-api="/auth/api/users/:id">Delete account</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "One scrolling page with an anchored section list (a horizontal chip rail on phones). Each section loads and saves on its own; toggles save optimistically and roll back with a toast. Destructive actions (sign out a session, revoke a token, unlink a DID, turn off MFA, delete account) always go through a confirm dialog that names the object. Sign-out actions revoke the CA token in-process, so the affected device gets 401s on its next call.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/auth/me", "auth": "user", "ui": "Header, profile defaults" },
+    { "m": "GET", "p": "/auth/api/users/:id", "auth": "owner/A", "ui": "Profile form" },
+    { "m": "PUT", "p": "/auth/api/users/:id", "auth": "owner", "ui": "Save profile; privacy and notification toggles (stored in metadata)" },
+    { "m": "GET", "p": "/auth/api/users/:id/profile", "auth": "user", "ui": "Public profile preview" },
+    { "m": "POST", "p": "/auth/api/auth/change-password", "auth": "user", "ui": "Change password dialog" },
+    { "m": "GET", "p": "/auth/api/mfa/status", "auth": "user", "ui": "Security header pill, backup codes remaining" },
+    { "m": "POST", "p": "/auth/api/mfa/setup", "auth": "user", "ui": "Set up dialog: QR and secret" },
+    { "m": "POST", "p": "/auth/api/mfa/verify", "auth": "user", "ui": "Set up dialog: Verify and turn on" },
+    { "m": "POST", "p": "/auth/api/mfa/validate", "auth": "user", "ui": "Step-up code before turning MFA off" },
+    { "m": "POST", "p": "/auth/api/mfa/disable", "auth": "user", "ui": "Turn off (confirm dialog)" },
+    { "m": "POST", "p": "/auth/api/mfa/regenerate-backup-codes", "auth": "user", "ui": "Regenerate backup codes dialog" },
+    { "m": "GET", "p": "/auth/api/sessions", "auth": "user", "ui": "Sessions list" },
+    { "m": "GET", "p": "/auth/api/sessions/current", "auth": "user", "ui": "“This device” marker" },
+    { "m": "DELETE", "p": "/auth/api/sessions/:id", "auth": "user", "ui": "Sign out one session (revokes its CA token)" },
+    { "m": "DELETE", "p": "/auth/api/sessions", "auth": "user", "ui": "Sign out everywhere else" },
+    { "m": "POST", "p": "/auth/api/sessions/refresh", "auth": "user", "ui": "Extend this session" },
+    { "m": "GET", "p": "/ca/api/tokens", "auth": "user (session)", "ui": "API tokens table" },
+    { "m": "POST", "p": "/ca/api/tokens/generate", "auth": "user (session)", "ui": "New token dialog (certificateId, permissions, resource, expiryType)" },
+    { "m": "POST", "p": "/ca/api/tokens/revoke", "auth": "user (session)", "ui": "Revoke token dialog" },
+    { "m": "POST", "p": "/ca/api/tokens/revoke-bulk", "auth": "user (session)", "ui": "Revoke all expired (overflow)" },
+    { "m": "POST", "p": "/ca/api/tokens/:id/refresh", "auth": "owner", "ui": "Refresh row action" },
+    { "m": "GET", "p": "/ca/api/tokens/:id/introspect", "auth": "owner", "ui": "Inspect dialog" },
+    { "m": "GET", "p": "/ca/api/certificates", "auth": "user (session)", "ui": "New token → signing certificate picker" },
+    { "m": "GET", "p": "/atproto/users/:uid/dids", "auth": "P", "ui": "Linked identities list" },
+    { "m": "PUT", "p": "/atproto/users/:uid/dids", "auth": "owner/A", "ui": "Link a DID → save did:web / did:plc" },
+    { "m": "POST", "p": "/atproto/users/:uid/dids/challenge", "auth": "owner/A", "ui": "Link a DID → challenge string" },
+    { "m": "POST", "p": "/atproto/users/:uid/dids/verify", "auth": "owner/A", "ui": "Verify / Verify now" },
+    { "m": "DELETE", "p": "/atproto/users/:uid/dids/:method", "auth": "owner/A", "ui": "Unlink (confirm dialog)" },
+    { "m": "GET", "p": "/timeline/api/interactions/blocks", "auth": "user", "ui": "Privacy → Blocked" },
+    { "m": "GET", "p": "/timeline/api/interactions/mutes", "auth": "user", "ui": "Privacy → Muted" },
+    { "m": "DELETE", "p": "/timeline/api/interactions/users/:id/block", "auth": "user", "ui": "Unblock (unmute = DELETE …/mute)" },
+    { "m": "POST", "p": "/auth/api/auth/logout", "auth": "user", "ui": "Sign out button" },
+    { "m": "DELETE", "p": "/auth/api/users/:id", "auth": "owner", "ui": "Delete account (typed confirmation)" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "Proposed: notification preferences. No module stores them, so the section is device-local today (the pill says so). Proposed: GET/PUT /moderator/api/notifications/preferences, honoured by the ingest path." },
+    { "sev": "med", "text": "Proposed: linking or unlinking Google/GitHub from a signed-in account. OAuth identities can only be created by signing in, so those rows are read-only." },
+    { "sev": "med", "text": "Revoking a session or token has no realtime signal. The CA socket helpers token:revoked and user:login are dead code, so other open tabs only find out on their next 401." },
+    { "sev": "med", "text": "POST /ca/api/tokens/generate requires a certificateId, so someone with no certificate has to issue one on Certificates first. Proposed: default to the user's platform-issued certificate." }
+  ]
+}
+</script>
+</body>
+</html>

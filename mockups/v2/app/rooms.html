@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rooms · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  .code-input { font-family: var(--exprsn-font-family-mono); letter-spacing: .2em; text-transform: uppercase; }
+  .room-card .card-body { display: flex; flex-direction: column; gap: 8px; }
+</style>
+</head>
+<body data-shell="app" data-page="rooms">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Rooms</h1>
+        <p class="page-sub">Video calls for small groups — share screens and files, record, and let people knock to join.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn primary" type="button" data-open="dlg-create" data-api="/live/api/rooms"><i data-i="plus" class="sm"></i>New room</button>
+      </div>
+    </header>
+
+    <div class="grid c2">
+      <form class="card pad stack" data-api="/live/api/rooms/code/:code" data-toast="Found “Design crit” — joining">
+        <h2 class="section-title" style="font-size:1rem">Join with a code</h2>
+        <div class="row">
+          <label class="sr-only" for="join-code">Room code</label>
+          <input class="input code-input grow" id="join-code" value="KX7-4QP" autocomplete="off">
+          <button class="btn primary" type="submit" data-api="/live/api/rooms/:id/join">Join</button>
+        </div>
+        <span class="xs muted">Codes look like ABC-123. If the room is locked, the host gets a knock.</span>
+      </form>
+      <div class="card pad stack" data-api="/live/api/rooms/:id/invites">
+        <div class="row between"><h2 class="section-title" style="font-size:1rem">Invitations</h2><span class="badge">2</span></div>
+        <div class="row"><span class="avatar sm g2">JO</span><span class="grow small"><b>Jonah</b> invited you to <b>Northwind build sync</b> · now</span><a class="btn sm primary" href="room.html">Join</a></div>
+        <div class="row"><span class="avatar sm g3">PR</span><span class="grow small"><b>Priya</b> invited you to <b>Incident review</b> · Thu 09:00</span><button class="btn sm ghost" type="button" data-toast="Invitation declined">Decline</button></div>
+      </div>
+    </div>
+
+    <section class="stack" aria-labelledby="my-h">
+      <div class="section-title"><h2 id="my-h">Your rooms</h2><div class="seg" role="group" aria-label="Filter rooms"><button type="button" aria-pressed="true">Active</button><button type="button" aria-pressed="false">Scheduled</button><button type="button" aria-pressed="false">Past</button></div></div>
+
+      <div data-state="loaded" class="grid auto" data-api="/live/api/rooms" data-on="participant-joined participant-left room-closed">
+        <article class="card room-card">
+          <div class="card-body">
+            <div class="row between"><b>Design crit</b><span class="pill ok"><span class="d"></span>In call · 4</span></div>
+            <div class="avatar-stack"><span class="avatar sm g1">MD</span><span class="avatar sm g2">JO</span><span class="avatar sm g3">PR</span><span class="avatar sm g4">AL</span></div>
+            <span class="xs muted">Code <span class="id">KX7-4QP</span> · You’re host · recording</span>
+            <div class="banner warn" style="padding:8px 10px" data-api="/live/api/rooms/:id/join-requests"><i data-i="hand" class="sm"></i><span class="grow small">Sam Kim is knocking</span><button class="btn sm outline" type="button" data-open="dlg-knock">Review</button></div>
+            <a class="btn primary" href="room.html"><i data-i="video" class="sm"></i>Rejoin</a>
+          </div>
+        </article>
+        <article class="card room-card">
+          <div class="card-body">
+            <div class="row between"><b>Northwind build sync</b><span class="pill ok"><span class="d"></span>In call · 2</span></div>
+            <div class="avatar-stack"><span class="avatar sm g2">JO</span><span class="avatar sm">SK</span></div>
+            <span class="xs muted">Hosted by Jonah Okafor · open to invitees</span>
+            <a class="btn tonal" href="room.html" data-api="/live/api/rooms/:id/join">Join</a>
+          </div>
+        </article>
+        <article class="card room-card">
+          <div class="card-body">
+            <div class="row between"><b>1:1 Maya / Rick</b><span class="pill">Idle</span></div>
+            <span class="xs muted">Code <span class="id">M9D-2RH</span> · last used Sep 26 · 2 recordings</span>
+            <div class="row wrap" style="gap:8px"><a class="btn outline sm" href="room.html">Start</a><button class="btn ghost sm" type="button" data-open="dlg-recs" data-api="/live/api/rooms/:id/recordings">Recordings</button><button class="icon-btn" type="button" aria-label="Room settings for 1:1 Maya / Rick" data-open="dlg-settings"><i data-i="more"></i></button></div>
+          </div>
+        </article>
+      </div>
+      <div data-state="empty">
+        <div class="empty"><div class="art"><i data-i="video"></i></div><h3>No rooms yet</h3><p>Create a room for a quick call — anyone with the code can knock, and you decide who comes in.</p><button class="btn primary" type="button" data-open="dlg-create">New room</button></div>
+      </div>
+      <div data-state="loading" aria-busy="true" aria-label="Loading rooms"><div class="grid auto"><span class="sk" style="height:180px"></span><span class="sk" style="height:180px"></span><span class="sk" style="height:180px"></span></div></div>
+      <div data-state="error">
+        <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load rooms</h3><p>The live service didn’t respond. Calls in progress aren’t affected. Correlation id <code>cid 2ce8…41a</code>.</p><button class="btn outline" type="button">Try again</button></div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog" id="dlg-create" aria-labelledby="dlg-create-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-create-t">New room</h2><p>You’ll be the host. Share the code or invite people directly.</p></div></div>
+      <div class="dialog-body">
+        <div class="field"><label for="rm-name">Name</label><input class="input" id="rm-name" value="Design crit"></div>
+        <div class="form-grid">
+          <div class="field"><label for="rm-max">Max participants</label><select class="select" id="rm-max"><option>8</option><option>16</option><option>25</option></select><span class="help">Peer-to-peer video works best up to 8.</span></div>
+          <div class="field"><label for="rm-when">When</label><select class="select" id="rm-when"><option>Now</option><option>Schedule…</option></select></div>
+        </div>
+        <fieldset class="stack tight" style="border:0;padding:0;margin:0"><legend class="small" style="font-weight:600;margin-bottom:6px">Who can come in</legend>
+          <label class="row small"><input type="radio" name="rm-acc" id="rm-a1" checked> Invitees join directly; others knock</label>
+          <label class="row small"><input type="radio" name="rm-acc" id="rm-a2"> Anyone with the code</label>
+          <label class="row small"><input type="radio" name="rm-acc" id="rm-a3"> Everyone knocks (locked)</label>
+        </fieldset>
+        <div class="field"><label for="rm-inv">Invite</label><div class="input-group"><span class="chip" aria-pressed="true">Maya Diaz <span class="x">×</span></span><span class="chip" aria-pressed="true">Jonah Okafor <span class="x">×</span></span><input id="rm-inv" placeholder="Add people" data-api="/auth/api/users/directory"></div></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><a class="btn primary" href="room.html">Create &amp; join</a></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-knock" aria-labelledby="dlg-knock-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-knock-t">Waiting to join Design crit</h2><p>People who used the code but weren’t invited.</p></div></div>
+    <div class="dialog-body">
+      <div class="list card" data-api="/live/api/rooms/:id/join-requests">
+        <div class="list-item"><span class="avatar sm">SK</span><span class="grow small"><b>Sam Kim</b><br><span class="muted">Contoso · knocked 1 min ago</span></span><button class="btn sm ghost" type="button" data-toast="Sam was turned away" data-api="/live/api/rooms/:id/join-requests/:rid/:decision">Deny</button><button class="btn sm primary" type="button" data-toast="Sam Kim admitted">Admit</button></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-recs" aria-labelledby="dlg-recs-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-recs-t">Recordings · 1:1 Maya / Rick</h2></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="list card"><div class="list-item"><i data-i="record"></i><span class="grow small"><b>Sep 26, 14:02</b><br><span class="muted">32 min · 410 MB</span></span><span class="pill ok">Ready</span><button class="btn sm ghost" type="button">Download</button></div><div class="list-item"><i data-i="record"></i><span class="grow small"><b>Sep 19, 14:00</b><br><span class="muted">28 min</span></span><span class="pill warn">In moderation review</span></div></div>
+    </div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-settings" aria-labelledby="dlg-settings-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-settings-t">1:1 Maya / Rick</h2><p>Room settings</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rs-name">Name</label><input class="input" id="rs-name" value="1:1 Maya / Rick"></div>
+      <div class="list card" data-api="/live/api/rooms/:id/invites"><div class="list-item"><span class="avatar sm g1">MD</span><span class="grow small">Maya Diaz · invited</span><button class="btn sm ghost" type="button" data-toast="Invite revoked">Revoke</button></div></div></div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-del">Delete room</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Saved" data-api="/live/api/rooms/:id">Save</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del" aria-labelledby="dlg-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-t">Delete “1:1 Maya / Rick”?</h2><p>The code stops working and anyone in the room is disconnected. Recordings are kept for 30 days.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Room deleted">Delete room</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Lobby for WebRTC rooms. Joining by code resolves the room (GET /code/:code) then POST /:id/join; if the room requires approval the join creates a join request and the UI waits for the host. Hosts see knock banners from GET /:id/join-requests (polled every 5s — no socket event for knocks). Room cards update from participant-joined/left and room-closed when the client is connected to /live.",
+  "rest": [
+    { "m": "GET", "p": "/live/api/rooms", "auth": "user", "ui": "Your rooms grid + filter" },
+    { "m": "POST", "p": "/live/api/rooms", "auth": "user", "ui": "New room dialog" },
+    { "m": "GET", "p": "/live/api/rooms/code/:code", "auth": "user", "ui": "Join with a code" },
+    { "m": "GET", "p": "/live/api/rooms/:id", "auth": "participant", "ui": "Room card detail" },
+    { "m": "PUT", "p": "/live/api/rooms/:id", "auth": "host", "ui": "Room settings → Save" },
+    { "m": "DELETE", "p": "/live/api/rooms/:id", "auth": "host", "ui": "Delete room confirm" },
+    { "m": "POST", "p": "/live/api/rooms/:id/join", "auth": "user", "ui": "Join / Rejoin" },
+    { "m": "POST", "p": "/live/api/rooms/:id/leave", "auth": "participant", "ui": "Leave (from call)" },
+    { "m": "GET", "p": "/live/api/rooms/:id/participants", "auth": "participant", "ui": "Avatar stack + In call count" },
+    { "m": "GET", "p": "/live/api/rooms/:id/recordings", "auth": "participant", "ui": "Recordings dialog" },
+    { "m": "POST", "p": "/live/api/rooms/:id/invites", "auth": "host", "ui": "Create dialog → Invite" },
+    { "m": "GET", "p": "/live/api/rooms/:id/invites", "auth": "host", "ui": "Settings → invite list; Invitations card (proposed user view)" },
+    { "m": "DELETE", "p": "/live/api/rooms/:id/invites/:inviteId", "auth": "host", "ui": "Revoke invite" },
+    { "m": "POST", "p": "/live/api/rooms/:id/join-requests", "auth": "user", "ui": "Knock (join by code on a locked room)" },
+    { "m": "GET", "p": "/live/api/rooms/:id/join-requests", "auth": "host", "ui": "Knock banner + review dialog" },
+    { "m": "POST", "p": "/live/api/rooms/:id/join-requests/:rid/:decision", "auth": "host", "ui": "Admit (approve) / Deny" },
+    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "Invite picker" }
+  ],
+  "socket": [
+    { "ns": "/live", "auth": "CA bearer for rooms", "rooms": ["{roomId}"],
+      "emit": [],
+      "on": [
+        { "e": "participant-joined", "ui": "Card In call count / avatars" },
+        { "e": "participant-left", "ui": "Card In call count / avatars" },
+        { "e": "room-closed", "ui": "Card → Idle" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "med", "text": "No user-scoped 'my invitations' endpoint — GET /:id/invites is host-only per room, so the Invitations card needs a proposed GET /live/api/rooms/invites/mine." },
+    { "sev": "med", "text": "Knocks and decisions emit no socket event: hosts must poll join-requests, and the knocking user must poll to learn they were admitted. Proposed: join-request / join-decision events." },
+    { "sev": "med", "text": "Room events only reach sockets already in {roomId}; the lobby can't observe rooms it hasn't joined, so cards refetch on focus." }
+  ]
+}
+</script>
+</body>
+</html>

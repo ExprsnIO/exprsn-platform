@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Groups · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  .gcard { display: flex; flex-direction: column; overflow: hidden; color: inherit; }
+  .gcard:hover { text-decoration: none; box-shadow: var(--exprsn-shadow-md); }
+  .gcard .ph { min-height: 0; aspect-ratio: 3 / 1; }
+  .gcard .body { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .gcard .foot { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 6px; }
+  .rail { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 280px); gap: 16px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+  .rail > * { scroll-snap-align: start; }
+</style>
+</head>
+<body data-shell="app" data-page="groups">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Groups</h1>
+        <p class="page-sub">Communities with their own posts, chat, events, files and decisions. Find one to join or start your own.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn primary" type="button" data-open="dlg-create" data-api="/nexus/api/groups"><i data-i="plus" class="sm"></i>Create group</button>
+      </div>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="Groups views">
+      <button role="tab" id="gt-disc" aria-controls="gp-disc" aria-selected="true">Discover</button>
+      <button role="tab" id="gt-mine" aria-controls="gp-mine">My groups <span class="badge neutral">5</span></button>
+    </div>
+
+    <!-- Discover -->
+    <section id="gp-disc" role="tabpanel" aria-labelledby="gt-disc" class="stack loose">
+      <div class="row wrap">
+        <label class="input-group grow" style="max-width:520px" data-api="/nexus/api/groups/search"><i data-i="search" class="sm"></i><input id="g-q" type="search" placeholder="Search groups by name, topic or place"></label>
+        <button class="chip" type="button" aria-pressed="true" data-api="/nexus/api/groups/search/popular">Popular</button>
+        <button class="chip" type="button" aria-pressed="false" data-api="/nexus/api/groups/discover/nearby"><i data-i="globe" class="sm"></i>Near me</button>
+        <button class="chip" type="button" aria-pressed="false" data-api="/nexus/api/groups/discover/activity">Most active</button>
+        <button class="chip" type="button" aria-pressed="false">Public only</button>
+      </div>
+
+      <div data-state="loaded" class="stack loose">
+        <section class="stack" aria-labelledby="rec-h">
+          <div class="section-title"><h2 id="rec-h">Recommended for you</h2><span class="xs muted">Based on your groups and follows</span></div>
+          <div class="rail" data-api="/nexus/api/recommendations">
+            <a class="card gcard" href="group.html" data-api="/nexus/api/recommendations/:id/track">
+              <div class="ph purple"><i data-i="groups"></i></div>
+              <div class="body"><b>Typography Club</b><span class="small secondary">Type specimens, font pairing crits, weekly show-and-tell.</span>
+                <span class="pill brand" style="align-self:flex-start"><i data-i="sparkle" class="sm"></i>3 friends are members</span>
+                <div class="foot"><span class="xs muted num">412 members · Public</span><span class="grow"></span><span class="btn sm tonal">View</span></div></div>
+            </a>
+            <a class="card gcard" href="group.html">
+              <div class="ph success"><i data-i="groups"></i></div>
+              <div class="body"><b>Northwind Makers</b><span class="small secondary">Workshop bookings, laser cutter slots and build logs.</span>
+                <span class="pill brand" style="align-self:flex-start"><i data-i="sparkle" class="sm"></i>Similar to Design Guild</span>
+                <div class="foot"><span class="xs muted num">1,208 members · Public</span><span class="grow"></span><span class="btn sm tonal">View</span></div></div>
+            </a>
+            <a class="card gcard" href="group.html">
+              <div class="ph warm"><i data-i="groups"></i></div>
+              <div class="body"><b>Contoso Field Ops</b><span class="small secondary">Crew schedules and safety briefings for the October pilot.</span>
+                <span class="pill" style="align-self:flex-start"><i data-i="lock" class="sm"></i>Request to join</span>
+                <div class="foot"><span class="xs muted num">86 members · Private</span><span class="grow"></span><span class="btn sm tonal">View</span></div></div>
+            </a>
+            <a class="card gcard" href="group.html">
+              <div class="ph primary"><i data-i="groups"></i></div>
+              <div class="body"><b>Local-first AI</b><span class="small secondary">Running models on your own hardware. Cortex tips welcome.</span>
+                <span class="pill brand" style="align-self:flex-start"><i data-i="sparkle" class="sm"></i>Trending topic</span>
+                <div class="foot"><span class="xs muted num">2,940 members · Public</span><span class="grow"></span><span class="btn sm tonal">View</span></div></div>
+            </a>
+          </div>
+        </section>
+
+        <div class="split">
+          <section class="card" aria-labelledby="pop-h">
+            <div class="card-head"><h2 id="pop-h">Popular groups</h2><div class="seg" role="group" aria-label="Sort popular groups"><button type="button" aria-pressed="true">Members</button><button type="button" aria-pressed="false">Newest</button></div></div>
+            <div class="list" data-api="/nexus/api/groups/search/popular /nexus/api/groups">
+              <div class="list-item"><span class="avatar sq g1">DG</span><a class="grow stack tight" href="group.html" style="gap:0;color:inherit"><b>Design Guild</b><span class="meta">3,118 members · Design · Public</span></a><span class="pill ok"><i data-i="check" class="sm"></i>Joined</span></div>
+              <div class="list-item"><span class="avatar sq g4">LA</span><a class="grow stack tight" href="group.html" style="gap:0;color:inherit"><b>Local-first AI</b><span class="meta">2,940 members · Technology · Public</span></a><button class="btn sm primary" type="button" data-toast="Joined Local-first AI" data-api="/nexus/api/groups/:id/join">Join</button></div>
+              <div class="list-item"><span class="avatar sq g3">NM</span><a class="grow stack tight" href="group.html" style="gap:0;color:inherit"><b>Northwind Makers</b><span class="meta">1,208 members · Hobbies · Public</span></a><button class="btn sm primary" type="button" data-toast="Joined Northwind Makers">Join</button></div>
+              <div class="list-item"><span class="avatar sq g2">CF</span><a class="grow stack tight" href="group.html" style="gap:0;color:inherit"><b>Contoso Field Ops</b><span class="meta">86 members · Work · Private</span></a><button class="btn sm outline" type="button" data-toast="Request sent — admins will review it">Request</button></div>
+              <div class="list-item"><span class="avatar sq">PO</span><a class="grow stack tight" href="group.html" style="gap:0;color:inherit"><b>Platform On-call</b><span class="meta">42 members · Work · Invite only</span></a><span class="pill ok"><i data-i="check" class="sm"></i>Joined</span></div>
+            </div>
+          </section>
+          <aside class="stack loose">
+            <section class="card" aria-labelledby="trg-h">
+              <div class="card-head"><h2 id="trg-h">Trending this week</h2></div>
+              <ol class="list" style="margin:0;padding:0;list-style:none" data-api="/nexus/api/trending/groups">
+                <li class="list-item"><span class="num secondary" style="width:18px">1</span><span class="grow"><b class="small">Local-first AI</b><br><span class="xs muted">+412 members</span></span><span class="pill ok">↑ 38%</span></li>
+                <li class="list-item"><span class="num secondary" style="width:18px">2</span><span class="grow"><b class="small">Maker Faire 2026</b><br><span class="xs muted">+188 members</span></span><span class="pill ok">↑ 22%</span></li>
+                <li class="list-item"><span class="num secondary" style="width:18px">3</span><span class="grow"><b class="small">Typography Club</b><br><span class="xs muted">+61 members</span></span><span class="pill ok">↑ 17%</span></li>
+              </ol>
+            </section>
+            <section class="card" aria-labelledby="near-h">
+              <div class="card-head"><h2 id="near-h">Near Portland, OR</h2><button class="btn sm ghost" type="button">Change</button></div>
+              <div class="list" data-api="/nexus/api/groups/discover/nearby">
+                <div class="list-item"><i data-i="globe" class="sm"></i><span class="grow"><b class="small">PDX Cyclists</b><br><span class="xs muted">2.1 km · 540 members</span></span></div>
+                <div class="list-item"><i data-i="globe" class="sm"></i><span class="grow"><b class="small">Hawthorne Book Circle</b><br><span class="xs muted">4.8 km · 73 members</span></span></div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+
+      <div data-state="empty">
+        <div class="empty"><div class="art"><i data-i="search"></i></div><h3>No groups match “quilting”</h3><p>Try a broader topic, or start the group yourself — you’ll be its first admin.</p><button class="btn primary" type="button" data-open="dlg-create">Create “quilting”</button></div>
+      </div>
+      <div data-state="loading" aria-busy="true" aria-label="Loading groups">
+        <div class="grid auto"><span class="sk" style="height:200px"></span><span class="sk" style="height:200px"></span><span class="sk" style="height:200px"></span></div>
+      </div>
+      <div data-state="error">
+        <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load groups</h3><p>The groups service (nexus) didn’t respond. Your memberships aren’t affected. Correlation id <code>cid 0b7e…c33</code>.</p><button class="btn outline" type="button">Try again</button></div>
+      </div>
+    </section>
+
+    <!-- Mine -->
+    <section id="gp-mine" role="tabpanel" aria-labelledby="gt-mine" hidden>
+      <div class="grid auto" data-api="/nexus/api/memberships /nexus/api/memberships/user/:userId">
+        <a class="card gcard" href="group.html"><div class="ph primary"><i data-i="groups"></i></div><div class="body"><b>Design Guild</b><span class="small secondary">3,118 members</span><div class="foot"><span class="pill violet">Admin</span><span class="badge">4</span><span class="xs muted">new posts</span></div></div></a>
+        <a class="card gcard" href="group.html"><div class="ph dark"><i data-i="groups"></i></div><div class="body"><b>Platform On-call</b><span class="small secondary">42 members</span><div class="foot"><span class="pill">Member</span><span class="pill warn">Vote open</span></div></div></a>
+        <a class="card gcard" href="group.html"><div class="ph warm"><i data-i="groups"></i></div><div class="body"><b>Exprsn HQ</b><span class="small secondary">214 members</span><div class="foot"><span class="pill">Member</span><span class="xs muted">Event Thu</span></div></div></a>
+        <a class="card gcard" href="group.html"><div class="ph success"><i data-i="groups"></i></div><div class="body"><b>Northwind Partners</b><span class="small secondary">31 members</span><div class="foot"><span class="pill">Moderator</span></div></div></a>
+        <div class="card gcard"><div class="ph purple"><i data-i="groups"></i></div><div class="body"><b>Typography Club</b><span class="small secondary">Requested Sep 27</span><div class="foot"><span class="pill info">Pending approval</span><span class="grow"></span><button class="btn sm ghost" type="button" data-toast="Request withdrawn" data-api="/nexus/api/groups/:id/leave">Withdraw</button></div></div></div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog" id="dlg-create" aria-labelledby="dlg-create-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-create-t">Create a group</h2><p>You’ll be the owner. You can change everything later in group settings.</p></div></div>
+      <div class="dialog-body">
+        <ol class="stepper" aria-label="Steps"><li aria-current="step">Basics</li><li>Privacy</li><li>Invite</li></ol>
+        <div class="field"><label for="cg-name">Name</label><input class="input" id="cg-name" value="Typography Club"></div>
+        <div class="field"><label for="cg-desc">Description</label><textarea class="textarea" id="cg-desc">Type specimens, font pairing crits, weekly show-and-tell.</textarea></div>
+        <div class="form-grid">
+          <div class="field"><label for="cg-cat">Category</label><select class="select" id="cg-cat"><option>Design</option><option>Technology</option><option>Work</option><option>Hobbies</option></select></div>
+          <div class="field"><label for="cg-loc">Location (optional)</label><input class="input" id="cg-loc" placeholder="City, for Near me"></div>
+        </div>
+        <fieldset class="stack tight" style="border:0;padding:0;margin:0"><legend class="small" style="font-weight:600;margin-bottom:6px">Who can join</legend>
+          <label class="row small"><input type="radio" name="cg-vis" id="cg-v1" checked> Anyone — public group</label>
+          <label class="row small"><input type="radio" name="cg-vis" id="cg-v2"> Request to join — admins approve</label>
+          <label class="row small"><input type="radio" name="cg-vis" id="cg-v3"> Invite only — hidden from search</label>
+        </fieldset>
+        <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Review posts before they appear</div><div class="d">New posts wait for an admin.</div></div><label class="switch"><input type="checkbox" id="cg-review" aria-label="Review posts"><span></span></label></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Group created — you’re the owner">Create group</button></div>
+    </form>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Discover combines recommendations (impressions/clicks reported via /track), popular, trending and nearby lists; search debounces 300 ms. Join is optimistic for public groups; private groups create a join request and show 'Pending approval' in My groups. No realtime on this screen — lists refetch on focus.",
+  "rest": [
+    { "m": "GET", "p": "/nexus/api/groups", "auth": "user", "ui": "Popular groups list (fallback browse)" },
+    { "m": "POST", "p": "/nexus/api/groups", "auth": "user", "ui": "Create group dialog" },
+    { "m": "POST", "p": "/nexus/api/groups/search", "auth": "user", "ui": "Search field" },
+    { "m": "GET", "p": "/nexus/api/groups/search/popular", "auth": "user", "ui": "Popular chip + Popular groups" },
+    { "m": "GET", "p": "/nexus/api/groups/discover/nearby", "auth": "user", "ui": "Near me chip + Near card" },
+    { "m": "GET", "p": "/nexus/api/groups/discover/activity", "auth": "user", "ui": "Most active chip" },
+    { "m": "GET", "p": "/nexus/api/groups/:id/related", "auth": "user", "ui": "“Similar to Design Guild” reason" },
+    { "m": "POST", "p": "/nexus/api/groups/:id/join", "auth": "user", "ui": "Join / Request buttons" },
+    { "m": "POST", "p": "/nexus/api/groups/:id/leave", "auth": "user", "ui": "Withdraw request" },
+    { "m": "GET", "p": "/nexus/api/trending/groups", "auth": "user", "ui": "Trending this week" },
+    { "m": "GET", "p": "/nexus/api/recommendations", "auth": "user", "ui": "Recommended rail" },
+    { "m": "POST", "p": "/nexus/api/recommendations/generate", "auth": "user", "ui": "Rail refresh when empty/stale" },
+    { "m": "POST", "p": "/nexus/api/recommendations/:id/track", "auth": "user", "ui": "Card impression/click tracking" },
+    { "m": "GET", "p": "/nexus/api/recommendations/analytics", "auth": "user", "ui": "“Based on your groups and follows” explainer (your rec stats)" },
+    { "m": "GET", "p": "/nexus/api/memberships", "auth": "user", "ui": "My groups tab" },
+    { "m": "GET", "p": "/nexus/api/memberships/user/:userId", "auth": "user", "ui": "My groups (by user id)" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "Search is POST /groups/search (not GET), so results aren't cacheable or linkable. Proposed: GET /nexus/api/groups/search?q=." },
+    { "sev": "med", "text": "Memberships don't include pending join requests with a status, so 'Pending approval' needs a proposed GET /nexus/api/memberships?status=pending." }
+  ]
+}
+</script>
+</body>
+</html>

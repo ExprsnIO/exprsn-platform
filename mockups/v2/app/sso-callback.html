@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Signing in · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  body { background: var(--exprsn-bg-secondary); }
+  .cb-wrap { min-height: calc(100vh - 64px); display: grid; place-items: center; padding: 32px 16px 96px; }
+  .cb-card { width: 100%; max-width: 440px; }
+  .demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border: 1px dashed var(--exprsn-border-color-strong); border-radius: 12px; font-size: .75rem; color: var(--exprsn-text-secondary); margin-bottom: 16px; }
+  .demo-bar .seg { display: flex; flex-wrap: wrap; }
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: .875rem; }
+  .steps li { display: flex; gap: 10px; align-items: center; }
+  .steps .ok { color: var(--v2-ok-fg); }
+  .steps .wait { color: var(--exprsn-text-muted); }
+  .spinner { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--exprsn-border-color); border-top-color: var(--exprsn-primary); animation: spin .9s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+</style>
+</head>
+<body data-shell="public" data-page="sso-callback">
+<main id="main">
+  <header class="public-top">
+    <a class="brand" href="login.html"><span class="brand-mark">E</span><span>Exprsn</span></a>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light/dark theme"><i data-i="moon"></i></button>
+  </header>
+
+  <div class="cb-wrap">
+    <div class="cb-card">
+      <div class="demo-bar" role="group" aria-label="Mockup preview">
+        <span class="eyebrow">Preview</span>
+        <div class="seg" role="group" aria-label="Preview state" data-view-target="cb">
+          <button type="button" aria-pressed="true" data-view="verify">Verifying</button>
+          <button type="button" aria-pressed="false" data-view="mfa">Two-step</button>
+          <button type="button" aria-pressed="false" data-view="done">Signed in</button>
+          <button type="button" aria-pressed="false" data-view="fail">Failed</button>
+          <button type="button" aria-pressed="false" data-view="expired">Link used</button>
+        </div>
+      </div>
+
+      <!-- Verifying -->
+      <section class="card pad stack loose" data-view-of="cb" data-view-name="verify" aria-busy="true" data-api="/auth/api/auth/exchange">
+        <div class="row"><span class="avatar sq g1">EX</span><div class="stack tight"><h1 style="font-size:1.375rem">Signing you in</h1><span class="small secondary">Exprsn HQ · Okta SAML</span></div></div>
+        <div class="meter" role="progressbar" aria-label="Sign-in progress" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100"><i style="width:66%"></i></div>
+        <ol class="steps">
+          <li><i data-i="check" class="sm ok"></i><span>Identity provider confirmed who you are</span></li>
+          <li><i data-i="check" class="sm ok"></i><span>Exprsn account matched to <b>maya@exprsn.io</b></span></li>
+          <li><span class="spinner" aria-hidden="true"></span><span>Issuing your session certificate token…</span></li>
+          <li><i data-i="clock" class="sm wait"></i><span class="secondary">Opening your workspace</span></li>
+        </ol>
+        <p class="xs muted">Don’t close this tab. This usually takes a second or two.</p>
+      </section>
+
+      <!-- MFA required after SSO -->
+      <section class="card pad stack loose" data-view-of="cb" data-view-name="mfa" hidden>
+        <div class="stack tight"><h1 style="font-size:1.375rem">One more step</h1><p class="secondary">Your account has two-step verification on. Enter the code from your authenticator app to finish signing in with GitHub.</p></div>
+        <form class="stack" data-api="/auth/api/auth/mfa/verify" data-toast="Verified — opening your workspace">
+          <fieldset class="stack" style="border:0;padding:0;margin:0">
+            <legend class="small" style="font-weight:600;margin-bottom:8px">Authentication code</legend>
+            <div class="otp">
+              <input id="cb-otp-1" inputmode="numeric" maxlength="1" aria-label="Digit 1">
+              <input id="cb-otp-2" inputmode="numeric" maxlength="1" aria-label="Digit 2">
+              <input id="cb-otp-3" inputmode="numeric" maxlength="1" aria-label="Digit 3">
+              <input id="cb-otp-4" inputmode="numeric" maxlength="1" aria-label="Digit 4">
+              <input id="cb-otp-5" inputmode="numeric" maxlength="1" aria-label="Digit 5">
+              <input id="cb-otp-6" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+            </div>
+          </fieldset>
+          <button class="btn primary block" type="submit">Verify and continue</button>
+        </form>
+        <a class="small" href="login.html">Use a backup code instead</a>
+      </section>
+
+      <!-- Success -->
+      <section class="card pad stack loose" data-view-of="cb" data-view-name="done" hidden>
+        <div class="empty" style="padding:8px 0">
+          <div class="art"><i data-i="check"></i></div>
+          <h1 style="font-size:1.375rem">You’re signed in</h1>
+          <p>Welcome back, Maya. Taking you to <b>Messages</b>…</p>
+          <a class="btn primary" href="home.html">Continue now</a>
+        </div>
+      </section>
+
+      <!-- Failure -->
+      <section class="card pad stack loose" data-view-of="cb" data-view-name="fail" hidden>
+        <div class="empty error" style="padding:8px 0">
+          <div class="art"><i data-i="alert"></i></div>
+          <h1 style="font-size:1.375rem">We couldn’t sign you in</h1>
+          <p>Okta didn’t confirm your identity (the response was rejected or you cancelled). No account changes were made.</p>
+        </div>
+        <dl class="kv"><dt>Provider</dt><dd>Exprsn HQ · Okta</dd><dt>Reason</dt><dd><span class="id">SAML_AUTH_FAILED</span></dd><dt>Reference</dt><dd><span class="id">cid 4c1e…a07</span></dd></dl>
+        <div class="row wrap"><a class="btn primary" href="login.html">Try again</a><a class="btn outline" href="login.html">Sign in with email</a></div>
+        <p class="xs muted">Still stuck? Send the reference above to your IT admin.</p>
+      </section>
+
+      <!-- Expired / reused exchange code -->
+      <section class="card pad stack loose" data-view-of="cb" data-view-name="expired" hidden>
+        <div class="empty" style="padding:8px 0">
+          <div class="art"><i data-i="clock"></i></div>
+          <h1 style="font-size:1.375rem">This sign-in link has expired</h1>
+          <p>For security, sign-in links work once and only for 60 seconds. It may have been opened in another tab. Start again — it only takes a moment.</p>
+          <a class="btn primary" href="login.html">Back to sign in</a>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Landing page for every redirect login (Google, GitHub, SAML). The URL carries either ?code= (a 60-second, single-use exchange code — never the token itself), or ?mfa_required=true&mfaToken=, plus ?redirect= for the return path. The page swaps the code for a CA token in memory, strips the query string with history.replaceState, then routes to the redirect target.",
+  "rest": [
+    { "m": "POST", "p": "/auth/api/auth/exchange", "auth": "P (strict RL)", "ui": "Verifying → Signed in; 400 INVALID_EXCHANGE_CODE → “Link used” card" },
+    { "m": "POST", "p": "/auth/api/auth/mfa/verify", "auth": "P (mfaToken)", "ui": "Two-step card (mfa_required=true)" },
+    { "m": "POST", "p": "/auth/api/saml/callback", "auth": "P (IdP POST)", "ui": "Server-side step before this page; SAML_AUTH_FAILED → Failed card" },
+    { "m": "GET", "p": "/auth/api/auth/google/callback", "auth": "P", "ui": "Server-side step before this page" },
+    { "m": "GET", "p": "/auth/api/auth/github/callback", "auth": "P", "ui": "Server-side step before this page" },
+    { "m": "GET", "p": "/auth/api/auth/me", "auth": "user", "ui": "Greeting on the Signed in card" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "SAML callback failures throw a JSON AppError instead of redirecting to /sso/callback?error=, so a browser POST from the IdP shows raw JSON rather than this Failed card. Proposed: redirect with an error code." },
+    { "sev": "med", "text": "The SAML callback never records a Session row (the OAuth path does, via sessionService.recordSession), so SSO sign-ins are missing from Settings → Sessions." }
+  ]
+}
+</script>
+</body>
+</html>

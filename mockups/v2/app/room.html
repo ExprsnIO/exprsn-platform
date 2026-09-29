@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design crit · Room · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  .call { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+  @media (max-width: 1100px) { .call { grid-template-columns: minmax(0, 1fr); } }
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .tiles .video .ph { height: 100%; min-height: 0; }
+  .tiles .video.speaking { box-shadow: 0 0 0 3px var(--exprsn-success); }
+  .tiles .video .avatar { position: absolute; inset: 0; margin: auto; }
+  .tiles .video.screen { grid-column: 1 / -1; }
+  .round-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--exprsn-primary) 18%, transparent); color: var(--v2-primary-fg); }
+  .round-btn .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .control-bar { position: sticky; bottom: 12px; background: var(--exprsn-surface-raised); border: 1px solid var(--exprsn-border-color); border-radius: 999px; box-shadow: var(--exprsn-shadow-lg); width: fit-content; max-width: 100%; margin: 0 auto; }
+  .q { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; }
+  .q i { width: 3px; background: currentColor; border-radius: 1px; }
+  @media (max-width: 600px) { .tiles .video .avatar.xl { --s: 48px; } .tiles { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; } .round-btn { width: 44px; height: 44px; } .round-btn.end { width: 52px; } .control-bar { gap: 6px; padding: 8px; bottom: 76px; } }
+</style>
+</head>
+<body data-shell="app" data-page="room">
+<main id="main">
+  <div class="page wide" style="max-width:1400px">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="rooms.html">Rooms</a><i data-i="right" class="sm"></i><span>Design crit</span></nav>
+        <h1 class="page-title">Design crit</h1>
+        <div class="row wrap small secondary" style="gap:8px">
+          <span class="pill danger" data-api="/live/api/rooms/:id/recording/start"><i data-i="record" class="sm"></i>Recording 12:40</span>
+          <span class="pill ok" title="Connection quality"><span class="q" aria-hidden="true"><i style="height:4px"></i><i style="height:8px"></i><i style="height:12px"></i></span>Good connection</span>
+          <span>Code <span class="id">KX7-4QP</span></span>
+          <span class="pill violet">You’re host</span>
+        </div>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-copy="https://exprsn.io/rooms?code=KX7-4QP"><i data-i="link" class="sm"></i>Copy invite</button>
+        <button class="btn outline" type="button" data-open="dlg-people" data-api="/live/api/rooms/:id/participants"><i data-i="people" class="sm"></i>People <span class="badge">5</span></button>
+      </div>
+    </header>
+
+    <div class="banner warn" data-api="/live/api/rooms/:id/join-requests" role="status"><i data-i="hand" class="sm"></i><span class="grow"><b>Sam Kim</b> is waiting to join.</span><button class="btn sm outline" type="button" data-toast="Sam was turned away">Deny</button><button class="btn sm primary" type="button" data-toast="Sam Kim admitted" data-api="/live/api/rooms/:id/join-requests/:rid/:decision">Admit</button></div>
+
+    <div class="call">
+      <section aria-label="Video">
+        <div data-state="loaded" class="tiles" data-on="existing-participants participant-joined participant-left participant-state-changed">
+          <div class="video screen" data-on="participant-state-changed"><div class="ph" role="img" aria-label="Jonah’s shared screen: icon grid in Figma"><i data-i="screen"></i></div><span class="ov"><i data-i="screen" class="sm"></i>Jonah is presenting</span></div>
+          <div class="video speaking"><div class="ph purple"><span class="avatar xl g1">MD</span></div><span class="ov"><i data-i="mic" class="sm"></i>Maya Diaz</span></div>
+          <div class="video"><div class="ph success"><span class="avatar xl g2">JO</span></div><span class="ov"><i data-i="micOff" class="sm"></i>Jonah Okafor</span></div>
+          <div class="video"><div class="ph dark"><span class="avatar xl g3">PR</span></div><span class="ov"><i data-i="camOff" class="sm"></i>Priya Raman</span><span class="ov tr"><i data-i="hand" class="sm"></i>Hand raised</span></div>
+          <div class="video"><div class="ph warm"><span class="avatar xl g1">RH</span></div><span class="ov"><i data-i="mic" class="sm"></i>You</span><span class="ov tr"><span class="q" aria-hidden="true"><i style="height:4px"></i><i style="height:8px"></i><i style="height:12px"></i></span></span></div>
+        </div>
+        <div data-state="empty">
+          <div class="empty card"><div class="art"><i data-i="people"></i></div><h3>You’re the only one here</h3><p>Share the code <span class="id">KX7-4QP</span> or invite people — they’ll appear as soon as they connect.</p><button class="btn primary" type="button" data-open="dlg-people">Invite people</button></div>
+        </div>
+        <div data-state="loading" aria-busy="true" aria-label="Connecting to room">
+          <div class="tiles"><div class="video"><div class="ph dark"><span class="small">Checking camera and microphone…</span></div></div><div class="video"><div class="ph dark"><span class="small">Connecting to 4 people…</span></div></div></div>
+        </div>
+        <div data-state="error">
+          <div class="empty error card"><div class="art"><i data-i="wifiOff"></i></div><h3>Couldn’t connect to 2 people</h3><p>Your network blocks direct peer connections (ICE failed) and no TURN relay is configured. Try another network or ask an admin to enable a relay.</p><button class="btn outline" type="button">Retry connections</button></div>
+        </div>
+
+        <div class="control-bar" style="margin-top:16px" role="toolbar" aria-label="Call controls" data-emit="update-participant-state">
+          <button class="round-btn" type="button" data-toggle aria-pressed="false" aria-label="Mute microphone"><i data-i="mic"></i></button>
+          <button class="round-btn off" type="button" aria-label="Turn camera on"><i data-i="camOff"></i></button>
+          <button class="round-btn" type="button" data-toggle aria-pressed="false" aria-label="Share screen"><i data-i="screen"></i></button>
+          <button class="round-btn" type="button" data-toggle aria-pressed="false" aria-label="Raise hand"><i data-i="hand"></i></button>
+          <button class="round-btn" type="button" aria-label="Stop recording" data-open="dlg-rec" data-api="/live/api/rooms/:id/recording/stop"><i data-i="record"></i></button>
+          <button class="round-btn end" type="button" aria-label="Leave call" data-open="dlg-leave" data-api="/live/api/rooms/:id/leave"><i data-i="phoneOff"></i></button>
+        </div>
+      </section>
+
+      <!-- Side panel -->
+      <aside class="card" aria-label="Room panel">
+        <div class="tabs" role="tablist" aria-label="Room panel" style="padding:0 8px">
+          <button role="tab" id="rt-files" aria-controls="rp-files" aria-selected="true">Files <span class="badge neutral">3</span></button>
+          <button role="tab" id="rt-ppl" aria-controls="rp-ppl">People</button>
+        </div>
+        <div id="rp-files" role="tabpanel" aria-labelledby="rt-files">
+          <div class="list" data-api="/live/api/rooms/:id/files">
+            <div class="list-item"><i data-i="image"></i><span class="grow small truncate"><b>icon-grid-v3.png</b><br><span class="muted">Jonah · 1.2 MB</span></span><button class="icon-btn" type="button" aria-label="Download icon-grid-v3.png" data-api="/live/api/rooms/:id/files/:fid/download"><i data-i="download"></i></button></div>
+            <div class="list-item"><i data-i="doc"></i><span class="grow small truncate"><b>crit-agenda-41.md</b><br><span class="muted">Shared from Files · Maya</span></span><button class="icon-btn" type="button" aria-label="Download crit-agenda-41.md"><i data-i="download"></i></button></div>
+            <div class="list-item"><i data-i="file"></i><span class="grow small truncate"><b>empty-states.fig</b><br><span class="muted">You · 8.4 MB</span></span><button class="icon-btn" type="button" aria-label="Remove empty-states.fig" data-open="dlg-rmfile"><i data-i="trash"></i></button></div>
+          </div>
+          <div class="card-foot" style="justify-content:stretch;flex-wrap:wrap">
+            <button class="btn sm outline" type="button" data-api="/live/api/rooms/:id/files/share" data-toast="Pick a file from your Files"><i data-i="folder" class="sm"></i>From Files</button>
+            <button class="btn sm tonal" type="button" data-api="/live/api/rooms/:id/files/upload" data-toast="Uploading…"><i data-i="upload" class="sm"></i>Upload</button>
+          </div>
+        </div>
+        <div id="rp-ppl" role="tabpanel" aria-labelledby="rt-ppl" hidden>
+          <div class="list" data-api="/live/api/rooms/:id/participants" data-on="participant-joined participant-left participant-state-changed">
+            <div class="list-item"><span class="avatar sm g1">RH</span><span class="grow small">You <span class="pill violet">Host</span></span><i data-i="mic" class="sm"></i></div>
+            <div class="list-item"><span class="avatar sm g1">MD</span><span class="grow small">Maya Diaz</span><i data-i="mic" class="sm"></i></div>
+            <div class="list-item"><span class="avatar sm g2">JO</span><span class="grow small">Jonah Okafor</span><i data-i="screen" class="sm"></i></div>
+            <div class="list-item"><span class="avatar sm g3">PR</span><span class="grow small">Priya Raman</span><i data-i="hand" class="sm"></i></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <dialog class="dialog" id="dlg-people" aria-labelledby="dlg-people-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-people-t">People in Design crit</h2><p>5 in call · 1 waiting</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <h3 class="eyebrow">Waiting</h3>
+      <div class="list card" data-api="/live/api/rooms/:id/join-requests"><div class="list-item"><span class="avatar sm">SK</span><span class="grow small"><b>Sam Kim</b> · Contoso</span><button class="btn sm ghost" type="button" data-toast="Denied">Deny</button><button class="btn sm primary" type="button" data-toast="Admitted">Admit</button></div></div>
+      <h3 class="eyebrow">In call</h3>
+      <div class="list card">
+        <div class="list-item"><span class="avatar sm g1">MD</span><span class="grow small">Maya Diaz</span><button class="btn sm ghost" type="button" data-toast="Asked Maya to unmute">Ask to unmute</button></div>
+        <div class="list-item"><span class="avatar sm g3">PR</span><span class="grow small">Priya Raman <span class="pill warn"><i data-i="hand" class="sm"></i>Hand</span></span><button class="btn sm ghost" type="button" data-toast="Lowered Priya’s hand">Lower hand</button></div>
+      </div>
+      <div class="field"><label for="inv-more">Invite more</label><div class="input-group"><input id="inv-more" placeholder="Name or email" data-api="/live/api/rooms/:id/invites"></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-end">End for everyone</button><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-rec" aria-labelledby="dlg-rec-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rec-t">Stop recording?</h2><p>The 12-minute recording is saved to this room and goes through moderation review before others can download it.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Keep recording</button><button class="btn primary" type="button" data-close data-toast="Recording saved">Stop recording</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-leave" aria-labelledby="dlg-leave-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-leave-t">Leave Design crit?</h2><p>You’re the host. The call continues without you; recording stops.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Stay</button><a class="btn danger" href="rooms.html" data-emit="leave-room">Leave call</a></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-end" aria-labelledby="dlg-end-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-end-t">End Design crit for everyone?</h2><p>All 5 people are disconnected and the code stops working until you start the room again.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><a class="btn danger" href="rooms.html" data-api="/live/api/rooms/:id">End room</a></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-rmfile" aria-labelledby="dlg-rmfile-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rmfile-t">Remove empty-states.fig?</h2><p>People in the room can no longer download it. Your copy in Files is kept.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="File removed" data-api="/live/api/rooms/:id/files/:fid">Remove</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Mesh WebRTC call. After POST /:id/join the client emits join-room; the server checks auth + Participant row, replies existing-participants, and the newcomer sends an offer to each peer (signal/offer/answer/ice-candidate relayed only between sockets in the same room). Mic/cam/screen/hand toggles emit update-participant-state; everyone gets participant-state-changed. STUN only — no TURN configured.",
+  "rest": [
+    { "m": "GET", "p": "/live/api/rooms/:id", "auth": "participant", "ui": "Header, code, host flag" },
+    { "m": "POST", "p": "/live/api/rooms/:id/join", "auth": "user", "ui": "Before join-room (creates Participant row)" },
+    { "m": "POST", "p": "/live/api/rooms/:id/leave", "auth": "participant", "ui": "Leave call" },
+    { "m": "DELETE", "p": "/live/api/rooms/:id", "auth": "host", "ui": "End for everyone" },
+    { "m": "GET", "p": "/live/api/rooms/:id/participants", "auth": "participant", "ui": "People button + panel" },
+    { "m": "GET", "p": "/live/api/rooms/:id/join-requests", "auth": "host", "ui": "Waiting banner + People dialog" },
+    { "m": "POST", "p": "/live/api/rooms/:id/join-requests/:rid/:decision", "auth": "host", "ui": "Admit (approve) / Deny" },
+    { "m": "POST", "p": "/live/api/rooms/:id/invites", "auth": "host", "ui": "Invite more" },
+    { "m": "POST", "p": "/live/api/rooms/:id/recording/start", "auth": "host", "ui": "Recording pill / start" },
+    { "m": "POST", "p": "/live/api/rooms/:id/recording/stop", "auth": "host", "ui": "Stop recording confirm" },
+    { "m": "GET", "p": "/live/api/rooms/:id/recordings", "auth": "participant", "ui": "After stop → recordings" },
+    { "m": "GET", "p": "/live/api/rooms/:id/files", "auth": "participant", "ui": "Files panel" },
+    { "m": "POST", "p": "/live/api/rooms/:id/files/share", "auth": "participant", "ui": "From Files (filevault file id)" },
+    { "m": "POST", "p": "/live/api/rooms/:id/files/upload", "auth": "participant", "ui": "Upload" },
+    { "m": "GET", "p": "/live/api/rooms/:id/files/:fid/download", "auth": "participant", "ui": "Download icon" },
+    { "m": "DELETE", "p": "/live/api/rooms/:id/files/:fid", "auth": "uploader/host", "ui": "Remove file confirm" }
+  ],
+  "socket": [
+    { "ns": "/live", "auth": "CA bearer + Participant row", "rooms": ["{roomId}"],
+      "emit": [
+        { "e": "join-room", "ui": "Entering the call" },
+        { "e": "leave-room", "ui": "Leave call" },
+        { "e": "update-participant-state", "ui": "Mic / camera / screen / hand toggles" },
+        { "e": "signal", "ui": "Renegotiation (screen share track)" },
+        { "e": "offer", "ui": "Newcomer → each existing peer" },
+        { "e": "answer", "ui": "Reply to offer" },
+        { "e": "ice-candidate", "ui": "Trickle ICE" }
+      ],
+      "on": [
+        { "e": "existing-participants", "ui": "Initial tiles" },
+        { "e": "participant-joined", "ui": "New tile + People list" },
+        { "e": "participant-left", "ui": "Tile removed" },
+        { "e": "participant-state-changed", "ui": "Mute/cam/hand/presenting indicators" },
+        { "e": "signal", "ui": "Peer connection" },
+        { "e": "offer", "ui": "Peer connection" },
+        { "e": "answer", "ui": "Peer connection" },
+        { "e": "ice-candidate", "ui": "Peer connection + quality pill" },
+        { "e": "room-closed", "ui": "Ends call → back to Rooms with a toast" },
+        { "e": "error", "ui": "NOT_IN_SHARED_ROOM → re-join; UNAUTHENTICATED → sign in" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "No TURN server: peers behind symmetric NAT/corporate firewalls can't connect (error state). Needs a TURN relay + credentials endpoint (proposed GET /live/api/rooms/:id/ice-servers)." },
+    { "sev": "med", "text": "Join requests and recording start/stop emit no socket event — the waiting banner and Recording pill are polled; other participants aren't told recording began (consent issue)." },
+    { "sev": "med", "text": "Mesh topology caps practical rooms at ~6–8 video participants; no SFU." },
+    { "sev": "med", "text": "Host actions like 'ask to unmute' / 'lower hand' / remove participant have no API — proposed host-control events." }
+  ]
+}
+</script>
+</body>
+</html>

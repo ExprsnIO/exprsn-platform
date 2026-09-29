@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maya Diaz · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  .post-actions button[aria-pressed="true"].like { color: var(--v2-danger-fg); }
+  .cover-meta .titles { min-width: 0; flex: 1 1 240px; margin-top: 50px; padding-bottom: 6px; }
+  @media (max-width: 600px) { .cover-meta .titles { margin-top: 0; flex-basis: 100%; } }
+  .counts { display: flex; gap: 18px; flex-wrap: wrap; font-size: .875rem; }
+  .counts b { font-variant-numeric: tabular-nums; }
+  .btn[data-toggle][aria-pressed="true"] { background: transparent; border-color: var(--exprsn-border-color); color: var(--exprsn-text-primary); }
+</style>
+</head>
+<body data-shell="app" data-page="profile">
+<main id="main">
+  <div class="page">
+    <div data-state="loaded" class="stack loose">
+      <header data-api="/auth/api/users/:id/profile">
+        <nav class="crumbs" aria-label="Breadcrumb" style="margin-bottom:10px"><a href="people.html">People</a><i data-i="right" class="sm"></i><span>Maya Diaz</span></nav>
+        <div class="cover" style="background:var(--exprsn-gradient-warm)" role="img" aria-label="Maya’s cover image"></div>
+        <div class="cover-meta">
+          <span class="avatar xl g1">MD<span class="presence on"></span></span>
+          <div class="titles stack tight">
+            <h1 class="page-title">Maya Diaz</h1>
+            <div class="row wrap small secondary" style="gap:8px"><span>@maya</span><span>·</span><span>Design lead · Exprsn HQ</span><span class="pill info">Follows you</span></div>
+          </div>
+          <div class="page-actions">
+            <button class="btn outline" type="button" aria-label="More actions for Maya Diaz" data-open="dlg-more"><i data-i="more"></i></button>
+            <a class="btn outline" href="messages.html" data-api="/spark/api/conversations"><i data-i="chat" class="sm"></i>Message</a>
+            <button class="btn primary" type="button" data-toggle aria-pressed="false" data-api="/timeline/api/interactions/users/:id/follow" data-toast="Following Maya Diaz">Follow</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="split">
+        <div class="stack loose">
+          <div class="tabs" role="tablist" aria-label="Profile sections">
+            <button role="tab" id="pt-posts" aria-controls="pp-posts" aria-selected="true">Posts</button>
+            <button role="tab" id="pt-likes" aria-controls="pp-likes">Likes</button>
+            <button role="tab" id="pt-groups" aria-controls="pp-groups">Groups <span class="badge neutral">6</span></button>
+            <button role="tab" id="pt-id" aria-controls="pp-id">Identity</button>
+          </div>
+
+          <section id="pp-posts" role="tabpanel" aria-labelledby="pt-posts" class="card">
+            <div data-api="/timeline/api/timeline/user/:uid" data-on="new:post post:liked post:commented">
+              <article class="post">
+                <span class="avatar g1">MD</span>
+                <div class="grow" style="min-width:0">
+                  <div class="who"><b>Maya Diaz</b><span class="muted small">@maya · 20m · <a href="group.html">Design Guild</a></span></div>
+                  <p class="body">Thursday crit: bring one screen you’re unsure about. We’ll check each one against the backend with the contract drawer.</p>
+                  <div class="post-actions"><a class="btn ghost sm" href="post.html" aria-label="Reply, 6 replies" style="color:var(--exprsn-text-muted);font-weight:500"><i data-i="reply" class="sm"></i>6</a><button class="like" type="button" data-toggle aria-pressed="true" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">31</span></button><button class="bm" type="button" data-toggle aria-pressed="false" aria-label="Bookmark"><i data-i="bookmark" class="sm"></i></button></div>
+                </div>
+              </article>
+              <article class="post">
+                <span class="avatar g1">MD</span>
+                <div class="grow" style="min-width:0">
+                  <div class="who"><b>Maya Diaz</b><span class="muted small">@maya · Sep 26</span></div>
+                  <p class="body">Palette pass done. No new colours — just hierarchy, spacing and grouping. Dark mode reads so much calmer.</p>
+                  <div class="media" style="max-width:520px"><div class="ph primary"><i data-i="image"></i></div></div>
+                  <div class="post-actions"><a class="btn ghost sm" href="post.html" aria-label="Reply, 14 replies" style="color:var(--exprsn-text-muted);font-weight:500"><i data-i="reply" class="sm"></i>14</a><button class="like" type="button" data-toggle aria-pressed="false" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">88</span></button><button class="bm" type="button" data-toggle aria-pressed="true" aria-label="Bookmark"><i data-i="bookmark" class="sm"></i></button></div>
+                </div>
+              </article>
+            </div>
+          </section>
+          <section id="pp-likes" role="tabpanel" aria-labelledby="pt-likes" class="card" hidden>
+            <div class="empty" data-api="/timeline/api/timeline/likes"><div class="art"><i data-i="heart"></i></div><h3>Maya’s likes are private</h3><p>Only Maya can see the posts she’s liked.</p></div>
+          </section>
+          <section id="pp-groups" role="tabpanel" aria-labelledby="pt-groups" hidden>
+            <div class="grid c2" data-api="/nexus/api/memberships/user/:userId">
+              <a class="card pad row" href="group.html" style="color:inherit"><span class="avatar sq g4">DG</span><span class="grow small"><b>Design Guild</b><br><span class="muted">Owner · 3,118 members</span></span></a>
+              <a class="card pad row" href="group.html" style="color:inherit"><span class="avatar sq g1">TC</span><span class="grow small"><b>Typography Club</b><br><span class="muted">Member · 412 members</span></span></a>
+              <a class="card pad row" href="group.html" style="color:inherit"><span class="avatar sq g2">EH</span><span class="grow small"><b>Exprsn HQ</b><br><span class="muted">Member · 214 members</span></span></a>
+              <a class="card pad row" href="group.html" style="color:inherit"><span class="avatar sq g3">NP</span><span class="grow small"><b>Northwind Partners</b><br><span class="muted">Member · 31 members</span></span></a>
+            </div>
+          </section>
+          <section id="pp-id" role="tabpanel" aria-labelledby="pt-id" hidden class="card">
+            <div class="card-head"><h2>Decentralized identifiers</h2><span class="pill">Public</span></div>
+            <div class="list" data-api="/atproto/users/:uid/dids">
+              <div class="list-item"><i data-i="butterfly"></i><span class="grow stack tight" style="gap:0"><span class="mono small truncate">did:plc:7ah2k4mzq9x3vbe6</span><span class="xs muted">AT Protocol · Bluesky handle @maya.exprsn.io</span></span><span class="pill ok"><i data-i="check" class="sm"></i>Verified</span></div>
+              <div class="list-item"><i data-i="globe"></i><span class="grow stack tight" style="gap:0"><span class="mono small truncate">did:web:maya.design</span><span class="xs muted">Web · proves control of maya.design</span></span><span class="pill ok"><i data-i="check" class="sm"></i>Verified</span></div>
+            </div>
+            <div class="card-foot"><span class="xs muted" style="margin-right:auto">Viewing your own profile? Link and verify DIDs here.</span><button class="btn sm outline" type="button" data-open="dlg-did">Manage DIDs</button></div>
+          </section>
+        </div>
+
+        <aside class="stack loose">
+          <section class="card pad stack" aria-labelledby="bio-h">
+            <h2 id="bio-h" class="eyebrow">About</h2>
+            <p>Designing calm software at Exprsn. Runs the Thursday crit. Type nerd, occasional cyclist.</p>
+            <div class="counts" data-api="/timeline/api/interactions/users/:id/follow"><span><b>1,204</b> <span class="secondary">followers</span></span><span><b>318</b> <span class="secondary">following</span></span><span><b>642</b> <span class="secondary">posts</span></span></div>
+            <dl class="kv"><dt>Location</dt><dd>Portland, OR</dd><dt>Joined</dt><dd>Nov 2025</dd><dt>Website</dt><dd><a href="#">maya.design</a></dd></dl>
+          </section>
+          <section class="card" aria-labelledby="mut-h">
+            <div class="card-head"><h2 id="mut-h">Groups in common</h2></div>
+            <div class="list"><a class="list-item" href="group.html"><span class="avatar sm sq g4">DG</span><span class="grow small">Design Guild</span></a><a class="list-item" href="group.html"><span class="avatar sm sq g2">EH</span><span class="grow small">Exprsn HQ</span></a></div>
+          </section>
+        </aside>
+      </div>
+    </div>
+
+    <div data-state="empty">
+      <div class="empty"><div class="art"><i data-i="person"></i></div><h3>This profile isn’t available</h3><p>The account may be deactivated, or Maya only shares her profile with her organizations.</p><a class="btn outline" href="people.html">Back to People</a></div>
+    </div>
+    <div data-state="loading" aria-busy="true" aria-label="Loading profile" class="stack loose">
+      <span class="sk" style="height:180px;border-radius:20px"></span><div class="row"><span class="sk" style="width:88px;height:88px;border-radius:50%"></span><div class="grow stack tight"><span class="sk" style="width:40%;height:24px"></span><span class="sk" style="width:60%"></span></div></div><span class="sk" style="height:220px"></span>
+    </div>
+    <div data-state="error">
+      <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load Maya’s profile</h3><p>The auth module didn’t respond. Correlation id <code>cid 88a1…3e0</code>.</p><button class="btn outline" type="button">Try again</button></div>
+    </div>
+  </div>
+
+  <dialog class="dialog sm" id="dlg-more" aria-labelledby="dlg-more-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-more-t">Maya Diaz</h2><p>@maya</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body" style="padding-bottom:20px">
+      <div class="list card">
+        <button class="list-item" type="button" data-copy="https://exprsn.io/people/usr_8f21c0"><i data-i="link"></i><span class="grow">Copy profile link</span></button>
+        <button class="list-item" type="button" data-close data-toast="Muted @maya" data-api="/timeline/api/interactions/users/:id/mute"><i data-i="eyeOff"></i><span class="grow">Mute — hide posts from your timeline</span></button>
+        <button class="list-item" type="button" data-open="dlg-block"><i data-i="x"></i><span class="grow">Block</span></button>
+        <button class="list-item" type="button" data-open="dlg-report"><i data-i="flag"></i><span class="grow">Report profile</span></button>
+      </div>
+    </div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-block" aria-labelledby="dlg-block-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-block-t">Block Maya Diaz?</h2><p>She won’t be able to follow you, message you, or see your posts. She isn’t notified.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Blocked @maya" data-api="/timeline/api/interactions/users/:id/block">Block</button></div>
+  </dialog>
+  <dialog class="dialog" id="dlg-report" aria-labelledby="dlg-report-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-report-t">Report @maya</h2><p>Reports go to Exprsn moderators.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rp-why">Reason</label><select class="select" id="rp-why"><option>Impersonation</option><option>Harassment</option><option>Spam</option></select></div><div class="field"><label for="rp-d">Details</label><textarea class="textarea" id="rp-d"></textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Report sent" data-api="/moderator/api/reports">Send report</button></div>
+  </dialog>
+  <dialog class="dialog" id="dlg-did" aria-labelledby="dlg-did-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-did-t">Link a DID</h2><p>Prove you control an identifier so others can trust your posts across the AT Protocol.</p></div></div>
+    <div class="dialog-body">
+      <ol class="stepper" aria-label="Steps"><li data-done>Identifier</li><li aria-current="step">Challenge</li><li>Verify</li></ol>
+      <div class="field"><label for="did-v">DID</label><input class="input mono" id="did-v" value="did:web:maya.design" data-api="/atproto/users/:uid/dids"></div>
+      <div class="field"><span class="label">Publish this challenge at https://maya.design/.well-known/did.json</span><pre class="code" data-api="/atproto/users/:uid/dids/challenge">exprsn-verify=c9f2e1a47b0d4e31</pre></div>
+      <div class="banner info"><i data-i="info" class="sm"></i><span>Verification checks the document once. Re-verify if you move hosting.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-close data-toast="did:web unlinked" data-api="/atproto/users/:uid/dids/:method">Unlink did:web</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Verified did:web:maya.design" data-api="/atproto/users/:uid/dids/verify">Verify now</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Profile by user id. Header + bio from the auth profile; posts tab is the user's timeline (cursor paged); groups from nexus memberships; DIDs are public and verified by atproto. Follow/mute/block are optimistic. 'Manage DIDs' shows only for the owner (or platform admin).",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/users/:id/profile", "auth": "user", "ui": "Cover header, About card" },
+    { "m": "GET", "p": "/auth/api/users/:id/groups", "auth": "own/A", "ui": "Identity groups (own profile only)" },
+    { "m": "GET", "p": "/timeline/api/timeline/user/:uid", "auth": "user", "ui": "Posts tab" },
+    { "m": "GET", "p": "/timeline/api/timeline/likes", "auth": "own", "ui": "Likes tab (own profile only)" },
+    { "m": "GET", "p": "/nexus/api/memberships/user/:userId", "auth": "user", "ui": "Groups tab + Groups in common" },
+    { "m": "GET", "p": "/timeline/api/interactions/users/:id/follow", "auth": "user", "ui": "Follow button state, counts" },
+    { "m": "POST", "p": "/timeline/api/interactions/users/:id/follow", "auth": "user", "ui": "Follow" },
+    { "m": "DELETE", "p": "/timeline/api/interactions/users/:id/follow", "auth": "user", "ui": "Unfollow" },
+    { "m": "POST", "p": "/timeline/api/interactions/users/:id/mute", "auth": "user", "ui": "More → Mute (DELETE unmute)" },
+    { "m": "POST", "p": "/timeline/api/interactions/users/:id/block", "auth": "user", "ui": "Block confirm (DELETE unblock)" },
+    { "m": "POST", "p": "/spark/api/conversations", "auth": "user", "ui": "Message button (find-or-create DM)" },
+    { "m": "POST", "p": "/moderator/api/reports", "auth": "user", "ui": "Report profile dialog" },
+    { "m": "GET", "p": "/atproto/users/:uid/dids", "auth": "P", "ui": "Identity tab DID list" },
+    { "m": "PUT", "p": "/atproto/users/:uid/dids", "auth": "owner/A", "ui": "Link a DID → identifier" },
+    { "m": "POST", "p": "/atproto/users/:uid/dids/challenge", "auth": "owner/A", "ui": "Challenge step" },
+    { "m": "POST", "p": "/atproto/users/:uid/dids/verify", "auth": "owner/A", "ui": "Verify now" },
+    { "m": "DELETE", "p": "/atproto/users/:uid/dids/:method", "auth": "owner/A", "ui": "Unlink DID" }
+  ],
+  "socket": [
+    { "ns": "/timeline", "auth": "CA bearer (read)", "rooms": ["timeline:global"],
+      "emit": [ { "e": "subscribe:timeline", "ui": "Posts tab mount" } ],
+      "on": [
+        { "e": "new:post", "ui": "Prepends when author matches" },
+        { "e": "post:liked", "ui": "Like counts" },
+        { "e": "post:commented", "ui": "Reply counts" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "med", "text": "No follower/following counts endpoint; header counts need a proposed GET /timeline/api/interactions/users/:id/stats." },
+    { "sev": "med", "text": "GET /timeline/api/timeline/likes only returns the caller's likes — there's no per-user likes feed, so the tab is own-profile only." },
+    { "sev": "med", "text": "No per-author room: the client listens on timeline:global and filters by author, which also means it receives every public post." }
+  ]
+}
+</script>
+</body>
+</html>

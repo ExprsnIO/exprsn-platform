@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AT-Protocol · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: danger-outline text fails AA in light theme */
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+  /* kit fix proposal: .log timestamps (muted) fail AA on .code background */
+  .log .t { color: var(--exprsn-text-secondary); }
+  .truncate-uri { max-width: 260px; display: inline-block; vertical-align: bottom; }
+</style>
+</head>
+<body data-shell="admin" data-page="atproto">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Infrastructure</span><i data-i="right" class="sm"></i><span>AT-Protocol</span></nav>
+        <h1 class="page-title">AT-Protocol</h1>
+        <p class="page-sub">The Bluesky bridge: our labeler identity, labels we issue and receive, the external labelers we subscribe to, people’s linked DIDs and the feed generator.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-lookup"><i data-i="search" class="sm"></i>Look up DID or CID</button>
+        <button class="btn primary" type="button" data-open="dlg-label" data-api="/atproto/labels"><i data-i="tag" class="sm"></i>Apply label</button>
+      </div>
+    </header>
+
+    <div class="grid c4" data-api="/atproto/stats /atproto/health">
+      <div class="card stat"><span class="label"><i data-i="tag" class="sm"></i>Labels issued</span><span class="value">18,204</span><span class="small secondary">lastSeq 18,204 · 7 today</span></div>
+      <div class="card stat"><span class="label"><i data-i="download" class="sm"></i>Inbound labels</span><span class="value">92,611</span><span class="small secondary">from 3 labelers</span></div>
+      <div class="card stat"><span class="label"><i data-i="queue" class="sm"></i>Moderation queue</span><span class="value">12</span><span class="small secondary">active 2 · failed 1</span></div>
+      <div class="card stat"><span class="label"><i data-i="alert" class="sm"></i>DID moderation DLQ</span><span class="value">3</span><span class="delta down">oldest 2 h</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="AT-Protocol views">
+      <button role="tab" id="t-ov" aria-controls="p-ov" aria-selected="true">Identity</button>
+      <button role="tab" id="t-lab" aria-controls="p-lab">Labels</button>
+      <button role="tab" id="t-in" aria-controls="p-in">Inbound labels</button>
+      <button role="tab" id="t-ext" aria-controls="p-ext">External labelers <span class="badge neutral">3</span></button>
+      <button role="tab" id="t-did" aria-controls="p-did">User DIDs</button>
+      <button role="tab" id="t-feed" aria-controls="p-feed">Feed generator</button>
+      <button role="tab" id="t-live" aria-controls="p-live">Label stream</button>
+    </div>
+
+    <!-- ── Identity ── -->
+    <section id="p-ov" role="tabpanel" aria-labelledby="t-ov" class="split">
+      <div class="stack loose">
+        <div class="card">
+          <div class="card-head"><h2>Labeler identity</h2><span class="pill ok">published</span></div>
+          <div class="card-body">
+            <dl class="kv" data-api="/atproto/identity">
+              <dt>DID</dt><dd><span class="id">did:web:exprsn.io</span> <button class="btn sm ghost" type="button" data-copy="did:web:exprsn.io" aria-label="Copy DID"><i data-i="copy" class="sm"></i></button></dd>
+              <dt>Handle</dt><dd>@exprsn.io</dd>
+              <dt>Method</dt><dd>web <span class="xs secondary">(ATPROTO_DID_METHOD)</span></dd>
+              <dt>Signing key</dt><dd class="mono">zQ3shXjHeiBuRCKmM…a7f2 <span class="pill">secp256k1</span></dd>
+              <dt>Service</dt><dd class="mono">#atproto_labeler → https://exprsn.io</dd>
+              <dt>DID document</dt><dd><a href="#" data-api="/.well-known/did.json">/.well-known/did.json</a> · <a href="#" data-api="/.well-known/atproto-did">atproto-did</a></dd>
+            </dl>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Declared label values</h2><span class="xs secondary">service record</span></div>
+          <div class="dt-scroll">
+            <table class="table" data-api="/atproto/service-record">
+              <thead><tr><th>Value</th><th>Severity</th><th>Blurs</th><th>Default</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">spam</td><td>inform</td><td>none</td><td>warn</td></tr>
+                <tr><td class="mono">harassment</td><td>alert</td><td>content</td><td>hide</td></tr>
+                <tr><td class="mono">nsfw-image</td><td>alert</td><td>media</td><td>warn</td></tr>
+                <tr><td class="mono">!hide</td><td>system</td><td>content</td><td>hide</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <aside class="card">
+        <div class="card-head"><h2>Bridge</h2><span class="pill ok"><span class="d"></span>Running</span></div>
+        <div class="card-body"><dl class="kv" data-api="/atproto/health"><dt>Enabled</dt><dd>ATPROTO_ENABLED</dd><dt>Transport</dt><dd>jetstream</dd><dt>Sample rate</dt><dd>0.10</dd><dt>Backpressure</dt><dd>pause at 5,000 · resume at 1,000</dd><dt>Worker</dt><dd>heartbeat 12 s ago</dd></dl></div>
+        <div class="card-foot"><a class="btn sm ghost" href="platform.html">Edit overrides</a></div>
+      </aside>
+    </section>
+
+    <!-- ── Labels ── -->
+    <section id="p-lab" role="tabpanel" aria-labelledby="t-lab" hidden class="stack">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="l-q" type="search" placeholder="Subject URI pattern, e.g. at://did:plc:…/*" data-api="/xrpc/com.atproto.label.queryLabels"></label>
+          <button class="chip" type="button" aria-pressed="false">Value</button>
+          <button class="chip" type="button" aria-pressed="false">Negated</button>
+          <span class="grow"></span>
+          <button class="btn sm outline" type="button" data-open="dlg-verify" data-api="/atproto/labels/verify">Verify signature</button>
+        </div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/xrpc/com.atproto.label.queryLabels" data-on="#labels #info">
+            <thead><tr><th class="pin num">Seq</th><th>Subject</th><th>Value</th><th>Neg</th><th class="num">Created</th><th>Case</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td class="pin num">18,204</td><td><span class="mono truncate truncate-uri">at://did:plc:7ah2k3q9/app.bsky.feed.post/3kx2…</span></td><td><span class="pill danger">harassment</span></td><td class="muted">—</td><td class="num">10:31</td><td><a class="id" href="moderator.html">case 91e0</a></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-negate">Negate</button></td></tr>
+              <tr><td class="pin num">18,203</td><td><span class="mono truncate truncate-uri">at://did:plc:q0mz81/app.bsky.feed.post/3kx1…</span></td><td><span class="pill warn">spam</span></td><td class="muted">—</td><td class="num">10:02</td><td><a class="id" href="moderator.html">case 8c4a</a></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-negate">Negate</button></td></tr>
+              <tr><td class="pin num">18,201</td><td><span class="mono truncate truncate-uri">did:plc:ffe19a</span></td><td><span class="pill">!hide</span></td><td><span class="pill info">negated</span></td><td class="num">09:12</td><td class="muted">—</td><td class="actions"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span class="num">cursor mode · 250 per page</span><button class="btn sm ghost" type="button">Load more</button></div>
+      </div>
+    </section>
+
+    <!-- ── Inbound labels (main table) ── -->
+    <section id="p-in" role="tabpanel" aria-labelledby="t-in" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="in-q" type="search" placeholder="Subject URI" data-api="/atproto/inbound-labels"></label>
+          <label class="sr-only" for="in-src">Issuer</label><select class="select" id="in-src" style="width:auto;min-height:36px"><option>All issuers</option><option>did:plc:ar7c4by46qjdydhdevvrndac (Bluesky)</option><option>did:web:labeler.northwind.co</option></select>
+          <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Verified <span class="x">×</span></button>
+          <span class="grow"></span>
+          <div class="seg" role="group" aria-label="Group by"><button type="button" aria-pressed="true">By issuer</button><button type="button" aria-pressed="false">None</button></div>
+        </div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/atproto/inbound-labels">
+            <thead><tr><th class="pin">Subject</th><th>Value</th><th>Neg</th><th>Verified</th><th class="num">Issuer seq</th><th class="num">Created</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr class="group-row"><td colspan="7">did:plc:ar7c4by46qjdydhdevvrndac · Bluesky moderation · 88,120</td></tr>
+              <tr><td class="pin"><span class="mono truncate truncate-uri">at://did:plc:x9k2m/app.bsky.feed.post/3kx3…</span></td><td><span class="pill warn">spam</span></td><td class="muted">—</td><td><span class="pill ok"><i data-i="check" class="sm"></i>sig ok</span></td><td class="num">4,810,221</td><td class="num">10:40</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-label">Apply !hide</button></td></tr>
+              <tr><td class="pin"><span class="mono truncate truncate-uri">did:plc:77tqa0</span></td><td><span class="pill danger">impersonation</span></td><td class="muted">—</td><td><span class="pill ok"><i data-i="check" class="sm"></i>sig ok</span></td><td class="num">4,810,190</td><td class="num">10:38</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-label">Apply !hide</button></td></tr>
+              <tr class="group-row"><td colspan="7">did:web:labeler.northwind.co · 4,491</td></tr>
+              <tr><td class="pin"><span class="mono truncate truncate-uri">at://did:plc:q0mz81/app.bsky.feed.post/3kx1…</span></td><td><span class="pill">off-topic</span></td><td><span class="pill info">negated</span></td><td><span class="pill ok"><i data-i="check" class="sm"></i>sig ok</span></td><td class="num">1,302</td><td class="num">09:55</td><td class="actions"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="butterfly"></i></div><h3>No inbound labels yet</h3><p>Subscribe to an external labeler to start receiving its labels. Bluesky’s own moderation labeler is a good first one.</p><button class="btn outline" type="button" data-open="dlg-sub">Add labeler</button></div></div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load inbound labels</h3><p>GET /atproto/inbound-labels returned 403. Your email isn’t on the platform admin allowlist, and atproto ignores token roles. Correlation id <code>cid e4d1…2a0</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">3 of 92,611 · capped at 250</span></div>
+      </div>
+    </section>
+
+    <!-- ── External labelers ── -->
+    <section id="p-ext" role="tabpanel" aria-labelledby="t-ext" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Subscriptions</h2><button class="btn sm primary" type="button" data-open="dlg-sub" data-api="/atproto/external-labelers"><i data-i="plus" class="sm"></i>Add labeler</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/atproto/external-labelers">
+            <thead><tr><th class="pin">Labeler</th><th>Status</th><th class="num">Cursor</th><th class="num">Last event</th><th class="num">Heartbeat</th><th>Last error</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td class="pin"><b>Bluesky moderation</b><div class="xs secondary mono">wss://mod.bsky.app</div></td><td><span class="pill ok">connected</span></td><td class="num">4,810,221</td><td class="num">2 s ago</td><td class="num">12 s ago</td><td class="muted">—</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-unsub">Remove</button></td></tr>
+              <tr><td class="pin"><b>labeler.northwind.co</b><div class="xs secondary mono">did:web:labeler.northwind.co</div></td><td><span class="pill ok">connected</span></td><td class="num">1,302</td><td class="num">45 m ago</td><td class="num">12 s ago</td><td class="muted">—</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-unsub">Remove</button></td></tr>
+              <tr><td class="pin"><b>labels.contoso.dev</b><div class="xs secondary mono">wss://labels.contoso.dev</div></td><td><span class="pill danger">disconnected</span></td><td class="num">88</td><td class="num">3 d ago</td><td class="num">12 s ago</td><td class="small">ECONNREFUSED · 14 attempts</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-unsub">Remove</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── User DIDs ── -->
+    <section id="p-did" role="tabpanel" aria-labelledby="t-did" hidden class="stack">
+      <form class="card pad row wrap" data-api="/atproto/users/:userId/dids" data-toast="Found 2 linked DIDs">
+        <label class="input-group grow"><i data-i="search" class="sm"></i><input id="did-q" placeholder="Person (name, email, user id) or a DID" aria-label="Person or DID"></label>
+        <button class="btn primary" type="submit">Look up</button>
+      </form>
+      <div class="card">
+        <div class="card-head"><div class="row" style="gap:10px"><span class="avatar g1">MD</span><div class="stack tight"><h2>Maya Diaz</h2><span class="xs secondary">usr_8f21c0</span></div></div></div>
+        <div class="list">
+          <div class="list-item"><i data-i="fingerprint"></i><div class="grow"><div class="title mono">did:exprsn:z6MkfA…9q</div><div class="meta">platform DID · always present</div></div><span class="pill ok">issued</span></div>
+          <div class="list-item"><i data-i="globe"></i><div class="grow"><div class="title mono">did:web:maya.design</div><div class="meta">proof well-known · verified Sep 10</div></div><span class="pill ok">verified</span><button class="btn sm ghost" type="button" data-open="dlg-unlink">Unlink</button></div>
+          <div class="list-item"><i data-i="butterfly"></i><div class="grow"><div class="title mono">did:plc:7ah2k3q9</div><div class="meta">challenge issued · expires in 42 m</div></div><span class="pill warn">pending</span><button class="btn sm ghost" type="button" data-api="/atproto/users/:userId/dids/verify" data-toast="Verification re-checked · still pending">Verify now</button></div>
+        </div>
+        <div class="card-foot"><button class="btn outline" type="button" data-api="/atproto/users/:userId/dids/challenge" data-toast="Challenge issued · valid 1 h">Issue challenge</button><button class="btn primary" type="button" data-open="dlg-link" data-api="/atproto/users/:userId/dids">Link DID</button></div>
+      </div>
+    </section>
+
+    <!-- ── Feed generator ── -->
+    <section id="p-feed" role="tabpanel" aria-labelledby="t-feed" hidden class="grid c2">
+      <div class="card">
+        <div class="card-head"><h2>Feed record</h2><span class="pill ok">published</span></div>
+        <div class="card-body"><dl class="kv" data-api="/atproto/feed-record /xrpc/app.bsky.feed.describeFeedGenerator"><dt>rkey</dt><dd class="mono">exprsn-trending</dd><dt>URI</dt><dd class="mono" style="overflow-wrap:anywhere">at://did:web:exprsn.io/app.bsky.feed.generator/exprsn-trending</dd><dt>Display name</dt><dd>Exprsn Trending</dd></dl></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Skeleton preview</h2><button class="btn sm ghost" type="button" data-api="/xrpc/app.bsky.feed.getFeedSkeleton">Refresh</button></div>
+        <div class="list">
+          <div class="list-item"><span class="mono small truncate grow">at://did:plc:x9k2m/app.bsky.feed.post/3kx3…</span></div>
+          <div class="list-item"><span class="mono small truncate grow">at://did:web:maya.design/app.bsky.feed.post/3kwz…</span><span class="pill warn">hidden</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Label stream ── -->
+    <section id="p-live" role="tabpanel" aria-labelledby="t-live" hidden class="card">
+      <div class="card-head"><h2>subscribeLabels</h2><div class="row" style="gap:8px"><span class="pill ok"><span class="d"></span>Streaming</span><button class="btn sm ghost" type="button" data-toggle aria-pressed="false">Pause</button></div></div>
+      <div class="card-body">
+        <p class="small secondary" style="margin-bottom:10px">Raw WebSocket <span class="mono">wss://exprsn.io/xrpc/com.atproto.label.subscribeLabels?cursor=18200</span>. This is exactly what consumers receive.</p>
+        <pre class="code log" tabindex="0" role="log" aria-live="polite" aria-label="Label stream" data-on="#labels #info">
+<span class="t">10:31:04</span> #labels seq=18204 src=did:web:exprsn.io uri=at://did:plc:7ah2k3q9/…/3kx2 val=harassment
+<span class="t">10:02:47</span> #labels seq=18203 src=did:web:exprsn.io uri=at://did:plc:q0mz81/…/3kx1 val=spam
+<span class="t">09:12:10</span> #labels seq=18201 src=did:web:exprsn.io uri=did:plc:ffe19a val=!hide neg=true
+<span class="t">09:00:00</span> #info   name=OutdatedCursor (cursor 18200 → 18201)</pre>
+      </div>
+    </section>
+  </div>
+
+  <!-- Apply label -->
+  <dialog class="dialog" id="dlg-label" aria-labelledby="dlg-label-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-label-t">Apply a label</h2><p>Signed with our labeler key and published on subscribeLabels.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="lb-uri">Subject (at:// or did:)</label><input class="input mono" id="lb-uri" value="at://did:plc:x9k2m/app.bsky.feed.post/3kx3abc"></div>
+      <div class="form-grid">
+        <div class="field"><label for="lb-val">Value</label><select class="select" id="lb-val"><option>!hide</option><option>spam</option><option>harassment</option><option>nsfw-image</option></select><span class="help">Only declared values</span></div>
+        <div class="field"><label for="lb-cid">CID (optional)</label><input class="input mono" id="lb-cid" placeholder="bafyrei…"></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Label !hide issued · seq 18,205">Apply label</button></div>
+  </dialog>
+
+  <!-- Negate -->
+  <dialog class="dialog sm" id="dlg-negate" aria-labelledby="dlg-neg-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-neg-t">Negate “harassment” on this post?</h2><p>Publishes a negation for seq 18,204. Consumers remove the label on their next sync. Queued, usually under a minute.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="ng-reason">Reason</label><input class="input" id="ng-reason" value="Appeal upheld"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Negation queued" data-api="/atproto/labels/negate">Negate label</button></div>
+  </dialog>
+
+  <!-- Verify -->
+  <dialog class="dialog" id="dlg-verify" aria-labelledby="dlg-ver-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ver-t">Verify a label signature</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="vf-json">Label JSON</label><textarea class="textarea mono" id="vf-json">{ "src": "did:web:exprsn.io", "uri": "did:plc:ffe19a", "val": "!hide", "cts": "2026-09-29T09:12:10Z", "sig": "…" }</textarea></div><div class="banner ok"><i data-i="check" class="sm"></i><span>Valid signature from did:web:exprsn.io (key #atproto_label)</span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button">Verify</button></div>
+  </dialog>
+
+  <!-- Subscribe -->
+  <dialog class="dialog sm" id="dlg-sub" aria-labelledby="dlg-sub-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-sub-t">Add external labeler</h2><p>The worker connects and starts from cursor 0.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="sb-in">Labeler DID or wss URL</label><input class="input mono" id="sb-in" placeholder="did:plc:… or wss://…"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Subscribed · connecting">Subscribe</button></div>
+  </dialog>
+
+  <!-- Unsubscribe -->
+  <dialog class="dialog sm" id="dlg-unsub" aria-labelledby="dlg-unsub-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-unsub-t">Remove labels.contoso.dev?</h2><p>Stops consuming its stream. Keep the cursor to resume later, or purge it with its stored labels.</p></div></div>
+    <div class="dialog-body"><label class="row small"><input type="checkbox" class="check" id="un-purge"> Also purge the cursor and 88 stored labels</label></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="labels.contoso.dev removed">Remove labeler</button></div>
+  </dialog>
+
+  <!-- Link DID -->
+  <dialog class="dialog sm" id="dlg-link" aria-labelledby="dlg-link-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-link-t">Link a DID to Maya Diaz</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="lk-did">DID</label><input class="input mono" id="lk-did" placeholder="did:web:… or did:plc:…"></div><p class="small secondary">It stays unverified until Maya publishes the challenge (well-known file or profile).</p></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="DID linked · challenge issued">Link DID</button></div>
+  </dialog>
+
+  <!-- Unlink -->
+  <dialog class="dialog sm" id="dlg-unlink" aria-labelledby="dlg-unlink-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-unlink-t">Unlink did:web:maya.design?</h2><p>Maya’s posts stop being attributed to this DID on Bluesky. She can re-link it later.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="DID unlinked" data-api="/atproto/users/:userId/dids/:method">Unlink DID</button></div>
+  </dialog>
+
+  <!-- Lookup -->
+  <dialog class="dialog lg" id="dlg-lookup" aria-labelledby="dlg-lk-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-lk-t">Look up DID, AT-URI or CID</h2><p>We detect the format from what you paste.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <form class="row" data-api="/xrpc/com.exprsn.identity.resolveDid" data-toast="Resolved">
+        <label class="input-group grow"><i data-i="search" class="sm"></i><input id="lk-q" class="mono" value="did:plc:7ah2k3q9" aria-label="DID, AT-URI or CID"></label>
+        <div class="seg" role="group" aria-label="Provider"><button type="button" aria-pressed="true">DID</button><button type="button" aria-pressed="false">AT-URI</button><button type="button" aria-pressed="false">CID</button></div>
+      </form>
+      <div class="grid c2">
+        <div class="card pad stack tight"><b class="small">DID document</b><pre class="code" tabindex="0">{ "id": "did:plc:7ah2k3q9",
+  "alsoKnownAs": ["at://maya.design"],
+  "service": [{ "id": "#atproto_pds",
+    "serviceEndpoint": "https://bsky.social" }] }</pre></div>
+        <div class="card pad stack tight"><b class="small">On Exprsn</b><span class="small">Linked to <b>Maya Diaz</b> (pending verification)</span><span class="small secondary">Labels about this DID: 0 · labels by it: 0</span><span class="pill info" style="align-self:start">reverse lookup is proposed</span></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Doc drift: API_SURFACE and web/src/api/admin/atproto.ts call identity, stats, inbound-labels and external-labelers public, but the code gates them with adminGuard (service token or platform-admin email only; token roles are ignored). Labels use cursor mode over queryLabels. The label stream tab opens the raw subscribeLabels WebSocket (not Socket.IO) from the latest cursor and pauses client-side.",
+  "rest": [
+    { "m": "GET", "p": "/atproto/health", "auth": "P", "ui": "Bridge card" },
+    { "m": "GET", "p": "/atproto/identity", "auth": "A", "ui": "Labeler identity card" },
+    { "m": "GET", "p": "/atproto/stats", "auth": "A", "ui": "Stat tiles" },
+    { "m": "GET", "p": "/atproto/service-record", "auth": "P", "ui": "Declared label values" },
+    { "m": "GET", "p": "/atproto/feed-record", "auth": "P", "ui": "Feed record" },
+    { "m": "GET", "p": "/atproto/inbound-labels", "auth": "A", "ui": "Inbound labels table (uri, src, verified, limit ≤ 250)" },
+    { "m": "GET", "p": "/atproto/external-labelers", "auth": "A", "ui": "Subscriptions table" },
+    { "m": "POST", "p": "/atproto/external-labelers", "auth": "A", "ui": "Add labeler dialog" },
+    { "m": "DELETE", "p": "/atproto/external-labelers", "auth": "A", "ui": "Remove labeler (?endpoint=&purge=)" },
+    { "m": "POST", "p": "/atproto/labels", "auth": "A or S", "ui": "Apply label dialog" },
+    { "m": "POST", "p": "/atproto/labels/negate", "auth": "A or S", "ui": "Negate dialog" },
+    { "m": "POST", "p": "/atproto/labels/verify", "auth": "P", "ui": "Verify signature dialog" },
+    { "m": "GET", "p": "/atproto/users/:userId/dids", "auth": "P", "ui": "User DIDs lookup" },
+    { "m": "PUT", "p": "/atproto/users/:userId/dids", "auth": "owner/A", "ui": "Link DID dialog" },
+    { "m": "POST", "p": "/atproto/users/:userId/dids/challenge", "auth": "owner/A", "ui": "Issue challenge" },
+    { "m": "POST", "p": "/atproto/users/:userId/dids/verify", "auth": "owner/A", "ui": "Verify now" },
+    { "m": "DELETE", "p": "/atproto/users/:userId/dids/:method", "auth": "owner/A", "ui": "Unlink DID dialog" },
+    { "m": "GET", "p": "/.well-known/did.json", "auth": "P", "ui": "DID document link" },
+    { "m": "GET", "p": "/.well-known/atproto-did", "auth": "P", "ui": "Handle proof link" },
+    { "m": "GET", "p": "/xrpc/com.atproto.label.queryLabels", "auth": "P", "ui": "Labels table (uriPatterns, sources, cursor)" },
+    { "m": "GET", "p": "/xrpc/com.exprsn.identity.resolveDid", "auth": "P", "ui": "Lookup dialog → DID document" },
+    { "m": "GET", "p": "/xrpc/app.bsky.feed.describeFeedGenerator", "auth": "P", "ui": "Feed record" },
+    { "m": "GET", "p": "/xrpc/app.bsky.feed.getFeedSkeleton", "auth": "P", "ui": "Skeleton preview" },
+    { "m": "WS", "p": "/xrpc/com.atproto.label.subscribeLabels", "auth": "P", "ui": "Label stream tab (raw WebSocket, frames #labels / #info)" }
+  ],
+  "socket": [
+    { "ns": "wss /xrpc/com.atproto.label.subscribeLabels (raw WebSocket, not Socket.IO)", "auth": "P", "rooms": [],
+      "emit": [],
+      "on": [
+        { "e": "#labels", "ui": "Label stream log, Labels table prepend" },
+        { "e": "#info", "ui": "Label stream log (OutdatedCursor)" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "adminGuard accepts only the platform-admin email allowlist or a service token and ignores CA token roles (ATP-1). A role-based admin gets 403 on identity, stats, inbound labels and labelers." },
+    { "sev": "high", "text": "There's no admin labels list with val, neg or case filters, no uri_case_map or firehose cursor read, and no DID→user reverse lookup (ATP-2). The Labels tab uses public queryLabels, and User DIDs needs a known user." },
+    { "sev": "med", "text": "Doc drift: API_SURFACE.md, the lexicon JSON and web/src/api/admin/atproto.ts describe identity, stats, inbound-labels and external-labelers as public, but they're admin-only in code (ATP-7)." },
+    { "sev": "med", "text": "POST /atproto/labels/verify and GET /users/:id/dids are open and not rate-limited (ATP-6)." },
+    { "sev": "med", "text": "CID lookup across labels, service record and FileVault IPFS keys has no endpoint (ATP-4). Identity provisioning and rotation is CLI-only (ATP-3)." }
+  ]
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scopes · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+</style>
+</head>
+<body data-shell="admin" data-page="scopes">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Infrastructure</span><i data-i="right" class="sm"></i><span>Scopes</span></nav>
+        <h1 class="page-title">Scopes</h1>
+        <p class="page-sub">Where access applies: the scope each catalog permission carries, the OAuth scopes apps can request, and the platform · organization · group · user scopes extensions are authorized against.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn primary" type="button" data-open="dlg-introspect"><i data-i="search" class="sm"></i>Introspect a token</button>
+      </div>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="Scope views">
+      <button role="tab" id="t-perm" aria-controls="p-perm" aria-selected="true">Permission scopes</button>
+      <button role="tab" id="t-oauth" aria-controls="p-oauth">OAuth scopes</button>
+      <button role="tab" id="t-res" aria-controls="p-res">Resource scopes</button>
+    </div>
+
+    <!-- ── Permission scopes (mirrors ScopesSection) ── -->
+    <section id="p-perm" role="tabpanel" aria-labelledby="t-perm" class="stack">
+      <div class="banner info"><i data-i="info" class="sm"></i><span class="grow">Derived in the browser from the permission catalog and role list. The auth API has no scope endpoints. Roles holding <span class="mono">*</span> reach every scope and are counted separately.</span></div>
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="s-q" type="search" placeholder="Filter by permission or role name"></label>
+          <span class="grow"></span>
+          <button class="icon-btn" type="button" aria-label="Refresh"><i data-i="refresh"></i></button>
+        </div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/auth/api/roles/permissions /auth/api/roles">
+            <thead><tr><th class="pin" aria-sort="ascending"><button type="button">Scope <i data-i="up" class="sm"></i></button></th><th class="num"><button type="button">Permissions</button></th><th>Permissions in scope</th><th>Roles referencing it</th></tr></thead>
+            <tbody>
+              <tr><td class="pin mono">application</td><td class="num">6</td><td><div class="chips"><span class="pill">apps:read</span><span class="pill">apps:write</span><span class="pill">apps:delete</span><span class="pill">oauth:consent</span><span class="pill">+2</span></div></td><td><div class="chips"><span class="pill info">developer</span><span class="pill info">org-admin</span><span class="pill warn">+1 via *</span></div></td></tr>
+              <tr><td class="pin mono">organization</td><td class="num">19</td><td><div class="chips"><span class="pill">org:read</span><span class="pill">org:update</span><span class="pill">users:read</span><span class="pill">users:update</span><span class="pill">groups:write</span><span class="pill">+14</span></div></td><td><div class="chips"><span class="pill info">org-admin</span><span class="pill info">member</span><span class="pill info">developer</span><span class="pill warn">+1 via *</span></div></td></tr>
+              <tr><td class="pin mono">service</td><td class="num">9</td><td><div class="chips"><span class="pill">tokens:issue</span><span class="pill">certs:read</span><span class="pill">files:admin</span><span class="pill">+6</span></div></td><td><div class="chips"><span class="pill info">developer</span><span class="pill info">sre</span><span class="pill warn">+1 via *</span></div></td></tr>
+              <tr><td class="pin mono">system</td><td class="num">7</td><td><div class="chips"><span class="pill">admin:*</span><span class="pill">moderation:review</span><span class="pill">platform:config</span><span class="pill">+4</span></div></td><td><div class="chips"><span class="pill info">moderator</span><span class="pill warn">+1 via *</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="scope"></i></div><h3>No permissions in the catalog</h3><p>Scopes come from catalog entries. Add permissions first.</p><a class="btn outline" href="permissions.html">Open Permissions</a></div></div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load the catalog or roles</h3><p>Both lists are needed to compute scopes. Correlation id <code>cid 30f2…c19</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">4 scopes · 41 permissions · 18 roles</span></div>
+      </div>
+    </section>
+
+    <!-- ── OAuth scopes ── -->
+    <section id="p-oauth" role="tabpanel" aria-labelledby="t-oauth" hidden class="grid c2">
+      <div class="card">
+        <div class="card-head"><h2>Supported by the issuer</h2><span class="pill">OIDC discovery</span></div>
+        <div class="list" data-api="/auth/.well-known/openid-configuration">
+          <div class="list-item"><span class="mono">openid</span><span class="grow small secondary">ID token with sub</span></div>
+          <div class="list-item"><span class="mono">profile</span><span class="grow small secondary">name, picture, updated_at</span></div>
+          <div class="list-item"><span class="mono">email</span><span class="grow small secondary">email, email_verified</span></div>
+          <div class="list-item"><span class="mono">offline_access</span><span class="grow small secondary">refresh token</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Requested by applications</h2><a class="btn sm ghost" href="auth.html">Applications</a></div>
+        <div class="list" data-api="/auth/api/applications">
+          <div class="list-item"><div class="grow"><div class="title">Exprsn Web</div><div class="meta">openid profile email offline_access</div></div></div>
+          <div class="list-item"><div class="grow"><div class="title">Northwind Portal</div><div class="meta">openid profile email</div></div></div>
+          <div class="list-item"><div class="grow"><div class="title">Inventory sync</div><div class="meta">files:read <span class="pill warn">not in discovery</span></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Resource scopes ── -->
+    <section id="p-res" role="tabpanel" aria-labelledby="t-res" hidden class="stack">
+      <p class="small secondary">Plugins and low-code resources belong to a scope. Whoever administers that scope can change them. Platform admins can change everything.</p>
+      <div class="grid c4">
+        <div class="card pad stack tight"><span class="pill violet" style="align-self:start">platform</span><b>Platform admins</b><span class="small secondary">Email allowlist. Global apps and plugins.</span></div>
+        <div class="card pad stack tight"><span class="pill brand" style="align-self:start">organization</span><b>Org owner / admin</b><span class="small secondary">auth OrganizationMember role</span></div>
+        <div class="card pad stack tight"><span class="pill info" style="align-self:start">group</span><b>Group admin</b><span class="small secondary">Nexus group role admin or owner</span></div>
+        <div class="card pad stack tight"><span class="pill" style="align-self:start">user</span><b>The user</b><span class="small secondary">Personal apps only</span></div>
+      </div>
+      <div class="banner warn"><i data-i="alert" class="sm"></i><span class="grow">Low-code and plugins are <b>disabled</b> (LOWCODE_ENABLED, PLUGINS_ENABLED). Nothing is scoped yet.</span><a class="btn sm outline" href="platform.html">Enable</a></div>
+    </section>
+  </div>
+
+  <!-- Introspect -->
+  <dialog class="dialog lg" id="dlg-introspect" aria-labelledby="dlg-in-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-in-t">Introspect a token</h2><p>Paste a CA token id or an OAuth2 access token. The format picks the lookup.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="seg" role="group" aria-label="Token kind"><button type="button" aria-pressed="true">CA token</button><button type="button" aria-pressed="false">OAuth2 token</button></div>
+      <form class="stack" data-api="/ca/api/tokens/:id/introspect" data-toast="Introspected">
+        <div class="field"><label for="in-tok">Token</label><div class="input-group"><input id="in-tok" class="mono" value="3f2c1a7e-58b0-4c44-9e12-7d0b6c8f9a1b"><button class="btn sm primary" type="submit">Introspect</button></div></div>
+      </form>
+      <div class="banner ok"><i data-i="check" class="sm"></i><span><b>Active.</b> Maya Diaz · url https://exprsn.io · read write append update delete · expires in 23 h</span></div>
+      <pre class="code" tabindex="0">{ "active": true, "sub": "usr_8f21c0", "expiryType": "time",
+  "expiresAt": 1790747522000, "resource": { "type": "url", "value": "https://exprsn.io" },
+  "permissions": ["read","write","append","update","delete"], "useCount": 1204 }</pre>
+      <div class="inset stack tight" data-api="/auth/api/oauth2/introspect">
+        <b class="small">OAuth2 tokens</b>
+        <span class="small secondary">RFC 7662 introspection needs the owning client’s id and secret, and only answers for that client’s tokens.</span>
+        <div class="form-grid"><div class="field"><label for="in-cid">Client id</label><input class="input mono" id="in-cid" placeholder="app_…"></div><div class="field"><label for="in-cs">Client secret</label><input class="input" id="in-cs" type="password" autocomplete="off"></div></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><a class="btn outline left" href="ca.html">Open in CA</a><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Read-only view. Permission scopes are computed client-side by joining GET /roles/permissions with GET /roles (explicit references, plus a '+N via *' count for wildcard roles), which mirrors today's ScopesSection. The introspection dialog routes a UUID to the CA and anything else to OAuth2, which needs client credentials that are never stored.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/roles/permissions", "auth": "user", "ui": "Permission scopes table" },
+    { "m": "GET", "p": "/auth/api/roles", "auth": "user", "ui": "Roles referencing it column" },
+    { "m": "GET", "p": "/auth/.well-known/openid-configuration", "auth": "P", "ui": "OAuth scopes → supported (scopes_supported)" },
+    { "m": "GET", "p": "/auth/api/applications", "auth": "user", "ui": "OAuth scopes → requested by applications" },
+    { "m": "GET", "p": "/ca/api/tokens/:id/introspect", "auth": "user", "ui": "Introspect dialog (CA token)" },
+    { "m": "POST", "p": "/auth/api/oauth2/introspect", "auth": "client (Basic)", "ui": "Introspect dialog (OAuth2 token)" },
+    { "m": "GET", "p": "/platform/api/config", "auth": "A", "ui": "Resource scopes → flag banner" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "Auth has no scope endpoints. Scopes are derived from the catalog, and a role that uses a pattern (e.g. apps:*) isn't matched to catalog entries." },
+    { "sev": "med", "text": "/auth/api/oauth2/introspect requires the owning client's credentials. Admins can't inspect arbitrary OAuth2 tokens (AUTH-6). Proposed: admin introspection behind requirePlatformAdmin." },
+    { "sev": "med", "text": "Application scopes aren't validated against scopes_supported, so a client can register scopes the issuer doesn't advertise." },
+    { "sev": "med", "text": "scopeAuthority (lowcode) and plugins scope checks have no read API that explains who can administer a scope. Proposed: GET /lowcode/api/design/scopes/:type/:id/authority." }
+  ]
+}
+</script>
+</body>
+</html>

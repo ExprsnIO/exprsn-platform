@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notifications &amp; reports · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  .note { align-items: flex-start; }
+  .note.unread { background: color-mix(in srgb, var(--exprsn-primary) 6%, transparent); }
+  .note.unread .meta, .note.unread .muted { color: var(--exprsn-text-secondary); }
+  .note .ico { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--exprsn-bg-tertiary); color: var(--exprsn-text-secondary); flex: none; }
+  .note .dotu { width: 8px; height: 8px; border-radius: 50%; background: var(--exprsn-primary); flex: none; margin-top: 8px; }
+  .track { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: .75rem; }
+</style>
+</head>
+<body data-shell="app" data-page="moderation">
+<main id="main">
+  <div class="page reading">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Notifications &amp; reports</h1>
+        <p class="page-sub">Mentions, replies and invites — plus the status of anything you’ve reported and any moderation decisions about your content.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-api="/moderator/api/notifications/read-all" data-toast="All caught up"><i data-i="checks" class="sm"></i>Mark all read</button>
+        <button class="btn primary" type="button" data-open="dlg-report" data-api="/moderator/api/reports"><i data-i="flag" class="sm"></i>Report something</button>
+      </div>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="Inbox">
+      <button role="tab" id="nt-all" aria-controls="np-all" aria-selected="true" data-api="/moderator/api/notifications/unread-count" data-on="notification">All <span class="badge">4</span></button>
+      <button role="tab" id="nt-men" aria-controls="np-men">Mentions</button>
+      <button role="tab" id="nt-mod" aria-controls="np-mod" data-on="moderation_notification">Moderation <span class="badge">1</span></button>
+      <button role="tab" id="nt-rep" aria-controls="np-rep">My reports</button>
+      <button role="tab" id="nt-app" aria-controls="np-app" data-on="appeal:reviewed">My appeals</button>
+    </div>
+
+    <!-- All -->
+    <section id="np-all" role="tabpanel" aria-labelledby="nt-all" class="card">
+      <div data-state="loaded" class="list" data-api="/moderator/api/notifications" data-on="notification moderation_notification appeal:reviewed">
+        <div class="list-item note unread"><span class="dotu" aria-label="Unread" role="img"></span><span class="avatar sm g1">MD</span><a class="grow small" href="post.html" style="color:inherit"><b>Maya Diaz</b> mentioned you in Design Guild: “@rick can you bring the contract drawer demo?”<br><span class="muted">2 min ago</span></a><button class="icon-btn" type="button" aria-label="Mark as read" data-api="/moderator/api/notifications/:id/read"><i data-i="check" class="sm"></i></button></div>
+        <div class="list-item note unread"><span class="dotu" aria-label="Unread" role="img"></span><span class="ico"><i data-i="shield" class="sm"></i></span><span class="grow small"><b>Your report was reviewed.</b> The post you reported in Design Guild was removed for harassment. Thanks for helping keep Exprsn safe.<br><span class="muted">18 min ago · Report <span class="id">rpt_31c0</span></span></span></div>
+        <div class="list-item note unread"><span class="dotu" aria-label="Unread" role="img"></span><span class="ico"><i data-i="alert" class="sm"></i></span><span class="grow small"><b>A post of yours was hidden pending review.</b> “Contoso pilot kickoff photos” matched an automated rule (possible personal data). You can appeal.<br><span class="muted">1 h ago</span><span class="row" style="gap:8px;margin-top:6px"><button class="btn sm tonal" type="button" data-open="dlg-appeal">Appeal</button><a class="btn sm ghost" href="post.html">View post</a></span></span></div>
+        <div class="list-item note unread"><span class="dotu" aria-label="Unread" role="img"></span><span class="avatar sm g2">JO</span><a class="grow small" href="rooms.html" style="color:inherit"><b>Jonah Okafor</b> invited you to the room <b>Northwind build sync</b><br><span class="muted">2 h ago</span></a></div>
+        <div class="list-item note"><span style="width:8px;flex:none"></span><span class="avatar sm g3">PR</span><a class="grow small" href="post.html" style="color:inherit"><b>Priya Raman</b> and 12 others liked your post “Release notes for v2 mockups…”<br><span class="muted">Yesterday</span></a><button class="icon-btn" type="button" aria-label="Delete notification" data-api="/moderator/api/notifications/:id"><i data-i="x" class="sm"></i></button></div>
+        <div class="list-item note"><span style="width:8px;flex:none"></span><span class="ico"><i data-i="calendar" class="sm"></i></span><a class="grow small" href="group.html" style="color:inherit"><b>Thursday crit #41</b> starts in 1 hour · Design Guild<br><span class="muted">Yesterday</span></a></div>
+      </div>
+      <div data-state="empty"><div class="empty"><div class="art"><i data-i="bell"></i></div><h3>You’re all caught up</h3><p>Mentions, replies, invites and moderation updates will show up here the moment they happen.</p></div></div>
+      <div data-state="loading" aria-busy="true" aria-label="Loading notifications"><div class="stack" style="padding:16px"><div class="row"><span class="avatar sm" style="background:var(--exprsn-bg-tertiary)"></span><span class="sk grow"></span></div><div class="row"><span class="avatar sm" style="background:var(--exprsn-bg-tertiary)"></span><span class="sk grow"></span></div><div class="row"><span class="avatar sm" style="background:var(--exprsn-bg-tertiary)"></span><span class="sk grow"></span></div></div></div>
+      <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load notifications</h3><p>The moderator service didn’t respond. New notifications still arrive live while you’re connected. Correlation id <code>cid 9d4e…c10</code>.</p><button class="btn outline" type="button">Try again</button></div></div>
+      <div class="card-foot"><button class="btn sm ghost" type="button" data-open="dlg-clear" data-api="/moderator/api/notifications">Clear all</button></div>
+    </section>
+
+    <section id="np-men" role="tabpanel" aria-labelledby="nt-men" class="card" hidden>
+      <div class="list" data-api="/moderator/api/notifications">
+        <div class="list-item note unread"><span class="dotu" aria-label="Unread" role="img"></span><span class="avatar sm g1">MD</span><a class="grow small" href="post.html" style="color:inherit"><b>Maya Diaz</b> mentioned you: “@rick can you bring the contract drawer demo?”<br><span class="muted">2 min ago · Design Guild</span></a></div>
+        <div class="list-item note"><span style="width:8px;flex:none"></span><span class="avatar sm g4">AL</span><a class="grow small" href="post.html" style="color:inherit"><b>Ari Lindqvist</b> quoted your post<br><span class="muted">Sep 28</span></a></div>
+      </div>
+    </section>
+
+    <section id="np-mod" role="tabpanel" aria-labelledby="nt-mod" class="card" hidden>
+      <div class="list" data-on="moderation_notification">
+        <div class="list-item note unread"><span class="dotu" aria-label="Unread" role="img"></span><span class="ico"><i data-i="alert" class="sm"></i></span><span class="grow small"><b>Post hidden pending review</b> · “Contoso pilot kickoff photos”<br><span class="muted">Automated rule: possible personal data · 1 h ago</span><span class="row" style="gap:8px;margin-top:6px"><button class="btn sm tonal" type="button" data-open="dlg-appeal">Appeal</button></span></span></div>
+        <div class="list-item note"><span style="width:8px;flex:none"></span><span class="ico"><i data-i="check" class="sm"></i></span><span class="grow small"><b>Recording approved</b> · “Mockup review office hours” is now public<br><span class="muted">Sep 24</span></span></div>
+      </div>
+    </section>
+
+    <section id="np-rep" role="tabpanel" aria-labelledby="nt-rep" class="card" hidden>
+      <div class="list" data-api="/moderator/api/reports/:id">
+        <div class="list-item" style="align-items:flex-start"><span class="ico" style="width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--exprsn-bg-tertiary)"><i data-i="flag" class="sm"></i></span>
+          <span class="grow stack tight small"><b>Reply on “Thursday crit #41”</b><span class="muted">Harassment · reported Sep 29, 09:40 · <span class="id">rpt_31c0</span></span>
+            <span class="track"><span class="pill ok">Received</span><i data-i="right" class="sm"></i><span class="pill ok">In review</span><i data-i="right" class="sm"></i><span class="pill ok">Action taken — removed</span></span></span></div>
+        <div class="list-item" style="align-items:flex-start"><span class="ico" style="width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--exprsn-bg-tertiary)"><i data-i="flag" class="sm"></i></span>
+          <span class="grow stack tight small"><b>Profile @promo-bot-22</b><span class="muted">Spam · reported Sep 27 · <span class="id">rpt_2f88</span></span>
+            <span class="track"><span class="pill ok">Received</span><i data-i="right" class="sm"></i><span class="pill info">In review</span><i data-i="right" class="sm"></i><span class="pill">Decision</span></span></span></div>
+        <div class="list-item" style="align-items:flex-start"><span class="ico" style="width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--exprsn-bg-tertiary)"><i data-i="flag" class="sm"></i></span>
+          <span class="grow stack tight small"><b>Message in #platform-oncall</b><span class="muted">Other · reported Sep 12 · <span class="id">rpt_1a07</span></span>
+            <span class="track"><span class="pill ok">Received</span><i data-i="right" class="sm"></i><span class="pill ok">Reviewed</span><i data-i="right" class="sm"></i><span class="pill">No violation found</span></span></span></div>
+      </div>
+    </section>
+
+    <section id="np-app" role="tabpanel" aria-labelledby="nt-app" class="card" hidden>
+      <div class="list" data-api="/moderator/api/appeals" data-on="appeal:new appeal:reviewed">
+        <div class="list-item" style="align-items:flex-start"><span class="ico" style="width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--exprsn-bg-tertiary)"><i data-i="gavel" class="sm"></i></span><span class="grow stack tight small"><b>“Contoso pilot kickoff photos”</b><span class="muted">Appealed 40 min ago · “The faces are staff who consented.”</span></span><span class="pill info">Under review</span></div>
+        <div class="list-item" style="align-items:flex-start"><span class="ico" style="width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--exprsn-bg-tertiary)"><i data-i="gavel" class="sm"></i></span><span class="grow stack tight small"><b>Comment on “vault rotation”</b><span class="muted">Aug 14 · reviewer: “Restored — context made it clear this was a quote.”</span></span><span class="pill ok">Upheld · restored</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Reusable report dialog -->
+  <dialog class="dialog" id="dlg-report" aria-labelledby="dlg-report-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-report-t">Report content</h2><p>The same dialog opens from any post, message, profile, stream or file menu with the item pre-filled.</p></div></div>
+      <div class="dialog-body">
+        <div class="field"><label for="rp-what">What are you reporting?</label><select class="select" id="rp-what"><option>Post</option><option>Message</option><option>Profile</option><option>Live stream</option><option>File</option></select></div>
+        <div class="field"><label for="rp-link">Link or id</label><input class="input" id="rp-link" placeholder="Paste a link, e.g. exprsn.io/feed/pst_…"></div>
+        <fieldset class="stack tight" style="border:0;padding:0;margin:0"><legend class="small" style="font-weight:600;margin-bottom:6px">Reason</legend>
+          <label class="row small"><input type="radio" name="rp-r" id="rp-r1" checked> Harassment or hate</label>
+          <label class="row small"><input type="radio" name="rp-r" id="rp-r2"> Spam or scam</label>
+          <label class="row small"><input type="radio" name="rp-r" id="rp-r3"> Personal information</label>
+          <label class="row small"><input type="radio" name="rp-r" id="rp-r4"> Violence or self-harm</label>
+          <label class="row small"><input type="radio" name="rp-r" id="rp-r5"> Something else</label>
+        </fieldset>
+        <div class="field"><label for="rp-d">Details</label><textarea class="textarea" id="rp-d" placeholder="Anything moderators should know"></textarea><span class="help">The person you report won’t see your name.</span></div>
+        <div class="banner danger"><i data-i="alert" class="sm"></i><span>If someone is in immediate danger, contact local emergency services.</span></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Report sent — you’ll get a notification when it’s reviewed">Send report</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-appeal" aria-labelledby="dlg-appeal-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-appeal-t">Appeal a decision</h2><p>“Contoso pilot kickoff photos” was hidden by an automated rule (possible personal data).</p></div></div>
+      <div class="dialog-body">
+        <div class="field"><label for="ap-why">Why should it be restored?</label><textarea class="textarea" id="ap-why">The faces are Contoso staff who consented to the photos being shared in the group.</textarea><span class="help">A person on the Trust &amp; Safety team reviews every appeal, usually within a day.</span></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Appeal submitted" data-api="/moderator/api/appeals">Submit appeal</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-clear" aria-labelledby="dlg-clear-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-clear-t">Clear all notifications?</h2><p>Removes all 24 notifications from your inbox. Reports and appeals keep their status.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Inbox cleared">Clear all</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Inbox is REST-loaded (paged) and prepended live from the /notifications namespace (room user:{userId}); the topbar bell badge uses unread-count and the same events. Mark read / clear are optimistic. Reports and appeals are created here or from any content menu via the shared report dialog; their status tracks update from moderation_notification / appeal:reviewed.",
+  "rest": [
+    { "m": "GET", "p": "/moderator/api/notifications", "auth": "user", "ui": "All / Mentions / Moderation lists" },
+    { "m": "GET", "p": "/moderator/api/notifications/unread-count", "auth": "user", "ui": "Tab badge + topbar bell" },
+    { "m": "POST", "p": "/moderator/api/notifications/read-all", "auth": "user", "ui": "Mark all read" },
+    { "m": "POST", "p": "/moderator/api/notifications/:id/read", "auth": "user", "ui": "Row check button / opening a row" },
+    { "m": "DELETE", "p": "/moderator/api/notifications/:id", "auth": "user", "ui": "Row × button" },
+    { "m": "DELETE", "p": "/moderator/api/notifications", "auth": "user", "ui": "Clear all confirm" },
+    { "m": "POST", "p": "/moderator/api/reports", "auth": "user", "ui": "Report dialog (shared pattern)" },
+    { "m": "GET", "p": "/moderator/api/reports/:id", "auth": "A (!)", "ui": "My reports status track" },
+    { "m": "POST", "p": "/moderator/api/appeals", "auth": "user", "ui": "Appeal dialog" },
+    { "m": "GET", "p": "/moderator/api/appeals", "auth": "A (!)", "ui": "My appeals list" }
+  ],
+  "socket": [
+    { "ns": "/notifications", "auth": "CA bearer", "rooms": ["user:{userId}"],
+      "emit": [],
+      "on": [
+        { "e": "notification", "ui": "Prepend row + bump badges (fed by POST /moderator/api/notifications [S])" },
+        { "e": "moderation_notification", "ui": "Moderation tab row + report track update" },
+        { "e": "appeal:new", "ui": "My appeals row confirmed" },
+        { "e": "appeal:reviewed", "ui": "Appeal status pill + notification" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "GET /moderator/api/reports/:id and GET /moderator/api/appeals are platform-admin only, so users can't see the status of their own reports or appeals. Proposed: GET /moderator/api/reports/mine and /appeals/mine (reporter/author scoped)." },
+    { "sev": "med", "text": "Notifications have no type filter param; Mentions/Moderation tabs filter client-side over a page. Proposed: ?type= on GET /notifications." },
+    { "sev": "med", "text": "Resolving a report (PUT /moderator/api/reports/:id/resolve) emits nothing and creates no notification, so reporters never hear back. The 'Your report was reviewed' row and live status track are proposed." }
+  ]
+}
+</script>
+</body>
+</html>

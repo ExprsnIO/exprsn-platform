@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Groups · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+  /* kit fix proposal: danger-outline text fails AA in light theme */
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .perm { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; font-size: .6875rem; font-weight: 700; background: var(--exprsn-bg-tertiary); color: var(--exprsn-text-secondary); }
+  .perm.on { background: color-mix(in srgb, var(--exprsn-primary) 14%, transparent); color: var(--v2-primary-fg); }
+</style>
+</head>
+<body data-shell="admin" data-page="identity-groups">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Infrastructure</span><i data-i="right" class="sm"></i><span>Groups</span></nav>
+        <h1 class="page-title">Groups</h1>
+        <p class="page-sub">Identity groups in auth. They carry base permissions and role bindings for everyone in them. Community groups (Nexus) are managed under <a href="nexus.html">Groups &amp; events</a>.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-import" data-api="/auth/api/groups/import"><i data-i="upload" class="sm"></i>Import</button>
+        <button class="btn primary" type="button" data-open="dlg-edit" data-api="/auth/api/groups"><i data-i="plus" class="sm"></i>New group</button>
+      </div>
+    </header>
+
+    <div class="grid c4" data-api="/auth/api/groups">
+      <div class="card stat"><span class="label"><i data-i="diversity" class="sm"></i>Groups</span><span class="value">86</span></div>
+      <div class="card stat"><span class="label"><i data-i="building" class="sm"></i>Org-scoped</span><span class="value">71</span></div>
+      <div class="card stat"><span class="label"><i data-i="shield" class="sm"></i>System</span><span class="value">4</span></div>
+      <div class="card stat"><span class="label"><i data-i="badge" class="sm"></i>With role bindings</span><span class="value">39</span></div>
+    </div>
+
+    <section class="card dt" aria-label="Groups table">
+      <div class="dt-toolbar">
+        <label class="input-group"><i data-i="search" class="sm"></i><input id="g-q" type="search" placeholder="Search name or slug" data-api="/auth/api/groups"></label>
+        <button class="chip" type="button" aria-pressed="false">Type</button>
+        <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Org: any <span class="x">×</span></button>
+        <span class="grow"></span>
+        <div class="seg" role="group" aria-label="Group by"><button type="button" aria-pressed="true">By organization</button><button type="button" aria-pressed="false">No grouping</button></div>
+        <button class="icon-btn" type="button" aria-label="Refresh"><i data-i="refresh"></i></button>
+      </div>
+      <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-open="dlg-role" data-api="/auth/api/roles/:id/assign-group">Bind role</button><button class="btn sm ghost" type="button" data-open="dlg-delete">Delete</button></div>
+      <div class="dt-scroll" data-state="loaded">
+        <table class="table" data-api="/auth/api/groups">
+          <thead><tr>
+            <th class="pin" style="width:44px"><input type="checkbox" class="check" aria-label="Select all groups"></th>
+            <th class="pin" style="left:44px" aria-sort="ascending"><button type="button">Group <i data-i="up" class="sm"></i></button></th>
+            <th>Type</th><th>Parent</th><th class="num">Members</th><th>Base permissions</th><th>Roles</th><th class="num">Updated</th><th class="actions"><span class="sr-only">Actions</span></th>
+          </tr></thead>
+          <tbody>
+            <tr class="group-row"><td colspan="9">Exprsn HQ · 14</td></tr>
+            <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select platform-oncall"></td><td class="pin" style="left:44px"><button type="button" data-open="dlg-group" data-api="/auth/api/groups/:id" style="all:unset;cursor:pointer"><b>platform-oncall</b></button><div class="xs secondary mono">platform-oncall</div></td><td>custom</td><td>engineering</td><td class="num">6</td><td><span class="perm on">R</span> <span class="perm on">W</span> <span class="perm on">A</span> <span class="perm on">U</span> <span class="perm">D</span></td><td><span class="pill violet">sre</span></td><td class="num">Sep 21</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-group">Open</button></td></tr>
+            <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select admins"></td><td class="pin" style="left:44px"><b>admins</b><div class="xs secondary mono">admins</div></td><td><span class="pill">system</span></td><td class="muted">—</td><td class="num">3</td><td><span class="perm on">R</span> <span class="perm on">W</span> <span class="perm on">A</span> <span class="perm on">U</span> <span class="perm on">D</span></td><td><span class="pill violet">admin</span></td><td class="num">Nov 2</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-group">Open</button></td></tr>
+            <tr class="group-row"><td colspan="9">Northwind · 6</td></tr>
+            <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select engineering"></td><td class="pin" style="left:44px"><b>engineering</b><div class="xs secondary mono">nw-engineering</div></td><td>organization</td><td class="muted">—</td><td class="num">62</td><td><span class="perm on">R</span> <span class="perm on">W</span> <span class="perm on">A</span> <span class="perm">U</span> <span class="perm">D</span></td><td><span class="pill">developer</span></td><td class="num">Sep 24</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-group">Open</button></td></tr>
+            <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select northwind-all"></td><td class="pin" style="left:44px"><b>northwind-all</b><div class="xs secondary mono">northwind-all</div></td><td>organization</td><td class="muted">—</td><td class="num">184</td><td><span class="perm on">R</span> <span class="perm">W</span> <span class="perm">A</span> <span class="perm">U</span> <span class="perm">D</span></td><td><span class="pill">member</span></td><td class="num">Feb 14</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-group">Open</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div data-state="empty"><div class="empty"><div class="art"><i data-i="diversity"></i></div><h3>No groups here yet</h3><p>Create a group to grant the same permissions and roles to many people at once, or import up to 500 from JSON.</p><button class="btn outline" type="button" data-open="dlg-edit">New group</button></div></div>
+      <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+      <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load groups</h3><p>GET /auth/api/groups returned 500. Correlation id <code>cid 1b0c…8d4</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+      <div class="dt-foot"><span class="num">4 of 86 · client mode</span><div class="row" style="gap:6px"><button class="icon-btn" type="button" aria-label="Previous page" disabled><i data-i="left"></i></button><button class="icon-btn" type="button" aria-label="Next page"><i data-i="right"></i></button></div></div>
+    </section>
+  </div>
+
+  <!-- Group detail -->
+  <dialog class="dialog lg" id="dlg-group" aria-labelledby="dlg-group-t">
+    <div class="dialog-head"><span class="avatar lg sq g3">P</span><div class="grow"><h2 id="dlg-group-t">platform-oncall</h2><p>custom · Exprsn HQ · parent engineering · <span class="id">grp_91ce0a</span></p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="tabs" role="tablist" aria-label="Group detail">
+        <button role="tab" id="gd-t1" aria-controls="gd-1" aria-selected="true">Members <span class="badge neutral">6</span></button>
+        <button role="tab" id="gd-t2" aria-controls="gd-2">Roles</button>
+        <button role="tab" id="gd-t3" aria-controls="gd-3">Settings</button>
+      </div>
+      <div id="gd-1" role="tabpanel" aria-labelledby="gd-t1" class="stack">
+        <form class="row" data-api="/auth/api/groups/:id/members" data-toast="Sam Kim added to platform-oncall">
+          <label class="input-group grow"><i data-i="userPlus" class="sm"></i><input id="gm-add" placeholder="Add a person by name or email" aria-label="Add member"></label>
+          <button class="btn primary" type="submit">Add</button>
+        </form>
+        <div class="list card">
+          <div class="list-item"><span class="avatar sm g3">PR</span><div class="grow"><div class="title">Priya Raman</div><div class="meta">priya@exprsn.io</div></div><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></div>
+          <div class="list-item"><span class="avatar sm g1">MD</span><div class="grow"><div class="title">Maya Diaz</div><div class="meta">maya@exprsn.io</div></div><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></div>
+          <div class="list-item"><span class="avatar sm g4">AL</span><div class="grow"><div class="title">Ari Lindqvist</div><div class="meta">ari@exprsn.io</div></div><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></div>
+        </div>
+      </div>
+      <div id="gd-2" role="tabpanel" aria-labelledby="gd-t2" hidden class="stack">
+        <div class="list card">
+          <div class="list-item"><i data-i="badge"></i><div class="grow"><div class="title">sre</div><div class="meta">scope organization · Exprsn HQ · no expiry</div></div><button class="btn sm ghost" type="button" data-api="/auth/api/roles/:id/revoke-group" data-toast="Role sre unbound">Unbind</button></div>
+        </div>
+        <button class="btn outline" type="button" data-open="dlg-role">Bind a role</button>
+      </div>
+      <div id="gd-3" role="tabpanel" aria-labelledby="gd-t3" hidden>
+        <p class="small secondary">Edit name, parent and base permissions with <b>Edit group</b> below.</p>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-delete">Delete group</button><button class="btn primary" type="button" data-open="dlg-edit">Edit group</button></div>
+  </dialog>
+
+  <!-- Create / edit -->
+  <dialog class="dialog" id="dlg-edit" aria-labelledby="dlg-edit-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-edit-t">New group</h2></div></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><label for="ge-name">Name</label><input class="input" id="ge-name" value="support-tier2"></div>
+        <div class="field"><label for="ge-slug">Slug</label><input class="input" id="ge-slug" value="support-tier2"></div>
+        <div class="field"><label for="ge-type">Type</label><select class="select" id="ge-type"><option>custom</option><option>organization</option></select></div>
+        <div class="field"><label for="ge-org">Organization</label><select class="select" id="ge-org"><option>Exprsn HQ</option><option>Northwind</option><option>Contoso</option></select></div>
+        <div class="field"><label for="ge-parent">Parent group</label><select class="select" id="ge-parent"><option>None</option><option>engineering</option></select></div>
+        <div class="field"><label for="ge-tpl">Template</label><select class="select" id="ge-tpl"><option>Blank</option><option>Read-only viewers</option><option>Contributors</option></select></div>
+      </div>
+      <div class="field"><span class="label">Base permissions</span><div class="row wrap" style="gap:6px"><button class="chip" type="button" aria-pressed="true">Read</button><button class="chip" type="button" aria-pressed="true">Write</button><button class="chip" type="button" aria-pressed="false">Append</button><button class="chip" type="button" aria-pressed="false">Update</button><button class="chip" type="button" aria-pressed="false">Delete</button></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="support-tier2 created" data-api="/auth/api/groups/:id">Save group</button></div>
+  </dialog>
+
+  <!-- Bind role -->
+  <dialog class="dialog sm" id="dlg-role" aria-labelledby="dlg-role-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-role-t">Bind a role to platform-oncall</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="gr-role">Role</label><select class="select" id="gr-role"><option>sre</option><option>moderator</option><option>org-admin</option></select></div><div class="field"><label for="gr-scope">Scope</label><select class="select" id="gr-scope"><option>global</option><option selected>organization</option><option>application</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Role bound to platform-oncall">Bind role</button></div>
+  </dialog>
+
+  <!-- Remove member -->
+  <dialog class="dialog sm" id="dlg-remove" aria-labelledby="dlg-remove-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-remove-t">Remove Priya Raman from platform-oncall?</h2><p>She loses the group’s base permissions and the sre role, unless she has them another way.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Priya Raman removed">Remove</button></div>
+  </dialog>
+
+  <!-- Delete -->
+  <dialog class="dialog sm" id="dlg-delete" aria-labelledby="dlg-delete-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-delete-t">Delete platform-oncall?</h2><p>6 members lose its permissions and role binding. Child groups move to the top level.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="gd-confirm">Type <b>platform-oncall</b> to confirm</label><input class="input" id="gd-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" disabled>Delete group</button></div>
+  </dialog>
+
+  <!-- Import -->
+  <dialog class="dialog" id="dlg-import" aria-labelledby="dlg-import-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-import-t">Import groups</h2><p>JSON array of {name, slug, type, organizationId, permissions}. Up to 500.</p></div></div>
+    <div class="dialog-body"><div class="drop"><i data-i="upload" class="lg"></i><b>Drop a .json file</b><label class="btn sm outline" for="gi-file">Choose file</label><input id="gi-file" type="file" accept=".json" class="sr-only"></div><div class="banner info"><i data-i="info" class="sm"></i><span>Existing slugs are skipped. You’ll get a created / skipped / failed report.</span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" disabled>Import</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Client-mode table over GET /auth/api/groups (filterable by organizationId). The top-bar org switcher pre-applies the org filter. Member add and remove are optimistic in the detail dialog and roll back on 4xx. No live events: the table polls every 30s.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/groups", "auth": "user", "ui": "Groups table + tiles" },
+    { "m": "POST", "p": "/auth/api/groups", "auth": "user", "ui": "New group dialog" },
+    { "m": "POST", "p": "/auth/api/groups/import", "auth": "A", "ui": "Import dialog" },
+    { "m": "GET", "p": "/auth/api/groups/:id", "auth": "user", "ui": "Group detail (members included)" },
+    { "m": "PUT", "p": "/auth/api/groups/:id", "auth": "grp-admin/A", "ui": "Edit group" },
+    { "m": "DELETE", "p": "/auth/api/groups/:id", "auth": "grp-admin/A", "ui": "Delete group dialog" },
+    { "m": "POST", "p": "/auth/api/groups/:id/members", "auth": "grp-admin/A", "ui": "Detail → Add member" },
+    { "m": "DELETE", "p": "/auth/api/groups/:id/members/:userId", "auth": "grp-admin/A", "ui": "Remove member dialog" },
+    { "m": "POST", "p": "/auth/api/roles/:id/assign-group", "auth": "A", "ui": "Bind role dialog, bulk Bind role" },
+    { "m": "POST", "p": "/auth/api/roles/:id/revoke-group", "auth": "A", "ui": "Detail → Roles → Unbind" },
+    { "m": "GET", "p": "/auth/api/roles", "auth": "user", "ui": "Role picker in Bind role" },
+    { "m": "GET", "p": "/auth/api/users/:id/groups", "auth": "user", "ui": "Not used here (Users detail)" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "GET /auth/api/groups has no search, pagination or member counts, so the table is client mode. Member counts come from GET /:id." },
+    { "sev": "med", "text": "There's no endpoint listing a group's role bindings. They're derived from GET /auth/api/roles/:id/assignments for each role." },
+    { "sev": "med", "text": "Nothing emits group lifecycle events (CA group:created/updated helpers are dead code). Proposed: group:* on /_admin." }
+  ]
+}
+</script>
+</body>
+</html>

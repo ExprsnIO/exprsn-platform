@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Apps · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  .launch { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px; color: inherit; border: 1px solid var(--exprsn-border-color); }
+  .launch:hover { text-decoration: none; box-shadow: var(--exprsn-shadow-md); }
+  .launch[aria-current="true"] { border-color: var(--exprsn-primary); box-shadow: var(--v2-focus-ring); }
+  @media (max-width: 600px) { .launch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+  .app-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .flow-steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: .8125rem; }
+  .flow-steps .pill[aria-current="step"] { outline: 2px solid currentColor; outline-offset: 1px; }
+</style>
+</head>
+<body data-shell="app" data-page="apps">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Apps</h1>
+        <p class="page-sub">Business apps built by your organization and groups with the low-code designer, plus tools added by plugins.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="../admin/lowcode.html"><i data-i="flow" class="sm"></i>Open designer</a>
+      </div>
+    </header>
+
+    <div data-state="loaded" class="stack loose">
+      <!-- Launcher -->
+      <section class="stack" aria-labelledby="l-h">
+        <div class="section-title"><h2 id="l-h">Your apps</h2><label class="input-group" style="max-width:260px;min-height:36px"><i data-i="search" class="sm"></i><input id="app-q" type="search" placeholder="Find an app"></label></div>
+        <div class="grid auto-sm launch-grid" data-api="/lowcode/api/design/apps /lowcode/api/design/catalog">
+          <a class="card launch" href="#app" aria-current="true"><span class="avatar sq g3"><i data-i="kanban" class="sm"></i></span><b>Equipment requests</b><span class="xs muted">Northwind · 128 open</span></a>
+          <a class="card launch" href="#app"><span class="avatar sq g1"><i data-i="calendar" class="sm"></i></span><b>Crit sign-ups</b><span class="xs muted">Design Guild · 42 records</span></a>
+          <a class="card launch" href="#app"><span class="avatar sq g2"><i data-i="table" class="sm"></i></span><b>Vendor onboarding</b><span class="xs muted">Contoso · 9 in review</span></a>
+          <a class="card launch" href="#app"><span class="avatar sq g4"><i data-i="badge" class="sm"></i></span><b>Font licences</b><span class="xs muted">Design Guild · 17 records</span></a>
+          <div class="card launch" data-api="/plugins/api/surfaces"><span class="avatar sq" style="background:var(--exprsn-bg-tertiary);color:var(--exprsn-text-secondary)"><i data-i="puzzle" class="sm"></i></span><b>Standup bot</b><span class="xs muted">Plugin · widget</span><span class="pill">From plugin</span></div>
+        </div>
+      </section>
+
+      <!-- App view -->
+      <section class="stack loose" id="app" aria-labelledby="app-h">
+        <div class="app-head">
+          <span class="avatar lg sq g3"><i data-i="kanban"></i></span>
+          <div class="grow stack tight"><h2 id="app-h" style="font-size:1.375rem;font-weight:700">Equipment requests</h2><span class="small secondary">Northwind · owned by Jonah Okafor · you can create and approve</span></div>
+          <button class="btn outline" type="button" data-open="dlg-import" data-api="/lowcode/api/data/:entityKey/records/import"><i data-i="upload" class="sm"></i>Import</button>
+          <button class="btn outline" type="button" data-api="/lowcode/api/data/:entityKey/records/export" data-toast="Exporting 128 requests as CSV"><i data-i="download" class="sm"></i>Export</button>
+          <button class="btn primary" type="button" data-open="dlg-new" data-api="/lowcode/api/design/forms/:id"><i data-i="plus" class="sm"></i>New request</button>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Entities" data-api="/lowcode/api/design/entities">
+          <button role="tab" id="et-req" aria-controls="ep-req" aria-selected="true">Requests</button>
+          <button role="tab" id="et-items" aria-controls="ep-items">Equipment</button>
+          <button role="tab" id="et-loc" aria-controls="ep-loc">Locations</button>
+        </div>
+
+        <div id="ep-req" role="tabpanel" aria-labelledby="et-req" class="stack loose">
+          <div class="grid c4" data-api="/lowcode/api/data/:entityKey/aggregate">
+            <div class="card stat"><span class="label">Open requests</span><span class="value">128</span><span class="delta up">+14 this week</span></div>
+            <div class="card stat"><span class="label">Awaiting approval</span><span class="value">23</span><div class="meter warn" role="img" aria-label="18 percent of open requests awaiting approval"><i style="width:18%"></i></div></div>
+            <div class="card stat"><span class="label">Avg. time to fulfil</span><span class="value">2.6d</span><span class="delta up">−0.4d</span></div>
+            <div class="card stat"><span class="label">Est. spend (open)</span><span class="value">$41.2k</span></div>
+          </div>
+
+          <div class="card dt">
+            <div class="dt-toolbar" data-api="/lowcode/api/data/:entityKey/views">
+              <div class="seg" role="group" aria-label="Saved views"><button type="button" aria-pressed="true">All open</button><button type="button" aria-pressed="false">Mine</button><button type="button" aria-pressed="false">Needs my approval <span class="badge">5</span></button></div>
+              <label class="input-group"><i data-i="search" class="sm"></i><input id="rq-q" type="search" placeholder="Search requests" data-api="/lowcode/api/data/:entityKey/records"></label>
+              <span class="grow"></span>
+              <button class="btn sm ghost" type="button" data-open="dlg-view"><i data-i="plus" class="sm"></i>Save view</button>
+            </div>
+            <div class="dt-filters">
+              <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Status: not Closed <span class="x">×</span></button>
+              <button class="chip" type="button" aria-pressed="false">Location</button>
+              <button class="chip" type="button" aria-pressed="false">Requested by</button>
+              <button class="chip" type="button" aria-pressed="false">Cost &gt; $500</button>
+            </div>
+            <div class="dt-bulk" hidden data-api="/lowcode/api/data/:entityKey/records/bulk">
+              <span><span class="n">0</span> selected</span>
+              <button class="btn sm tonal" type="button" data-toast="3 requests approved">Approve</button>
+              <button class="btn sm tonal" type="button">Assign…</button>
+              <button class="btn sm ghost" type="button" data-open="dlg-bulkdel">Delete</button>
+            </div>
+            <div class="dt-scroll" data-state="loaded">
+              <table class="table">
+                <thead><tr><th style="width:44px"><input type="checkbox" class="check" aria-label="Select all requests"></th><th aria-sort="descending"><button type="button">Request <i data-i="down" class="sm"></i></button></th><th><button type="button">Status</button></th><th><button type="button">Location</button></th><th><button type="button">Requested by</button></th><th class="num"><button type="button">Cost</button></th><th class="num"><button type="button">Needed by</button></th></tr></thead>
+                <tbody data-api="/lowcode/api/data/:entityKey/records">
+                  <tr><td><input type="checkbox" class="check" aria-label="Select REQ-1042"></td><td><button type="button" data-open="dlg-rec" style="all:unset;cursor:pointer" data-api="/lowcode/api/data/:entityKey/records/:id"><span class="id">REQ-1042</span> <b>Laser cutter exhaust fan</b></button></td><td><span class="pill warn">Awaiting approval</span></td><td>Alder St workshop</td><td>Jonah Okafor</td><td class="num">$1,240</td><td class="num">Oct 3</td></tr>
+                  <tr><td><input type="checkbox" class="check" aria-label="Select REQ-1041"></td><td><span class="id">REQ-1041</span> <b>Soldering stations ×4</b></td><td><span class="pill info">Ordered</span></td><td>Alder St workshop</td><td>Sam Kim</td><td class="num">$386</td><td class="num">Oct 8</td></tr>
+                  <tr><td><input type="checkbox" class="check" aria-label="Select REQ-1039"></td><td><span class="id">REQ-1039</span> <b>Standing desk, studio 2</b></td><td><span class="pill warn">Awaiting approval</span></td><td>Exprsn HQ</td><td>Priya Raman</td><td class="num">$720</td><td class="num">Oct 12</td></tr>
+                  <tr><td><input type="checkbox" class="check" aria-label="Select REQ-1036"></td><td><span class="id">REQ-1036</span> <b>Calibration kit</b></td><td><span class="pill ok">Fulfilled</span></td><td>Contoso yard</td><td>Maya Diaz</td><td class="num">$95</td><td class="num">Sep 30</td></tr>
+                  <tr><td><input type="checkbox" class="check" aria-label="Select REQ-1031"></td><td><span class="id">REQ-1031</span> <b>Replacement safety goggles ×20</b></td><td><span class="pill danger">Rejected</span></td><td>Contoso yard</td><td>Ari Lindqvist</td><td class="num">$310</td><td class="num">Sep 28</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div data-state="empty"><div class="empty"><div class="art"><i data-i="table"></i></div><h3>No requests in “All open”</h3><p>Everything’s fulfilled. New requests appear here as soon as someone submits the form.</p><button class="btn primary" type="button" data-open="dlg-new">New request</button></div></div>
+            <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+            <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load requests</h3><p>You may have lost access to Northwind’s apps, or the service is down. Correlation id <code>cid c02f…7aa</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+            <div class="dt-foot"><span class="num">1–25 of 128</span><div class="row" style="gap:6px"><button class="icon-btn" type="button" aria-label="Previous page" disabled><i data-i="left"></i></button><button class="icon-btn" type="button" aria-label="Next page"><i data-i="right"></i></button></div></div>
+          </div>
+        </div>
+        <div id="ep-items" role="tabpanel" aria-labelledby="et-items" hidden><div class="empty card"><div class="art"><i data-i="table"></i></div><h3>Equipment</h3><p>Catalogue of 64 items. Same table, filters and views as Requests.</p></div></div>
+        <div id="ep-loc" role="tabpanel" aria-labelledby="et-loc" hidden><div class="empty card"><div class="art"><i data-i="globe"></i></div><h3>Locations</h3><p>3 sites. Used as a lookup on requests.</p></div></div>
+      </section>
+
+      <!-- Plugin surfaces -->
+      <section class="card" aria-labelledby="pl-h" data-api="/plugins/api/surfaces">
+        <div class="card-head"><h2 id="pl-h">From plugins</h2><span class="xs muted">Declared by enabled plugins — no plugin code runs in your browser</span></div>
+        <div class="grid c2 card-body">
+          <div class="inset stack tight"><span class="row small" style="gap:6px"><i data-i="puzzle" class="sm"></i><b>Standup bot</b><span class="pill">widget</span></span><span class="small secondary">3 of 5 teammates posted today’s standup.</span></div>
+          <div class="inset stack tight"><span class="row small" style="gap:6px"><i data-i="puzzle" class="sm"></i><b>Jira sync</b><span class="pill">menu-item</span></span><span class="small secondary">Adds “Send to Jira” on request records.</span></div>
+        </div>
+      </section>
+    </div>
+
+    <div data-state="empty">
+      <div class="empty"><div class="art"><i data-i="apps"></i></div><h3>No apps yet</h3><p>Apps your organization or groups publish will appear here. If you can build apps, start one in the designer.</p><a class="btn primary" href="../admin/lowcode.html">Open designer</a></div>
+    </div>
+    <div data-state="loading" aria-busy="true" aria-label="Loading apps"><div class="grid auto-sm"><span class="sk" style="height:120px"></span><span class="sk" style="height:120px"></span><span class="sk" style="height:120px"></span><span class="sk" style="height:120px"></span></div></div>
+    <div data-state="error">
+      <div class="empty error"><div class="art"><i data-i="apps"></i></div><h3>Apps aren’t turned on</h3><p>The low-code module returned 503 — it’s disabled on this platform (LOWCODE_ENABLED=false). Ask a platform admin to enable it.</p><a class="btn outline" href="../admin/platform.html">Platform settings</a></div>
+    </div>
+  </div>
+
+  <!-- Record detail -->
+  <dialog class="dialog lg" id="dlg-rec" aria-labelledby="dlg-rec-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rec-t">REQ-1042 · Laser cutter exhaust fan</h2><p>Requested by Jonah Okafor on Sep 27 · Alder St workshop</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="flow-steps" aria-label="Workflow state"><span class="pill ok">Draft</span><i data-i="right" class="sm"></i><span class="pill warn" aria-current="step">Awaiting approval</span><i data-i="right" class="sm"></i><span class="pill">Ordered</span><i data-i="right" class="sm"></i><span class="pill">Fulfilled</span></div>
+      <div class="form-grid">
+        <div class="field"><label for="r-item">Item</label><input class="input" id="r-item" value="Laser cutter exhaust fan"></div>
+        <div class="field"><label for="r-loc">Location</label><select class="select" id="r-loc" data-api="/lowcode/api/design/lookups/:id/resolved"><option>Alder St workshop</option><option>Exprsn HQ</option><option>Contoso yard</option></select></div>
+        <div class="field"><label for="r-cost">Cost (USD)</label><input class="input num" id="r-cost" value="1240"></div>
+        <div class="field"><label for="r-need">Needed by</label><input class="input" type="date" id="r-need" value="2026-10-03"></div>
+        <div class="field full"><label for="r-why">Justification</label><textarea class="textarea" id="r-why">Current fan is failing inspection; fumes build up after 20 min of cutting.</textarea></div>
+      </div>
+      <div class="activity">
+        <div class="activity-item"><span class="ico"><i data-i="edit"></i></span><span>Jonah Okafor submitted the request</span><span class="when">Sep 27</span></div>
+        <div class="activity-item"><span class="ico"><i data-i="flow"></i></span><span>Flow “Notify approvers” ran · emailed 2 approvers</span><span class="when">Sep 27</span></div>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn danger-outline left" type="button" data-open="dlg-delrec" data-api="/lowcode/api/data/:entityKey/records/:id">Delete</button>
+      <button class="btn outline" type="button" data-close data-toast="Rejected — Jonah notified" data-api="/lowcode/api/data/:entityKey/records/:id/transition">Reject</button>
+      <button class="btn outline" type="button" data-close data-toast="Saved">Save changes</button>
+      <button class="btn primary" type="button" data-close data-toast="Approved → Ordered" data-api="/lowcode/api/data/:entityKey/records/:id/transition">Approve</button>
+    </div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-delrec" aria-labelledby="dlg-delrec-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-delrec-t">Delete REQ-1042?</h2><p>“Laser cutter exhaust fan” and its history are removed for everyone in Northwind.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Request deleted">Delete request</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-bulkdel" aria-labelledby="dlg-bulkdel-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-bulkdel-t">Delete 3 requests?</h2><p>REQ-1042, REQ-1041 and REQ-1039 will be removed. This can’t be undone.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="3 requests deleted">Delete 3</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-new" aria-labelledby="dlg-new-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-new-t">New equipment request</h2><p>Form: “Request equipment” · goes to approvers when submitted</p></div></div>
+      <div class="dialog-body">
+        <div class="field"><label for="n-item">Item</label><input class="input" id="n-item" placeholder="What do you need?"></div>
+        <div class="form-grid"><div class="field"><label for="n-cost">Estimated cost</label><input class="input" id="n-cost" placeholder="$"></div><div class="field"><label for="n-need">Needed by</label><input class="input" type="date" id="n-need"></div></div>
+        <div class="field"><label for="n-why">Justification</label><textarea class="textarea" id="n-why"></textarea><span class="err" hidden><i data-i="alert" class="sm"></i>Required for items over $500</span></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn outline" type="button" data-close data-toast="Saved as draft">Save draft</button><button class="btn primary" type="button" data-close data-toast="Submitted — REQ-1043 created" data-api="/lowcode/api/data/:entityKey/records">Submit</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-import" aria-labelledby="dlg-import-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-import-t">Import requests</h2><p>CSV or JSON. Columns are matched to fields by name.</p></div></div>
+    <div class="dialog-body">
+      <div class="drop"><i data-i="upload"></i><b>Drop a file or browse</b><span class="small">Up to 5,000 rows</span></div>
+      <div class="banner warn"><i data-i="alert" class="sm"></i><span>Preview: 212 rows · 3 rows have an unknown Location and will be skipped.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Imported 209 requests">Import 209 rows</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-view" aria-labelledby="dlg-view-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-view-t">Save view</h2><p>Saves the current filters, sort and columns.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="v-name">Name</label><input class="input" id="v-name" value="Open over $500"></div><label class="row small"><input type="checkbox" class="check" id="v-share"> Share with everyone in this app</label></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="View saved" data-api="/lowcode/api/data/:entityKey/views">Save</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Runtime for low-code apps (flag-gated: 503 when LOWCODE_ENABLED=false — designed as the error state). Launcher lists apps the caller can see across org/group scopes; opening an app loads its entities, forms and saved views, then records per entity. State transitions go through the entity's workflow (server validates allowed transitions); flows run server-side. Plugin surfaces are metadata only.",
+  "rest": [
+    { "m": "GET", "p": "/lowcode/api/design/apps", "auth": "user (scoped)", "ui": "Launcher grid" },
+    { "m": "GET", "p": "/lowcode/api/design/apps/:id", "auth": "user (scoped)", "ui": "App header" },
+    { "m": "GET", "p": "/lowcode/api/design/catalog", "auth": "user", "ui": "Launcher icons/templates" },
+    { "m": "GET", "p": "/lowcode/api/design/entities", "auth": "user (scoped)", "ui": "Entity tabs + table columns" },
+    { "m": "GET", "p": "/lowcode/api/design/forms/:id", "auth": "user (scoped)", "ui": "New request form layout + validation" },
+    { "m": "GET", "p": "/lowcode/api/design/lookups/:id/resolved", "auth": "user (scoped)", "ui": "Location select options" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/records", "auth": "user (scoped)", "ui": "Records table, search, filters, paging" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/records", "auth": "user (scoped)", "ui": "New request → Submit / Save draft" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/records/:id", "auth": "user (scoped)", "ui": "Record detail dialog" },
+    { "m": "PUT", "p": "/lowcode/api/data/:entityKey/records/:id", "auth": "user (scoped)", "ui": "Record detail → Save changes" },
+    { "m": "DELETE", "p": "/lowcode/api/data/:entityKey/records/:id", "auth": "user (scoped)", "ui": "Delete request confirm" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/records/:id/transition", "auth": "user (scoped + workflow role)", "ui": "Approve / Reject" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/records/bulk", "auth": "user (scoped)", "ui": "Bulk bar: approve / assign / delete" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/records/export", "auth": "user (scoped)", "ui": "Export CSV" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/records/import", "auth": "user (scoped)", "ui": "Import dialog" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/aggregate", "auth": "user (scoped)", "ui": "Stat tiles" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/views", "auth": "user (scoped)", "ui": "Saved views segmented control" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/views", "auth": "user (scoped)", "ui": "Save view dialog" },
+    { "m": "PUT", "p": "/lowcode/api/data/:entityKey/views/:id", "auth": "view owner", "ui": "Rename / update view" },
+    { "m": "DELETE", "p": "/lowcode/api/data/:entityKey/views/:id", "auth": "view owner", "ui": "Delete view" },
+    { "m": "GET", "p": "/plugins/api/surfaces", "auth": "user", "ui": "From plugins card + plugin launcher tile" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "No realtime for records — two approvers can act on the same request; the second transition fails with 409 and the table must refetch. Proposed: record:changed events or ETags." },
+    { "sev": "med", "text": "Record history/activity (who changed what, flow runs per record) has no endpoint; the activity list in the detail dialog is proposed (GET …/records/:id/history)." },
+    { "sev": "med", "text": "Allowed transitions aren't returned with the record, so the UI can't hide buttons the caller can't use. Proposed: include allowedTransitions in GET …/records/:id." }
+  ]
+}
+</script>
+</body>
+</html>

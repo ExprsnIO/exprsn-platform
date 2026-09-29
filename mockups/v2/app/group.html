@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design Guild · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .post .who a:not([class]) { color: inherit; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  .post-actions button[aria-pressed="true"].like { color: var(--v2-danger-fg); }
+  .cover { position: relative; }
+  .cover-meta .titles { padding-bottom: 6px; min-width: 0; flex: 1 1 240px; margin-top: 50px; }
+  @media (max-width: 600px) { .cover-meta .titles { margin-top: 0; flex-basis: 100%; } }
+  .cover-meta .page-actions { padding-bottom: 6px; }
+  .chan { display: flex; flex-direction: column; min-height: 420px; }
+  .chan .msgs { flex: 1; }
+  .ev-date { width: 52px; flex: none; text-align: center; border-radius: 12px; background: var(--exprsn-bg-tertiary); padding: 6px 0; }
+  .ev-date b { display: block; font-size: 1.25rem; line-height: 1.1; }
+  .ev-date span { font-size: .6875rem; font-weight: 700; letter-spacing: .06em; color: var(--exprsn-text-secondary); }
+  .cal-scroll { overflow-x: auto; }
+  .cal-scroll .cal { min-width: 560px; }
+  .vote-bar { display: grid; grid-template-columns: 80px minmax(0, 1fr) 48px; align-items: center; gap: 10px; font-size: .8125rem; }
+</style>
+</head>
+<body data-shell="app" data-page="group">
+<main id="main">
+  <div class="page">
+    <div data-state="loaded" class="stack loose">
+      <!-- Cover header -->
+      <header data-api="/nexus/api/groups/:id">
+        <nav class="crumbs" aria-label="Breadcrumb" style="margin-bottom:10px"><a href="groups.html">Groups</a><i data-i="right" class="sm"></i><span>Design Guild</span></nav>
+        <div class="cover" role="img" aria-label="Design Guild cover"></div>
+        <div class="cover-meta">
+          <span class="avatar xl sq g4">DG</span>
+          <div class="titles stack tight">
+            <h1 class="page-title">Design Guild</h1>
+            <div class="row wrap small secondary" style="gap:8px"><span class="num">3,118 members</span><span>·</span><span>Public · posts reviewed</span><span class="pill violet">You’re an admin</span></div>
+          </div>
+          <div class="page-actions">
+            <button class="btn outline" type="button" data-open="dlg-invite" data-api="/nexus/api/groups/:id/invite"><i data-i="userPlus" class="sm"></i>Invite</button>
+            <button class="btn outline" type="button" data-open="dlg-settings" aria-label="Group settings"><i data-i="settings" class="sm"></i></button>
+            <button class="btn primary" type="button" data-open="dlg-post"><i data-i="edit" class="sm"></i>Post</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="tabs" role="tablist" aria-label="Group sections">
+        <button role="tab" id="t-about" aria-controls="p-about">About</button>
+        <button role="tab" id="t-posts" aria-controls="p-posts" aria-selected="true">Posts <span class="badge">4</span></button>
+        <button role="tab" id="t-msg" aria-controls="p-msg">Messages</button>
+        <button role="tab" id="t-ev" aria-controls="p-ev">Events</button>
+        <button role="tab" id="t-mem" aria-controls="p-mem">Members <span class="badge neutral">3</span></button>
+        <button role="tab" id="t-files" aria-controls="p-files">Files</button>
+        <button role="tab" id="t-sec" aria-controls="p-sec">Secrets</button>
+        <button role="tab" id="t-live" aria-controls="p-live">Live <span class="live-tag">LIVE</span></button>
+        <button role="tab" id="t-gov" aria-controls="p-gov">Governance</button>
+        <button role="tab" id="t-sub" aria-controls="p-sub">Subgroups</button>
+        <button role="tab" id="t-mod" aria-controls="p-mod">Moderation <span class="badge neutral">2</span></button>
+        <button role="tab" id="t-apps" aria-controls="p-apps">Apps</button>
+      </div>
+
+      <!-- About -->
+      <section id="p-about" role="tabpanel" aria-labelledby="t-about" hidden>
+        <div class="split">
+          <div class="card pad stack" data-api="/nexus/api/groups/:id">
+            <h2 class="small eyebrow">About</h2>
+            <p>A home for product designers across Exprsn HQ, Northwind and Contoso. Weekly crits on Thursdays, a shared type library, and a monthly vote on what we work on together.</p>
+            <dl class="kv"><dt>Category</dt><dd>Design</dd><dt>Created</dt><dd>Mar 3, 2025 by Maya Diaz</dd><dt>Joining</dt><dd>Anyone can join · posts reviewed by admins</dd><dt>Location</dt><dd>Remote · Portland, OR</dd></dl>
+          </div>
+          <div class="card" aria-label="Related groups">
+            <div class="card-head"><h2>Related groups</h2></div>
+            <div class="list" data-api="/nexus/api/groups/:id/related">
+              <a class="list-item" href="group.html"><span class="avatar sm sq g1">TC</span><span class="grow small"><b>Typography Club</b><br><span class="muted">412 members</span></span></a>
+              <a class="list-item" href="group.html"><span class="avatar sm sq g3">NM</span><span class="grow small"><b>Northwind Makers</b><br><span class="muted">1,208 members</span></span></a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Posts -->
+      <section id="p-posts" role="tabpanel" aria-labelledby="t-posts">
+        <div class="split">
+          <div class="card">
+            <div class="row" style="justify-content:center;padding:12px 0 0"><button class="new-posts" type="button" data-on="new:post" data-emit="subscribe:group"><i data-i="arrowUp" class="sm"></i>4 new posts</button></div>
+            <div data-api="/timeline/api/timeline/group/:groupId" data-on="new:post post:liked post:commented post:retracted">
+              <article class="post">
+                <span class="avatar g1">MD</span>
+                <div class="grow" style="min-width:0">
+                  <div class="who"><a href="profile.html"><b>Maya Diaz</b></a><span class="muted small">@maya · 20m</span><span class="pill">Admin</span></div>
+                  <p class="body">Thursday crit: bring one screen you’re unsure about. We’ll use the new v2 contract drawer to check each one against the backend.</p>
+                  <div class="post-actions"><a class="btn ghost sm" href="post.html" aria-label="Reply, 6 replies" style="color:var(--exprsn-text-muted);font-weight:500"><i data-i="reply" class="sm"></i>6</a><button class="like" type="button" data-toggle aria-pressed="true" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">31</span></button><button class="bm" type="button" data-toggle aria-pressed="false" aria-label="Bookmark"><i data-i="bookmark" class="sm"></i></button></div>
+                </div>
+              </article>
+              <article class="post">
+                <span class="avatar g2">JO</span>
+                <div class="grow" style="min-width:0">
+                  <div class="who"><a href="profile.html"><b>Jonah Okafor</b></a><span class="muted small">@jonah.northwind.co · 2h</span></div>
+                  <p class="body">Uploaded the Northwind type specimens to Files → Type library.</p>
+                  <div class="media" style="max-width:520px"><div class="ph purple"><i data-i="image"></i></div></div>
+                  <div class="post-actions"><a class="btn ghost sm" href="post.html" aria-label="Reply, 2 replies" style="color:var(--exprsn-text-muted);font-weight:500"><i data-i="reply" class="sm"></i>2</a><button class="like" type="button" data-toggle aria-pressed="false" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">12</span></button><button class="bm" type="button" data-toggle aria-pressed="false" aria-label="Bookmark"><i data-i="bookmark" class="sm"></i></button></div>
+                </div>
+              </article>
+            </div>
+          </div>
+          <aside class="stack loose">
+            <div class="card">
+              <div class="card-head"><h2>Waiting for review</h2><span class="badge">2</span></div>
+              <div class="list" data-api="/timeline/api/posts/approvals/pending">
+                <a class="list-item" href="post.html"><span class="avatar sm g1">RH</span><span class="grow small truncate">Release notes for v2 mockups…</span><i data-i="right" class="sm"></i></a>
+                <a class="list-item" href="post.html"><span class="avatar sm">SK</span><span class="grow small truncate">Contoso pilot kickoff photos</span><i data-i="right" class="sm"></i></a>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>Next event</h2></div>
+              <div class="card-body row"><div class="ev-date"><span>OCT</span><b>2</b></div><div class="stack tight"><b class="small">Thursday crit #41</b><span class="xs muted">16:00 PT · Room + stream</span></div></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Messages -->
+      <section id="p-msg" role="tabpanel" aria-labelledby="t-msg" hidden>
+        <div class="card chan" data-api="/spark/api/groups/:groupId/channels">
+          <div class="card-head">
+            <div class="seg" role="group" aria-label="Channel"><button type="button" aria-pressed="true"># chat</button><button type="button" aria-pressed="false"><i data-i="bell" class="sm"></i>announcements</button></div>
+            <span class="xs muted">Every member is in both channels · announcements: admins post</span>
+          </div>
+          <div class="msgs" role="log" aria-live="polite" aria-label="Group chat" data-on="new:message message:redacted">
+            <span class="day-sep">Today</span>
+            <div class="msg"><span class="avatar sm g3">PR</span><div><div class="bubble">Anyone have the Figma → tokens export script?</div><div class="meta"><b>Priya</b> · 09:12</div></div></div>
+            <div class="msg"><span class="avatar sm g2">JO</span><div><div class="bubble">It’s pinned in Files → Tooling. v3 handles dark mode.</div><div class="meta"><b>Jonah</b> · 09:14</div></div></div>
+            <div class="msg me"><div><div class="bubble">Thanks both — adding it to the crit agenda.</div><div class="meta">09:15 · Sent</div></div></div>
+          </div>
+          <form class="composer" data-api="/spark/api/groups/:groupId/channels/:kind/messages" data-toast="Sent to #chat">
+            <div class="box"><label class="sr-only" for="gc-text">Message #chat</label><textarea id="gc-text" rows="1" placeholder="Message #chat"></textarea></div>
+            <button class="send" type="submit" aria-label="Send message"><i data-i="send"></i></button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Events -->
+      <section id="p-ev" role="tabpanel" aria-labelledby="t-ev" hidden class="stack loose">
+        <div class="row wrap between">
+          <div class="seg" role="group" aria-label="Events view" data-view-target="ev"><button type="button" aria-pressed="true" data-view="list"><i data-i="list" class="sm"></i>List</button><button type="button" aria-pressed="false" data-view="cal"><i data-i="calendar" class="sm"></i>Calendar</button></div>
+          <div class="row wrap" style="gap:8px">
+            <button class="btn outline sm" type="button" data-open="dlg-sub" data-api="/nexus/api/calendar/groups/:groupId/ical"><i data-i="link" class="sm"></i>Subscribe</button>
+            <button class="btn primary sm" type="button" data-open="dlg-event" data-api="/nexus/api/events"><i data-i="plus" class="sm"></i>New event</button>
+          </div>
+        </div>
+        <div data-view-of="ev" data-view-name="list" class="card">
+          <div class="list" data-api="/nexus/api/events">
+            <div class="list-item" style="align-items:flex-start">
+              <div class="ev-date"><span>OCT</span><b>2</b></div>
+              <div class="grow stack tight"><b>Thursday crit #41</b><span class="small secondary">Thu 16:00–17:00 PT · Room “Crit” + live stream</span><span class="xs muted num" data-api="/nexus/api/events/:id/attendees">38 going · 12 maybe</span>
+                <div class="row wrap" style="gap:6px;margin-top:6px">
+                  <div class="seg" role="group" aria-label="Your RSVP for Thursday crit" data-api="/nexus/api/events/:id/rsvp"><button type="button" aria-pressed="true">Going</button><button type="button" aria-pressed="false">Maybe</button><button type="button" aria-pressed="false">Can’t go</button></div>
+                  <button class="btn sm ghost" type="button" data-open="dlg-remind" data-api="/nexus/api/events/:id/reminders"><i data-i="bell" class="sm"></i>Remind me 1 h before</button>
+                </div>
+              </div>
+              <button class="icon-btn" type="button" aria-label="More for Thursday crit" data-open="dlg-evmgr"><i data-i="more"></i></button>
+            </div>
+            <div class="list-item" style="align-items:flex-start">
+              <div class="ev-date"><span>OCT</span><b>14</b></div>
+              <div class="grow stack tight"><b>Type specimen swap</b><span class="small secondary">Tue 18:30 PT · Northwind workshop, 412 Alder St</span><span class="xs muted">21 going</span>
+                <div class="row wrap" style="gap:6px;margin-top:6px"><button class="btn sm tonal" type="button" data-toast="You’re going">RSVP</button><button class="btn sm ghost" type="button" data-api="/nexus/api/calendar/events/:id/ical"><i data-i="download" class="sm"></i>.ics</button></div>
+              </div>
+            </div>
+            <div class="list-item" style="align-items:flex-start">
+              <div class="ev-date"><span>SEP</span><b>25</b></div>
+              <div class="grow stack tight"><b style="text-decoration:line-through">Guild offsite planning</b><span class="pill danger" style="align-self:flex-start">Cancelled</span></div>
+            </div>
+          </div>
+        </div>
+        <div data-view-of="ev" data-view-name="cal" hidden class="card">
+          <div class="card-head"><h2>October 2026</h2><div class="row" style="gap:4px"><button class="icon-btn" type="button" aria-label="Previous month"><i data-i="left"></i></button><button class="icon-btn" type="button" aria-label="Next month"><i data-i="right"></i></button></div></div>
+          <div class="cal-scroll">
+            <div class="cal" data-api="/nexus/api/calendar/groups/:groupId/ical">
+              <div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div><div class="dow">Sun</div>
+              <div class="out"><span class="n">28</span></div><div class="out today"><span class="n">29</span></div><div class="out"><span class="n">30</span></div><div><span class="n">1</span></div><div><span class="n">2</span><span class="ev">16:00 Crit #41</span></div><div><span class="n">3</span></div><div><span class="n">4</span></div>
+              <div><span class="n">5</span></div><div><span class="n">6</span></div><div><span class="n">7</span></div><div><span class="n">8</span></div><div><span class="n">9</span><span class="ev">16:00 Crit #42</span></div><div><span class="n">10</span></div><div><span class="n">11</span></div>
+              <div><span class="n">12</span></div><div><span class="n">13</span></div><div><span class="n">14</span><span class="ev v">18:30 Type swap</span></div><div><span class="n">15</span></div><div><span class="n">16</span><span class="ev">16:00 Crit #43</span></div><div><span class="n">17</span></div><div><span class="n">18</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Members -->
+      <section id="p-mem" role="tabpanel" aria-labelledby="t-mem" hidden class="stack loose">
+        <div class="card">
+          <div class="card-head"><h2>Join requests</h2><span class="pill violet">Admins</span></div>
+          <div class="list" data-api="/nexus/api/groups/:id/join-requests/:rid/approve /nexus/api/groups/:id/join-requests/:rid/reject">
+            <div class="list-item"><span class="avatar sm">SK</span><span class="grow small"><b>Sam Kim</b> <span class="muted">· Contoso · “Designer on the field ops pilot”</span></span><button class="btn sm ghost" type="button" data-toast="Request declined">Decline</button><button class="btn sm primary" type="button" data-toast="Sam Kim joined Design Guild">Approve</button></div>
+            <div class="list-item"><span class="avatar sm g4">AL</span><span class="grow small"><b>Ari Lindqvist</b> <span class="muted">· Exprsn HQ</span></span><button class="btn sm ghost" type="button">Decline</button><button class="btn sm primary" type="button">Approve</button></div>
+          </div>
+        </div>
+        <div class="card dt">
+          <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="m-q" type="search" placeholder="Search 3,118 members"></label><button class="chip" type="button" aria-pressed="false">Admins</button><button class="chip" type="button" aria-pressed="false">Moderators</button></div>
+          <div class="dt-scroll">
+            <table class="table" data-api="/nexus/api/groups/:id/members">
+              <thead><tr><th>Member</th><th>Role</th><th class="num">Joined</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                <tr><td><div class="row" style="gap:10px"><span class="avatar sm g1">MD</span><b>Maya Diaz</b></div></td><td><span class="pill violet">Owner</span></td><td class="num">Mar 2025</td><td class="actions"></td></tr>
+                <tr><td><div class="row" style="gap:10px"><span class="avatar sm g1">RH</span><b>Rick Holland</b></div></td><td><span class="pill violet">Admin</span></td><td class="num">Mar 2025</td><td class="actions"></td></tr>
+                <tr><td><div class="row" style="gap:10px"><span class="avatar sm g2">JO</span><b>Jonah Okafor</b></div></td><td><label class="sr-only" for="role-jo">Role for Jonah Okafor</label><select class="select" id="role-jo" style="min-height:32px;padding:4px 8px;width:auto" data-api="/nexus/api/groups/:id/members/:userId/role"><option>Moderator</option><option>Member</option><option>Admin</option></select></td><td class="num">Jun 2025</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></td></tr>
+                <tr><td><div class="row" style="gap:10px"><span class="avatar sm g3">PR</span><b>Priya Raman</b></div></td><td><label class="sr-only" for="role-pr">Role for Priya Raman</label><select class="select" id="role-pr" style="min-height:32px;padding:4px 8px;width:auto"><option>Member</option><option>Moderator</option><option>Admin</option></select></td><td class="num">Aug 2026</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="dt-foot"><span class="num">1–25 of 3,118</span><a class="btn sm ghost" href="#" data-api="/nexus/api/calendar/carddav/groups/:groupId/contacts"><i data-i="download" class="sm"></i>Export contacts (.vcf)</a></div>
+        </div>
+      </section>
+
+      <!-- Files -->
+      <section id="p-files" role="tabpanel" aria-labelledby="t-files" hidden class="stack loose">
+        <div class="row wrap between">
+          <nav class="crumbs" aria-label="Folder"><span>Design Guild</span><i data-i="right" class="sm"></i><span>Type library</span></nav>
+          <div class="row" style="gap:8px"><div class="seg" role="group" aria-label="Files view"><button type="button" aria-pressed="true" aria-label="Grid view"><i data-i="grid" class="sm"></i></button><button type="button" aria-pressed="false" aria-label="Gallery view"><i data-i="image" class="sm"></i></button></div><button class="btn primary sm" type="button" data-api="/filevault/api/groups/:gid/files/upload" data-toast="Uploading 2 files…"><i data-i="upload" class="sm"></i>Upload</button></div>
+        </div>
+        <div class="grid auto-sm" data-api="/filevault/api/groups/:gid/files /filevault/api/groups/:gid/directories">
+          <div class="card file-tile"><div class="thumb"><i data-i="folder"></i></div><div class="info"><b class="small truncate">Tooling</b><span class="xs muted">6 items</span></div></div>
+          <div class="card file-tile"><div class="thumb"><div class="ph purple" style="min-height:0;height:100%"><i data-i="image"></i></div></div><div class="info"><b class="small truncate">northwind-specimen.png</b><span class="xs muted">2.4 MB · Jonah</span></div></div>
+          <div class="card file-tile"><div class="thumb"><i data-i="doc"></i></div><div class="info"><b class="small truncate">crit-agenda-41.md</b><span class="xs muted">3 KB · Maya</span></div></div>
+          <div class="card file-tile"><div class="thumb"><i data-i="file"></i></div><div class="info"><b class="small truncate">Inter-v4.zip</b><span class="xs muted">18 MB · Priya</span></div></div>
+        </div>
+        <div class="drop"><i data-i="upload"></i><b>Drop files to share with the group</b><span class="small">Members can view and download. Admins can delete.</span></div>
+      </section>
+
+      <!-- Secrets -->
+      <section id="p-sec" role="tabpanel" aria-labelledby="t-sec" hidden class="stack loose">
+        <div class="banner info"><i data-i="lock" class="sm"></i><span class="grow">Group secrets are encrypted in Vault. Only admins can reveal or share them; every reveal is audited.</span></div>
+        <div class="card dt">
+          <div class="dt-scroll">
+            <table class="table" data-api="/vault/api/groups/:gid/secrets">
+              <thead><tr><th>Path</th><th>Value</th><th>Shared with</th><th class="num">Updated</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                <tr><td><span class="id">figma/api-token</span></td><td><span class="secret" id="sec-1" data-value="figd_7Hq2…Pz91">••••••••••••</span></td><td><span class="pill">Admins</span></td><td class="num">Sep 21</td><td class="actions"><button class="btn sm ghost" type="button" data-reveal="sec-1" aria-pressed="false" data-api="/vault/api/groups/:gid/secrets/:path/reveal"><i data-i="eye" class="sm"></i>Reveal</button><button class="btn sm ghost" type="button" data-open="dlg-share" data-api="/vault/api/groups/:gid/secrets/:path/share">Share</button></td></tr>
+                <tr><td><span class="id">fonts/licence-key</span></td><td><span class="secret" id="sec-2" data-value="LIC-INTER-2026-8841">••••••••••••</span></td><td><span class="pill">Admins</span> <span class="pill">Jonah</span></td><td class="num">Aug 2</td><td class="actions"><button class="btn sm ghost" type="button" data-reveal="sec-2" aria-pressed="false"><i data-i="eye" class="sm"></i>Reveal</button><button class="btn sm ghost" type="button" data-open="dlg-share">Share</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Live -->
+      <section id="p-live" role="tabpanel" aria-labelledby="t-live" hidden class="stack loose">
+        <div class="row between wrap"><p class="secondary small">Streams published to this group. Members get notified when one starts.</p><button class="btn primary sm" type="button" data-api="/live/api/groups/:gid/streams" data-toast="Group stream created — open Live to go live"><i data-i="live" class="sm"></i>Go live in group</button></div>
+        <div class="grid auto" data-api="/live/api/groups/:gid/streams" data-on="stream-started stream-ended viewer-count-updated">
+          <a class="card" href="watch.html" style="overflow:hidden;color:inherit"><div class="video" style="border-radius:0"><div class="ph purple" style="height:100%"><i data-i="live"></i></div><span class="ov tr"><span class="live-tag">LIVE</span></span><span class="ov"><i data-i="eye" class="sm"></i>184</span></div><div class="card-body small"><b>Crit #40 overflow — icon review</b><br><span class="muted">Maya Diaz · started 14 min ago</span></div></a>
+          <a class="card" href="watch.html" style="overflow:hidden;color:inherit"><div class="video" style="border-radius:0"><div class="ph dark" style="height:100%"><i data-i="play"></i></div><span class="ov">48:12</span></div><div class="card-body small"><b>Crit #39 recording</b><br><span class="muted">Sep 25 · 612 views</span></div></a>
+        </div>
+      </section>
+
+      <!-- Governance -->
+      <section id="p-gov" role="tabpanel" aria-labelledby="t-gov" hidden class="stack loose">
+        <div class="row between wrap"><div class="seg" role="group" aria-label="Proposal status"><button type="button" aria-pressed="true">Open <span class="badge neutral">2</span></button><button type="button" aria-pressed="false">Passed</button><button type="button" aria-pressed="false">Closed</button></div><button class="btn primary sm" type="button" data-open="dlg-prop" data-api="/nexus/api/governance/proposals"><i data-i="plus" class="sm"></i>New proposal</button></div>
+        <article class="card" data-api="/nexus/api/governance/proposals/:id /nexus/api/governance/proposals/:id/results">
+          <div class="card-head"><div class="stack tight"><h2>Adopt Inter v4 as the guild default typeface</h2><span class="xs muted">Proposed by Jonah Okafor · closes Oct 3, 18:00 PT · simple majority, 20% quorum</span></div><span class="pill warn">Voting open</span></div>
+          <div class="card-body stack">
+            <div class="vote-bar"><span>Yes</span><div class="meter ok" role="img" aria-label="Yes 64 percent"><i style="width:64%"></i></div><span class="num">64%</span></div>
+            <div class="vote-bar"><span>No</span><div class="meter danger" role="img" aria-label="No 22 percent"><i style="width:22%"></i></div><span class="num">22%</span></div>
+            <div class="vote-bar"><span>Abstain</span><div class="meter" role="img" aria-label="Abstain 14 percent"><i style="width:14%"></i></div><span class="num">14%</span></div>
+            <p class="xs muted num" data-api="/nexus/api/governance/proposals/:id/votes">702 votes · quorum reached (22.5%)</p>
+          </div>
+          <div class="card-foot" style="justify-content:space-between;flex-wrap:wrap">
+            <div class="row" style="gap:8px"><button class="btn sm ghost" type="button" data-open="dlg-close-prop" data-api="/nexus/api/governance/proposals/:id/close">Close early</button><button class="btn sm ghost" type="button" disabled data-api="/nexus/api/governance/proposals/:id/execute">Execute (after close)</button></div>
+            <div class="seg" role="group" aria-label="Your vote" data-api="/nexus/api/governance/proposals/:id/vote"><button type="button" aria-pressed="true">Yes</button><button type="button" aria-pressed="false">No</button><button type="button" aria-pressed="false">Abstain</button></div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="card-head"><div class="stack tight"><h2>Require post review for new members only</h2><span class="xs muted">Maya Diaz · passed Sep 20 · 81% yes</span></div><span class="pill ok">Passed · executed</span></div>
+        </article>
+      </section>
+
+      <!-- Subgroups -->
+      <section id="p-sub" role="tabpanel" aria-labelledby="t-sub" hidden class="stack loose">
+        <div class="row between wrap"><p class="small secondary">Smaller circles inside the guild with their own member lists and access rules.</p><button class="btn primary sm" type="button" data-open="dlg-subg" data-api="/nexus/api/subgroups"><i data-i="plus" class="sm"></i>New subgroup</button></div>
+        <div class="card list" data-api="/nexus/api/subgroups /nexus/api/subgroups/:id/access">
+          <div class="list-item"><span class="avatar sq sm g1">IC</span><span class="grow small"><b>Icon squad</b><br><span class="muted">9 members · members can join</span></span><span class="pill ok">Member</span><button class="btn sm ghost" type="button" data-api="/nexus/api/subgroups/:id/members">Manage</button></div>
+          <div class="list-item"><span class="avatar sq sm g2">MT</span><span class="grow small"><b>Mentors</b><br><span class="muted">6 members · invite only</span></span><span class="pill"><i data-i="lock" class="sm"></i>No access</span></div>
+          <div class="list-item"><span class="avatar sq sm g3">TL</span><span class="grow small"><b>Type library maintainers</b><br><span class="muted">4 members · admins add</span></span><span class="pill violet">Lead</span><button class="btn sm ghost" type="button">Manage</button></div>
+        </div>
+      </section>
+
+      <!-- Moderation -->
+      <section id="p-mod" role="tabpanel" aria-labelledby="t-mod" hidden class="stack loose">
+        <div class="grid c3">
+          <div class="card stat"><span class="label">Open flags</span><span class="value">2</span></div>
+          <div class="card stat"><span class="label">Cases this month</span><span class="value">9</span></div>
+          <div class="card stat"><span class="label">Median time to resolve</span><span class="value">3.4h</span></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Queue</h2><span class="pill violet">Group moderators</span></div>
+          <div class="list" data-api="/nexus/api/moderation/queue/:groupId /nexus/api/moderation/flags/:groupId">
+            <div class="list-item" style="align-items:flex-start"><span class="pill danger">Harassment</span><span class="grow small"><b>Reply on “Thursday crit #41”</b><br><span class="muted">Flagged by 3 members · assigned to you</span></span><button class="btn sm outline" type="button" data-open="dlg-case" data-api="/nexus/api/moderation/cases/:id">Review</button></div>
+            <div class="list-item" style="align-items:flex-start"><span class="pill warn">Spam</span><span class="grow small"><b>Post by @promo-bot-22</b><br><span class="muted">Flagged by Priya Raman · unassigned</span></span><button class="btn sm ghost" type="button" data-api="/nexus/api/moderation/cases/:id/assign" data-toast="Assigned to you">Assign to me</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Apps -->
+      <section id="p-apps" role="tabpanel" aria-labelledby="t-apps" hidden class="stack loose">
+        <div class="row between wrap"><p class="small secondary">Low-code apps scoped to this group. Admins can build new ones in the designer.</p><a class="btn outline sm" href="../admin/lowcode.html"><i data-i="flow" class="sm"></i>Open designer</a></div>
+        <div class="grid auto-sm" data-api="/lowcode/api/design/apps">
+          <a class="card pad stack" href="apps.html" style="color:inherit"><span class="avatar sq g1"><i data-i="calendar" class="sm"></i></span><b>Crit sign-ups</b><span class="xs muted">42 records · updated today</span></a>
+          <a class="card pad stack" href="apps.html" style="color:inherit"><span class="avatar sq g3"><i data-i="table" class="sm"></i></span><b>Font licences</b><span class="xs muted">17 records</span></a>
+        </div>
+      </section>
+    </div>
+
+    <div data-state="empty">
+      <div class="empty"><div class="art"><i data-i="lock"></i></div><h3>Contoso Field Ops is private</h3><p>Only members can see posts, events and files. Ask to join and an admin will review your request.</p><button class="btn primary" type="button" data-toast="Request sent" data-api="/nexus/api/groups/:id/join">Request to join</button></div>
+    </div>
+    <div data-state="loading" aria-busy="true" aria-label="Loading group" class="stack loose">
+      <span class="sk" style="height:180px;border-radius:20px"></span><span class="sk" style="width:40%;height:28px"></span><span class="sk" style="height:44px"></span><span class="sk" style="height:240px"></span>
+    </div>
+    <div data-state="error">
+      <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load Design Guild</h3><p>The groups service returned 500. Correlation id <code>cid e44b…a02</code>.</p><button class="btn outline" type="button">Try again</button></div>
+    </div>
+  </div>
+
+  <!-- Dialogs -->
+  <dialog class="dialog" id="dlg-post" aria-labelledby="dlg-post-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-post-t">Post to Design Guild</h2><p>Posts are reviewed by admins before members see them.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="gp-text">Post</label><textarea class="textarea" id="gp-text" placeholder="Share with the guild"></textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Sent for review" data-api="/timeline/api/posts">Post</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-invite" aria-labelledby="dlg-invite-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-invite-t">Invite to Design Guild</h2><p>Invited people skip the join request.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="inv-who">People</label><div class="input-group"><span class="chip" aria-pressed="true">Sam Kim <span class="x">×</span></span><input id="inv-who" placeholder="Name or email" data-api="/auth/api/users/directory"></div></div>
+      <div class="field"><label for="inv-msg">Message (optional)</label><textarea class="textarea" id="inv-msg">Join us for Thursday crits!</textarea></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Invite sent to Sam Kim">Send invite</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-settings" aria-labelledby="dlg-settings-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-settings-t">Group settings</h2><p>Owners and admins only.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="gs-name">Name</label><input class="input" id="gs-name" value="Design Guild"></div>
+      <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Review posts before they appear</div><div class="d">Applies to members who joined in the last 30 days.</div></div><label class="switch"><input type="checkbox" id="gs-review" checked aria-label="Review posts"><span></span></label></div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-leave" data-api="/nexus/api/groups/:id/leave">Leave group</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Settings saved" data-api="/nexus/api/groups/:id">Save</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-leave" aria-labelledby="dlg-leave-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-leave-t">Leave Design Guild?</h2><p>You’re an admin. You’ll lose access to group secrets and moderation. Posts you made stay.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="You left Design Guild">Leave group</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-remove" aria-labelledby="dlg-remove-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-remove-t">Remove Jonah Okafor?</h2><p>They lose access to Design Guild posts, chat and files. They can request to join again.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Jonah Okafor removed" data-api="/nexus/api/groups/:id/members/:userId">Remove member</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-event" aria-labelledby="dlg-event-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-event-t">New event</h2><p>Members are notified and can RSVP.</p></div></div>
+      <div class="dialog-body">
+        <div class="field"><label for="ev-title">Title</label><input class="input" id="ev-title" value="Thursday crit #42"></div>
+        <div class="form-grid">
+          <div class="field"><label for="ev-start">Starts</label><input class="input" id="ev-start" type="datetime-local" value="2026-10-09T16:00"></div>
+          <div class="field"><label for="ev-end">Ends</label><input class="input" id="ev-end" type="datetime-local" value="2026-10-09T17:00"></div>
+          <div class="field"><label for="ev-where">Where</label><select class="select" id="ev-where"><option>Online — create a room</option><option>In person</option><option>Live stream</option></select></div>
+          <div class="field"><label for="ev-cap">Capacity</label><input class="input" id="ev-cap" type="number" value="60"></div>
+        </div>
+        <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Go live automatically</div><div class="d">Starts a group stream at event time.</div></div><label class="switch"><input type="checkbox" id="ev-live" aria-label="Go live automatically" data-api="/nexus/api/events/:id/live"><span></span></label></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Event created — 3,118 members notified">Create event</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-remind" aria-labelledby="dlg-remind-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-remind-t">Reminders</h2><p>For Thursday crit #41</p></div></div>
+    <div class="dialog-body" data-api="/nexus/api/events/reminders/presets">
+      <label class="row small"><input type="checkbox" class="check" id="rm-1" checked> 1 hour before</label>
+      <label class="row small"><input type="checkbox" class="check" id="rm-2"> 1 day before</label>
+      <label class="row small"><input type="checkbox" class="check" id="rm-3"> At start</label>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Reminders saved">Save</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-evmgr" aria-labelledby="dlg-evmgr-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-evmgr-t">Thursday crit #41</h2><p>Organizer tools</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="list card" data-api="/nexus/api/events/:id/attendees">
+        <div class="list-item"><span class="avatar sm g2">JO</span><span class="grow small">Jonah Okafor</span><button class="btn sm tonal" type="button" data-toast="Checked in" data-api="/nexus/api/events/:id/check-in/:userId">Check in</button></div>
+        <div class="list-item"><span class="avatar sm g3">PR</span><span class="grow small">Priya Raman</span><span class="pill ok">Checked in</span></div>
+      </div>
+      <div class="field"><label for="ev-notify">Message attendees</label><textarea class="textarea" id="ev-notify">Room link is live — see you in 5!</textarea></div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-close data-toast="Event cancelled — attendees notified" data-api="/nexus/api/events/:id/cancel">Cancel event</button><button class="btn outline" type="button" data-close data-api="/nexus/api/events/:id">Edit</button><button class="btn primary" type="button" data-close data-toast="Sent to 38 attendees" data-api="/nexus/api/events/:id/notify">Notify</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-sub" aria-labelledby="dlg-sub-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-sub-t">Subscribe to the calendar</h2><p>Keep Design Guild events in Apple Calendar, Google Calendar or Outlook.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="ics-url">iCal feed (read-only)</label><div class="input-group"><input id="ics-url" readonly value="https://exprsn.io/nexus/api/calendar/groups/grp_d51/ical"><button class="btn sm ghost" type="button" data-copy="https://exprsn.io/nexus/api/calendar/groups/grp_d51/ical">Copy</button></div></div>
+      <div class="field"><label for="caldav-url">CalDAV (two-way, for apps that support it)</label><div class="input-group" data-api="/nexus/api/calendar/caldav/groups/:groupId/calendar /nexus/api/calendar/caldav/groups/:groupId/events"><input id="caldav-url" readonly value="https://exprsn.io/nexus/api/calendar/caldav/groups/grp_d51/calendar"><button class="btn sm ghost" type="button" data-copy="https://exprsn.io/nexus/api/calendar/caldav/groups/grp_d51/calendar">Copy</button></div></div>
+      <div class="banner warn"><i data-i="alert" class="sm"></i><span>Feed URLs contain no token today — anyone with the link can read a public group’s events.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-share" aria-labelledby="dlg-share-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-share-t">Share figma/api-token</h2><p>Choose members who can reveal this secret.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="sh-who">Members</label><div class="input-group"><span class="chip" aria-pressed="true">Jonah Okafor <span class="x">×</span></span><input id="sh-who" placeholder="Add member"></div></div></div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-close data-toast="Sharing revoked">Revoke all</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Shared with Jonah Okafor">Share</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-prop" aria-labelledby="dlg-prop-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-prop-t">New proposal</h2><p>Members vote; admins execute the result.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="pr-title">Title</label><input class="input" id="pr-title" placeholder="What should the guild decide?"></div>
+      <div class="field"><label for="pr-body">Details</label><textarea class="textarea" id="pr-body"></textarea></div>
+      <div class="form-grid"><div class="field"><label for="pr-close">Voting closes</label><input class="input" type="date" id="pr-close" value="2026-10-10"></div><div class="field"><label for="pr-rule">Rule</label><select class="select" id="pr-rule"><option>Simple majority</option><option>Two-thirds</option></select></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Proposal published">Publish</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-close-prop" aria-labelledby="dlg-close-prop-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-close-prop-t">Close voting on “Adopt Inter v4”?</h2><p>702 votes are final. The result (Yes, 64%) can then be executed.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Keep open</button><button class="btn danger" type="button" data-close data-toast="Voting closed — passed">Close voting</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-subg" aria-labelledby="dlg-subg-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-subg-t">New subgroup</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="sg-name">Name</label><input class="input" id="sg-name" placeholder="e.g. Motion squad"></div><div class="field"><label for="sg-acc">Who can join</label><select class="select" id="sg-acc"><option>Any guild member</option><option>Invite only</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Subgroup created">Create</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-case" aria-labelledby="dlg-case-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-case-t">Case · reply on “Thursday crit #41”</h2><p>3 flags · harassment · opened 40 min ago</p></div></div>
+    <div class="dialog-body">
+      <div class="inset small">“Your work is lazy and everyone here knows it.” — @anon-7731</div>
+      <div class="field"><label for="case-act">Action</label><select class="select" id="case-act"><option>Remove content and warn</option><option>Remove content</option><option>Remove from group</option><option>No action</option></select></div>
+      <div class="field"><label for="case-note">Note (shared with other moderators)</label><textarea class="textarea" id="case-note"></textarea></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost left" type="button" data-close data-toast="Flags dismissed" data-api="/nexus/api/moderation/flags/:flagId/resolve">Dismiss flags</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Action applied" data-api="/nexus/api/moderation/cases/:id/action">Apply action</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Group detail. Header + membership load first; tabs lazy-load their module (timeline, spark, nexus, filevault, vault, live, lowcode). Admin-only UI (join requests, secrets reveal/share, moderation, settings) renders from the caller's nexus role but every call is enforced server-side. Posts tab emits subscribe:group; Messages tab joins the channel's conversation room on /spark; Live tab listens for stream-started/ended.",
+  "rest": [
+    { "m": "GET", "p": "/nexus/api/groups/:id", "auth": "user", "ui": "Cover header, About" },
+    { "m": "PUT", "p": "/nexus/api/groups/:id", "auth": "grp-admin", "ui": "Settings dialog → Save" },
+    { "m": "DELETE", "p": "/nexus/api/groups/:id", "auth": "grp-owner", "ui": "Settings → Delete group (owner)" },
+    { "m": "GET", "p": "/nexus/api/groups/:id/related", "auth": "user", "ui": "About → Related groups" },
+    { "m": "GET", "p": "/nexus/api/groups/:id/members", "auth": "user", "ui": "Members table" },
+    { "m": "POST", "p": "/nexus/api/groups/:id/join", "auth": "user", "ui": "Private state → Request to join" },
+    { "m": "POST", "p": "/nexus/api/groups/:id/leave", "auth": "user", "ui": "Leave group confirm" },
+    { "m": "POST", "p": "/nexus/api/groups/:id/invite", "auth": "grp-admin", "ui": "Invite dialog" },
+    { "m": "PUT", "p": "/nexus/api/groups/:id/members/:userId/role", "auth": "grp-admin", "ui": "Role select in Members table" },
+    { "m": "DELETE", "p": "/nexus/api/groups/:id/members/:userId", "auth": "grp-admin", "ui": "Remove member confirm" },
+    { "m": "POST", "p": "/nexus/api/groups/:id/join-requests/:rid/approve", "auth": "grp-admin", "ui": "Join requests → Approve" },
+    { "m": "POST", "p": "/nexus/api/groups/:id/join-requests/:rid/reject", "auth": "grp-admin", "ui": "Join requests → Decline" },
+    { "m": "GET", "p": "/timeline/api/timeline/group/:groupId", "auth": "user", "ui": "Posts tab feed" },
+    { "m": "POST", "p": "/timeline/api/posts", "auth": "user", "ui": "Post dialog (groupId set)" },
+    { "m": "GET", "p": "/timeline/api/posts/approvals/pending", "auth": "A", "ui": "Waiting for review card" },
+    { "m": "GET", "p": "/spark/api/groups/:groupId/channels", "auth": "member", "ui": "Messages tab (auto-provisions chat + announcements)" },
+    { "m": "POST", "p": "/spark/api/groups/:groupId/channels/:kind/messages", "auth": "member (announcement: grp-admin)", "ui": "Channel composer" },
+    { "m": "GET", "p": "/spark/api/messages/:conversationId", "auth": "user", "ui": "Channel history (channel is a conversation)" },
+    { "m": "GET", "p": "/nexus/api/events", "auth": "user", "ui": "Events list (groupId filter)" },
+    { "m": "POST", "p": "/nexus/api/events", "auth": "grp-admin", "ui": "New event dialog" },
+    { "m": "GET", "p": "/nexus/api/events/:id", "auth": "user", "ui": "Event row → organizer dialog" },
+    { "m": "PUT", "p": "/nexus/api/events/:id", "auth": "organizer", "ui": "Organizer dialog → Edit" },
+    { "m": "DELETE", "p": "/nexus/api/events/:id", "auth": "organizer", "ui": "Delete event (organizer menu)" },
+    { "m": "POST", "p": "/nexus/api/events/:id/cancel", "auth": "organizer", "ui": "Cancel event" },
+    { "m": "POST", "p": "/nexus/api/events/:id/rsvp", "auth": "user", "ui": "RSVP segmented control" },
+    { "m": "GET", "p": "/nexus/api/events/:id/rsvp", "auth": "user", "ui": "Your current RSVP" },
+    { "m": "DELETE", "p": "/nexus/api/events/:id/rsvp", "auth": "user", "ui": "Clear RSVP" },
+    { "m": "GET", "p": "/nexus/api/events/:id/attendees", "auth": "user", "ui": "Going/maybe counts, organizer attendee list" },
+    { "m": "POST", "p": "/nexus/api/events/:id/check-in/:userId", "auth": "organizer", "ui": "Check in button" },
+    { "m": "POST", "p": "/nexus/api/events/:id/notify", "auth": "organizer (unenforced)", "ui": "Message attendees → Notify" },
+    { "m": "POST", "p": "/nexus/api/events/:id/live", "auth": "organizer", "ui": "Go live automatically switch" },
+    { "m": "POST", "p": "/nexus/api/events/:id/reminders", "auth": "user", "ui": "Reminders dialog (PUT update, DELETE clear)" },
+    { "m": "GET", "p": "/nexus/api/events/reminders/presets", "auth": "user", "ui": "Reminder options" },
+    { "m": "GET", "p": "/nexus/api/calendar/groups/:groupId/ical", "auth": "P (optional token)", "ui": "Calendar view + Subscribe iCal URL" },
+    { "m": "GET", "p": "/nexus/api/calendar/events/:id/ical", "auth": "P (optional token)", "ui": ".ics download per event" },
+    { "m": "GET", "p": "/nexus/api/calendar/caldav/groups/:groupId/calendar", "auth": "P (optional token)", "ui": "Subscribe → CalDAV URL" },
+    { "m": "GET", "p": "/nexus/api/calendar/caldav/groups/:groupId/events", "auth": "P (optional token)", "ui": "CalDAV clients" },
+    { "m": "GET", "p": "/nexus/api/calendar/carddav/groups/:groupId/contacts", "auth": "P (optional token)", "ui": "Members → Export contacts (.vcf)" },
+    { "m": "GET", "p": "/nexus/api/calendar/carddav/groups/:groupId/addressbook", "auth": "P (optional token)", "ui": "CardDAV clients" },
+    { "m": "GET", "p": "/filevault/api/groups/:gid/files", "auth": "member", "ui": "Files grid" },
+    { "m": "POST", "p": "/filevault/api/groups/:gid/files/upload", "auth": "member", "ui": "Upload / drop zone" },
+    { "m": "GET", "p": "/filevault/api/groups/:gid/directories", "auth": "member", "ui": "Folder tiles + breadcrumb" },
+    { "m": "GET", "p": "/filevault/api/thumbnails/:fileId", "auth": "member", "ui": "Image thumbnails (blob URL)" },
+    { "m": "GET", "p": "/filevault/api/files/:fileId/download", "auth": "member", "ui": "Tile tap" },
+    { "m": "GET", "p": "/vault/api/groups/:gid/secrets", "auth": "grp-admin", "ui": "Secrets table" },
+    { "m": "GET", "p": "/vault/api/groups/:gid/secrets/:path/reveal", "auth": "grp-admin / shared", "ui": "Reveal button (audited)" },
+    { "m": "POST", "p": "/vault/api/groups/:gid/secrets/:path/share", "auth": "grp-admin", "ui": "Share dialog" },
+    { "m": "DELETE", "p": "/vault/api/groups/:gid/secrets/:path/share", "auth": "grp-admin", "ui": "Share dialog → Revoke all" },
+    { "m": "GET", "p": "/live/api/groups/:gid/streams", "auth": "member", "ui": "Live tab grid" },
+    { "m": "POST", "p": "/live/api/groups/:gid/streams", "auth": "member", "ui": "Go live in group" },
+    { "m": "GET", "p": "/nexus/api/governance/proposals", "auth": "user", "ui": "Governance list + status filter" },
+    { "m": "POST", "p": "/nexus/api/governance/proposals", "auth": "member", "ui": "New proposal dialog" },
+    { "m": "GET", "p": "/nexus/api/governance/proposals/:id", "auth": "user", "ui": "Proposal card" },
+    { "m": "PUT", "p": "/nexus/api/governance/proposals/:id", "auth": "proposer", "ui": "Edit proposal (before votes)" },
+    { "m": "DELETE", "p": "/nexus/api/governance/proposals/:id", "auth": "proposer / grp-admin", "ui": "Withdraw proposal" },
+    { "m": "POST", "p": "/nexus/api/governance/proposals/:id/vote", "auth": "member", "ui": "Your vote segmented control" },
+    { "m": "GET", "p": "/nexus/api/governance/proposals/:id/results", "auth": "user", "ui": "Result bars" },
+    { "m": "GET", "p": "/nexus/api/governance/proposals/:id/votes", "auth": "user", "ui": "Vote count / quorum" },
+    { "m": "POST", "p": "/nexus/api/governance/proposals/:id/close", "auth": "grp-admin", "ui": "Close early confirm" },
+    { "m": "POST", "p": "/nexus/api/governance/proposals/:id/execute", "auth": "grp-admin", "ui": "Execute (after close)" },
+    { "m": "GET", "p": "/nexus/api/subgroups", "auth": "user", "ui": "Subgroups list (parentGroupId)" },
+    { "m": "POST", "p": "/nexus/api/subgroups", "auth": "grp-admin", "ui": "New subgroup dialog" },
+    { "m": "GET", "p": "/nexus/api/subgroups/:id", "auth": "user", "ui": "Manage subgroup" },
+    { "m": "PUT", "p": "/nexus/api/subgroups/:id", "auth": "subgroup lead", "ui": "Manage → edit" },
+    { "m": "DELETE", "p": "/nexus/api/subgroups/:id", "auth": "grp-admin", "ui": "Manage → delete" },
+    { "m": "POST", "p": "/nexus/api/subgroups/:id/members", "auth": "subgroup lead", "ui": "Manage → add (DELETE /:id/members/:userId remove)" },
+    { "m": "GET", "p": "/nexus/api/subgroups/:id/access", "auth": "user", "ui": "Member / No access pills" },
+    { "m": "POST", "p": "/nexus/api/moderation/flags", "auth": "member", "ui": "Flag content (post/message menus)" },
+    { "m": "GET", "p": "/nexus/api/moderation/flags/:groupId", "auth": "grp-mod", "ui": "Open flags stat + queue" },
+    { "m": "GET", "p": "/nexus/api/moderation/queue/:groupId", "auth": "grp-mod", "ui": "Moderation queue" },
+    { "m": "GET", "p": "/nexus/api/moderation/cases/:id", "auth": "grp-mod", "ui": "Case dialog" },
+    { "m": "POST", "p": "/nexus/api/moderation/cases/:id/action", "auth": "grp-mod", "ui": "Case dialog → Apply action" },
+    { "m": "POST", "p": "/nexus/api/moderation/cases/:id/assign", "auth": "grp-mod", "ui": "Assign to me" },
+    { "m": "POST", "p": "/nexus/api/moderation/flags/:flagId/resolve", "auth": "grp-mod", "ui": "Dismiss flags" },
+    { "m": "GET", "p": "/lowcode/api/design/apps", "auth": "user (scopeType=group)", "ui": "Apps tab" },
+    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "Invite people picker" }
+  ],
+  "socket": [
+    { "ns": "/timeline", "auth": "CA bearer (read)", "rooms": ["timeline:group:{groupId}"],
+      "emit": [ { "e": "subscribe:group", "ui": "Posts tab mount" }, { "e": "unsubscribe:group", "ui": "Leaving the tab" } ],
+      "on": [
+        { "e": "new:post", "ui": "“4 new posts” pill" },
+        { "e": "post:liked", "ui": "Like counts" },
+        { "e": "post:commented", "ui": "Reply counts" },
+        { "e": "post:retracted", "ui": "Moderation tombstone" }
+      ] },
+    { "ns": "/spark", "auth": "CA bearer (read)", "rooms": ["conversation:{channelConversationId}"],
+      "emit": [ { "e": "join:conversation", "ui": "Messages tab → channel selected" }, { "e": "leave:conversation", "ui": "Switch channel / tab" } ],
+      "on": [
+        { "e": "new:message", "ui": "Channel log (REST posts emit via .of('/spark') — works)" },
+        { "e": "message:redacted", "ui": "Moderation tombstone in channel" }
+      ] },
+    { "ns": "/live", "auth": "soft (anonymous allowed)", "rooms": [],
+      "emit": [],
+      "on": [
+        { "e": "stream-started", "ui": "LIVE tag on tab + Live grid card" },
+        { "e": "stream-ended", "ui": "Card flips to recording" },
+        { "e": "viewer-count-updated", "ui": "Viewer count on live card (only after join-stream)" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "med", "text": "subscribe:group has no membership check — non-members can receive a private group's post events." },
+    { "sev": "med", "text": "No GET for pending join requests; the admin list needs a proposed GET /nexus/api/groups/:id/join-requests." },
+    { "sev": "med", "text": "POST /nexus/api/events/:id/notify is documented as organizer/admin but unenforced — any member can message all attendees." },
+    { "sev": "med", "text": "stream-started/ended go to the whole /live namespace, not a group room, so every client filters by groupId; private group stream titles leak." },
+    { "sev": "med", "text": "Timeline approval is platform-admin only; group admins can't clear their own group's 'Waiting for review' queue." },
+    { "sev": "med", "text": "Calendar feed URLs (iCal/CalDAV) carry no per-user token, so calendar apps can't authenticate for private groups. Proposed: signed feed tokens." }
+  ]
+}
+</script>
+</body>
+</html>

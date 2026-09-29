@@ -397,7 +397,7 @@
     else { APP_NAV.forEach(function (g) { add(g.group, g.items); }); add('Detail views', APP_DETAIL); add('Admin console', flat(ADMIN_NAV)); add('Public pages', PUBLIC_PAGES); }
     entries.push({ g: 'Actions', label: 'Toggle light/dark theme', action: 'theme', icon: 'moon', hint: 'T' });
     entries.push({ g: 'Actions', label: 'Show screen contract (REST + sockets)', action: 'contract', icon: 'code', hint: 'C' });
-    d.innerHTML = '<div class="palette-input">' + icon('search') + '<input id="palette-q" type="text" placeholder="Type a page, person, DID, token id…" aria-label="Search" autocomplete="off"><span class="kbd">esc</span></div><ul class="palette-list" role="listbox" id="palette-list"></ul><div class="palette-foot"><span><span class="kbd">↑↓</span> move</span><span><span class="kbd">↵</span> open</span><span><span class="kbd">esc</span> close</span></div>';
+    d.innerHTML = '<div class="palette-input">' + icon('search') + '<input id="palette-q" type="text" placeholder="Type a page, person, DID, token id…" aria-label="Search" autocomplete="off"><span class="kbd">esc</span></div><ul class="palette-list" role="listbox" id="palette-list" aria-label="Results"></ul><div class="palette-foot"><span><span class="kbd">↑↓</span> move</span><span><span class="kbd">↵</span> open</span><span><span class="kbd">esc</span> close</span></div>';
     document.body.appendChild(d);
     var q = $('#palette-q', d), list = $('#palette-list', d), sel = 0, shown = [];
     function render() {
@@ -591,6 +591,8 @@
       if (all) all.addEventListener('change', function () { $$('tbody .check', dt).forEach(function (c) { c.checked = all.checked; }); sync(); });
       sync();
     });
+    // Scrollable code/log blocks must be keyboard-focusable
+    $$('pre.code, .code.log').forEach(function (el) { if (!el.hasAttribute('tabindex')) el.tabIndex = 0; });
     // Forms never submit anywhere in a mockup
     $$('form').forEach(function (f) { f.addEventListener('submit', function (e) { e.preventDefault(); var m = f.getAttribute('data-toast'); if (m) toast(icon('check', 'sm') + ' ' + esc(m)); }); });
     // Copy buttons

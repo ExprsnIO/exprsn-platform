@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI task · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  .log .t { color: var(--exprsn-text-secondary); }
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .steps li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; padding: 12px 0; position: relative; }
+  .steps li + li { border-top: 1px solid var(--exprsn-border-color); }
+  .steps .dot { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--exprsn-bg-tertiary); color: var(--exprsn-text-secondary); }
+  .steps .dot .ic { width: 16px; height: 16px; }
+  .steps .done .dot { background: var(--exprsn-success-bg); color: var(--exprsn-success-text); }
+  .steps .run .dot { background: var(--exprsn-info-bg); color: var(--exprsn-info-text); }
+  .steps .held .dot { background: var(--exprsn-warning-bg); color: var(--exprsn-warning-text); }
+  .steps .when { font-size: .75rem; color: var(--exprsn-text-muted); white-space: nowrap; }
+</style>
+</head>
+<body data-shell="app" data-page="cortex-task">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="cortex.html">AI assistant</a><i data-i="right" class="sm"></i><span>Tasks</span><i data-i="right" class="sm"></i><span class="id">tsk_5e02a1</span></nav>
+        <h1 class="page-title">Weekly digest · run #18</h1>
+        <div class="row wrap small secondary" style="gap:8px"><span class="pill info"><span class="d"></span>Running · step 3 of 5</span><span>Started by you · 10:02 · qwen2.5-14b</span><span>Agent <a href="cortex.html">Weekly digest</a></span></div>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-toast="Retry queued as run #19" data-api="/cortex/api/v1/agents/:idOrName/run"><i data-i="refresh" class="sm"></i>Run again</button>
+        <button class="btn danger-outline" type="button" data-open="dlg-cancel"><i data-i="stop" class="sm"></i>Cancel</button>
+      </div>
+    </header>
+
+    <div data-state="loaded" class="split">
+      <div class="stack loose">
+        <section class="card" aria-labelledby="st-h">
+          <div class="card-head"><h2 id="st-h">Steps</h2><span class="xs muted">Refreshes every 3 s while running</span></div>
+          <div class="card-body">
+            <ol class="steps" data-api="/cortex/api/v1/tasks/:id /cortex/api/v1/agents/:idOrName/runs/:runId">
+              <li class="done"><span class="dot"><i data-i="check"></i></span><div class="stack tight"><b class="small">Plan</b><span class="small secondary">Collect posts and events from 5 groups for Sep 22–29.</span></div><span class="when num">0.8 s</span></li>
+              <li class="done"><span class="dot"><i data-i="check"></i></span><div class="stack tight"><b class="small">Tool · timeline.group_feed ×5</b><span class="small secondary">214 posts read · 38 kept after relevance filter</span></div><span class="when num">6.1 s</span></li>
+              <li class="run"><span class="dot"><i data-i="refresh"></i></span><div class="stack tight"><b class="small">Summarize</b><span class="small secondary">Writing section 3 of 5 (Platform On-call)…</span><div class="meter" role="img" aria-label="60 percent"><i style="width:60%"></i></div></div><span class="when num">12 s</span></li>
+              <li class="held"><span class="dot"><i data-i="shield"></i></span><div class="stack tight"><b class="small">Guardrail screen</b><span class="small secondary">Waiting for summary</span></div><span class="when">—</span></li>
+              <li><span class="dot"><i data-i="mail"></i></span><div class="stack tight"><b class="small">Deliver</b><span class="small secondary">Save as a private note and draft an email to you</span></div><span class="when">—</span></li>
+            </ol>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="log-h">
+          <div class="card-head"><h2 id="log-h">Log</h2><button class="btn sm ghost" type="button" data-copy="tsk_5e02a1 log"><i data-i="copy" class="sm"></i>Copy</button></div>
+          <div class="card-body">
+<pre class="code log" data-api="/cortex/api/v1/tasks/:id"><span class="t">10:02:04.118</span> plan     goal="weekly digest" groups=5 range=7d
+<span class="t">10:02:04.930</span> tool     timeline.group_feed grp_d51 → 88 posts
+<span class="t">10:02:06.402</span> tool     timeline.group_feed grp_po1 → 41 posts
+<span class="t">10:02:08.771</span> tool     nexus.list_events user=usr_rh01 → 6 events
+<span class="t">10:02:11.020</span> filter   kept 38/214 (score ≥ 0.62)
+<span class="t">10:02:11.024</span> llm      model=qwen2.5-14b ctx=11.8k tokens
+<span class="t">10:02:23.310</span> llm      section 3/5 streaming…</pre>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="out-h">
+          <div class="card-head"><h2 id="out-h">Output</h2><span class="pill">Draft · from run #17</span></div>
+          <div class="card-body stack">
+            <p class="small secondary">Last week’s delivered digest, for comparison. This run’s output appears when step 5 finishes.</p>
+            <div class="inset small" data-api="/cortex/api/v1/outbox/:id"><b>Your week in groups — Sep 15–22</b><br>Design Guild voted on Inter v4 (open, 64% yes). Platform On-call rotated vault credentials with no downtime. 3 events this week: Thursday crit #41, type swap, incident review.</div>
+            <dl class="kv"><dt>Outbox entry</dt><dd><span class="id">obx_77c1</span> · email to rick@exprsn.io · <span class="pill ok">Sent Sep 22</span></dd></dl>
+          </div>
+        </section>
+      </div>
+
+      <aside class="stack loose">
+        <section class="card" aria-labelledby="in-h">
+          <div class="card-head"><h2 id="in-h">Inputs</h2></div>
+          <div class="card-body">
+<pre class="code">{
+  "groups": "all",
+  "range": "7d",
+  "deliver": ["note", "email"]
+}</pre>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="gr-h">
+          <div class="card-head"><h2 id="gr-h">Guardrail verdicts</h2></div>
+          <div class="list" data-api="/cortex/api/v1/guardrails">
+            <div class="list-item"><i data-i="shield" class="sm"></i><span class="grow small">PII redaction<br><span class="muted">2 emails masked in source posts</span></span><span class="pill ok">Pass</span></div>
+            <div class="list-item"><i data-i="shield" class="sm"></i><span class="grow small">Private group content<br><span class="muted">Only groups you’re in</span></span><span class="pill ok">Pass</span></div>
+            <div class="list-item"><i data-i="shield" class="sm"></i><span class="grow small">No external links<br><span class="muted">Runs after summary</span></span><span class="pill">Pending</span></div>
+          </div>
+        </section>
+        <section class="card pad stack" aria-labelledby="use-h">
+          <h2 id="use-h" class="eyebrow">Usage</h2>
+          <dl class="kv"><dt>Tokens</dt><dd class="num">11,842 in · 1,204 out</dd><dt>Tool calls</dt><dd class="num">7</dd><dt>Elapsed</dt><dd class="num">19 s</dd><dt>Runs on</dt><dd>Exprsn GPU pool (local)</dd></dl>
+        </section>
+      </aside>
+    </div>
+
+    <div data-state="empty">
+      <div class="empty"><div class="art"><i data-i="search"></i></div><h3>Task not found</h3><p>It may belong to someone else, or it was cleaned up after 30 days.</p><a class="btn outline" href="cortex.html">Back to AI assistant</a></div>
+    </div>
+    <div data-state="loading" aria-busy="true" aria-label="Loading task" class="stack"><span class="sk" style="height:260px"></span><span class="sk" style="height:160px"></span></div>
+    <div data-state="error">
+      <div class="empty error"><div class="art"><i data-i="bot"></i></div><h3>The AI assistant is turned off</h3><p>Cortex returned 503 (CORTEX_ENABLED=false). Task history is kept and will be visible again once it’s re-enabled.</p><a class="btn outline" href="cortex.html">Back</a></div>
+    </div>
+  </div>
+
+  <dialog class="dialog sm" id="dlg-cancel" aria-labelledby="dlg-cancel-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cancel-t">Cancel “Weekly digest · run #18”?</h2><p>Steps 1–2 are kept in the log. Nothing is delivered.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Keep running</button><button class="btn danger" type="button" data-close data-toast="Cancelled">Cancel task</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Task/run detail. Polls GET /tasks/:id (or the agent run) every 3 s while status is queued/running, then stops. Output links to the outbox entry when the task delivers email. Retry = start a new run with the same inputs.",
+  "rest": [
+    { "m": "GET", "p": "/cortex/api/v1/tasks/:id", "auth": "owner/A", "ui": "Header status, steps, log, inputs, usage" },
+    { "m": "GET", "p": "/cortex/api/v1/agents/:idOrName/runs/:runId", "auth": "owner/A", "ui": "Same page for an agent run" },
+    { "m": "GET", "p": "/cortex/api/v1/agents/:idOrName/runs", "auth": "owner/A", "ui": "“run #18” numbering, previous run output" },
+    { "m": "POST", "p": "/cortex/api/v1/agents/:idOrName/run", "auth": "user", "ui": "Run again" },
+    { "m": "GET", "p": "/cortex/api/v1/outbox/:id", "auth": "owner/A", "ui": "Output → outbox entry" },
+    { "m": "GET", "p": "/cortex/api/v1/guardrails", "auth": "user", "ui": "Guardrail names for verdict list" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "No cancel or retry endpoint for tasks/runs — Cancel is proposed (POST /cortex/api/v1/tasks/:id/cancel); 'Run again' reuses POST …/run." },
+    { "sev": "med", "text": "No push updates for task progress; the page polls. Proposed: task:updated on /cortex." },
+    { "sev": "med", "text": "Per-step guardrail verdicts aren't a documented field on tasks/runs; confirm the payload shape before building the verdict list." }
+  ]
+}
+</script>
+</body>
+</html>

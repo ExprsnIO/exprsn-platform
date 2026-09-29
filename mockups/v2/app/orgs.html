@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Organizations · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .main :is(p, dd, .help) a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .org-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 20px; border-bottom: 1px solid var(--exprsn-border-color); }
+  .org-head .grow { min-width: 200px; }
+</style>
+</head>
+<body data-shell="app" data-page="orgs">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Organizations</h1>
+        <p class="page-sub">Workspaces you belong to. Owners and admins manage members and connected applications here.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn primary" type="button" data-open="dlg-create" data-api="/auth/api/organizations/provision-self"><i data-i="plus" class="sm"></i>New organization</button>
+      </div>
+    </header>
+
+    <div class="split left">
+      <!-- ── Org list ── -->
+      <section class="card" aria-labelledby="my-t">
+        <div class="card-head"><h2 id="my-t">Your organizations</h2><span class="badge neutral">3</span></div>
+        <div data-state="loaded">
+          <div class="list" role="listbox" aria-label="Organizations" data-api="/auth/api/organizations">
+            <button class="list-item" role="option" aria-selected="true" type="button"><span class="avatar sq g1">EX</span><span class="grow stack tight"><span class="title truncate">Exprsn HQ</span><span class="meta">Owner · 58 members</span></span></button>
+            <button class="list-item" role="option" type="button"><span class="avatar sq g2">NW</span><span class="grow stack tight"><span class="title truncate">Northwind</span><span class="meta">Admin · 42 members</span></span></button>
+            <button class="list-item" role="option" type="button"><span class="avatar sq g3">CO</span><span class="grow stack tight"><span class="title truncate">Contoso</span><span class="meta">Member · 211 members</span></span></button>
+          </div>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="building"></i></div><h3>You’re not in an organization</h3><p>Create one for your team, or ask an admin to add you.</p><button class="btn primary" type="button" data-open="dlg-create">New organization</button></div></div>
+        <div class="stack" data-state="loading" aria-busy="true" aria-label="Loading organizations" style="padding:16px"><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load organizations</h3><p>The sign-in service returned 503. Reference <code>cid 8c20…5ad</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+      </section>
+
+      <!-- ── Org detail ── -->
+      <section class="card" aria-labelledby="org-t" data-state="loaded" data-api="/auth/api/organizations/:id">
+        <div class="org-head">
+          <span class="avatar lg sq g1">EX</span>
+          <div class="grow stack tight"><h2 id="org-t" style="font-size:1.25rem">Exprsn HQ</h2><span class="small secondary">exprsn.io/exprsn-hq · Team · created Nov 2, 2025</span></div>
+          <span class="pill violet">Owner</span>
+          <button class="btn sm outline" type="button" data-open="dlg-edit"><i data-i="edit" class="sm"></i>Edit</button>
+        </div>
+
+        <div class="card-body stack">
+          <div class="tabs" role="tablist" aria-label="Organization detail">
+            <button role="tab" id="o-1t" aria-controls="o-1" aria-selected="true">Members <span class="badge neutral">58</span></button>
+            <button role="tab" id="o-2t" aria-controls="o-2">Applications <span class="badge neutral">3</span></button>
+            <button role="tab" id="o-3t" aria-controls="o-3">Settings</button>
+          </div>
+
+          <!-- Members -->
+          <div id="o-1" role="tabpanel" aria-labelledby="o-1t" class="dt">
+            <div class="dt-toolbar" style="padding:12px 0">
+              <label class="input-group"><i data-i="search" class="sm"></i><input id="m-q" type="search" placeholder="Search members"></label>
+              <div class="seg" role="group" aria-label="Filter by role"><button type="button" aria-pressed="true">All</button><button type="button" aria-pressed="false">Admins</button><button type="button" aria-pressed="false">Members</button></div>
+              <span class="grow"></span>
+              <button class="btn sm primary" type="button" data-open="dlg-add" data-api="/auth/api/organizations/:id/members"><i data-i="userPlus" class="sm"></i>Add people</button>
+            </div>
+            <div class="dt-scroll">
+              <table class="table" data-api="/auth/api/organizations/:id/members">
+                <thead><tr><th>Person</th><th>Role</th><th class="num">Joined</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                  <tr><td><div class="row" style="gap:10px"><span class="avatar sm g1">RH</span><span class="stack tight" style="gap:0"><b>Rick Holland (you)</b><span class="xs muted">rick@exprsn.io</span></span></div></td><td><span class="pill violet">Owner</span></td><td class="num">Nov 2, 2025</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-transfer">Transfer ownership</button></td></tr>
+                  <tr><td><div class="row" style="gap:10px"><span class="avatar sm g1">MD</span><span class="stack tight" style="gap:0"><b>Maya Diaz</b><span class="xs muted">maya@exprsn.io</span></span></div></td><td><label class="sr-only" for="role-maya">Role for Maya Diaz</label><select class="select" id="role-maya" style="min-height:32px;padding:4px 8px;width:auto" data-api="/auth/api/organizations/:id/members/:userId"><option>Admin</option><option>Member</option></select></td><td class="num">Nov 2, 2025</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></td></tr>
+                  <tr><td><div class="row" style="gap:10px"><span class="avatar sm g3">PR</span><span class="stack tight" style="gap:0"><b>Priya Raman</b><span class="xs muted">priya@exprsn.io</span></span></div></td><td><label class="sr-only" for="role-priya">Role for Priya Raman</label><select class="select" id="role-priya" style="min-height:32px;padding:4px 8px;width:auto"><option>Member</option><option>Admin</option></select></td><td class="num">May 30</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></td></tr>
+                  <tr><td><div class="row" style="gap:10px"><span class="avatar sm g4">AL</span><span class="stack tight" style="gap:0"><b>Ari Lindqvist</b><span class="xs muted">ari@exprsn.io</span></span></div></td><td><label class="sr-only" for="role-ari">Role for Ari Lindqvist</label><select class="select" id="role-ari" style="min-height:32px;padding:4px 8px;width:auto"><option>Member</option><option>Admin</option></select></td><td class="num">Sep 20</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="dt-foot"><span class="num">1–4 of 58</span><div class="row" style="gap:6px"><button class="icon-btn" type="button" aria-label="Previous page" disabled><i data-i="left"></i></button><button class="icon-btn" type="button" aria-label="Next page"><i data-i="right"></i></button></div></div>
+          </div>
+
+          <!-- Applications -->
+          <div id="o-2" role="tabpanel" aria-labelledby="o-2t" class="stack" hidden>
+            <div class="row between wrap"><p class="small secondary">OAuth / OIDC clients that sign people in with their Exprsn account.</p><button class="btn sm primary" type="button" data-open="dlg-app" data-api="/auth/api/applications"><i data-i="plus" class="sm"></i>New application</button></div>
+            <div class="list card" data-api="/auth/api/applications">
+              <div class="list-item"><span class="avatar sm sq g2"><i data-i="apps" class="sm"></i></span><div class="grow stack tight"><span class="title">Exprsn Wiki</span><span class="meta"><span class="mono">client_7f2a…c91</span> · confidential · 3 redirect URIs</span></div><span class="pill ok">Active</span><button class="btn sm ghost" type="button" data-open="dlg-appd" data-api="/auth/api/applications/:id">Manage</button></div>
+              <div class="list-item"><span class="avatar sm sq g3"><i data-i="apps" class="sm"></i></span><div class="grow stack tight"><span class="title">Grafana</span><span class="meta"><span class="mono">client_19be…04d</span> · confidential · PKCE</span></div><span class="pill ok">Active</span><button class="btn sm ghost" type="button" data-open="dlg-appd">Manage</button></div>
+              <div class="list-item"><span class="avatar sm sq g4"><i data-i="apps" class="sm"></i></span><div class="grow stack tight"><span class="title">Expense scanner (mobile)</span><span class="meta"><span class="mono">client_c3d0…77a</span> · public · PKCE</span></div><span class="pill warn">Consent required</span><button class="btn sm ghost" type="button" data-open="dlg-appd">Manage</button></div>
+            </div>
+          </div>
+
+          <!-- Settings -->
+          <div id="o-3" role="tabpanel" aria-labelledby="o-3t" class="stack loose" hidden>
+            <div class="list card">
+              <div class="setting-row"><div class="grow"><div class="t">Require two-step verification</div><div class="d">Members without it are asked to set it up at next sign-in (7-day grace)</div></div><label class="switch"><input type="checkbox" id="os-mfa" checked aria-label="Require two-step verification" data-api="/auth/api/organizations/:id"><span></span></label></div>
+              <div class="setting-row"><div class="grow"><div class="t">Transfer ownership</div><div class="d">Make another admin the owner. You’ll stay on as an admin.</div></div><button class="btn sm outline" type="button" data-open="dlg-transfer">Transfer</button></div>
+              <div class="setting-row"><div class="grow"><div class="t">Delete organization</div><div class="d">Removes its groups, roles, applications and the org certificate group.</div></div><button class="btn sm danger-outline" type="button" data-open="dlg-del">Delete</button></div>
+            </div>
+            <div class="row"><button class="btn danger-outline" type="button" data-open="dlg-leave">Leave Exprsn HQ</button><span class="xs muted">Owners must transfer ownership before leaving.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" data-state="empty"><div class="empty"><div class="art"><i data-i="building"></i></div><h3>Select an organization</h3><p>Pick one on the left to see its members and applications.</p></div></section>
+      <section class="card pad stack" data-state="loading" aria-busy="true" aria-label="Loading organization"><div class="row"><span class="avatar lg sq" style="background:var(--exprsn-bg-tertiary)"></span><span class="sk grow" style="height:20px"></span></div><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></section>
+      <section class="card" data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load Exprsn HQ</h3><p>You may have been removed from this organization, or the service is down.</p><button class="btn outline" type="button">Try again</button></div></section>
+    </div>
+  </div>
+
+  <!-- Create org -->
+  <dialog class="dialog" id="dlg-create" aria-labelledby="dlg-create-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-create-t">New organization</h2><p>We’ll set up default groups, roles and an org certificate group. You’ll be the owner.</p></div></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><label for="c-name">Name</label><input class="input" id="c-name" value="Launch team"></div>
+        <div class="field"><label for="c-slug">Address</label><div class="input-group"><span class="small">exprsn.io/</span><input id="c-slug" value="launch-team"></div></div>
+        <div class="field"><label for="c-type">Type</label><select class="select" id="c-type"><option>Team</option><option>Personal</option></select></div>
+        <div class="field"><label for="c-site">Website</label><input class="input" id="c-site" type="url" placeholder="https://"></div>
+        <div class="field full"><label for="c-desc">Description</label><textarea class="textarea" id="c-desc" style="min-height:64px"></textarea></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Launch team created">Create organization</button></div>
+  </dialog>
+
+  <!-- Edit org -->
+  <dialog class="dialog" id="dlg-edit" aria-labelledby="dlg-edit-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-edit-t">Edit Exprsn HQ</h2></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="e-name">Name</label><input class="input" id="e-name" value="Exprsn HQ"></div>
+      <div class="field"><label for="e-desc">Description</label><textarea class="textarea" id="e-desc" style="min-height:64px">The team building Exprsn.</textarea></div>
+      <div class="field"><label for="e-mail">Contact email</label><input class="input" id="e-mail" type="email" value="hello@exprsn.io"></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Saved" data-api="/auth/api/organizations/:id">Save</button></div>
+  </dialog>
+
+  <!-- Add people -->
+  <dialog class="dialog" id="dlg-add" aria-labelledby="dlg-add-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-add-t">Add people to Exprsn HQ</h2><p>Search people who already have an Exprsn account.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="add-q">People</label><div class="input-group"><span class="chip" aria-pressed="true">Sam Kim <span class="x">×</span></span><input id="add-q" placeholder="Search by name" data-api="/auth/api/users/directory"></div></div>
+      <div class="field"><label for="add-role">Role</label><select class="select" id="add-role"><option>Member</option><option>Admin</option></select></div>
+      <div class="banner info"><i data-i="mail" class="sm"></i><span class="grow small">Inviting by email isn’t available to org owners yet — ask a platform admin to send an invite.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Sam Kim added">Add</button></div>
+  </dialog>
+
+  <!-- Remove member -->
+  <dialog class="dialog sm" id="dlg-remove" aria-labelledby="dlg-remove-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-remove-t">Remove Maya Diaz from Exprsn HQ?</h2><p>She loses access to the org’s groups, files and applications right away.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Maya Diaz removed" data-api="/auth/api/organizations/:id/members/:userId">Remove</button></div>
+  </dialog>
+
+  <!-- Transfer -->
+  <dialog class="dialog sm" id="dlg-transfer" aria-labelledby="dlg-transfer-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-transfer-t">Transfer ownership of Exprsn HQ</h2><p>The new owner gets full control, including deleting the organization.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="tr-to">New owner</label><select class="select" id="tr-to"><option>Maya Diaz (admin)</option><option>Priya Raman</option></select></div>
+      <div class="field"><label for="tr-confirm">Type <b>exprsn-hq</b> to confirm</label><input class="input" id="tr-confirm" autocomplete="off"></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Maya Diaz is now the owner" data-api="/auth/api/organizations/:id/transfer-ownership">Transfer</button></div>
+  </dialog>
+
+  <!-- Leave -->
+  <dialog class="dialog sm" id="dlg-leave" aria-labelledby="dlg-leave-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-leave-t">Leave Exprsn HQ?</h2><p>You’re the owner. Transfer ownership first, then you can leave.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn outline" type="button" data-open="dlg-transfer">Transfer ownership</button><button class="btn danger" type="button" disabled>Leave</button></div>
+  </dialog>
+
+  <!-- Delete org -->
+  <dialog class="dialog sm" id="dlg-del" aria-labelledby="dlg-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-t">Delete Exprsn HQ?</h2><p>58 members lose access. Groups, roles, 3 applications and the org certificate group are removed. This can’t be undone.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="del-o">Type <b>exprsn-hq</b> to confirm</label><input class="input" id="del-o" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" disabled data-api="/auth/api/organizations/:id">Delete organization</button></div>
+  </dialog>
+
+  <!-- New application -->
+  <dialog class="dialog" id="dlg-app" aria-labelledby="dlg-app-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-app-t">New application</h2><p>Lets another app sign people in with Exprsn (OAuth 2.0 / OpenID Connect).</p></div></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><label for="a-name">Name</label><input class="input" id="a-name" value="Status page"></div>
+        <div class="field"><label for="a-type">Client type</label><select class="select" id="a-type"><option>Confidential (server)</option><option>Public (SPA / mobile, PKCE)</option></select></div>
+        <div class="field full"><label for="a-redirect">Redirect URIs</label><textarea class="textarea mono" id="a-redirect" style="min-height:64px">https://status.exprsn.io/oauth/callback</textarea><span class="help">One per line. Must be HTTPS except localhost.</span></div>
+        <div class="field full"><label for="a-scopes">Scopes</label><div class="row wrap" id="a-scopes" style="gap:6px"><button class="chip" type="button" data-toggle aria-pressed="true">openid</button><button class="chip" type="button" data-toggle aria-pressed="true">profile</button><button class="chip" type="button" data-toggle aria-pressed="true">email</button><button class="chip" type="button" data-toggle aria-pressed="false">groups</button></div></div>
+      </div>
+      <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Ask people for consent</div><div class="d">Recommended for anything not built by your team</div></div><label class="switch"><input type="checkbox" id="a-consent" checked aria-label="Require consent"><span></span></label></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Status page created — copy the client secret now">Create application</button></div>
+  </dialog>
+
+  <!-- Application detail -->
+  <dialog class="dialog lg" id="dlg-appd" aria-labelledby="dlg-appd-t">
+    <div class="dialog-head"><span class="avatar lg sq g2"><i data-i="apps"></i></span><div class="grow"><h2 id="dlg-appd-t">Exprsn Wiki</h2><p>Confidential client · owned by Maya Diaz · created Feb 14</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><span class="label">Client ID</span><div class="inset row"><code class="grow truncate">client_7f2a4e0b91c91</code><button class="btn sm ghost" type="button" data-copy="client_7f2a4e0b91c91">Copy</button></div></div>
+        <div class="field"><span class="label">Client secret</span><div class="inset row"><code class="grow truncate" id="app-sec" data-value="sec_W1k1-9fD2qLz0rX7">••••••••••••</code><button class="btn sm ghost" type="button" data-reveal="app-sec" aria-pressed="false">Reveal</button><button class="btn sm ghost" type="button" data-api="/auth/api/applications/:id/regenerate-secret" data-toast="New secret generated — the old one stops working now">Regenerate</button></div></div>
+      </div>
+      <div class="field"><label for="ad-redirect">Redirect URIs</label><textarea class="textarea mono" id="ad-redirect" style="min-height:72px">https://wiki.exprsn.io/auth/callback
+https://wiki-staging.exprsn.io/auth/callback</textarea></div>
+      <div class="inset stack tight" data-api="/auth/api/applications/:id/check-access">
+        <b class="small">Check someone’s access</b>
+        <div class="row wrap"><label class="sr-only" for="ca-user">Person</label><input class="input" id="ca-user" value="Priya Raman" style="flex:1 1 180px;width:auto"><button class="btn sm outline" type="button" data-toast="Priya Raman can sign in (member of Exprsn HQ)">Check</button></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-toast="Exprsn Wiki deleted" data-close data-api="/auth/api/applications/:id">Delete application</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Saved">Save</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "List–detail. Role changes save optimistically on select change and roll back if the PATCH fails, for example when demoting the last admin. Owner-only controls (transfer, delete) are hidden for admins, and members see a read-only member list plus Leave. Application secrets appear once, on create or regenerate, and are masked after that.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/organizations", "auth": "user", "ui": "Your organizations list" },
+    { "m": "POST", "p": "/auth/api/organizations/provision-self", "auth": "user", "ui": "New organization dialog (templated: groups, roles, CA group)" },
+    { "m": "POST", "p": "/auth/api/organizations", "auth": "user", "ui": "Fallback plain create (no template)" },
+    { "m": "GET", "p": "/auth/api/organizations/:id", "auth": "member", "ui": "Detail header, settings" },
+    { "m": "PATCH", "p": "/auth/api/organizations/:id", "auth": "owner/admin", "ui": "Edit dialog, Require 2FA switch" },
+    { "m": "DELETE", "p": "/auth/api/organizations/:id", "auth": "owner", "ui": "Delete organization (typed confirmation)" },
+    { "m": "GET", "p": "/auth/api/organizations/:id/members", "auth": "member", "ui": "Members table" },
+    { "m": "POST", "p": "/auth/api/organizations/:id/members", "auth": "owner/admin", "ui": "Add people dialog" },
+    { "m": "PATCH", "p": "/auth/api/organizations/:id/members/:userId", "auth": "owner/admin", "ui": "Role select per row" },
+    { "m": "DELETE", "p": "/auth/api/organizations/:id/members/:userId", "auth": "owner/admin/self", "ui": "Remove member; Leave (self)" },
+    { "m": "POST", "p": "/auth/api/organizations/:id/transfer-ownership", "auth": "owner", "ui": "Transfer ownership dialog (newOwnerId)" },
+    { "m": "GET", "p": "/auth/api/applications", "auth": "user", "ui": "Applications tab (?organizationId)" },
+    { "m": "POST", "p": "/auth/api/applications", "auth": "owner/admin", "ui": "New application dialog" },
+    { "m": "GET", "p": "/auth/api/applications/:id", "auth": "owner/admin", "ui": "Application detail dialog" },
+    { "m": "PATCH", "p": "/auth/api/applications/:id", "auth": "app owner/org admin", "ui": "Application detail → Save" },
+    { "m": "DELETE", "p": "/auth/api/applications/:id", "auth": "app owner/org admin", "ui": "Delete application" },
+    { "m": "POST", "p": "/auth/api/applications/:id/regenerate-secret", "auth": "app owner/org admin", "ui": "Regenerate secret" },
+    { "m": "GET", "p": "/auth/api/applications/:id/check-access", "auth": "user", "ui": "Check someone’s access (?userId)" },
+    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "Add people search" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "high", "text": "POST /auth/api/applications spreads the raw body into Application.create, with no allowlist unlike org create. Any org admin can set isTrusted, isFirstParty, clientSecret or allowedPermissions on a new app and skip consent for every user." },
+    { "sev": "med", "text": "Proposed: org-scoped email invites. POST /users/invites is platform-admin only, and POST /:id/members only adds existing accounts." },
+    { "sev": "med", "text": "No membership events exist (no org socket and dead CA helpers), so a member removed elsewhere still sees the org until they refresh. Proposed: org:member_removed on /notifications user:{id}." }
+  ]
+}
+</script>
+</body>
+</html>

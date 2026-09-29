@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vault · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .main :is(p, dd, .help) a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .vault { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; align-items: start; }
+  .ptree { list-style: none; margin: 0; padding: 0; }
+  .ptree ul { list-style: none; margin: 0; padding-left: 16px; }
+  .ptree a { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border-radius: 8px; color: var(--exprsn-text-secondary); font-family: var(--exprsn-font-family-mono); font-size: .8125rem; }
+  .ptree a:hover { background: var(--exprsn-bg-hover); text-decoration: none; }
+  .ptree a[aria-current="true"] { background: color-mix(in srgb, var(--exprsn-primary) 10%, transparent); color: var(--v2-primary-fg); font-weight: 600; }
+  .ptree .n { margin-left: auto; font-family: var(--exprsn-font-family); font-size: .6875rem; color: var(--exprsn-text-secondary); }
+  .ptree-wrap { padding: 8px; }
+  .secret-val { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--exprsn-bg-tertiary); border: 1px solid var(--exprsn-border-color); min-width: 0; }
+  .secret-val code { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  @media (max-width: 1100px) { .vault { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body data-shell="app" data-page="vault">
+<main id="main">
+  <div class="page wide">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Vault</h1>
+        <p class="page-sub">Secrets, encryption keys and short-lived credentials for you and your teams. Every read and write is audited.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-dyn" data-api="/vault/api/dynamic/database"><i data-i="db" class="sm"></i>Get DB credentials</button>
+        <button class="btn primary" type="button" data-open="dlg-new" data-api="/vault/api/secrets"><i data-i="plus" class="sm"></i>New secret</button>
+      </div>
+    </header>
+
+    <div class="banner warn" data-on="security:alert"><i data-i="shield" class="sm"></i><span class="grow"><b>Security alert:</b> 14 failed reads on <code>prod/stripe/api-key</code> from 198.51.100.40 in the last hour.</span><a class="btn sm outline" href="#p-audit">Review</a></div>
+
+    <div class="tabs" role="tablist" aria-label="Vault sections">
+      <button role="tab" id="t-sec" aria-controls="p-sec" aria-selected="true">Secrets</button>
+      <button role="tab" id="t-keys" aria-controls="p-keys">Keys</button>
+      <button role="tab" id="t-dyn" aria-controls="p-dyn">Credentials &amp; leases <span class="badge neutral">4</span></button>
+      <button role="tab" id="t-audit" aria-controls="p-audit">Audit</button>
+    </div>
+
+    <!-- ════ Secrets ════ -->
+    <section id="p-sec" role="tabpanel" aria-labelledby="t-sec">
+      <div class="vault">
+        <nav class="card ptree-wrap" aria-label="Secret paths" data-api="/vault/api/secrets">
+          <label class="input-group" style="min-height:38px;margin-bottom:8px"><i data-i="search" class="sm"></i><input id="pt-q" type="search" placeholder="Filter paths" style="min-height:36px"></label>
+          <span class="eyebrow" style="display:block;padding:6px 10px">Personal</span>
+          <ul class="ptree">
+            <li><a href="#"><i data-i="folder" class="sm"></i>dev/<span class="n">6</span></a></li>
+            <li><a href="#"><i data-i="folder" class="sm"></i>prod/<span class="n">11</span></a>
+              <ul>
+                <li><a href="#"><i data-i="folder" class="sm"></i>stripe/<span class="n">2</span></a>
+                  <ul><li><a href="#" aria-current="true"><i data-i="key" class="sm"></i>api-key</a></li><li><a href="#"><i data-i="key" class="sm"></i>webhook-secret</a></li></ul>
+                </li>
+                <li><a href="#"><i data-i="folder" class="sm"></i>postgres/<span class="n">3</span></a></li>
+              </ul>
+            </li>
+          </ul>
+          <span class="eyebrow" style="display:block;padding:12px 10px 6px">Team · Platform guild</span>
+          <ul class="ptree" data-api="/vault/api/groups/:groupId/secrets">
+            <li><a href="#"><i data-i="groups" class="sm"></i>oncall/pagerduty<span class="n">shared</span></a></li>
+            <li><a href="#"><i data-i="groups" class="sm"></i>ci/registry-token<span class="n">shared</span></a></li>
+          </ul>
+        </nav>
+
+        <div>
+          <!-- Loaded -->
+          <article class="card" data-state="loaded" data-api="/vault/api/secrets/:path" data-on="audit:log">
+            <div class="card-head">
+              <div class="stack tight" style="min-width:0"><span class="eyebrow">Secret</span><h2 class="mono truncate" style="font-size:1rem">prod/stripe/api-key</h2></div>
+              <div class="row" style="gap:6px"><span class="pill ok">Active</span><span class="pill info">v7</span></div>
+            </div>
+            <div class="card-body stack loose">
+              <div class="field"><span class="label">Value</span>
+                <div class="secret-val"><code id="sv" class="secret" data-value="demo-payments-key-not-real-7Q2x">••••••••••••</code>
+                  <button class="btn sm ghost" type="button" data-reveal="sv" aria-pressed="false"><i data-i="eye" class="sm"></i>Reveal</button>
+                  <button class="btn sm ghost" type="button" data-copy="demo-payments-key-not-real-7Q2x"><i data-i="copy" class="sm"></i>Copy</button>
+                </div>
+                <span class="help">Revealing and copying are logged. The value hides again after 30 seconds.</span>
+              </div>
+              <dl class="kv">
+                <dt>Type</dt><dd>API key · Stripe</dd>
+                <dt>Created</dt><dd>Mar 3, 2026 by Priya Raman</dd>
+                <dt>Last rotated</dt><dd>Aug 31, 2026 · v7</dd>
+                <dt>Rotation policy</dt><dd>Every 30 days · <span style="color:var(--v2-warn-fg);font-weight:600">due in 3 days</span></dd>
+                <dt>Read by</dt><dd>billing-worker, deploy-bot (last 24 h)</dd>
+                <dt>Tags</dt><dd><span class="chip">payments</span> <span class="chip">pci</span></dd>
+              </dl>
+              <section aria-labelledby="ver-t" class="stack">
+                <h3 id="ver-t" class="small" style="font-weight:600">Recent versions</h3>
+                <div class="activity">
+                  <div class="activity-item"><span class="ico"><i data-i="refresh"></i></span><span><b>v7</b> rotated by <b>Priya Raman</b> (scheduled)</span><span class="when">Aug 31</span></div>
+                  <div class="activity-item"><span class="ico"><i data-i="refresh"></i></span><span><b>v6</b> rotated by <b>you</b> after contractor offboarding</span><span class="when">Aug 2</span></div>
+                  <div class="activity-item"><span class="ico"><i data-i="edit"></i></span><span><b>v5</b> metadata updated (tags)</span><span class="when">Jul 18</span></div>
+                </div>
+              </section>
+            </div>
+            <div class="card-foot" style="justify-content:space-between;flex-wrap:wrap">
+              <button class="btn sm danger-outline" type="button" data-open="dlg-del">Delete</button>
+              <div class="row wrap" style="gap:6px">
+                <button class="btn sm outline" type="button" data-open="dlg-share" data-api="/vault/api/groups/:groupId/secrets/:path/share"><i data-i="share" class="sm"></i>Share with team</button>
+                <button class="btn sm outline" type="button" data-open="dlg-edit" data-api="/vault/api/secrets/:path"><i data-i="edit" class="sm"></i>Edit</button>
+                <button class="btn sm primary" type="button" data-open="dlg-rotate" data-api="/vault/api/secrets/:path/rotate"><i data-i="refresh" class="sm"></i>Rotate now</button>
+              </div>
+            </div>
+          </article>
+
+          <div class="card" data-state="empty"><div class="empty"><div class="art"><i data-i="lock"></i></div><h3>No secrets yet</h3><p>Store API keys, passwords and certificates here instead of in .env files. Paths like <code>prod/stripe/api-key</code> keep things tidy.</p><button class="btn primary" type="button" data-open="dlg-new">New secret</button></div></div>
+          <div class="card pad stack" data-state="loading" aria-busy="true" aria-label="Loading secret"><span class="sk" style="width:40%;height:18px"></span><span class="sk" style="height:44px"></span><span class="sk" style="width:70%"></span><span class="sk" style="width:60%"></span><span class="sk" style="width:80%"></span></div>
+          <div class="card" data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>You don’t have access to this secret</h3><p>Your token lacks <b>read</b> on <code>/secrets/prod/*</code>. Ask a Vault admin to update your policy. Reference <code>cid 7d91…3e2</code>.</p><button class="btn outline" type="button">Request access</button></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════ Keys ════ -->
+    <section id="p-keys" role="tabpanel" aria-labelledby="t-keys" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="k-q" type="search" placeholder="Search keys"></label><span class="grow"></span><button class="btn sm outline" type="button" data-open="dlg-crypt" data-api="/vault/api/keys/encrypt /vault/api/keys/decrypt">Encrypt / decrypt</button><button class="btn sm primary" type="button" data-open="dlg-key" data-api="/vault/api/keys/generate"><i data-i="plus" class="sm"></i>Generate key</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/vault/api/keys">
+            <thead><tr><th>Key</th><th>Algorithm</th><th>Purpose</th><th class="num">Version</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><div class="stack tight"><b>customer-pii</b><span class="id">key_4b21e0</span></div></td><td>AES-256-GCM</td><td>Encryption</td><td class="num">3</td><td><span class="pill ok">Active</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/vault/api/keys/:keyId/rotate" data-toast="customer-pii rotated to v4">Rotate</button><button class="btn sm ghost" type="button" data-api="/vault/api/keys/:keyId">Details</button></td></tr>
+              <tr><td><div class="stack tight"><b>webhook-signing</b><span class="id">key_90ac13</span></div></td><td>HMAC-SHA256</td><td>Signing</td><td class="num">1</td><td><span class="pill ok">Active</span></td><td class="actions"><button class="btn sm ghost" type="button">Rotate</button><button class="btn sm ghost" type="button">Details</button></td></tr>
+              <tr><td><div class="stack tight"><b>legacy-backup</b><span class="id">key_1f0d77</span></div></td><td>AES-256-GCM</td><td>Encryption</td><td class="num">5</td><td><span class="pill warn">Decrypt only</span></td><td class="actions"><button class="btn sm danger-outline" type="button" data-open="dlg-key-del">Destroy</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════ Credentials & leases ════ -->
+    <section id="p-dyn" role="tabpanel" aria-labelledby="t-dyn" class="stack loose" hidden>
+      <div class="card dt">
+        <div class="card-head"><div class="stack tight"><h2>Active leases</h2><span class="xs muted">Short-lived credentials that expire on their own</span></div><div class="row" style="gap:6px"><button class="btn sm outline" type="button" data-open="dlg-dyn">Database</button><button class="btn sm outline" type="button" data-api="/vault/api/dynamic/api-key" data-toast="API key issued · lease 1 h">API key</button></div></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/vault/api/dynamic/leases" data-on="token:event">
+            <thead><tr><th>Lease</th><th>Type</th><th>Issued to</th><th class="num">Expires</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><span class="id">lease_db_8e21</span></td><td>Postgres · read-only</td><td>you (psql)</td><td class="num"><span style="color:var(--v2-warn-fg);font-weight:600">in 12 min</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/vault/api/dynamic/leases/:leaseId/renew" data-toast="Lease renewed · 1 h">Renew</button><button class="btn sm danger-outline" type="button" data-open="dlg-lease" data-api="/vault/api/dynamic/leases/:leaseId">Revoke</button></td></tr>
+              <tr><td><span class="id">lease_db_77fa</span></td><td>Postgres · read-write</td><td>migrate-job</td><td class="num">in 48 min</td><td class="actions"><button class="btn sm ghost" type="button">Renew</button><button class="btn sm danger-outline" type="button" data-open="dlg-lease">Revoke</button></td></tr>
+              <tr><td><span class="id">lease_api_03c9</span></td><td>API key</td><td>status-page</td><td class="num">in 6 h</td><td class="actions"><button class="btn sm ghost" type="button">Renew</button><button class="btn sm danger-outline" type="button" data-open="dlg-lease">Revoke</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card dt">
+        <div class="card-head"><div class="stack tight"><h2>Stored service credentials</h2><span class="xs muted">Long-lived usernames and passwords, grouped by service</span></div><button class="btn sm primary" type="button" data-open="dlg-cred" data-api="/vault/api/credentials/:service/:name"><i data-i="plus" class="sm"></i>Add</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/vault/api/credentials">
+            <thead><tr><th>Service</th><th>Name</th><th>Username</th><th class="num">Updated</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td>smtp</td><td><b>transactional</b></td><td class="mono">postmaster@exprsn.io</td><td class="num">Sep 1</td><td class="actions"><button class="btn sm ghost" type="button" data-api="/vault/api/credentials/:service/:name">View</button><button class="btn sm ghost" type="button" data-open="dlg-cred-del">Delete</button></td></tr>
+              <tr><td>registry</td><td><b>ghcr</b></td><td class="mono">exprsn-ci</td><td class="num">Aug 14</td><td class="actions"><button class="btn sm ghost" type="button">View</button><button class="btn sm ghost" type="button">Delete</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════ Audit ════ -->
+    <section id="p-audit" role="tabpanel" aria-labelledby="t-audit" class="stack loose" hidden>
+      <div class="grid c4" data-api="/vault/api/audit/stats">
+        <div class="card stat"><span class="label">Reads (24 h)</span><span class="value">1,284</span></div>
+        <div class="card stat"><span class="label">Writes (24 h)</span><span class="value">36</span></div>
+        <div class="card stat"><span class="label">Denied</span><span class="value">14</span><span class="delta down">+14 in 1 h</span></div>
+        <div class="card stat"><span class="label">Rotations due</span><span class="value">3</span></div>
+      </div>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="au-q" type="search" placeholder="Filter by path, actor or action"></label><button class="chip" type="button" aria-pressed="true">Denied only <span class="x">×</span></button><span class="grow"></span><button class="btn sm outline" type="button" data-api="/vault/api/audit/export" data-toast="Export started — vault-audit.csv"><i data-i="download" class="sm"></i>Export</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/vault/api/audit/logs" data-on="audit:log">
+            <thead><tr><th class="num">Time</th><th>Actor</th><th>Action</th><th>Path</th><th>Result</th><th>Source</th></tr></thead>
+            <tbody>
+              <tr><td class="num">09:41:07</td><td>unknown token</td><td>read</td><td class="mono">prod/stripe/api-key</td><td><span class="pill danger">Denied</span></td><td class="mono">198.51.100.40</td></tr>
+              <tr><td class="num">09:40:52</td><td>unknown token</td><td>read</td><td class="mono">prod/stripe/api-key</td><td><span class="pill danger">Denied</span></td><td class="mono">198.51.100.40</td></tr>
+              <tr><td class="num">09:12:30</td><td>billing-worker</td><td>read</td><td class="mono">prod/stripe/api-key</td><td><span class="pill ok">Allowed</span></td><td class="mono">10.0.4.12</td></tr>
+              <tr><td class="num">08:03:11</td><td>Priya Raman</td><td>rotate</td><td class="mono">prod/postgres/app</td><td><span class="pill ok">Allowed</span></td><td class="mono">203.0.113.24</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- New secret -->
+  <dialog class="dialog" id="dlg-new" aria-labelledby="dlg-new-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-new-t">New secret</h2><p>Values are encrypted before they’re stored.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="ns-path">Path</label><input class="input mono" id="ns-path" value="prod/sendgrid/api-key"><span class="help">Use folders like <code>env/service/name</code>.</span></div>
+      <div class="field"><label for="ns-val">Value</label><textarea class="textarea mono" id="ns-val" style="min-height:72px" placeholder="Paste the secret"></textarea></div>
+      <div class="form-grid"><div class="field"><label for="ns-rot">Rotate every</label><select class="select" id="ns-rot"><option>30 days</option><option>90 days</option><option>Never</option></select></div><div class="field"><label for="ns-tags">Tags</label><input class="input" id="ns-tags" placeholder="email, prod"></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Secret saved">Save secret</button></div>
+  </dialog>
+
+  <!-- Edit -->
+  <dialog class="dialog" id="dlg-edit" aria-labelledby="dlg-edit-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-edit-t">Edit prod/stripe/api-key</h2><p>Changing the value creates v8.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="ed-val">New value</label><textarea class="textarea mono" id="ed-val" style="min-height:72px"></textarea></div><div class="field"><label for="ed-tags">Tags</label><input class="input" id="ed-tags" value="payments, pci"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Saved as v8">Save</button></div>
+  </dialog>
+
+  <!-- Rotate -->
+  <dialog class="dialog sm" id="dlg-rotate" aria-labelledby="dlg-rotate-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rotate-t">Rotate prod/stripe/api-key?</h2><p>Creates v8. Apps reading this path get the new value on their next read; v7 stays readable for 1 hour.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rt-val">New value (leave empty to generate)</label><input class="input mono" id="rt-val"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Rotated to v8">Rotate</button></div>
+  </dialog>
+
+  <!-- Delete secret -->
+  <dialog class="dialog sm" id="dlg-del" aria-labelledby="dlg-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-t">Delete prod/stripe/api-key?</h2><p>billing-worker and deploy-bot read it in the last 24 hours and will start failing.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="del-c">Type <b>api-key</b> to confirm</label><input class="input" id="del-c" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" disabled data-api="/vault/api/secrets/:path">Delete secret</button></div>
+  </dialog>
+
+  <!-- Share with team -->
+  <dialog class="dialog" id="dlg-share" aria-labelledby="dlg-share-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-share-t">Share with a team</h2><p>Group admins can reveal shared secrets; members see that they exist.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="sh-grp">Group</label><select class="select" id="sh-grp"><option>Platform guild</option><option>Northwind leads</option></select></div>
+      <div class="list card" data-api="/vault/api/groups/:groupId/secrets/:path/reveal"><div class="list-item"><i data-i="groups" class="sm"></i><span class="grow">Already shared with <b>Platform guild</b></span><button class="btn sm danger-outline" type="button" data-toast="Unshared">Unshare</button></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Shared with Platform guild">Share</button></div>
+  </dialog>
+
+  <!-- Dynamic DB creds -->
+  <dialog class="dialog" id="dlg-dyn" aria-labelledby="dlg-dyn-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dyn-t">Get database credentials</h2><p>A one-off Postgres user that’s deleted when the lease ends.</p></div></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><label for="dy-db">Database</label><select class="select" id="dy-db"><option>exprsn (prod replica)</option><option>exprsn_staging</option></select></div>
+        <div class="field"><label for="dy-role">Access</label><select class="select" id="dy-role"><option>Read-only</option><option>Read-write</option></select></div>
+        <div class="field"><label for="dy-ttl">Lease</label><select class="select" id="dy-ttl"><option>1 hour</option><option>15 minutes</option><option>8 hours</option></select></div>
+      </div>
+      <div class="inset stack tight"><span class="small secondary">Connection string (shown once)</span><div class="row"><code class="grow truncate" id="dy-conn" data-value="postgres://v-rick-ro-8e21:Q7p…@db.exprsn.io:5432/exprsn">••••••••••••</code><button class="btn sm ghost" type="button" data-reveal="dy-conn" aria-pressed="false">Reveal</button><button class="btn sm ghost" type="button" data-copy="postgres://v-rick-ro-8e21@db.exprsn.io:5432/exprsn">Copy</button></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Credentials issued · expire in 1 h" data-api="/vault/api/credentials/database/generate">Issue credentials</button></div>
+  </dialog>
+
+  <!-- Revoke lease -->
+  <dialog class="dialog sm" id="dlg-lease" aria-labelledby="dlg-lease-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-lease-t">Revoke lease_db_8e21?</h2><p>The Postgres user is dropped now and open connections are closed.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Lease revoked">Revoke</button></div>
+  </dialog>
+
+  <!-- Generate key -->
+  <dialog class="dialog sm" id="dlg-key" aria-labelledby="dlg-key-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-key-t">Generate key</h2><p>Key material never leaves Vault.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="gk-name">Name</label><input class="input" id="gk-name" value="invoice-archive"></div><div class="field"><label for="gk-alg">Algorithm</label><select class="select" id="gk-alg"><option>AES-256-GCM</option><option>HMAC-SHA256</option><option>RSA-4096</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="invoice-archive created">Generate</button></div>
+  </dialog>
+
+  <!-- Encrypt / decrypt -->
+  <dialog class="dialog" id="dlg-crypt" aria-labelledby="dlg-crypt-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-crypt-t">Encrypt or decrypt</h2><p>Use a Vault key without downloading it.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="seg" role="group" aria-label="Operation"><button type="button" aria-pressed="true">Encrypt</button><button type="button" aria-pressed="false">Decrypt</button></div>
+      <div class="field"><label for="cr-key">Key</label><select class="select" id="cr-key"><option>customer-pii (v3)</option></select></div>
+      <div class="field"><label for="cr-in">Plaintext</label><textarea class="textarea mono" id="cr-in" style="min-height:64px">ssn=***-**-1234</textarea></div>
+      <pre class="code">vault:v3:q0Xn9m…4pZw==</pre>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-copy="vault:v3:q0Xn9m4pZw==">Copy result</button><button class="btn primary" type="button" data-toast="Encrypted with customer-pii v3">Run</button></div>
+  </dialog>
+
+  <!-- Destroy key -->
+  <dialog class="dialog sm" id="dlg-key-del" aria-labelledby="dlg-key-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-key-del-t">Destroy legacy-backup?</h2><p>Anything encrypted with it becomes unreadable forever.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="legacy-backup destroyed" data-api="/vault/api/keys/:keyId">Destroy key</button></div>
+  </dialog>
+
+  <!-- Store credential -->
+  <dialog class="dialog" id="dlg-cred" aria-labelledby="dlg-cred-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cred-t">Store a service credential</h2></div></div>
+    <div class="dialog-body"><div class="form-grid"><div class="field"><label for="sc-svc">Service</label><input class="input" id="sc-svc" value="smtp"></div><div class="field"><label for="sc-name">Name</label><input class="input" id="sc-name" value="marketing"></div><div class="field"><label for="sc-user">Username</label><input class="input" id="sc-user"></div><div class="field"><label for="sc-pass">Password</label><input class="input" id="sc-pass" type="password"></div></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Credential stored">Store</button></div>
+  </dialog>
+
+  <!-- Delete credential -->
+  <dialog class="dialog sm" id="dlg-cred-del" aria-labelledby="dlg-cred-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cred-del-t">Delete smtp/transactional?</h2><p>Apps using this credential will fail to send email.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Credential deleted">Delete</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Path tree plus detail. Values are never fetched with the list: reveal and copy call GET …/:path?includeValue=true, and each call is audited. Rotate and edit bump the version and update the detail optimistically. The page subscribes to /vault for live audit rows and security alerts, but in production that namespace only authorises /admin/* tokens, so non-admins fall back to polling audit/logs every 30 s.",
+  "rest": [
+    { "m": "GET", "p": "/vault/api/secrets", "auth": "CA bearer, read + scope /secrets", "ui": "Path tree (?pathPrefix, status)" },
+    { "m": "GET", "p": "/vault/api/secrets/:path", "auth": "read /secrets", "ui": "Secret detail; Reveal/Copy (?includeValue)" },
+    { "m": "POST", "p": "/vault/api/secrets/:path", "auth": "write /secrets", "ui": "New secret dialog" },
+    { "m": "PUT", "p": "/vault/api/secrets/:path", "auth": "write /secrets", "ui": "Edit dialog (new version)" },
+    { "m": "DELETE", "p": "/vault/api/secrets/:path", "auth": "delete /secrets", "ui": "Delete (typed confirmation)" },
+    { "m": "POST", "p": "/vault/api/secrets/:path/rotate", "auth": "write /secrets (strict RL)", "ui": "Rotate now dialog" },
+    { "m": "GET", "p": "/vault/api/groups/:groupId/secrets", "auth": "grp-member", "ui": "Tree → Team section" },
+    { "m": "GET", "p": "/vault/api/groups/:groupId/secrets/:path/reveal", "auth": "grp-admin", "ui": "Reveal a team secret" },
+    { "m": "POST", "p": "/vault/api/groups/:groupId/secrets/:path/share", "auth": "owner/grp-admin", "ui": "Share with team dialog" },
+    { "m": "DELETE", "p": "/vault/api/groups/:groupId/secrets/:path/share", "auth": "owner/grp-admin", "ui": "Unshare" },
+    { "m": "GET", "p": "/vault/api/keys", "auth": "read /keys", "ui": "Keys table" },
+    { "m": "GET", "p": "/vault/api/keys/:keyId", "auth": "read /keys", "ui": "Key details" },
+    { "m": "POST", "p": "/vault/api/keys/generate", "auth": "write /keys", "ui": "Generate key dialog" },
+    { "m": "POST", "p": "/vault/api/keys/encrypt", "auth": "read /keys", "ui": "Encrypt / decrypt dialog" },
+    { "m": "POST", "p": "/vault/api/keys/decrypt", "auth": "read /keys", "ui": "Encrypt / decrypt dialog" },
+    { "m": "POST", "p": "/vault/api/keys/:keyId/rotate", "auth": "write /keys", "ui": "Rotate row action" },
+    { "m": "DELETE", "p": "/vault/api/keys/:keyId", "auth": "write /keys", "ui": "Destroy key dialog" },
+    { "m": "GET", "p": "/vault/api/credentials", "auth": "read /credentials", "ui": "Stored service credentials table" },
+    { "m": "GET", "p": "/vault/api/credentials/:service/:name", "auth": "read /credentials", "ui": "View credential" },
+    { "m": "POST", "p": "/vault/api/credentials/:service/:name", "auth": "write /credentials", "ui": "Store credential dialog" },
+    { "m": "PUT", "p": "/vault/api/credentials/:service/:name", "auth": "write /credentials", "ui": "Edit credential: returns 501, so the UI uses delete + store" },
+    { "m": "DELETE", "p": "/vault/api/credentials/:service/:name", "auth": "write /credentials", "ui": "Delete credential dialog" },
+    { "m": "POST", "p": "/vault/api/credentials/database/generate", "auth": "write /credentials", "ui": "Get DB credentials (static-role variant)" },
+    { "m": "POST", "p": "/vault/api/dynamic/database", "auth": "write /dynamic", "ui": "Get DB credentials dialog" },
+    { "m": "POST", "p": "/vault/api/dynamic/api-key", "auth": "write /dynamic", "ui": "Leases → API key" },
+    { "m": "GET", "p": "/vault/api/dynamic/leases", "auth": "read /dynamic", "ui": "Active leases table" },
+    { "m": "POST", "p": "/vault/api/dynamic/leases/:leaseId/renew", "auth": "write /dynamic", "ui": "Renew lease" },
+    { "m": "DELETE", "p": "/vault/api/dynamic/leases/:leaseId", "auth": "write /dynamic", "ui": "Revoke lease dialog" },
+    { "m": "GET", "p": "/vault/api/audit/logs", "auth": "read /audit", "ui": "Audit table" },
+    { "m": "GET", "p": "/vault/api/audit/stats", "auth": "read /audit", "ui": "Audit stat tiles" },
+    { "m": "GET", "p": "/vault/api/audit/export", "auth": "read /audit", "ui": "Export CSV" }
+  ],
+  "socket": [
+    { "ns": "/vault", "auth": "handshake auth.token (prod: CA read on /admin/*; non-prod: any token)", "rooms": ["admin", "{channel}"],
+      "emit": [
+        { "e": "subscribe", "ui": "Page mount → channel secrets:{path} (unvalidated)" },
+        { "e": "unsubscribe", "ui": "Leaving a path / unmount" },
+        { "e": "ping", "ui": "Heartbeat" }
+      ],
+      "on": [
+        { "e": "connected", "ui": "Clears “live updates paused”" },
+        { "e": "token:event", "ui": "Leases table: created/revoked" },
+        { "e": "security:alert", "ui": "Warning banner above tabs" },
+        { "e": "audit:log", "ui": "Prepends an audit row; bumps “Read by”" },
+        { "e": "server:shutdown", "ui": "Reconnecting banner" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "In non-production, /vault accepts ANY handshake token as dev_user with every permission, and every socket joins the admin room, so any client receives every tenant's token:event, security:alert and audit:log. Staging must not run with NODE_ENV≠production." },
+    { "sev": "med", "text": "security:alert, audit:log, stats:update and policy:event have no callers yet. Only token:event (tokenService create/revoke) fires, so the banner and live audit rows are design targets." },
+    { "sev": "med", "text": "subscribe accepts any client-chosen channel with no authorisation check. Rooms must not be treated as private until they're validated against the token's policy." },
+    { "sev": "med", "text": "Proposed: version history. Secrets carry only a version counter (no GET for past versions or diffs), so “Recent versions” comes from audit/logs filtered to the path." },
+    { "sev": "med", "text": "Every route validates the CA token with resourceType vault and then enforceResourceScope(prefix). If the ordinary login token doesn't carry a vault-scoped resource, users need a vault-scoped CA token first. Confirm the login-token scope before relying on this page for non-admins." }
+  ]
+}
+</script>
+</body>
+</html>

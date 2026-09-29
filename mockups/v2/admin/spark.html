@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spark · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .chart { width: 100%; max-width: 560px; height: auto; display: block; }
+  .chart .gl { stroke: var(--exprsn-border-color); }
+  .chart .bw { fill: var(--exprsn-primary); } .chart .bf { fill: var(--exprsn-danger); }
+  .chart text { fill: var(--exprsn-text-secondary); font-size: 12px; font-family: var(--exprsn-font-family); }
+  .chart text.v { fill: var(--exprsn-text-primary); font-weight: 600; }
+  .legend { display: flex; gap: 14px; font-size: .75rem; color: var(--exprsn-text-secondary); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+</style>
+</head>
+<body data-shell="admin" data-page="spark">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Services</span><i data-i="right" class="sm"></i><span>Spark</span></nav>
+        <h1 class="page-title">Spark</h1>
+        <p class="page-sub">Messaging operations: the five background queues, encryption key health, moderation outcomes and runtime settings. Encrypted message bodies are never visible to admins.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="jobs.html"><i data-i="layers" class="sm"></i>All queues</a>
+        <button class="btn primary" type="button" data-open="dlg-config" data-api="/spark/api/config/:sectionId"><i data-i="tune" class="sm"></i>Messaging settings</button>
+      </div>
+    </header>
+
+    <div class="banner danger" role="note"><i data-i="alert" class="sm"></i><span class="grow"><b>Edits made over REST don’t reach open chats.</b> Pins, replies, edits, deletes and participant changes are emitted on the root namespace, so <code>/spark</code> clients never see them until they refresh. See the Realtime tab.</span></div>
+
+    <div class="grid c4" data-api="/spark/api/config/:sectionId">
+      <div class="card stat"><span class="label"><i data-i="chat" class="sm"></i>Messages</span><span class="value">9.8M</span><span class="delta up">+212k today</span></div>
+      <div class="card stat"><span class="label"><i data-i="people" class="sm"></i>Conversations</span><span class="value">184,020</span><span class="delta">31% group</span></div>
+      <div class="card stat"><span class="label"><i data-i="lock" class="sm"></i>Encrypted</span><span class="value">62%</span><div class="meter" role="img" aria-label="62 percent of messages end-to-end encrypted"><i style="width:62%"></i></div></div>
+      <div class="card stat" data-api="/spark/api/queues/stats"><span class="label"><i data-i="alert" class="sm"></i>Failed jobs</span><span class="value">23</span><span class="delta down">file-processing: 19</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Spark admin views">
+      <button role="tab" id="t-q" aria-controls="p-q" aria-selected="true">Queues</button>
+      <button role="tab" id="t-e2" aria-controls="p-e2">Encryption keys</button>
+      <button role="tab" id="t-mod" aria-controls="p-mod">Moderation</button>
+      <button role="tab" id="t-rt" aria-controls="p-rt">Realtime</button>
+      <button role="tab" id="t-cfg" aria-controls="p-cfg">Config</button>
+    </div>
+
+    <!-- ── Queues ── -->
+    <section id="p-q" role="tabpanel" aria-labelledby="t-q">
+      <div class="stack loose">
+        <div class="card dt">
+          <div class="dt-toolbar"><b>Bull queues</b><span class="grow"></span><span class="pill info">Polling · 10 s</span><button class="icon-btn" type="button" aria-label="Refresh queues" data-api="/spark/api/queues/stats"><i data-i="refresh"></i></button></div>
+          <div class="dt-scroll" data-state="loaded">
+            <table class="table" data-api="/spark/api/queues/stats /spark/api/queues/:name/stats">
+              <thead><tr><th>Queue</th><th class="num">Waiting</th><th class="num">Active</th><th class="num">Completed</th><th class="num">Failed</th><th class="num">Delayed</th><th>State</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                <tr><td><b>notification</b></td><td class="num">124</td><td class="num">8</td><td class="num">1.2M</td><td class="num">2</td><td class="num">0</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-pause" data-api="/spark/api/queues/:name/pause">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean" data-api="/spark/api/queues/:name/clean">Clean</button></td></tr>
+                <tr><td><b>indexing</b></td><td class="num">40</td><td class="num">2</td><td class="num">980k</td><td class="num">0</td><td class="num">0</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-pause">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+                <tr><td><b>file-processing</b></td><td class="num">310</td><td class="num">0</td><td class="num">88k</td><td class="num">19</td><td class="num">4</td><td><span class="pill warn">paused</span></td><td class="actions"><button class="btn sm tonal" type="button" data-api="/spark/api/queues/:name/resume" data-toast="file-processing resumed">Resume</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+                <tr><td><b>delivery-tracking</b></td><td class="num">12</td><td class="num">1</td><td class="num">2.4M</td><td class="num">2</td><td class="num">0</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-pause">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+                <tr><td><b>cleanup</b></td><td class="num">0</td><td class="num">0</td><td class="num">3,120</td><td class="num">0</td><td class="num">1</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-pause">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div data-state="empty"><div class="empty"><div class="art"><i data-i="layers"></i></div><h3>Queues aren’t registered</h3><p>Spark builds its queues at startup. None were found on the shared Redis — is the gateway running with <code>REDIS_URL</code> set?</p></div></div>
+          <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+          <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t read queue stats</h3><p>403 — queue routes require <code>req.user.isAdmin</code> on the CA token. Correlation id <code>cid a90e…31f</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+          <div class="dt-foot"><span>Spark has no job-level routes (list, retry, remove). Job detail moves to Jobs &amp; Queues once the aggregator lands.</span></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Backlog by queue</h2><div class="legend"><span><i style="background:var(--exprsn-primary)"></i>Waiting</span><span><i style="background:var(--exprsn-danger)"></i>Failed</span></div></div>
+          <div class="card-body" data-api="/spark/api/queues/stats">
+            <svg class="chart" viewBox="0 0 470 170" role="img" aria-label="Waiting jobs: file-processing 310 with 19 failed, notification 124 with 2 failed, indexing 40, delivery-tracking 12 with 2 failed, cleanup 0">
+              <line class="gl" x1="120" y1="0" x2="120" y2="160"/>
+              <text x="0" y="23">file-processing</text><rect class="bw" x="120" y="10" width="280" height="18" rx="4"/><rect class="bf" x="400" y="10" width="17.2" height="18" rx="4"/><text class="v" x="423" y="23">329</text>
+              <text x="0" y="53">notification</text><rect class="bw" x="120" y="40" width="112" height="18" rx="4"/><rect class="bf" x="232" y="40" width="1.8" height="18"/><text class="v" x="240" y="53">126</text>
+              <text x="0" y="83">indexing</text><rect class="bw" x="120" y="70" width="36.1" height="18" rx="4"/><text class="v" x="162" y="83">40</text>
+              <text x="0" y="113">delivery-tracking</text><rect class="bw" x="120" y="100" width="10.8" height="18" rx="3"/><rect class="bf" x="130.8" y="100" width="1.8" height="18"/><text class="v" x="138" y="113">14</text>
+              <text x="0" y="143">cleanup</text><text class="v" x="126" y="143">0</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Encryption keys ── -->
+    <section id="p-e2" role="tabpanel" aria-labelledby="t-e2" hidden>
+      <div class="grid c2">
+        <div class="card">
+          <div class="card-head"><h2>Key lookup</h2></div>
+          <div class="card-body stack">
+            <div class="field"><label for="k-user">Person</label><div class="input-group"><i data-i="person" class="sm"></i><input id="k-user" type="search" value="Sam Kim" data-api="/spark/api/encryption/keys/public/:userId"></div></div>
+            <div class="list card">
+              <div class="list-item"><i data-i="key"></i><span class="grow"><span class="title">iPhone · rsa-4096</span><div class="meta">sha256 4f:91:ac…e0 · last used 2 h ago · expires Mar 2027</div></span><span class="pill ok">active</span></div>
+              <div class="list-item"><i data-i="key"></i><span class="grow"><span class="title">MacBook · rsa-4096</span><div class="meta">sha256 b2:07:1d…9c · last used 41 d ago</div></span><span class="pill warn">stale</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Platform key health</h2><span class="pill violet">proposed</span></div>
+          <div class="card-body stack">
+            <div class="empty" style="padding:24px"><div class="art"><i data-i="lock"></i></div><h3>No admin key list yet</h3><p>Totals, stale devices and expiring keys need <code>GET /spark/api/admin/encryption-keys</code> (SPARK-3). Today only per-person public keys can be read.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Moderation ── -->
+    <section id="p-mod" role="tabpanel" aria-labelledby="t-mod" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Moderation actions on messages</h2><a class="btn sm outline" href="moderator.html">Open moderation queue</a></div>
+        <div class="card-body stack">
+          <dl class="kv"><dt>Text moderation</dt><dd><span class="pill ok">on</span> <code>SPARK_TEXT_MODERATION=true</code> (env, not in overrides)</dd><dt>Verdict sink</dt><dd>Moderator → <code>POST /spark/api/moderation/action</code> (service HMAC) → <code>message:redacted</code> to the conversation room</dd><dt>Encrypted messages</dt><dd>Skipped by design · reason <code>encrypted</code></dd></dl>
+          <div class="row wrap"><button class="btn outline" type="button" disabled title="Proposed admin route">Redact a message…</button><span class="xs muted">The action route is service-only; an admin redact route is proposed (SPARK-2).</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Realtime ── -->
+    <section id="p-rt" role="tabpanel" aria-labelledby="t-rt" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Where Spark events land</b></div>
+        <div class="dt-scroll">
+          <table class="table">
+            <thead><tr><th>Event</th><th>Origin</th><th>Namespace</th><th>Reaches chat clients?</th></tr></thead>
+            <tbody>
+              <tr><td><code>new:message</code></td><td>socket send:message</td><td>/spark · conversation:{id}</td><td><span class="pill ok"><i data-i="check" class="sm"></i>yes</span></td></tr>
+              <tr><td><code>new:message</code></td><td>REST group channels</td><td>/spark (via .of)</td><td><span class="pill ok"><i data-i="check" class="sm"></i>yes</span></td></tr>
+              <tr><td><code>message:redacted</code></td><td>moderation sink</td><td>/spark</td><td><span class="pill ok"><i data-i="check" class="sm"></i>yes</span></td></tr>
+              <tr><td><code>message:pinned</code> · <code>message:unpinned</code></td><td>REST</td><td>root (req.io)</td><td><span class="pill danger">no</span></td></tr>
+              <tr><td><code>message:edited</code> · <code>message:deleted</code> · <code>message:reply</code></td><td>REST</td><td>root (req.io)</td><td><span class="pill danger">no</span></td></tr>
+              <tr><td><code>message:new</code> · <code>participant:added</code></td><td>REST</td><td>root (req.io)</td><td><span class="pill danger">no</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>The console doesn’t join conversation rooms; this is a diagnostic view, not a live feed.</span></div>
+      </div>
+    </section>
+
+    <!-- ── Config ── -->
+    <section id="p-cfg" role="tabpanel" aria-labelledby="t-cfg" hidden>
+      <div class="banner warn" style="margin-bottom:16px"><i data-i="info" class="sm"></i><span><b>Runtime only.</b> messaging-* sections live in memory: they reset on restart and aren’t enforced (SPARK-4).</span></div>
+      <div class="card" data-api="/spark/api/config/:sectionId">
+        <div class="setting-row"><div class="grow"><div class="t">messaging-settings</div><div class="d">maxMessageLength 10,000 · enableE2EE true · fileUpload 100 MB</div></div><button class="btn sm outline" type="button" data-open="dlg-config">Edit</button></div>
+        <div class="setting-row"><div class="grow"><div class="t">messaging-moderation</div><div class="d">autoModeration true · spamDetection true · autoDeleteSpam false</div></div><button class="btn sm outline" type="button" data-open="dlg-config">Edit</button></div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog sm" id="dlg-pause" aria-labelledby="dlg-pa-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-pa-t">Pause the notification queue?</h2><p>124 waiting jobs stay queued; push and email notifications stop until you resume.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="notification paused · Undo">Pause queue</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-clean" aria-labelledby="dlg-cn-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cn-t">Clean the file-processing queue?</h2><p>Removes completed and failed jobs older than the grace period.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="cn-grace">Grace</label><input class="input" id="cn-grace" value="24h"><span class="help">= 86,400,000 ms</span></div><div class="field"><label for="cn-type">Job state</label><select class="select" id="cn-type"><option>completed</option><option>failed</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Cleaned 88,012 jobs">Clean queue</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-config" aria-labelledby="dlg-cf-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cf-t">Messaging settings</h2><p>Section <code>messaging-settings</code> · runtime only</p></div></div>
+    <form class="dialog-body" data-toast="Saved for this process only">
+      <div class="form-grid">
+        <div class="field"><label for="cf-len">Max message length</label><input class="input" id="cf-len" type="number" value="10000"></div>
+        <div class="field"><label for="cf-ret">Retention (days)</label><input class="input" id="cf-ret" type="number" value="365"></div>
+        <div class="field"><label for="cf-size">Max file size (MB)</label><input class="input" id="cf-size" type="number" value="100"></div>
+      </div>
+      <div class="setting-row" style="padding:0"><div class="grow"><div class="t">End-to-end encryption</div><div class="d">enableE2EE</div></div><label class="switch"><input type="checkbox" id="cf-e2" checked aria-label="Enable end-to-end encryption"><span></span></label></div>
+    </form>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Saved for this process only">Save</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Queue counts poll every 10 s; pause/resume are optimistic with Undo. The console never joins /spark conversation rooms — Spark realtime is user-scoped — so this screen has no socket subscription.",
+  "rest": [
+    { "m": "GET", "p": "/spark/api/queues/stats", "auth": "A", "ui": "Queues table, backlog chart, failed tile" },
+    { "m": "GET", "p": "/spark/api/queues/:name/stats", "auth": "A", "ui": "Row refresh after an action" },
+    { "m": "POST", "p": "/spark/api/queues/:name/pause", "auth": "A", "ui": "Pause dialog" },
+    { "m": "POST", "p": "/spark/api/queues/:name/resume", "auth": "A", "ui": "Row → Resume" },
+    { "m": "POST", "p": "/spark/api/queues/:name/clean", "auth": "A", "ui": "Clean dialog" },
+    { "m": "GET", "p": "/spark/api/config/:sectionId", "auth": "A", "ui": "Stat tiles (messaging-settings stats), Config tab" },
+    { "m": "POST", "p": "/spark/api/config/:sectionId", "auth": "A", "ui": "Messaging settings dialog" },
+    { "m": "GET", "p": "/spark/api/encryption/keys/public/:userId", "auth": "user", "ui": "Key lookup" },
+    { "m": "POST", "p": "/spark/api/encryption/keys/public/batch", "auth": "user", "ui": "Key lookup (several people)" },
+    { "m": "POST", "p": "/spark/api/moderation/action", "auth": "S", "ui": "Explained on Moderation tab (service-only)" },
+    { "m": "GET", "p": "/spark/health", "auth": "P", "ui": "Top-bar health" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "high", "text": "REST-originated message:new, message:pinned/unpinned, message:reply, message:edited, message:deleted and participant:added are emitted via req.io on the ROOT namespace and never reach /spark clients." },
+    { "sev": "med", "text": "No admin list of encryption keys, conversations or message-moderation rows (SPARK-1..3). Proposed: GET /spark/api/admin/encryption-keys." },
+    { "sev": "med", "text": "Moderation action route is service-only; proposed admin redact route (SPARK-2)." },
+    { "sev": "med", "text": "messaging-* config is in-memory, not persisted or enforced (SPARK-4). Spark queues have no job list/retry routes." }
+  ]
+}
+</script>
+</body>
+</html>

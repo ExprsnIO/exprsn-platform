@@ -285,73 +285,343 @@
 {
   "notes": "Feed tabs map 1:1 to /timeline/api/timeline feeds (cursor pagination). On mount the client emits subscribe:timeline (and subscribe:group for group feeds); new:post increments the '6 new posts' pill instead of shifting the list. Like/repost/bookmark are optimistic toggles that roll back with an inline banner on failure. Post/Quote create via POST /posts then attach media.",
   "rest": [
-    { "m": "GET", "p": "/timeline/api/timeline", "auth": "user", "ui": "Home tab" },
-    { "m": "GET", "p": "/timeline/api/timeline/global", "auth": "user", "ui": "Global tab" },
-    { "m": "GET", "p": "/timeline/api/timeline/explore", "auth": "user", "ui": "Explore tab (media grid)" },
-    { "m": "GET", "p": "/timeline/api/timeline/trending", "auth": "user", "ui": "Trending tab" },
-    { "m": "GET", "p": "/timeline/api/timeline/bookmarks", "auth": "user", "ui": "Saved button (Bookmarks page)" },
-    { "m": "GET", "p": "/timeline/api/timeline/likes", "auth": "user", "ui": "Profile → Likes (linked)" },
-    { "m": "GET", "p": "/timeline/api/timeline/group/:groupId", "auth": "user", "ui": "Group feed (group page Posts tab)" },
-    { "m": "POST", "p": "/timeline/api/posts", "auth": "user", "ui": "Composer, New post dialog, Quote dialog (quotedPostId)" },
-    { "m": "PUT", "p": "/timeline/api/posts/:id", "auth": "owner", "ui": "Post menu → Edit" },
-    { "m": "DELETE", "p": "/timeline/api/posts/:id", "auth": "owner", "ui": "Post menu → Delete" },
-    { "m": "POST", "p": "/timeline/api/posts/:id/like", "auth": "user", "ui": "Like (alt route; DELETE to unlike)" },
-    { "m": "POST", "p": "/timeline/api/posts/:id/repost", "auth": "user", "ui": "Repost (alt route; DELETE to undo)" },
-    { "m": "POST", "p": "/timeline/api/posts/:id/bookmark", "auth": "user", "ui": "Bookmark (alt route; DELETE to undo)" },
-    { "m": "POST", "p": "/timeline/api/interactions/:id/like", "auth": "user", "ui": "Heart toggle (DELETE to unlike)" },
-    { "m": "POST", "p": "/timeline/api/interactions/:id/repost", "auth": "user", "ui": "Repost toggle (DELETE to undo)" },
-    { "m": "POST", "p": "/timeline/api/interactions/:id/bookmark", "auth": "user", "ui": "Bookmark toggle (DELETE to undo)" },
-    { "m": "POST", "p": "/timeline/api/interactions/users/:id/follow", "auth": "user", "ui": "Who to follow → Follow (DELETE unfollow, GET status)" },
-    { "m": "POST", "p": "/timeline/api/interactions/users/:id/mute", "auth": "user", "ui": "Report dialog → Also mute (DELETE unmute)" },
-    { "m": "POST", "p": "/timeline/api/interactions/users/:id/block", "auth": "user", "ui": "Post menu → Block (DELETE unblock)" },
-    { "m": "GET", "p": "/timeline/api/interactions/mutes", "auth": "user", "ui": "Settings → muted accounts (linked)" },
-    { "m": "GET", "p": "/timeline/api/interactions/blocks", "auth": "user", "ui": "Settings → blocked accounts (linked)" },
-    { "m": "GET", "p": "/timeline/api/lists", "auth": "user", "ui": "Lists sheet" },
-    { "m": "POST", "p": "/timeline/api/lists", "auth": "user", "ui": "Lists sheet → Create list" },
-    { "m": "GET", "p": "/timeline/api/lists/:id", "auth": "owner", "ui": "Lists sheet → Edit" },
-    { "m": "PUT", "p": "/timeline/api/lists/:id", "auth": "owner", "ui": "Rename / visibility" },
-    { "m": "DELETE", "p": "/timeline/api/lists/:id", "auth": "owner", "ui": "Delete list confirm" },
-    { "m": "POST", "p": "/timeline/api/lists/:id/members", "auth": "owner", "ui": "Add people (DELETE /:id/members/:userId to remove)" },
-    { "m": "GET", "p": "/timeline/api/lists/:id/timeline", "auth": "user", "ui": "Lists tab" },
-    { "m": "GET", "p": "/timeline/api/search/posts", "auth": "user", "ui": "Sidebar search" },
-    { "m": "GET", "p": "/timeline/api/search/hashtags", "auth": "user", "ui": "Composer #tag typeahead" },
-    { "m": "GET", "p": "/timeline/api/search/trending/hashtags", "auth": "user", "ui": "Trending now card" },
-    { "m": "GET", "p": "/timeline/api/search/trending/topics", "auth": "user", "ui": "Trending now card (topics)" },
-    { "m": "POST", "p": "/timeline/api/attachments/posts/:pid", "auth": "owner", "ui": "Composer media tiles / drop zone" },
-    { "m": "GET", "p": "/timeline/api/attachments/posts/:pid", "auth": "user", "ui": "Post media" },
-    { "m": "GET", "p": "/timeline/api/attachments/:id/download", "auth": "user", "ui": "Media tap → full size" },
-    { "m": "PUT", "p": "/timeline/api/attachments/:id", "auth": "owner", "ui": "Alt text edit" },
-    { "m": "DELETE", "p": "/timeline/api/attachments/:id", "auth": "owner", "ui": "Remove image ×" },
-    { "m": "POST", "p": "/timeline/api/attachments/:id/share", "auth": "user", "ui": "Media share link" },
-    { "m": "GET", "p": "/nexus/api/memberships", "auth": "user", "ui": "Composer group target" },
-    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "@mention typeahead, Who to follow" },
-    { "m": "POST", "p": "/moderator/api/reports", "auth": "user", "ui": "Report post dialog" }
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline",
+      "auth": "user",
+      "ui": "Home tab"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/global",
+      "auth": "user",
+      "ui": "Global tab"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/explore",
+      "auth": "user",
+      "ui": "Explore tab (media grid)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/trending",
+      "auth": "user",
+      "ui": "Trending tab"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/bookmarks",
+      "auth": "user",
+      "ui": "Saved button (Bookmarks page)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/likes",
+      "auth": "user",
+      "ui": "Profile → Likes (linked)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/group/:groupId",
+      "auth": "user",
+      "ui": "Group feed (group page Posts tab)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/posts",
+      "auth": "user",
+      "ui": "Composer, New post dialog, Quote dialog (quotedPostId)"
+    },
+    {
+      "m": "PUT",
+      "p": "/timeline/api/posts/:id",
+      "auth": "owner",
+      "ui": "Post menu → Edit"
+    },
+    {
+      "m": "DELETE",
+      "p": "/timeline/api/posts/:id",
+      "auth": "owner",
+      "ui": "Post menu → Delete"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/posts/:id/like",
+      "auth": "user",
+      "ui": "Like (alt route; DELETE to unlike)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/posts/:id/repost",
+      "auth": "user",
+      "ui": "Repost (alt route; DELETE to undo)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/posts/:id/bookmark",
+      "auth": "user",
+      "ui": "Bookmark (alt route; DELETE to undo)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/:id/like",
+      "auth": "user",
+      "ui": "Heart toggle (DELETE to unlike)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/:id/repost",
+      "auth": "user",
+      "ui": "Repost toggle (DELETE to undo)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/:id/bookmark",
+      "auth": "user",
+      "ui": "Bookmark toggle (DELETE to undo)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/users/:id/follow",
+      "auth": "user",
+      "ui": "Who to follow → Follow (DELETE unfollow, GET status)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/users/:id/mute",
+      "auth": "user",
+      "ui": "Report dialog → Also mute (DELETE unmute)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/users/:id/block",
+      "auth": "user",
+      "ui": "Post menu → Block (DELETE unblock)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/interactions/mutes",
+      "auth": "user",
+      "ui": "Settings → muted accounts (linked)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/interactions/blocks",
+      "auth": "user",
+      "ui": "Settings → blocked accounts (linked)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/lists",
+      "auth": "user",
+      "ui": "Lists sheet"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/lists",
+      "auth": "user",
+      "ui": "Lists sheet → Create list"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/lists/:id",
+      "auth": "owner",
+      "ui": "Lists sheet → Edit"
+    },
+    {
+      "m": "PUT",
+      "p": "/timeline/api/lists/:id",
+      "auth": "owner",
+      "ui": "Rename / visibility"
+    },
+    {
+      "m": "DELETE",
+      "p": "/timeline/api/lists/:id",
+      "auth": "owner",
+      "ui": "Delete list confirm"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/lists/:id/members",
+      "auth": "owner",
+      "ui": "Add people (DELETE /:id/members/:userId to remove)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/lists/:id/timeline",
+      "auth": "user",
+      "ui": "Lists tab"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/search/posts",
+      "auth": "user",
+      "ui": "Sidebar search"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/search/hashtags",
+      "auth": "user",
+      "ui": "Composer #tag typeahead"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/search/trending/hashtags",
+      "auth": "user",
+      "ui": "Trending now card"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/search/trending/topics",
+      "auth": "user",
+      "ui": "Trending now card (topics)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/attachments/posts/:pid",
+      "auth": "owner",
+      "ui": "Composer media tiles / drop zone"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/attachments/posts/:pid",
+      "auth": "user",
+      "ui": "Post media"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/attachments/:id/download",
+      "auth": "user",
+      "ui": "Media tap → full size"
+    },
+    {
+      "m": "PUT",
+      "p": "/timeline/api/attachments/:id",
+      "auth": "owner",
+      "ui": "Alt text edit"
+    },
+    {
+      "m": "DELETE",
+      "p": "/timeline/api/attachments/:id",
+      "auth": "owner",
+      "ui": "Remove image ×"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/attachments/:id/share",
+      "auth": "user",
+      "ui": "Media share link"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/memberships",
+      "auth": "user",
+      "ui": "Composer group target"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/users/directory",
+      "auth": "user",
+      "ui": "@mention typeahead, Who to follow"
+    },
+    {
+      "m": "POST",
+      "p": "/moderator/api/reports",
+      "auth": "user",
+      "ui": "Report post dialog"
+    },
+    {
+      "m": "DELETE",
+      "p": "/timeline/api/lists/:id/members/:userId",
+      "auth": "owner",
+      "ui": "List dialog → remove person chip (×)"
+    }
   ],
   "socket": [
-    { "ns": "/timeline", "auth": "CA bearer (read)", "rooms": ["user:{userId}", "timeline:global", "timeline:group:{groupId}"],
+    {
+      "ns": "/timeline",
+      "auth": "CA bearer (read)",
+      "rooms": [
+        "user:{userId}",
+        "timeline:global",
+        "timeline:group:{groupId}"
+      ],
       "emit": [
-        { "e": "subscribe:timeline", "ui": "Feed mount (global room)" },
-        { "e": "unsubscribe:timeline", "ui": "Feed unmount" },
-        { "e": "subscribe:group", "ui": "Group-targeted feed / Lists of groups" },
-        { "e": "unsubscribe:group", "ui": "Leaving group feed" }
+        {
+          "e": "subscribe:timeline",
+          "ui": "Feed mount (global room)"
+        },
+        {
+          "e": "unsubscribe:timeline",
+          "ui": "Feed unmount"
+        },
+        {
+          "e": "subscribe:group",
+          "ui": "Group-targeted feed / Lists of groups"
+        },
+        {
+          "e": "unsubscribe:group",
+          "ui": "Leaving group feed"
+        }
       ],
       "on": [
-        { "e": "subscribed:timeline", "ui": "Clears reconnect banner" },
-        { "e": "new:post", "ui": "“N new posts” pill + trending Live pill" },
-        { "e": "post:created", "ui": "Same as new:post (IPC)" },
-        { "e": "post:updated", "ui": "Post body re-render" },
-        { "e": "post:deleted", "ui": "Post removed from list" },
-        { "e": "post:liked", "ui": "Like count on the post" },
-        { "e": "post:commented", "ui": "Reply count on the post" },
-        { "e": "post:retracted", "ui": "“Removed by moderation” tombstone" },
-        { "e": "error", "ui": "Reconnect banner" }
-      ] }
+        {
+          "e": "subscribed:timeline",
+          "ui": "Clears reconnect banner"
+        },
+        {
+          "e": "new:post",
+          "ui": "“N new posts” pill + trending Live pill"
+        },
+        {
+          "e": "post:created",
+          "ui": "Same as new:post (IPC)"
+        },
+        {
+          "e": "post:updated",
+          "ui": "Post body re-render"
+        },
+        {
+          "e": "post:deleted",
+          "ui": "Post removed from list"
+        },
+        {
+          "e": "post:liked",
+          "ui": "Like count on the post"
+        },
+        {
+          "e": "post:commented",
+          "ui": "Reply count on the post"
+        },
+        {
+          "e": "post:retracted",
+          "ui": "“Removed by moderation” tombstone"
+        },
+        {
+          "e": "error",
+          "ui": "Reconnect banner"
+        }
+      ]
+    }
   ],
   "gaps": [
-    { "sev": "high", "text": "IPC post:created/updated/deleted are broadcast to the whole /timeline namespace ignoring visibility — followers-only and group-only posts leak to every connected client. Client must refetch by id rather than render payloads." },
-    { "sev": "med", "text": "subscribe:group joins timeline:group:{groupId} with no membership check — anyone can listen to a private group's post stream." },
-    { "sev": "med", "text": "Nothing emits to the auto-joined user:{userId} room, so mentions/replies on your own posts only surface via /notifications." },
-    { "sev": "med", "text": "GET/POST /timeline/api/config/:sectionId is public — not used here but shares the module." }
+    {
+      "sev": "high",
+      "text": "IPC post:created/updated/deleted are broadcast to the whole /timeline namespace ignoring visibility — followers-only and group-only posts leak to every connected client. Client must refetch by id rather than render payloads."
+    },
+    {
+      "sev": "med",
+      "text": "subscribe:group joins timeline:group:{groupId} with no membership check — anyone can listen to a private group's post stream."
+    },
+    {
+      "sev": "med",
+      "text": "Nothing emits to the auto-joined user:{userId} room, so mentions/replies on your own posts only surface via /notifications."
+    },
+    {
+      "sev": "med",
+      "text": "GET/POST /timeline/api/config/:sectionId is public — not used here but shares the module."
+    }
   ]
 }
 </script>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flow designer · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .canvas { height: 460px; }
+  .flow-inner { position: relative; width: 790px; height: 420px; }
+  .canvas button.node { font: inherit; text-align: left; color: var(--exprsn-text-primary); cursor: pointer; width: 170px; height: 72px; padding: 8px 12px; line-height: 1.25; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+  .node .t { font-weight: 600; font-size: .8125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .node .s { font-size: .75rem; color: var(--exprsn-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .canvas svg.edges path.ah { fill: var(--exprsn-border-color-strong); stroke: none; }
+  .canvas svg.edges path.ok { stroke: var(--exprsn-success); }
+  .canvas svg.edges text { font-size: 11px; font-family: var(--exprsn-font-family-mono); fill: var(--exprsn-text-secondary); }
+  .steps { counter-reset: st; }
+  .steps .list-item::before { counter-increment: st; content: counter(st); width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; background: var(--exprsn-bg-tertiary); font-size: .75rem; font-weight: 700; flex: none; }
+</style>
+</head>
+<body data-shell="admin" data-page="lowcode-flow">
+<main id="main">
+  <div class="page wide">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><a href="lowcode.html">Low-Code</a><i data-i="right" class="sm"></i><span>Hiring pipeline</span><i data-i="right" class="sm"></i><span>Flows</span></nav>
+        <h1 class="page-title">Announce new candidate</h1>
+        <p class="page-sub"><span class="id">announce_candidate</span> · on <code>lowcode.record.created</code> for Candidate · 3 actions · <span class="pill ok">enabled</span></p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-exec" data-api="/lowcode/api/design/flows/:id/execute"><i data-i="play" class="sm"></i>Test run</button>
+        <button class="btn primary" type="button" data-api="/lowcode/api/design/flows/:id" data-toast="Flow saved · version 7"><i data-i="check" class="sm"></i>Save flow</button>
+      </div>
+    </header>
+
+    <div class="split">
+      <div class="stack">
+        <div class="row between wrap">
+          <div class="seg" role="group" aria-label="Editor view" data-view-target="flow"><button type="button" aria-pressed="true" data-view="canvas"><i data-i="flow" class="sm"></i>Canvas</button><button type="button" aria-pressed="false" data-view="steps"><i data-i="list" class="sm"></i>Steps</button></div>
+          <div class="row" style="gap:6px"><button class="btn sm outline" type="button" data-toast="Add: condition · action · AI"><i data-i="plus" class="sm"></i>Add step</button></div>
+        </div>
+
+        <div data-view-of="flow" data-view-name="canvas">
+          <div class="canvas" data-state="loaded" data-api="/lowcode/api/design/flows/:id" tabindex="0" aria-label="Flow canvas, scrollable">
+            <div class="flow-inner" role="listbox" aria-label="Flow steps">
+              <svg class="edges" viewBox="0 0 790 420" aria-hidden="true">
+                <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ah" d="M0 0 L10 5 L0 10 Z"/></marker></defs>
+                <path d="M182 216 L206 216" marker-end="url(#arr)"/>
+                <path class="ok" d="M378 206 C392 206 392 86 402 86" marker-end="url(#arr)"/>
+                <text x="352" y="150">true</text>
+                <path d="M378 226 C392 226 392 336 402 336" marker-end="url(#arr)"/>
+                <text x="348" y="292">false</text>
+                <path class="ok" d="M574 86 L598 86" marker-end="url(#arr)"/>
+              </svg>
+              <button role="option" aria-selected="false" class="node trigger" type="button" style="left:12px;top:180px"><span class="k">Trigger · event</span><span class="t">Candidate created</span><span class="s">lowcode.record.created</span></button>
+              <button role="option" aria-selected="false" class="node cond" type="button" style="left:208px;top:180px"><span class="k">Condition</span><span class="t">source = public form</span><span class="s">all · 1 rule</span></button>
+              <button role="option" aria-selected="true" class="node ai" type="button" style="left:404px;top:50px"><span class="k">AI · cortex</span><span class="t">Summarize résumé</span><span class="s">→ {{summary}} · retries 1</span></button>
+              <button role="option" aria-selected="false" class="node action" type="button" style="left:600px;top:50px"><span class="k">Action · module</span><span class="t">post_timeline</span><span class="s">Northwind Careers group</span></button>
+              <button role="option" aria-selected="false" class="node action" type="button" style="left:404px;top:300px"><span class="k">Action · plugin</span><span class="t">audit</span><span class="s">“manual candidate added”</span></button>
+            </div>
+          </div>
+          <div class="canvas" data-state="empty" style="display:grid;place-items:center"><div class="empty"><div class="art"><i data-i="flow"></i></div><h3>This flow only has a trigger</h3><p>Add a condition or action. Flows with no actions run but do nothing.</p><button class="btn primary" type="button" data-toast="Add: condition · action · AI">Add step</button></div></div>
+          <div class="canvas" data-state="loading" aria-busy="true" style="padding:24px"><span class="sk" style="width:190px;height:68px;margin-top:150px"></span></div>
+          <div class="card" data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load this flow</h3><p>404 — the flow was deleted, or Low-Code is disabled (<code>LOWCODE_ENABLED=false</code>).</p><a class="btn outline" href="lowcode.html">Back to Low-Code</a></div></div>
+        </div>
+
+        <div data-view-of="flow" data-view-name="steps" hidden>
+          <div class="card list steps" role="listbox" aria-label="Flow steps (linear)">
+            <button class="list-item" type="button" role="option" aria-selected="false"><span class="grow"><span class="title">Trigger · Candidate created</span><div class="meta">event lowcode.record.created</div></span></button>
+            <button class="list-item" type="button" role="option" aria-selected="false"><span class="grow"><span class="title">If source = public form</span><div class="meta">else → audit</div></span></button>
+            <button class="list-item" type="button" role="option" aria-selected="true"><span class="grow"><span class="title">AI · Summarize résumé</span><div class="meta">cortex · retries 1 · onError continue</div></span></button>
+            <button class="list-item" type="button" role="option" aria-selected="false"><span class="grow"><span class="title">post_timeline</span><div class="meta">Northwind Careers · uses {{summary}}</div></span></button>
+          </div>
+          <p class="xs muted" style="margin-top:8px">Keyboard alternative to the canvas: Alt+↑/↓ reorders, Enter edits.</p>
+        </div>
+
+        <div class="card dt">
+          <div class="dt-toolbar"><b>Run history</b><span class="grow"></span><span class="xs muted">last 100 · 200 retained</span><button class="icon-btn" type="button" aria-label="Refresh runs" data-api="/lowcode/api/design/flows/:id/runs"><i data-i="refresh"></i></button></div>
+          <div class="dt-scroll" data-state="loaded">
+            <table class="table" data-api="/lowcode/api/design/flows/:id/runs">
+              <thead><tr><th class="num">Time</th><th>Trigger</th><th>Status</th><th>Steps</th><th class="num">Duration</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                <tr><td class="num">16:58</td><td>event · rec_91f0</td><td><span class="pill danger">error</span></td><td class="small">3 ok · 1 error (post_timeline 403)</td><td class="num">2.4 s</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-run">Open</button></td></tr>
+                <tr><td class="num">15:12</td><td>manual · Maya Diaz</td><td><span class="pill ok">success</span></td><td class="small">4 ok</td><td class="num">1.9 s</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-run">Open</button></td></tr>
+                <tr><td class="num">14:40</td><td>event · rec_91c2</td><td><span class="pill">skipped</span></td><td class="small">condition false → audit</td><td class="num">41 ms</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-run">Open</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div data-state="empty"><div class="empty"><div class="art"><i data-i="history"></i></div><h3>No runs yet</h3><p>Runs appear after the trigger fires or you start a test run.</p><button class="btn outline" type="button" data-open="dlg-exec">Test run</button></div></div>
+          <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:32px"></span><span class="sk" style="height:32px"></span></div>
+          <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load runs</h3><p>Correlation id <code>cid 0dd1…2e8</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        </div>
+      </div>
+
+      <!-- Inspector -->
+      <aside class="stack">
+        <form class="card" data-toast="Step updated (unsaved)">
+          <div class="card-head"><div><span class="eyebrow">AI step</span><h2>Summarize résumé</h2></div></div>
+          <div class="card-body stack">
+            <div class="field"><label for="in-prompt">Prompt</label><textarea class="textarea" id="in-prompt">Summarize {{record.full_name}}’s résumé in 2 sentences for a hiring announcement. No salary details.</textarea></div>
+            <div class="field"><label for="in-model">Model</label><select class="select" id="in-model"><option>brain (default)</option><option>judge</option></select></div>
+            <div class="field"><label for="in-out">Save output as</label><input class="input" id="in-out" value="summary"></div>
+            <div class="form-grid"><div class="field"><label for="in-err">On error</label><select class="select" id="in-err"><option>continue</option><option>stop</option></select></div><div class="field"><label for="in-ret">Retries (0–3)</label><input class="input" id="in-ret" type="number" value="1" min="0" max="3"></div></div>
+            <div class="field"><label for="in-when">Run when (optional)</label><input class="input" id="in-when" placeholder="condition tree"></div>
+          </div>
+          <div class="card-foot"><button class="btn sm danger-outline" type="button" style="margin-right:auto" data-toast="Step removed (unsaved)">Remove step</button><button class="btn sm primary" type="submit">Apply</button></div>
+        </form>
+
+        <div class="card">
+          <div class="card-head"><h2>Webhook trigger</h2><span class="pill">optional</span></div>
+          <div class="card-body stack">
+            <div class="field"><label for="wh-url">URL</label><div class="input-group"><input id="wh-url" readonly value="https://exprsn.io/lowcode/api/hooks/flows/hiring/announce_candidate" data-api="/lowcode/api/hooks/flows/:appKey/:flowKey"><button class="btn sm ghost" type="button" data-copy="https://exprsn.io/lowcode/api/hooks/flows/hiring/announce_candidate">Copy</button></div></div>
+            <div class="field"><span class="label">Hook token</span><div class="input-group"><code class="grow truncate secret" id="wh-sec" data-value="whsec_9f2c1a77e0b4northwind">••••••••••••</code><button class="btn sm ghost" type="button" data-reveal="wh-sec">Show</button></div><span class="help">Callers send it as the <code>X-Hook-Token</code> header (or <code>?token=</code>). Compared in constant time; 60 calls/min per flow.</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="setting-row"><div class="grow"><div class="t">Enabled</div><div class="d">Disabled flows ignore their trigger</div></div><label class="switch"><input type="checkbox" id="fl-en" checked aria-label="Flow enabled"><span></span></label></div>
+          <div class="setting-row"><div class="grow"><div class="t">Delete flow</div><div class="d">Run history is deleted too</div></div><button class="btn sm danger-outline" type="button" data-open="dlg-del">Delete</button></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <dialog class="dialog" id="dlg-exec" aria-labelledby="dlg-ex-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ex-t">Test run</h2><p>Runs the flow now with this context.</p></div></div>
+    <div class="dialog-body">
+      <div class="banner warn"><i data-i="alert" class="sm"></i><span><b>Side effects are real.</b> post_timeline will publish to Northwind Careers. Use a draft group while testing.</span></div>
+      <div class="field"><label for="ex-ctx">Context (JSON)</label><textarea class="textarea mono" id="ex-ctx">{ "record": { "id": "rec_test", "full_name": "Test Candidate", "source": "public_form" } }</textarea></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Run started · rec_test">Run flow</button></div>
+  </dialog>
+
+  <dialog class="dialog lg" id="dlg-run" aria-labelledby="dlg-rn-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rn-t">Run · 16:58 · error</h2><p>event · rec_91f0 · 2.4 s</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="activity">
+        <div class="activity-item"><span class="ico"><i data-i="zap"></i></span><span>Trigger · Candidate created</span><span class="when">0 ms</span></div>
+        <div class="activity-item"><span class="ico"><i data-i="check"></i></span><span>Condition · source = public form → <b>true</b></span><span class="when">3 ms</span></div>
+        <div class="activity-item"><span class="ico"><i data-i="sparkle"></i></span><span>AI · Summarize résumé · ok · 1 attempt</span><span class="when">1.9 s</span></div>
+        <div class="activity-item"><span class="ico"><i data-i="alert"></i></span><span>post_timeline · <b>error</b> · 2 attempts</span><span class="when">480 ms</span></div>
+      </div>
+      <pre class="code" tabindex="0">403 CAPABILITY_REQUIRED: app "hiring" lacks write:timeline.posts for group Northwind Careers</pre>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-close data-open="dlg-exec">Re-run with this context</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del" aria-labelledby="dlg-dl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dl-t">Delete “Announce new candidate”?</h2><p>The flow and its 187 run records are deleted. The webhook URL stops working.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Flow deleted">Delete flow</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "The canvas and the Steps list edit the same action array; changes are staged and sent in one PATCH on Save. Test runs execute for real (POST /execute); the run appears at the top of Run history on the next refresh.",
+  "rest": [
+    { "m": "GET", "p": "/lowcode/api/design/flows/:id", "auth": "scope", "ui": "Canvas, steps list, header" },
+    { "m": "PATCH", "p": "/lowcode/api/design/flows/:id", "auth": "scope", "ui": "Save flow, Enabled switch" },
+    { "m": "DELETE", "p": "/lowcode/api/design/flows/:id", "auth": "scope", "ui": "Delete flow dialog" },
+    { "m": "POST", "p": "/lowcode/api/design/flows/:id/execute", "auth": "scope", "ui": "Test run dialog" },
+    { "m": "GET", "p": "/lowcode/api/design/flows/:id/runs", "auth": "scope", "ui": "Run history, run detail" },
+    { "m": "GET", "p": "/lowcode/api/design/catalog", "auth": "scope", "ui": "Add step menu (actions, triggers)" },
+    { "m": "POST", "p": "/lowcode/api/hooks/flows/:appKey/:flowKey", "auth": "flow token (X-Hook-Token)", "ui": "Webhook trigger URL" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "Run history doesn't stream; refresh after a test run (LC-2 would add live run status)." },
+    { "sev": "med", "text": "Schedule-triggered flows need a worker outside the gateway (LC-1)." }
+  ]
+}
+</script>
+</body>
+</html>

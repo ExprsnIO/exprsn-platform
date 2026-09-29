@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Live · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .thumb { width: 64px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; flex: none; }
+  .thumb .ph { min-height: 0; }
+  .thumb .ph .ic { width: 18px; height: 18px; }
+  .proposed { border: 1px dashed var(--exprsn-border-color-strong); border-radius: 12px; padding: 12px 14px; background: var(--exprsn-surface-raised); }
+</style>
+</head>
+<body data-shell="admin" data-page="live">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Services</span><i data-i="right" class="sm"></i><span>Live</span></nav>
+        <h1 class="page-title">Live</h1>
+        <p class="page-sub">Streams and their simulcast destinations, WebRTC rooms, recordings, the fanout and recording workers, and persisted live limits.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="jobs.html"><i data-i="layers" class="sm"></i>Workers &amp; queues</a>
+        <button class="btn primary" type="button" data-open="dlg-lookup" data-api="/live/api/rooms/code/:code"><i data-i="search" class="sm"></i>Find stream or room</button>
+      </div>
+    </header>
+
+    <div class="grid c4" data-api="/live/api/stats">
+      <div class="card stat" data-on="stream-started stream-ended stream-deleted"><span class="label"><span class="live-tag">LIVE</span>Streams live</span><span class="value">12</span><span class="delta up">+3 in the last hour</span></div>
+      <div class="card stat" data-on="viewer-count-updated"><span class="label"><i data-i="eye" class="sm"></i>Viewers</span><span class="value">4,812</span><span class="delta up">peak today 6,120</span></div>
+      <div class="card stat"><span class="label"><i data-i="video" class="sm"></i>Active rooms</span><span class="value">31</span><span class="delta">188 participants</span></div>
+      <div class="card stat" data-api="/live/api/simulcast/:streamId/health"><span class="label"><i data-i="radio" class="sm"></i>Simulcast health</span><span class="value">17 / 19</span><div class="meter warn" role="img" aria-label="17 of 19 destinations healthy"><i style="width:89.5%"></i></div></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Live admin views">
+      <button role="tab" id="t-st" aria-controls="p-st" aria-selected="true">Streams <span class="badge">12 live</span></button>
+      <button role="tab" id="t-rm" aria-controls="p-rm">Rooms</button>
+      <button role="tab" id="t-rec" aria-controls="p-rec">Recordings</button>
+      <button role="tab" id="t-dst" aria-controls="p-dst">Destinations</button>
+      <button role="tab" id="t-wk" aria-controls="p-wk">Workers</button>
+      <button role="tab" id="t-cfg" aria-controls="p-cfg">Config</button>
+    </div>
+
+    <!-- ── Streams ── -->
+    <section id="p-st" role="tabpanel" aria-labelledby="t-st">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="st-q" type="search" placeholder="Search title or host"></label>
+          <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Status: live <span class="x">×</span></button>
+          <button class="chip" type="button" aria-pressed="false">Visibility</button>
+          <button class="chip" type="button" aria-pressed="false">Host</button>
+          <span class="grow"></span>
+          <span class="pill ok" data-on="stream-started"><span class="d"></span>2 new streams — show</span>
+          <button class="icon-btn" type="button" aria-label="Refresh streams"><i data-i="refresh"></i></button>
+        </div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/live/api/streams" data-on="stream-started stream-ended stream-deleted">
+            <thead><tr>
+              <th aria-sort="descending"><button type="button">Stream <i data-i="down" class="sm"></i></button></th>
+              <th>Host</th><th>Status</th><th class="num">Viewers</th><th class="num">Peak</th><th class="num">Duration</th><th>Simulcast</th>
+              <th class="actions"><span class="sr-only">Actions</span></th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><div class="row" style="gap:10px"><span class="thumb"><span class="ph warm"><i data-i="live"></i></span></span><span class="stack tight" style="gap:0"><b>Northwind hiring fair · main stage</b><span class="xs muted">public · Northwind Careers</span></span></div></td>
+                <td>Jonah Okafor</td>
+                <td><span class="live-tag">LIVE</span></td>
+                <td class="num" data-on="viewer-count-updated">2,904</td><td class="num">3,310</td><td class="num">1 h 42 m</td>
+                <td><span class="pill ok">YouTube</span> <span class="pill danger">Twitch · retry 3</span></td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-stream" data-api="/live/api/streams/:id">Details</button><button class="btn sm danger-outline" type="button" disabled aria-describedby="stop-why">Stop</button></td>
+              </tr>
+              <tr>
+                <td><div class="row" style="gap:10px"><span class="thumb"><span class="ph purple"><i data-i="live"></i></span></span><span class="stack tight" style="gap:0"><b>Design crit: v2 console</b><span class="xs muted">unlisted · Design Guild</span></span></div></td>
+                <td>Maya Diaz</td>
+                <td><span class="live-tag">LIVE</span></td>
+                <td class="num" data-on="viewer-count-updated">318</td><td class="num">402</td><td class="num">24 m</td>
+                <td><span class="pill ok">Cloudflare</span></td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-stream">Details</button><button class="btn sm danger-outline" type="button" disabled aria-describedby="stop-why">Stop</button></td>
+              </tr>
+              <tr>
+                <td><div class="row" style="gap:10px"><span class="thumb"><span class="ph dark"><i data-i="live"></i></span></span><span class="stack tight" style="gap:0"><b>Contoso quarterly AMA</b><span class="xs muted">public · personal</span></span></div></td>
+                <td>Sam Kim</td>
+                <td><span class="pill danger">error</span></td>
+                <td class="num">0</td><td class="num">1,120</td><td class="num">52 m</td>
+                <td><span class="pill">none</span></td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-stream">Details</button><button class="btn sm danger-outline" type="button" disabled aria-describedby="stop-why">Stop</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="live"></i></div><h3>No one is live right now</h3><p>Streams appear here the moment <code>stream-started</code> fires. Clear “Status: live” to see ended streams.</p><button class="btn outline" type="button">Show all streams</button></div></div>
+        <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:44px"></span><span class="sk" style="height:44px"></span><span class="sk" style="height:44px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load streams</h3><p>The live module timed out reaching SRS at <code>SRS_API_URL</code>. Correlation id <code>cid 08aa…c41</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">3 of 12 live · limit ≤ 100</span><span id="stop-why">Stop is disabled: lifecycle routes are owner-only (LIVE-1).</span></div>
+      </div>
+
+      <div class="proposed stack" style="margin-top:16px">
+        <div class="row"><i data-i="info"></i><b class="grow">Why can’t I stop a stream?</b><span class="pill violet">proposed</span></div>
+        <p class="small secondary">Start, stop and delete check that you own the stream (or admin its group). There is no platform-admin override, so a harmful broadcast can only be stopped by its host or from SRS directly. The design reserves the button for <code>POST /live/api/admin/streams/:id/stop</code> with a required, audited reason; it would emit <code>stream-ended</code> like the owner path.</p>
+      </div>
+    </section>
+
+    <!-- ── Rooms ── -->
+    <section id="p-rm" role="tabpanel" aria-labelledby="t-rm" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="rm-q" type="search" placeholder="Room name or 6-character code"></label><button class="chip" type="button" aria-pressed="true">Active</button><button class="chip" type="button" aria-pressed="false">Private</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/live/api/rooms" data-on="room-closed">
+            <thead><tr><th>Room</th><th>Code</th><th>Host</th><th>Status</th><th class="num">People</th><th>Join policy</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>Platform on-call bridge</b> <i data-i="lock" class="sm" aria-label="Private"></i></td><td><span class="id">K7Q2MX</span></td><td>Priya Raman</td><td><span class="pill ok">active</span></td><td class="num">6 / 12</td><td><span class="pill">invite</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-parts" data-api="/live/api/rooms/:id/participants">Participants</button><button class="btn sm danger-outline" type="button" disabled title="Host-only today (LIVE-1)">Close</button></td></tr>
+              <tr><td><b>Design crit breakout</b></td><td><span class="id">D3S1GN</span></td><td>Maya Diaz</td><td><span class="pill ok">active</span></td><td class="num">9 / 25</td><td><span class="pill">open</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-parts">Participants</button><button class="btn sm danger-outline" type="button" disabled title="Host-only today (LIVE-1)">Close</button></td></tr>
+              <tr><td><b>Contoso standup</b></td><td><span class="id">CN5T00</span></td><td>Sam Kim</td><td><span class="pill">waiting</span></td><td class="num">0 / 10</td><td><span class="pill">request</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-parts">Participants</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Recordings ── -->
+    <section id="p-rec" role="tabpanel" aria-labelledby="t-rec" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="sr-only" for="rec-src">Stream or room</label><select class="select" id="rec-src" style="width:auto;min-height:36px;padding:6px 10px"><option>Northwind hiring fair · main stage</option><option>Platform on-call bridge (room)</option></select><span class="grow"></span><span class="xs muted">Per stream/room — admin list proposed (LIVE-2)</span></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/live/api/streams/:id/recordings /live/api/rooms/:id/recordings">
+            <thead><tr><th>Recording</th><th>Status</th><th class="num">Duration</th><th class="num">Size</th><th>Moderation</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>Main stage · part 1</b><div class="xs muted">mp4 · 1080p</div></td><td><span class="pill ok">ready</span></td><td class="num">58:12</td><td class="num">2.4 GB</td><td><span class="pill ok">approved · 8</span></td><td class="actions"><button class="btn sm ghost" type="button" data-toast="Opening player">Play</button></td></tr>
+              <tr><td><b>Main stage · part 2</b><div class="xs muted">mp4 · 1080p</div></td><td><span class="pill warn">processing</span></td><td class="num">—</td><td class="num">—</td><td><span class="pill">pending</span></td><td class="actions"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Destinations ── -->
+    <section id="p-dst" role="tabpanel" aria-labelledby="t-dst" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Simulcast destinations</b><span class="grow"></span><button class="btn sm primary" type="button" data-open="dlg-dest"><i data-i="plus" class="sm"></i>Add destination</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/live/api/destinations /live/api/simulcast/:streamId/status">
+            <thead><tr><th>Destination</th><th>Platform</th><th>Stream</th><th>Status</th><th class="num">Viewers</th><th class="num">Retries</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>Northwind YouTube</b></td><td>youtube</td><td>Hiring fair</td><td><span class="pill ok">live</span></td><td class="num">1,840</td><td class="num">0</td><td class="actions"><button class="btn sm ghost" type="button" data-api="/live/api/destinations/:id/test-connection" data-toast="Connection OK · 42 ms">Test</button><button class="icon-btn" type="button" aria-label="Delete Northwind YouTube" data-open="dlg-del-dest"><i data-i="trash"></i></button></td></tr>
+              <tr><td><b>Northwind Twitch</b></td><td>twitch</td><td>Hiring fair</td><td><span class="pill danger">error</span><div class="xs muted">401 token expired</div></td><td class="num">0</td><td class="num">3 / 5</td><td class="actions"><button class="btn sm ghost" type="button" data-api="/live/api/destinations/platforms/:platform/auth-url" data-toast="Opening Twitch to reconnect">Reconnect</button><button class="icon-btn" type="button" aria-label="Delete Northwind Twitch" data-open="dlg-del-dest"><i data-i="trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>Caller-scoped: you see destinations you own. Admin list proposed (LIVE-2).</span></div>
+      </div>
+    </section>
+
+    <!-- ── Workers ── -->
+    <section id="p-wk" role="tabpanel" aria-labelledby="t-wk" hidden>
+      <div class="grid c2" data-api="/live/api/config/workers/stats">
+        <div class="card pad stack"><div class="row between"><b>ffmpeg fanout</b><span class="pill ok">worker:live up</span></div><dl class="kv"><dt>Depth</dt><dd class="num">3</dd><dt>DLQ</dt><dd class="num">0</dd><dt>Backend</dt><dd>RabbitMQ</dd></dl></div>
+        <div class="card pad stack"><div class="row between"><b>Recording</b><span class="pill warn">DLQ 2</span></div><dl class="kv"><dt>Depth</dt><dd class="num">1</dd><dt>DLQ</dt><dd class="num">2</dd><dt>Moderation mode</dt><dd>shadow</dd></dl><a class="btn sm outline" href="jobs.html" style="align-self:flex-start">Redrive in Jobs &amp; Queues</a></div>
+      </div>
+    </section>
+
+    <!-- ── Config ── -->
+    <section id="p-cfg" role="tabpanel" aria-labelledby="t-cfg" hidden>
+      <form class="card" data-toast="limits saved · enforced on next room create" data-api="/live/api/config/:sectionId">
+        <div class="card-head"><h2>limits</h2><span class="pill ok">persisted</span></div>
+        <div class="card-body form-grid">
+          <div class="field"><label for="cf-rooms">Max live rooms <span class="pill ok">enforced</span></label><input class="input" id="cf-rooms" type="number" value="200"></div>
+          <div class="field"><label for="cf-parts">Max participants per room <span class="pill ok">enforced</span></label><input class="input" id="cf-parts" type="number" value="50" min="2" max="50"></div>
+          <div class="field"><label for="cf-br">Max bitrate (kbps) <span class="pill">stored only</span></label><input class="input" id="cf-br" type="number" value="6000"></div>
+          <div class="field"><label for="cf-res">Max resolution <span class="pill">stored only</span></label><select class="select" id="cf-res"><option>720p</option><option selected>1080p</option><option>4K</option></select></div>
+          <div class="field"><label for="cf-sim">Max simulcast destinations <span class="pill ok">enforced</span></label><input class="input" id="cf-sim" type="number" value="5"></div>
+          <div class="field"><label for="cf-dur">Max stream duration (min) <span class="pill">stored only</span></label><input class="input" id="cf-dur" type="number" value="480"></div>
+        </div>
+        <div class="card-foot"><button class="btn ghost" type="reset">Reset</button><button class="btn primary" type="submit">Save limits</button></div>
+      </form>
+    </section>
+  </div>
+
+  <dialog class="dialog lg" id="dlg-stream" aria-labelledby="dlg-st-t">
+    <div class="dialog-head"><span class="live-tag">LIVE</span><div class="grow"><h2 id="dlg-st-t">Northwind hiring fair · main stage</h2><p>Jonah Okafor · <span class="id">str_5e20c1</span> · started 08:18</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="tabs" role="tablist" aria-label="Stream detail">
+        <button role="tab" aria-controls="sd-1" aria-selected="true">Overview</button>
+        <button role="tab" aria-controls="sd-2">Simulcast</button>
+        <button role="tab" aria-controls="sd-3">Share events</button>
+      </div>
+      <div id="sd-1" role="tabpanel"><dl class="kv"><dt>Visibility</dt><dd>public</dd><dt>Group</dt><dd>Northwind Careers</dd><dt>Viewers</dt><dd data-on="viewer-count-updated">2,904 (peak 3,310)</dd><dt>Ingest</dt><dd><code>rtmp://live.exprsn.io/live</code> · key hidden</dd><dt>Recording</dt><dd>on · mp4</dd></dl></div>
+      <div id="sd-2" role="tabpanel" hidden>
+        <div class="list card" data-api="/live/api/simulcast/:streamId/status /live/api/simulcast/:streamId/metrics">
+          <div class="list-item"><span class="grow"><b>YouTube</b><div class="meta">6,000 kbps · 0 dropped frames</div></span><span class="pill ok">live</span></div>
+          <div class="list-item"><span class="grow"><b>Twitch</b><div class="meta">auto-reconnect 3 / 5 · last 08:59</div></span><span class="pill danger">error</span></div>
+        </div>
+      </div>
+      <div id="sd-3" role="tabpanel" hidden><dl class="kv" data-api="/live/api/streams/:id/share-events"><dt>Shared</dt><dd>412</dd><dt>Opened</dt><dd>1,907</dd><dt>Watch started</dt><dd>1,388</dd></dl></div>
+      <div class="banner warn"><i data-i="lock" class="sm"></i><span>Stop, delete and simulcast control are owner-only. Proposed: <code>POST /live/api/admin/streams/:id/stop</code> with an audited reason.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" disabled>Stop stream</button><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-parts" aria-labelledby="dlg-pt-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-pt-t">Participants · Platform on-call bridge</h2><p>6 connected · room code K7Q2MX</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body"><div class="list card">
+      <div class="list-item"><span class="avatar sm g3">PR</span><span class="grow">Priya Raman <span class="pill brand">host</span></span><span class="pill ok">connected</span></div>
+      <div class="list-item"><span class="avatar sm g4">AL</span><span class="grow">Ari Lindqvist</span><span class="pill warn">reconnecting</span></div>
+    </div></div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-lookup" aria-labelledby="dlg-lk-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-lk-t">Find stream or room</h2><p>Paste a stream id, or a 6-character room code.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="lk-q">Id or code</label><input class="input" id="lk-q" value="K7Q2MX"><span class="help">Detected: room code</span></div><div class="list card"><div class="list-item"><i data-i="video"></i><span class="grow"><b>Platform on-call bridge</b><div class="meta">active · 6 people · host Priya Raman</div></span></div></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-open="dlg-parts">Open</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-dest" aria-labelledby="dlg-ds-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ds-t">Add destination</h2><p>Simulcast target for one of your streams.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><span class="label" id="ds-pl">Platform</span><div class="seg" role="group" aria-labelledby="ds-pl"><button type="button" aria-pressed="true">YouTube</button><button type="button" aria-pressed="false">Twitch</button><button type="button" aria-pressed="false">Facebook</button><button type="button" aria-pressed="false">RTMP</button></div></div>
+      <div class="form-grid"><div class="field"><label for="ds-name">Name</label><input class="input" id="ds-name" value="Northwind YouTube"></div><div class="field"><label for="ds-br">Bitrate (500–20000)</label><input class="input" id="ds-br" type="number" value="6000"></div></div>
+      <button class="btn outline" type="button" data-toast="Opening YouTube consent screen">Connect YouTube account</button>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Destination added">Add destination</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del-dest" aria-labelledby="dlg-dd-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dd-t">Delete “Northwind Twitch”?</h2><p>The stream stops sending to Twitch. Stored OAuth tokens are discarded.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Destination deleted">Delete destination</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Stream lifecycle arrives on the /live namespace (stream-started/ended/deleted are namespace-wide); new streams collect in a '2 new — show' pill instead of reflowing. Viewer counts are room-scoped, so the table refreshes them with a 15 s poll of /live/api/stats rather than joining every stream as a viewer.",
+  "rest": [
+    { "m": "GET", "p": "/live/api/stats", "auth": "P", "ui": "Stat tiles" },
+    { "m": "GET", "p": "/live/api/streams", "auth": "user", "ui": "Streams table" },
+    { "m": "GET", "p": "/live/api/streams/:id", "auth": "user", "ui": "Stream detail dialog" },
+    { "m": "PUT", "p": "/live/api/streams/:id", "auth": "owner", "ui": "Not available to admins" },
+    { "m": "DELETE", "p": "/live/api/streams/:id", "auth": "owner", "ui": "Disabled (LIVE-1)" },
+    { "m": "POST", "p": "/live/api/streams/:id/stop", "auth": "owner", "ui": "Stop (disabled for admins)" },
+    { "m": "POST", "p": "/live/api/streams/:id/start", "auth": "owner", "ui": "Not available to admins" },
+    { "m": "POST", "p": "/live/api/streams/:id/share-events", "auth": "user", "ui": "Detail → Share events (read of metadata.shareMetrics)" },
+    { "m": "GET", "p": "/live/api/streams/:id/recordings", "auth": "user", "ui": "Recordings tab" },
+    { "m": "GET", "p": "/live/api/groups/:groupId/streams", "auth": "user", "ui": "Group filter on streams" },
+    { "m": "GET", "p": "/live/api/rooms", "auth": "user", "ui": "Rooms table" },
+    { "m": "GET", "p": "/live/api/rooms/code/:code", "auth": "user", "ui": "Find stream or room dialog" },
+    { "m": "GET", "p": "/live/api/rooms/:id", "auth": "user", "ui": "Room detail" },
+    { "m": "GET", "p": "/live/api/rooms/:id/participants", "auth": "user", "ui": "Participants dialog" },
+    { "m": "GET", "p": "/live/api/rooms/:id/recordings", "auth": "user", "ui": "Recordings tab (rooms)" },
+    { "m": "DELETE", "p": "/live/api/rooms/:id", "auth": "host", "ui": "Close (disabled for admins)" },
+    { "m": "GET", "p": "/live/api/simulcast/:streamId/status", "auth": "owner", "ui": "Destinations status, detail Simulcast" },
+    { "m": "GET", "p": "/live/api/simulcast/:streamId/health", "auth": "owner", "ui": "Simulcast health tile" },
+    { "m": "GET", "p": "/live/api/simulcast/:streamId/metrics", "auth": "owner", "ui": "Detail → Simulcast metrics" },
+    { "m": "GET", "p": "/live/api/destinations", "auth": "user", "ui": "Destinations table" },
+    { "m": "POST", "p": "/live/api/destinations", "auth": "user", "ui": "Add destination dialog" },
+    { "m": "PUT", "p": "/live/api/destinations/:id", "auth": "owner", "ui": "Enable/disable destination" },
+    { "m": "DELETE", "p": "/live/api/destinations/:id", "auth": "owner", "ui": "Delete destination dialog" },
+    { "m": "GET", "p": "/live/api/destinations/platforms/:platform/auth-url", "auth": "user", "ui": "Connect / Reconnect" },
+    { "m": "POST", "p": "/live/api/destinations/platforms/:platform/exchange-token", "auth": "user", "ui": "OAuth return" },
+    { "m": "POST", "p": "/live/api/destinations/:id/test-connection", "auth": "owner", "ui": "Destination → Test" },
+    { "m": "GET", "p": "/live/api/config/workers/stats", "auth": "A", "ui": "Workers tab" },
+    { "m": "GET", "p": "/live/api/config/:sectionId", "auth": "A", "ui": "Config tab" },
+    { "m": "POST", "p": "/live/api/config/:sectionId", "auth": "A", "ui": "Save limits" }
+  ],
+  "socket": [
+    { "ns": "/live", "auth": "optional (console sends bearer)", "rooms": ["{streamId}", "{roomId}"],
+      "emit": [],
+      "on": [
+        { "e": "stream-started", "ui": "Live stat, '2 new streams' pill" },
+        { "e": "stream-ended", "ui": "Row status → ended, Live stat" },
+        { "e": "stream-deleted", "ui": "Row removed" },
+        { "e": "viewer-count-updated", "ui": "Viewers cells (only for joined stream rooms)" },
+        { "e": "room-closed", "ui": "Rooms row → ended (only for joined rooms)" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "No platform-admin override on stream/room/simulcast lifecycle (LIVE-1). Proposed: POST /live/api/admin/streams/:id/stop and /admin/rooms/:id/close with an audited reason." },
+    { "sev": "med", "text": "viewer-count-updated and room-closed go to per-stream/per-room rooms; joining them would count the admin as a viewer. Proposed: an admin room or /_admin counters." },
+    { "sev": "med", "text": "No admin lists for recordings or destinations, and no cross-user stream search (LIVE-2)." },
+    { "sev": "med", "text": "Stream key reveal/rotate for admins doesn't exist (LIVE-3)." }
+  ]
+}
+</script>
+</body>
+</html>

@@ -47,7 +47,26 @@
    ],
    "noUi": {
     "pong": "keepalive only",
-    "ping": "keepalive only"
+    "ping": "keepalive only",
+    "certificate:created": "dead code: helper exists but nothing calls it (prereq P3)",
+    "certificate:revoked": "dead code: helper exists but nothing calls it (prereq P3)",
+    "certificates:updated": "dead code: helper exists but nothing calls it (prereq P3)",
+    "token:created": "dead code: helper exists but nothing calls it (prereq P3)",
+    "token:revoked": "dead code: helper exists but nothing calls it (prereq P3)",
+    "token:validated": "dead code: helper exists but nothing calls it (prereq P3)",
+    "token:used": "dead code: helper exists but nothing calls it (prereq P3)",
+    "tokens:updated": "dead code: helper exists but nothing calls it (prereq P3)",
+    "user:login": "dead code: helper exists but nothing calls it (prereq P3)",
+    "dashboard:stats": "dead code: helper exists but nothing calls it (prereq P3)",
+    "user:created": "dead code: helper exists but nothing calls it (prereq P3)",
+    "user:updated": "dead code: helper exists but nothing calls it (prereq P3)",
+    "user:deleted": "dead code: helper exists but nothing calls it (prereq P3)",
+    "group:created": "dead code: helper exists but nothing calls it (prereq P3)",
+    "group:updated": "dead code: helper exists but nothing calls it (prereq P3)",
+    "role:created": "dead code: helper exists but nothing calls it (prereq P3)",
+    "system:health": "dead code: helper exists but nothing calls it (prereq P3)",
+    "moderation:event": "dead code: helper exists but nothing calls it (prereq P3)",
+    "system:notification": "dead code: helper exists but nothing calls it (prereq P3)"
    }
   },
   "/spark": {
@@ -104,7 +123,13 @@
    "noUi": {
     "pong": "keepalive only",
     "ping": "keepalive only",
-    "connected": "handshake ack"
+    "connected": "handshake ack",
+    "policy:event": "dead code: emitter has no callers (prereq P2)",
+    "security:alert": "dead code: emitter has no callers (prereq P2)",
+    "stats:update": "dead code: emitter has no callers (prereq P2)",
+    "cache:stats": "dead code: emitter has no callers (prereq P2)",
+    "audit:log": "dead code: emitter has no callers (prereq P2)",
+    "notification": "dead code: emitter has no callers (prereq P2)"
    }
   },
   "/timeline": {
@@ -204,9 +229,17 @@
     "chat:send",
     "chat:cancel"
    ]
+  },
+  "wss /xrpc/com.atproto.label.subscribeLabels (raw WebSocket, not Socket.IO)": {
+   "on": [
+    "#labels",
+    "#info"
+   ],
+   "emit": []
   }
  },
  "rest": [
+  "/health",
   "/platform/api/config",
   "/platform/api/config/:x",
   "/ca/tickets/generate",
@@ -306,6 +339,8 @@
   "/auth/api/auth/signup-policy",
   "/auth/api/auth/google",
   "/auth/api/auth/github",
+  "/auth/api/auth/google/callback",
+  "/auth/api/auth/github/callback",
   "/auth/api/auth/logout",
   "/auth/api/auth/change-password",
   "/auth/api/auth/me",
@@ -354,7 +389,10 @@
    "p": "/auth/api/tokens/revoke",
    "noUi": "legacy alias of CA token revoke"
   },
-  "/auth/api/oauth2/authorize",
+  {
+   "p": "/auth/api/oauth2/authorize",
+   "noUi": "OAuth consent screen: the SPA has no route for it yet (proposed screen, prerequisite P14)"
+  },
   {
    "p": "/auth/api/oauth2/token",
    "noUi": "OAuth client protocol"
@@ -468,6 +506,7 @@
   "/nexus/api/groups/:x/leave",
   "/nexus/api/groups/:x/invite",
   "/nexus/api/groups/:x/members/:x",
+  "/nexus/api/groups/:x/members/:x/role",
   "/nexus/api/groups/:x/join-requests/:x/approve",
   "/nexus/api/groups/:x/join-requests/:x/reject",
   "/nexus/api/memberships",
@@ -509,8 +548,12 @@
   "/nexus/api/calendar/events/:x/ical",
   "/nexus/api/calendar/groups/:x/ical",
   "/nexus/api/calendar/users/:x/ical",
-  "/nexus/api/calendar/caldav",
-  "/nexus/api/calendar/carddav",
+  "/nexus/api/calendar/caldav/users/:x/calendars",
+  "/nexus/api/calendar/caldav/groups/:x/calendar",
+  "/nexus/api/calendar/caldav/groups/:x/events",
+  "/nexus/api/calendar/carddav/users/:x/addressbooks",
+  "/nexus/api/calendar/carddav/groups/:x/contacts",
+  "/nexus/api/calendar/carddav/groups/:x/addressbook",
   "/nexus/api/subgroups",
   "/nexus/api/subgroups/:x",
   "/nexus/api/subgroups/:x/members",
@@ -565,7 +608,7 @@
   "/filevault/api/admin/migrate",
   "/filevault/api/admin/verify/:x",
   "/filevault/api/admin/storage/health",
-  "/filevault/webdav",
+  "/filevault/webdav/*",
   {
    "p": "/filevault/api/health",
    "noUi": "health probe"
@@ -586,9 +629,25 @@
   "/vault/api/dynamic/api-key",
   "/vault/api/dynamic/leases",
   "/vault/api/dynamic/leases/:x/renew",
+  "/vault/api/dynamic/leases/:x",
   "/vault/api/audit/logs",
   "/vault/api/audit/stats",
   "/vault/api/audit/export",
+  "/vault/api/admin/tokens",
+  "/vault/api/admin/tokens/generate",
+  "/vault/api/admin/tokens/:x",
+  "/vault/api/admin/tokens/:x/revoke",
+  "/vault/api/admin/tokens/:x/suspend",
+  "/vault/api/admin/tokens/:x/reactivate",
+  "/vault/api/admin/tokens/bulk/revoke",
+  "/vault/api/admin/tokens/:x/anomalies",
+  "/vault/api/admin/policies",
+  "/vault/api/admin/policies/:x",
+  "/vault/api/admin/policies/suggest",
+  "/vault/api/admin/dashboard/stats",
+  "/vault/api/admin/reports/access",
+  "/vault/api/admin/maintenance/purge",
+  "/vault/api/admin/maintenance/cache/clear",
   "/vault/api/groups/:x/secrets",
   "/vault/api/groups/:x/secrets/:x/share",
   "/vault/api/groups/:x/secrets/:x/reveal",
@@ -622,6 +681,10 @@
   "/timeline/api/interactions/:x/repost",
   "/timeline/api/interactions/:x/bookmark",
   "/timeline/api/interactions/users/:x/follow",
+  "/timeline/api/interactions/users/:x/block",
+  "/timeline/api/interactions/users/:x/mute",
+  "/timeline/api/interactions/blocks",
+  "/timeline/api/interactions/mutes",
   "/timeline/api/lists",
   "/timeline/api/lists/:x",
   "/timeline/api/lists/:x/members",
@@ -671,6 +734,10 @@
   "/prefetch/api/prefetch/queue/retry/:x",
   "/prefetch/api/prefetch/metrics",
   "/prefetch/api/prefetch/metrics/:x",
+  {
+   "p": "/prefetch/api/cache/*",
+   "noUi": "read alias of /api/prefetch (same router)"
+  },
   "/prefetch/api/config/:x",
   {
    "p": "/moderator/api/moderate/content",
@@ -680,7 +747,10 @@
    "p": "/moderator/api/moderate/batch",
    "noUi": "service ingest [S]"
   },
-  "/moderator/api/moderate/status/:x",
+  {
+   "p": "/moderator/api/moderate/status/:x/:x/:x",
+   "noUi": "service status lookup [S or A]"
+  },
   "/moderator/api/queue",
   "/moderator/api/queue/pending",
   "/moderator/api/queue/:x",
@@ -708,18 +778,14 @@
   "/moderator/api/workflows/active",
   "/moderator/api/workflows/:x",
   "/moderator/api/workflows/:x/execute",
-  "/moderator/api/workflows/trigger/:x",
+  "/moderator/api/workflows/executions",
+  "/moderator/api/workflows/executions/recent",
   "/moderator/api/workflows/executions/:x",
-  {
-   "p": "/moderator/api/workflows/callback",
-   "noUi": "workflow engine callback [S]"
-  },
-  "/moderator/api/workflows/setup-defaults",
-  "/moderator/api/workflows/moderate/auto",
   "/moderator/api/metrics",
   "/moderator/api/metrics/export",
   "/moderator/api/actions/recent",
   "/moderator/api/actions/:x",
+  "/moderator/api/actions/content/:x/:x",
   "/moderator/api/actions/execute",
   "/moderator/api/actions/providers/status",
   "/moderator/api/agents",
@@ -736,9 +802,14 @@
   "/moderator/api/queues/:x/dlq/redrive",
   "/moderator/api/config/:x",
   {
-   "p": "/moderator/api/notifications",
+   "p": "/moderator/api/notifications#POST",
    "noUi": "notification ingest [S]; delivered to UI via /notifications socket"
   },
+  "/moderator/api/notifications",
+  "/moderator/api/notifications/unread-count",
+  "/moderator/api/notifications/read-all",
+  "/moderator/api/notifications/:x/read",
+  "/moderator/api/notifications/:x",
   "/live/api/streams",
   "/live/api/streams/:x",
   "/live/api/streams/:x/start",
@@ -777,6 +848,7 @@
   "/live/api/destinations/:x/test-connection",
   "/live/api/groups/:x/streams",
   "/live/api/config/:x",
+  "/live/api/config/workers/stats",
   "/live/api/stats",
   {
    "p": "/atproto/health",
@@ -897,14 +969,28 @@
   "/cortex/api/v1/reviews",
   "/cortex/api/v1/reviews/:x",
   "/cortex/api/v1/guardrails",
+  "/cortex/api/v1/guardrails/build",
   "/cortex/api/v1/guardrails/:x",
+  "/cortex/api/v1/guardrails/:x/:x",
   "/cortex/api/v1/tools",
+  "/cortex/api/v1/tools/build",
   "/cortex/api/v1/tools/:x",
+  "/cortex/api/v1/tools/:x/:x",
   "/cortex/api/v1/skills",
+  "/cortex/api/v1/skills/build",
   "/cortex/api/v1/skills/:x",
+  "/cortex/api/v1/skills/:x/:x",
   "/cortex/api/v1/prompts",
   {
    "p": "/cortex/health",
+   "noUi": "health probe"
+  },
+  {
+   "p": "/timeline/health/*",
+   "noUi": "health probe"
+  },
+  {
+   "p": "/prefetch/health/*",
    "noUi": "health probe"
   }
  ]

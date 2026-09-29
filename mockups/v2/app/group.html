@@ -448,113 +448,578 @@
 {
   "notes": "Group detail. Header + membership load first; tabs lazy-load their module (timeline, spark, nexus, filevault, vault, live, lowcode). Admin-only UI (join requests, secrets reveal/share, moderation, settings) renders from the caller's nexus role but every call is enforced server-side. Posts tab emits subscribe:group; Messages tab joins the channel's conversation room on /spark; Live tab listens for stream-started/ended.",
   "rest": [
-    { "m": "GET", "p": "/nexus/api/groups/:id", "auth": "user", "ui": "Cover header, About" },
-    { "m": "PUT", "p": "/nexus/api/groups/:id", "auth": "grp-admin", "ui": "Settings dialog → Save" },
-    { "m": "DELETE", "p": "/nexus/api/groups/:id", "auth": "grp-owner", "ui": "Settings → Delete group (owner)" },
-    { "m": "GET", "p": "/nexus/api/groups/:id/related", "auth": "user", "ui": "About → Related groups" },
-    { "m": "GET", "p": "/nexus/api/groups/:id/members", "auth": "user", "ui": "Members table" },
-    { "m": "POST", "p": "/nexus/api/groups/:id/join", "auth": "user", "ui": "Private state → Request to join" },
-    { "m": "POST", "p": "/nexus/api/groups/:id/leave", "auth": "user", "ui": "Leave group confirm" },
-    { "m": "POST", "p": "/nexus/api/groups/:id/invite", "auth": "grp-admin", "ui": "Invite dialog" },
-    { "m": "PUT", "p": "/nexus/api/groups/:id/members/:userId/role", "auth": "grp-admin", "ui": "Role select in Members table" },
-    { "m": "DELETE", "p": "/nexus/api/groups/:id/members/:userId", "auth": "grp-admin", "ui": "Remove member confirm" },
-    { "m": "POST", "p": "/nexus/api/groups/:id/join-requests/:rid/approve", "auth": "grp-admin", "ui": "Join requests → Approve" },
-    { "m": "POST", "p": "/nexus/api/groups/:id/join-requests/:rid/reject", "auth": "grp-admin", "ui": "Join requests → Decline" },
-    { "m": "GET", "p": "/timeline/api/timeline/group/:groupId", "auth": "user", "ui": "Posts tab feed" },
-    { "m": "POST", "p": "/timeline/api/posts", "auth": "user", "ui": "Post dialog (groupId set)" },
-    { "m": "GET", "p": "/timeline/api/posts/approvals/pending", "auth": "A", "ui": "Waiting for review card" },
-    { "m": "GET", "p": "/spark/api/groups/:groupId/channels", "auth": "member", "ui": "Messages tab (auto-provisions chat + announcements)" },
-    { "m": "POST", "p": "/spark/api/groups/:groupId/channels/:kind/messages", "auth": "member (announcement: grp-admin)", "ui": "Channel composer" },
-    { "m": "GET", "p": "/spark/api/messages/:conversationId", "auth": "user", "ui": "Channel history (channel is a conversation)" },
-    { "m": "GET", "p": "/nexus/api/events", "auth": "user", "ui": "Events list (groupId filter)" },
-    { "m": "POST", "p": "/nexus/api/events", "auth": "grp-admin", "ui": "New event dialog" },
-    { "m": "GET", "p": "/nexus/api/events/:id", "auth": "user", "ui": "Event row → organizer dialog" },
-    { "m": "PUT", "p": "/nexus/api/events/:id", "auth": "organizer", "ui": "Organizer dialog → Edit" },
-    { "m": "DELETE", "p": "/nexus/api/events/:id", "auth": "organizer", "ui": "Delete event (organizer menu)" },
-    { "m": "POST", "p": "/nexus/api/events/:id/cancel", "auth": "organizer", "ui": "Cancel event" },
-    { "m": "POST", "p": "/nexus/api/events/:id/rsvp", "auth": "user", "ui": "RSVP segmented control" },
-    { "m": "GET", "p": "/nexus/api/events/:id/rsvp", "auth": "user", "ui": "Your current RSVP" },
-    { "m": "DELETE", "p": "/nexus/api/events/:id/rsvp", "auth": "user", "ui": "Clear RSVP" },
-    { "m": "GET", "p": "/nexus/api/events/:id/attendees", "auth": "user", "ui": "Going/maybe counts, organizer attendee list" },
-    { "m": "POST", "p": "/nexus/api/events/:id/check-in/:userId", "auth": "organizer", "ui": "Check in button" },
-    { "m": "POST", "p": "/nexus/api/events/:id/notify", "auth": "organizer (unenforced)", "ui": "Message attendees → Notify" },
-    { "m": "POST", "p": "/nexus/api/events/:id/live", "auth": "organizer", "ui": "Go live automatically switch" },
-    { "m": "POST", "p": "/nexus/api/events/:id/reminders", "auth": "user", "ui": "Reminders dialog (PUT update, DELETE clear)" },
-    { "m": "GET", "p": "/nexus/api/events/reminders/presets", "auth": "user", "ui": "Reminder options" },
-    { "m": "GET", "p": "/nexus/api/calendar/groups/:groupId/ical", "auth": "P (optional token)", "ui": "Calendar view + Subscribe iCal URL" },
-    { "m": "GET", "p": "/nexus/api/calendar/events/:id/ical", "auth": "P (optional token)", "ui": ".ics download per event" },
-    { "m": "GET", "p": "/nexus/api/calendar/caldav/groups/:groupId/calendar", "auth": "P (optional token)", "ui": "Subscribe → CalDAV URL" },
-    { "m": "GET", "p": "/nexus/api/calendar/caldav/groups/:groupId/events", "auth": "P (optional token)", "ui": "CalDAV clients" },
-    { "m": "GET", "p": "/nexus/api/calendar/carddav/groups/:groupId/contacts", "auth": "P (optional token)", "ui": "Members → Export contacts (.vcf)" },
-    { "m": "GET", "p": "/nexus/api/calendar/carddav/groups/:groupId/addressbook", "auth": "P (optional token)", "ui": "CardDAV clients" },
-    { "m": "GET", "p": "/filevault/api/groups/:gid/files", "auth": "member", "ui": "Files grid" },
-    { "m": "POST", "p": "/filevault/api/groups/:gid/files/upload", "auth": "member", "ui": "Upload / drop zone" },
-    { "m": "GET", "p": "/filevault/api/groups/:gid/directories", "auth": "member", "ui": "Folder tiles + breadcrumb" },
-    { "m": "GET", "p": "/filevault/api/thumbnails/:fileId", "auth": "member", "ui": "Image thumbnails (blob URL)" },
-    { "m": "GET", "p": "/filevault/api/files/:fileId/download", "auth": "member", "ui": "Tile tap" },
-    { "m": "GET", "p": "/vault/api/groups/:gid/secrets", "auth": "grp-admin", "ui": "Secrets table" },
-    { "m": "GET", "p": "/vault/api/groups/:gid/secrets/:path/reveal", "auth": "grp-admin / shared", "ui": "Reveal button (audited)" },
-    { "m": "POST", "p": "/vault/api/groups/:gid/secrets/:path/share", "auth": "grp-admin", "ui": "Share dialog" },
-    { "m": "DELETE", "p": "/vault/api/groups/:gid/secrets/:path/share", "auth": "grp-admin", "ui": "Share dialog → Revoke all" },
-    { "m": "GET", "p": "/live/api/groups/:gid/streams", "auth": "member", "ui": "Live tab grid" },
-    { "m": "POST", "p": "/live/api/groups/:gid/streams", "auth": "member", "ui": "Go live in group" },
-    { "m": "GET", "p": "/nexus/api/governance/proposals", "auth": "user", "ui": "Governance list + status filter" },
-    { "m": "POST", "p": "/nexus/api/governance/proposals", "auth": "member", "ui": "New proposal dialog" },
-    { "m": "GET", "p": "/nexus/api/governance/proposals/:id", "auth": "user", "ui": "Proposal card" },
-    { "m": "PUT", "p": "/nexus/api/governance/proposals/:id", "auth": "proposer", "ui": "Edit proposal (before votes)" },
-    { "m": "DELETE", "p": "/nexus/api/governance/proposals/:id", "auth": "proposer / grp-admin", "ui": "Withdraw proposal" },
-    { "m": "POST", "p": "/nexus/api/governance/proposals/:id/vote", "auth": "member", "ui": "Your vote segmented control" },
-    { "m": "GET", "p": "/nexus/api/governance/proposals/:id/results", "auth": "user", "ui": "Result bars" },
-    { "m": "GET", "p": "/nexus/api/governance/proposals/:id/votes", "auth": "user", "ui": "Vote count / quorum" },
-    { "m": "POST", "p": "/nexus/api/governance/proposals/:id/close", "auth": "grp-admin", "ui": "Close early confirm" },
-    { "m": "POST", "p": "/nexus/api/governance/proposals/:id/execute", "auth": "grp-admin", "ui": "Execute (after close)" },
-    { "m": "GET", "p": "/nexus/api/subgroups", "auth": "user", "ui": "Subgroups list (parentGroupId)" },
-    { "m": "POST", "p": "/nexus/api/subgroups", "auth": "grp-admin", "ui": "New subgroup dialog" },
-    { "m": "GET", "p": "/nexus/api/subgroups/:id", "auth": "user", "ui": "Manage subgroup" },
-    { "m": "PUT", "p": "/nexus/api/subgroups/:id", "auth": "subgroup lead", "ui": "Manage → edit" },
-    { "m": "DELETE", "p": "/nexus/api/subgroups/:id", "auth": "grp-admin", "ui": "Manage → delete" },
-    { "m": "POST", "p": "/nexus/api/subgroups/:id/members", "auth": "subgroup lead", "ui": "Manage → add (DELETE /:id/members/:userId remove)" },
-    { "m": "GET", "p": "/nexus/api/subgroups/:id/access", "auth": "user", "ui": "Member / No access pills" },
-    { "m": "POST", "p": "/nexus/api/moderation/flags", "auth": "member", "ui": "Flag content (post/message menus)" },
-    { "m": "GET", "p": "/nexus/api/moderation/flags/:groupId", "auth": "grp-mod", "ui": "Open flags stat + queue" },
-    { "m": "GET", "p": "/nexus/api/moderation/queue/:groupId", "auth": "grp-mod", "ui": "Moderation queue" },
-    { "m": "GET", "p": "/nexus/api/moderation/cases/:id", "auth": "grp-mod", "ui": "Case dialog" },
-    { "m": "POST", "p": "/nexus/api/moderation/cases/:id/action", "auth": "grp-mod", "ui": "Case dialog → Apply action" },
-    { "m": "POST", "p": "/nexus/api/moderation/cases/:id/assign", "auth": "grp-mod", "ui": "Assign to me" },
-    { "m": "POST", "p": "/nexus/api/moderation/flags/:flagId/resolve", "auth": "grp-mod", "ui": "Dismiss flags" },
-    { "m": "GET", "p": "/lowcode/api/design/apps", "auth": "user (scopeType=group)", "ui": "Apps tab" },
-    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "Invite people picker" }
+    {
+      "m": "GET",
+      "p": "/nexus/api/groups/:id",
+      "auth": "user",
+      "ui": "Cover header, About"
+    },
+    {
+      "m": "PUT",
+      "p": "/nexus/api/groups/:id",
+      "auth": "grp-admin",
+      "ui": "Settings dialog → Save"
+    },
+    {
+      "m": "DELETE",
+      "p": "/nexus/api/groups/:id",
+      "auth": "grp-owner",
+      "ui": "Settings → Delete group (owner)"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/groups/:id/related",
+      "auth": "user",
+      "ui": "About → Related groups"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/groups/:id/members",
+      "auth": "user",
+      "ui": "Members table"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/groups/:id/join",
+      "auth": "user",
+      "ui": "Private state → Request to join"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/groups/:id/leave",
+      "auth": "user",
+      "ui": "Leave group confirm"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/groups/:id/invite",
+      "auth": "grp-admin",
+      "ui": "Invite dialog"
+    },
+    {
+      "m": "PUT",
+      "p": "/nexus/api/groups/:id/members/:userId/role",
+      "auth": "grp-admin",
+      "ui": "Role select in Members table"
+    },
+    {
+      "m": "DELETE",
+      "p": "/nexus/api/groups/:id/members/:userId",
+      "auth": "grp-admin",
+      "ui": "Remove member confirm"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/groups/:id/join-requests/:rid/approve",
+      "auth": "grp-admin",
+      "ui": "Join requests → Approve"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/groups/:id/join-requests/:rid/reject",
+      "auth": "grp-admin",
+      "ui": "Join requests → Decline"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/group/:groupId",
+      "auth": "user",
+      "ui": "Posts tab feed"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/posts",
+      "auth": "user",
+      "ui": "Post dialog (groupId set)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/posts/approvals/pending",
+      "auth": "A",
+      "ui": "Waiting for review card"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/groups/:groupId/channels",
+      "auth": "member",
+      "ui": "Messages tab (auto-provisions chat + announcements)"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/groups/:groupId/channels/:kind/messages",
+      "auth": "member (announcement: grp-admin)",
+      "ui": "Channel composer"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/messages/:conversationId",
+      "auth": "user",
+      "ui": "Channel history (channel is a conversation)"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/events",
+      "auth": "user",
+      "ui": "Events list (groupId filter)"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/events",
+      "auth": "grp-admin",
+      "ui": "New event dialog"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/events/:id",
+      "auth": "user",
+      "ui": "Event row → organizer dialog"
+    },
+    {
+      "m": "PUT",
+      "p": "/nexus/api/events/:id",
+      "auth": "organizer",
+      "ui": "Organizer dialog → Edit"
+    },
+    {
+      "m": "DELETE",
+      "p": "/nexus/api/events/:id",
+      "auth": "organizer",
+      "ui": "Delete event (organizer menu)"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/events/:id/cancel",
+      "auth": "organizer",
+      "ui": "Cancel event"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/events/:id/rsvp",
+      "auth": "user",
+      "ui": "RSVP segmented control"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/events/:id/rsvp",
+      "auth": "user",
+      "ui": "Your current RSVP"
+    },
+    {
+      "m": "DELETE",
+      "p": "/nexus/api/events/:id/rsvp",
+      "auth": "user",
+      "ui": "Clear RSVP"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/events/:id/attendees",
+      "auth": "user",
+      "ui": "Going/maybe counts, organizer attendee list"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/events/:id/check-in/:userId",
+      "auth": "organizer",
+      "ui": "Check in button"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/events/:id/notify",
+      "auth": "organizer (unenforced)",
+      "ui": "Message attendees → Notify"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/events/:id/live",
+      "auth": "organizer",
+      "ui": "Go live automatically switch"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/events/:id/reminders",
+      "auth": "user",
+      "ui": "Reminders dialog (PUT update, DELETE clear)"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/events/reminders/presets",
+      "auth": "user",
+      "ui": "Reminder options"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/calendar/groups/:groupId/ical",
+      "auth": "P (optional token)",
+      "ui": "Calendar view + Subscribe iCal URL"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/calendar/events/:id/ical",
+      "auth": "P (optional token)",
+      "ui": ".ics download per event"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/calendar/caldav/groups/:groupId/calendar",
+      "auth": "P (optional token)",
+      "ui": "Subscribe → CalDAV URL"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/calendar/caldav/groups/:groupId/events",
+      "auth": "P (optional token)",
+      "ui": "CalDAV clients"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/calendar/carddav/groups/:groupId/contacts",
+      "auth": "P (optional token)",
+      "ui": "Members → Export contacts (.vcf)"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/calendar/carddav/groups/:groupId/addressbook",
+      "auth": "P (optional token)",
+      "ui": "CardDAV clients"
+    },
+    {
+      "m": "GET",
+      "p": "/filevault/api/groups/:gid/files",
+      "auth": "member",
+      "ui": "Files grid"
+    },
+    {
+      "m": "POST",
+      "p": "/filevault/api/groups/:gid/files/upload",
+      "auth": "member",
+      "ui": "Upload / drop zone"
+    },
+    {
+      "m": "GET",
+      "p": "/filevault/api/groups/:gid/directories",
+      "auth": "member",
+      "ui": "Folder tiles + breadcrumb"
+    },
+    {
+      "m": "GET",
+      "p": "/filevault/api/thumbnails/:fileId",
+      "auth": "member",
+      "ui": "Image thumbnails (blob URL)"
+    },
+    {
+      "m": "GET",
+      "p": "/filevault/api/files/:fileId/download",
+      "auth": "member",
+      "ui": "Tile tap"
+    },
+    {
+      "m": "GET",
+      "p": "/vault/api/groups/:gid/secrets",
+      "auth": "grp-admin",
+      "ui": "Secrets table"
+    },
+    {
+      "m": "GET",
+      "p": "/vault/api/groups/:gid/secrets/:path/reveal",
+      "auth": "grp-admin / shared",
+      "ui": "Reveal button (audited)"
+    },
+    {
+      "m": "POST",
+      "p": "/vault/api/groups/:gid/secrets/:path/share",
+      "auth": "grp-admin",
+      "ui": "Share dialog"
+    },
+    {
+      "m": "DELETE",
+      "p": "/vault/api/groups/:gid/secrets/:path/share",
+      "auth": "grp-admin",
+      "ui": "Share dialog → Revoke all"
+    },
+    {
+      "m": "GET",
+      "p": "/live/api/groups/:gid/streams",
+      "auth": "member",
+      "ui": "Live tab grid"
+    },
+    {
+      "m": "POST",
+      "p": "/live/api/groups/:gid/streams",
+      "auth": "member",
+      "ui": "Go live in group"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/governance/proposals",
+      "auth": "user",
+      "ui": "Governance list + status filter"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/governance/proposals",
+      "auth": "member",
+      "ui": "New proposal dialog"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/governance/proposals/:id",
+      "auth": "user",
+      "ui": "Proposal card"
+    },
+    {
+      "m": "PUT",
+      "p": "/nexus/api/governance/proposals/:id",
+      "auth": "proposer",
+      "ui": "Edit proposal (before votes)"
+    },
+    {
+      "m": "DELETE",
+      "p": "/nexus/api/governance/proposals/:id",
+      "auth": "proposer / grp-admin",
+      "ui": "Withdraw proposal"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/governance/proposals/:id/vote",
+      "auth": "member",
+      "ui": "Your vote segmented control"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/governance/proposals/:id/results",
+      "auth": "user",
+      "ui": "Result bars"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/governance/proposals/:id/votes",
+      "auth": "user",
+      "ui": "Vote count / quorum"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/governance/proposals/:id/close",
+      "auth": "grp-admin",
+      "ui": "Close early confirm"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/governance/proposals/:id/execute",
+      "auth": "grp-admin",
+      "ui": "Execute (after close)"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/subgroups",
+      "auth": "user",
+      "ui": "Subgroups list (parentGroupId)"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/subgroups",
+      "auth": "grp-admin",
+      "ui": "New subgroup dialog"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/subgroups/:id",
+      "auth": "user",
+      "ui": "Manage subgroup"
+    },
+    {
+      "m": "PUT",
+      "p": "/nexus/api/subgroups/:id",
+      "auth": "subgroup lead",
+      "ui": "Manage → edit"
+    },
+    {
+      "m": "DELETE",
+      "p": "/nexus/api/subgroups/:id",
+      "auth": "grp-admin",
+      "ui": "Manage → delete"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/subgroups/:id/members",
+      "auth": "subgroup lead",
+      "ui": "Manage → add (DELETE /:id/members/:userId remove)"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/subgroups/:id/access",
+      "auth": "user",
+      "ui": "Member / No access pills"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/moderation/flags",
+      "auth": "member",
+      "ui": "Flag content (post/message menus)"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/moderation/flags/:groupId",
+      "auth": "grp-mod",
+      "ui": "Open flags stat + queue"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/moderation/queue/:groupId",
+      "auth": "grp-mod",
+      "ui": "Moderation queue"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/moderation/cases/:id",
+      "auth": "grp-mod",
+      "ui": "Case dialog"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/moderation/cases/:id/action",
+      "auth": "grp-mod",
+      "ui": "Case dialog → Apply action"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/moderation/cases/:id/assign",
+      "auth": "grp-mod",
+      "ui": "Assign to me"
+    },
+    {
+      "m": "POST",
+      "p": "/nexus/api/moderation/flags/:flagId/resolve",
+      "auth": "grp-mod",
+      "ui": "Dismiss flags"
+    },
+    {
+      "m": "GET",
+      "p": "/lowcode/api/design/apps",
+      "auth": "user (scopeType=group)",
+      "ui": "Apps tab"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/users/directory",
+      "auth": "user",
+      "ui": "Invite people picker"
+    },
+    {
+      "m": "DELETE",
+      "p": "/nexus/api/subgroups/:id/members/:userId",
+      "auth": "grp-admin",
+      "ui": "Subgroups → Manage → Remove member"
+    }
   ],
   "socket": [
-    { "ns": "/timeline", "auth": "CA bearer (read)", "rooms": ["timeline:group:{groupId}"],
-      "emit": [ { "e": "subscribe:group", "ui": "Posts tab mount" }, { "e": "unsubscribe:group", "ui": "Leaving the tab" } ],
+    {
+      "ns": "/timeline",
+      "auth": "CA bearer (read)",
+      "rooms": [
+        "timeline:group:{groupId}"
+      ],
+      "emit": [
+        {
+          "e": "subscribe:group",
+          "ui": "Posts tab mount"
+        },
+        {
+          "e": "unsubscribe:group",
+          "ui": "Leaving the tab"
+        }
+      ],
       "on": [
-        { "e": "new:post", "ui": "“4 new posts” pill" },
-        { "e": "post:liked", "ui": "Like counts" },
-        { "e": "post:commented", "ui": "Reply counts" },
-        { "e": "post:retracted", "ui": "Moderation tombstone" }
-      ] },
-    { "ns": "/spark", "auth": "CA bearer (read)", "rooms": ["conversation:{channelConversationId}"],
-      "emit": [ { "e": "join:conversation", "ui": "Messages tab → channel selected" }, { "e": "leave:conversation", "ui": "Switch channel / tab" } ],
+        {
+          "e": "new:post",
+          "ui": "“4 new posts” pill"
+        },
+        {
+          "e": "post:liked",
+          "ui": "Like counts"
+        },
+        {
+          "e": "post:commented",
+          "ui": "Reply counts"
+        },
+        {
+          "e": "post:retracted",
+          "ui": "Moderation tombstone"
+        }
+      ]
+    },
+    {
+      "ns": "/spark",
+      "auth": "CA bearer (read)",
+      "rooms": [
+        "conversation:{channelConversationId}"
+      ],
+      "emit": [
+        {
+          "e": "join:conversation",
+          "ui": "Messages tab → channel selected"
+        },
+        {
+          "e": "leave:conversation",
+          "ui": "Switch channel / tab"
+        }
+      ],
       "on": [
-        { "e": "new:message", "ui": "Channel log (REST posts emit via .of('/spark') — works)" },
-        { "e": "message:redacted", "ui": "Moderation tombstone in channel" }
-      ] },
-    { "ns": "/live", "auth": "soft (anonymous allowed)", "rooms": [],
+        {
+          "e": "new:message",
+          "ui": "Channel log (REST posts emit via .of('/spark') — works)"
+        },
+        {
+          "e": "message:redacted",
+          "ui": "Moderation tombstone in channel"
+        }
+      ]
+    },
+    {
+      "ns": "/live",
+      "auth": "soft (anonymous allowed)",
+      "rooms": [],
       "emit": [],
       "on": [
-        { "e": "stream-started", "ui": "LIVE tag on tab + Live grid card" },
-        { "e": "stream-ended", "ui": "Card flips to recording" },
-        { "e": "viewer-count-updated", "ui": "Viewer count on live card (only after join-stream)" }
-      ] }
+        {
+          "e": "stream-started",
+          "ui": "LIVE tag on tab + Live grid card"
+        },
+        {
+          "e": "stream-ended",
+          "ui": "Card flips to recording"
+        },
+        {
+          "e": "viewer-count-updated",
+          "ui": "Viewer count on live card (only after join-stream)"
+        }
+      ]
+    }
   ],
   "gaps": [
-    { "sev": "med", "text": "subscribe:group has no membership check — non-members can receive a private group's post events." },
-    { "sev": "med", "text": "No GET for pending join requests; the admin list needs a proposed GET /nexus/api/groups/:id/join-requests." },
-    { "sev": "med", "text": "POST /nexus/api/events/:id/notify is documented as organizer/admin but unenforced — any member can message all attendees." },
-    { "sev": "med", "text": "stream-started/ended go to the whole /live namespace, not a group room, so every client filters by groupId; private group stream titles leak." },
-    { "sev": "med", "text": "Timeline approval is platform-admin only; group admins can't clear their own group's 'Waiting for review' queue." },
-    { "sev": "med", "text": "Calendar feed URLs (iCal/CalDAV) carry no per-user token, so calendar apps can't authenticate for private groups. Proposed: signed feed tokens." }
+    {
+      "sev": "med",
+      "text": "subscribe:group has no membership check — non-members can receive a private group's post events."
+    },
+    {
+      "sev": "med",
+      "text": "No GET for pending join requests; the admin list needs a proposed GET /nexus/api/groups/:id/join-requests."
+    },
+    {
+      "sev": "med",
+      "text": "POST /nexus/api/events/:id/notify is documented as organizer/admin but unenforced — any member can message all attendees."
+    },
+    {
+      "sev": "med",
+      "text": "stream-started/ended go to the whole /live namespace, not a group room, so every client filters by groupId; private group stream titles leak."
+    },
+    {
+      "sev": "med",
+      "text": "Timeline approval is platform-admin only; group admins can't clear their own group's 'Waiting for review' queue."
+    },
+    {
+      "sev": "med",
+      "text": "Calendar feed URLs (iCal/CalDAV) carry no per-user token, so calendar apps can't authenticate for private groups. Proposed: signed feed tokens."
+    }
   ]
 }
 </script>

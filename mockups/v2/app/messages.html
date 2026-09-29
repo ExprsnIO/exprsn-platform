@@ -200,7 +200,7 @@
         <div class="list-item"><span class="avatar sm g4">AL</span><span class="grow">Ari Lindqvist</span></div>
         <button class="list-item" type="button"><span class="avatar sm" style="background:var(--exprsn-bg-tertiary);color:var(--exprsn-primary)"><i data-i="userPlus" class="sm"></i></span><span class="grow" style="color:var(--exprsn-primary);font-weight:600">Add people</span></button>
       </div>
-      <div class="row wrap"><button class="btn outline sm" type="button"><i data-i="image" class="sm"></i>Media &amp; files</button><button class="btn outline sm" type="button"><i data-i="key" class="sm"></i>Verify keys</button></div>
+      <div class="row wrap"><button class="btn outline sm" type="button" data-api="/spark/api/attachments/conversations/:cid/attachments"><i data-i="image" class="sm"></i>Media &amp; files</button><button class="btn outline sm" type="button" data-api="/spark/api/encryption/keys/my-keys /spark/api/encryption/keys/:keyId"><i data-i="key" class="sm"></i>Verify keys</button></div>
     </div>
     <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-close data-toast="You left the conversation">Leave conversation</button><button class="btn primary" type="button" data-close>Done</button></div>
   </dialog>
@@ -210,68 +210,333 @@
 {
   "notes": "Two-pane master–detail (single pane with back button under 900px). Joining a thread emits join:conversation; the server checks participant, group membership and block policy before joining room conversation:{id}. Sending is optimistic: the bubble renders immediately and rolls back with an inline retry if the ack or new:message echo doesn't arrive.",
   "rest": [
-    { "m": "GET", "p": "/spark/api/conversations", "auth": "user", "ui": "Conversation list, filters, unread badges" },
-    { "m": "POST", "p": "/spark/api/conversations", "auth": "user", "ui": "New conversation dialog → Create" },
-    { "m": "GET", "p": "/spark/api/conversations/:id", "auth": "user", "ui": "Thread header" },
-    { "m": "GET", "p": "/spark/api/conversations/:id/participants", "auth": "user", "ui": "Details dialog member list" },
-    { "m": "POST", "p": "/spark/api/conversations/:id/participants", "auth": "user", "ui": "Add people" },
-    { "m": "PUT", "p": "/spark/api/conversations/:id/settings", "auth": "user", "ui": "Details dialog settings" },
-    { "m": "POST", "p": "/spark/api/conversations/:id/mute", "auth": "user", "ui": "Mute switch (unmute = POST …/unmute)" },
-    { "m": "GET", "p": "/spark/api/conversations/:id/pinned", "auth": "user", "ui": "Pinned banner" },
-    { "m": "DELETE", "p": "/spark/api/conversations/:id", "auth": "user", "ui": "Leave conversation" },
-    { "m": "GET", "p": "/spark/api/messages/:conversationId", "auth": "user", "ui": "Message log (cursor pagination on scroll-up)" },
-    { "m": "PUT", "p": "/spark/api/messages/:conversationId/:messageId", "auth": "user", "ui": "Edit (fallback when socket down)" },
-    { "m": "DELETE", "p": "/spark/api/messages/:conversationId/:messageId", "auth": "user", "ui": "Delete (fallback when socket down)" },
-    { "m": "GET", "p": "/spark/api/messages/search", "auth": "user", "ui": "Search field + in-thread search" },
-    { "m": "GET", "p": "/spark/api/messages/search/suggestions", "auth": "user", "ui": "Search typeahead" },
-    { "m": "POST", "p": "/spark/api/:id/pin", "auth": "user", "ui": "Message menu → Pin (unpin = …/unpin)" },
-    { "m": "POST", "p": "/spark/api/:id/forward", "auth": "user", "ui": "Message menu → Forward" },
-    { "m": "POST", "p": "/spark/api/:id/reply", "auth": "user", "ui": "Reply in thread" },
-    { "m": "GET", "p": "/spark/api/:id/thread", "auth": "user", "ui": "Thread side sheet" },
-    { "m": "POST", "p": "/spark/api/attachments/upload", "auth": "user", "ui": "Attach button, file bubble" },
-    { "m": "GET", "p": "/spark/api/attachments/:id/download", "auth": "user", "ui": "File bubble tap" },
-    { "m": "POST", "p": "/spark/api/encryption/keys/public/batch", "auth": "user", "ui": "E2EE pill (peer keys)" },
-    { "m": "GET", "p": "/spark/api/encryption/keys/mine", "auth": "user", "ui": "Verify keys" },
-    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "To: people picker" }
+    {
+      "m": "GET",
+      "p": "/spark/api/conversations",
+      "auth": "user",
+      "ui": "Conversation list, filters, unread badges"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/conversations",
+      "auth": "user",
+      "ui": "New conversation dialog → Create"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/conversations/:id",
+      "auth": "user",
+      "ui": "Thread header"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/conversations/:id/participants",
+      "auth": "user",
+      "ui": "Details dialog member list"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/conversations/:id/participants",
+      "auth": "user",
+      "ui": "Add people"
+    },
+    {
+      "m": "PUT",
+      "p": "/spark/api/conversations/:id/settings",
+      "auth": "user",
+      "ui": "Details dialog settings"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/conversations/:id/mute",
+      "auth": "user",
+      "ui": "Mute switch (unmute = POST …/unmute)"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/conversations/:id/pinned",
+      "auth": "user",
+      "ui": "Pinned banner"
+    },
+    {
+      "m": "DELETE",
+      "p": "/spark/api/conversations/:id",
+      "auth": "user",
+      "ui": "Leave conversation"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/messages/:conversationId",
+      "auth": "user",
+      "ui": "Message log (cursor pagination on scroll-up)"
+    },
+    {
+      "m": "PUT",
+      "p": "/spark/api/messages/:conversationId/:messageId",
+      "auth": "user",
+      "ui": "Edit (fallback when socket down)"
+    },
+    {
+      "m": "DELETE",
+      "p": "/spark/api/messages/:conversationId/:messageId",
+      "auth": "user",
+      "ui": "Delete (fallback when socket down)"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/messages/search",
+      "auth": "user",
+      "ui": "Search field + in-thread search"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/messages/search/suggestions",
+      "auth": "user",
+      "ui": "Search typeahead"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/:id/pin",
+      "auth": "user",
+      "ui": "Message menu → Pin (unpin = …/unpin)"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/:id/forward",
+      "auth": "user",
+      "ui": "Message menu → Forward"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/:id/reply",
+      "auth": "user",
+      "ui": "Reply in thread"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/:id/thread",
+      "auth": "user",
+      "ui": "Thread side sheet"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/attachments/upload",
+      "auth": "user",
+      "ui": "Attach button, file bubble"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/attachments/:id/download",
+      "auth": "user",
+      "ui": "File bubble tap"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/encryption/keys/public/batch",
+      "auth": "user",
+      "ui": "E2EE pill (peer keys)"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/encryption/keys/mine",
+      "auth": "user",
+      "ui": "Verify keys"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/users/directory",
+      "auth": "user",
+      "ui": "To: people picker"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/conversations/:id/unmute",
+      "auth": "user",
+      "ui": "Mute switch off"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/:id/unpin",
+      "auth": "user",
+      "ui": "Pinned banner → View all → Unpin"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/attachments/:id",
+      "auth": "user",
+      "ui": "File bubble metadata (DELETE same path = remove attachment)"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/attachments/conversations/:cid/attachments",
+      "auth": "user",
+      "ui": "Details → Media & files"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/encryption/keys/generate",
+      "auth": "user",
+      "ui": "New conversation → E2EE on (first key pair on this device)"
+    },
+    {
+      "m": "GET",
+      "p": "/spark/api/encryption/keys/my-keys",
+      "auth": "user",
+      "ui": "Details → Verify keys (device list)"
+    },
+    {
+      "m": "PUT",
+      "p": "/spark/api/encryption/keys/:keyId/rotate",
+      "auth": "user",
+      "ui": "Verify keys → Rotate key"
+    },
+    {
+      "m": "DELETE",
+      "p": "/spark/api/encryption/keys/:keyId",
+      "auth": "user",
+      "ui": "Verify keys → Remove device key"
+    },
+    {
+      "m": "POST",
+      "p": "/spark/api/encryption/messages/:messageId/keys",
+      "auth": "user",
+      "ui": "Send (per-recipient wrapped keys; GET same path when decrypting)"
+    }
   ],
   "socket": [
-    { "ns": "/spark", "auth": "CA bearer (read; write to send/edit, delete to delete)", "rooms": ["conversation:{id}"],
+    {
+      "ns": "/spark",
+      "auth": "CA bearer (read; write to send/edit, delete to delete)",
+      "rooms": [
+        "conversation:{id}"
+      ],
       "emit": [
-        { "e": "join:conversation", "ui": "Selecting a conversation" },
-        { "e": "leave:conversation", "ui": "Switching away / unmount" },
-        { "e": "send:message", "ui": "Composer submit (optimistic bubble)" },
-        { "e": "typing:start", "ui": "Composer keystrokes (throttled 3s)" },
-        { "e": "typing:stop", "ui": "Composer blur / send" },
-        { "e": "mark:read", "ui": "Thread scrolled to bottom while focused" },
-        { "e": "add:reaction", "ui": "Emoji button / long-press" },
-        { "e": "edit:message", "ui": "Message menu → Edit" },
-        { "e": "delete:message", "ui": "Message menu → Delete" },
-        { "e": "presence:update", "ui": "App focus / idle (away after 5 min)" }
+        {
+          "e": "join:conversation",
+          "ui": "Selecting a conversation"
+        },
+        {
+          "e": "leave:conversation",
+          "ui": "Switching away / unmount"
+        },
+        {
+          "e": "send:message",
+          "ui": "Composer submit (optimistic bubble)"
+        },
+        {
+          "e": "typing:start",
+          "ui": "Composer keystrokes (throttled 3s)"
+        },
+        {
+          "e": "typing:stop",
+          "ui": "Composer blur / send"
+        },
+        {
+          "e": "mark:read",
+          "ui": "Thread scrolled to bottom while focused"
+        },
+        {
+          "e": "add:reaction",
+          "ui": "Emoji button / long-press"
+        },
+        {
+          "e": "edit:message",
+          "ui": "Message menu → Edit"
+        },
+        {
+          "e": "delete:message",
+          "ui": "Message menu → Delete"
+        },
+        {
+          "e": "presence:update",
+          "ui": "App focus / idle (away after 5 min)"
+        }
       ],
       "on": [
-        { "e": "joined:conversation", "ui": "Clears thread loading state" },
-        { "e": "left:conversation", "ui": "No UI" },
-        { "e": "new:message", "ui": "Appends to log; bumps list row + unread badge" },
-        { "e": "message:new", "ui": "Same as new:message (REST-originated)" },
-        { "e": "typing:start", "ui": "Typing bubble + list row “typing…”" },
-        { "e": "typing:stop", "ui": "Removes typing bubble" },
-        { "e": "read:receipt", "ui": "“Read by N” ticks on own bubbles" },
-        { "e": "new:reaction", "ui": "Reaction chips under bubble" },
-        { "e": "message:edited", "ui": "Bubble text + “edited” meta" },
-        { "e": "message:deleted", "ui": "Bubble removed (tombstone)" },
-        { "e": "message:redacted", "ui": "“Removed by moderation” tombstone" },
-        { "e": "message:pinned", "ui": "Pinned banner" },
-        { "e": "message:unpinned", "ui": "Pinned banner" },
-        { "e": "message:reply", "ui": "Reply count on parent bubble" },
-        { "e": "participant:added", "ui": "System line + member list" },
-        { "e": "user:status", "ui": "Presence dots + “N online”" },
-        { "e": "error", "ui": "Inline retry on the failed bubble" }
-      ] }
+        {
+          "e": "joined:conversation",
+          "ui": "Clears thread loading state"
+        },
+        {
+          "e": "left:conversation",
+          "ui": "No UI"
+        },
+        {
+          "e": "new:message",
+          "ui": "Appends to log; bumps list row + unread badge"
+        },
+        {
+          "e": "message:new",
+          "ui": "Same as new:message (REST-originated)"
+        },
+        {
+          "e": "typing:start",
+          "ui": "Typing bubble + list row “typing…”"
+        },
+        {
+          "e": "typing:stop",
+          "ui": "Removes typing bubble"
+        },
+        {
+          "e": "read:receipt",
+          "ui": "“Read by N” ticks on own bubbles"
+        },
+        {
+          "e": "new:reaction",
+          "ui": "Reaction chips under bubble"
+        },
+        {
+          "e": "message:edited",
+          "ui": "Bubble text + “edited” meta"
+        },
+        {
+          "e": "message:deleted",
+          "ui": "Bubble removed (tombstone)"
+        },
+        {
+          "e": "message:redacted",
+          "ui": "“Removed by moderation” tombstone"
+        },
+        {
+          "e": "message:pinned",
+          "ui": "Pinned banner"
+        },
+        {
+          "e": "message:unpinned",
+          "ui": "Pinned banner"
+        },
+        {
+          "e": "message:reply",
+          "ui": "Reply count on parent bubble"
+        },
+        {
+          "e": "participant:added",
+          "ui": "System line + member list"
+        },
+        {
+          "e": "user:status",
+          "ui": "Presence dots + “N online”"
+        },
+        {
+          "e": "error",
+          "ui": "Inline retry on the failed bubble"
+        }
+      ]
+    }
   ],
   "gaps": [
-    { "sev": "high", "text": "REST routes emit via req.io (root namespace), so message:new, message:pinned/unpinned, message:reply, message:edited/deleted (REST path) and participant:added never reach /spark clients. Fix: use io.of('/spark')." },
-    { "sev": "med", "text": "add:reaction has no participant check (socket/index.js:509)." },
-    { "sev": "med", "text": "There's no user:{id} room, so unread badges for conversations you haven't joined can't update live. The list refetches on focus until a per-user room exists." }
+    {
+      "sev": "high",
+      "text": "REST routes emit via req.io (root namespace), so message:new, message:pinned/unpinned, message:reply, message:edited/deleted (REST path) and participant:added never reach /spark clients. Fix: use io.of('/spark')."
+    },
+    {
+      "sev": "med",
+      "text": "add:reaction has no participant check (socket/index.js:509)."
+    },
+    {
+      "sev": "med",
+      "text": "There's no user:{id} room, so unread badges for conversations you haven't joined can't update live. The list refetches on focus until a per-user room exists."
+    }
   ]
 }
 </script>

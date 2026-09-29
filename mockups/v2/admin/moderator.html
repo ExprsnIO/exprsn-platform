@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moderation · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .page .md { margin: 0; height: 660px; border: 1px solid var(--exprsn-border-color); border-radius: var(--v2-radius-card); overflow: hidden; }
+  .md-list .list-item { align-items: flex-start; }
+  .prio { width: 4px; align-self: stretch; border-radius: 2px; background: var(--exprsn-border-color-strong); flex: none; }
+  .prio.hi { background: var(--exprsn-danger); } .prio.md2 { background: var(--exprsn-warning); }
+  .content-box { background: var(--exprsn-surface-raised); border: 1px solid var(--exprsn-border-color); border-radius: 14px; padding: 14px 16px; font-size: .9375rem; }
+  .triage { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--exprsn-border-color); background: var(--exprsn-bg-primary); }
+  .triage .kbd { margin-left: 4px; }
+  .chart { width: 100%; max-width: 520px; height: auto; display: block; }
+  .chart .gl { stroke: var(--exprsn-border-color); }
+  .chart .b { fill: var(--exprsn-primary); } .chart .b.hi { fill: var(--exprsn-danger); } .chart .b.mid { fill: var(--exprsn-warning); } .chart .b.lo { fill: var(--exprsn-success); }
+  .chart .thr { stroke: var(--exprsn-text-secondary); stroke-dasharray: 3 3; }
+  .chart text { fill: var(--exprsn-text-secondary); font-size: 12px; font-family: var(--exprsn-font-family); }
+  .chart text.v { fill: var(--exprsn-text-primary); font-weight: 600; }
+  @media (max-width: 900px) { .page .md { height: 78vh; } }
+</style>
+</head>
+<body data-shell="admin" data-page="moderator">
+<main id="main">
+  <div class="page wide">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Applications</span><i data-i="right" class="sm"></i><span>Moderation</span></nav>
+        <h1 class="page-title">Moderation</h1>
+        <p class="page-sub">The live review queue, reports and appeals, rules, workflows and AI agents, word lists, review buckets and metrics.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-api="/moderator/api/metrics/export" data-toast="Exporting metrics — moderation-week.csv"><i data-i="download" class="sm"></i>Export metrics</button>
+        <button class="btn primary" type="button" data-open="dlg-rule" data-api="/moderator/api/rules"><i data-i="plus" class="sm"></i>New rule</button>
+      </div>
+    </header>
+
+    <div class="grid c4" data-api="/moderator/api/metrics">
+      <div class="card stat" data-on="queue:new_item queue:item_completed"><span class="label"><i data-i="queue" class="sm"></i>Pending review</span><span class="value">37</span><span class="delta down">4 high priority</span></div>
+      <div class="card stat"><span class="label"><i data-i="clock" class="sm"></i>Oldest item</span><span class="value">2 h 04 m</span><span class="delta down">SLA 4 h</span></div>
+      <div class="card stat" data-on="appeal:new appeal:reviewed"><span class="label"><i data-i="gavel" class="sm"></i>Open appeals</span><span class="value">9</span><span class="delta">2 new today</span></div>
+      <div class="card stat" data-on="content_action user_action"><span class="label"><i data-i="shield" class="sm"></i>Actions this week</span><span class="value">5,466</span><span class="delta up">77% auto-approved</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Moderation views">
+      <button role="tab" id="t-q" aria-controls="p-q" aria-selected="true">Queue <span class="badge" data-on="queue:new_item">37</span></button>
+      <button role="tab" id="t-rp" aria-controls="p-rp">Reports</button>
+      <button role="tab" id="t-ap" aria-controls="p-ap">Appeals <span class="badge neutral">9</span></button>
+      <button role="tab" id="t-ru" aria-controls="p-ru">Rules</button>
+      <button role="tab" id="t-wf" aria-controls="p-wf">Workflows</button>
+      <button role="tab" id="t-ag" aria-controls="p-ag">Agents</button>
+      <button role="tab" id="t-wl" aria-controls="p-wl">Word lists</button>
+      <button role="tab" id="t-qs" aria-controls="p-qs">Buckets &amp; DLQ</button>
+      <button role="tab" id="t-mx" aria-controls="p-mx">Metrics</button>
+      <button role="tab" id="t-pv" aria-controls="p-pv">Actions &amp; providers</button>
+    </div>
+
+    <!-- ── Live queue ── -->
+    <section id="p-q" role="tabpanel" aria-labelledby="t-q">
+      <div class="md">
+        <section class="md-list" aria-label="Review queue">
+          <div class="stack" style="padding:12px 16px;gap:10px;border-bottom:1px solid var(--exprsn-border-color)">
+            <div class="row between"><b>Pending · priority first</b><span class="pill ok" data-on="queue:new_item queue:high_priority"><span class="d"></span>Live · moderators</span></div>
+            <div class="seg" role="group" aria-label="Queue filter"><button type="button" aria-pressed="true">All</button><button type="button" aria-pressed="false">High</button><button type="button" aria-pressed="false">Mine</button><button type="button" aria-pressed="false">Images</button></div>
+          </div>
+          <div class="scroll" data-state="loaded">
+            <div class="banner danger" style="border-radius:0" data-on="queue:high_priority"><i data-i="zap" class="sm"></i><span class="grow"><b>New high-priority item</b> pinned to top · risk 94</span></div>
+            <div class="list" role="listbox" aria-label="Queue items" data-api="/moderator/api/queue /moderator/api/queue/pending" data-on="queue:new_item queue:item_claimed queue:item_completed">
+              <button class="list-item" type="button" role="option" aria-selected="true"><span class="prio hi"></span><span class="grow stack tight"><span class="row between"><span class="title truncate">timeline · text</span><span class="xs muted num">2 m</span></span><span class="meta truncate">“You people are the reason this city is…”</span><span class="row" style="gap:6px"><span class="pill danger">risk 94</span><span class="pill">Ari claimed</span></span></span></button>
+              <button class="list-item" type="button" role="option"><span class="prio hi"></span><span class="grow stack tight"><span class="row between"><span class="title truncate">filevault · image</span><span class="xs muted num">11 m</span></span><span class="meta truncate">IMG_2291.jpg · Contoso shared drive</span><span class="row" style="gap:6px"><span class="pill danger">risk 88</span></span></span></button>
+              <button class="list-item" type="button" role="option"><span class="prio md2"></span><span class="grow stack tight"><span class="row between"><span class="title truncate">spark · text</span><span class="xs muted num">34 m</span></span><span class="meta truncate">“dm me for cheap followers 🔥🔥”</span><span class="row" style="gap:6px"><span class="pill warn">risk 71</span></span></span></button>
+              <button class="list-item" type="button" role="option"><span class="prio"></span><span class="grow stack tight"><span class="row between"><span class="title truncate">atproto · post</span><span class="xs muted num">1 h</span></span><span class="meta truncate">at://did:plc:7ah2…/app.bsky.feed.post/3kx…</span><span class="row" style="gap:6px"><span class="pill warn">risk 55</span></span></span></button>
+              <button class="list-item" type="button" role="option"><span class="prio"></span><span class="grow stack tight"><span class="row between"><span class="title truncate">live · recording</span><span class="xs muted num">2 h</span></span><span class="meta truncate">Contoso quarterly AMA · part 2</span><span class="row" style="gap:6px"><span class="pill warn">risk 52</span></span></span></button>
+            </div>
+          </div>
+          <div class="scroll" data-state="empty"><div class="empty"><div class="art"><i data-i="checks"></i></div><h3>Queue is clear</h3><p>Nothing needs review. New items arrive here live as <code>queue:new_item</code> fires.</p></div></div>
+          <div class="scroll" data-state="loading" aria-busy="true"><div class="stack" style="padding:16px"><span class="sk" style="height:64px"></span><span class="sk" style="height:64px"></span><span class="sk" style="height:64px"></span></div></div>
+          <div class="scroll" data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Not authorized for the queue</h3><p>The moderator requires a platform-admin email or an admin/moderator role; live updates need the email allowlist (MOD-4).</p><button class="btn outline" type="button">Retry</button></div></div>
+        </section>
+
+        <section class="md-detail" aria-label="Item detail">
+          <header class="md-head" data-api="/moderator/api/queue/:id">
+            <button class="icon-btn" type="button" data-back aria-label="Back to queue"><i data-i="back"></i></button>
+            <div class="grow stack tight"><b class="truncate">timeline · text · <span class="id">mi_41c9e0</span></b><span class="xs muted">by Sam Kim · post pst_c11a02 · queued 2 m ago · claimed by Ari Lindqvist</span></div>
+            <button class="btn sm outline" type="button" disabled title="Proposed: POST /moderator/api/queue/:id/claim">Claim</button>
+          </header>
+          <div class="scroll" style="padding:16px">
+            <div class="stack loose">
+              <div class="content-box">You people are the reason this city is falling apart. Someone should do something about all of you before it’s too late.</div>
+              <div class="grid c2">
+                <div class="card pad stack">
+                  <div class="row between"><b>Risk 94 · critical</b><span class="pill danger">requires review</span></div>
+                  <svg class="chart" viewBox="0 0 330 200" role="img" aria-label="Sub-scores out of 1: toxicity 0.82, hate speech 0.67, violence 0.31, spam 0.12, nsfw 0.04, negative sentiment 0.90">
+                    <line class="gl" x1="100" y1="0" x2="100" y2="190"/><line class="thr" x1="250" y1="0" x2="250" y2="190"/>
+                    <text x="0" y="21">Toxicity</text><rect class="b hi" x="100" y="8" width="164" height="18" rx="3"/><text class="v" x="270" y="21">0.82</text>
+                    <text x="0" y="52">Hate speech</text><rect class="b mid" x="100" y="39" width="134" height="18" rx="3"/><text class="v" x="240" y="52">0.67</text>
+                    <text x="0" y="83">Violence</text><rect class="b mid" x="100" y="70" width="62" height="18" rx="3"/><text class="v" x="168" y="83">0.31</text>
+                    <text x="0" y="114">Spam</text><rect class="b lo" x="100" y="101" width="24" height="18" rx="3"/><text class="v" x="130" y="114">0.12</text>
+                    <text x="0" y="145">NSFW</text><rect class="b lo" x="100" y="132" width="8" height="18" rx="3"/><text class="v" x="114" y="145">0.04</text>
+                    <text x="0" y="176">Neg. sentiment</text><rect class="b" x="100" y="163" width="180" height="18" rx="3"/><text class="v" x="286" y="176">0.90</text>
+                  </svg>
+                  <span class="xs muted">Scale 0–1 (200 px = 1.0); dashed line = 0.75 escalation threshold.</span>
+                </div>
+                <div class="card pad"><dl class="kv"><dt>Provider</dt><dd>cortex · judge (llama3.1-8b)</dd><dt>Rules matched</dt><dd>threat-language (priority 900)</dd><dt>Author history</dt><dd>1 warning (Sep 12) · 0 bans</dd><dt>Reports</dt><dd>3 from other users</dd><dt>Source</dt><dd><a href="timeline.html">Open post in Timeline</a></dd></dl></div>
+              </div>
+              <div class="banner info"><i data-i="info" class="sm"></i><span class="grow">Claims come from <code>queue:item_claimed</code>; the claim/assign route itself is proposed (MOD-1). If another moderator completes this item, it closes here with a notice.</span></div>
+            </div>
+          </div>
+          <div class="triage" data-on="queue:item_completed content_action user_action">
+            <button class="btn sm primary" type="button" data-api="/moderator/api/queue/:itemId/approve" data-toast="Approved · next item">Approve<span class="kbd">A</span></button>
+            <button class="btn sm outline" type="button" data-open="dlg-reject" data-api="/moderator/api/queue/:itemId/reject">Reject<span class="kbd">R</span></button>
+            <button class="btn sm outline" type="button" data-open="dlg-warn" data-api="/moderator/api/queue/:id/warn">Warn<span class="kbd">W</span></button>
+            <button class="btn sm outline" type="button" data-open="dlg-remove" data-api="/moderator/api/queue/:id/remove">Remove<span class="kbd">X</span></button>
+            <button class="btn sm danger-outline" type="button" data-open="dlg-ban" data-api="/moderator/api/queue/:id/ban">Ban<span class="kbd">B</span></button>
+            <span class="grow"></span>
+            <button class="btn sm ghost" type="button" data-api="/moderator/api/queue/:id/analyze" data-toast="Re-analyzing with cortex…">Analyze</button>
+            <button class="btn sm ghost" type="button" data-api="/moderator/api/queue/:id/skip" data-toast="Skipped · next item">Skip<span class="kbd">S</span></button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ── Reports ── -->
+    <section id="p-rp" role="tabpanel" aria-labelledby="t-rp" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><div class="seg" role="group" aria-label="Report status"><button type="button" aria-pressed="true">Open</button><button type="button" aria-pressed="false">Investigating</button><button type="button" aria-pressed="false">Resolved</button></div><span class="grow"></span><span class="xs muted">limit ≤ 200</span></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/moderator/api/reports">
+            <thead><tr><th>Content</th><th>Reporter</th><th>Reason</th><th>Status</th><th class="num">Filed</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td>timeline · pst_c11a02</td><td>Priya Raman</td><td>harassment</td><td><span class="pill info">open</span></td><td class="num">12 m</td><td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-resolve" data-api="/moderator/api/reports/:id/resolve">Resolve</button></td></tr>
+              <tr><td>spark · msg_77e1</td><td>Jonah Okafor</td><td>spam</td><td><span class="pill info">open</span></td><td class="num">40 m</td><td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-resolve">Resolve</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Appeals ── -->
+    <section id="p-ap" role="tabpanel" aria-labelledby="t-ap" hidden>
+      <div class="grid c4" data-api="/moderator/api/appeals/stats/summary" style="margin-bottom:16px">
+        <div class="card stat"><span class="label">Pending</span><span class="value">9</span></div>
+        <div class="card stat"><span class="label">Reviewing</span><span class="value">2</span></div>
+        <div class="card stat"><span class="label">Approved (30 d)</span><span class="value">31%</span></div>
+        <div class="card stat"><span class="label">Median time to decide</span><span class="value">7 h</span></div>
+      </div>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Appeals</b><span class="grow"></span><span class="pill ok" data-on="appeal:new"><span class="d"></span>1 new appeal — show</span></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/moderator/api/appeals" data-on="appeal:new appeal:reviewed">
+            <thead><tr><th>Appellant</th><th>Appealing</th><th>Reason</th><th>Status</th><th class="num">Submitted</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td>Sam Kim</td><td>Removal of pst_9ab0 (spam)</td><td class="small">It was a product launch announcement, not spam.</td><td><span class="pill warn">pending</span></td><td class="num">3 h</td><td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-appeal" data-api="/moderator/api/appeals/:id/review">Review</button></td></tr>
+              <tr><td>Contoso bot</td><td>7-day suspension</td><td class="small">Automated account, misconfigured rate.</td><td><span class="pill info">reviewing</span></td><td class="num">Yesterday</td><td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-appeal">Review</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Rules ── -->
+    <section id="p-ru" role="tabpanel" aria-labelledby="t-ru" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="ru-q" type="search" placeholder="Search rules"></label><button class="chip" type="button" aria-pressed="false">Applies to</button><button class="chip" type="button" aria-pressed="false">Enabled</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/moderator/api/rules">
+            <thead><tr><th class="num">Priority</th><th>Rule</th><th>Applies to</th><th class="num">Threshold</th><th>Action</th><th>Enabled</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td class="num">900</td><td><b>threat-language</b><div class="xs muted">keywords_list threats + min_risk 60</div></td><td>text, llm_message</td><td class="num">60</td><td><span class="pill danger">reject</span></td><td><label class="switch"><input type="checkbox" id="ru-e1" checked aria-label="Enable threat-language" data-api="/moderator/api/rules/:id/disable"><span></span></label></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-rule" data-api="/moderator/api/rules/:id">Edit</button><button class="btn sm ghost" type="button" data-open="dlg-rule" data-api="/moderator/api/rules/:id/test">Test</button><button class="icon-btn" type="button" aria-label="Delete threat-language" data-open="dlg-del-rule"><i data-i="trash"></i></button></td></tr>
+              <tr><td class="num">500</td><td><b>crypto-spam</b><div class="xs muted">regex /(cheap|free).{0,20}(followers|crypto)/i</div></td><td>text</td><td class="num">40</td><td><span class="pill warn">flag</span></td><td><label class="switch"><input type="checkbox" id="ru-e2" checked aria-label="Enable crypto-spam" data-api="/moderator/api/rules/:id/enable"><span></span></label></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-rule">Edit</button><button class="btn sm ghost" type="button" data-open="dlg-rule">Test</button><button class="icon-btn" type="button" aria-label="Delete crypto-spam" data-open="dlg-del-rule"><i data-i="trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Workflows ── -->
+    <section id="p-wf" role="tabpanel" aria-labelledby="t-wf" hidden>
+      <div class="grid c2">
+        <div class="card dt">
+          <div class="dt-toolbar"><b>Workflows</b><span class="grow"></span><button class="btn sm outline" type="button" data-api="/moderator/api/workflows" data-toast="Workflow created">New workflow</button></div>
+          <div class="dt-scroll">
+            <table class="table" data-api="/moderator/api/workflows /moderator/api/workflows/active">
+              <thead><tr><th>Workflow</th><th>Trigger</th><th class="num">Steps</th><th>Enabled</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                <tr><td><b>image-pipeline</b></td><td>content_submitted</td><td class="num">5</td><td><span class="pill ok">on</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-exec" data-api="/moderator/api/workflows/:id/execute">Execute</button><button class="icon-btn" type="button" aria-label="Delete image-pipeline" data-open="dlg-del-wf" data-api="/moderator/api/workflows/:id"><i data-i="trash"></i></button></td></tr>
+                <tr><td><b>appeal-routing</b></td><td>manual</td><td class="num">3</td><td><span class="pill">off</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-exec">Execute</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Recent executions</h2></div>
+          <div class="list" data-api="/moderator/api/workflows/executions/recent /moderator/api/workflows/executions/:id">
+            <div class="list-item"><span class="grow"><span class="title">image-pipeline · mi_40a2e1</span><div class="meta">analyze → apply_rules → route_queue(images)</div></span><span class="pill ok">completed</span></div>
+            <div class="list-item"><span class="grow"><span class="title">image-pipeline · mi_40a2d7</span><div class="meta">analyze timed out at step 1</div></span><span class="pill danger">failed</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Agents ── -->
+    <section id="p-ag" role="tabpanel" aria-labelledby="t-ag" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Moderation agents</b><span class="grow"></span><a class="btn sm outline" href="ai.html">Manage in AI</a></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/moderator/api/agents">
+            <thead><tr><th>Agent</th><th>Type</th><th>Provider · model</th><th>Status</th><th class="num">Executions</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>toxicity-judge</b></td><td>text_classifier</td><td>cortex · judge</td><td><span class="pill ok">active</span></td><td class="num">48,210 · 0.4% failed</td><td class="actions"><button class="btn sm ghost" type="button" data-api="/moderator/api/agents/:id/disable" data-toast="toxicity-judge disabled · Undo">Disable</button></td></tr>
+              <tr><td><b>vision-nsfw</b></td><td>image_classifier</td><td>cortex · qwen2-vl</td><td><span class="pill danger">error</span></td><td class="num">9,881 · 3.1% failed</td><td class="actions"><button class="btn sm tonal" type="button" data-api="/moderator/api/agents/:id/enable" data-toast="vision-nsfw enabled">Enable</button><button class="icon-btn" type="button" aria-label="Delete vision-nsfw" data-open="dlg-del-agent" data-api="/moderator/api/agents/:id"><i data-i="trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Word lists ── -->
+    <section id="p-wl" role="tabpanel" aria-labelledby="t-wl" hidden>
+      <div class="grid auto" data-api="/moderator/api/wordlists">
+        <div class="card pad stack"><div class="row between"><b>threats</b><span class="pill danger">deny</span></div><span class="small secondary">214 words · used by threat-language</span><div class="row"><button class="btn sm ghost" type="button" data-open="dlg-wl" data-api="/moderator/api/wordlists/:name">Edit</button><button class="btn sm ghost" type="button" data-open="dlg-del-wl">Delete</button></div></div>
+        <div class="card pad stack"><div class="row between"><b>brand_terms</b><span class="pill ok">allow</span></div><span class="small secondary">38 words · reduces false positives</span><div class="row"><button class="btn sm ghost" type="button" data-open="dlg-wl">Edit</button><button class="btn sm ghost" type="button" data-open="dlg-del-wl">Delete</button></div></div>
+      </div>
+    </section>
+
+    <!-- ── Buckets & DLQ ── -->
+    <section id="p-qs" role="tabpanel" aria-labelledby="t-qs" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Review buckets</b><span class="grow"></span><a class="btn sm outline" href="jobs.html">Full view in Jobs &amp; Queues</a></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/moderator/api/queues /moderator/api/queues/:name/stats">
+            <thead><tr><th>Bucket</th><th>Backend</th><th class="num">Waiting</th><th class="num">DLQ</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>modq:high_risk</b></td><td>bull</td><td class="num">17</td><td class="num">0</td><td class="actions"><button class="btn sm ghost" type="button" data-api="/moderator/api/queues/:name/test" data-toast="Test item published">Test</button></td></tr>
+              <tr><td><b>modq:images</b></td><td>rabbitmq</td><td class="num">204</td><td class="num">21</td><td class="actions"><button class="btn sm tonal" type="button" data-api="/moderator/api/queues/:name/dlq/redrive" data-toast="Moved 21 items to modq:images">Redrive</button><a class="btn sm ghost" href="jobs.html">View DLQ</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Metrics ── -->
+    <section id="p-mx" role="tabpanel" aria-labelledby="t-mx" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Actions by outcome</h2><div class="seg" role="group" aria-label="Period"><button type="button" aria-pressed="false">Today</button><button type="button" aria-pressed="true">Week</button><button type="button" aria-pressed="false">Month</button><button type="button" aria-pressed="false">All</button></div></div>
+        <div class="card-body" data-api="/moderator/api/metrics">
+          <svg class="chart" viewBox="0 0 440 200" role="img" aria-label="Actions this week: approved 4,210; rejected 612; flagged 388; warned 142; removed 96; banned 18">
+            <line class="gl" x1="80" y1="0" x2="80" y2="190"/>
+            <text x="0" y="21">Approved</text><rect class="b lo" x="80" y="8" width="300" height="18" rx="3"/><text class="v" x="386" y="21">4,210</text>
+            <text x="0" y="52">Rejected</text><rect class="b hi" x="80" y="39" width="43.6" height="18" rx="3"/><text class="v" x="130" y="52">612</text>
+            <text x="0" y="83">Flagged</text><rect class="b mid" x="80" y="70" width="27.6" height="18" rx="3"/><text class="v" x="114" y="83">388</text>
+            <text x="0" y="114">Warned</text><rect class="b mid" x="80" y="101" width="10.1" height="18" rx="3"/><text class="v" x="96" y="114">142</text>
+            <text x="0" y="145">Removed</text><rect class="b hi" x="80" y="132" width="6.8" height="18" rx="2"/><text class="v" x="93" y="145">96</text>
+            <text x="0" y="176">Banned</text><rect class="b hi" x="80" y="163" width="1.3" height="18"/><text class="v" x="87" y="176">18</text>
+          </svg>
+          <p class="xs muted">Linear scale, max 4,210. Most approvals are automatic (risk &lt; 30).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Actions & providers ── -->
+    <section id="p-pv" role="tabpanel" aria-labelledby="t-pv" hidden>
+      <div class="grid c2">
+        <div class="card">
+          <div class="card-head"><h2>AI providers</h2></div>
+          <div class="list" data-api="/moderator/api/actions/providers/status">
+            <div class="list-item"><i data-i="cpu"></i><span class="grow"><span class="title">cortex</span><div class="meta">mode enforce · default provider</div></span><span class="pill ok">configured</span></div>
+            <div class="list-item"><i data-i="cloud"></i><span class="grow"><span class="title">claude</span><div class="meta">key missing (CLAUDE_API_KEY vs ANTHROPIC_API_KEY)</div></span><span class="pill warn">not configured</span></div>
+            <div class="list-item"><i data-i="cloud"></i><span class="grow"><span class="title">openai</span><div class="meta">disabled</div></span><span class="pill">off</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Recent actions</h2><button class="btn sm outline" type="button" data-open="dlg-exec-action" data-api="/moderator/api/actions/execute">Execute action</button></div>
+          <div class="activity card-body" data-api="/moderator/api/actions/recent" data-on="content_action user_action">
+            <div class="activity-item"><span class="ico"><i data-i="trash"></i></span><span><b>remove</b> timeline pst_9ab0 · Ari Lindqvist</span><span class="when">3 m</span></div>
+            <div class="activity-item"><span class="ico"><i data-i="gavel"></i></span><span><b>suspend</b> Contoso bot · 7 d · auto (rule rate-abuse)</span><span class="when">1 h</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog sm" id="dlg-reject" aria-labelledby="dlg-rj-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rj-t">Reject Sam Kim’s post?</h2><p>The post is hidden and Sam is notified with your note.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rj-notes">Notes</label><textarea class="textarea" id="rj-notes">Threatening language toward a group.</textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Rejected · next item">Reject</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-warn" aria-labelledby="dlg-wn-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-wn-t">Warn Sam Kim</h2><p>Second warning in 30 days.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="wn-reason">Reason</label><input class="input" id="wn-reason" value="Threatening language"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Warning sent to Sam Kim">Send warning</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-remove" aria-labelledby="dlg-rm-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rm-t">Remove Sam Kim’s post?</h2><p>pst_c11a02 is deleted from Timeline via the moderation sink (post:retracted).</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rm-reason">Reason</label><input class="input" id="rm-reason" value="Threat of violence"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Post removed">Remove post</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-ban" aria-labelledby="dlg-bn-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-bn-t">Ban Sam Kim?</h2><p>Sam can’t post, message or join rooms for the duration. Sessions stay signed in.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="bn-dur">Duration</label><select class="select" id="bn-dur"><option>7 days</option><option>30 days</option><option>permanent</option></select></div><div class="field"><label for="bn-reason">Reason</label><input class="input" id="bn-reason" value="Threats after prior warning"></div><div class="field"><label for="bn-confirm">Type <b>Sam Kim</b> to confirm</label><input class="input" id="bn-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Sam Kim banned for 7 days">Ban user</button></div>
+  </dialog>
+  <dialog class="dialog" id="dlg-resolve" aria-labelledby="dlg-rs-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rs-t">Resolve report · harassment</h2><p>Reported by Priya Raman · timeline pst_c11a02</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rs-act">Action taken</label><select class="select" id="rs-act"><option>content_removed</option><option>user_warned</option><option>no_action</option></select></div><div class="field"><label for="rs-notes">Resolution notes</label><textarea class="textarea" id="rs-notes"></textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Report resolved">Resolve</button></div>
+  </dialog>
+  <dialog class="dialog" id="dlg-appeal" aria-labelledby="dlg-ap-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ap-t">Review Sam Kim’s appeal</h2><p>Appealing removal of pst_9ab0 (spam) · 3 h ago</p></div></div>
+    <div class="dialog-body"><blockquote class="inset" style="margin:0">It was a product launch announcement, not spam.</blockquote><div class="field"><span class="label" id="ap-dec">Decision</span><div class="seg" role="group" aria-labelledby="ap-dec"><button type="button" aria-pressed="true">Approve</button><button type="button" aria-pressed="false">Deny</button></div></div><div class="field"><label for="ap-notes">Notes (required, sent to Sam)</label><textarea class="textarea" id="ap-notes"></textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Appeal approved · post restored">Save decision</button></div>
+  </dialog>
+  <dialog class="dialog lg" id="dlg-rule" aria-labelledby="dlg-ru-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ru-t">Rule · threat-language</h2><p>Condition tree + test panel</p></div></div>
+    <form class="dialog-body" data-toast="Rule saved">
+      <div class="form-grid"><div class="field"><label for="ru-name">Name</label><input class="input" id="ru-name" value="threat-language"></div><div class="field"><label for="ru-act">Action</label><select class="select" id="ru-act"><option>reject</option><option>flag</option><option>remove</option><option>approve</option></select></div></div>
+      <div class="field"><label for="ru-tree">Conditions</label><pre class="code" id="ru-tree" tabindex="0">{ "all": [
+  { "keywords_list": "threats", "keyword_match": "any" },
+  { "min_risk_score": 60 } ] }</pre></div>
+      <div class="field"><label for="ru-sample">Test text</label><input class="input" id="ru-sample" value="someone should do something about all of you"></div>
+      <div class="banner ok"><i data-i="check" class="sm"></i><span>Matched · keywords “do something about” · risk 94 ≥ 60</span></div>
+    </form>
+    <div class="dialog-foot"><button class="btn outline left" type="button" data-toast="Matched · risk 94">Test</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Rule saved">Save rule</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del-rule" aria-labelledby="dlg-dr-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dr-t">Delete rule threat-language?</h2><p>Items stop matching it immediately; past actions are kept.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Rule deleted">Delete rule</button></div>
+  </dialog>
+  <dialog class="dialog" id="dlg-exec" aria-labelledby="dlg-ex-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ex-t">Execute image-pipeline</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="ex-ctx">Context (JSON)</label><textarea class="textarea mono" id="ex-ctx">{ "sourceService": "filevault", "contentType": "image", "contentId": "fil_29c1" }</textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Execution queued">Execute</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del-wf" aria-labelledby="dlg-dw-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dw-t">Delete workflow image-pipeline?</h2><p>New images fall back to default routing. Execution history is kept.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Workflow deleted">Delete workflow</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del-agent" aria-labelledby="dlg-dag-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dag-t">Delete agent vision-nsfw?</h2><p>Images use rules only until another image agent is enabled.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Agent deleted">Delete agent</button></div>
+  </dialog>
+  <dialog class="dialog" id="dlg-wl" aria-labelledby="dlg-wl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-wl-t">Word list · threats</h2><p>Paste one per line; duplicates are removed. Matching is case-insensitive.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="wl-words">Words</label><textarea class="textarea" id="wl-words">do something about
+before it's too late
+you'll regret</textarea></div><div class="field"><label for="wl-mode">Mode</label><select class="select" id="wl-mode"><option>deny</option><option>allow</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="threats saved · 216 words">Save list</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del-wl" aria-labelledby="dlg-dwl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dwl-t">Delete word list threats?</h2><p>Rule threat-language references it and will stop matching keywords.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Word list deleted">Delete list</button></div>
+  </dialog>
+  <dialog class="dialog" id="dlg-exec-action" aria-labelledby="dlg-ea-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ea-t">Execute moderation action</h2><p>Acts directly, outside the queue. Audited.</p></div></div>
+    <div class="dialog-body"><div class="form-grid"><div class="field"><label for="ea-type">Action</label><select class="select" id="ea-type"><option>remove</option><option>warn</option><option>suspend</option></select></div><div class="field"><label for="ea-src">Source</label><select class="select" id="ea-src"><option>timeline</option><option>spark</option><option>filevault</option></select></div><div class="field"><label for="ea-id">Content id</label><input class="input" id="ea-id"></div><div class="field"><label for="ea-reason">Reason</label><input class="input" id="ea-reason"></div></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Action executed">Execute</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "The queue is live: the console joins the moderators room on /moderation; new items slot in by priority (high priority pins to top with a banner), claims and completions by other moderators update in place. Triage buttons are optimistic — the item leaves and the next one opens; on error it returns with a toast.",
+  "rest": [
+    { "m": "GET", "p": "/moderator/api/queue", "auth": "A", "ui": "Queue list (status, priority)" },
+    { "m": "GET", "p": "/moderator/api/queue/pending", "auth": "A", "ui": "Queue list default" },
+    { "m": "GET", "p": "/moderator/api/queue/:id", "auth": "A", "ui": "Item detail" },
+    { "m": "POST", "p": "/moderator/api/queue/:itemId/approve", "auth": "A", "ui": "Approve (A)" },
+    { "m": "POST", "p": "/moderator/api/queue/:itemId/reject", "auth": "A", "ui": "Reject dialog (R)" },
+    { "m": "POST", "p": "/moderator/api/queue/:id/analyze", "auth": "A", "ui": "Analyze" },
+    { "m": "POST", "p": "/moderator/api/queue/:id/warn", "auth": "A", "ui": "Warn dialog (W)" },
+    { "m": "POST", "p": "/moderator/api/queue/:id/remove", "auth": "A", "ui": "Remove dialog (X)" },
+    { "m": "POST", "p": "/moderator/api/queue/:id/ban", "auth": "A", "ui": "Ban dialog (B)" },
+    { "m": "POST", "p": "/moderator/api/queue/:id/skip", "auth": "A", "ui": "Skip (S)" },
+    { "m": "GET", "p": "/moderator/api/moderate/status/:sourceService/:contentType/:contentId", "auth": "S/A", "ui": "Item lookup by natural key" },
+    { "m": "GET", "p": "/moderator/api/reports", "auth": "A", "ui": "Reports table" },
+    { "m": "GET", "p": "/moderator/api/reports/:id", "auth": "A", "ui": "Report detail" },
+    { "m": "PUT", "p": "/moderator/api/reports/:id/resolve", "auth": "A", "ui": "Resolve dialog" },
+    { "m": "GET", "p": "/moderator/api/appeals", "auth": "A", "ui": "Appeals table" },
+    { "m": "GET", "p": "/moderator/api/appeals/:id", "auth": "A", "ui": "Appeal detail" },
+    { "m": "POST", "p": "/moderator/api/appeals/:id/review", "auth": "A", "ui": "Review dialog" },
+    { "m": "GET", "p": "/moderator/api/appeals/stats/summary", "auth": "A", "ui": "Appeal tiles" },
+    { "m": "GET", "p": "/moderator/api/appeals/case/:moderationItemId", "auth": "A", "ui": "Item detail → appeals" },
+    { "m": "GET", "p": "/moderator/api/rules", "auth": "A", "ui": "Rules table" },
+    { "m": "GET", "p": "/moderator/api/rules/:id", "auth": "A", "ui": "Rule editor" },
+    { "m": "POST", "p": "/moderator/api/rules", "auth": "A", "ui": "New rule (primary)" },
+    { "m": "PUT", "p": "/moderator/api/rules/:id", "auth": "A", "ui": "Save rule" },
+    { "m": "DELETE", "p": "/moderator/api/rules/:id", "auth": "A", "ui": "Delete rule dialog" },
+    { "m": "POST", "p": "/moderator/api/rules/:id/test", "auth": "A", "ui": "Rule → Test" },
+    { "m": "POST", "p": "/moderator/api/rules/:id/enable", "auth": "A", "ui": "Enabled switch on" },
+    { "m": "POST", "p": "/moderator/api/rules/:id/disable", "auth": "A", "ui": "Enabled switch off" },
+    { "m": "GET", "p": "/moderator/api/workflows", "auth": "A", "ui": "Workflows table" },
+    { "m": "GET", "p": "/moderator/api/workflows/active", "auth": "A", "ui": "Enabled column" },
+    { "m": "POST", "p": "/moderator/api/workflows", "auth": "A", "ui": "New workflow" },
+    { "m": "PUT", "p": "/moderator/api/workflows/:id", "auth": "A", "ui": "Edit workflow" },
+    { "m": "DELETE", "p": "/moderator/api/workflows/:id", "auth": "A", "ui": "Delete workflow dialog" },
+    { "m": "POST", "p": "/moderator/api/workflows/:id/execute", "auth": "A", "ui": "Execute dialog" },
+    { "m": "GET", "p": "/moderator/api/workflows/executions", "auth": "A", "ui": "Executions list (all)" },
+    { "m": "GET", "p": "/moderator/api/workflows/executions/recent", "auth": "A", "ui": "Recent executions" },
+    { "m": "GET", "p": "/moderator/api/workflows/executions/:id", "auth": "A", "ui": "Execution detail" },
+    { "m": "GET", "p": "/moderator/api/agents", "auth": "A", "ui": "Agents table" },
+    { "m": "GET", "p": "/moderator/api/agents/:id", "auth": "A", "ui": "Agent detail" },
+    { "m": "POST", "p": "/moderator/api/agents", "auth": "A", "ui": "Create agent (AI page)" },
+    { "m": "PUT", "p": "/moderator/api/agents/:id", "auth": "A", "ui": "Edit agent (AI page)" },
+    { "m": "DELETE", "p": "/moderator/api/agents/:id", "auth": "A", "ui": "Delete agent dialog" },
+    { "m": "POST", "p": "/moderator/api/agents/:id/enable", "auth": "A", "ui": "Agent → Enable" },
+    { "m": "POST", "p": "/moderator/api/agents/:id/disable", "auth": "A", "ui": "Agent → Disable" },
+    { "m": "GET", "p": "/moderator/api/wordlists", "auth": "A", "ui": "Word lists" },
+    { "m": "GET", "p": "/moderator/api/wordlists/:name", "auth": "A", "ui": "Word list editor" },
+    { "m": "PUT", "p": "/moderator/api/wordlists/:name", "auth": "A", "ui": "Save list" },
+    { "m": "DELETE", "p": "/moderator/api/wordlists/:name", "auth": "A", "ui": "Delete list dialog" },
+    { "m": "GET", "p": "/moderator/api/queues", "auth": "A", "ui": "Buckets table" },
+    { "m": "GET", "p": "/moderator/api/queues/:name/stats", "auth": "A", "ui": "Bucket counts" },
+    { "m": "POST", "p": "/moderator/api/queues/:name/test", "auth": "A", "ui": "Bucket → Test" },
+    { "m": "GET", "p": "/moderator/api/queues/:name/dlq", "auth": "A", "ui": "View DLQ (Jobs & Queues)" },
+    { "m": "POST", "p": "/moderator/api/queues/:name/dlq/redrive", "auth": "A", "ui": "Bucket → Redrive" },
+    { "m": "GET", "p": "/moderator/api/metrics", "auth": "A", "ui": "Stat tiles, outcome chart" },
+    { "m": "GET", "p": "/moderator/api/metrics/export", "auth": "A", "ui": "Export metrics" },
+    { "m": "GET", "p": "/moderator/api/actions/recent", "auth": "A", "ui": "Recent actions" },
+    { "m": "GET", "p": "/moderator/api/actions/:id", "auth": "A", "ui": "Action detail" },
+    { "m": "GET", "p": "/moderator/api/actions/content/:contentType/:contentId", "auth": "A", "ui": "Item detail → history" },
+    { "m": "POST", "p": "/moderator/api/actions/execute", "auth": "A", "ui": "Execute action dialog" },
+    { "m": "GET", "p": "/moderator/api/actions/providers/status", "auth": "A", "ui": "AI providers card" }
+  ],
+  "socket": [
+    { "ns": "/moderation", "auth": "CA bearer + platform-admin email", "rooms": ["moderators"],
+      "emit": [],
+      "on": [
+        { "e": "queue:new_item", "ui": "Queue list insert, Pending tile, tab badge" },
+        { "e": "queue:high_priority", "ui": "Pinned banner + danger flash" },
+        { "e": "queue:item_claimed", "ui": "Claimed-by pill on list item/detail" },
+        { "e": "queue:item_completed", "ui": "Item removed; detail closes with notice" },
+        { "e": "appeal:new", "ui": "Appeals '1 new' pill, tile" },
+        { "e": "appeal:reviewed", "ui": "Appeal row status" },
+        { "e": "content_action", "ui": "Recent actions feed (whole namespace)" },
+        { "e": "user_action", "ui": "Recent actions feed (whole namespace)" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "med", "text": "API_SURFACE.md says the moderator API and /moderation are unauthenticated with an 'admins' room — stale: code requires admin (requireAdmin) and uses the 'moderators' room." },
+    { "sev": "med", "text": "No claim/assign routes (queue or reports), though the model has claim() and queue:item_claimed is emitted (MOD-1)." },
+    { "sev": "med", "text": "/moderation socket accepts only the platform-admin email allowlist, not token roles; role-only moderators get REST but no live updates (MOD-4). No report:new event." },
+    { "sev": "med", "text": "No list routes for moderation items, user actions, agent executions, email templates/logs or violations (MOD-1, MOD-2)." }
+  ]
+}
+</script>
+</body>
+</html>

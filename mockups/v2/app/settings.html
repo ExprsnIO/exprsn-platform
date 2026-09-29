@@ -54,6 +54,7 @@
         <a href="#s-sessions"><i data-i="globe" class="sm"></i>Sessions</a>
         <a href="#s-tokens"><i data-i="key" class="sm"></i>API tokens</a>
         <a href="#s-ids"><i data-i="butterfly" class="sm"></i>Linked identities</a>
+        <a href="#s-cal"><i data-i="calendar" class="sm"></i>Calendar &amp; contacts</a>
         <a href="#s-notif"><i data-i="bell" class="sm"></i>Notifications</a>
         <a href="#s-appear"><i data-i="sun" class="sm"></i>Appearance</a>
         <a href="#s-privacy"><i data-i="eyeOff" class="sm"></i>Privacy</a>
@@ -127,6 +128,12 @@
           </section>
 
           <!-- Notifications -->
+          <section class="card sec" id="s-cal" aria-labelledby="h-cal" data-api="/nexus/api/calendar/users/:userId/ical /nexus/api/calendar/caldav/users/:userId/calendars /nexus/api/calendar/carddav/users/:userId/addressbooks">
+            <div class="card-head"><div class="stack tight"><h2 id="h-cal">Calendar &amp; contacts</h2><span class="xs muted">Subscribe from Apple Calendar, Google Calendar, Outlook or Thunderbird. Feeds include every event you’ve RSVP’d to.</span></div></div>
+            <div class="setting-row"><i data-i="calendar"></i><div class="grow"><div class="t">iCal feed</div><div class="d mono truncate">https://exprsn.io/nexus/api/calendar/users/usr_8f21c0/ical</div></div><button class="btn sm outline" type="button" data-copy="https://exprsn.io/nexus/api/calendar/users/usr_8f21c0/ical"><i data-i="copy" class="sm"></i>Copy</button></div>
+            <div class="setting-row"><i data-i="calendar"></i><div class="grow"><div class="t">CalDAV account</div><div class="d mono truncate">https://exprsn.io/nexus/api/calendar/caldav/users/usr_8f21c0/calendars</div></div><button class="btn sm outline" type="button" data-copy="https://exprsn.io/nexus/api/calendar/caldav/users/usr_8f21c0/calendars"><i data-i="copy" class="sm"></i>Copy</button></div>
+            <div class="setting-row"><i data-i="people"></i><div class="grow"><div class="t">CardDAV contacts</div><div class="d mono truncate">https://exprsn.io/nexus/api/calendar/carddav/users/usr_8f21c0/addressbooks</div></div><button class="btn sm outline" type="button" data-copy="https://exprsn.io/nexus/api/calendar/carddav/users/usr_8f21c0/addressbooks"><i data-i="copy" class="sm"></i>Copy</button></div>
+          </section>
           <section class="card sec" id="s-notif" aria-labelledby="h-notif">
             <div class="card-head"><h2 id="h-notif">Notifications</h2><span class="pill violet">Saved on this device</span></div>
             <div class="setting-row"><div class="grow"><div class="t">Direct messages</div><div class="d">Push and badge for new DMs</div></div><label class="switch"><input type="checkbox" id="n-dm" checked aria-label="Direct messages"><span></span></label></div>
@@ -339,46 +346,241 @@
 {
   "notes": "One scrolling page with an anchored section list (a horizontal chip rail on phones). Each section loads and saves on its own; toggles save optimistically and roll back with a toast. Destructive actions (sign out a session, revoke a token, unlink a DID, turn off MFA, delete account) always go through a confirm dialog that names the object. Sign-out actions revoke the CA token in-process, so the affected device gets 401s on its next call.",
   "rest": [
-    { "m": "GET", "p": "/auth/api/auth/me", "auth": "user", "ui": "Header, profile defaults" },
-    { "m": "GET", "p": "/auth/api/users/:id", "auth": "owner/A", "ui": "Profile form" },
-    { "m": "PUT", "p": "/auth/api/users/:id", "auth": "owner", "ui": "Save profile; privacy and notification toggles (stored in metadata)" },
-    { "m": "GET", "p": "/auth/api/users/:id/profile", "auth": "user", "ui": "Public profile preview" },
-    { "m": "POST", "p": "/auth/api/auth/change-password", "auth": "user", "ui": "Change password dialog" },
-    { "m": "GET", "p": "/auth/api/mfa/status", "auth": "user", "ui": "Security header pill, backup codes remaining" },
-    { "m": "POST", "p": "/auth/api/mfa/setup", "auth": "user", "ui": "Set up dialog: QR and secret" },
-    { "m": "POST", "p": "/auth/api/mfa/verify", "auth": "user", "ui": "Set up dialog: Verify and turn on" },
-    { "m": "POST", "p": "/auth/api/mfa/validate", "auth": "user", "ui": "Step-up code before turning MFA off" },
-    { "m": "POST", "p": "/auth/api/mfa/disable", "auth": "user", "ui": "Turn off (confirm dialog)" },
-    { "m": "POST", "p": "/auth/api/mfa/regenerate-backup-codes", "auth": "user", "ui": "Regenerate backup codes dialog" },
-    { "m": "GET", "p": "/auth/api/sessions", "auth": "user", "ui": "Sessions list" },
-    { "m": "GET", "p": "/auth/api/sessions/current", "auth": "user", "ui": "“This device” marker" },
-    { "m": "DELETE", "p": "/auth/api/sessions/:id", "auth": "user", "ui": "Sign out one session (revokes its CA token)" },
-    { "m": "DELETE", "p": "/auth/api/sessions", "auth": "user", "ui": "Sign out everywhere else" },
-    { "m": "POST", "p": "/auth/api/sessions/refresh", "auth": "user", "ui": "Extend this session" },
-    { "m": "GET", "p": "/ca/api/tokens", "auth": "user (session)", "ui": "API tokens table" },
-    { "m": "POST", "p": "/ca/api/tokens/generate", "auth": "user (session)", "ui": "New token dialog (certificateId, permissions, resource, expiryType)" },
-    { "m": "POST", "p": "/ca/api/tokens/revoke", "auth": "user (session)", "ui": "Revoke token dialog" },
-    { "m": "POST", "p": "/ca/api/tokens/revoke-bulk", "auth": "user (session)", "ui": "Revoke all expired (overflow)" },
-    { "m": "POST", "p": "/ca/api/tokens/:id/refresh", "auth": "owner", "ui": "Refresh row action" },
-    { "m": "GET", "p": "/ca/api/tokens/:id/introspect", "auth": "owner", "ui": "Inspect dialog" },
-    { "m": "GET", "p": "/ca/api/certificates", "auth": "user (session)", "ui": "New token → signing certificate picker" },
-    { "m": "GET", "p": "/atproto/users/:uid/dids", "auth": "P", "ui": "Linked identities list" },
-    { "m": "PUT", "p": "/atproto/users/:uid/dids", "auth": "owner/A", "ui": "Link a DID → save did:web / did:plc" },
-    { "m": "POST", "p": "/atproto/users/:uid/dids/challenge", "auth": "owner/A", "ui": "Link a DID → challenge string" },
-    { "m": "POST", "p": "/atproto/users/:uid/dids/verify", "auth": "owner/A", "ui": "Verify / Verify now" },
-    { "m": "DELETE", "p": "/atproto/users/:uid/dids/:method", "auth": "owner/A", "ui": "Unlink (confirm dialog)" },
-    { "m": "GET", "p": "/timeline/api/interactions/blocks", "auth": "user", "ui": "Privacy → Blocked" },
-    { "m": "GET", "p": "/timeline/api/interactions/mutes", "auth": "user", "ui": "Privacy → Muted" },
-    { "m": "DELETE", "p": "/timeline/api/interactions/users/:id/block", "auth": "user", "ui": "Unblock (unmute = DELETE …/mute)" },
-    { "m": "POST", "p": "/auth/api/auth/logout", "auth": "user", "ui": "Sign out button" },
-    { "m": "DELETE", "p": "/auth/api/users/:id", "auth": "owner", "ui": "Delete account (typed confirmation)" }
+    {
+      "m": "GET",
+      "p": "/auth/api/auth/me",
+      "auth": "user",
+      "ui": "Header, profile defaults"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/users/:id",
+      "auth": "owner/A",
+      "ui": "Profile form"
+    },
+    {
+      "m": "PUT",
+      "p": "/auth/api/users/:id",
+      "auth": "owner",
+      "ui": "Save profile; privacy and notification toggles (stored in metadata)"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/users/:id/profile",
+      "auth": "user",
+      "ui": "Public profile preview"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/auth/change-password",
+      "auth": "user",
+      "ui": "Change password dialog"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/mfa/status",
+      "auth": "user",
+      "ui": "Security header pill, backup codes remaining"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/mfa/setup",
+      "auth": "user",
+      "ui": "Set up dialog: QR and secret"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/mfa/verify",
+      "auth": "user",
+      "ui": "Set up dialog: Verify and turn on"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/mfa/validate",
+      "auth": "user",
+      "ui": "Step-up code before turning MFA off"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/mfa/disable",
+      "auth": "user",
+      "ui": "Turn off (confirm dialog)"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/mfa/regenerate-backup-codes",
+      "auth": "user",
+      "ui": "Regenerate backup codes dialog"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/sessions",
+      "auth": "user",
+      "ui": "Sessions list"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/sessions/current",
+      "auth": "user",
+      "ui": "“This device” marker"
+    },
+    {
+      "m": "DELETE",
+      "p": "/auth/api/sessions/:id",
+      "auth": "user",
+      "ui": "Sign out one session (revokes its CA token)"
+    },
+    {
+      "m": "DELETE",
+      "p": "/auth/api/sessions",
+      "auth": "user",
+      "ui": "Sign out everywhere else"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/sessions/refresh",
+      "auth": "user",
+      "ui": "Extend this session"
+    },
+    {
+      "m": "GET",
+      "p": "/ca/api/tokens",
+      "auth": "user (session)",
+      "ui": "API tokens table"
+    },
+    {
+      "m": "POST",
+      "p": "/ca/api/tokens/generate",
+      "auth": "user (session)",
+      "ui": "New token dialog (certificateId, permissions, resource, expiryType)"
+    },
+    {
+      "m": "POST",
+      "p": "/ca/api/tokens/revoke",
+      "auth": "user (session)",
+      "ui": "Revoke token dialog"
+    },
+    {
+      "m": "POST",
+      "p": "/ca/api/tokens/revoke-bulk",
+      "auth": "user (session)",
+      "ui": "Revoke all expired (overflow)"
+    },
+    {
+      "m": "POST",
+      "p": "/ca/api/tokens/:id/refresh",
+      "auth": "owner",
+      "ui": "Refresh row action"
+    },
+    {
+      "m": "GET",
+      "p": "/ca/api/tokens/:id/introspect",
+      "auth": "owner",
+      "ui": "Inspect dialog"
+    },
+    {
+      "m": "GET",
+      "p": "/ca/api/certificates",
+      "auth": "user (session)",
+      "ui": "New token → signing certificate picker"
+    },
+    {
+      "m": "GET",
+      "p": "/atproto/users/:uid/dids",
+      "auth": "P",
+      "ui": "Linked identities list"
+    },
+    {
+      "m": "PUT",
+      "p": "/atproto/users/:uid/dids",
+      "auth": "owner/A",
+      "ui": "Link a DID → save did:web / did:plc"
+    },
+    {
+      "m": "POST",
+      "p": "/atproto/users/:uid/dids/challenge",
+      "auth": "owner/A",
+      "ui": "Link a DID → challenge string"
+    },
+    {
+      "m": "POST",
+      "p": "/atproto/users/:uid/dids/verify",
+      "auth": "owner/A",
+      "ui": "Verify / Verify now"
+    },
+    {
+      "m": "DELETE",
+      "p": "/atproto/users/:uid/dids/:method",
+      "auth": "owner/A",
+      "ui": "Unlink (confirm dialog)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/interactions/blocks",
+      "auth": "user",
+      "ui": "Privacy → Blocked"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/interactions/mutes",
+      "auth": "user",
+      "ui": "Privacy → Muted"
+    },
+    {
+      "m": "DELETE",
+      "p": "/timeline/api/interactions/users/:id/block",
+      "auth": "user",
+      "ui": "Unblock (unmute = DELETE …/mute)"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/auth/logout",
+      "auth": "user",
+      "ui": "Sign out button"
+    },
+    {
+      "m": "DELETE",
+      "p": "/auth/api/users/:id",
+      "auth": "owner",
+      "ui": "Delete account (typed confirmation)"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/calendar/users/:userId/ical",
+      "auth": "P (feed token)",
+      "ui": "Calendar & contacts → iCal feed"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/calendar/caldav/users/:userId/calendars",
+      "auth": "user",
+      "ui": "Calendar & contacts → CalDAV account"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/calendar/carddav/users/:userId/addressbooks",
+      "auth": "user",
+      "ui": "Calendar & contacts → CardDAV contacts"
+    }
   ],
   "socket": [],
   "gaps": [
-    { "sev": "med", "text": "Proposed: notification preferences. No module stores them, so the section is device-local today (the pill says so). Proposed: GET/PUT /moderator/api/notifications/preferences, honoured by the ingest path." },
-    { "sev": "med", "text": "Proposed: linking or unlinking Google/GitHub from a signed-in account. OAuth identities can only be created by signing in, so those rows are read-only." },
-    { "sev": "med", "text": "Revoking a session or token has no realtime signal. The CA socket helpers token:revoked and user:login are dead code, so other open tabs only find out on their next 401." },
-    { "sev": "med", "text": "POST /ca/api/tokens/generate requires a certificateId, so someone with no certificate has to issue one on Certificates first. Proposed: default to the user's platform-issued certificate." }
+    {
+      "sev": "med",
+      "text": "Proposed: notification preferences. No module stores them, so the section is device-local today (the pill says so). Proposed: GET/PUT /moderator/api/notifications/preferences, honoured by the ingest path."
+    },
+    {
+      "sev": "med",
+      "text": "Proposed: linking or unlinking Google/GitHub from a signed-in account. OAuth identities can only be created by signing in, so those rows are read-only."
+    },
+    {
+      "sev": "med",
+      "text": "Revoking a session or token has no realtime signal. The CA socket helpers token:revoked and user:login are dead code, so other open tabs only find out on their next 401."
+    },
+    {
+      "sev": "med",
+      "text": "POST /ca/api/tokens/generate requires a certificateId, so someone with no certificate has to issue one on Certificates first. Proposed: default to the user's platform-issued certificate."
+    }
   ]
 }
 </script>

@@ -579,7 +579,9 @@ dialog.palette::backdrop { background: var(--exprsn-surface-overlay); }
   .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 48px; justify-content: center; font: inherit; font-size: .6875rem; font-weight: 500; color: var(--exprsn-text-muted); border: 0; background: none; cursor: pointer; }
   .tabbar [aria-current="page"] { color: var(--v2-primary-fg); }
   .contract-fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); right: 12px; }
-  .contract-fab .label { display: none; }
+  .contract-fab .label, .contract-fab .count { display: none; }
+  .contract-fab { width: 44px; padding: 0; justify-content: center; }
+  body:not(:has(.shell)) { padding-bottom: 72px; }
   .toasts { bottom: 90px; }
   .cover { height: 120px; }
   .cal > div { min-height: 56px; }

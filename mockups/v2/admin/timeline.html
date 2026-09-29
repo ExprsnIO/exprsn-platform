@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Timeline · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .chart { width: 100%; height: auto; display: block; }
+  .chart .bar { fill: var(--exprsn-primary); }
+  .chart .bar.alt { fill: var(--exprsn-secondary); }
+  .chart .grid-l { stroke: var(--exprsn-border-color); stroke-width: 1; }
+  .chart text { fill: var(--exprsn-text-secondary); font-size: 12px; font-family: var(--exprsn-font-family); }
+  .chart text.v { fill: var(--exprsn-text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .excerpt { max-width: 42ch; white-space: normal; }
+</style>
+</head>
+<body data-shell="admin" data-page="timeline">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Services</span><i data-i="right" class="sm"></i><span>Timeline</span></nav>
+        <h1 class="page-title">Timeline</h1>
+        <p class="page-sub">Posts held for approval, search across the index, trending, inbound webhooks and the four timeline job queues.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="jobs.html"><i data-i="layers" class="sm"></i>Jobs &amp; queues</a>
+        <button class="btn primary" type="button" data-open="dlg-policy" data-api="/timeline/api/config/:sectionId"><i data-i="tune" class="sm"></i>Approval policy</button>
+      </div>
+    </header>
+
+    <div class="banner danger" role="note"><i data-i="alert" class="sm"></i><span class="grow"><b>Config routes are public.</b> <code>/timeline/api/config/:sectionId</code> accepts unauthenticated reads and writes. Changes here work, but so would anyone else’s until the route is gated.</span></div>
+
+    <div class="grid c4">
+      <div class="card stat" data-api="/timeline/api/config/:sectionId"><span class="label"><i data-i="feed" class="sm"></i>Total posts</span><span class="value">1.42M</span><span class="delta up">+8,912 today</span></div>
+      <div class="card stat" data-on="new:post post:created"><span class="label"><i data-i="pulse" class="sm"></i>Live since you opened</span><span class="value num">+214</span><span class="pill ok" style="align-self:flex-start"><span class="d"></span>timeline:global</span></div>
+      <div class="card stat" data-api="/timeline/api/posts/approvals/pending"><span class="label"><i data-i="clock" class="sm"></i>Held for approval</span><span class="value">6</span><span class="delta down">oldest 3 h 12 m</span></div>
+      <div class="card stat" data-api="/timeline/health/queues"><span class="label"><i data-i="layers" class="sm"></i>Failed jobs</span><span class="value">17</span><span class="delta down">indexing: 14</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Timeline admin views">
+      <button role="tab" id="t-appr" aria-controls="p-appr" aria-selected="true">Approvals <span class="badge">6</span></button>
+      <button role="tab" id="t-search" aria-controls="p-search">Post search</button>
+      <button role="tab" id="t-trend" aria-controls="p-trend">Trending</button>
+      <button role="tab" id="t-hooks" aria-controls="p-hooks">Webhooks</button>
+      <button role="tab" id="t-jobs" aria-controls="p-jobs">Jobs</button>
+      <button role="tab" id="t-cfg" aria-controls="p-cfg">Config</button>
+    </div>
+
+    <!-- ── Approvals ── -->
+    <section id="p-appr" role="tabpanel" aria-labelledby="t-appr">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="ap-q" type="search" placeholder="Filter held posts by author or text"></label>
+          <button class="chip" type="button" aria-pressed="false">Mechanism</button>
+          <button class="chip" type="button" aria-pressed="false">Requested visibility</button>
+          <button class="chip" type="button" aria-pressed="false">Group</button>
+          <span class="grow"></span>
+          <span class="pill info" title="No socket event for held posts — polled">Polling · 30 s</span>
+          <button class="icon-btn" type="button" aria-label="Refresh held posts" data-api="/timeline/api/posts/approvals/pending"><i data-i="refresh"></i></button>
+        </div>
+        <div class="dt-bulk" hidden>
+          <span><span class="n">0</span> selected</span>
+          <button class="btn sm tonal" type="button" data-open="dlg-batch">Approve selected</button>
+          <button class="btn sm tonal" type="button" data-open="dlg-batch">Reject selected</button>
+        </div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/timeline/api/posts/approvals/pending" data-on="post:retracted">
+            <thead><tr>
+              <th style="width:44px"><input type="checkbox" class="check" id="ap-all" aria-label="Select all held posts"></th>
+              <th aria-sort="ascending"><button type="button">Held since <i data-i="up" class="sm"></i></button></th>
+              <th>Post</th><th>Author</th><th>Group</th><th>Requested</th><th>Mechanism</th>
+              <th class="actions"><span class="sr-only">Actions</span></th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox" class="check" id="ap-1" aria-label="Select post by Jonah Okafor"></td>
+                <td class="num">3 h 12 m</td>
+                <td><div class="excerpt">Northwind is hiring two platform engineers — link to the posting inside, DMs open.</div><span class="id">pst_91c0ab</span></td>
+                <td><div class="row" style="gap:8px"><span class="avatar sm g2">JO</span>Jonah Okafor</div></td>
+                <td>Northwind Careers</td>
+                <td><span class="pill">public</span></td>
+                <td><span class="pill violet">manual</span></td>
+                <td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-decide" data-api="/timeline/api/posts/:id/approval">Decide</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="check" id="ap-2" aria-label="Select post by Priya Raman"></td>
+                <td class="num">1 h 40 m</td>
+                <td><div class="excerpt">Incident retro for the Sep 27 vault rotation is up. Please read before Thursday.</div><span class="id">pst_77a1f2</span></td>
+                <td><div class="row" style="gap:8px"><span class="avatar sm g3">PR</span>Priya Raman</div></td>
+                <td>Platform on-call</td>
+                <td><span class="pill">followers</span></td>
+                <td><span class="pill brand">lowcode_workflow</span></td>
+                <td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-decide">Decide</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="check" id="ap-3" aria-label="Select post by Sam Kim"></td>
+                <td class="num">48 m</td>
+                <td><div class="excerpt">Contoso quarterly numbers thread 1/6 — spoiler, it’s good.</div><span class="id">pst_c02d9e</span></td>
+                <td><div class="row" style="gap:8px"><span class="avatar sm">SK</span>Sam Kim</div></td>
+                <td class="muted">Personal</td>
+                <td><span class="pill">public</span></td>
+                <td><span class="pill info">webhook</span></td>
+                <td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-decide">Decide</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="check" id="ap-4" aria-label="Select post by Ari Lindqvist"></td>
+                <td class="num">12 m</td>
+                <td><div class="excerpt">Moderator office hours move to Wednesdays starting Oct 7.</div><span class="id">pst_0e4410</span></td>
+                <td><div class="row" style="gap:8px"><span class="avatar sm g4">AL</span>Ari Lindqvist</div></td>
+                <td>Exprsn HQ</td>
+                <td><span class="pill">public</span></td>
+                <td><span class="pill violet">manual</span></td>
+                <td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-decide">Decide</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="checks"></i></div><h3>Nothing is held for approval</h3><p>Posts wait here only while <b>requireApproval</b> is on for their group or author. New held posts appear on the next 30-second refresh.</p><button class="btn outline" type="button" data-open="dlg-policy">Review approval policy</button></div></div>
+        <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load held posts</h3><p>The timeline module returned 403 — your session lacks the platform-admin predicate for approvals. Correlation id <code>cid 4d1e…a07</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">4 of 6 held · oldest first (limit ≤ 200)</span><span>Decisions notify the author and release the post to feeds.</span></div>
+      </div>
+    </section>
+
+    <!-- ── Post search ── -->
+    <section id="p-search" role="tabpanel" aria-labelledby="t-search" hidden>
+      <div class="split">
+        <div class="card">
+          <div class="dt-toolbar">
+            <label class="input-group"><i data-i="search" class="sm"></i><input id="ps-q" type="search" placeholder="Search posts: text, @handle, #tag" value="vault rotation" data-api="/timeline/api/search/posts"></label>
+            <div class="seg" role="group" aria-label="Search engine"><button type="button" aria-pressed="true">Elasticsearch</button><button type="button" aria-pressed="false">SQL fallback</button></div>
+          </div>
+          <div class="stack" style="padding:12px 16px 0;align-items:center">
+            <button class="new-posts" type="button" data-on="new:post">3 new posts match — show</button>
+          </div>
+          <div data-api="/timeline/api/search/posts" data-on="post:retracted post:deleted">
+            <article class="post">
+              <span class="avatar g3">PR</span>
+              <div>
+                <div class="who"><b>Priya Raman</b><span class="muted small">@priya · Sep 28</span><span class="pill ok">approved</span></div>
+                <p class="body">Vault rotation finished for all 214 service tokens. Zero failed renewals; runbook updated.</p>
+                <div class="row wrap" style="gap:6px;margin-top:8px">
+                  <button class="btn sm ghost" type="button" data-open="dlg-analytics" data-api="/timeline/api/posts/:id/analytics"><i data-i="signal" class="sm"></i>Analytics</button>
+                  <button class="btn sm ghost" type="button" data-api="/timeline/api/posts/:id/thread" data-toast="Thread opened in a new tab">Thread</button>
+                  <button class="btn sm ghost" type="button" data-api="/timeline/api/posts/:id/quotes" data-toast="12 quote posts">Quotes</button>
+                  <button class="btn sm danger-outline" type="button" data-open="dlg-del-post">Delete</button>
+                </div>
+              </div>
+            </article>
+            <article class="post">
+              <span class="avatar g1">MD</span>
+              <div>
+                <div class="who"><b>Maya Diaz</b><span class="muted small">@maya · Sep 27</span><span class="pill warn">flagged · risk 58</span></div>
+                <p class="body">Anyone else see the vault rotation banner flicker in dark mode? Screenshot attached.</p>
+                <div class="row wrap" style="gap:6px;margin-top:8px">
+                  <button class="btn sm ghost" type="button" data-open="dlg-analytics"><i data-i="signal" class="sm"></i>Analytics</button>
+                  <a class="btn sm ghost" href="moderator.html">Open moderation item</a>
+                  <button class="btn sm danger-outline" type="button" data-open="dlg-del-post">Delete</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+        <aside class="card">
+          <div class="card-head"><h2>Hashtag lookup</h2></div>
+          <div class="card-body stack">
+            <div class="field"><label for="ht-q">Hashtag</label><div class="input-group"><i data-i="hash" class="sm"></i><input id="ht-q" type="search" value="launchday" data-api="/timeline/api/search/hashtags"></div></div>
+            <dl class="kv"><dt>Posts (7d)</dt><dd class="num">962</dd><dt>First seen</dt><dd>Sep 22, 2026</dd><dt>Top author</dt><dd>Jonah Okafor</dd></dl>
+            <p class="xs muted">There is no admin posts list (TL-1): browsing is limited to search and feeds.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ── Trending ── -->
+    <section id="p-trend" role="tabpanel" aria-labelledby="t-trend" hidden>
+      <div class="grid c2">
+        <div class="card">
+          <div class="card-head"><h2>Top hashtags · 24 h</h2><span class="pill">posts</span></div>
+          <div class="card-body" data-api="/timeline/api/search/trending/hashtags">
+            <svg class="chart" viewBox="0 0 460 170" role="img" aria-label="Top hashtags by posts in 24 hours: exprsn 1,284; launchday 962; design 740; opensource 512; bluesky 388">
+              <line class="grid-l" x1="110" y1="0" x2="110" y2="160"/>
+              <text x="0" y="23">#exprsn</text><rect class="bar" x="110" y="10" width="300" height="18" rx="4"/><text class="v" x="416" y="23">1,284</text>
+              <text x="0" y="53">#launchday</text><rect class="bar" x="110" y="40" width="224.8" height="18" rx="4"/><text class="v" x="340.8" y="53">962</text>
+              <text x="0" y="83">#design</text><rect class="bar" x="110" y="70" width="172.9" height="18" rx="4"/><text class="v" x="288.9" y="83">740</text>
+              <text x="0" y="113">#opensource</text><rect class="bar" x="110" y="100" width="119.6" height="18" rx="4"/><text class="v" x="235.6" y="113">512</text>
+              <text x="0" y="143">#bluesky</text><rect class="bar alt" x="110" y="130" width="90.7" height="18" rx="4"/><text class="v" x="206.7" y="143">388</text>
+            </svg>
+            <p class="xs muted">Bars share one scale (max 1,284). #bluesky is synced from the AT-Proto bridge.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Trending topics</h2><button class="btn sm outline" type="button" disabled title="Proposed: POST /timeline/api/admin/trending/recalculate">Recalculate now</button></div>
+          <div class="dt-scroll">
+            <table class="table" data-api="/timeline/api/search/trending/topics">
+              <thead><tr><th>Topic</th><th>Type</th><th class="num">Posts</th><th class="num">Score</th><th class="num">Peak</th></tr></thead>
+              <tbody>
+                <tr><td>vault rotation</td><td><span class="pill">keyword</span></td><td class="num">418</td><td class="num">92.4</td><td class="num">09:10</td></tr>
+                <tr><td>#launchday</td><td><span class="pill brand">hashtag</span></td><td class="num">962</td><td class="num">88.1</td><td class="num">Yesterday</td></tr>
+                <tr><td>@northwind</td><td><span class="pill violet">user</span></td><td class="num">203</td><td class="num">61.0</td><td class="num">08:45</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card-foot" style="justify-content:flex-start"><span class="xs muted">Recurring job <code>trending-update-recurring</code> runs every 15 min. Manual trigger is proposed (TL-4).</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Webhooks ── -->
+    <section id="p-hooks" role="tabpanel" aria-labelledby="t-hooks" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Inbound webhooks</h2><span class="small muted">HMAC-verified · secrets are never shown</span></div>
+        <div class="setting-row" data-api="/timeline/api/webhooks/bluesky">
+          <i data-i="butterfly"></i>
+          <div class="grow"><div class="t">Bluesky sync</div><div class="d">POST /timeline/api/webhooks/bluesky · last delivery 2 min ago · 1,904 today</div></div>
+          <span class="pill ok"><i data-i="check" class="sm"></i>Secret set</span>
+          <button class="btn sm ghost" type="button" data-copy="https://exprsn.io/timeline/api/webhooks/bluesky">Copy URL</button>
+        </div>
+        <div class="setting-row" data-api="/timeline/api/webhooks/moderator">
+          <i data-i="shield"></i>
+          <div class="grow"><div class="t">Moderator verdicts</div><div class="d">POST /timeline/api/webhooks/moderator · 11 rejected (401) in the last hour</div></div>
+          <span class="pill danger"><i data-i="alert" class="sm"></i>Auth mismatch</span>
+          <button class="btn sm ghost" type="button" data-copy="https://exprsn.io/timeline/api/webhooks/moderator">Copy URL</button>
+        </div>
+        <div class="setting-row" data-api="/timeline/api/webhooks/approval">
+          <i data-i="webhook"></i>
+          <div class="grow"><div class="t">Approval callback</div><div class="d">POST /timeline/api/webhooks/approval · used when mechanism = webhook</div></div>
+          <span class="pill warn">Secret not set</span>
+          <button class="btn sm ghost" type="button" data-copy="https://exprsn.io/timeline/api/webhooks/approval">Copy URL</button>
+        </div>
+      </div>
+      <div class="banner warn" style="margin-top:16px"><i data-i="info" class="sm"></i><span>The moderator sends a Bearer token but timeline expects a service HMAC on verdict callbacks (TL-5), so verdicts fall back to polling.</span></div>
+    </section>
+
+    <!-- ── Jobs ── -->
+    <section id="p-jobs" role="tabpanel" aria-labelledby="t-jobs" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Timeline queues</b><span class="grow"></span><span class="pill info">Polling · 10 s</span><a class="btn sm outline" href="jobs.html">Open in Jobs &amp; Queues</a></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/timeline/api/jobs/stats">
+            <thead><tr><th>Queue</th><th class="num">Waiting</th><th class="num">Active</th><th class="num">Completed</th><th class="num">Failed</th><th class="num">Delayed</th><th>State</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>fanout</b></td><td class="num">42</td><td class="num">4</td><td class="num">88,120</td><td class="num">2</td><td class="num">0</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/timeline/api/jobs/:queueName/pause" data-toast="fanout paused · Undo">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+              <tr><td><b>trending</b></td><td class="num">0</td><td class="num">1</td><td class="num">2,904</td><td class="num">0</td><td class="num">1</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-toast="trending paused · Undo">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+              <tr><td><b>indexing</b></td><td class="num">310</td><td class="num">0</td><td class="num">61,002</td><td class="num">14</td><td class="num">0</td><td><span class="pill warn">paused</span></td><td class="actions"><button class="btn sm tonal" type="button" data-api="/timeline/api/jobs/:queueName/resume" data-toast="indexing resumed">Resume</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+              <tr><td><b>notifications</b></td><td class="num">8</td><td class="num">2</td><td class="num">40,515</td><td class="num">1</td><td class="num">0</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-toast="notifications paused · Undo">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Config ── -->
+    <section id="p-cfg" role="tabpanel" aria-labelledby="t-cfg" hidden>
+      <form class="card" data-toast="timeline-settings saved · 2 fields applied live" data-api="/timeline/api/config/:sectionId">
+        <div class="card-head"><h2>timeline-settings</h2><span class="pill ok">persisted</span></div>
+        <div class="card-body form-grid">
+          <div class="field"><label for="c-maxlen">Max post length</label><input class="input" id="c-maxlen" type="number" value="500" min="1" max="5000"><span class="help">Applied live</span></div>
+          <div class="field"><label for="c-ppp">Posts per page</label><input class="input" id="c-ppp" type="number" value="20" min="5" max="100"><span class="help">Applied live</span></div>
+        </div>
+        <div class="setting-row"><div class="grow"><div class="t">Reposts</div><div class="d">enableReposts</div></div><label class="switch"><input type="checkbox" id="c-rp" checked aria-label="Enable reposts"><span></span></label></div>
+        <div class="setting-row"><div class="grow"><div class="t">Bluesky sync</div><div class="d">enableBlueskySync · needs restart</div></div><label class="switch"><input type="checkbox" id="c-bs" checked aria-label="Enable Bluesky sync"><span></span></label></div>
+        <div class="card-foot"><button class="btn ghost" type="reset">Reset</button><button class="btn primary" type="submit">Save</button></div>
+      </form>
+    </section>
+  </div>
+
+  <!-- Decide -->
+  <dialog class="dialog" id="dlg-decide" aria-labelledby="dlg-decide-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-decide-t">Decide held post</h2><p>Jonah Okafor · <span class="id">pst_91c0ab</span> · requested <b>public</b></p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <blockquote class="inset" style="margin:0">Northwind is hiring two platform engineers — link to the posting inside, DMs open.</blockquote>
+      <div class="field"><span class="label" id="dec-l">Decision</span><div class="seg" role="group" aria-labelledby="dec-l"><button type="button" aria-pressed="true">Approve</button><button type="button" aria-pressed="false">Reject</button></div></div>
+      <div class="field"><label for="dec-reason">Reason (sent to the author)</label><textarea class="textarea" id="dec-reason" placeholder="Optional for approve, required for reject"></textarea></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Approved · post released to feeds">Save decision</button></div>
+  </dialog>
+
+  <!-- Batch -->
+  <dialog class="dialog" id="dlg-batch" aria-labelledby="dlg-batch-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-batch-t">Approve 2 held posts</h2><p>Each post is decided separately; failures can be retried.</p></div></div>
+    <div class="dialog-body">
+      <div class="list card">
+        <div class="list-item"><span class="grow">pst_91c0ab · Jonah Okafor</span><span class="pill ok"><i data-i="check" class="sm"></i>Approved</span></div>
+        <div class="list-item"><span class="grow">pst_77a1f2 · Priya Raman</span><span class="pill danger">409 already decided</span></div>
+      </div>
+      <div class="field"><label for="batch-reason">Reason</label><input class="input" id="batch-reason" placeholder="Applies to every selected post"></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-close data-toast="Retried 1 · 0 failed">Retry failed</button></div>
+  </dialog>
+
+  <!-- Analytics -->
+  <dialog class="dialog" id="dlg-analytics" aria-labelledby="dlg-an-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-an-t">Post analytics</h2><p>Priya Raman · <span class="id">pst_4be201</span></p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="grid c4"><div class="stat card"><span class="label">Views</span><span class="value">8,410</span></div><div class="stat card"><span class="label">Likes</span><span class="value">312</span></div><div class="stat card"><span class="label">Reposts</span><span class="value">48</span></div><div class="stat card"><span class="label">Comments</span><span class="value">27</span></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <!-- Delete post -->
+  <dialog class="dialog sm" id="dlg-del-post" aria-labelledby="dlg-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-t">Delete Priya Raman’s post?</h2><p>“Vault rotation finished for all 214 service tokens…” is removed from every feed and the search index. The author is notified.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="del-reason">Reason (audited)</label><input class="input" id="del-reason" placeholder="e.g. duplicate of pst_4be1ff"></div><div class="banner warn"><i data-i="info" class="sm"></i><span>DELETE /posts/:id is owner-only today — an admin override is proposed.</span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Post deleted">Delete post</button></div>
+  </dialog>
+
+  <!-- Clean -->
+  <dialog class="dialog sm" id="dlg-clean" aria-labelledby="dlg-clean-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-clean-t">Clean the indexing queue?</h2><p>Removes completed jobs older than the grace period. Waiting and active jobs are untouched.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="clean-grace">Grace period</label><input class="input" id="clean-grace" value="1h"><span class="help">= 3,600,000 ms sent as <code>grace</code></span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Cleaned 61,002 completed jobs from indexing">Clean queue</button></div>
+  </dialog>
+
+  <!-- Approval policy -->
+  <dialog class="dialog" id="dlg-policy" aria-labelledby="dlg-pol-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-pol-t">Approval policy</h2><p>Section <code>timeline-moderation</code> · persisted</p></div></div>
+    <form class="dialog-body" data-toast="Approval policy saved">
+      <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Require approval</div><div class="d">Hold new posts until decided</div></div><label class="switch"><input type="checkbox" id="pol-req" checked aria-label="Require approval"><span></span></label></div>
+      <div class="form-grid">
+        <div class="field"><label for="pol-mech">Mechanism</label><select class="select" id="pol-mech"><option>manual</option><option>lowcode_workflow</option><option>lowcode_app</option><option>webhook</option></select></div>
+        <div class="field"><label for="pol-target">Approval target</label><input class="input" id="pol-target" placeholder="flow key or URL"></div>
+        <div class="field"><label for="pol-thr">Flag threshold</label><input class="input" id="pol-thr" type="number" value="51" min="0" max="100"></div>
+        <div class="field"><label for="pol-prov">Moderation provider</label><select class="select" id="pol-prov"><option>exprsn</option><option>external</option><option>both</option></select></div>
+      </div>
+    </form>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Approval policy saved">Save</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Approvals are polled every 30 s because nothing emits held-post events. Decisions are optimistic: the row leaves at once and comes back with an error toast if the POST fails. The Live stat counts new:post on timeline:global since the page opened.",
+  "rest": [
+    { "m": "GET", "p": "/timeline/api/posts/approvals/pending", "auth": "A", "ui": "Approvals table, Held stat" },
+    { "m": "POST", "p": "/timeline/api/posts/:id/approval", "auth": "A", "ui": "Decide dialog, batch approve/reject" },
+    { "m": "GET", "p": "/timeline/api/posts/:id", "auth": "user", "ui": "Search result → open" },
+    { "m": "DELETE", "p": "/timeline/api/posts/:id", "auth": "owner", "ui": "Delete post dialog (admin override proposed)" },
+    { "m": "GET", "p": "/timeline/api/posts/:id/thread", "auth": "user", "ui": "Search result → Thread" },
+    { "m": "GET", "p": "/timeline/api/posts/:id/quotes", "auth": "user", "ui": "Search result → Quotes" },
+    { "m": "GET", "p": "/timeline/api/posts/:id/analytics", "auth": "owner/A", "ui": "Analytics dialog" },
+    { "m": "GET", "p": "/timeline/api/search/posts", "auth": "user", "ui": "Post search" },
+    { "m": "GET", "p": "/timeline/api/search/hashtags", "auth": "user", "ui": "Hashtag lookup" },
+    { "m": "GET", "p": "/timeline/api/search/trending/topics", "auth": "user", "ui": "Trending topics table" },
+    { "m": "GET", "p": "/timeline/api/search/trending/hashtags", "auth": "user", "ui": "Top hashtags chart" },
+    { "m": "GET", "p": "/timeline/api/jobs/stats", "auth": "A", "ui": "Jobs tab table" },
+    { "m": "GET", "p": "/timeline/api/jobs/stats/:queueName", "auth": "A", "ui": "Jobs tab row refresh" },
+    { "m": "GET", "p": "/timeline/api/jobs/:queueName/jobs", "auth": "A", "ui": "Open in Jobs & Queues" },
+    { "m": "GET", "p": "/timeline/api/jobs/:queueName/job/:jobId", "auth": "A", "ui": "Jobs & Queues job detail" },
+    { "m": "POST", "p": "/timeline/api/jobs/:queueName/job/:jobId/retry", "auth": "A", "ui": "Jobs & Queues retry" },
+    { "m": "DELETE", "p": "/timeline/api/jobs/:queueName/job/:jobId", "auth": "A", "ui": "Jobs & Queues remove" },
+    { "m": "POST", "p": "/timeline/api/jobs/:queueName/pause", "auth": "A", "ui": "Jobs tab → Pause" },
+    { "m": "POST", "p": "/timeline/api/jobs/:queueName/resume", "auth": "A", "ui": "Jobs tab → Resume" },
+    { "m": "POST", "p": "/timeline/api/jobs/:queueName/clean", "auth": "A", "ui": "Clean queue dialog" },
+    { "m": "GET", "p": "/timeline/api/config/:sectionId", "auth": "P", "ui": "Config tab, Total posts stat, policy dialog" },
+    { "m": "POST", "p": "/timeline/api/config/:sectionId", "auth": "P", "ui": "Config save, Approval policy save" },
+    { "m": "POST", "p": "/timeline/api/webhooks/bluesky", "auth": "HMAC", "ui": "Webhooks → Bluesky status" },
+    { "m": "POST", "p": "/timeline/api/webhooks/moderator", "auth": "HMAC", "ui": "Webhooks → Moderator status" },
+    { "m": "POST", "p": "/timeline/api/webhooks/approval", "auth": "HMAC", "ui": "Webhooks → Approval status" },
+    { "m": "GET", "p": "/timeline/health/queues", "auth": "P", "ui": "Failed jobs stat" }
+  ],
+  "socket": [
+    { "ns": "/timeline", "auth": "CA bearer (read)", "rooms": ["timeline:global"],
+      "emit": [{ "e": "subscribe:timeline", "ui": "Page mount joins timeline:global" }],
+      "on": [
+        { "e": "new:post", "ui": "Live stat counter, 'new posts match' pill" },
+        { "e": "post:retracted", "ui": "Held/search rows removed (moderation sink)" },
+        { "e": "post:created", "ui": "Live counter (IPC broadcast)" },
+        { "e": "post:deleted", "ui": "Search result removed (IPC broadcast)" }
+      ] },
+    { "ns": "/_admin", "auth": "CA bearer + isAdminToken", "rooms": [], "emit": [],
+      "on": [{ "e": "config:changed", "ui": "Toast when timeline overrides change" }] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "GET/POST /timeline/api/config/:sectionId are public: anyone can read or change approval policy and settings." },
+    { "sev": "high", "text": "IPC post:created/updated/deleted is broadcast to the whole /timeline namespace, ignoring post visibility; timeline:group:{id} has no membership check." },
+    { "sev": "med", "text": "No socket event for held posts; approvals poll every 30 s. Proposed: approval:pending on /_admin." },
+    { "sev": "med", "text": "No admin posts list or admin delete (TL-1); search is the only way to browse posts." },
+    { "sev": "med", "text": "Proposed: admin triggers for trending-update and bulk-reindex (TL-4); 'Recalculate now' is disabled." },
+    { "sev": "med", "text": "Moderator verdict callback sends Bearer, timeline expects service HMAC (TL-5)." }
+  ]
+}
+</script>
+</body>
+</html>

@@ -33,7 +33,7 @@ function card(i, fallbackIcon) {
   return `<a class="g-card card" href="${i.href}">
       <span class="g-ico">${M.icon(i.icon || fallbackIcon)}</span>
       <span class="g-body"><span class="g-title">${esc(i.label)}</span><span class="g-route">${esc(i.route)}</span>
-      <span class="g-meta">${c ? `<span class="pill">${rest} REST</span>${ev ? `<span class="pill violet">${ev} events</span>` : ''}${ns.map((n) => `<span class="pill info">${esc(n)}</span>`).join('')}${high ? `<span class="pill danger">${high} high gap${high > 1 ? 's' : ''}</span>` : gaps.length ? `<span class="pill warn">${gaps.length} gap${gaps.length > 1 ? 's' : ''}</span>` : ''}` : '<span class="pill warn">missing</span>'}</span></span>
+      <span class="g-meta">${c ? `<span class="pill">${rest} REST</span>${ev ? `<span class="pill violet">${ev} events</span>` : ''}${ns.map((n) => `<span class="pill info">${esc(n.startsWith('wss ') ? 'raw WS' : n)}</span>`).join('')}${high ? `<span class="pill danger">${high} high gap${high > 1 ? 's' : ''}</span>` : gaps.length ? `<span class="pill warn">${gaps.length} gap${gaps.length > 1 ? 's' : ''}</span>` : ''}` : '<span class="pill warn">missing</span>'}</span></span>
     </a>`;
 }
 function section(title, sub, items, icon) {
@@ -75,7 +75,8 @@ const html = `<!DOCTYPE html>
   .g-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .g-title { font-weight: 600; }
   .g-route { font-family: var(--exprsn-font-family-mono); font-size: .75rem; color: var(--exprsn-text-secondary); overflow-wrap: anywhere; }
-  .g-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .g-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; min-width: 0; }
+  .g-meta .pill { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .g-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
   @media (max-width: 800px) { .g-hero { grid-template-columns: minmax(0, 1fr); } .g-hero h1 { font-size: 1.75rem; } }
 </style>

@@ -31,11 +31,12 @@ for (const d of ['app', 'admin']) {
 
 // REST coverage
 const restHits = new Map(); const unknown = new Map();
-const items = inv.rest.map((r) => (typeof r === 'string' ? { p: r } : r)).map((r) => ({ ...r, n: norm(r.p) }));
+const items = inv.rest.map((r) => (typeof r === 'string' ? { p: r } : r)).map((r) => ({ ...r, n: norm(r.p.split('#')[0]) })).map((r) => ({ ...r, re: new RegExp('^' + r.n.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/:x/g, '[^/]+') + '$') }));
 const wildcard = items.filter((i) => i.n.endsWith('/*'));
 for (const s of screens) for (const r of s.c.rest || []) {
   const n = norm(r.p);
   let hit = items.find((i) => i.n === n);
+  if (!hit) hit = items.find((i) => i.re.test(n));
   if (!hit) hit = wildcard.find((i) => n.startsWith(i.n.slice(0, -1)));
   if (hit) { if (!restHits.has(hit.n)) restHits.set(hit.n, new Set()); restHits.get(hit.n).add(s.id); }
   else { if (!unknown.has(n)) unknown.set(n, new Set()); unknown.get(n).add(s.id); }

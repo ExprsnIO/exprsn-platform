@@ -89,7 +89,7 @@
             <button class="btn primary block" type="submit">Sign in</button>
           </form>
 
-          <p class="small secondary" data-api="/auth/api/auth/signup-policy">New to Exprsn? <a href="signup.html">Create an organization</a></p>
+          <p class="small secondary" data-api="/auth/api/auth/signup-policy">New to Exprsn? <a href="signup.html">Create an organization</a> or <a href="signup.html" data-api="/auth/api/auth/register">a personal account</a></p>
         </div>
 
         <!-- ── Step 2: TOTP ── -->
@@ -205,26 +205,111 @@
 {
   "notes": "Public, unauthenticated. Password login returns either a CA token, or { mfaRequired, mfaToken } which swaps this card to the two-step step (the mfaToken is held in memory only, never in the URL). An org 2FA policy can instead return { mfaEnrollmentRequired } and route the person to set up MFA before any bearer is issued. Google/GitHub/SAML are full-page redirects that land on /sso/callback with a one-time exchange code.",
   "rest": [
-    { "m": "GET", "p": "/auth/api/auth/signup-policy", "auth": "P", "ui": "“Create an organization” link hidden when allowUserRegistration=false" },
-    { "m": "POST", "p": "/auth/api/auth/login", "auth": "P (strict RL)", "ui": "Email + password form; wrong-password and rate-limit (429) banners" },
-    { "m": "POST", "p": "/auth/api/auth/mfa/verify", "auth": "P (mfaToken)", "ui": "Two-step code and backup code forms" },
-    { "m": "POST", "p": "/auth/api/auth/forgot-password", "auth": "P (strict RL)", "ui": "Forgot password form" },
-    { "m": "POST", "p": "/auth/api/auth/reset-password", "auth": "P (reset token)", "ui": "Choose a new password (from email link)" },
-    { "m": "GET", "p": "/auth/api/auth/google", "auth": "P", "ui": "Google button (redirect)" },
-    { "m": "GET", "p": "/auth/api/auth/google/callback", "auth": "P", "ui": "Provider redirect target → /sso/callback?code=" },
-    { "m": "GET", "p": "/auth/api/auth/github", "auth": "P", "ui": "GitHub button (redirect)" },
-    { "m": "GET", "p": "/auth/api/auth/github/callback", "auth": "P", "ui": "Provider redirect target → /sso/callback?code=" },
-    { "m": "GET", "p": "/auth/api/saml/status", "auth": "P", "ui": "Hides the SSO button when SAML is disabled (503)" },
-    { "m": "GET", "p": "/auth/api/saml/providers", "auth": "P", "ui": "SSO dialog provider list" },
-    { "m": "GET", "p": "/auth/api/saml/login", "auth": "P", "ui": "SSO provider row (redirect to IdP, ?idp=&redirect=)" },
-    { "m": "POST", "p": "/auth/api/auth/exchange", "auth": "P (strict RL)", "ui": "Handled on /sso/callback after any redirect login" },
-    { "m": "POST", "p": "/auth/api/mfa/setup", "auth": "session (pre-bearer)", "ui": "“Set up” on the org-requires-2FA banner" }
+    {
+      "m": "GET",
+      "p": "/auth/api/auth/signup-policy",
+      "auth": "P",
+      "ui": "“Create an organization” link hidden when allowUserRegistration=false"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/auth/login",
+      "auth": "P (strict RL)",
+      "ui": "Email + password form; wrong-password and rate-limit (429) banners"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/auth/mfa/verify",
+      "auth": "P (mfaToken)",
+      "ui": "Two-step code and backup code forms"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/auth/forgot-password",
+      "auth": "P (strict RL)",
+      "ui": "Forgot password form"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/auth/reset-password",
+      "auth": "P (reset token)",
+      "ui": "Choose a new password (from email link)"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/auth/google",
+      "auth": "P",
+      "ui": "Google button (redirect)"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/auth/google/callback",
+      "auth": "P",
+      "ui": "Provider redirect target → /sso/callback?code="
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/auth/github",
+      "auth": "P",
+      "ui": "GitHub button (redirect)"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/auth/github/callback",
+      "auth": "P",
+      "ui": "Provider redirect target → /sso/callback?code="
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/saml/status",
+      "auth": "P",
+      "ui": "Hides the SSO button when SAML is disabled (503)"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/saml/providers",
+      "auth": "P",
+      "ui": "SSO dialog provider list"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/saml/login",
+      "auth": "P",
+      "ui": "SSO provider row (redirect to IdP, ?idp=&redirect=)"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/auth/exchange",
+      "auth": "P (strict RL)",
+      "ui": "Handled on /sso/callback after any redirect login"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/mfa/setup",
+      "auth": "session (pre-bearer)",
+      "ui": "“Set up” on the org-requires-2FA banner"
+    },
+    {
+      "m": "POST",
+      "p": "/auth/api/auth/register",
+      "auth": "P (strict RL)",
+      "ui": "“Create a personal account” link (no organization; shown when signup-policy allows user registration)"
+    }
   ],
   "socket": [],
   "gaps": [
-    { "sev": "med", "text": "The login 429 from strictLimiter carries no Retry-After the SPA reads today, so the cooldown countdown is a design target. Proposed: return retryAfter seconds in the error body." },
-    { "sev": "med", "text": "Org 2FA enforcement fails open when policy resolution errors (auth.js login + social callback). A DB blip lets un-enrolled users past the enrollment gate." },
-    { "sev": "med", "text": "OAuth/SAML redirects use FRONTEND_URL, which defaults to http://localhost:3000. It must be set to the SPA origin or every redirect login lands on a dead page." }
+    {
+      "sev": "med",
+      "text": "The login 429 from strictLimiter carries no Retry-After the SPA reads today, so the cooldown countdown is a design target. Proposed: return retryAfter seconds in the error body."
+    },
+    {
+      "sev": "med",
+      "text": "Org 2FA enforcement fails open when policy resolution errors (auth.js login + social callback). A DB blip lets un-enrolled users past the enrollment gate."
+    },
+    {
+      "sev": "med",
+      "text": "OAuth/SAML redirects use FRONTEND_URL, which defaults to http://localhost:3000. It must be set to the SPA origin or every redirect login lands on a dead page."
+    }
   ]
 }
 </script>

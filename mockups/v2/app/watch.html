@@ -16,9 +16,9 @@
   .watch-split { grid-template-columns: minmax(0, 1fr) 360px; }
   @media (max-width: 1100px) { .watch-split { grid-template-columns: minmax(0, 1fr); } }
   .video .ph { height: 100%; min-height: 0; }
-  .player-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: linear-gradient(transparent, rgba(10,10,10,.7)); }
+  .player-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: linear-gradient(transparent, color-mix(in srgb, var(--exprsn-black) 70%, transparent)); }
   .player-bar .icon-btn { color: var(--exprsn-white); }
-  .player-bar .icon-btn:hover { background: rgba(255,255,255,.15); color: var(--exprsn-white); }
+  .player-bar .icon-btn:hover { background: color-mix(in srgb, var(--exprsn-white) 15%, transparent); color: var(--exprsn-white); }
   .chat { display: flex; flex-direction: column; height: min(640px, 72vh); }
   .chat .log { flex: 1; overflow-y: auto; max-height: none; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; font-size: .875rem; }
   .chat .line b { margin-right: 6px; }
@@ -51,7 +51,7 @@
               <button class="icon-btn" type="button" aria-label="Pause"><i data-i="pause"></i></button>
               <button class="icon-btn" type="button" aria-label="Mute"><i data-i="mic"></i></button>
               <span class="grow"></span>
-              <span class="pill" style="background:rgba(10,10,10,.55);color:var(--exprsn-white)" data-on="viewer-count-updated viewer-joined viewer-left"><i data-i="eye" class="sm"></i><span class="num">684</span> watching</span>
+              <span class="pill" style="background:color-mix(in srgb, var(--exprsn-black) 55%, transparent);color:var(--exprsn-white)" data-on="viewer-count-updated viewer-joined viewer-left"><i data-i="eye" class="sm"></i><span class="num">684</span> watching</span>
               <button class="icon-btn" type="button" aria-label="Quality: Auto 1080p"><i data-i="settings"></i></button>
               <button class="icon-btn" type="button" aria-label="Full screen"><i data-i="screen"></i></button>
             </div>
@@ -61,7 +61,7 @@
           <div class="video"><div class="ph dark"><div class="stack" style="align-items:center;text-align:center;padding:16px"><i data-i="stop"></i><b>This stream has ended</b><span class="small">Maya Diaz was live for 58 minutes. The recording will be ready in a few minutes.</span></div></div></div>
         </div>
         <div data-state="loading" aria-busy="true" aria-label="Connecting to stream">
-          <div class="video"><div class="ph dark"><div class="stack" style="align-items:center"><span class="sk" style="width:120px;background:rgba(255,255,255,.15)"></span><span class="small">Connecting…</span></div></div></div>
+          <div class="video"><div class="ph dark"><div class="stack" style="align-items:center"><span class="sk" style="width:120px;background:color-mix(in srgb, var(--exprsn-white) 15%, transparent)"></span><span class="small">Connecting…</span></div></div></div>
         </div>
         <div data-state="error">
           <div class="video"><div class="ph dark"><div class="stack" style="align-items:center;text-align:center;padding:16px"><i data-i="wifiOff"></i><b>Playback stopped</b><span class="small">We couldn’t load the video segments (HLS 404). Retrying in 5 s…</span><button class="btn sm outline" type="button" style="color:var(--exprsn-white);border-color:currentColor">Retry now</button></div></div></div>

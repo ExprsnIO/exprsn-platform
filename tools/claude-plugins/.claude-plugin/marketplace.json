@@ -1,0 +1,14 @@
+{
+  "name": "exprsn-tools",
+  "owner": { "name": "Exprsn" },
+  "metadata": { "description": "Claude Code plugins used to build and operate the Exprsn platform." },
+  "plugins": [
+    {
+      "name": "digitalocean",
+      "source": "./digitalocean",
+      "description": "Orchestrate DigitalOcean (droplets, DNS, firewalls, apps, databases, k8s) through the DO API v2 with a read-only-by-default safety policy.",
+      "category": "infrastructure",
+      "tags": ["digitalocean", "cloud", "infrastructure", "mcp"]
+    }
+  ]
+}

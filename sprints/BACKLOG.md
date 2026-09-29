@@ -7679,6 +7679,32 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   roles, live lifecycle routes have no platform-admin override, vault `aiPolicyService`
   queries a non-existent `createdAt`) are recorded in §14 with severities.
 
+### TASK-074 — Claude Code plugin for orchestrating DigitalOcean via the DO API
+- **Type:** task · **Status:** in-review · **Priority:** P3 · **Size:** M
+- **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
+- **Legacy:** R1–R6 (release engineering / deploy target); `docs/runbooks/digitalocean-ubuntu.md`, `install/cloud/digitalocean.sh`
+- **Description:** Developer tooling (not a platform module): a Claude Code plugin under
+  `tools/claude-plugins/digitalocean/`, published through a local marketplace at
+  `tools/claude-plugins/.claude-plugin/marketplace.json`. It bundles a zero-dependency
+  stdio MCP server wrapping the DigitalOcean API v2 (29 `do_*` tools: inventory, droplets
+  + actions, DNS, cloud firewalls, App Platform, databases, DOKS, LBs, volumes, and a
+  policy-checked `do_api_request` escape hatch), a `digitalocean-ops` skill with Exprsn
+  deploy defaults drawn from the DO runbook (8 GB floor; cloud firewall to close the
+  Docker/ufw `DOCKER-USER` bypass), three slash commands, an operator subagent, and a
+  PreToolUse guard hook. Safety is enforced server-side: `DO_MCP_MODE` read-only by
+  default, destructive ops need `full` + an exact `confirm`, a `protected` tag blocks
+  disruptive droplet actions, every write supports `dry_run`.
+- **Acceptance criteria:**
+  - `claude plugin validate` passes for the marketplace and the plugin.
+  - `cd tools/claude-plugins/digitalocean/server && npm test` passes with no network access.
+  - In `read-only` mode no write/destroy tool is listed and direct calls are refused
+    before any HTTP request; destructive calls with a missing/wrong `confirm` or on a
+    `protected` droplet send no request.
+  - Smoke test against a real account with a read-scoped token: `/digitalocean:do-status` renders.
+- **Notes:** Live-account smoke test not yet run (no DO token in the authoring
+  environment). Lives outside `src/` and `services/`, so root `npm run lint` does not
+  cover it; it lints clean under the root `.eslintrc.json`.
+
 ### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
 - **Type:** task · **Status:** done (merged to `main` `fe58d2c`; IA restructure + config store + live updates, e2e-verified) · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)
 - **Owner-role:** sr-developer (session-led) · **Blocked-by:** —

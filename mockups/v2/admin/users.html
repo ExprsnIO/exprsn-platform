@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Users · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+</head>
+<body data-shell="admin" data-page="users">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Infrastructure</span><i data-i="right" class="sm"></i><span>Users</span></nav>
+        <h1 class="page-title">Users</h1>
+        <p class="page-sub">Everyone with an Exprsn identity across all organizations. Select rows to act in bulk, or open a person for sessions, roles and audit history.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-import" data-api="/auth/api/users/import"><i data-i="upload" class="sm"></i>Import CSV</button>
+        <button class="btn outline" type="button" data-api="/auth/api/users/export" data-toast="Export started — users.csv will download when ready"><i data-i="download" class="sm"></i>Export</button>
+        <button class="btn primary" type="button" data-open="dlg-invite" data-api="/auth/api/users/invites"><i data-i="userPlus" class="sm"></i>Invite people</button>
+      </div>
+    </header>
+
+    <div class="grid c4" data-api="/auth/api/users">
+      <div class="card stat"><span class="label"><i data-i="people" class="sm"></i>Total users</span><span class="value">12,408</span><span class="delta up">+184 this week</span></div>
+      <div class="card stat"><span class="label"><i data-i="pulse" class="sm"></i>Active (24h)</span><span class="value">3,912</span><span class="delta up">31.5%</span></div>
+      <div class="card stat"><span class="label"><i data-i="fingerprint" class="sm"></i>MFA enrolled</span><span class="value">68%</span><div class="meter warn" role="img" aria-label="68 percent"><i style="width:68%"></i></div></div>
+      <div class="card stat"><span class="label"><i data-i="mail" class="sm"></i>Pending invites</span><span class="value">27</span><span class="delta down">4 expire today</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="User views">
+      <button role="tab" id="t-all" aria-controls="p-all" aria-selected="true">All users <span class="badge neutral">12,408</span></button>
+      <button role="tab" id="t-inv" aria-controls="p-inv">Invites <span class="badge neutral">27</span></button>
+      <button role="tab" id="t-dir" aria-controls="p-dir">Directory profiles</button>
+    </div>
+
+    <!-- ── All users ── -->
+    <section id="p-all" role="tabpanel" aria-labelledby="t-all">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="u-q" type="search" placeholder="Search name, email, user id, DID" data-api="/auth/api/users"></label>
+          <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Status: Active <span class="x">×</span></button>
+          <button class="chip" type="button" aria-pressed="false">Role</button>
+          <button class="chip" type="button" aria-pressed="false">Organization</button>
+          <button class="chip" type="button" aria-pressed="false">MFA</button>
+          <button class="chip" type="button" aria-pressed="false">Last active</button>
+          <span class="grow"></span>
+          <div class="seg" role="group" aria-label="Group by"><button type="button" aria-pressed="true">No grouping</button><button type="button" aria-pressed="false">By org</button></div>
+          <button class="icon-btn" type="button" aria-label="Choose columns" data-open="dlg-cols"><i data-i="columns"></i></button>
+          <button class="icon-btn" type="button" aria-label="Refresh"><i data-i="refresh"></i></button>
+        </div>
+        <div class="dt-bulk" hidden>
+          <span><span class="n">0</span> selected</span>
+          <button class="btn sm tonal" type="button" data-api="/auth/api/roles/:id/assign-user">Assign role</button>
+          <button class="btn sm tonal" type="button" data-api="/auth/api/groups/:id/members">Add to group</button>
+          <button class="btn sm tonal" type="button" data-toast="Suspended 3 users · sessions revoked">Suspend</button>
+          <button class="btn sm ghost" type="button">Export selected</button>
+        </div>
+
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="pin" style="width:44px"><input type="checkbox" class="check" aria-label="Select all on this page"></th>
+                <th class="pin" style="left:44px" aria-sort="ascending"><button type="button">Person <i data-i="up" class="sm"></i></button></th>
+                <th><button type="button">User ID</button></th>
+                <th><button type="button">Organizations</button></th>
+                <th><button type="button">Roles</button></th>
+                <th><button type="button">MFA</button></th>
+                <th><button type="button">Status</button></th>
+                <th class="num"><button type="button">Last active</button></th>
+                <th class="num"><button type="button">Created</button></th>
+                <th class="actions"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="pin"><input type="checkbox" class="check" aria-label="Select Maya Diaz"></td>
+                <td class="pin" style="left:44px"><button class="row" type="button" data-open="dlg-user" style="all:unset;cursor:pointer;display:flex;gap:10px;align-items:center" data-api="/auth/api/users/:id/detail"><span class="avatar sm g1">MD</span><span class="stack tight" style="gap:0"><b>Maya Diaz</b><span class="xs muted">maya@exprsn.io</span></span></button></td>
+                <td><span class="id">usr_8f21c0</span></td>
+                <td>Exprsn HQ</td>
+                <td><span class="pill violet">platform-admin</span></td>
+                <td><span class="pill ok"><i data-i="check" class="sm"></i>TOTP</span></td>
+                <td><span class="pill ok"><span class="d"></span>Active</span></td>
+                <td class="num">2 min ago</td>
+                <td class="num">2025-11-02</td>
+                <td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Maya Diaz"><i data-i="more"></i></button></td>
+              </tr>
+              <tr>
+                <td class="pin"><input type="checkbox" class="check" aria-label="Select Jonah Okafor"></td>
+                <td class="pin" style="left:44px"><div class="row" style="gap:10px"><span class="avatar sm g2">JO</span><span class="stack tight" style="gap:0"><b>Jonah Okafor</b><span class="xs muted">jonah@northwind.co</span></span></div></td>
+                <td><span class="id">usr_2ab991</span></td>
+                <td>Northwind <span class="pill">+1</span></td>
+                <td><span class="pill">member</span> <span class="pill brand">org-owner</span></td>
+                <td><span class="pill ok"><i data-i="check" class="sm"></i>WebAuthn</span></td>
+                <td><span class="pill ok"><span class="d"></span>Active</span></td>
+                <td class="num">1 h ago</td>
+                <td class="num">2026-02-14</td>
+                <td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Jonah Okafor"><i data-i="more"></i></button></td>
+              </tr>
+              <tr>
+                <td class="pin"><input type="checkbox" class="check" aria-label="Select Priya Raman"></td>
+                <td class="pin" style="left:44px"><div class="row" style="gap:10px"><span class="avatar sm g3">PR</span><span class="stack tight" style="gap:0"><b>Priya Raman</b><span class="xs muted">priya@exprsn.io</span></span></div></td>
+                <td><span class="id">usr_77d0e4</span></td>
+                <td>Exprsn HQ</td>
+                <td><span class="pill">member</span></td>
+                <td><span class="pill warn">Not enrolled</span></td>
+                <td><span class="pill ok"><span class="d"></span>Active</span></td>
+                <td class="num">Yesterday</td>
+                <td class="num">2026-05-30</td>
+                <td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Priya Raman"><i data-i="more"></i></button></td>
+              </tr>
+              <tr>
+                <td class="pin"><input type="checkbox" class="check" aria-label="Select Sam Kim"></td>
+                <td class="pin" style="left:44px"><div class="row" style="gap:10px"><span class="avatar sm">SK</span><span class="stack tight" style="gap:0"><b>Sam Kim</b><span class="xs muted">sam.kim@contoso.dev</span></span></div></td>
+                <td><span class="id">usr_c41a02</span></td>
+                <td>Contoso</td>
+                <td><span class="pill">member</span></td>
+                <td><span class="pill ok"><i data-i="check" class="sm"></i>TOTP</span></td>
+                <td><span class="pill danger"><span class="d"></span>Suspended</span></td>
+                <td class="num">14 d ago</td>
+                <td class="num">2026-01-08</td>
+                <td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Sam Kim"><i data-i="more"></i></button></td>
+              </tr>
+              <tr>
+                <td class="pin"><input type="checkbox" class="check" aria-label="Select Ari Lindqvist"></td>
+                <td class="pin" style="left:44px"><div class="row" style="gap:10px"><span class="avatar sm g4">AL</span><span class="stack tight" style="gap:0"><b>Ari Lindqvist</b><span class="xs muted">ari@exprsn.io</span></span></div></td>
+                <td><span class="id">usr_0e93bb</span></td>
+                <td>Exprsn HQ</td>
+                <td><span class="pill">moderator</span></td>
+                <td><span class="pill ok"><i data-i="check" class="sm"></i>TOTP</span></td>
+                <td><span class="pill info"><span class="d"></span>Unverified email</span></td>
+                <td class="num">3 d ago</td>
+                <td class="num">2026-09-20</td>
+                <td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Ari Lindqvist"><i data-i="more"></i></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty">
+          <div class="empty"><div class="art"><i data-i="search"></i></div><h3>No users match these filters</h3><p>Try removing “Status: Active” or searching by user id or email instead.</p><button class="btn outline" type="button">Clear filters</button></div>
+        </div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack">
+          <span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span>
+        </div>
+        <div data-state="error">
+          <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load users</h3><p>The auth module returned 503. Check <a href="overview.html">Overview → health</a>. Correlation id <code>cid 91be…04c</code>.</p><button class="btn outline" type="button">Retry</button></div>
+        </div>
+        <div class="dt-foot">
+          <span class="num">1–25 of 12,408 · filtered by 1</span>
+          <div class="row" style="gap:6px">
+            <label class="sr-only" for="pp">Rows per page</label>
+            <select class="select" id="pp" style="min-height:32px;padding:4px 8px;width:auto"><option>25</option><option>50</option><option>100</option></select>
+            <button class="icon-btn" type="button" aria-label="Previous page" disabled><i data-i="left"></i></button>
+            <button class="icon-btn" type="button" aria-label="Next page"><i data-i="right"></i></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Invites ── -->
+    <section id="p-inv" role="tabpanel" aria-labelledby="t-inv" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="inv-q" type="search" placeholder="Search invites"></label><span class="grow"></span><button class="btn sm primary" type="button" data-open="dlg-invite"><i data-i="plus" class="sm"></i>New invite</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/auth/api/users/invites">
+            <thead><tr><th>Email</th><th>Organization</th><th>Role</th><th>Invited by</th><th class="num">Expires</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td>lee@northwind.co</td><td>Northwind</td><td><span class="pill">member</span></td><td>Jonah Okafor</td><td class="num">in 6 h</td><td><span class="pill warn">Expiring</span></td><td class="actions"><button class="btn sm ghost" type="button" data-toast="Invite resent">Resend</button><button class="btn sm ghost" type="button" data-toast="Invite revoked">Revoke</button></td></tr>
+              <tr><td>dana@exprsn.io</td><td>Exprsn HQ</td><td><span class="pill">moderator</span></td><td>Maya Diaz</td><td class="num">in 6 d</td><td><span class="pill info">Sent</span></td><td class="actions"><button class="btn sm ghost" type="button">Resend</button><button class="btn sm ghost" type="button">Revoke</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Directory ── -->
+    <section id="p-dir" role="tabpanel" aria-labelledby="t-dir" hidden>
+      <div class="grid auto" data-api="/auth/api/users/profiles">
+        <div class="card pad row"><span class="avatar lg g1">MD</span><div class="stack tight"><b>Maya Diaz</b><span class="small muted">Design lead · Exprsn HQ</span><span class="xs muted">did:plc:7ah2…q9</span></div></div>
+        <div class="card pad row"><span class="avatar lg g2">JO</span><div class="stack tight"><b>Jonah Okafor</b><span class="small muted">Founder · Northwind</span><span class="xs muted">did:web:jonah.northwind.co</span></div></div>
+        <div class="card pad row"><span class="avatar lg g3">PR</span><div class="stack tight"><b>Priya Raman</b><span class="small muted">SRE · Exprsn HQ</span><span class="xs muted">No DID linked</span></div></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- User detail (large dialog / sheet) -->
+  <dialog class="dialog lg" id="dlg-user" aria-labelledby="dlg-user-t">
+    <div class="dialog-head">
+      <span class="avatar lg g1">MD</span>
+      <div class="grow"><h2 id="dlg-user-t">Maya Diaz</h2><p>maya@exprsn.io · <span class="id">usr_8f21c0</span> · joined Nov 2, 2025</p></div>
+      <button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button>
+    </div>
+    <div class="dialog-body">
+      <div class="tabs" role="tablist" aria-label="User detail">
+        <button role="tab" aria-controls="ud-1" aria-selected="true">Profile</button>
+        <button role="tab" aria-controls="ud-2">Groups &amp; roles</button>
+        <button role="tab" aria-controls="ud-3">Sessions</button>
+        <button role="tab" aria-controls="ud-4">Tokens</button>
+        <button role="tab" aria-controls="ud-5">Audit</button>
+      </div>
+      <div id="ud-1" role="tabpanel">
+        <dl class="kv">
+          <dt>Display name</dt><dd>Maya Diaz</dd>
+          <dt>Username</dt><dd>maya</dd>
+          <dt>Email</dt><dd>maya@exprsn.io <span class="pill ok">Verified</span></dd>
+          <dt>MFA</dt><dd>TOTP · 8 backup codes left</dd>
+          <dt>Organizations</dt><dd>Exprsn HQ (owner)</dd>
+          <dt>Linked DIDs</dt><dd><span class="id">did:plc:7ah2k3…q9</span></dd>
+        </dl>
+      </div>
+      <div id="ud-2" role="tabpanel" hidden>
+        <div class="row wrap" data-api="/auth/api/users/:id/groups"><span class="chip">design</span><span class="chip">platform-oncall</span><span class="chip">admins</span><button class="chip" type="button"><i data-i="plus" class="sm"></i>Add</button></div>
+      </div>
+      <div id="ud-3" role="tabpanel" hidden>
+        <div class="list card" data-api="/auth/api/sessions">
+          <div class="list-item"><i data-i="globe"></i><div class="grow"><div class="title">Safari · macOS</div><div class="meta">203.0.113.24 · Seattle · current</div></div><span class="pill ok">Active</span></div>
+          <div class="list-item"><i data-i="globe"></i><div class="grow"><div class="title">Exprsn iOS</div><div class="meta">198.51.100.7 · 3 h ago</div></div><button class="btn sm danger-outline" type="button" data-toast="Session revoked · CA token invalidated">Revoke</button></div>
+        </div>
+      </div>
+      <div id="ud-4" role="tabpanel" hidden><p class="small secondary">CA tokens issued to this user. Revoking one signs out every client using it.</p></div>
+      <div id="ud-5" role="tabpanel" hidden>
+        <div class="activity">
+          <div class="activity-item"><span class="ico"><i data-i="key"></i></span><span>Role <b>platform-admin</b> assigned by <b>system</b></span><span class="when">Nov 2</span></div>
+          <div class="activity-item"><span class="ico"><i data-i="fingerprint"></i></span><span>MFA enrolled (TOTP)</span><span class="when">Nov 2</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn danger-outline left" type="button" data-close data-toast="Maya Diaz suspended · 2 sessions revoked">Suspend</button>
+      <button class="btn outline" type="button" data-toast="Password reset email sent">Send password reset</button>
+      <button class="btn primary" type="button" data-close data-toast="Saved">Save changes</button>
+    </div>
+  </dialog>
+
+  <!-- Invite -->
+  <dialog class="dialog" id="dlg-invite" aria-labelledby="dlg-invite-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-invite-t">Invite people</h2><p>They’ll get an email link that expires in 7 days.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="inv-emails">Email addresses</label><textarea class="textarea" id="inv-emails" placeholder="one@example.com, two@example.com"></textarea><span class="help">Separate with commas or new lines. Up to 100 at once.</span></div>
+      <div class="form-grid">
+        <div class="field"><label for="inv-org">Organization</label><select class="select" id="inv-org"><option>Exprsn HQ</option><option>Northwind</option></select></div>
+        <div class="field"><label for="inv-role">Role</label><select class="select" id="inv-role"><option>member</option><option>moderator</option><option>org-admin</option></select></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="2 invites sent">Send invites</button></div>
+  </dialog>
+
+  <!-- Import -->
+  <dialog class="dialog" id="dlg-import" aria-labelledby="dlg-import-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-import-t">Import users from CSV</h2><p>Columns: email, name, organization, role. We’ll show a preview before anything is created.</p></div></div>
+    <div class="dialog-body">
+      <div class="drop"><i data-i="upload" class="lg"></i><b>Drop a .csv file here</b><span class="small">or</span><label class="btn sm outline" for="csv">Choose file</label><input id="csv" type="file" accept=".csv" class="sr-only"></div>
+      <div class="banner info"><i data-i="info" class="sm"></i><span>Rows with an existing email are skipped, not overwritten.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" disabled>Preview import</button></div>
+  </dialog>
+
+  <!-- Columns -->
+  <dialog class="dialog sm" id="dlg-cols" aria-labelledby="dlg-cols-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cols-t">Columns</h2><p>Drag to reorder. Pinned columns stay visible while scrolling.</p></div></div>
+    <div class="dialog-body">
+      <div class="list card">
+        <label class="list-item"><i data-i="grip" class="sm muted"></i><input type="checkbox" class="check" checked disabled> <span class="grow">Person</span><span class="pill">Pinned</span></label>
+        <label class="list-item"><i data-i="grip" class="sm muted"></i><input type="checkbox" class="check" checked> <span class="grow">User ID</span></label>
+        <label class="list-item"><i data-i="grip" class="sm muted"></i><input type="checkbox" class="check" checked> <span class="grow">Organizations</span></label>
+        <label class="list-item"><i data-i="grip" class="sm muted"></i><input type="checkbox" class="check" checked> <span class="grow">Roles</span></label>
+        <label class="list-item"><i data-i="grip" class="sm muted"></i><input type="checkbox" class="check"> <span class="grow">Linked DIDs</span></label>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Reset</button><button class="btn primary" type="button" data-close>Apply</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Canonical DataTable (Design.md §6.1): search, filter chips, group-by, column chooser with pinning, sticky header, row selection → bulk bar, server pagination. Row click opens the detail dialog (a right sheet on wide screens in the build). All auth user admin routes need a platform-admin session.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/users", "auth": "A", "ui": "Table rows, stat tiles, search, filters, pagination" },
+    { "m": "POST", "p": "/auth/api/users", "auth": "A", "ui": "Create user (overflow menu)" },
+    { "m": "GET", "p": "/auth/api/users/:id/detail", "auth": "A", "ui": "User detail dialog" },
+    { "m": "PUT", "p": "/auth/api/users/:id", "auth": "owner/A", "ui": "Save changes, Suspend" },
+    { "m": "DELETE", "p": "/auth/api/users/:id", "auth": "owner/A", "ui": "Row menu → Delete" },
+    { "m": "GET", "p": "/auth/api/users/:id/groups", "auth": "user", "ui": "Detail → Groups & roles" },
+    { "m": "POST", "p": "/auth/api/users/import", "auth": "A", "ui": "Import CSV dialog" },
+    { "m": "GET", "p": "/auth/api/users/export", "auth": "A", "ui": "Export button" },
+    { "m": "GET", "p": "/auth/api/users/invites", "auth": "A", "ui": "Invites tab" },
+    { "m": "POST", "p": "/auth/api/users/invites", "auth": "A", "ui": "Invite dialog → Send" },
+    { "m": "DELETE", "p": "/auth/api/users/invites/:id", "auth": "A", "ui": "Invite → Revoke" },
+    { "m": "GET", "p": "/auth/api/users/profiles", "auth": "user", "ui": "Directory profiles tab" },
+    { "m": "POST", "p": "/auth/api/roles/:id/assign-user", "auth": "A", "ui": "Bulk → Assign role" },
+    { "m": "POST", "p": "/auth/api/groups/:id/members", "auth": "grp-admin/A", "ui": "Bulk → Add to group" },
+    { "m": "GET", "p": "/auth/api/sessions", "auth": "user", "ui": "Detail → Sessions" },
+    { "m": "DELETE", "p": "/auth/api/sessions/:id", "auth": "user", "ui": "Detail → Revoke session" },
+    { "m": "GET", "p": "/ca/admin/api/tokens", "auth": "A", "ui": "Detail → Tokens (filter by user)" }
+  ],
+  "socket": [
+    { "ns": "/_admin", "auth": "CA bearer + isAdminToken", "rooms": [],
+      "emit": [],
+      "on": [
+        { "e": "health", "ui": "Top-bar Live pill (auth module up/down)" },
+        { "e": "config:changed", "ui": "Toast if auth signup policy changes" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "med", "text": "Nothing emits user or session lifecycle events: CA helpers like user:created are dead code and /_admin only carries health and config. The table polls every 30s while visible. Proposed: add user:* and session:revoked on /_admin." },
+    { "sev": "med", "text": "Suspend has no dedicated endpoint. It's modelled as PUT /users/:id {status}, followed by DELETE /sessions for that user." }
+  ]
+}
+</script>
+</body>
+</html>

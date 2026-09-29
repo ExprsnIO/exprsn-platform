@@ -7643,6 +7643,31 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   is the cheapest way to stop paying for that at QA time on every Cortex-slate
   ticket, of which ~15 remain. Cross-ref: TASK-071, BUG-072.
 
+### TASK-074 — UI v2 design mockups: user app + admin console (every route, contract-annotated)
+- **Type:** task · **Status:** in-review · **Priority:** P2 · **Size:** L
+- **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
+- **Legacy:** TASK-073 (`docs/plans/Design.md`, admin spec this visualizes); root `mockups/` (v1 sketches, superseded)
+- **Description:** Fresh, implementation-ready static HTML mockups under `mockups/v2/` for
+  every SPA route (`web/src/app/router.tsx`) and every admin section
+  (`web/src/features/admin/AdminLayout.tsx`), aligned with modern UI/UX, Apple HIG and
+  WCAG 2.2 AA. Keeps the existing Exprsn Unified Design System colours and light/dark
+  themes value-for-value (`web/src/styles/exprsn-unified.css`). Each screen carries a
+  **Contract** drawer listing the REST endpoints it calls (method, path, auth class) and the
+  Socket.IO namespace, rooms, client→server and server→client events it depends on, plus
+  known backend gaps. Rationale, component inventory and the full endpoint/event coverage
+  matrix live in `docs/plans/ui-v2-mockups.md`.
+- **Acceptance criteria:**
+  - One mockup per user route and per admin section; gallery at `mockups/v2/index.html`.
+  - `mockups/v2/tokens.css` hex values identical to `exprsn-unified.css` (no new colours).
+  - Every page renders in light + dark at 1440px and 390px with no console errors, no
+    horizontal overflow at phone width, and no serious/critical axe violations.
+  - Every socket event and REST endpoint group in `API_SURFACE.md` (as corrected against
+    code) maps to a screen or is explicitly marked "no UI (service/internal)".
+- **Notes:** Design-only; no runtime code changes. Socket-layer defects found during the
+  inventory (spark REST emits on the root namespace, dead `/ca` emitters, vault non-prod
+  permission grant, timeline IPC `post:*` broadcast to all sockets, no `/cortex` entry in
+  `web/src/lib/realtime.ts`) are recorded in the design doc as prerequisites, not fixed here.
+
 ### TASK-073 — Administrative interface design specification (Claude Design brief) + backend prerequisites register
 - **Type:** task · **Status:** in-review · **Priority:** P1 · **Size:** L
 - **Owner-role:** sr-developer (session-led) · **Blocked-by:** —

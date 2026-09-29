@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Messages · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+</head>
+<body data-shell="app" data-page="messages">
+<main id="main">
+  <div class="md">
+    <!-- ── Conversation list ── -->
+    <section class="md-list" aria-label="Conversations">
+      <div class="stack" style="padding:16px 16px 12px;gap:12px">
+        <div class="row between">
+          <h1 class="page-title" style="font-size:1.5rem">Messages</h1>
+          <button class="btn sm primary" type="button" data-open="dlg-new" data-api="/spark/api/conversations">
+            <i data-i="edit" class="sm"></i>New
+          </button>
+        </div>
+        <label class="input-group" data-api="/spark/api/messages/search">
+          <i data-i="search" class="sm"></i>
+          <input id="msg-search" type="search" placeholder="Search messages and people">
+        </label>
+        <div class="seg" role="group" aria-label="Filter conversations">
+          <button type="button" aria-pressed="true">All</button>
+          <button type="button" aria-pressed="false">Unread <span class="badge">3</span></button>
+          <button type="button" aria-pressed="false">Groups</button>
+          <button type="button" aria-pressed="false">Muted</button>
+        </div>
+      </div>
+
+      <div class="scroll" data-state="loaded">
+        <div class="list" role="listbox" aria-label="Conversation list" data-api="/spark/api/conversations" data-on="new:message message:new participant:added">
+          <button class="list-item" role="option" aria-selected="true" type="button">
+            <span class="avatar g1">DM<span class="presence on"></span></span>
+            <span class="grow stack tight">
+              <span class="row between"><span class="title truncate">Design crit · v2</span><span class="xs muted num">09:42</span></span>
+              <span class="row between"><span class="meta truncate">Maya: Contract drawer is 🔥 — ship it</span><span class="badge">2</span></span>
+            </span>
+          </button>
+          <button class="list-item" role="option" type="button">
+            <span class="avatar g2">JO<span class="presence away"></span></span>
+            <span class="grow stack tight">
+              <span class="row between"><span class="title truncate">Jonah Okafor</span><span class="xs muted num">09:10</span></span>
+              <span class="row between"><span class="meta truncate" data-on="typing:start"><i>typing…</i></span><span class="badge">1</span></span>
+            </span>
+          </button>
+          <button class="list-item" role="option" type="button">
+            <span class="avatar sq g3"># </span>
+            <span class="grow stack tight">
+              <span class="row between"><span class="title truncate">#platform-oncall</span><span class="xs muted num">Mon</span></span>
+              <span class="row between"><span class="meta truncate">Priya: vault rotation finished ✅</span><i data-i="bell" class="sm muted" aria-label="Muted"></i></span>
+            </span>
+          </button>
+          <button class="list-item" role="option" type="button">
+            <span class="avatar g4">AL</span>
+            <span class="grow stack tight">
+              <span class="row between"><span class="title truncate">Ari Lindqvist</span><span class="xs muted num">Sun</span></span>
+              <span class="meta truncate">You: sent “Q3-roadmap.pdf”</span>
+            </span>
+          </button>
+          <button class="list-item" role="option" type="button">
+            <span class="avatar">SK<span class="presence"></span></span>
+            <span class="grow stack tight">
+              <span class="row between"><span class="title truncate">Sam Kim</span><span class="xs muted num">Sep 24</span></span>
+              <span class="meta truncate"><i data-i="lock" class="sm"></i> Encrypted message</span>
+            </span>
+          </button>
+        </div>
+      </div>
+      <div class="scroll" data-state="empty">
+        <div class="empty">
+          <div class="art"><i data-i="chat"></i></div>
+          <h3>No conversations yet</h3>
+          <p>Start a direct message or create a group conversation. Messages you receive will show up here instantly.</p>
+          <button class="btn primary" type="button" data-open="dlg-new">Start a conversation</button>
+        </div>
+      </div>
+      <div class="scroll" data-state="loading" aria-busy="true" aria-label="Loading conversations">
+        <div class="stack" style="padding:16px">
+          <div class="row"><span class="avatar" style="background:var(--exprsn-bg-tertiary)"></span><div class="grow stack tight"><span class="sk" style="width:60%"></span><span class="sk" style="width:85%"></span></div></div>
+          <div class="row"><span class="avatar" style="background:var(--exprsn-bg-tertiary)"></span><div class="grow stack tight"><span class="sk" style="width:45%"></span><span class="sk" style="width:70%"></span></div></div>
+          <div class="row"><span class="avatar" style="background:var(--exprsn-bg-tertiary)"></span><div class="grow stack tight"><span class="sk" style="width:55%"></span><span class="sk" style="width:80%"></span></div></div>
+        </div>
+      </div>
+      <div class="scroll" data-state="error">
+        <div class="empty error">
+          <div class="art"><i data-i="alert"></i></div>
+          <h3>Couldn’t load conversations</h3>
+          <p>The messaging service didn’t respond. Your messages are safe. Reference <code>cid 7f3a…e21</code> if you contact support.</p>
+          <button class="btn outline" type="button">Try again</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Thread ── -->
+    <section class="md-detail" aria-label="Design crit · v2">
+      <header class="md-head" data-api="/spark/api/conversations/:id">
+        <button class="icon-btn" type="button" data-back aria-label="Back to conversations"><i data-i="back"></i></button>
+        <span class="avatar g1">DM</span>
+        <div class="grow stack tight">
+          <div class="row" style="gap:8px"><b class="truncate">Design crit · v2</b><span class="pill ok" title="End-to-end encrypted" data-api="/spark/api/encryption/keys/public/batch"><i data-i="lock" class="sm"></i>E2EE</span></div>
+          <span class="xs muted" data-on="user:status">Maya, Jonah, Ari + 3 · <span style="color:var(--v2-ok-fg)">4 online</span></span>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Search in conversation" data-api="/spark/api/messages/search"><i data-i="search"></i></button>
+        <button class="icon-btn" type="button" aria-label="Start a call" data-toast="Room created — inviting 6 people"><i data-i="video"></i></button>
+        <button class="icon-btn" type="button" aria-label="Conversation details" data-open="dlg-info"><i data-i="info"></i></button>
+      </header>
+
+      <div class="banner info" style="border-radius:0" data-api="/spark/api/conversations/:id/pinned" data-on="message:pinned message:unpinned">
+        <i data-i="pin" class="sm"></i><span class="grow truncate"><b>Pinned:</b> Mockups live at mockups/v2 — review by Friday</span>
+        <button class="btn sm ghost" type="button">View all 3</button>
+      </div>
+
+      <div class="scroll" data-api="/spark/api/messages/:conversationId">
+        <div class="msgs" role="log" aria-live="polite" aria-label="Messages" data-on="new:message message:edited message:deleted message:redacted new:reaction read:receipt message:reply">
+          <span class="day-sep">Today</span>
+          <div class="msg">
+            <span class="avatar sm g2">JO</span>
+            <div>
+              <div class="bubble">Pushed the palette pass — no new colours, just hierarchy. Dark mode uses the #4a8cf7 primary everywhere.</div>
+              <div class="meta"><b>Jonah</b> · 09:31</div>
+            </div>
+          </div>
+          <div class="msg">
+            <span class="avatar sm g1">MD</span>
+            <div>
+              <div class="bubble">Contract drawer is 🔥 — ship it. Every screen tells you which socket events it listens to.</div>
+              <div class="reactions" data-on="new:reaction"><span>🔥 3</span><span>👍 2</span></div>
+              <div class="meta"><b>Maya</b> · 09:40</div>
+            </div>
+          </div>
+          <div class="msg me">
+            <div>
+              <div class="bubble">Agreed. I’ll file the spark root-namespace bug so REST edits actually reach /spark clients.</div>
+              <div class="meta">09:41 · <span data-on="read:receipt" title="Read by 4"><i data-i="checks" class="sm" style="color:var(--exprsn-primary)"></i> Read by 4</span></div>
+            </div>
+          </div>
+          <div class="msg me">
+            <div>
+              <div class="bubble" style="display:flex;gap:10px;align-items:center" data-api="/spark/api/attachments/upload">
+                <i data-i="doc"></i><span><b>socket-inventory.pdf</b><br><span class="xs">412 KB</span></span>
+              </div>
+              <div class="meta">09:42 · <span>Delivered</span></div>
+            </div>
+          </div>
+          <div class="msg">
+            <span class="avatar sm g4">AL</span>
+            <div>
+              <div class="bubble" style="font-style:italic;color:var(--exprsn-text-muted)" data-on="message:redacted">This message was removed by moderation.</div>
+              <div class="meta"><b>Ari</b> · 09:42</div>
+            </div>
+          </div>
+          <div class="msg" data-on="typing:start typing:stop">
+            <span class="avatar sm g2">JO</span>
+            <div class="bubble typing" role="img" aria-label="Jonah is typing"><i></i><i></i><i></i></div>
+          </div>
+        </div>
+      </div>
+
+      <form class="composer" data-emit="send:message typing:start typing:stop" data-toast="Sent">
+        <button class="icon-btn" type="button" aria-label="Attach a file" data-api="/spark/api/attachments/upload"><i data-i="clip"></i></button>
+        <div class="box">
+          <label class="sr-only" for="composer-text">Message</label>
+          <textarea id="composer-text" rows="1" placeholder="Message Design crit · v2"></textarea>
+          <button class="icon-btn" type="button" aria-label="Add emoji" data-emit="add:reaction"><i data-i="smile"></i></button>
+        </div>
+        <button class="send" type="submit" aria-label="Send message"><i data-i="send"></i></button>
+      </form>
+    </section>
+  </div>
+
+  <!-- New conversation -->
+  <dialog class="dialog" id="dlg-new" aria-labelledby="dlg-new-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-new-t">New conversation</h2><p>Direct message one person, or add several to start a group.</p></div></div>
+      <div class="dialog-body">
+        <div class="field"><label for="to">To</label>
+          <div class="input-group"><span class="chip" aria-pressed="true">Maya Diaz <span class="x">×</span></span><input id="to" placeholder="Search people" data-api="/auth/api/users/directory"></div>
+          <span class="help">Your org’s messaging policy may block people outside your groups.</span>
+        </div>
+        <div class="field"><label for="cname">Group name (optional)</label><input class="input" id="cname" placeholder="e.g. Launch war-room"></div>
+        <div class="setting-row" style="padding:0"><div class="grow"><div class="t">End-to-end encryption</div><div class="d">Generates a key pair on this device if you don’t have one.</div></div><label class="switch"><input type="checkbox" id="e2ee" checked aria-label="End-to-end encryption"><span></span></label></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Conversation created">Create</button></div>
+    </form>
+  </dialog>
+
+  <!-- Conversation info -->
+  <dialog class="dialog" id="dlg-info" aria-labelledby="dlg-info-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-info-t">Design crit · v2</h2><p>6 members · created by you on Sep 12</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Mute notifications</div><div class="d">You’ll still see unread counts.</div></div><label class="switch"><input type="checkbox" id="mute" aria-label="Mute" data-api="/spark/api/conversations/:id/mute"><span></span></label></div>
+      <div class="list card" data-api="/spark/api/conversations/:id/participants" data-on="participant:added">
+        <div class="list-item"><span class="avatar sm g1">MD<span class="presence on"></span></span><span class="grow">Maya Diaz</span><span class="pill">Owner</span></div>
+        <div class="list-item"><span class="avatar sm g2">JO<span class="presence away"></span></span><span class="grow">Jonah Okafor</span></div>
+        <div class="list-item"><span class="avatar sm g4">AL</span><span class="grow">Ari Lindqvist</span></div>
+        <button class="list-item" type="button"><span class="avatar sm" style="background:var(--exprsn-bg-tertiary);color:var(--exprsn-primary)"><i data-i="userPlus" class="sm"></i></span><span class="grow" style="color:var(--exprsn-primary);font-weight:600">Add people</span></button>
+      </div>
+      <div class="row wrap"><button class="btn outline sm" type="button"><i data-i="image" class="sm"></i>Media &amp; files</button><button class="btn outline sm" type="button"><i data-i="key" class="sm"></i>Verify keys</button></div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-close data-toast="You left the conversation">Leave conversation</button><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Two-pane master–detail (single pane with back button under 900px). Joining a thread emits join:conversation; the server checks participant, group membership and block policy before joining room conversation:{id}. Sending is optimistic: the bubble renders immediately and rolls back with an inline retry if the ack or new:message echo doesn't arrive.",
+  "rest": [
+    { "m": "GET", "p": "/spark/api/conversations", "auth": "user", "ui": "Conversation list, filters, unread badges" },
+    { "m": "POST", "p": "/spark/api/conversations", "auth": "user", "ui": "New conversation dialog → Create" },
+    { "m": "GET", "p": "/spark/api/conversations/:id", "auth": "user", "ui": "Thread header" },
+    { "m": "GET", "p": "/spark/api/conversations/:id/participants", "auth": "user", "ui": "Details dialog member list" },
+    { "m": "POST", "p": "/spark/api/conversations/:id/participants", "auth": "user", "ui": "Add people" },
+    { "m": "PUT", "p": "/spark/api/conversations/:id/settings", "auth": "user", "ui": "Details dialog settings" },
+    { "m": "POST", "p": "/spark/api/conversations/:id/mute", "auth": "user", "ui": "Mute switch (unmute = POST …/unmute)" },
+    { "m": "GET", "p": "/spark/api/conversations/:id/pinned", "auth": "user", "ui": "Pinned banner" },
+    { "m": "DELETE", "p": "/spark/api/conversations/:id", "auth": "user", "ui": "Leave conversation" },
+    { "m": "GET", "p": "/spark/api/messages/:conversationId", "auth": "user", "ui": "Message log (cursor pagination on scroll-up)" },
+    { "m": "PUT", "p": "/spark/api/messages/:conversationId/:messageId", "auth": "user", "ui": "Edit (fallback when socket down)" },
+    { "m": "DELETE", "p": "/spark/api/messages/:conversationId/:messageId", "auth": "user", "ui": "Delete (fallback when socket down)" },
+    { "m": "GET", "p": "/spark/api/messages/search", "auth": "user", "ui": "Search field + in-thread search" },
+    { "m": "GET", "p": "/spark/api/messages/search/suggestions", "auth": "user", "ui": "Search typeahead" },
+    { "m": "POST", "p": "/spark/api/:id/pin", "auth": "user", "ui": "Message menu → Pin (unpin = …/unpin)" },
+    { "m": "POST", "p": "/spark/api/:id/forward", "auth": "user", "ui": "Message menu → Forward" },
+    { "m": "POST", "p": "/spark/api/:id/reply", "auth": "user", "ui": "Reply in thread" },
+    { "m": "GET", "p": "/spark/api/:id/thread", "auth": "user", "ui": "Thread side sheet" },
+    { "m": "POST", "p": "/spark/api/attachments/upload", "auth": "user", "ui": "Attach button, file bubble" },
+    { "m": "GET", "p": "/spark/api/attachments/:id/download", "auth": "user", "ui": "File bubble tap" },
+    { "m": "POST", "p": "/spark/api/encryption/keys/public/batch", "auth": "user", "ui": "E2EE pill (peer keys)" },
+    { "m": "GET", "p": "/spark/api/encryption/keys/mine", "auth": "user", "ui": "Verify keys" },
+    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "To: people picker" }
+  ],
+  "socket": [
+    { "ns": "/spark", "auth": "CA bearer (read; write to send/edit, delete to delete)", "rooms": ["conversation:{id}"],
+      "emit": [
+        { "e": "join:conversation", "ui": "Selecting a conversation" },
+        { "e": "leave:conversation", "ui": "Switching away / unmount" },
+        { "e": "send:message", "ui": "Composer submit (optimistic bubble)" },
+        { "e": "typing:start", "ui": "Composer keystrokes (throttled 3s)" },
+        { "e": "typing:stop", "ui": "Composer blur / send" },
+        { "e": "mark:read", "ui": "Thread scrolled to bottom while focused" },
+        { "e": "add:reaction", "ui": "Emoji button / long-press" },
+        { "e": "edit:message", "ui": "Message menu → Edit" },
+        { "e": "delete:message", "ui": "Message menu → Delete" },
+        { "e": "presence:update", "ui": "App focus / idle (away after 5 min)" }
+      ],
+      "on": [
+        { "e": "joined:conversation", "ui": "Clears thread loading state" },
+        { "e": "left:conversation", "ui": "No UI" },
+        { "e": "new:message", "ui": "Appends to log; bumps list row + unread badge" },
+        { "e": "message:new", "ui": "Same as new:message (REST-originated)" },
+        { "e": "typing:start", "ui": "Typing bubble + list row “typing…”" },
+        { "e": "typing:stop", "ui": "Removes typing bubble" },
+        { "e": "read:receipt", "ui": "“Read by N” ticks on own bubbles" },
+        { "e": "new:reaction", "ui": "Reaction chips under bubble" },
+        { "e": "message:edited", "ui": "Bubble text + “edited” meta" },
+        { "e": "message:deleted", "ui": "Bubble removed (tombstone)" },
+        { "e": "message:redacted", "ui": "“Removed by moderation” tombstone" },
+        { "e": "message:pinned", "ui": "Pinned banner" },
+        { "e": "message:unpinned", "ui": "Pinned banner" },
+        { "e": "message:reply", "ui": "Reply count on parent bubble" },
+        { "e": "participant:added", "ui": "System line + member list" },
+        { "e": "user:status", "ui": "Presence dots + “N online”" },
+        { "e": "error", "ui": "Inline retry on the failed bubble" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "REST routes emit via req.io (root namespace), so message:new, message:pinned/unpinned, message:reply, message:edited/deleted (REST path) and participant:added never reach /spark clients. Fix: use io.of('/spark')." },
+    { "sev": "med", "text": "add:reaction has no participant check (socket/index.js:509)." },
+    { "sev": "med", "text": "There's no user:{id} room, so unread badges for conversations you haven't joined can't update live. The list refetches on focus until a per-user room exists." }
+  ]
+}
+</script>
+</body>
+</html>

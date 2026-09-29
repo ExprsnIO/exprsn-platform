@@ -72,6 +72,7 @@ material:
 
 - `docs/runbooks/` — operational how-tos (secrets and rotation, calendar/contacts subscriptions)
 - `docs/plans/Design.md` — the administrative interface design specification (Claude Design brief): shell, universal components, all 14 module sections, configuration tab, database editor, backend prerequisites
+- `docs/plans/ui-v2-mockups.md` — UI v2 design mockups for every user route and admin section (`mockups/v2/`, open `mockups/v2/index.html`): component map, accessibility rules, per-screen REST + Socket.IO contracts, generated coverage matrix, backend prerequisites (TASK-074)
 - `docs/plans/` — design and implementation plans, mostly delivered. Two are
   **generated** and must not be hand-edited: `plugins-decisions.md`
   (`npm run plan:plugins`) and `lowcode-clarifications.md`

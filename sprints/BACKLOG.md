@@ -7643,6 +7643,42 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   is the cheapest way to stop paying for that at QA time on every Cortex-slate
   ticket, of which ~15 remain. Cross-ref: TASK-071, BUG-072.
 
+### TASK-073 — Administrative interface design specification (Claude Design brief) + backend prerequisites register
+- **Type:** task · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
+- **Legacy:** TASK-039 (admin refactor parent); `docs/reports/admin-interface.md` (endpoint→UI map)
+- **Description:** Produce the design specification for the next-generation `/admin`
+  console as a Claude Design brief — `docs/plans/Design.md`. Built from a source read of
+  every module in `src/modules/registry.js` (routes, Socket.IO namespaces, Sequelize
+  models and ENUMs, config/env, queues, identifiers), the gateway, the Docker service
+  stack, and the existing SPA. It specifies the shell (collapsible sidebar grouped by
+  module, tabs, org/tenant switcher, ⌘K lookups, light/dark), the universal components
+  (DataTable with advanced filtering, sorting, pinning, group-by, per-field text
+  filters; card/grid/list views; calendar+keyboard date pickers; a conforming dialog
+  system; lookup dialogs incl. CID/DID, Redis keys, RabbitMQ messages, DB rows; token
+  issuance with time-/use-based/persistent expiry), WCAG 2.2 AA + HIG rules, per-module
+  sections for all 14 modules plus Jobs, the Organization Explorer, the Configuration tab
+  covering every infra service (Postgres, Redis, OpenSearch, RabbitMQ, nginx, SRS,
+  OpenLDAP, BIND, Kerberos, Dovecot, strongSwan, Ollama, …) and all settings sections,
+  a PostgreSQL/MySQL/MongoDB editor (tables, indexes, functions, procedures, query
+  console — successor of `src/exprsn-dbadmin`), cache/broker/search browsers, the
+  realtime strategy, an enum registry, and a register of ~90 backend prerequisites
+  (§14) to be split into follow-up tickets.
+- **Acceptance criteria:**
+  - `docs/plans/Design.md` exists, is linked from `README.md` and `docs/assets/manifest.js`,
+    and follows the five-root-Markdown rule (lives under `docs/plans/`).
+  - Every registry module has a section with tabs, tables (columns/filters/group-by/pins),
+    actions, lookups, live events, config, enums, and gaps.
+  - Every table requirement from the brief is specified once in §6 (filter/sort/pin/group,
+    per-field text filter, card/grid/list, calendar+keyboard date pickers, conforming
+    dialogs, lookup dialogs, time/use-based tokens, CID/DID search).
+  - §14 prerequisites are filed as follow-up tickets (one per row or grouped by module)
+    before build starts.
+- **Notes:** Design-only; no runtime code changes. Discrepancies discovered during the
+  read (e.g. `/ca` socket admits unauthenticated clients, `adminGuard` ignores token
+  roles, live lifecycle routes have no platform-admin override, vault `aiPolicyService`
+  queries a non-existent `createdAt`) are recorded in §14 with severities.
+
 ### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
 - **Type:** task · **Status:** done (merged to `main` `fe58d2c`; IA restructure + config store + live updates, e2e-verified) · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)
 - **Owner-role:** sr-developer (session-led) · **Blocked-by:** —

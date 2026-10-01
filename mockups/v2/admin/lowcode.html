@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Low-Code · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .caps { display: flex; gap: 4px; flex-wrap: wrap; max-width: 260px; }
+</style>
+</head>
+<body data-shell="admin" data-page="lowcode">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Applications</span><i data-i="right" class="sm"></i><span>Low-Code</span></nav>
+        <h1 class="page-title">Low-Code</h1>
+        <p class="page-sub">Apps built on the platform: their entities, forms, flows and lookups. Platform admins can manage every scope; org and group admins see their own.</p>
+      </div>
+      <div class="page-actions">
+        <span class="pill ok" style="align-self:center" title="LOWCODE_ENABLED"><span class="d"></span>Enabled</span>
+        <button class="btn outline" type="button" data-open="dlg-ai" data-api="/lowcode/api/design/ai/generate"><i data-i="sparkle" class="sm"></i>Generate with AI</button>
+        <button class="btn outline" type="button" data-open="dlg-import" data-api="/lowcode/api/design/apps/import"><i data-i="upload" class="sm"></i>Import</button>
+        <button class="btn primary" type="button" data-open="dlg-new" data-api="/lowcode/api/design/apps"><i data-i="plus" class="sm"></i>New app</button>
+      </div>
+    </header>
+
+    <div class="grid c4">
+      <div class="card stat" data-api="/lowcode/api/design/apps"><span class="label"><i data-i="apps" class="sm"></i>Apps</span><span class="value">37</span><span class="delta">9 published</span></div>
+      <div class="card stat" data-api="/lowcode/api/design/entities"><span class="label"><i data-i="table" class="sm"></i>Entities</span><span class="value">142</span><span class="delta">284k records</span></div>
+      <div class="card stat" data-api="/lowcode/api/design/flows"><span class="label"><i data-i="flow" class="sm"></i>Flows</span><span class="value">88</span><span class="delta">61 enabled</span></div>
+      <div class="card stat"><span class="label"><i data-i="alert" class="sm"></i>Run errors (24 h)</span><span class="value">14</span><span class="delta down">3 flows</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Low-code views">
+      <button role="tab" id="t-apps" aria-controls="p-apps" aria-selected="true">Apps</button>
+      <button role="tab" id="t-ent" aria-controls="p-ent">Entities</button>
+      <button role="tab" id="t-frm" aria-controls="p-frm">Forms</button>
+      <button role="tab" id="t-flw" aria-controls="p-flw">Flows</button>
+      <button role="tab" id="t-lk" aria-controls="p-lk">Lookups</button>
+      <button role="tab" id="t-cat" aria-controls="p-cat">Catalog</button>
+    </div>
+
+    <!-- ── Apps ── -->
+    <section id="p-apps" role="tabpanel" aria-labelledby="t-apps">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="a-q" type="search" placeholder="Search apps by key or name"></label>
+          <button class="chip" type="button" aria-pressed="false">Status</button>
+          <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Scope: all <span class="x">×</span></button>
+          <span class="grow"></span>
+          <div class="seg" role="group" aria-label="View"><button type="button" aria-pressed="true" aria-label="List view"><i data-i="list" class="sm"></i></button><button type="button" aria-pressed="false" aria-label="Grid view"><i data-i="grid" class="sm"></i></button></div>
+        </div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/lowcode/api/design/apps">
+            <thead><tr><th aria-sort="ascending"><button type="button">App <i data-i="up" class="sm"></i></button></th><th>Status</th><th>Scope</th><th>Capabilities</th><th class="num">Entities · forms · flows</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><div class="row" style="gap:10px"><span class="avatar sm sq g1">HR</span><span class="stack tight" style="gap:0"><b>Hiring pipeline</b><span class="xs muted">hiring</span></span></div></td><td><span class="pill ok">published</span></td><td>organization · Northwind</td><td><div class="caps"><span class="pill">write:timeline.posts</span><span class="pill">call:cortex.complete</span></div></td><td class="num">4 · 2 · 6</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit" data-api="/lowcode/api/design/apps/:id">Edit</button><button class="btn sm ghost" type="button" data-api="/lowcode/api/design/apps/:id/export" data-toast="hiring.bundle.json downloaded">Export</button><button class="icon-btn" type="button" aria-label="Delete Hiring pipeline" data-open="dlg-del"><i data-i="trash"></i></button></td></tr>
+              <tr><td><div class="row" style="gap:10px"><span class="avatar sm sq g3">IT</span><span class="stack tight" style="gap:0"><b>Incident tracker</b><span class="xs muted">incidents</span></span></div></td><td><span class="pill ok">published</span></td><td>group · Platform on-call</td><td><div class="caps"><span class="pill">write:spark.messages</span><span class="pill">read:vault.secrets</span></div></td><td class="num">3 · 1 · 4</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit">Edit</button><button class="btn sm ghost" type="button" data-toast="incidents.bundle.json downloaded">Export</button><button class="icon-btn" type="button" aria-label="Delete Incident tracker" data-open="dlg-del"><i data-i="trash"></i></button></td></tr>
+              <tr><td><div class="row" style="gap:10px"><span class="avatar sm sq g4">EV</span><span class="stack tight" style="gap:0"><b>Event RSVPs</b><span class="xs muted">event_rsvps</span></span></div></td><td><span class="pill warn">draft</span></td><td>user · Maya Diaz</td><td><div class="caps"><span class="muted small">none</span></div></td><td class="num">1 · 1 · 0</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit">Edit</button><button class="btn sm ghost" type="button" data-toast="event_rsvps.bundle.json downloaded">Export</button><button class="icon-btn" type="button" aria-label="Delete Event RSVPs" data-open="dlg-del"><i data-i="trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="apps"></i></div><h3>No apps yet</h3><p>Create an app from scratch, import a bundle, or describe what you need and let Cortex draft the first entity.</p><div class="row wrap" style="justify-content:center"><button class="btn primary" type="button" data-open="dlg-new">New app</button><button class="btn outline" type="button" data-open="dlg-ai">Generate with AI</button></div></div></div>
+        <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Low-Code is turned off</h3><p>Routes return 404 while <code>LOWCODE_ENABLED=false</code>. Turn it on in Platform → overrides; existing apps are kept.</p><a class="btn outline" href="platform.html">Open Platform overrides</a></div></div>
+        <div class="dt-foot"><span>Filtering the 37 apps loaded</span></div>
+      </div>
+    </section>
+
+    <!-- ── Entities ── -->
+    <section id="p-ent" role="tabpanel" aria-labelledby="t-ent" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="sr-only" for="e-app">App</label><select class="select" id="e-app" style="width:auto;min-height:36px;padding:6px 10px"><option>Hiring pipeline</option><option>Incident tracker</option></select><span class="grow"></span><button class="btn sm primary" type="button" data-api="/lowcode/api/design/entities" data-toast="Entity created — opening designer">New entity</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/lowcode/api/design/entities">
+            <thead><tr><th>Entity</th><th class="num">Fields</th><th>State machine</th><th>Storage</th><th class="num">Records</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><a href="lowcode-entity.html"><b>Candidate</b></a><div class="xs muted">candidate</div></td><td class="num">14</td><td><span class="pill ok">6 states</span></td><td>db</td><td class="num">1,204</td><td class="actions"><a class="btn sm tonal" href="lowcode-entity.html">Open designer</a></td></tr>
+              <tr><td><a href="lowcode-entity.html"><b>Interview</b></a><div class="xs muted">interview</div></td><td class="num">9</td><td class="muted">—</td><td>db</td><td class="num">3,880</td><td class="actions"><a class="btn sm tonal" href="lowcode-entity.html">Open designer</a></td></tr>
+              <tr><td><b>Offer letter</b><div class="xs muted">offer_letter</div></td><td class="num">7</td><td><span class="pill ok">3 states</span></td><td>filevault</td><td class="num">96</td><td class="actions"><a class="btn sm tonal" href="lowcode-entity.html">Open designer</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Forms ── -->
+    <section id="p-frm" role="tabpanel" aria-labelledby="t-frm" hidden>
+      <div class="card dt">
+        <div class="dt-scroll">
+          <table class="table" data-api="/lowcode/api/design/forms">
+            <thead><tr><th>Form</th><th>Entity</th><th>Public link</th><th class="num">Steps</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>Apply to Northwind</b></td><td>Candidate</td><td><span class="pill ok">public</span> <code>/f/northwind-apply</code></td><td class="num">3</td><td class="actions"><button class="btn sm ghost" type="button" data-copy="https://exprsn.io/f/northwind-apply">Copy link</button><button class="btn sm ghost" type="button" data-api="/lowcode/api/design/forms/:id" data-toast="Form unpublished">Unpublish</button></td></tr>
+              <tr><td><b>Interview feedback</b></td><td>Interview</td><td><span class="pill">internal</span></td><td class="num">1</td><td class="actions"><button class="btn sm ghost" type="button" data-toast="Form published at /f/interview-feedback">Publish</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Flows ── -->
+    <section id="p-flw" role="tabpanel" aria-labelledby="t-flw" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="f-q" type="search" placeholder="Search flows"></label><button class="chip" type="button" aria-pressed="false">Trigger</button><button class="chip" type="button" aria-pressed="true">Has errors</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/lowcode/api/design/flows /lowcode/api/design/flows/:id/runs">
+            <thead><tr><th>Flow</th><th>Trigger</th><th class="num">Actions</th><th>Last run</th><th>Enabled</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><a href="lowcode-flow.html"><b>Announce new candidate</b></a><div class="xs muted">Hiring pipeline · announce_candidate</div></td><td><span class="pill brand">event</span> <code>lowcode.record.created</code></td><td class="num">4</td><td><span class="pill danger">error</span> <span class="xs muted">3 m ago</span></td><td><label class="switch"><input type="checkbox" id="f-en-1" checked aria-label="Enable Announce new candidate"><span></span></label></td><td class="actions"><a class="btn sm tonal" href="lowcode-flow.html">Open designer</a></td></tr>
+              <tr><td><a href="lowcode-flow.html"><b>Page on-call for sev1</b></a><div class="xs muted">Incident tracker · page_oncall</div></td><td><span class="pill violet">webhook</span></td><td class="num">3</td><td><span class="pill ok">success</span> <span class="xs muted">1 h ago</span></td><td><label class="switch"><input type="checkbox" id="f-en-2" checked aria-label="Enable Page on-call for sev1"><span></span></label></td><td class="actions"><a class="btn sm tonal" href="lowcode-flow.html">Open designer</a></td></tr>
+              <tr><td><b>Weekly digest</b><div class="xs muted">Hiring pipeline · weekly_digest</div></td><td><span class="pill info">schedule</span> <code>0 9 * * 1</code></td><td class="num">2</td><td><span class="pill">skipped</span></td><td><label class="switch"><input type="checkbox" id="f-en-3" aria-label="Enable Weekly digest"><span></span></label></td><td class="actions"><a class="btn sm tonal" href="lowcode-flow.html">Open designer</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>Runs are listed per flow (≤ 100, 200 retained); a cross-app runs list is proposed (LC-1).</span></div>
+      </div>
+    </section>
+
+    <!-- ── Lookups ── -->
+    <section id="p-lk" role="tabpanel" aria-labelledby="t-lk" hidden>
+      <div class="grid c2">
+        <div class="card">
+          <div class="card-head"><h2>Lookups</h2><button class="btn sm outline" type="button" data-api="/lowcode/api/design/lookups" data-toast="Lookup created">New lookup</button></div>
+          <div class="list" data-api="/lowcode/api/design/lookups">
+            <div class="list-item"><span class="grow"><span class="title">Interview stage</span><div class="meta">static · 5 values</div></span><button class="btn sm ghost" type="button" data-api="/lowcode/api/design/lookups/:id/resolved" data-toast="Resolved 5 values">Preview</button></div>
+            <div class="list-item"><span class="grow"><span class="title">Hiring managers</span><div class="meta">provider · platform.users (Northwind managers)</div></span><button class="btn sm ghost" type="button" data-toast="Resolved 12 values">Preview</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Lookup providers</h2></div>
+          <div class="list" data-api="/lowcode/api/design/lookup-providers">
+            <div class="list-item"><i data-i="table"></i><span class="grow">lowcode.entity</span></div>
+            <div class="list-item"><i data-i="people"></i><span class="grow">platform.users</span></div>
+            <div class="list-item"><i data-i="groups"></i><span class="grow">nexus.groups</span></div>
+            <div class="list-item"><i data-i="shield"></i><span class="grow">moderator.queues</span></div>
+            <div class="list-item"><i data-i="hash"></i><span class="grow">timeline.topics</span></div>
+            <div class="list-item"><i data-i="folder"></i><span class="grow">filevault.files</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Catalog ── -->
+    <section id="p-cat" role="tabpanel" aria-labelledby="t-cat" hidden>
+      <div class="grid auto" data-api="/lowcode/api/design/catalog">
+        <div class="card pad stack"><b>Trigger types</b><div class="row wrap"><span class="pill">event</span><span class="pill">schedule</span><span class="pill">webhook</span><span class="pill">manual</span></div></div>
+        <div class="card pad stack"><b>Native actions</b><div class="row wrap"><span class="pill">create_record</span><span class="pill">update_record</span><span class="pill">transition_record</span><span class="pill">export_entity</span></div></div>
+        <div class="card pad stack"><b>Module actions</b><div class="row wrap"><span class="pill">post_timeline</span><span class="pill">send_spark</span><span class="pill">post_nexus</span><span class="pill">enqueue_job</span><span class="pill">write_file</span><span class="pill">http_request</span><span class="pill">read_secret</span><span class="pill violet">cortex</span></div></div>
+        <div class="card pad stack"><b>Field types</b><div class="row wrap"><span class="pill">string</span><span class="pill">text</span><span class="pill">number</span><span class="pill">integer</span><span class="pill">boolean</span><span class="pill">date</span><span class="pill">datetime</span><span class="pill">enum</span><span class="pill">reference</span><span class="pill">json</span><span class="pill">file</span></div></div>
+        <div class="card pad stack"><b>Storage modes</b><div class="row wrap"><span class="pill">db</span><span class="pill">mirror</span><span class="pill">filevault</span><span class="pill">export</span></div></div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog" id="dlg-new" aria-labelledby="dlg-new-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-new-t">New app</h2><p>Starts as a draft. You’ll add entities next.</p></div></div>
+    <form class="dialog-body" data-toast="App created">
+      <div class="form-grid">
+        <div class="field"><label for="n-name">Name</label><input class="input" id="n-name" value="Vendor onboarding"></div>
+        <div class="field"><label for="n-key">Key</label><input class="input" id="n-key" value="vendor_onboarding"><span class="help">lowercase, underscores</span></div>
+        <div class="field"><label for="n-scope">Scope</label><select class="select" id="n-scope"><option>organization</option><option>group</option><option>user</option><option>platform</option></select></div>
+        <div class="field"><label for="n-scopeid">Scope owner</label><input class="input" id="n-scopeid" value="Contoso"></div>
+      </div>
+      <div class="field"><label for="n-desc">Description</label><textarea class="textarea" id="n-desc">Collect vendor details and route approvals to finance.</textarea></div>
+    </form>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Vendor onboarding created">Create app</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-edit" aria-labelledby="dlg-ed-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ed-t">Edit Hiring pipeline</h2><p><span class="id">hiring</span> · organization Northwind</p></div></div>
+    <form class="dialog-body" data-toast="App saved">
+      <div class="form-grid"><div class="field"><label for="ed-name">Name</label><input class="input" id="ed-name" value="Hiring pipeline"></div><div class="field"><label for="ed-status">Status</label><select class="select" id="ed-status"><option>published</option><option>draft</option><option>archived</option></select></div></div>
+      <fieldset class="field" style="border:0;padding:0;margin:0"><legend class="label" style="font-size:.8125rem;font-weight:600;margin-bottom:6px">Capabilities (platform admin only)</legend><div class="row wrap"><label class="row" style="gap:6px"><input type="checkbox" class="check" id="ed-c1" checked>write:timeline.posts</label><label class="row" style="gap:6px"><input type="checkbox" class="check" id="ed-c2" checked>call:cortex.complete</label><label class="row" style="gap:6px"><input type="checkbox" class="check" id="ed-c3">call:http.request</label></div></fieldset>
+    </form>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-del">Delete app</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="App saved">Save</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del" aria-labelledby="dlg-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-t">Delete Hiring pipeline?</h2><p>4 entities with 5,180 records, 2 forms and 6 flows are deleted. Public form links stop working. This can’t be undone.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="del-confirm">Type <b>hiring</b> to confirm</label><input class="input" id="del-confirm" autocomplete="off"></div><button class="btn sm outline" type="button" data-toast="hiring.bundle.json downloaded" style="align-self:flex-start">Export a backup first</button></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Hiring pipeline deleted">Delete app</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-import" aria-labelledby="dlg-im-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-im-t">Import app bundle</h2><p>Creates a new draft app from an exported .json bundle.</p></div></div>
+    <div class="dialog-body">
+      <div class="drop"><i data-i="upload" class="lg"></i><b>Drop a bundle here</b><label class="btn sm outline" for="im-file">Choose file</label><input id="im-file" type="file" accept=".json" class="sr-only"></div>
+      <div class="banner warn"><i data-i="info" class="sm"></i><span>Capabilities in the bundle are stripped unless you’re a platform admin; re-grant them after import.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Imported as draft: Hiring pipeline (copy)">Import</button></div>
+  </dialog>
+
+  <dialog class="dialog lg" id="dlg-ai" aria-labelledby="dlg-ai-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ai-t">Generate with AI</h2><p>Cortex drafts an entity or flow. Nothing is saved until you apply it.</p></div></div>
+    <div class="dialog-body">
+      <div class="form-grid"><div class="field"><span class="label" id="ai-k">Kind</span><div class="seg" role="group" aria-labelledby="ai-k"><button type="button" aria-pressed="true">Entity</button><button type="button" aria-pressed="false">Flow</button></div></div><div class="field"><label for="ai-app">Into app</label><select class="select" id="ai-app"><option>Vendor onboarding</option></select></div></div>
+      <div class="field"><label for="ai-prompt">Describe it</label><textarea class="textarea" id="ai-prompt" maxlength="2000">A vendor with legal name, tax id, contact email, country, and a status that goes submitted → reviewing → approved or rejected.</textarea><span class="help">126 / 2000</span></div>
+      <div class="field"><span class="label">Draft preview</span><pre class="code" tabindex="0">{ "key": "vendor", "fields": [
+  { "key": "legal_name", "type": "string", "required": true },
+  { "key": "tax_id", "type": "string", "unique": true },
+  { "key": "contact_email", "type": "string", "format": "email" },
+  { "key": "country", "type": "enum", "enumLookup": "countries" } ],
+  "stateMachine": { "initial": "submitted", "states": ["submitted","reviewing","approved","rejected"] } }</pre></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn outline" type="button" data-toast="Regenerating…">Regenerate</button><button class="btn primary" type="button" data-close data-toast="Entity vendor created">Apply draft</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Design APIs are request/response; lists refetch after each write. Delete is destructive and cascades, so it requires typing the app key. AI generate returns a draft only; Apply calls the normal create route.",
+  "rest": [
+    { "m": "GET", "p": "/lowcode/api/design/apps", "auth": "scope", "ui": "Apps table, Apps stat" },
+    { "m": "POST", "p": "/lowcode/api/design/apps", "auth": "scope", "ui": "New app dialog" },
+    { "m": "GET", "p": "/lowcode/api/design/apps/:id", "auth": "scope", "ui": "Edit dialog" },
+    { "m": "PATCH", "p": "/lowcode/api/design/apps/:id", "auth": "app-admin (capabilities: A)", "ui": "Edit dialog → Save" },
+    { "m": "DELETE", "p": "/lowcode/api/design/apps/:id", "auth": "app-admin", "ui": "Delete app dialog" },
+    { "m": "GET", "p": "/lowcode/api/design/apps/:id/export", "auth": "scope", "ui": "Row → Export, backup before delete" },
+    { "m": "POST", "p": "/lowcode/api/design/apps/import", "auth": "scope", "ui": "Import dialog" },
+    { "m": "GET", "p": "/lowcode/api/design/entities", "auth": "scope", "ui": "Entities tab, stat" },
+    { "m": "POST", "p": "/lowcode/api/design/entities", "auth": "scope", "ui": "New entity" },
+    { "m": "GET", "p": "/lowcode/api/design/forms", "auth": "scope", "ui": "Forms tab" },
+    { "m": "POST", "p": "/lowcode/api/design/forms", "auth": "scope", "ui": "New form" },
+    { "m": "PUT", "p": "/lowcode/api/design/forms/:id", "auth": "scope", "ui": "Publish / unpublish" },
+    { "m": "DELETE", "p": "/lowcode/api/design/forms/:id", "auth": "scope", "ui": "Form row menu → Delete" },
+    { "m": "GET", "p": "/lowcode/api/design/flows", "auth": "scope", "ui": "Flows tab, stat" },
+    { "m": "PATCH", "p": "/lowcode/api/design/flows/:id", "auth": "scope", "ui": "Enabled switch" },
+    { "m": "GET", "p": "/lowcode/api/design/flows/:id/runs", "auth": "scope", "ui": "Flows → last run, run errors stat" },
+    { "m": "GET", "p": "/lowcode/api/design/lookups", "auth": "scope", "ui": "Lookups list" },
+    { "m": "POST", "p": "/lowcode/api/design/lookups", "auth": "scope", "ui": "New lookup" },
+    { "m": "PUT", "p": "/lowcode/api/design/lookups/:id", "auth": "scope", "ui": "Edit lookup" },
+    { "m": "DELETE", "p": "/lowcode/api/design/lookups/:id", "auth": "scope", "ui": "Delete lookup" },
+    { "m": "GET", "p": "/lowcode/api/design/lookups/:id/resolved", "auth": "scope", "ui": "Lookup → Preview" },
+    { "m": "GET", "p": "/lowcode/api/design/lookup-providers", "auth": "scope", "ui": "Lookup providers card" },
+    { "m": "POST", "p": "/lowcode/api/design/ai/generate", "auth": "scope", "ui": "Generate with AI dialog" },
+    { "m": "GET", "p": "/lowcode/api/design/catalog", "auth": "scope", "ui": "Catalog tab" },
+    { "m": "GET", "p": "/lowcode/api/hooks/forms/:slug", "auth": "P", "ui": "Forms → public link target" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "No cross-app flow-runs list; run errors are aggregated from per-flow /runs calls (LC-1)." },
+    { "sev": "med", "text": "No live updates: the planned /lowcode/:app namespace doesn't exist (LC-2); tables refetch after writes." }
+  ]
+}
+</script>
+</body>
+</html>

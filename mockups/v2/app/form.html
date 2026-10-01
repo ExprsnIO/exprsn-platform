@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Public form · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  .form-shell { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  .form-cover { height: 96px; border-radius: 20px 20px 0 0; background: var(--exprsn-gradient-success); }
+  .form-card { overflow: hidden; }
+  .demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border: 1px dashed var(--exprsn-border-color-strong); border-radius: 12px; font-size: .75rem; color: var(--exprsn-text-secondary); }
+  .demo-bar .seg { display: flex; flex-wrap: wrap; }
+  .req { color: var(--v2-danger-fg); }
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opts label { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 1px solid var(--exprsn-border-color); border-radius: 12px; font-size: .9375rem; cursor: pointer; }
+  .opts label:has(input:checked) { border-color: var(--exprsn-primary); background: color-mix(in srgb, var(--exprsn-primary) 6%, transparent); }
+  .opts input { accent-color: var(--exprsn-primary); }
+</style>
+</head>
+<body data-shell="public" data-page="form">
+<main id="main">
+  <header class="public-top">
+    <span class="row" style="gap:10px"><span class="avatar sm sq g3">NW</span><b>Northwind</b></span>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light/dark theme"><i data-i="moon"></i></button>
+  </header>
+
+  <div class="public-main">
+    <div class="form-shell">
+      <div class="demo-bar" role="group" aria-label="Mockup preview">
+        <span class="eyebrow">Preview</span>
+        <div class="seg" role="group" aria-label="Form step" data-view-target="form">
+          <button type="button" aria-pressed="true" data-view="fill">Filling in</button>
+          <button type="button" aria-pressed="false" data-view="invalid">Validation errors</button>
+          <button type="button" aria-pressed="false" data-view="done">Submitted</button>
+        </div>
+      </div>
+
+      <!-- ── Loaded ── -->
+      <div data-state="loaded">
+        <section class="card form-card" data-view-of="form" data-view-name="fill" data-api="/lowcode/api/hooks/forms/:slug">
+          <div class="form-cover" aria-hidden="true"></div>
+          <div class="card-body stack loose">
+            <div class="stack tight">
+              <span class="eyebrow">Northwind Community · Volunteer desk</span>
+              <h1 class="page-title">Fall food-drive volunteer sign-up</h1>
+              <p class="secondary">Saturday Oct 17, 2026 at the Pier 4 warehouse. Pick a shift and we’ll email a confirmation. Fields marked <span class="req">*</span> are required.</p>
+            </div>
+            <form class="stack loose" data-api="/lowcode/api/hooks/forms/:slug/submit" data-toast="Thanks — your response was recorded.">
+              <div class="form-grid">
+                <div class="field"><label for="f-first">First name <span class="req">*</span></label><input class="input" id="f-first" autocomplete="given-name" value="Sam"></div>
+                <div class="field"><label for="f-last">Last name <span class="req">*</span></label><input class="input" id="f-last" autocomplete="family-name" value="Kim"></div>
+                <div class="field full"><label for="f-email">Email <span class="req">*</span></label><input class="input" id="f-email" type="email" autocomplete="email" value="sam.kim@contoso.dev"></div>
+              </div>
+              <fieldset class="field" style="border:0;padding:0;margin:0">
+                <legend class="small" style="font-weight:600;margin-bottom:6px">Shift <span class="req">*</span></legend>
+                <div class="opts">
+                  <label><input type="radio" name="shift" id="f-shift-1" checked>Morning · 8:00–12:00 <span class="pill ok" style="margin-left:auto">6 spots left</span></label>
+                  <label><input type="radio" name="shift" id="f-shift-2">Afternoon · 12:00–16:00 <span class="pill warn" style="margin-left:auto">2 spots left</span></label>
+                  <label><input type="radio" name="shift" id="f-shift-3" disabled>Evening · 16:00–19:00 <span class="pill" style="margin-left:auto">Full</span></label>
+                </div>
+              </fieldset>
+              <div class="field"><label for="f-team">Team</label><select class="select" id="f-team"><option>Sorting</option><option>Loading dock</option><option>Registration desk</option></select><span class="help">Options come from the Teams lookup.</span></div>
+              <div class="field"><label for="f-notes">Anything we should know?</label><textarea class="textarea" id="f-notes" placeholder="Accessibility needs, dietary restrictions, bringing a friend…"></textarea></div>
+              <label class="row top" style="gap:10px"><input type="checkbox" class="check" id="f-consent" checked><span class="small secondary">Northwind may email me about this event. <span class="req">*</span></span></label>
+              <button class="btn primary block" type="submit">Submit</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="card form-card" data-view-of="form" data-view-name="invalid" hidden>
+          <div class="form-cover" aria-hidden="true"></div>
+          <div class="card-body stack loose">
+            <div class="stack tight"><h1 class="page-title">Fall food-drive volunteer sign-up</h1></div>
+            <div class="banner danger" role="alert"><i data-i="alert" class="sm"></i><span class="grow"><b>2 fields need attention.</b> Your other answers are saved on this page.</span></div>
+            <form class="stack loose" data-api="/lowcode/api/hooks/forms/:slug/submit">
+              <div class="form-grid">
+                <div class="field"><label for="fi-first">First name <span class="req">*</span></label><input class="input" id="fi-first" value="Sam"></div>
+                <div class="field"><label for="fi-last">Last name <span class="req">*</span></label><input class="input" id="fi-last" aria-invalid="true" aria-describedby="fi-last-e"><span class="err" id="fi-last-e"><i data-i="alert" class="sm"></i>Last name is required</span></div>
+                <div class="field full"><label for="fi-email">Email <span class="req">*</span></label><input class="input" id="fi-email" type="email" value="sam.kim@contoso" aria-invalid="true" aria-describedby="fi-email-e"><span class="err" id="fi-email-e"><i data-i="alert" class="sm"></i>Enter an email like name@example.com</span></div>
+              </div>
+              <button class="btn primary block" type="submit">Submit</button>
+            </form>
+            <div class="banner warn"><i data-i="clock" class="sm"></i><span class="grow">Too many submissions from this network. Please wait a minute and try again.</span></div>
+          </div>
+        </section>
+
+        <section class="card pad" data-view-of="form" data-view-name="done" hidden>
+          <div class="empty">
+            <div class="art"><i data-i="check"></i></div>
+            <h1 style="font-size:1.5rem">You’re on the list</h1>
+            <p>Thanks — your response was recorded. We’ll email <b>sam.kim@contoso.dev</b> a confirmation for the Morning shift on Oct 17.</p>
+            <span class="id">Reference rec_4f8a21</span>
+            <button class="btn outline" type="button">Submit another response</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- ── Empty: form not found / closed ── -->
+      <section class="card pad" data-state="empty">
+        <div class="empty">
+          <div class="art"><i data-i="doc"></i></div>
+          <h1 style="font-size:1.375rem">This form isn’t accepting responses</h1>
+          <p>It may have been closed or unpublished, or the link is mistyped. Contact the organizer who sent it.</p>
+        </div>
+      </section>
+
+      <!-- ── Loading ── -->
+      <section class="card form-card" data-state="loading" aria-busy="true" aria-label="Loading form">
+        <div class="form-cover" aria-hidden="true"></div>
+        <div class="card-body stack"><span class="sk" style="width:40%"></span><span class="sk" style="width:80%;height:26px"></span><span class="sk" style="width:95%"></span><span class="sk" style="height:44px"></span><span class="sk" style="height:44px"></span><span class="sk" style="height:96px"></span></div>
+      </section>
+
+      <!-- ── Error ── -->
+      <section class="card pad" data-state="error">
+        <div class="empty error">
+          <div class="art"><i data-i="alert"></i></div>
+          <h1 style="font-size:1.375rem">We couldn’t load this form</h1>
+          <p>The forms service didn’t respond. Nothing you typed was lost. Try again in a moment.</p>
+          <button class="btn outline" type="button">Try again</button>
+        </div>
+      </section>
+
+      <p class="xs muted" style="text-align:center">Built with Exprsn Apps · <a href="login.html">Report this form</a></p>
+    </div>
+  </div>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Anonymous render + submit for a low-code form published with a public slug (/f/:slug). The spec returns only layout fields and resolved lookups, never the design API. Submission is whitelisted to the layout's fields; 400 VALIDATION details map onto inline field errors, and 429 RATE_LIMITED shows the wait banner. Submit is not optimistic: the button shows a spinner until 201.",
+  "rest": [
+    { "m": "GET", "p": "/lowcode/api/hooks/forms/:slug", "auth": "P (120/min per IP)", "ui": "Form title, description, fields, lookup options; 404 → empty state" },
+    { "m": "POST", "p": "/lowcode/api/hooks/forms/:slug/submit", "auth": "P (20/min per slug+IP)", "ui": "Submit → success card (message, record id) or inline validation errors" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "The public spec has no capacity data, so per-option “N spots left” needs an aggregate the anonymous API doesn't expose. Proposed: optional counts in publicSpec for choice fields backed by a lookup." },
+    { "sev": "med", "text": "Without LOWCODE_ENABLED the module is inert and the hook returns 503/404, which looks the same as a deleted form. Proposed: distinct copy for “forms temporarily unavailable”." },
+    { "sev": "med", "text": "There’s no CAPTCHA or bot check beyond the in-memory per-IP limiter, which resets on restart and isn't shared across instances." }
+  ]
+}
+</script>
+</body>
+</html>

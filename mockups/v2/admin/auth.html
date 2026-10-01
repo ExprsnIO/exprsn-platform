@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Authentication · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+  /* kit fix proposal: danger-outline text fails AA in light theme */
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+</style>
+</head>
+<body data-shell="admin" data-page="auth">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Infrastructure</span><i data-i="right" class="sm"></i><span>Authentication</span></nav>
+        <h1 class="page-title">Authentication</h1>
+        <p class="page-sub">How people sign in and how apps get tokens: identity providers, OAuth/OIDC applications, MFA and signup policy, and every active session.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="#" data-api="/auth/.well-known/openid-configuration"><i data-i="external" class="sm"></i>OIDC discovery</a>
+        <button class="btn primary" type="button" data-open="dlg-app" data-api="/auth/api/applications"><i data-i="plus" class="sm"></i>New application</button>
+      </div>
+    </header>
+
+    <div class="grid c4">
+      <div class="card stat" data-api="/auth/api/applications"><span class="label"><i data-i="apps" class="sm"></i>Applications</span><span class="value">23</span><span class="small secondary">4 confidential · 19 public</span></div>
+      <div class="card stat" data-api="/auth/api/sessions"><span class="label"><i data-i="pulse" class="sm"></i>Active sessions</span><span class="value">3,912</span><span class="small secondary">yours: 2</span></div>
+      <div class="card stat"><span class="label"><i data-i="fingerprint" class="sm"></i>MFA enrolled</span><span class="value">68%</span><div class="meter warn" role="img" aria-label="68 percent"><i style="width:68%"></i></div></div>
+      <div class="card stat" data-api="/auth/api/saml/status"><span class="label"><i data-i="link" class="sm"></i>Providers on</span><span class="value">3 of 5</span><span class="small secondary">password · Google · GitHub</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Authentication views">
+      <button role="tab" id="t-apps" aria-controls="p-apps" aria-selected="true">Applications</button>
+      <button role="tab" id="t-prov" aria-controls="p-prov">Providers</button>
+      <button role="tab" id="t-mfa" aria-controls="p-mfa">MFA &amp; passwords</button>
+      <button role="tab" id="t-sess" aria-controls="p-sess">Sessions</button>
+      <button role="tab" id="t-sign" aria-controls="p-sign">Signup</button>
+      <button role="tab" id="t-cfg" aria-controls="p-cfg">Config <span class="pill danger">public</span></button>
+    </div>
+
+    <!-- ── Applications ── -->
+    <section id="p-apps" role="tabpanel" aria-labelledby="t-apps">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="app-q" type="search" placeholder="Search name or client id" data-api="/auth/api/applications"></label>
+          <button class="chip" type="button" aria-pressed="false">Type</button>
+          <button class="chip" type="button" aria-pressed="false">Client type</button>
+          <button class="chip" type="button" aria-pressed="false">Organization</button>
+          <span class="grow"></span>
+          <button class="icon-btn" type="button" aria-label="Refresh"><i data-i="refresh"></i></button>
+        </div>
+        <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-toast="2 applications deactivated">Deactivate</button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/auth/api/applications">
+            <thead><tr>
+              <th class="pin" style="width:44px"><input type="checkbox" class="check" aria-label="Select all applications"></th>
+              <th class="pin" style="left:44px" aria-sort="ascending"><button type="button">Application <i data-i="up" class="sm"></i></button></th>
+              <th>Client id</th><th>Type</th><th>Client</th><th>Grants</th><th>Organization</th><th>Flags</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th>
+            </tr></thead>
+            <tbody>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select Exprsn Web"></td><td class="pin" style="left:44px"><button type="button" data-open="dlg-app" data-api="/auth/api/applications/:id" style="all:unset;cursor:pointer"><b>Exprsn Web</b></button><div class="xs secondary">first-party · trusted</div></td><td><span class="id">app_exprsnweb</span></td><td>spa</td><td>public</td><td class="small">authorization_code, refresh_token</td><td>Exprsn HQ</td><td><span class="pill ok">PKCE</span></td><td><span class="pill ok">active</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-app">Edit</button></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select Inventory sync"></td><td class="pin" style="left:44px"><b>Inventory sync</b><div class="xs secondary">service account</div></td><td><span class="id">app_inv5ync</span></td><td>m2m</td><td>confidential</td><td class="small">client_credentials</td><td>Northwind</td><td><span class="pill">no consent</span></td><td><span class="pill ok">active</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-regen">Regenerate secret</button></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select Northwind Portal"></td><td class="pin" style="left:44px"><b>Northwind Portal</b></td><td><span class="id">app_n0rthw1nd</span></td><td>web</td><td>confidential</td><td class="small">authorization_code</td><td>Northwind</td><td><span class="pill ok">PKCE</span> <span class="pill">consent</span></td><td><span class="pill ok">active</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-regen">Regenerate secret</button></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select Legacy CLI"></td><td class="pin" style="left:44px"><b>Legacy CLI</b></td><td><span class="id">app_legacycli</span></td><td>native</td><td>public</td><td class="small">password</td><td>Exprsn HQ</td><td><span class="pill warn">password grant</span></td><td><span class="pill danger">revoked</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-del-app">Delete</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="apps"></i></div><h3>No applications yet</h3><p>Register an OAuth/OIDC client so an app can sign people in with Exprsn.</p><button class="btn outline" type="button" data-open="dlg-app">New application</button></div></div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load applications</h3><p>The auth module returned 503. Correlation id <code>cid 83ac…0f2</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">4 of 23 · client mode</span><a class="btn sm ghost" href="#" data-api="/auth/.well-known/jwks.json">JWKS</a></div>
+      </div>
+    </section>
+
+    <!-- ── Providers ── -->
+    <section id="p-prov" role="tabpanel" aria-labelledby="t-prov" hidden class="stack">
+      <div class="card">
+        <div class="setting-row"><i data-i="key"></i><div class="grow"><div class="t">Email and password</div><div class="d">Always on. Lockout after 5 failed attempts for 15 minutes.</div></div><span class="pill ok">On</span></div>
+        <div class="setting-row"><i data-i="globe"></i><div class="grow"><div class="t">Google</div><div class="d">GOOGLE_CLIENT_ID set · callback /auth/api/auth/google/callback</div></div><span class="pill ok">Configured</span></div>
+        <div class="setting-row"><i data-i="code"></i><div class="grow"><div class="t">GitHub</div><div class="d">GITHUB_CLIENT_ID set · callback /auth/api/auth/github/callback</div></div><span class="pill ok">Configured</span></div>
+        <div class="setting-row" data-api="/auth/api/saml/status /auth/api/saml/providers"><i data-i="shield"></i><div class="grow"><div class="t">SAML 2.0</div><div class="d">SAML_ENABLED unset. Routes answer 503 until it’s on.</div></div><a class="btn sm outline" href="#" data-api="/auth/api/saml/metadata">SP metadata</a><span class="pill">Off</span></div>
+        <div class="setting-row"><i data-i="server"></i><div class="grow"><div class="t">LDAP / Active Directory</div><div class="d">Configs exist per org, but the LDAP routes aren’t mounted, so they can’t be tested or synced from here.</div></div><span class="pill warn">Unavailable</span></div>
+      </div>
+      <p class="xs secondary">Provider credentials are env-only. Edit them in Settings → OAuth providers and restart.</p>
+    </section>
+
+    <!-- ── MFA & passwords ── -->
+    <section id="p-mfa" role="tabpanel" aria-labelledby="t-mfa" hidden class="grid c2">
+      <div class="card">
+        <div class="card-head"><h2>MFA methods</h2><span class="pill info">effective policy</span></div>
+        <div class="setting-row"><div class="grow"><div class="t">TOTP authenticator</div><div class="d">Setup via /auth/api/mfa/setup</div></div><span class="pill ok">Available</span></div>
+        <div class="setting-row"><div class="grow"><div class="t">Backup codes</div><div class="d">10 per user, regenerable</div></div><span class="pill ok">Available</span></div>
+        <div class="setting-row"><div class="grow"><div class="t">SMS · email · WebAuthn</div><div class="d">Scaffolding only</div></div><span class="pill">Not implemented</span></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Platform policy</h2><a class="btn sm ghost" href="orgs.html">Edit in Exprsn HQ</a></div>
+        <div class="card-body"><dl class="kv"><dt>Require MFA</dt><dd>Yes · 7-day grace</dd><dt>Remember device</dt><dd>30 days</dd><dt>Password</dt><dd>≥ 12 chars · upper · lower · number</dd><dt>Session timeout</dt><dd>8 h</dd></dl></div>
+      </div>
+    </section>
+
+    <!-- ── Sessions ── -->
+    <section id="p-sess" role="tabpanel" aria-labelledby="t-sess" hidden class="stack">
+      <div class="banner info"><i data-i="info" class="sm"></i><span class="grow">The auth API only lists <b>your own</b> sessions today. Showing yours; the all-users table appears once an admin sessions endpoint exists.</span></div>
+      <div class="card dt">
+        <div class="dt-toolbar"><span class="small secondary grow">Revoking a session also revokes its CA token.</span><button class="btn sm danger-outline" type="button" data-open="dlg-revoke-all" data-api="/auth/api/sessions">Revoke all other sessions</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/auth/api/sessions /auth/api/sessions/current">
+            <thead><tr><th>Device</th><th>IP</th><th>CA token</th><th class="num">Last active</th><th class="num">Expires</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td>Safari · macOS <span class="pill ok">this session</span></td><td class="mono">203.0.113.24</td><td><a class="id" href="ca.html">3f2c…9a1b</a></td><td class="num">now</td><td class="num">in 7 h</td><td class="actions"><button class="btn sm ghost" type="button" data-api="/auth/api/sessions/refresh" data-toast="Session refreshed">Refresh</button></td></tr>
+              <tr><td>Exprsn iOS</td><td class="mono">198.51.100.7</td><td><span class="id">c7d0…1ae2</span></td><td class="num">3 h ago</td><td class="num">in 5 h</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-revoke-sess">Revoke</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Signup ── -->
+    <section id="p-sign" role="tabpanel" aria-labelledby="t-sign" hidden class="card">
+      <div class="card-head"><h2>Public signup</h2><span class="pill ok">Open with verification</span></div>
+      <div class="card-body"><dl class="kv" data-api="/auth/api/auth/signup-policy"><dt>Policy org</dt><dd>Exprsn HQ (<span class="mono">PLATFORM_ORG_SLUG=exprsn-hq</span>)</dd><dt>Self-registration</dt><dd>Allowed</dd><dt>Email verification</dt><dd>Required</dd><dt>Invite-only domains</dt><dd>none</dd></dl></div>
+      <div class="card-foot"><a class="btn outline" href="platform.html">Change policy org</a><a class="btn primary" href="orgs.html">Edit Exprsn HQ settings</a></div>
+    </section>
+
+    <!-- ── Config ── -->
+    <section id="p-cfg" role="tabpanel" aria-labelledby="t-cfg" hidden class="stack">
+      <div class="banner danger"><i data-i="alert" class="sm"></i><span class="grow"><b>These sections are public.</b> GET and POST <span class="mono">/auth/api/config/:sectionId</span> skip auth. POST only logs, so the console shows them read-only.</span></div>
+      <div class="grid c2" data-api="/auth/api/config/:sectionId">
+        <div class="card pad stack tight"><b>auth-methods</b><span class="small secondary">password, MFA, OAuth2, SAML, session timeout, password rules</span></div>
+        <div class="card pad stack tight"><b>auth-users</b><span class="small secondary">user directory façade</span></div>
+        <div class="card pad stack tight"><b>auth-groups</b><span class="small secondary">group façade</span></div>
+        <div class="card pad stack tight"><b>auth-roles</b><span class="small secondary">role façade</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Application editor -->
+  <dialog class="dialog lg" id="dlg-app" aria-labelledby="dlg-app-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-app-t">Exprsn Web</h2><p><span class="id">app_exprsnweb</span> · Exprsn HQ · created Nov 2, 2025</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><label for="a-name">Name</label><input class="input" id="a-name" value="Exprsn Web"></div>
+        <div class="field"><label for="a-type">Type</label><select class="select" id="a-type"><option>web</option><option>native</option><option selected>spa</option><option>service</option><option>m2m</option></select></div>
+        <div class="field full"><label for="a-redir">Redirect URIs</label><textarea class="textarea" id="a-redir">https://exprsn.io/auth/callback
+https://localhost:5173/auth/callback</textarea><span class="help">One per line. Must be absolute URLs.</span></div>
+        <div class="field full"><span class="label">Grant types</span><div class="row wrap" style="gap:6px"><button class="chip" type="button" aria-pressed="true">authorization_code</button><button class="chip" type="button" aria-pressed="true">refresh_token</button><button class="chip" type="button" aria-pressed="false">client_credentials</button><button class="chip" type="button" aria-pressed="false">implicit</button><button class="chip" type="button" aria-pressed="false">password</button></div></div>
+        <div class="field"><label for="a-scopes">Scopes</label><input class="input" id="a-scopes" value="openid profile email offline_access"></div>
+        <div class="field"><label for="a-at">Access token lifetime</label><input class="input" id="a-at" value="1h"><span class="help">= 3600 s</span></div>
+      </div>
+      <div class="card">
+        <div class="setting-row"><div class="grow"><div class="t">Require PKCE</div></div><label class="switch"><input type="checkbox" id="a-pkce" aria-label="Require PKCE" checked><span></span></label></div>
+        <div class="setting-row"><div class="grow"><div class="t">Require consent</div><div class="d">Off for trusted first-party apps</div></div><label class="switch"><input type="checkbox" id="a-consent" aria-label="Require consent"><span></span></label></div>
+        <div class="setting-row"><div class="grow"><div class="t">Trusted</div></div><label class="switch"><input type="checkbox" id="a-trust" aria-label="Trusted" checked><span></span></label></div>
+      </div>
+      <div class="row between inset"><span class="small">Check whether a person can use this app</span><button class="btn sm outline" type="button" data-api="/auth/api/applications/:id/check-access" data-toast="Priya Raman: allowed (group engineering)">Check access</button></div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-del-app">Delete</button><button class="btn outline" type="button" data-open="dlg-regen">Regenerate secret</button><button class="btn primary" type="button" data-close data-toast="Exprsn Web saved">Save</button></div>
+  </dialog>
+
+  <!-- Regenerate secret -->
+  <dialog class="dialog sm" id="dlg-regen" aria-labelledby="dlg-regen-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-regen-t">Regenerate secret for Inventory sync?</h2><p>The current secret stops working immediately. Anything using it fails until you update it.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-open="dlg-secret">Regenerate</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-secret" aria-labelledby="dlg-secret-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-secret-t">Copy the new client secret</h2><p>Shown once.</p></div></div>
+    <div class="dialog-body"><div class="input-group"><input id="sec-val" class="mono" readonly value="cs_live_Q8m2…a91Zx" aria-label="Client secret"><button class="btn sm ghost" type="button" data-copy="cs_live_Q8m2a91Zx"><i data-i="copy" class="sm"></i>Copy</button></div><label class="row small"><input type="checkbox" class="check" id="sec-ok"> I’ve stored this secret</label></div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <!-- Delete app -->
+  <dialog class="dialog sm" id="dlg-del-app" aria-labelledby="dlg-del-app-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-app-t">Delete Legacy CLI?</h2><p>Its tokens stop working and the client id can’t be reused.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="del-confirm">Type <b>Legacy CLI</b> to confirm</label><input class="input" id="del-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" disabled>Delete application</button></div>
+  </dialog>
+
+  <!-- Revoke session -->
+  <dialog class="dialog sm" id="dlg-revoke-sess" aria-labelledby="dlg-rs-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rs-t">Sign out Exprsn iOS?</h2><p>Its CA token c7d0…1ae2 is revoked too.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Session revoked">Revoke session</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-revoke-all" aria-labelledby="dlg-ra-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ra-t">Revoke all your other sessions?</h2><p>1 other device is signed out. This session stays.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="1 session revoked">Revoke sessions</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Applications is a client-mode DataTable. Row click opens the lg editor, and a secret regeneration ends in a reveal-once dialog. Auth has no socket namespace: tables poll every 30s and refresh on /_admin config:changed when PLATFORM_ORG_SLUG changes. Provider status is env presence plus /saml/status.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/applications", "auth": "user", "ui": "Applications table + tile" },
+    { "m": "POST", "p": "/auth/api/applications", "auth": "user", "ui": "New application" },
+    { "m": "GET", "p": "/auth/api/applications/:id", "auth": "owner/A", "ui": "Application editor" },
+    { "m": "PATCH", "p": "/auth/api/applications/:id", "auth": "owner/A", "ui": "Editor → Save, bulk Deactivate" },
+    { "m": "DELETE", "p": "/auth/api/applications/:id", "auth": "owner/A", "ui": "Delete application dialog" },
+    { "m": "POST", "p": "/auth/api/applications/:id/regenerate-secret", "auth": "owner/A", "ui": "Regenerate → reveal once" },
+    { "m": "GET", "p": "/auth/api/applications/:id/check-access", "auth": "owner/A", "ui": "Editor → Check access" },
+    { "m": "GET", "p": "/auth/.well-known/openid-configuration", "auth": "P", "ui": "OIDC discovery link" },
+    { "m": "GET", "p": "/auth/.well-known/jwks.json", "auth": "P", "ui": "JWKS link" },
+    { "m": "GET", "p": "/auth/api/saml/status", "auth": "P", "ui": "Providers → SAML status" },
+    { "m": "GET", "p": "/auth/api/saml/providers", "auth": "P", "ui": "Providers → SAML providers" },
+    { "m": "GET", "p": "/auth/api/saml/metadata", "auth": "P", "ui": "SP metadata link" },
+    { "m": "GET", "p": "/auth/api/auth/google", "auth": "P", "ui": "Not used (login flow); /github and both /callback routes likewise" },
+    { "m": "GET", "p": "/auth/api/auth/signup-policy", "auth": "P", "ui": "Signup tab" },
+    { "m": "GET", "p": "/auth/api/mfa/status", "auth": "user", "ui": "MFA tab (own status; policy from org settings)" },
+    { "m": "GET", "p": "/auth/api/sessions", "auth": "user", "ui": "Sessions table (own)" },
+    { "m": "GET", "p": "/auth/api/sessions/current", "auth": "user", "ui": "'This session' badge" },
+    { "m": "DELETE", "p": "/auth/api/sessions/:id", "auth": "user", "ui": "Revoke session" },
+    { "m": "DELETE", "p": "/auth/api/sessions", "auth": "user", "ui": "Revoke all other sessions" },
+    { "m": "POST", "p": "/auth/api/sessions/refresh", "auth": "user", "ui": "Refresh session" },
+    { "m": "GET", "p": "/auth/api/config/:sectionId", "auth": "P (gap)", "ui": "Config tab (read-only)" },
+    { "m": "POST", "p": "/auth/api/config/:sectionId", "auth": "P (gap)", "ui": "Not used (log-only)" },
+    { "m": "POST", "p": "/auth/api/oauth2/token", "auth": "client", "ui": "Not used here; authorize, revoke and userinfo likewise. Introspect lives on Scopes." },
+    { "m": "POST", "p": "/auth/api/tokens/generate", "auth": "user", "ui": "Not used (CA admin token issuance preferred); /validate [P] and /revoke likewise" }
+  ],
+  "socket": [
+    { "ns": "/_admin", "auth": "CA bearer + isAdminToken", "rooms": [],
+      "emit": [],
+      "on": [ { "e": "config:changed", "ui": "Signup tab when PLATFORM_ORG_SLUG changes" } ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "/auth/api/config/:sectionId is public for both GET and POST. POST is log-only today (AUTH-8), but it should be gated or removed." },
+    { "sev": "high", "text": "There's no admin sessions list or revoke across users (AUTH-3). The Sessions tab only shows the operator's own sessions." },
+    { "sev": "med", "text": "services/auth/src/routes/ldap.js (configs CRUD, test, sync, stats) isn't mounted, and its req.user.roles check is dead (AUTH-4). The LDAP UI is blocked." },
+    { "sev": "med", "text": "No endpoint reports Google or GitHub provider status. Configured is inferred from env (AUTH-4)." },
+    { "sev": "med", "text": "There's no admin list or revoke for oauth2_clients and oauth2_tokens (AUTH-6)." }
+  ]
+}
+</script>
+</body>
+</html>

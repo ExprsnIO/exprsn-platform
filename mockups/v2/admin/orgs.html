@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Organizations · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+  /* kit fix proposal: danger-outline text fails AA in light theme */
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .tree { padding: 6px; }
+  .tree .list-item { min-height: 44px; padding: 6px 12px; border-radius: 10px; border-bottom: 0; }
+  .tree .list-item .n { margin-left: auto; font-size: .75rem; color: var(--exprsn-text-secondary); font-variant-numeric: tabular-nums; }
+  .tree .sub { padding-left: 28px; }
+  .ledger li { display: grid; grid-template-columns: 34px minmax(0,1fr) auto; gap: 10px; padding: 8px 0; align-items: center; font-size: .875rem; }
+  .ledger li + li { border-top: 1px solid var(--exprsn-border-color); }
+  .ledger { list-style: none; margin: 0; padding: 0; }
+</style>
+</head>
+<body data-shell="admin" data-page="orgs">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Organizations</span></nav>
+        <h1 class="page-title">Organizations</h1>
+        <p class="page-sub">Every tenant, how it was provisioned, and what it owns across auth, the CA, community and extensions. Pick an organization to explore it.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-create" data-api="/auth/api/organizations"><i data-i="plus" class="sm"></i>Create blank</button>
+        <button class="btn primary" type="button" data-open="dlg-provision" data-api="/auth/api/organizations/provision"><i data-i="building" class="sm"></i>Provision organization</button>
+      </div>
+    </header>
+
+    <div class="grid c4" data-api="/auth/api/organizations">
+      <div class="card stat"><span class="label"><i data-i="building" class="sm"></i>Organizations</span><span class="value">42</span><span class="delta up">+3 this month</span></div>
+      <div class="card stat"><span class="label"><i data-i="people" class="sm"></i>Members</span><span class="value">9,871</span><span class="small secondary">across all tenants</span></div>
+      <div class="card stat"><span class="label"><i data-i="cert" class="sm"></i>CA-provisioned</span><span class="value">39 / 42</span><div class="meter ok" role="img" aria-label="39 of 42 have an intermediate CA"><i style="width:93%"></i></div></div>
+      <div class="card stat"><span class="label"><i data-i="alert" class="sm"></i>Suspended</span><span class="value">2</span><span class="delta down">1 failed provisioning</span></div>
+    </div>
+
+    <!-- ── Org list ── -->
+    <section class="card dt" aria-label="Organizations table">
+      <div class="dt-toolbar">
+        <label class="input-group"><i data-i="search" class="sm"></i><input id="org-q" type="search" placeholder="Search name, slug or org id" data-api="/auth/api/organizations"></label>
+        <button class="chip" type="button" aria-pressed="false">Type</button>
+        <button class="chip" type="button" aria-pressed="false">Plan</button>
+        <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Status: any active <span class="x">×</span></button>
+        <span class="grow"></span>
+        <div class="seg" role="group" aria-label="View"><button type="button" aria-pressed="true" aria-label="Table view"><i data-i="table" class="sm"></i></button><button type="button" aria-pressed="false" aria-label="Card view"><i data-i="grid" class="sm"></i></button></div>
+        <button class="icon-btn" type="button" aria-label="Refresh"><i data-i="refresh"></i></button>
+      </div>
+      <div class="dt-bulk" hidden>
+        <span><span class="n">0</span> selected</span>
+        <button class="btn sm tonal" type="button" data-toast="2 organizations suspended">Suspend</button>
+        <button class="btn sm ghost" type="button">Export selected</button>
+      </div>
+      <div class="dt-scroll" data-state="loaded">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="pin" style="width:44px"><input type="checkbox" class="check" aria-label="Select all on this page"></th>
+              <th class="pin" style="left:44px" aria-sort="ascending"><button type="button">Organization <i data-i="up" class="sm"></i></button></th>
+              <th><button type="button">Type</button></th>
+              <th><button type="button">Plan</button></th>
+              <th><button type="button">Status</button></th>
+              <th><button type="button">Owner</button></th>
+              <th class="num"><button type="button">Members</button></th>
+              <th class="num"><button type="button">Groups</button></th>
+              <th class="num"><button type="button">Apps</button></th>
+              <th><button type="button">CA group</button></th>
+              <th class="num"><button type="button">Created</button></th>
+              <th class="actions"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr aria-selected="true">
+              <td class="pin"><input type="checkbox" class="check" aria-label="Select Northwind"></td>
+              <td class="pin" style="left:44px"><div class="row" style="gap:10px"><span class="avatar sm sq g2">N</span><span class="stack tight" style="gap:0"><b>Northwind</b><span class="xs secondary mono">northwind</span></span></div></td>
+              <td>team</td><td><span class="pill brand">professional</span></td><td><span class="pill ok"><span class="d"></span>Active</span></td><td>Jonah Okafor</td><td class="num">184</td><td class="num">6</td><td class="num">2</td><td><span class="id">grp_4a1c…9e</span></td><td class="num">2026-02-14</td>
+              <td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Northwind"><i data-i="more"></i></button></td>
+            </tr>
+            <tr>
+              <td class="pin"><input type="checkbox" class="check" aria-label="Select Exprsn HQ"></td>
+              <td class="pin" style="left:44px"><div class="row" style="gap:10px"><span class="avatar sm sq g1">E</span><span class="stack tight" style="gap:0"><b>Exprsn HQ</b><span class="xs secondary mono">exprsn-hq</span></span></div></td>
+              <td>enterprise</td><td><span class="pill violet">enterprise</span></td><td><span class="pill ok"><span class="d"></span>Active</span> <span class="pill info">Platform policy org</span></td><td>Maya Diaz</td><td class="num">1,204</td><td class="num">14</td><td class="num">5</td><td><span class="id">grp_0001…01</span></td><td class="num">2025-11-02</td>
+              <td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Exprsn HQ"><i data-i="more"></i></button></td>
+            </tr>
+            <tr>
+              <td class="pin"><input type="checkbox" class="check" aria-label="Select Contoso"></td>
+              <td class="pin" style="left:44px"><div class="row" style="gap:10px"><span class="avatar sm sq g3">C</span><span class="stack tight" style="gap:0"><b>Contoso</b><span class="xs secondary mono">contoso</span></span></div></td>
+              <td>enterprise</td><td><span class="pill">starter</span></td><td><span class="pill danger"><span class="d"></span>Suspended</span></td><td>Sam Kim</td><td class="num">37</td><td class="num">2</td><td class="num">0</td><td><span class="pill warn">not provisioned</span></td><td class="num">2026-09-28</td>
+              <td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Contoso"><i data-i="more"></i></button></td>
+            </tr>
+            <tr>
+              <td class="pin"><input type="checkbox" class="check" aria-label="Select Lindqvist Studio"></td>
+              <td class="pin" style="left:44px"><div class="row" style="gap:10px"><span class="avatar sm sq g4">L</span><span class="stack tight" style="gap:0"><b>Lindqvist Studio</b><span class="xs secondary mono">ari-studio</span></span></div></td>
+              <td>personal</td><td><span class="pill">free</span></td><td><span class="pill ok"><span class="d"></span>Active</span></td><td>Ari Lindqvist</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td><span class="id">grp_9d02…c3</span></td><td class="num">2026-09-20</td>
+              <td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Lindqvist Studio"><i data-i="more"></i></button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div data-state="empty"><div class="empty"><div class="art"><i data-i="building"></i></div><h3>No organizations match</h3><p>Nothing matches “Status: any active”. Try searching by slug, or provision the first tenant.</p><button class="btn outline" type="button" data-open="dlg-provision">Provision organization</button></div></div>
+      <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+      <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load organizations</h3><p>GET /auth/api/organizations returned 500. Correlation id <code>cid 7f3a…1d0</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+      <div class="dt-foot"><span class="num">4 of 42 · client mode (first 200)</span><span>Shows only orgs you belong to until the admin list-all ships</span></div>
+    </section>
+
+    <!-- ── Explorer ── -->
+    <section class="stack" aria-labelledby="ex-t">
+      <div class="section-title">
+        <div class="row" style="gap:10px"><span class="avatar lg sq g2">N</span><div class="stack tight"><h2 id="ex-t">Northwind</h2><span class="small secondary">team · professional · active · <span class="id">org_2c9e1a</span></span></div></div>
+        <div class="row wrap" style="gap:8px">
+          <button class="btn sm outline" type="button" data-open="dlg-transfer" data-api="/auth/api/organizations/:id/transfer-ownership">Transfer ownership</button>
+          <button class="btn sm danger-outline" type="button" data-open="dlg-suspend">Suspend</button>
+        </div>
+      </div>
+      <div class="split left">
+        <nav class="card tree" aria-label="Northwind composition">
+          <div class="list" role="tablist" aria-orientation="vertical" aria-label="Explorer nodes">
+            <button class="list-item" role="tab" id="n-ov" aria-controls="x-ov" aria-selected="true" type="button"><i data-i="info" class="sm"></i>Overview</button>
+            <button class="list-item" role="tab" id="n-mem" aria-controls="x-mem" type="button"><i data-i="people" class="sm"></i>Members<span class="n">184</span></button>
+            <button class="list-item" role="tab" id="n-grp" aria-controls="x-grp" type="button"><i data-i="diversity" class="sm"></i>Groups<span class="n">6</span></button>
+            <button class="list-item" role="tab" id="n-rol" aria-controls="x-rol" type="button"><i data-i="badge" class="sm"></i>Roles<span class="n">4</span></button>
+            <button class="list-item" role="tab" id="n-app" aria-controls="x-app" type="button"><i data-i="apps" class="sm"></i>Applications<span class="n">2</span></button>
+            <button class="list-item" role="tab" id="n-ca" aria-controls="x-ca" type="button"><i data-i="cert" class="sm"></i>Certificate Authority</button>
+            <button class="list-item" role="tab" id="n-use" aria-controls="x-use" type="button"><i data-i="gauge" class="sm"></i>Usage</button>
+            <button class="list-item" role="tab" id="n-prov" aria-controls="x-prov" type="button"><i data-i="flow" class="sm"></i>Provisioning ledger</button>
+            <button class="list-item" role="tab" id="n-aud" aria-controls="x-aud" type="button"><i data-i="history" class="sm"></i>Audit</button>
+          </div>
+        </nav>
+
+        <div class="stack">
+          <!-- Overview -->
+          <form id="x-ov" role="tabpanel" aria-labelledby="n-ov" class="card" data-api="/auth/api/organizations/:id" data-toast="Northwind settings saved">
+            <div class="card-head"><h3>Settings</h3><span class="xs secondary">Updated Sep 24 by Jonah Okafor</span></div>
+            <div class="card-body stack">
+              <div class="form-grid">
+                <div class="field"><label for="o-name">Name</label><input class="input" id="o-name" value="Northwind"></div>
+                <div class="field"><label for="o-slug">Slug</label><input class="input" id="o-slug" value="northwind" disabled><span class="help">Slugs can’t change after provisioning</span></div>
+                <div class="field"><label for="o-type">Type</label><select class="select" id="o-type"><option>enterprise</option><option selected>team</option><option>personal</option></select></div>
+                <div class="field"><label for="o-plan">Plan</label><select class="select" id="o-plan"><option>free</option><option>starter</option><option selected>professional</option><option>enterprise</option></select></div>
+                <div class="field"><label for="o-email">Contact email</label><input class="input" id="o-email" type="email" value="it@northwind.co"></div>
+                <div class="field"><label for="o-web">Website</label><input class="input" id="o-web" type="url" value="https://northwind.co"></div>
+              </div>
+            </div>
+            <div class="setting-row"><div class="grow"><div class="t">Allow self-service registration</div><div class="d">People with a northwind.co email can join without an invite</div></div><label class="switch"><input type="checkbox" id="o-reg" aria-label="Allow self-service registration"><span></span></label></div>
+            <div class="setting-row"><div class="grow"><div class="t">Require MFA for all members</div><div class="d">TOTP and backup codes. SMS, email and WebAuthn are scaffolding only.</div></div><label class="switch"><input type="checkbox" id="o-mfa" aria-label="Require MFA for all members" checked><span></span></label></div>
+            <div class="card-body">
+              <div class="form-grid">
+                <div class="field"><label for="o-grace">MFA enrollment grace</label><input class="input" id="o-grace" type="number" value="7" min="0" max="90"><span class="help">Days</span></div>
+                <div class="field"><label for="o-sess">Session timeout</label><input class="input" id="o-sess" value="8h"><span class="help">= 28,800,000 ms</span></div>
+                <div class="field"><label for="o-pwmin">Password minimum length</label><input class="input" id="o-pwmin" type="number" value="12" min="8"></div>
+                <div class="field"><span class="label">Password must include</span><div class="row wrap" style="gap:6px"><button class="chip" type="button" aria-pressed="true">Uppercase</button><button class="chip" type="button" aria-pressed="true">Lowercase</button><button class="chip" type="button" aria-pressed="true">Number</button><button class="chip" type="button" aria-pressed="false">Symbol</button></div></div>
+              </div>
+            </div>
+            <div class="card-foot"><button class="btn danger-outline" type="button" data-open="dlg-delete" style="margin-right:auto">Delete organization</button><button class="btn ghost" type="button">Discard</button><button class="btn primary" type="submit">Save settings</button></div>
+          </form>
+
+          <!-- Members -->
+          <div id="x-mem" role="tabpanel" aria-labelledby="n-mem" hidden class="card dt">
+            <div class="dt-toolbar">
+              <label class="input-group"><i data-i="search" class="sm"></i><input id="m-q" type="search" placeholder="Search members"></label>
+              <button class="chip" type="button" aria-pressed="false">Role</button>
+              <button class="chip" type="button" aria-pressed="false">Status</button>
+              <span class="grow"></span>
+              <button class="btn sm outline" type="button" data-open="dlg-invite" data-api="/auth/api/users/invites">Invite by email</button>
+              <button class="btn sm primary" type="button" data-open="dlg-add" data-api="/auth/api/organizations/:id/members"><i data-i="userPlus" class="sm"></i>Add member</button>
+            </div>
+            <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-api="/auth/api/roles/:id/assign-user">Assign org role</button><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></div>
+            <div class="dt-scroll">
+              <table class="table" data-api="/auth/api/organizations/:id/members">
+                <thead><tr><th style="width:44px"><input type="checkbox" class="check" aria-label="Select all members"></th><th>Member</th><th>Org role</th><th>Status</th><th class="num">Joined</th><th>Invited by</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                  <tr><td><input type="checkbox" class="check" aria-label="Select Jonah Okafor"></td><td><div class="row" style="gap:10px"><span class="avatar sm g2">JO</span><span class="stack tight" style="gap:0"><b>Jonah Okafor</b><span class="xs secondary">jonah@northwind.co</span></span></div></td><td><span class="pill brand">owner</span></td><td><span class="pill ok">active</span></td><td class="num">2026-02-14</td><td class="muted">—</td><td class="actions"><button class="btn sm ghost" type="button" disabled>Owner</button></td></tr>
+                  <tr><td><input type="checkbox" class="check" aria-label="Select Sam Kim"></td><td><div class="row" style="gap:10px"><span class="avatar sm">SK</span><span class="stack tight" style="gap:0"><b>Sam Kim</b><span class="xs secondary">sam@northwind.co</span></span></div></td><td><select class="select" id="m-role-sk" aria-label="Org role for Sam Kim" style="min-height:32px;padding:4px 8px;width:auto"><option>owner</option><option selected>admin</option><option>member</option><option>guest</option></select></td><td><span class="pill ok">active</span></td><td class="num">2026-03-02</td><td>Jonah Okafor</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-remove">Remove</button></td></tr>
+                  <tr><td><input type="checkbox" class="check" aria-label="Select lee@northwind.co"></td><td><div class="row" style="gap:10px"><span class="avatar sm g4">L</span><span class="stack tight" style="gap:0"><b>lee@northwind.co</b><span class="xs secondary">Invitation expires in 6 h</span></span></div></td><td><span class="pill">member</span></td><td><span class="pill info">invited</span></td><td class="num">—</td><td>Jonah Okafor</td><td class="actions"><button class="btn sm ghost" type="button" data-toast="Invitation revoked">Revoke</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="dt-foot"><span class="num">3 of 184 · server mode</span><button class="btn sm ghost" type="button" data-api="/auth/api/users/import">Bulk import CSV</button></div>
+          </div>
+
+          <!-- Groups -->
+          <div id="x-grp" role="tabpanel" aria-labelledby="n-grp" hidden class="card">
+            <div class="card-head"><h3>Groups</h3><a class="btn sm ghost" href="identity-groups.html">Open Groups</a></div>
+            <div class="list" data-api="/auth/api/groups">
+              <div class="list-item"><i data-i="diversity"></i><div class="grow"><div class="title">engineering</div><div class="meta">organization · 62 members · roles: developer</div></div><span class="pill">R W A</span></div>
+              <div class="list-item"><i data-i="diversity"></i><div class="grow"><div class="title">northwind-all</div><div class="meta">system · 184 members · bound to Nexus group “Northwind”</div></div><span class="pill">R</span></div>
+            </div>
+          </div>
+
+          <!-- Roles -->
+          <div id="x-rol" role="tabpanel" aria-labelledby="n-rol" hidden class="card">
+            <div class="card-head"><h3>Org-scoped roles</h3><a class="btn sm ghost" href="roles.html">Open Roles</a></div>
+            <div class="list" data-api="/auth/api/roles">
+              <div class="list-item"><i data-i="badge"></i><div class="grow"><div class="title">org-admin</div><div class="meta">org:* · 3 users</div></div><span class="pill violet">organization</span></div>
+              <div class="list-item"><i data-i="badge"></i><div class="grow"><div class="title">developer</div><div class="meta">apps:read, apps:write, tokens:issue · 62 via group</div></div><span class="pill">custom</span></div>
+            </div>
+          </div>
+
+          <!-- Applications -->
+          <div id="x-app" role="tabpanel" aria-labelledby="n-app" hidden class="card">
+            <div class="card-head"><h3>OAuth applications</h3><a class="btn sm ghost" href="auth.html">Open Authentication</a></div>
+            <div class="list" data-api="/auth/api/applications">
+              <div class="list-item"><i data-i="apps"></i><div class="grow"><div class="title">Northwind Portal</div><div class="meta"><span class="id">app_n0rthw1nd</span> · spa · public · PKCE</div></div><span class="pill ok">active</span></div>
+              <div class="list-item"><i data-i="apps"></i><div class="grow"><div class="title">Inventory sync</div><div class="meta"><span class="id">app_inv5ync</span> · m2m · confidential</div></div><span class="pill ok">active</span></div>
+            </div>
+          </div>
+
+          <!-- CA -->
+          <div id="x-ca" role="tabpanel" aria-labelledby="n-ca" hidden class="card">
+            <div class="card-head"><h3>Certificate Authority</h3><a class="btn sm ghost" href="ca.html">Open CA</a></div>
+            <div class="card-body">
+              <dl class="kv" data-api="/ca/admin/api/groups /ca/admin/api/tokens">
+                <dt>CA group</dt><dd><span class="id">grp_4a1c…9e</span> organizational_unit</dd>
+                <dt>Intermediate</dt><dd>Northwind Issuing CA · serial <span class="id">5f0e…a1</span> · expires 2031-02-14</dd>
+                <dt>Org-scoped tokens</dt><dd>41 active · 3 use-based · 0 persistent</dd>
+              </dl>
+            </div>
+          </div>
+
+          <!-- Usage -->
+          <div id="x-use" role="tabpanel" aria-labelledby="n-use" hidden class="grid c2">
+            <div class="card stat"><span class="label">Active members (7 d)</span><span class="value">151</span><div class="meter ok" role="img" aria-label="151 of 184, 82 percent"><i style="width:82%"></i></div></div>
+            <div class="card stat"><span class="label">Tokens issued (7 d)</span><span class="value">96</span><span class="small secondary">from /ca/admin/api/tokens?organizationId</span></div>
+            <div class="card stat"><span class="label">Low-code apps</span><span class="value">—</span><span class="small secondary">lowcode disabled</span></div>
+            <div class="card stat"><span class="label">Plugin installs</span><span class="value">—</span><span class="small secondary">plugins disabled</span></div>
+          </div>
+
+          <!-- Provisioning -->
+          <div id="x-prov" role="tabpanel" aria-labelledby="n-prov" hidden class="card">
+            <div class="card-head"><h3>Provisioning run <span class="id">prov_1b7f</span></h3><span class="pill ok">completed</span></div>
+            <div class="card-body">
+              <ol class="ledger">
+                <li><span class="id">S1</span><span>Organization row + owner membership</span><span class="pill ok">done</span></li>
+                <li><span class="id">S2</span><span>Default roles (org-admin, member)</span><span class="pill ok">done</span></li>
+                <li><span class="id">S3</span><span>Default groups</span><span class="pill ok">done</span></li>
+                <li><span class="id">S4</span><span>CA directory group</span><span class="pill ok">done</span></li>
+                <li><span class="id">S5</span><span>Intermediate CA</span><span class="pill ok">done</span></li>
+                <li><span class="id">S6</span><span>Owner certificate + org-scoped token</span><span class="pill ok">done</span></li>
+                <li><span class="id">S7</span><span>Nexus group + Spark channels</span><span class="pill ok">done</span></li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Audit -->
+          <div id="x-aud" role="tabpanel" aria-labelledby="n-aud" hidden class="card pad">
+            <div class="activity">
+              <div class="activity-item"><span class="ico"><i data-i="person"></i></span><span><b>Jonah Okafor</b> changed Sam Kim’s role member → admin</span><span class="when">Sep 24</span></div>
+              <div class="activity-item"><span class="ico"><i data-i="key"></i></span><span><b>Jonah Okafor</b> revoked 12 org tokens</span><span class="when">Sep 29</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Provision wizard -->
+  <dialog class="dialog lg" id="dlg-provision" aria-labelledby="dlg-prov-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-prov-t">Provision organization</h2><p>Runs the provisioning saga. If a step fails, earlier steps are compensated.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <ol class="stepper"><li data-done>Details</li><li data-done>Owner</li><li aria-current="step">Review</li><li>Run</li></ol>
+      <div class="form-grid">
+        <div class="field"><label for="p-name">Name</label><input class="input" id="p-name" value="Contoso"></div>
+        <div class="field"><label for="p-slug">Slug</label><input class="input" id="p-slug" value="contoso"><span class="help">a–z, 0–9, hyphen</span></div>
+        <div class="field"><label for="p-type">Type</label><select class="select" id="p-type"><option selected>enterprise</option><option>team</option><option>personal</option></select></div>
+        <div class="field"><label for="p-plan">Plan</label><select class="select" id="p-plan"><option>free</option><option selected>starter</option><option>professional</option><option>enterprise</option></select></div>
+        <div class="field full"><label for="p-owner">Owner</label><div class="input-group"><i data-i="person" class="sm"></i><input id="p-owner" value="Sam Kim · sam.kim@contoso.dev"><button class="btn sm ghost" type="button">Look up</button></div><span class="help">Existing user, or enter a new email to create the owner account</span></div>
+      </div>
+      <div class="inset stack tight">
+        <b class="small">What will be created</b>
+        <span class="small secondary">Organization + owner membership · roles org-admin, member · groups contoso-all · CA group + intermediate “Contoso Issuing CA” · owner certificate · org-scoped token · Nexus group + 3 Spark channels</span>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost left" type="button">Back</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Provisioning Contoso · 7 steps">Provision</button></div>
+  </dialog>
+
+  <!-- Create blank -->
+  <dialog class="dialog" id="dlg-create" aria-labelledby="dlg-create-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-create-t">Create organization</h2><p>Creates only the auth record. No CA, groups or channels. Use Provision for a full tenant.</p></div></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><label for="c-name">Name</label><input class="input" id="c-name"></div>
+        <div class="field"><label for="c-slug">Slug</label><input class="input" id="c-slug"></div>
+        <div class="field full"><label for="c-desc">Description</label><textarea class="textarea" id="c-desc"></textarea></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Organization created">Create</button></div>
+  </dialog>
+
+  <!-- Transfer -->
+  <dialog class="dialog sm" id="dlg-transfer" aria-labelledby="dlg-transfer-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-transfer-t">Transfer ownership of Northwind</h2><p>Jonah Okafor becomes an admin. The new owner must already be a member.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="t-new">New owner</label><select class="select" id="t-new"><option>Sam Kim · admin</option><option>Priya Raman · member</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Northwind now owned by Sam Kim">Transfer</button></div>
+  </dialog>
+
+  <!-- Add member -->
+  <dialog class="dialog" id="dlg-add" aria-labelledby="dlg-add-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-add-t">Add member to Northwind</h2></div></div>
+    <div class="dialog-body"><div class="form-grid">
+      <div class="field"><label for="a-user">Person</label><input class="input" id="a-user" placeholder="Search name or email"></div>
+      <div class="field"><label for="a-role">Org role</label><select class="select" id="a-role"><option>admin</option><option selected>member</option><option>guest</option></select></div>
+    </div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Member added">Add member</button></div>
+  </dialog>
+
+  <!-- Invite -->
+  <dialog class="dialog" id="dlg-invite" aria-labelledby="dlg-invite-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-invite-t">Invite to Northwind</h2><p>Invitations expire after 72 hours.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="i-emails">Email addresses</label><textarea class="textarea" id="i-emails" placeholder="one@northwind.co, two@northwind.co"></textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Invitations sent">Send invites</button></div>
+  </dialog>
+
+  <!-- Remove member -->
+  <dialog class="dialog sm" id="dlg-remove" aria-labelledby="dlg-remove-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-remove-t">Remove Sam Kim from Northwind?</h2><p>They lose org roles and group membership here. Their account and other orgs aren’t affected.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Sam Kim removed from Northwind">Remove member</button></div>
+  </dialog>
+
+  <!-- Suspend -->
+  <dialog class="dialog sm" id="dlg-suspend" aria-labelledby="dlg-suspend-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-suspend-t">Suspend Northwind?</h2><p>184 members lose access to Northwind resources until you reactivate it. Org tokens stay valid unless you revoke them.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="s-reason">Reason (recorded to audit)</label><input class="input" id="s-reason"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Northwind suspended">Suspend</button></div>
+  </dialog>
+
+  <!-- Delete -->
+  <dialog class="dialog sm" id="dlg-delete" aria-labelledby="dlg-delete-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-delete-t">Delete Northwind?</h2><p>Soft-deletes the organization and its memberships. The intermediate CA isn’t revoked automatically.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="d-confirm">Type <b>northwind</b> to confirm</label><input class="input" id="d-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" disabled>Delete organization</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "The list is client mode over GET /organizations?include=counts until an admin list-all exists. Selecting a row loads the explorer, whose tree nodes lazy-load module tables pre-filtered by organizationId. Provisioning is synchronous today: the wizard shows the returned ledger (S1…Sn), and a failure shows which steps were compensated. Member role changes are optimistic, with rollback on 4xx.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/organizations", "auth": "user", "ui": "Org table, stat tiles (include=counts)" },
+    { "m": "POST", "p": "/auth/api/organizations", "auth": "user", "ui": "Create blank dialog" },
+    { "m": "POST", "p": "/auth/api/organizations/provision", "auth": "A", "ui": "Provision wizard" },
+    { "m": "POST", "p": "/auth/api/organizations/provision-self", "auth": "user", "ui": "Not used here (self-service signup path)" },
+    { "m": "GET", "p": "/auth/api/organizations/:id", "auth": "owner/A", "ui": "Explorer header + Overview settings" },
+    { "m": "PATCH", "p": "/auth/api/organizations/:id", "auth": "owner/A", "ui": "Save settings, Suspend (status)" },
+    { "m": "DELETE", "p": "/auth/api/organizations/:id", "auth": "owner/A", "ui": "Delete organization dialog" },
+    { "m": "GET", "p": "/auth/api/organizations/:id/members", "auth": "owner/A", "ui": "Members node table" },
+    { "m": "POST", "p": "/auth/api/organizations/:id/members", "auth": "owner/A", "ui": "Add member dialog" },
+    { "m": "PATCH", "p": "/auth/api/organizations/:id/members/:userId", "auth": "owner/A", "ui": "Inline org-role select" },
+    { "m": "DELETE", "p": "/auth/api/organizations/:id/members/:userId", "auth": "owner/A", "ui": "Remove member dialog" },
+    { "m": "POST", "p": "/auth/api/organizations/:id/transfer-ownership", "auth": "owner/A", "ui": "Transfer ownership dialog" },
+    { "m": "POST", "p": "/auth/api/users/invites", "auth": "A", "ui": "Invite by email (organizationId)" },
+    { "m": "POST", "p": "/auth/api/users/import", "auth": "A", "ui": "Bulk import CSV (organizationId)" },
+    { "m": "GET", "p": "/auth/api/groups", "auth": "user", "ui": "Groups node (organizationId)" },
+    { "m": "GET", "p": "/auth/api/roles", "auth": "user", "ui": "Roles node (organizationId)" },
+    { "m": "POST", "p": "/auth/api/roles/:id/assign-user", "auth": "A", "ui": "Members bulk → Assign org role" },
+    { "m": "GET", "p": "/auth/api/applications", "auth": "user", "ui": "Applications node (organizationId)" },
+    { "m": "GET", "p": "/ca/admin/api/groups", "auth": "A", "ui": "CA node → CA group" },
+    { "m": "GET", "p": "/ca/admin/api/tokens", "auth": "A", "ui": "CA node + Usage → org-scoped tokens (organizationId)" }
+  ],
+  "socket": [
+    { "ns": "/_admin", "auth": "CA bearer + isAdminToken", "rooms": [],
+      "emit": [],
+      "on": [ { "e": "config:changed", "ui": "Platform policy org badge when PLATFORM_ORG_SLUG changes" } ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "GET /auth/api/organizations returns only the caller's orgs. It has no admin list-all and no search, status, plan, type or pagination (AUTH-1), so the table can't show every tenant." },
+    { "sev": "high", "text": "There's no provisioning-runs list (AUTH-5). The ledger node only shows the response of a run started in this session. Proposed: GET /auth/api/organizations/:id/provisioning." },
+    { "sev": "med", "text": "The org↔Nexus group link lives only in provisioning_runs.ids, and there's no org-filtered audit feed (OPS-4). The Community and Audit nodes are proposed." },
+    { "sev": "med", "text": "Provisioning doesn't stream progress. Proposed: a provision:step event on /_admin so the Run step can show S1…Sn live." },
+    { "sev": "med", "text": "Directory (LDAP) configs per org can't be shown because services/auth/src/routes/ldap.js isn't mounted (AUTH-4)." }
+  ]
+}
+</script>
+</body>
+</html>

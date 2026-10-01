@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Timeline · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit gaps: --exprsn-text-link isn't lifted in dark; accent-pink fails 4.5:1 on white */
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .post .who a:not([class]) { color: inherit; }
+  .post-actions button[aria-pressed="true"].like { color: var(--v2-danger-fg); }
+  .composer-card textarea { border: 0; outline: none; resize: none; width: 100%; background: none; font: inherit; font-size: 1rem; color: var(--exprsn-text-primary); min-height: 64px; padding: 6px 0; }
+  .composer-card .attach { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .composer-card .attach .ph { min-height: 96px; border-radius: 12px; position: relative; }
+  .composer-card .attach .rm { position: absolute; top: 6px; right: 6px; }
+  .quote { margin-top: 10px; border: 1px solid var(--exprsn-border-color); border-radius: 14px; padding: 10px 12px; font-size: .875rem; }
+  .feed-top { position: sticky; top: calc(var(--v2-topbar-h) + 8px); z-index: 4; display: flex; justify-content: center; padding: 12px 0 4px; }
+  .post .media { max-width: 560px; }
+  .trend { display: flex; flex-direction: column; gap: 2px; padding: 10px 16px; border-bottom: 1px solid var(--exprsn-border-color); color: inherit; }
+  .trend:last-child { border-bottom: 0; }
+  .trend:hover { background: var(--exprsn-bg-hover); text-decoration: none; }
+  .post .more { margin-left: auto; }
+  .post .who .more { align-self: center; }
+</style>
+</head>
+<body data-shell="app" data-page="feed">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Timeline</h1>
+        <p class="page-sub">Posts from people you follow, your groups and the wider network. New posts arrive live — nothing jumps under your thumb.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-lists" data-api="/timeline/api/lists"><i data-i="list" class="sm"></i>Lists</button>
+        <a class="btn outline" href="bookmarks.html" data-api="/timeline/api/timeline/bookmarks"><i data-i="bookmark" class="sm"></i>Saved</a>
+        <button class="btn primary" type="button" data-open="dlg-compose"><i data-i="edit" class="sm"></i>New post</button>
+      </div>
+    </header>
+
+    <div class="split">
+      <div class="stack loose">
+        <!-- Composer -->
+        <form class="card composer-card" data-api="/timeline/api/posts" data-toast="Posted — visible to your followers">
+          <div class="card-body row top">
+            <span class="avatar g1">RH</span>
+            <div class="grow stack" style="gap:10px">
+              <label class="sr-only" for="c-text">What’s happening?</label>
+              <textarea id="c-text" rows="3" placeholder="Share an update, #tag a topic or @mention someone">Release notes for v2 mockups are up — 14 user screens with contracts. Feedback welcome #design</textarea>
+              <div class="attach" data-api="/timeline/api/attachments/posts/:pid">
+                <div class="ph purple"><i data-i="image"></i><button class="icon-btn rm" type="button" aria-label="Remove image 1" style="color:inherit"><i data-i="x" class="sm"></i></button></div>
+                <div class="ph warm"><i data-i="image"></i><button class="icon-btn rm" type="button" aria-label="Remove image 2" style="color:inherit"><i data-i="x" class="sm"></i></button></div>
+              </div>
+              <div class="row wrap" style="gap:8px">
+                <label class="sr-only" for="c-vis">Visibility</label>
+                <select class="select" id="c-vis" style="width:auto;min-height:36px;padding:4px 10px;font-size:.8125rem">
+                  <option>Public</option><option>Followers</option><option>Group only</option><option>Private (only me)</option>
+                </select>
+                <label class="sr-only" for="c-grp">Post to group</label>
+                <select class="select" id="c-grp" style="width:auto;min-height:36px;padding:4px 10px;font-size:.8125rem" data-api="/nexus/api/memberships">
+                  <option>No group</option><option>Design Guild</option><option>Northwind Makers</option><option>Platform On-call</option>
+                </select>
+                <span class="grow"></span>
+                <button class="icon-btn" type="button" aria-label="Add photo or video" data-api="/timeline/api/attachments/posts/:pid"><i data-i="image"></i></button>
+                <button class="icon-btn" type="button" aria-label="Add hashtag" data-api="/timeline/api/search/hashtags"><i data-i="hash"></i></button>
+                <button class="icon-btn" type="button" aria-label="Mention someone" data-api="/auth/api/users/directory"><i data-i="at"></i></button>
+                <span class="xs muted num" aria-label="Characters remaining">212</span>
+                <button class="btn primary sm" type="submit">Post</button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <!-- Feed -->
+        <section class="card" aria-label="Posts">
+          <div class="tabs" role="tablist" aria-label="Feeds" style="padding:0 8px">
+            <button role="tab" id="ft-home" aria-controls="fp-home" aria-selected="true" data-api="/timeline/api/timeline">Home</button>
+            <button role="tab" id="ft-global" aria-controls="fp-global" data-api="/timeline/api/timeline/global">Global</button>
+            <button role="tab" id="ft-explore" aria-controls="fp-explore" data-api="/timeline/api/timeline/explore">Explore</button>
+            <button role="tab" id="ft-trend" aria-controls="fp-trend" data-api="/timeline/api/timeline/trending">Trending</button>
+            <button role="tab" id="ft-lists" aria-controls="fp-lists" data-api="/timeline/api/lists/:id/timeline">Lists</button>
+          </div>
+
+          <div id="fp-home" role="tabpanel" aria-labelledby="ft-home">
+            <div class="feed-top"><button class="new-posts" type="button" data-on="new:post post:created" data-emit="subscribe:timeline"><i data-i="arrowUp" class="sm"></i>6 new posts</button></div>
+
+            <div data-state="loaded" data-api="/timeline/api/timeline" data-on="new:post post:updated post:deleted post:retracted">
+              <article class="post">
+                <span class="avatar g2">JO</span>
+                <div class="grow" style="min-width:0">
+                  <div class="who"><a href="profile.html"><b>Jonah Okafor</b></a><span class="muted small">@jonah.northwind.co · 12m</span><span class="pill">Northwind Makers</span><button class="icon-btn more" type="button" aria-label="More actions for Jonah’s post" data-open="dlg-report"><i data-i="more"></i></button></div>
+                  <p class="body">Shipped the new workshop booking flow on our low-code app — 38 sign-ups in the first hour. Big thanks to <a href="profile.html">@maya</a> for the forms review. <a href="#">#lowcode</a></p>
+                  <div class="media"><div class="ph success"><i data-i="image"></i></div></div>
+                  <div class="post-actions" data-api="/timeline/api/interactions/:id/like /timeline/api/interactions/:id/repost /timeline/api/interactions/:id/bookmark" data-on="post:liked post:commented">
+                    <a class="btn ghost sm" href="post.html" aria-label="Reply, 8 replies" style="color:var(--exprsn-text-muted);font-weight:500"><i data-i="reply" class="sm"></i>8</a>
+                    <button class="rp" type="button" data-toggle aria-pressed="false" aria-label="Repost"><i data-i="repeat" class="sm"></i><span class="n">4</span></button>
+                    <button type="button" data-open="dlg-quote" aria-label="Quote post"><i data-i="edit" class="sm"></i>Quote</button>
+                    <button class="like" type="button" data-toggle aria-pressed="true" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">42</span></button>
+                    <button class="bm" type="button" data-toggle aria-pressed="false" aria-label="Bookmark"><i data-i="bookmark" class="sm"></i></button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="post">
+                <span class="avatar g3">PR</span>
+                <div class="grow" style="min-width:0">
+                  <div class="who"><a href="profile.html"><b>Priya Raman</b></a><span class="muted small">@priya · 38m</span><span class="pill ok"><i data-i="repeat" class="sm"></i>Maya reposted</span><button class="icon-btn more" type="button" aria-label="More actions for Priya’s post" data-open="dlg-report"><i data-i="more"></i></button></div>
+                  <p class="body">Vault rotation for the platform DB credentials finished overnight. Zero downtime, 214 leases renewed. Runbook updated in the Platform On-call group.</p>
+                  <div class="post-actions">
+                    <a class="btn ghost sm" href="post.html" aria-label="Reply, 3 replies" style="color:var(--exprsn-text-muted);font-weight:500"><i data-i="reply" class="sm"></i>3</a>
+                    <button class="rp" type="button" data-toggle aria-pressed="true" aria-label="Repost"><i data-i="repeat" class="sm"></i><span class="n">11</span></button>
+                    <button type="button" data-open="dlg-quote" aria-label="Quote post"><i data-i="edit" class="sm"></i>Quote</button>
+                    <button class="like" type="button" data-toggle aria-pressed="false" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">27</span></button>
+                    <button class="bm" type="button" data-toggle aria-pressed="true" aria-label="Bookmark"><i data-i="bookmark" class="sm"></i></button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="post">
+                <span class="avatar g1">MD</span>
+                <div class="grow" style="min-width:0">
+                  <div class="who"><a href="profile.html"><b>Maya Diaz</b></a><span class="muted small">@maya · 1h</span><button class="icon-btn more" type="button" aria-label="More actions for Maya’s post" data-open="dlg-report"><i data-i="more"></i></button></div>
+                  <p class="body">Agree with this — the new contract drawer makes review so much faster.</p>
+                  <a class="quote" href="post.html" style="display:block;color:inherit">
+                    <span class="row" style="gap:8px"><span class="avatar sm g4">AL</span><b class="small">Ari Lindqvist</b><span class="xs muted">@ari · 3h</span></span>
+                    <span class="secondary" style="display:block;margin-top:4px">Every v2 screen lists exactly which REST calls and socket events it depends on. Reviewing designs against the backend is finally one click.</span>
+                  </a>
+                  <div class="post-actions">
+                    <a class="btn ghost sm" href="post.html" aria-label="Reply, 1 reply" style="color:var(--exprsn-text-muted);font-weight:500"><i data-i="reply" class="sm"></i>1</a>
+                    <button class="rp" type="button" data-toggle aria-pressed="false" aria-label="Repost"><i data-i="repeat" class="sm"></i><span class="n">2</span></button>
+                    <button type="button" data-open="dlg-quote" aria-label="Quote post"><i data-i="edit" class="sm"></i>Quote</button>
+                    <button class="like" type="button" data-toggle aria-pressed="false" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">15</span></button>
+                    <button class="bm" type="button" data-toggle aria-pressed="false" aria-label="Bookmark"><i data-i="bookmark" class="sm"></i></button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="post" data-on="post:retracted">
+                <span class="avatar">SK</span>
+                <div class="grow" style="min-width:0">
+                  <div class="who"><b>Sam Kim</b><span class="muted small">@sam · 2h</span></div>
+                  <div class="banner warn" style="margin-top:6px"><i data-i="shield" class="sm"></i><span class="grow">This post was removed by moderation.</span><a class="btn sm ghost" href="moderation.html">Why?</a></div>
+                </div>
+              </article>
+
+              <div class="banner danger" style="margin:12px 16px" role="status">
+                <i data-i="alert" class="sm"></i><span class="grow"><b>Couldn’t like Ari’s post.</b> Your like was undone — the server returned 429 (slow down).</span><button class="btn sm outline" type="button">Retry</button>
+              </div>
+            </div>
+
+            <div data-state="empty">
+              <div class="empty"><div class="art"><i data-i="feed"></i></div><h3>Your timeline is quiet</h3><p>Follow people or join a group to see their posts here. Global and Explore always have something new.</p>
+                <div class="row wrap" style="justify-content:center"><a class="btn primary" href="people.html">Find people</a><a class="btn outline" href="groups.html">Browse groups</a></div></div>
+            </div>
+            <div data-state="loading" aria-busy="true" aria-label="Loading posts">
+              <div class="post"><span class="avatar" style="background:var(--exprsn-bg-tertiary)"></span><div class="stack tight"><span class="sk" style="width:40%"></span><span class="sk" style="width:95%"></span><span class="sk" style="width:80%"></span><span class="sk" style="height:140px;margin-top:8px"></span></div></div>
+              <div class="post"><span class="avatar" style="background:var(--exprsn-bg-tertiary)"></span><div class="stack tight"><span class="sk" style="width:30%"></span><span class="sk" style="width:90%"></span></div></div>
+            </div>
+            <div data-state="error">
+              <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load your timeline</h3><p>The timeline service timed out. Posts you write are still saved. Correlation id <code>cid 3c1d…9ae</code>.</p><button class="btn outline" type="button">Try again</button></div>
+            </div>
+          </div>
+
+          <div id="fp-global" role="tabpanel" aria-labelledby="ft-global" hidden>
+            <article class="post" data-api="/timeline/api/timeline/global" data-on="new:post">
+              <span class="avatar g4">AL</span>
+              <div class="grow" style="min-width:0"><div class="who"><b>Ari Lindqvist</b><span class="muted small">@ari · 3h</span></div><p class="body">Every v2 screen lists exactly which REST calls and socket events it depends on.</p>
+                <div class="post-actions"><button class="like" type="button" data-toggle aria-pressed="false" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">61</span></button></div></div>
+            </article>
+          </div>
+          <div id="fp-explore" role="tabpanel" aria-labelledby="ft-explore" hidden>
+            <div class="grid c2" style="padding:16px" data-api="/timeline/api/timeline/explore">
+              <a class="card" href="post.html" style="overflow:hidden;color:inherit"><div class="ph primary" style="aspect-ratio:4/3"><i data-i="image"></i></div><div class="card-body small"><b>Contoso</b> · Winter field day recap</div></a>
+              <a class="card" href="post.html" style="overflow:hidden;color:inherit"><div class="ph warm" style="aspect-ratio:4/3"><i data-i="video"></i></div><div class="card-body small"><b>Northwind</b> · Laser cutter demo</div></a>
+            </div>
+          </div>
+          <div id="fp-trend" role="tabpanel" aria-labelledby="ft-trend" hidden>
+            <div class="empty" data-api="/timeline/api/timeline/trending"><div class="art"><i data-i="pulse"></i></div><h3>Trending posts</h3><p>Most-engaged public posts in the last 24 hours, re-ranked every 10 minutes.</p></div>
+          </div>
+          <div id="fp-lists" role="tabpanel" aria-labelledby="ft-lists" hidden>
+            <div class="stack" style="padding:16px" data-api="/timeline/api/lists/:id/timeline">
+              <div class="row wrap"><button class="chip" type="button" aria-pressed="true">Design leads</button><button class="chip" type="button" aria-pressed="false">Platform SRE</button><button class="chip" type="button" data-open="dlg-lists"><i data-i="plus" class="sm"></i>Manage lists</button></div>
+              <p class="small secondary">Showing 24 posts from 6 people in <b>Design leads</b>.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="stack loose" aria-label="Trends and suggestions">
+        <label class="input-group" data-api="/timeline/api/search/posts"><i data-i="search" class="sm"></i><input id="f-search" type="search" placeholder="Search posts and #tags"></label>
+        <section class="card" aria-labelledby="tr-h">
+          <div class="card-head"><h2 id="tr-h">Trending now</h2><span class="pill brand" data-on="new:post">Live</span></div>
+          <div data-api="/timeline/api/search/trending/hashtags /timeline/api/search/trending/topics">
+            <a class="trend" href="#"><span class="xs muted">Design · trending</span><b>#v2mockups</b><span class="xs muted num">1,284 posts</span></a>
+            <a class="trend" href="#"><span class="xs muted">Engineering</span><b>#atproto</b><span class="xs muted num">812 posts</span></a>
+            <a class="trend" href="#"><span class="xs muted">Topic</span><b>Local-first AI</b><span class="xs muted num">406 posts</span></a>
+            <a class="trend" href="#"><span class="xs muted">Northwind</span><b>#makerfaire2026</b><span class="xs muted num">233 posts</span></a>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="wf-h">
+          <div class="card-head"><h2 id="wf-h">Who to follow</h2></div>
+          <div class="list" data-api="/auth/api/users/directory">
+            <div class="list-item"><span class="avatar sm g4">AL</span><span class="grow stack tight" style="gap:0"><b class="small">Ari Lindqvist</b><span class="xs muted">Moderator · Exprsn HQ</span></span><button class="btn sm tonal" type="button" data-toggle aria-pressed="false" data-api="/timeline/api/interactions/users/:id/follow">Follow</button></div>
+            <div class="list-item"><span class="avatar sm">SK</span><span class="grow stack tight" style="gap:0"><b class="small">Sam Kim</b><span class="xs muted">Contoso</span></span><button class="btn sm tonal" type="button" data-toggle aria-pressed="false">Follow</button></div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Compose dialog (full screen on phone) -->
+  <dialog class="dialog" id="dlg-compose" aria-labelledby="dlg-compose-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-compose-t">New post</h2><p>Posting as Rick Holland</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+      <div class="dialog-body">
+        <div class="field"><label for="d-text">Post</label><textarea class="textarea" id="d-text" placeholder="What’s happening?"></textarea><span class="help">280 characters. Links become previews.</span></div>
+        <div class="drop" data-api="/timeline/api/attachments/posts/:pid"><i data-i="upload"></i><b>Add photos or a video</b><span class="small">Up to 4 images or 1 video · 100 MB</span></div>
+        <div class="form-grid">
+          <div class="field"><label for="d-vis">Who can see this</label><select class="select" id="d-vis"><option>Public</option><option>Followers</option><option>Group only</option></select></div>
+          <div class="field"><label for="d-grp">Group</label><select class="select" id="d-grp"><option>No group</option><option>Design Guild</option></select></div>
+        </div>
+        <div class="banner info"><i data-i="info" class="sm"></i><span>Posts to <b>Design Guild</b> need admin approval before others see them.</span></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Posted">Post</button></div>
+    </form>
+  </dialog>
+
+  <!-- Quote dialog -->
+  <dialog class="dialog" id="dlg-quote" aria-labelledby="dlg-quote-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-quote-t">Quote post</h2><p>Your post will embed the original.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="q-text">Add a comment</label><textarea class="textarea" id="q-text" placeholder="Say something about this post"></textarea></div>
+      <div class="quote"><b>Jonah Okafor</b> <span class="xs muted">@jonah.northwind.co</span><p class="secondary">Shipped the new workshop booking flow on our low-code app — 38 sign-ups in the first hour.</p></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Quote posted" data-api="/timeline/api/posts">Post quote</button></div>
+  </dialog>
+
+  <!-- Lists sheet -->
+  <dialog class="dialog" id="dlg-lists" aria-labelledby="dlg-lists-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-lists-t">Your lists</h2><p>Curated timelines of people you pick. Lists are private unless you share them.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="list card" data-api="/timeline/api/lists">
+        <div class="list-item"><span class="avatar sq sm g1"><i data-i="list" class="sm"></i></span><span class="grow stack tight" style="gap:0"><b class="small">Design leads</b><span class="xs muted">6 members · private</span></span><button class="btn sm ghost" type="button" data-api="/timeline/api/lists/:id">Edit</button></div>
+        <div class="list-item"><span class="avatar sq sm g3"><i data-i="list" class="sm"></i></span><span class="grow stack tight" style="gap:0"><b class="small">Platform SRE</b><span class="xs muted">4 members · shared</span></span><button class="btn sm ghost" type="button">Edit</button></div>
+      </div>
+      <div class="field"><label for="l-new">New list name</label><input class="input" id="l-new" placeholder="e.g. Northwind makers"></div>
+      <div class="field"><label for="l-add">Add people</label><div class="input-group"><span class="chip" aria-pressed="true">Priya Raman <span class="x">×</span></span><input id="l-add" placeholder="Search people" data-api="/timeline/api/lists/:id/members"></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-del-list">Delete “Platform SRE”</button><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-close data-toast="List created">Create list</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del-list" aria-labelledby="dlg-del-list-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-list-t">Delete “Platform SRE”?</h2><p>The list and its 4 members are removed. People on it aren’t notified.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="List deleted" data-api="/timeline/api/lists/:id">Delete list</button></div>
+  </dialog>
+
+  <!-- Report (reusable pattern) -->
+  <dialog class="dialog" id="dlg-report" aria-labelledby="dlg-report-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-report-t">Report post</h2><p>Reports go to Exprsn moderators. The author isn’t told who reported.</p></div></div>
+      <div class="dialog-body">
+        <fieldset class="stack tight" style="border:0;padding:0;margin:0"><legend class="small" style="font-weight:600;margin-bottom:6px">Reason</legend>
+          <label class="row small"><input type="radio" name="rr" id="rr1" checked> Spam or scam</label>
+          <label class="row small"><input type="radio" name="rr" id="rr2"> Harassment or hate</label>
+          <label class="row small"><input type="radio" name="rr" id="rr3"> Misinformation</label>
+          <label class="row small"><input type="radio" name="rr" id="rr4"> Something else</label>
+        </fieldset>
+        <div class="field"><label for="rr-d">Details (optional)</label><textarea class="textarea" id="rr-d" placeholder="What should moderators know?"></textarea></div>
+        <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Also mute @jonah</div><div class="d">Hide their posts from your timeline.</div></div><label class="switch"><input type="checkbox" id="rr-mute" aria-label="Mute author"><span></span></label></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Report sent — track it in Notifications &amp; reports" data-api="/moderator/api/reports">Send report</button></div>
+    </form>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Feed tabs map 1:1 to /timeline/api/timeline feeds (cursor pagination). On mount the client emits subscribe:timeline (and subscribe:group for group feeds); new:post increments the '6 new posts' pill instead of shifting the list. Like/repost/bookmark are optimistic toggles that roll back with an inline banner on failure. Post/Quote create via POST /posts then attach media.",
+  "rest": [
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline",
+      "auth": "user",
+      "ui": "Home tab"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/global",
+      "auth": "user",
+      "ui": "Global tab"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/explore",
+      "auth": "user",
+      "ui": "Explore tab (media grid)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/trending",
+      "auth": "user",
+      "ui": "Trending tab"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/bookmarks",
+      "auth": "user",
+      "ui": "Saved button (Bookmarks page)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/likes",
+      "auth": "user",
+      "ui": "Profile → Likes (linked)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/timeline/group/:groupId",
+      "auth": "user",
+      "ui": "Group feed (group page Posts tab)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/posts",
+      "auth": "user",
+      "ui": "Composer, New post dialog, Quote dialog (quotedPostId)"
+    },
+    {
+      "m": "PUT",
+      "p": "/timeline/api/posts/:id",
+      "auth": "owner",
+      "ui": "Post menu → Edit"
+    },
+    {
+      "m": "DELETE",
+      "p": "/timeline/api/posts/:id",
+      "auth": "owner",
+      "ui": "Post menu → Delete"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/posts/:id/like",
+      "auth": "user",
+      "ui": "Like (alt route; DELETE to unlike)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/posts/:id/repost",
+      "auth": "user",
+      "ui": "Repost (alt route; DELETE to undo)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/posts/:id/bookmark",
+      "auth": "user",
+      "ui": "Bookmark (alt route; DELETE to undo)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/:id/like",
+      "auth": "user",
+      "ui": "Heart toggle (DELETE to unlike)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/:id/repost",
+      "auth": "user",
+      "ui": "Repost toggle (DELETE to undo)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/:id/bookmark",
+      "auth": "user",
+      "ui": "Bookmark toggle (DELETE to undo)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/users/:id/follow",
+      "auth": "user",
+      "ui": "Who to follow → Follow (DELETE unfollow, GET status)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/users/:id/mute",
+      "auth": "user",
+      "ui": "Report dialog → Also mute (DELETE unmute)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/interactions/users/:id/block",
+      "auth": "user",
+      "ui": "Post menu → Block (DELETE unblock)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/interactions/mutes",
+      "auth": "user",
+      "ui": "Settings → muted accounts (linked)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/interactions/blocks",
+      "auth": "user",
+      "ui": "Settings → blocked accounts (linked)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/lists",
+      "auth": "user",
+      "ui": "Lists sheet"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/lists",
+      "auth": "user",
+      "ui": "Lists sheet → Create list"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/lists/:id",
+      "auth": "owner",
+      "ui": "Lists sheet → Edit"
+    },
+    {
+      "m": "PUT",
+      "p": "/timeline/api/lists/:id",
+      "auth": "owner",
+      "ui": "Rename / visibility"
+    },
+    {
+      "m": "DELETE",
+      "p": "/timeline/api/lists/:id",
+      "auth": "owner",
+      "ui": "Delete list confirm"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/lists/:id/members",
+      "auth": "owner",
+      "ui": "Add people (DELETE /:id/members/:userId to remove)"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/lists/:id/timeline",
+      "auth": "user",
+      "ui": "Lists tab"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/search/posts",
+      "auth": "user",
+      "ui": "Sidebar search"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/search/hashtags",
+      "auth": "user",
+      "ui": "Composer #tag typeahead"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/search/trending/hashtags",
+      "auth": "user",
+      "ui": "Trending now card"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/search/trending/topics",
+      "auth": "user",
+      "ui": "Trending now card (topics)"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/attachments/posts/:pid",
+      "auth": "owner",
+      "ui": "Composer media tiles / drop zone"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/attachments/posts/:pid",
+      "auth": "user",
+      "ui": "Post media"
+    },
+    {
+      "m": "GET",
+      "p": "/timeline/api/attachments/:id/download",
+      "auth": "user",
+      "ui": "Media tap → full size"
+    },
+    {
+      "m": "PUT",
+      "p": "/timeline/api/attachments/:id",
+      "auth": "owner",
+      "ui": "Alt text edit"
+    },
+    {
+      "m": "DELETE",
+      "p": "/timeline/api/attachments/:id",
+      "auth": "owner",
+      "ui": "Remove image ×"
+    },
+    {
+      "m": "POST",
+      "p": "/timeline/api/attachments/:id/share",
+      "auth": "user",
+      "ui": "Media share link"
+    },
+    {
+      "m": "GET",
+      "p": "/nexus/api/memberships",
+      "auth": "user",
+      "ui": "Composer group target"
+    },
+    {
+      "m": "GET",
+      "p": "/auth/api/users/directory",
+      "auth": "user",
+      "ui": "@mention typeahead, Who to follow"
+    },
+    {
+      "m": "POST",
+      "p": "/moderator/api/reports",
+      "auth": "user",
+      "ui": "Report post dialog"
+    },
+    {
+      "m": "DELETE",
+      "p": "/timeline/api/lists/:id/members/:userId",
+      "auth": "owner",
+      "ui": "List dialog → remove person chip (×)"
+    }
+  ],
+  "socket": [
+    {
+      "ns": "/timeline",
+      "auth": "CA bearer (read)",
+      "rooms": [
+        "user:{userId}",
+        "timeline:global",
+        "timeline:group:{groupId}"
+      ],
+      "emit": [
+        {
+          "e": "subscribe:timeline",
+          "ui": "Feed mount (global room)"
+        },
+        {
+          "e": "unsubscribe:timeline",
+          "ui": "Feed unmount"
+        },
+        {
+          "e": "subscribe:group",
+          "ui": "Group-targeted feed / Lists of groups"
+        },
+        {
+          "e": "unsubscribe:group",
+          "ui": "Leaving group feed"
+        }
+      ],
+      "on": [
+        {
+          "e": "subscribed:timeline",
+          "ui": "Clears reconnect banner"
+        },
+        {
+          "e": "new:post",
+          "ui": "“N new posts” pill + trending Live pill"
+        },
+        {
+          "e": "post:created",
+          "ui": "Same as new:post (IPC)"
+        },
+        {
+          "e": "post:updated",
+          "ui": "Post body re-render"
+        },
+        {
+          "e": "post:deleted",
+          "ui": "Post removed from list"
+        },
+        {
+          "e": "post:liked",
+          "ui": "Like count on the post"
+        },
+        {
+          "e": "post:commented",
+          "ui": "Reply count on the post"
+        },
+        {
+          "e": "post:retracted",
+          "ui": "“Removed by moderation” tombstone"
+        },
+        {
+          "e": "error",
+          "ui": "Reconnect banner"
+        }
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "sev": "high",
+      "text": "IPC post:created/updated/deleted are broadcast to the whole /timeline namespace ignoring visibility — followers-only and group-only posts leak to every connected client. Client must refetch by id rather than render payloads."
+    },
+    {
+      "sev": "med",
+      "text": "subscribe:group joins timeline:group:{groupId} with no membership check — anyone can listen to a private group's post stream."
+    },
+    {
+      "sev": "med",
+      "text": "Nothing emits to the auto-joined user:{userId} room, so mentions/replies on your own posts only surface via /notifications."
+    },
+    {
+      "sev": "med",
+      "text": "GET/POST /timeline/api/config/:sectionId is public — not used here but shares the module."
+    }
+  ]
+}
+</script>
+</body>
+</html>

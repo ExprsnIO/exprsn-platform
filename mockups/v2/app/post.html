@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Post · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .post .who a:not([class]) { color: inherit; }
+  .post-actions button[aria-pressed="true"].like { color: var(--v2-danger-fg); }
+  .hero-post .body { font-size: 1.125rem; }
+  .thread-line { position: relative; }
+  .thread-line::before { content: ""; position: absolute; left: 41px; top: 60px; bottom: 0; width: 2px; background: var(--exprsn-border-color); }
+  .post.reply { padding-left: 36px; }
+  .quote { display: block; border: 1px solid var(--exprsn-border-color); border-radius: 14px; padding: 10px 12px; color: inherit; font-size: .875rem; }
+  .metrics { display: flex; gap: 20px; flex-wrap: wrap; padding: 12px 0; border-top: 1px solid var(--exprsn-border-color); border-bottom: 1px solid var(--exprsn-border-color); margin-top: 12px; font-size: .875rem; }
+  .metrics b { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body data-shell="app" data-page="post">
+<main id="main">
+  <div class="page reading">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="feed.html">Timeline</a><i data-i="right" class="sm"></i><span>Post</span></nav>
+        <h1 class="page-title">Post</h1>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-copy="https://exprsn.io/feed/pst_7c21e9" aria-label="Copy link to post"><i data-i="link" class="sm"></i>Copy link</button>
+        <button class="btn outline" type="button" data-open="dlg-edit" data-api="/timeline/api/posts/:id"><i data-i="edit" class="sm"></i>Edit</button>
+      </div>
+    </header>
+
+    <div class="banner warn" data-api="/timeline/api/posts/:id/approval" role="status">
+      <i data-i="clock" class="sm"></i><span class="grow"><b>Waiting for approval.</b> Design Guild reviews posts before members see them. Only you and group admins can see this post right now.</span>
+    </div>
+
+    <!-- Main post -->
+    <section class="card" aria-label="Post and replies">
+      <div data-state="loaded">
+        <article class="post hero-post" data-api="/timeline/api/posts/:id" data-on="post:updated post:deleted post:retracted">
+          <span class="avatar lg g1">RH</span>
+          <div class="grow" style="min-width:0">
+            <div class="who"><b>Rick Holland</b><span class="muted small">@rick · in <a href="group.html">Design Guild</a></span><span class="pill warn"><span class="d"></span>Pending</span></div>
+            <p class="body">Release notes for v2 mockups are up — 14 user screens with contracts. Every screen shows which REST calls and socket events it depends on. Feedback welcome <a href="feed.html">#design</a></p>
+            <div class="grid c2" style="margin-top:10px;gap:8px" data-api="/timeline/api/attachments/posts/:pid">
+              <div class="ph purple" style="border-radius:14px;aspect-ratio:4/3" role="img" aria-label="Screenshot: timeline screen"><i data-i="image"></i></div>
+              <div class="ph warm" style="border-radius:14px;aspect-ratio:4/3" role="img" aria-label="Screenshot: contract drawer"><i data-i="image"></i></div>
+            </div>
+            <p class="small muted" style="margin-top:10px">10:24 · Sep 29, 2026 · Visible to group members</p>
+            <div class="metrics" data-on="post:liked post:commented">
+              <span><b>18</b> <span class="secondary">replies</span></span>
+              <span><b>7</b> <span class="secondary">reposts</span></span>
+              <span><b>3</b> <span class="secondary">quotes</span></span>
+              <span><b>64</b> <span class="secondary">likes</span></span>
+            </div>
+            <div class="post-actions" data-api="/timeline/api/posts/:id/like /timeline/api/posts/:id/repost /timeline/api/posts/:id/bookmark">
+              <a class="btn ghost sm" href="#reply-box" aria-label="Reply" style="color:var(--exprsn-text-muted);font-weight:500"><i data-i="reply" class="sm"></i>Reply</a>
+              <button class="rp" type="button" data-toggle aria-pressed="false" aria-label="Repost"><i data-i="repeat" class="sm"></i><span class="n">7</span></button>
+              <button class="like" type="button" data-toggle aria-pressed="true" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">64</span></button>
+              <button class="bm" type="button" data-toggle aria-pressed="false" aria-label="Bookmark"><i data-i="bookmark" class="sm"></i></button>
+              <button type="button" data-copy="https://exprsn.io/feed/pst_7c21e9" aria-label="Share"><i data-i="share" class="sm"></i></button>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div data-state="empty">
+        <div class="empty"><div class="art"><i data-i="eyeOff"></i></div><h3>This post isn’t available</h3><p>It was deleted, or it’s only visible to members of a group you’re not in.</p><a class="btn outline" href="feed.html">Back to timeline</a></div>
+      </div>
+      <div data-state="loading" aria-busy="true" aria-label="Loading post">
+        <div class="post"><span class="avatar" style="background:var(--exprsn-bg-tertiary)"></span><div class="stack tight"><span class="sk" style="width:35%"></span><span class="sk" style="width:95%"></span><span class="sk" style="width:70%"></span><span class="sk" style="height:180px;margin-top:8px"></span></div></div>
+      </div>
+      <div data-state="error">
+        <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load this post</h3><p>The timeline service returned 502. Correlation id <code>cid 5aa0…17f</code>.</p><button class="btn outline" type="button">Try again</button></div>
+      </div>
+
+      <!-- Tabs: replies / quotes / likes / reposts -->
+      <div class="tabs" role="tablist" aria-label="Post activity" style="padding:0 8px;border-top:1px solid var(--exprsn-border-color)">
+        <button role="tab" id="pt-rep" aria-controls="pp-rep" aria-selected="true">Replies <span class="badge neutral">18</span></button>
+        <button role="tab" id="pt-quo" aria-controls="pp-quo">Quotes <span class="badge neutral">3</span></button>
+        <button role="tab" id="pt-lik" aria-controls="pp-lik">Liked by</button>
+        <button role="tab" id="pt-rp" aria-controls="pp-rp">Reposted by</button>
+      </div>
+
+      <div id="pp-rep" role="tabpanel" aria-labelledby="pt-rep">
+        <form class="composer" id="reply-box" data-api="/timeline/api/posts/:id/comments" data-toast="Reply posted" style="border-top:0;border-bottom:1px solid var(--exprsn-border-color)">
+          <span class="avatar sm g1">RH</span>
+          <div class="box"><label class="sr-only" for="reply-text">Reply</label><textarea id="reply-text" rows="1" placeholder="Post your reply"></textarea>
+            <button class="icon-btn" type="button" aria-label="Attach image to reply" data-api="/timeline/api/attachments/comments/:cid"><i data-i="image"></i></button></div>
+          <button class="send" type="submit" aria-label="Send reply"><i data-i="send"></i></button>
+        </form>
+        <div data-api="/timeline/api/posts/:id/thread /timeline/api/posts/:id/comments" data-on="post:commented">
+          <div class="thread-line">
+            <article class="post">
+              <span class="avatar g2">JO</span>
+              <div class="grow" style="min-width:0">
+                <div class="who"><a href="profile.html"><b>Jonah Okafor</b></a><span class="muted small">@jonah.northwind.co · 8m</span></div>
+                <p class="body">The contract drawer is the killer feature. Can the socket rows simulate events on the live app too?</p>
+                <div class="post-actions"><button class="like" type="button" data-toggle aria-pressed="false" aria-label="Like reply"><i data-i="heart" class="sm"></i><span class="n">5</span></button><button type="button" aria-label="Reply to Jonah"><i data-i="reply" class="sm"></i>Reply</button></div>
+              </div>
+            </article>
+          </div>
+          <article class="post reply">
+            <span class="avatar sm g1">RH</span>
+            <div class="grow" style="min-width:0">
+              <div class="who"><b>Rick Holland</b><span class="pill brand">Author</span><span class="muted small">· 6m</span></div>
+              <p class="body">Not yet — mockups only. Filing it as a follow-up.</p>
+            </div>
+          </article>
+          <article class="post">
+            <span class="avatar g3">PR</span>
+            <div class="grow" style="min-width:0">
+              <div class="who"><a href="profile.html"><b>Priya Raman</b></a><span class="muted small">@priya · 4m</span></div>
+              <p class="body">Love that gaps are called out per screen. The /timeline visibility leak one is scary.</p>
+              <div class="post-actions"><button class="like" type="button" data-toggle aria-pressed="true" aria-label="Like reply"><i data-i="heart" class="sm"></i><span class="n">9</span></button><button type="button" aria-label="Reply to Priya"><i data-i="reply" class="sm"></i>Reply</button></div>
+            </div>
+          </article>
+          <div class="row" style="justify-content:center;padding:12px"><button class="btn ghost sm" type="button">Show 15 more replies</button></div>
+        </div>
+      </div>
+
+      <div id="pp-quo" role="tabpanel" aria-labelledby="pt-quo" hidden>
+        <div class="stack" style="padding:16px" data-api="/timeline/api/posts/:id/quotes">
+          <a class="quote" href="post.html"><span class="row" style="gap:8px"><span class="avatar sm g4">AL</span><b class="small">Ari Lindqvist</b><span class="xs muted">· 2m</span></span><span class="secondary" style="display:block;margin-top:4px">Moderation team: please look at the notifications screen — it finally shows appeal status.</span></a>
+          <a class="quote" href="post.html"><span class="row" style="gap:8px"><span class="avatar sm">SK</span><b class="small">Sam Kim</b><span class="xs muted">· 1m</span></span><span class="secondary" style="display:block;margin-top:4px">Contoso will pilot this in October.</span></a>
+        </div>
+      </div>
+      <div id="pp-lik" role="tabpanel" aria-labelledby="pt-lik" hidden>
+        <div class="list" data-api="/timeline/api/posts/:id/likes" data-on="post:liked">
+          <div class="list-item"><span class="avatar sm g1">MD</span><span class="grow"><b class="small">Maya Diaz</b> <span class="xs muted">@maya</span></span><button class="btn sm outline" type="button" data-toggle aria-pressed="true">Following</button></div>
+          <div class="list-item"><span class="avatar sm g3">PR</span><span class="grow"><b class="small">Priya Raman</b> <span class="xs muted">@priya</span></span><button class="btn sm tonal" type="button" data-toggle aria-pressed="false">Follow</button></div>
+        </div>
+      </div>
+      <div id="pp-rp" role="tabpanel" aria-labelledby="pt-rp" hidden>
+        <div class="list" data-api="/timeline/api/posts/:id/reposts">
+          <div class="list-item"><span class="avatar sm g2">JO</span><span class="grow"><b class="small">Jonah Okafor</b> <span class="xs muted">@jonah.northwind.co</span></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Author analytics -->
+    <section class="card" aria-labelledby="an-h" data-api="/timeline/api/posts/:id/analytics">
+      <div class="card-head"><h2 id="an-h">Post analytics</h2><span class="pill">Only you can see this</span></div>
+      <div class="grid c4 card-body">
+        <div class="stat" style="padding:0"><span class="label">Impressions</span><span class="value">2,418</span><span class="delta up">+31% vs your avg</span></div>
+        <div class="stat" style="padding:0"><span class="label">Engagements</span><span class="value">92</span><span class="delta up">3.8% rate</span></div>
+        <div class="stat" style="padding:0"><span class="label">Profile visits</span><span class="value">41</span></div>
+        <div class="stat" style="padding:0"><span class="label">Link clicks</span><span class="value">17</span></div>
+      </div>
+      <div class="card-body" style="padding-top:0">
+        <svg class="spark" viewBox="0 0 300 36" preserveAspectRatio="none" role="img" aria-label="Impressions per hour since posting, peaking at hour 2">
+          <path class="area" d="M0 36 L0 30 L40 12 L80 6 L120 14 L160 20 L200 24 L240 26 L300 28 L300 36 Z"/><path class="line" d="M0 30 L40 12 L80 6 L120 14 L160 20 L200 24 L240 26 L300 28"/><circle class="end" cx="300" cy="28" r="3"/>
+        </svg>
+      </div>
+    </section>
+
+    <!-- Admin approval -->
+    <section class="card" aria-labelledby="ap-h" data-api="/timeline/api/posts/approvals/pending">
+      <div class="card-head"><h2 id="ap-h">Approval</h2><span class="pill violet">Admins</span></div>
+      <div class="card-body stack">
+        <p class="small secondary">Queued Sep 29 at 10:24 by the Design Guild “review new posts” rule. 2 other posts are waiting.</p>
+        <div class="field"><label for="ap-note">Note to author (optional)</label><input class="input" id="ap-note" placeholder="e.g. Please remove the internal link"></div>
+      </div>
+      <div class="card-foot"><button class="btn danger-outline" type="button" data-toast="Rejected — Rick was notified" data-api="/timeline/api/posts/:id/approval" style="margin-right:auto">Reject</button><button class="btn primary" type="button" data-toast="Approved — now visible to Design Guild" data-api="/timeline/api/posts/:id/approval">Approve post</button></div>
+    </section>
+  </div>
+
+  <dialog class="dialog" id="dlg-edit" aria-labelledby="dlg-edit-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-edit-t">Edit post</h2><p>Edited posts show an “edited” label. Likes and replies are kept.</p></div></div>
+      <div class="dialog-body">
+        <div class="field"><label for="e-text">Post</label><textarea class="textarea" id="e-text">Release notes for v2 mockups are up — 14 user screens with contracts. Every screen shows which REST calls and socket events it depends on. Feedback welcome #design</textarea></div>
+        <div class="field"><label for="e-vis">Who can see this</label><select class="select" id="e-vis"><option>Group members</option><option>Public</option><option>Followers</option></select></div>
+      </div>
+      <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-del">Delete post</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Post updated">Save</button></div>
+    </form>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del" aria-labelledby="dlg-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-t">Delete this post?</h2><p>“Release notes for v2 mockups are up…” and its 18 replies will be removed for everyone. This can’t be undone.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Post deleted" data-api="/timeline/api/posts/:id">Delete post</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Deep-linkable post detail. Thread (ancestors + replies) and comments load in parallel; tabs lazy-load quotes, likers and reposters. Likes/reposts/bookmarks and replies are optimistic. Analytics render only when the viewer is the author; the Approval card only for group/platform admins while the post is pending.",
+  "rest": [
+    { "m": "GET", "p": "/timeline/api/posts/:id", "auth": "user", "ui": "Main post" },
+    { "m": "PUT", "p": "/timeline/api/posts/:id", "auth": "owner", "ui": "Edit dialog → Save" },
+    { "m": "DELETE", "p": "/timeline/api/posts/:id", "auth": "owner", "ui": "Delete confirm" },
+    { "m": "GET", "p": "/timeline/api/posts/:id/thread", "auth": "user", "ui": "Reply thread (ancestors + nested)" },
+    { "m": "GET", "p": "/timeline/api/posts/:id/comments", "auth": "user", "ui": "Replies tab (paged)" },
+    { "m": "POST", "p": "/timeline/api/posts/:id/comments", "auth": "user", "ui": "Reply composer" },
+    { "m": "GET", "p": "/timeline/api/posts/:id/quotes", "auth": "user", "ui": "Quotes tab" },
+    { "m": "GET", "p": "/timeline/api/posts/:id/likes", "auth": "user", "ui": "Liked by tab" },
+    { "m": "GET", "p": "/timeline/api/posts/:id/reposts", "auth": "user", "ui": "Reposted by tab" },
+    { "m": "GET", "p": "/timeline/api/posts/:id/analytics", "auth": "owner", "ui": "Post analytics card" },
+    { "m": "POST", "p": "/timeline/api/posts/:id/like", "auth": "user", "ui": "Like (DELETE to unlike)" },
+    { "m": "POST", "p": "/timeline/api/posts/:id/repost", "auth": "user", "ui": "Repost (DELETE to undo)" },
+    { "m": "POST", "p": "/timeline/api/posts/:id/bookmark", "auth": "user", "ui": "Bookmark (DELETE to undo)" },
+    { "m": "POST", "p": "/timeline/api/posts/:id/approval", "auth": "A", "ui": "Approval card → Approve / Reject" },
+    { "m": "GET", "p": "/timeline/api/posts/approvals/pending", "auth": "A", "ui": "Approval card “2 other posts waiting”" },
+    { "m": "GET", "p": "/timeline/api/attachments/posts/:pid", "auth": "user", "ui": "Media grid" },
+    { "m": "POST", "p": "/timeline/api/attachments/comments/:cid", "auth": "owner", "ui": "Reply image" },
+    { "m": "GET", "p": "/timeline/api/attachments/comments/:cid", "auth": "user", "ui": "Reply media" },
+    { "m": "POST", "p": "/timeline/api/interactions/users/:id/follow", "auth": "user", "ui": "Follow buttons in Liked by" }
+  ],
+  "socket": [
+    { "ns": "/timeline", "auth": "CA bearer (read)", "rooms": ["timeline:global", "timeline:group:{groupId}"],
+      "emit": [ { "e": "subscribe:group", "ui": "Post belongs to a group — join its room for live counts" } ],
+      "on": [
+        { "e": "post:liked", "ui": "Like count + Liked by list" },
+        { "e": "post:commented", "ui": "Reply count + prepend reply" },
+        { "e": "post:updated", "ui": "Body re-render (“edited”)" },
+        { "e": "post:deleted", "ui": "Switches to the unavailable state" },
+        { "e": "post:retracted", "ui": "Removed-by-moderation tombstone" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "med", "text": "Approval is platform-admin only ([A]) — group admins of the target group can't approve posts in their own group. Proposed: allow grp-admin on POST /posts/:id/approval." },
+    { "sev": "med", "text": "No event for approval decisions; the author's Pending pill only updates on refetch. Proposed: post:approved to user:{authorId}." },
+    { "sev": "high", "text": "post:updated/deleted are broadcast namespace-wide ignoring visibility (IPC path) — payloads for group-only posts reach non-members." }
+  ]
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shared file · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  .share-grid { max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+  .preview { border-radius: 20px; overflow: hidden; border: 1px solid var(--exprsn-border-color); background: var(--exprsn-surface-raised); }
+  .preview .page-sheet { aspect-ratio: 8.5 / 11; max-height: 620px; margin: 24px auto; width: min(460px, calc(100% - 48px)); background: var(--exprsn-bg-primary); border: 1px solid var(--exprsn-border-color); border-radius: 6px; box-shadow: var(--exprsn-shadow-md); padding: 28px; display: flex; flex-direction: column; gap: 10px; }
+  .preview .bar { height: 10px; border-radius: 4px; background: var(--exprsn-bg-tertiary); }
+  .preview-top { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--exprsn-border-color); font-size: .8125rem; color: var(--exprsn-text-secondary); }
+  .demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border: 1px dashed var(--exprsn-border-color-strong); border-radius: 12px; font-size: .75rem; color: var(--exprsn-text-secondary); max-width: 1040px; margin: 0 auto 20px; }
+  .demo-bar .seg { display: flex; flex-wrap: wrap; }
+  .gate { max-width: 440px; margin: 0 auto; }
+  @media (max-width: 900px) { .share-grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body data-shell="public" data-page="share">
+<main id="main">
+  <header class="public-top">
+    <a class="brand" href="login.html"><span class="brand-mark">E</span><span>Exprsn</span></a>
+    <div class="row" style="gap:6px">
+      <a class="btn sm ghost" href="login.html">Sign in</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light/dark theme"><i data-i="moon"></i></button>
+    </div>
+  </header>
+
+  <div class="public-main">
+    <div class="demo-bar" role="group" aria-label="Mockup preview">
+      <span class="eyebrow">Preview</span>
+      <div class="seg" role="group" aria-label="Link variant" data-view-target="share">
+        <button type="button" aria-pressed="true" data-view="open">Open link</button>
+        <button type="button" aria-pressed="false" data-view="pw">Password-protected (proposed)</button>
+      </div>
+      <span>Use the Contract drawer for loading, expired and limit-reached states.</span>
+    </div>
+
+    <!-- ── Loaded ── -->
+    <div data-state="loaded">
+      <div class="share-grid" data-view-of="share" data-view-name="open">
+        <section class="preview" aria-label="File preview" data-api="/filevault/api/share/:shareLinkId">
+          <div class="preview-top"><i data-i="doc" class="sm"></i><span class="grow truncate">Q3-roadmap.pdf</span><span>Page 1 of 12</span></div>
+          <div class="page-sheet" role="img" aria-label="Preview of the first page of Q3-roadmap.pdf">
+            <span class="eyebrow">Northwind · Q3 2026</span>
+            <b style="font-size:1.25rem">Roadmap &amp; hiring plan</b>
+            <span class="bar" style="width:92%"></span><span class="bar" style="width:84%"></span><span class="bar" style="width:88%"></span><span class="bar" style="width:40%"></span>
+            <div class="ph primary" style="min-height:140px;border-radius:8px;margin:8px 0"><i data-i="image"></i></div>
+            <span class="bar" style="width:90%"></span><span class="bar" style="width:76%"></span><span class="bar" style="width:82%"></span>
+          </div>
+        </section>
+
+        <aside class="card">
+          <div class="card-body stack loose">
+            <div class="stack tight">
+              <h1 class="page-title" style="font-size:1.375rem;overflow-wrap:anywhere">Q3-roadmap.pdf</h1>
+              <div class="row" style="gap:8px"><span class="avatar sm g4">AL</span><span class="small secondary"><b>Ari Lindqvist</b> shared this with you</span></div>
+            </div>
+            <a class="btn primary block" href="#" data-api="/filevault/api/share/:shareLinkId/download" data-toast="Downloading Q3-roadmap.pdf (2.4 MB)"><i data-i="download" class="sm"></i>Download · 2.4 MB</a>
+            <dl class="kv">
+              <dt>Type</dt><dd>PDF document</dd>
+              <dt>Size</dt><dd class="num">2.4 MB</dd>
+              <dt>Updated</dt><dd>Sep 26, 2026</dd>
+              <dt>Link expires</dt><dd>Oct 3, 2026 · in 4 days</dd>
+              <dt>Downloads</dt><dd class="num">7 of 25 used</dd>
+            </dl>
+            <div class="banner info"><i data-i="shield" class="sm"></i><span class="grow small">View-only link. Anyone with it can download until it expires or Ari revokes it.</span></div>
+          </div>
+          <div class="card-foot" style="justify-content:space-between">
+            <span class="xs muted">Scanned for malware</span>
+            <button class="btn sm ghost" type="button" data-copy="https://exprsn.io/s/7c1d2f0e-…">Copy link</button>
+          </div>
+        </aside>
+      </div>
+
+      <div class="gate" data-view-of="share" data-view-name="pw" hidden>
+        <section class="card pad stack loose">
+          <div class="empty" style="padding:8px 0">
+            <div class="art"><i data-i="lock"></i></div>
+            <h1 style="font-size:1.375rem">This file is password-protected</h1>
+            <p><b>Ari Lindqvist</b> shared <b>salary-bands-2026.xlsx</b>. Enter the password they gave you.</p>
+          </div>
+          <form class="stack" data-toast="Unlocked">
+            <div class="field"><label for="sh-pw">Password</label><input class="input" id="sh-pw" type="password" aria-invalid="true" aria-describedby="sh-pw-err" value="wrong"><span class="err" id="sh-pw-err"><i data-i="alert" class="sm"></i>That password isn’t right. 4 tries left.</span></div>
+            <button class="btn primary block" type="submit">Unlock file</button>
+          </form>
+        </section>
+      </div>
+    </div>
+
+    <!-- ── Empty: download limit reached ── -->
+    <div class="gate" data-state="empty">
+      <section class="card pad">
+        <div class="empty">
+          <div class="art"><i data-i="download"></i></div>
+          <h1 style="font-size:1.375rem">This link has reached its download limit</h1>
+          <p>The person who shared <b>Q3-roadmap.pdf</b> allowed 25 downloads, and they’ve all been used. Ask them for a new link.</p>
+          <a class="btn outline" href="login.html">Sign in to request access</a>
+        </div>
+      </section>
+    </div>
+
+    <!-- ── Loading ── -->
+    <div class="share-grid" data-state="loading" aria-busy="true" aria-label="Loading shared file">
+      <div class="preview"><div class="sk" style="height:520px;border-radius:0"></div></div>
+      <div class="card pad stack"><span class="sk" style="width:70%;height:22px"></span><span class="sk" style="width:50%"></span><span class="sk" style="height:44px"></span><span class="sk"></span><span class="sk" style="width:80%"></span><span class="sk" style="width:60%"></span></div>
+    </div>
+
+    <!-- ── Error: expired / revoked ── -->
+    <div class="gate" data-state="error">
+      <section class="card pad">
+        <div class="empty error">
+          <div class="art"><i data-i="clock"></i></div>
+          <h1 style="font-size:1.375rem">This link has expired</h1>
+          <p>Shared links stop working when they expire or when the owner revokes them. Nothing was downloaded. Ask the sender for a fresh link.</p>
+          <p class="xs muted">Reference <code>SHARE_LINK_EXPIRED · cid 2be0…9f1</code></p>
+          <a class="btn outline" href="login.html">Go to Exprsn</a>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Public landing for /s/:shareLinkId?token=… — the CA share token lives in the query string and is forwarded on each call. Errors map to states: SHARE_LINK_EXPIRED or SHARE_LINK_REVOKED → error, SHARE_LINK_EXHAUSTED → empty (limit reached), SHARE_TOKEN_REQUIRED or FILE_NOT_FOUND (including files held by image moderation) → a generic not-available card.",
+  "rest": [
+    { "m": "GET", "p": "/filevault/api/share/:shareLinkId", "auth": "P (share token)", "ui": "File name, sharer, meta, preview" },
+    { "m": "GET", "p": "/filevault/api/share/:shareLinkId/download", "auth": "P (share token)", "ui": "Download button (counts toward maxUses)" },
+    { "m": "GET", "p": "/filevault/api/share/file/:fileId/download", "auth": "P (file access token)", "ui": "Direct-download variant for access-token links" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "The inventory lists /filevault/share/:linkId, but the routes are mounted under /api: GET /filevault/api/share/:shareLinkId[/download]. Share URLs built by shareService should match." },
+    { "sev": "med", "text": "Proposed: password-protected links. createShareLink only takes permissions, expiresIn and maxUses, so the password variant needs a new field plus a verify step." },
+    { "sev": "med", "text": "Thumbnails need a signed-in bearer (GET /filevault/api/thumbnails/:fileId), so a public viewer can’t load a preview image. Proposed: a share-token preview endpoint; until then the card shows a type icon." },
+    { "sev": "med", "text": "GET /:shareLinkId doesn’t return the sharer’s name, expiry or use count, so those fields depend on extending the response." }
+  ]
+}
+</script>
+</body>
+</html>

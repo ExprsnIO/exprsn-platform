@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prefetch · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .chart { width: 100%; max-width: 640px; height: auto; display: block; }
+  .chart .gl { stroke: var(--exprsn-border-color); }
+  .chart .hot { fill: var(--exprsn-primary); } .chart .warm { fill: var(--exprsn-accent-cyan); } .chart .miss { fill: var(--exprsn-gray-400); }
+  .chart text { fill: var(--exprsn-text-secondary); font-size: 11px; font-family: var(--exprsn-font-family); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .75rem; color: var(--exprsn-text-secondary); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+</style>
+</head>
+<body data-shell="admin" data-page="prefetch">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Services</span><i data-i="right" class="sm"></i><span>Prefetch</span></nav>
+        <h1 class="page-title">Prefetch</h1>
+        <p class="page-sub">Timeline pre-warming: hot and warm cache tiers, the prefetch queue, daily metrics and per-person cache controls.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="jobs.html"><i data-i="layers" class="sm"></i>Jobs &amp; queues</a>
+        <button class="btn primary" type="button" data-open="dlg-schedule" data-api="/prefetch/api/prefetch/schedule/:userId"><i data-i="clock" class="sm"></i>Prefetch a person</button>
+      </div>
+    </header>
+
+    <div class="grid c4" data-api="/prefetch/api/prefetch/metrics /prefetch/api/prefetch/queue/stats">
+      <div class="card stat"><span class="label"><i data-i="cache" class="sm"></i>Hit rate today</span><span class="value">89.9%</span><div class="meter ok" role="img" aria-label="89.9 percent"><i style="width:89.9%"></i></div></div>
+      <div class="card stat"><span class="label"><i data-i="zap" class="sm"></i>Hot hits</span><span class="value">48.1k</span><span class="delta up">+12% vs yesterday</span></div>
+      <div class="card stat"><span class="label"><i data-i="clock" class="sm"></i>Prefetch p95</span><span class="value">212 ms</span><span class="delta">p50 64 ms</span></div>
+      <div class="card stat"><span class="label"><i data-i="alert" class="sm"></i>Failed jobs</span><span class="value">9</span><span class="delta down">redis backend</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Prefetch views">
+      <button role="tab" id="t-m" aria-controls="p-m" aria-selected="true">Metrics</button>
+      <button role="tab" id="t-q" aria-controls="p-q">Queue <span class="badge">9</span></button>
+      <button role="tab" id="t-u" aria-controls="p-u">Per-person cache</button>
+      <button role="tab" id="t-c" aria-controls="p-c">Config</button>
+    </div>
+
+    <!-- ── Metrics ── -->
+    <section id="p-m" role="tabpanel" aria-labelledby="t-m">
+      <div class="card">
+        <div class="card-head">
+          <h2>Cache lookups per day</h2>
+          <div class="row" style="gap:8px"><label class="sr-only" for="m-date">End date</label><input class="input" id="m-date" type="date" value="2026-09-29" style="min-height:36px;padding:6px 10px;width:auto" data-api="/prefetch/api/prefetch/metrics/:date"></div>
+        </div>
+        <div class="card-body stack" data-state="loaded">
+          <div class="legend"><span><i style="background:var(--exprsn-primary)"></i>Hot hits</span><span><i style="background:var(--exprsn-accent-cyan)"></i>Warm hits</span><span><i style="background:var(--exprsn-gray-400)"></i>Misses</span></div>
+          <svg class="chart" viewBox="0 0 540 175" role="img" aria-label="Cache lookups in thousands, Sep 23 to 29. Hot, warm, misses: Sep 23 41, 12, 9; Sep 24 44, 13, 8; Sep 25 46, 11, 10; Sep 26 39, 10, 12; Sep 27 31, 9, 11; Sep 28 33, 9, 9; Sep 29 48, 14, 7">
+            <line class="gl" x1="40" y1="150" x2="530" y2="150"/><line class="gl" x1="40" y1="110" x2="530" y2="110"/><line class="gl" x1="40" y1="70" x2="530" y2="70"/><line class="gl" x1="40" y1="30" x2="530" y2="30"/>
+            <text x="0" y="153">0</text><text x="0" y="113">20k</text><text x="0" y="73">40k</text><text x="0" y="33">60k</text>
+            <rect class="hot" x="50" y="68" width="40" height="82"/><rect class="warm" x="50" y="44" width="40" height="24"/><rect class="miss" x="50" y="26" width="40" height="18"/>
+            <rect class="hot" x="120" y="62" width="40" height="88"/><rect class="warm" x="120" y="36" width="40" height="26"/><rect class="miss" x="120" y="20" width="40" height="16"/>
+            <rect class="hot" x="190" y="58" width="40" height="92"/><rect class="warm" x="190" y="36" width="40" height="22"/><rect class="miss" x="190" y="16" width="40" height="20"/>
+            <rect class="hot" x="260" y="72" width="40" height="78"/><rect class="warm" x="260" y="52" width="40" height="20"/><rect class="miss" x="260" y="28" width="40" height="24"/>
+            <rect class="hot" x="330" y="88" width="40" height="62"/><rect class="warm" x="330" y="70" width="40" height="18"/><rect class="miss" x="330" y="48" width="40" height="22"/>
+            <rect class="hot" x="400" y="84" width="40" height="66"/><rect class="warm" x="400" y="66" width="40" height="18"/><rect class="miss" x="400" y="48" width="40" height="18"/>
+            <rect class="hot" x="470" y="54" width="40" height="96"/><rect class="warm" x="470" y="26" width="40" height="28"/><rect class="miss" x="470" y="12" width="40" height="14"/>
+            <text x="54" y="168">Sep 23</text><text x="124" y="168">24</text><text x="194" y="168">25</text><text x="264" y="168">26</text><text x="334" y="168">27</text><text x="404" y="168">28</text><text x="474" y="168">29</text>
+          </svg>
+          <details class="small"><summary>View as table</summary>
+            <div class="dt-scroll" style="margin-top:8px"><table class="table"><thead><tr><th>Day</th><th class="num">Hot</th><th class="num">Warm</th><th class="num">Miss</th><th class="num">Hit rate</th></tr></thead><tbody>
+              <tr><td>Sep 23</td><td class="num">41k</td><td class="num">12k</td><td class="num">9k</td><td class="num">85.5%</td></tr>
+              <tr><td>Sep 29</td><td class="num">48k</td><td class="num">14k</td><td class="num">7k</td><td class="num">89.9%</td></tr>
+            </tbody></table></div>
+          </details>
+          <p class="xs muted">Seven calls to <code>/metrics/:date</code> — there’s no range endpoint yet (PF-3).</p>
+        </div>
+        <div class="card-body" data-state="empty"><div class="empty"><div class="art"><i data-i="signal"></i></div><h3>No metrics for this week</h3><p><code>enableMetrics</code> is off, or prefetch hasn’t run since Sep 23. Pick an earlier end date.</p></div></div>
+        <div class="card-body" data-state="loading" aria-busy="true"><span class="sk" style="height:170px"></span></div>
+        <div class="card-body" data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load metrics</h3><p>Prefetch couldn’t reach Redis (<code>/prefetch/health/redis</code> is down). Correlation id <code>cid c3a0…77e</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+      </div>
+    </section>
+
+    <!-- ── Queue ── -->
+    <section id="p-q" role="tabpanel" aria-labelledby="t-q" hidden>
+      <div class="grid c4" data-api="/prefetch/api/prefetch/queue/stats" style="margin-bottom:16px">
+        <div class="card stat"><span class="label">Backend</span><span class="value" style="font-size:1.25rem">redis (Bull)</span></div>
+        <div class="card stat"><span class="label">Waiting</span><span class="value">96</span></div>
+        <div class="card stat"><span class="label">Active</span><span class="value">6</span></div>
+        <div class="card stat"><span class="label">Delayed</span><span class="value">40</span></div>
+      </div>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Failed jobs</b><span class="grow"></span><label class="sr-only" for="f-lim">Show</label><select class="select" id="f-lim" style="width:auto;min-height:36px;padding:6px 10px"><option>10</option><option>50</option><option>100</option></select></div>
+        <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-toast="Retried 2 jobs">Retry selected</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/prefetch/api/prefetch/queue/failed">
+            <thead><tr><th style="width:44px"><input type="checkbox" class="check" id="f-all" aria-label="Select all failed jobs"></th><th>Job</th><th>Person</th><th>Priority</th><th>Reason</th><th class="num">Attempts</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><input type="checkbox" class="check" id="f-1" aria-label="Select job for Sam Kim"></td><td><span class="id">prefetch:usr_c41a02:1727651</span></td><td>Sam Kim</td><td><span class="pill">low</span></td><td class="small">Timeline returned 503 (circuit open)</td><td class="num">3</td><td class="actions"><button class="btn sm tonal" type="button" data-api="/prefetch/api/prefetch/queue/retry/:jobId" data-toast="Job re-queued">Retry</button></td></tr>
+              <tr><td><input type="checkbox" class="check" id="f-2" aria-label="Select job for Ari Lindqvist"></td><td><span class="id">prefetch:usr_0e93bb:1727649</span></td><td>Ari Lindqvist</td><td><span class="pill brand">high</span></td><td class="small">ETIMEDOUT after 5000 ms</td><td class="num">3</td><td class="actions"><button class="btn sm tonal" type="button" data-toast="Job re-queued">Retry</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>Pause, resume and clean aren’t exposed by prefetch yet (PF-1).</span></div>
+      </div>
+    </section>
+
+    <!-- ── Per-person cache ── -->
+    <section id="p-u" role="tabpanel" aria-labelledby="t-u" hidden>
+      <div class="split">
+        <div class="card">
+          <div class="card-head"><h2>Cache status</h2></div>
+          <div class="card-body stack">
+            <div class="field"><label for="u-q">Person</label><div class="input-group"><i data-i="person" class="sm"></i><input id="u-q" type="search" value="Maya Diaz" data-api="/prefetch/api/prefetch/status/:userId"></div></div>
+            <dl class="kv" data-api="/prefetch/api/prefetch/status/:userId"><dt>Cached</dt><dd><span class="pill ok">yes</span></dd><dt>Tier</dt><dd>hot</dd><dt>TTL</dt><dd>4 m 12 s of 5 m</dd><dt>Last prefetch</dt><dd>16:59 · 38 posts</dd></dl>
+            <div class="row wrap">
+              <button class="btn outline" type="button" data-open="dlg-schedule">Schedule</button>
+              <button class="btn tonal" type="button" data-api="/prefetch/api/prefetch/immediate/:userId" data-toast="Prefetched Maya Diaz · 38 posts in 71 ms">Run now</button>
+              <button class="btn danger-outline" type="button" data-open="dlg-clear" data-api="/prefetch/api/prefetch/:userId/timeline">Clear cache</button>
+            </div>
+          </div>
+        </div>
+        <aside class="card">
+          <div class="card-head"><h2>Cached preview</h2></div>
+          <div class="list" data-api="/prefetch/api/prefetch/:userId /prefetch/api/cache/:userId">
+            <div class="list-item"><span class="grow"><span class="title">Priya Raman</span><div class="meta truncate">Vault rotation finished for all 214…</div></span></div>
+            <div class="list-item"><span class="grow"><span class="title">Jonah Okafor</span><div class="meta truncate">Northwind is hiring two platform…</div></span></div>
+          </div>
+          <div class="card-foot" style="justify-content:flex-start"><span class="xs muted">Also served at <code>/prefetch/api/cache/:userId</code>.</span></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ── Config ── -->
+    <section id="p-c" role="tabpanel" aria-labelledby="t-c" hidden>
+      <div class="banner warn" style="margin-bottom:16px"><i data-i="info" class="sm"></i><span>Sections are saved to Redis but <b>not read by the running cache</b>. TTLs here are labelled seconds; runtime env uses milliseconds (PF-2).</span></div>
+      <form class="card" data-toast="prefetch-cache saved (stored only)" data-api="/prefetch/api/config/:sectionId">
+        <div class="card-head"><h2>prefetch-cache</h2><span class="pill">stored only</span></div>
+        <div class="card-body form-grid">
+          <div class="field"><label for="c-hot">Hot TTL (s)</label><input class="input" id="c-hot" type="number" value="300"><span class="help">Runtime: HOT_CACHE_TTL=300000 ms</span></div>
+          <div class="field"><label for="c-warm">Warm TTL (s)</label><input class="input" id="c-warm" type="number" value="3600"></div>
+          <div class="field"><label for="c-ev">Eviction policy</label><select class="select" id="c-ev"><option>LRU</option><option>LFU</option><option>FIFO</option></select></div>
+          <div class="field"><label for="c-max">Max hot entries</label><input class="input" id="c-max" type="number" value="10000"></div>
+        </div>
+        <div class="card-foot"><button class="btn ghost" type="reset">Reset</button><button class="btn primary" type="submit">Save</button></div>
+      </form>
+    </section>
+  </div>
+
+  <dialog class="dialog" id="dlg-schedule" aria-labelledby="dlg-sc-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-sc-t">Prefetch a person’s timeline</h2><p>Queues a warm-up job; it runs after the delay.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="sc-user">Person</label><input class="input" id="sc-user" value="Maya Diaz"></div>
+      <div class="form-grid">
+        <div class="field"><label for="sc-pri">Priority</label><select class="select" id="sc-pri"><option>medium</option><option>high</option><option>low</option></select></div>
+        <div class="field"><label for="sc-delay">Delay</label><input class="input" id="sc-delay" value="0s"><span class="help">= 0 ms</span></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Prefetch scheduled for Maya Diaz">Schedule</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-clear" aria-labelledby="dlg-cl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cl-t">Clear Maya Diaz’s cached timeline?</h2><p>Her next load reads from the timeline service directly (slower) until the next prefetch.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Cache cleared for Maya Diaz">Clear cache</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Prefetch has no socket namespace; metrics load per day and queue stats poll every 10 s. Per-person actions are self-or-admin routes, so an admin can act on anyone.",
+  "rest": [
+    { "m": "GET", "p": "/prefetch/api/prefetch/metrics", "auth": "user", "ui": "Stat tiles (today)" },
+    { "m": "GET", "p": "/prefetch/api/prefetch/metrics/:date", "auth": "user", "ui": "Daily chart (one call per day)" },
+    { "m": "GET", "p": "/prefetch/api/prefetch/queue/stats", "auth": "user", "ui": "Queue tiles, failed stat" },
+    { "m": "GET", "p": "/prefetch/api/prefetch/queue/failed", "auth": "user", "ui": "Failed jobs table" },
+    { "m": "POST", "p": "/prefetch/api/prefetch/queue/retry/:jobId", "auth": "user (write)", "ui": "Retry, bulk retry" },
+    { "m": "GET", "p": "/prefetch/api/prefetch/status/:userId", "auth": "self/A", "ui": "Cache status" },
+    { "m": "GET", "p": "/prefetch/api/prefetch/:userId", "auth": "self/A", "ui": "Cached preview" },
+    { "m": "GET", "p": "/prefetch/api/cache/:userId", "auth": "self/A", "ui": "Cached preview (alias mount)" },
+    { "m": "POST", "p": "/prefetch/api/prefetch/schedule/:userId", "auth": "self/A", "ui": "Schedule dialog (primary)" },
+    { "m": "POST", "p": "/prefetch/api/prefetch/immediate/:userId", "auth": "self/A", "ui": "Run now" },
+    { "m": "DELETE", "p": "/prefetch/api/prefetch/:userId/timeline", "auth": "self/A", "ui": "Clear cache dialog" },
+    { "m": "GET", "p": "/prefetch/api/config/:sectionId", "auth": "A", "ui": "Config tab" },
+    { "m": "POST", "p": "/prefetch/api/config/:sectionId", "auth": "A", "ui": "Config save" },
+    { "m": "GET", "p": "/prefetch/health/redis", "auth": "P", "ui": "Error state diagnosis" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "/queue/failed and /queue/retry need only a read/write CA token, not admin; no pause/resume/clean routes (PF-1)." },
+    { "sev": "med", "text": "Config sections are persisted to Redis but not consumed; hotCacheTTL is seconds in config vs ms at runtime (PF-2)." },
+    { "sev": "med", "text": "Metrics are single-day only; the chart makes 7 calls (PF-3, proposed ?from=&to=)." }
+  ]
+}
+</script>
+</body>
+</html>

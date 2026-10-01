@@ -1,0 +1,190 @@
+/* ============================================================================
+   EXPRSN UI v2 MOCKUPS · tokens.css
+   Value-for-value copy of the Exprsn Unified Design System tokens
+   (web/src/styles/exprsn-unified.css, :root + [data-theme="dark"]).
+   NO NEW COLOURS: v2 changes layout, hierarchy and interaction, not the palette.
+   Verified by mockups/v2/tools/check-tokens.js — keep the two files identical.
+
+   Theme resolution (same as web/public/theme-init.js):
+     explicit <html data-theme="dark|light">  >  prefers-color-scheme  >  light
+   ============================================================================ */
+
+:root {
+  /* Primary */
+  --exprsn-primary: #0066ff;
+  /* Text on solid primary fills (BUG-048): white passes in light (4.83:1);
+     dark mode overrides both this and --exprsn-primary below.
+     NEVER pair --exprsn-text-inverse with a --exprsn-primary background — in
+     dark mode that's white-on-#4a8cf7 (3.7:1, WCAG fail). Text on primary
+     fills must always be --exprsn-text-on-primary. */
+  --exprsn-text-on-primary: #ffffff;
+  --exprsn-primary-hover: #0052cc;
+  --exprsn-primary-light: #4d94ff;
+  --exprsn-primary-dark: #0047b3;
+  --exprsn-primary-glow: rgba(0, 102, 255, 0.3);
+  /* Secondary */
+  --exprsn-secondary: #7c3aed;
+  --exprsn-secondary-hover: #6d28d9;
+  --exprsn-secondary-light: #a78bfa;
+  --exprsn-secondary-dark: #5b21b6;
+  /* Accents */
+  --exprsn-accent-pink: #ec4899;
+  --exprsn-accent-orange: #f97316;
+  --exprsn-accent-green: #10b981;
+  --exprsn-accent-cyan: #06b6d4;
+  --exprsn-accent-yellow: #eab308;
+  --exprsn-accent-purple: #8b5cf6;
+  --exprsn-accent-amber: #f59e0b;
+  --exprsn-accent-emerald: #10b981;
+  /* Semantic.
+     DECISION (BUG-050): the -bg/-text tint pairs are THEME-INVARIANT — they are
+     deliberately not overridden in [data-theme="dark"]. A tinted surface always
+     renders as the light pastel with its dark -text color, which passes 4.5:1
+     identically in both themes. Never pair --exprsn-<sev> (the saturated main)
+     with --exprsn-<sev>-bg; on-tint text/icons use --exprsn-<sev>-text (or
+     -hover for >=3:1 non-text marks). */
+  --exprsn-success: #10b981; --exprsn-success-hover: #059669; --exprsn-success-bg: #d1fae5; --exprsn-success-text: #065f46;
+  --exprsn-danger: #ef4444; --exprsn-danger-hover: #dc2626; --exprsn-danger-bg: #fee2e2; --exprsn-danger-text: #991b1b;
+  --exprsn-warning: #f59e0b; --exprsn-warning-hover: #d97706; --exprsn-warning-bg: #fef3c7; --exprsn-warning-text: #92400e;
+  --exprsn-info: #3b82f6; --exprsn-info-hover: #2563eb; --exprsn-info-bg: #dbeafe; --exprsn-info-text: #1e40af;
+  /* Emphasis (BUG-049): text-grade semantic accents for small text/borders on
+     the raised surfaces (e.g. outlined chip labels). In light mode they equal
+     the saturated mains; dark mode lightens them (the mains only measure
+     4.38–4.48:1 on the dark surfaces). Keep in sync with src/app/tokens.ts. */
+  --exprsn-danger-emphasis: var(--exprsn-danger);
+  --exprsn-info-emphasis: var(--exprsn-info);
+  --exprsn-secondary-emphasis: var(--exprsn-secondary);
+  /* Neutrals */
+  --exprsn-white: #ffffff; --exprsn-black: #0a0a0a;
+  --exprsn-gray-50: #fafafa; --exprsn-gray-100: #f5f5f5; --exprsn-gray-200: #e5e5e5; --exprsn-gray-300: #d4d4d4;
+  --exprsn-gray-400: #a3a3a3; --exprsn-gray-500: #737373; --exprsn-gray-600: #525252; --exprsn-gray-700: #404040;
+  --exprsn-gray-800: #262626; --exprsn-gray-900: #171717;
+  /* Surfaces */
+  --exprsn-bg-primary: #ffffff; --exprsn-bg-secondary: #fafafa; --exprsn-bg-tertiary: #f5f5f5;
+  --exprsn-bg-hover: #f1f3f4; --exprsn-bg-active: #e8eaed;
+  --exprsn-surface-raised: #ffffff; --exprsn-surface-overlay: rgba(10, 10, 10, 0.8);
+  /* Text */
+  --exprsn-text-primary: #171717; --exprsn-text-secondary: #525252; --exprsn-text-muted: #737373;
+  --exprsn-text-inverse: #ffffff; --exprsn-text-link: #0066ff;
+  /* Borders */
+  --exprsn-border-color: #e5e5e5; --exprsn-border-color-strong: #a3a3a3; --exprsn-border-dark: #ccd0d5;
+  /* Gradients */
+  --exprsn-gradient-primary: linear-gradient(135deg, #0066ff 0%, #7c3aed 100%);
+  --exprsn-gradient-warm: linear-gradient(135deg, #f97316 0%, #ec4899 100%);
+  --exprsn-gradient-cool: linear-gradient(135deg, #06b6d4 0%, #0066ff 100%);
+  --exprsn-gradient-success: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+  --exprsn-gradient-purple: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Shadows */
+  --exprsn-shadow-sm: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+  --exprsn-shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
+  --exprsn-shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+  --exprsn-shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04);
+  --exprsn-shadow-2xl: 0 25px 50px -12px rgba(0,0,0,.25);
+  --exprsn-shadow-glow: 0 0 20px rgba(0,102,255,.5);
+  /* Radius */
+  --exprsn-radius-sm: .375rem; --exprsn-radius-md: .5rem; --exprsn-radius-lg: .75rem;
+  --exprsn-radius-xl: 1rem; --exprsn-radius-2xl: 1.5rem; --exprsn-radius-full: 9999px;
+  /* Spacing */
+  --exprsn-spacing-xs: .25rem; --exprsn-spacing-sm: .5rem; --exprsn-spacing-md: 1rem;
+  --exprsn-spacing-lg: 1.5rem; --exprsn-spacing-xl: 2rem; --exprsn-spacing-2xl: 3rem; --exprsn-spacing-3xl: 4rem;
+  /* Type */
+  --exprsn-font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --exprsn-font-family-mono: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Menlo', 'Courier New', monospace;
+  --exprsn-font-size-xs: .75rem; --exprsn-font-size-sm: .875rem; --exprsn-font-size-base: 1rem;
+  --exprsn-font-size-lg: 1.125rem; --exprsn-font-size-xl: 1.25rem; --exprsn-font-size-2xl: 1.5rem;
+  --exprsn-font-size-3xl: 1.875rem; --exprsn-font-size-4xl: 2.25rem;
+  /* Transitions */
+  --exprsn-transition-fast: 150ms cubic-bezier(.4,0,.2,1);
+  --exprsn-transition-base: 250ms cubic-bezier(.4,0,.2,1);
+  --exprsn-transition-slow: 350ms cubic-bezier(.4,0,.2,1);
+  /* Z-index */
+  --exprsn-z-dropdown: 1000; --exprsn-z-sticky: 1010; --exprsn-z-fixed: 1020;
+  --exprsn-z-modal-backdrop: 1030; --exprsn-z-modal: 1040; --exprsn-z-popover: 1050; --exprsn-z-tooltip: 1060;
+  /* Layout */
+  --exprsn-sidebar-width: 280px; --exprsn-sidebar-collapsed-width: 70px; --exprsn-navbar-height: 64px;
+  /* Aliases used by the dashboard component classes */
+  --sidebar-width: 280px; --sidebar-collapsed-width: 70px;
+}
+
+/* Dark — system preference, unless the user explicitly picked light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  /* BUG-048: was #3b82f6 (white-on-primary 3.68:1; primary text on
+     surface-raised 4.48:1). #4a8cf7 keeps primary TEXT >=4.5:1 on every dark
+     surface, and solid primary fills take near-black text instead — no blue
+     can pass 4.5:1 with white text AND as text on the dark surfaces at once.
+     Keep in sync with src/app/tokens.ts (dark.primary / primaryContrast). */
+  --exprsn-primary: #4a8cf7;
+  --exprsn-text-on-primary: #0a0a0a;
+  --exprsn-primary-hover: #60a5fa;
+  /* Emphasis (BUG-049): lightened so semantic text/borders pass 4.5:1 on the
+     dark surfaces (5.96 / 6.48 / 6.06 on surface-raised #1f1f1f). */
+  --exprsn-danger-emphasis: #f87171;
+  --exprsn-info-emphasis: #60a5fa;
+  --exprsn-secondary-emphasis: var(--exprsn-secondary-light);
+  --exprsn-bg-primary: #0a0a0a; --exprsn-bg-secondary: #171717; --exprsn-bg-tertiary: #262626;
+  --exprsn-bg-hover: #1c1f23; --exprsn-bg-active: #2f3336; --exprsn-surface-raised: #1f1f1f;
+  --exprsn-text-primary: #fafafa; --exprsn-text-secondary: #d4d4d4; --exprsn-text-muted: #a3a3a3;
+  --exprsn-border-color: #404040; --exprsn-border-color-strong: #525252; --exprsn-border-dark: #2f3336;
+    color-scheme: dark;
+  }
+}
+
+/* Dark — explicit choice (theme toggle / localStorage "exprsn-theme"). */
+[data-theme="dark"] {
+  /* BUG-048: was #3b82f6 (white-on-primary 3.68:1; primary text on
+     surface-raised 4.48:1). #4a8cf7 keeps primary TEXT >=4.5:1 on every dark
+     surface, and solid primary fills take near-black text instead — no blue
+     can pass 4.5:1 with white text AND as text on the dark surfaces at once.
+     Keep in sync with src/app/tokens.ts (dark.primary / primaryContrast). */
+  --exprsn-primary: #4a8cf7;
+  --exprsn-text-on-primary: #0a0a0a;
+  --exprsn-primary-hover: #60a5fa;
+  /* Emphasis (BUG-049): lightened so semantic text/borders pass 4.5:1 on the
+     dark surfaces (5.96 / 6.48 / 6.06 on surface-raised #1f1f1f). */
+  --exprsn-danger-emphasis: #f87171;
+  --exprsn-info-emphasis: #60a5fa;
+  --exprsn-secondary-emphasis: var(--exprsn-secondary-light);
+  --exprsn-bg-primary: #0a0a0a; --exprsn-bg-secondary: #171717; --exprsn-bg-tertiary: #262626;
+  --exprsn-bg-hover: #1c1f23; --exprsn-bg-active: #2f3336; --exprsn-surface-raised: #1f1f1f;
+  --exprsn-text-primary: #fafafa; --exprsn-text-secondary: #d4d4d4; --exprsn-text-muted: #a3a3a3;
+  --exprsn-border-color: #404040; --exprsn-border-color-strong: #525252; --exprsn-border-dark: #2f3336;
+  color-scheme: dark;
+}
+
+/* ── v2 derived tokens (aliases only — every value resolves to an existing token) ── */
+:root {
+  --v2-focus-ring: 0 0 0 3px var(--exprsn-primary-glow), 0 0 0 1px var(--exprsn-primary);
+  --v2-hit: 44px;               /* HIG minimum touch target */
+  --v2-hit-compact: 36px;       /* dense admin tables, pointer:fine only */
+  --v2-topbar-h: 56px;
+  --v2-sidebar-w: 256px;
+  --v2-sidebar-w-collapsed: 72px;
+  --v2-content-max: 1200px;
+  --v2-reading-max: 680px;
+  --v2-radius-control: 12px;    /* MUI Button / OutlinedInput override */
+  --v2-radius-card: 16px;       /* MUI Paper / Card override */
+  --v2-radius-tooltip: 8px;
+  --v2-ease-out: cubic-bezier(.2,.8,.2,1);
+  /* Text-grade foregrounds for small text on the page surfaces and on light
+     primary tints (aliases of existing tokens; dark values below). */
+  --v2-primary-fg: var(--exprsn-primary-hover);
+  --v2-ok-fg: var(--exprsn-success-text);
+  --v2-warn-fg: var(--exprsn-warning-text);
+  --v2-danger-fg: var(--exprsn-danger-text);
+  --v2-violet-fg: var(--exprsn-secondary-dark);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --v2-primary-fg: var(--exprsn-primary-hover); --v2-ok-fg: var(--exprsn-success); --v2-warn-fg: var(--exprsn-warning); --v2-danger-fg: var(--exprsn-danger-emphasis); --v2-violet-fg: var(--exprsn-secondary-emphasis); }
+}
+[data-theme="dark"] { --v2-primary-fg: var(--exprsn-primary-hover); --v2-ok-fg: var(--exprsn-success); --v2-warn-fg: var(--exprsn-warning); --v2-danger-fg: var(--exprsn-danger-emphasis); --v2-violet-fg: var(--exprsn-secondary-emphasis); }
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --exprsn-transition-fast: 0ms linear;
+    --exprsn-transition-base: 0ms linear;
+    --exprsn-transition-slow: 0ms linear;
+  }
+}
+@media (prefers-contrast: more) {
+  :root { --exprsn-border-color: var(--exprsn-border-color-strong); }
+}

@@ -729,7 +729,7 @@ release-engineering gaps between "structurally complete + runtime-verified" and
 "deployable to a real environment". None are code-deep, but all are MVP-blocking
 for an actual release. Scanned/confirmed 2026-06-22.
 
-### R1. No source control or CI — IN PROGRESS (SP-1/SP-2, 2026-06-22; remote wired 2026-08-10)
+### R1. Source control + CI: PUSHED (2026-09); LINT GATE RED on `main` (BUG-081), branch protection pending
 ~~There is **no `.git`** in this repo and no pipeline.~~ **Done:** repo is under git
 with a root `.gitignore` (node_modules/.env/certs/web/dist/logs/data excluded);
 initial commit made; `.github/workflows/ci.yml` added (jobs: **lint**, **web-build**
@@ -737,23 +737,25 @@ initial commit made; `.github/workflows/ci.yml` added (jobs: **lint**, **web-bui
 containers, non-blocking while suites stabilize). Added the missing root ESLint
 config (`.eslintrc.json` — lint had never actually run) and an aggregator
 `npm run test:all` (`scripts/test-all.js`) since there is no root Jest runner.
-**Remote wired (2026-08-10):** `origin` →
-`https://github.com/ExprsnIO/Exprsn.git` (public). Note the remote pre-existed
-with **unrelated history** — 22 commits of a different project (TransactionDB,
-Payments, CA/Auth docs) plus five `claude/*` branches and PRs #1–#5 — and shares
-no common ancestor with this repo, so landing this history was an explicit
-force-overwrite decision (Rick, 2026-08-10), not a fast-forward.
+**Remote + push (corrected 2026-10-01; this section previously said nothing was
+pushed):** the history was landed by an `--allow-unrelated-histories` **merge**
+(`89ff0ef`, 2026-08-10), not the force-overwrite planned earlier. The merge made
+the remote's prior 22 commits an ancestor, so the push was a plain fast-forward
+and nothing was orphaned (rationale in that commit message). `origin` is now
+`https://github.com/ExprsnIO/exprsn-platform` and `main` is published. TASK-073's
+PR (ExprsnIO/exprsn-platform PR #1) merged 2026-09-28 at `764ce4d`. The merge also
+imported unrelated content (`src/exprsn-*`, `src/shared/`, `wiki/`, `cli/`,
+`admin/`, …), which `d3eb275` began removing.
 
-**Remaining (manual, needs credentials on the pushing machine):** the push itself
-has **not happened yet** — no GitHub credential is configured locally (no stored
-HTTPS credential, no SSH key, no `gh`), so `git push` fails at auth. Run:
-
-```bash
-git push --force-with-lease=main:2daaf5572f36bd5b435c0edbfdbfbb56e6ebbb43 -u origin main
-git push origin --all      # the 8 s26xx sprint branches (all already merged into main)
-```
-
-Then set branch protection on `main` requiring the `lint` + `web-build` checks.
+**Remaining:**
+- **BUG-081 (P1): the required `lint` gate is red on every push to `main`.** All
+  6,323 errors are in the merged-in `src/exprsn-*` / `src/shared/` trees; the
+  platform's own code lints clean. The approach needs an owner decision (remove,
+  relocate, or exclude those trees). The **Tests** job is also red; it is
+  meant to be non-blocking, but `ci.yml` doesn't mark it so.
+- **Branch protection on `main`** requiring `lint` + `web-build`: **not set**
+  (GitHub reports `main` unprotected, 2026-10-01). Enable it *after* BUG-081
+  lands, or every merge will be blocked on a red check.
 
 ### R2. Real TLS at the edge — VERIFICATION SLICE DONE (SP-4, 2026-06-24); cert provisioning deploy-time
 Only dev self-signed certs (`npm run gen:certs`); real certs at the nginx edge are

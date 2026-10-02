@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "digitalocean": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.js"],
+      "env": {
+        "DIGITALOCEAN_TOKEN": "${DIGITALOCEAN_TOKEN:-}",
+        "DO_MCP_MODE": "${DO_MCP_MODE:-read-only}",
+        "DO_MCP_PROTECTED_TAG": "${DO_MCP_PROTECTED_TAG:-protected}"
+      }
+    }
+  }
+}

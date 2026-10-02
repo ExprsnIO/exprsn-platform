@@ -1,0 +1,10 @@
+{
+  "name": "digitalocean",
+  "displayName": "DigitalOcean",
+  "version": "0.1.0",
+  "description": "Orchestrate DigitalOcean services via the DO API v2: inventory, droplets, actions, DNS, firewalls, App Platform, databases and Kubernetes — read-only by default, with confirm-gated destructive operations.",
+  "author": { "name": "Exprsn" },
+  "repository": "https://github.com/ExprsnIO/exprsn-platform",
+  "license": "MIT",
+  "keywords": ["digitalocean", "cloud", "infrastructure", "droplets", "dns", "mcp"]
+}

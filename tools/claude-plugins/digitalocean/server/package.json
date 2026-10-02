@@ -1,0 +1,11 @@
+{
+  "name": "@exprsn/claude-plugin-digitalocean-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zero-dependency stdio MCP server for the DigitalOcean API v2 (bundled with the digitalocean Claude Code plugin).",
+  "main": "index.js",
+  "bin": { "digitalocean-mcp": "index.js" },
+  "engines": { "node": ">=18" },
+  "scripts": { "test": "node --test test/*.test.js" },
+  "license": "MIT"
+}

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Overview · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+  /* kit fix proposal: danger-outline text fails AA in light theme */
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .mod-tile { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; }
+  .mod-tile .row.between { align-items: flex-start; }
+  .mod-tile[data-off="true"] { background: var(--exprsn-bg-secondary); }
+  .spark-foot { display: flex; justify-content: space-between; font-size: .6875rem; color: var(--exprsn-text-secondary); }
+</style>
+</head>
+<body data-shell="admin" data-page="overview">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Overview</span></nav>
+        <h1 class="page-title">Overview</h1>
+        <p class="page-sub">Is the platform healthy, what needs you, and what changed. Health refreshes every 5 seconds over the admin socket.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="#" data-api="/health"><i data-i="external" class="sm"></i>Raw /health</a>
+        <button class="btn tonal" type="button" data-toast="Snapshot refreshed · 14 modules, 5 dependencies"><i data-i="refresh" class="sm"></i>Refresh</button>
+      </div>
+    </header>
+
+    <!-- ── Health strip ── -->
+    <section class="card" aria-labelledby="hs-t" data-api="/health" data-on="health">
+      <div class="card-head">
+        <div class="row" style="gap:10px"><h2 id="hs-t">Platform health</h2><span class="pill warn"><span class="d"></span>Degraded</span></div>
+        <span class="xs secondary num">Snapshot 10:42:05 · next in 5 s</span>
+      </div>
+      <div class="card-body stack">
+        <div class="banner warn"><i data-i="alert" class="sm"></i><span class="grow"><b>RabbitMQ is down.</b> Optional tier — prefetch fanout and live recording are queuing in Redis until it returns.</span><a class="btn sm outline" href="jobs.html">Open Jobs</a></div>
+        <dl class="kv" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px 16px">
+          <div><dt class="xs">Version</dt><dd class="num">exprsn-platform 0.14.2</dd></div>
+          <div><dt class="xs">Environment</dt><dd>production · node v22.8.0</dd></div>
+          <div><dt class="xs">Uptime</dt><dd class="num">6 d 4 h 12 m</dd></div>
+          <div><dt class="xs">Host</dt><dd>exprsn-gw-01 · pid 48213</dd></div>
+          <div><dt class="xs">Load (1/5/15)</dt><dd class="num">0.82 · 0.74 · 0.69</dd></div>
+          <div><dt class="xs">Heap</dt><dd class="num">412 MB of 640 MB</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ── KPI tiles ── -->
+    <section aria-labelledby="kpi-t" class="stack">
+      <div class="section-title"><h2 id="kpi-t">Last 7 days</h2><div class="seg" role="group" aria-label="KPI window"><button type="button" aria-pressed="false">24 h</button><button type="button" aria-pressed="true">7 d</button><button type="button" aria-pressed="false">30 d</button></div></div>
+      <div class="grid c4">
+        <a class="card stat" href="ca.html" data-api="/ca/admin/api/timeseries/:type /ca/admin/api/stats" style="color:inherit">
+          <span class="label"><i data-i="key" class="sm"></i>CA tokens issued</span>
+          <span class="value">318<span class="xs secondary" style="font-weight:500"> today</span></span>
+          <svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none" role="img" aria-label="Tokens issued per day, Sep 23 to 29: 212, 240, 231, 265, 280, 301, 318"><path class="area" d="M0 33 L20 25.1 L40 27.6 L60 18 L80 13.8 L100 7.8 L120 3 L120 36 L0 36 Z"/><path class="line" vector-effect="non-scaling-stroke" d="M0 33 L20 25.1 L40 27.6 L60 18 L80 13.8 L100 7.8 L120 3"/></svg>
+          <span class="spark-foot"><span>212</span><span class="delta up">+50% vs Sep 23</span></span>
+        </a>
+        <a class="card stat" href="timeline.html" data-api="/timeline/api/jobs/stats" style="color:inherit">
+          <span class="label"><i data-i="feed" class="sm"></i>Posts / day (k)</span>
+          <span class="value">6.4k</span>
+          <svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none" role="img" aria-label="Posts per day in thousands, Sep 23 to 29: 4.1, 3.8, 4.6, 5.2, 4.9, 5.8, 6.4"><path class="area" d="M0 29.5 L20 33 L40 23.8 L60 16.8 L80 20.3 L100 9.9 L120 3 L120 36 L0 36 Z"/><path class="line" vector-effect="non-scaling-stroke" d="M0 29.5 L20 33 L40 23.8 L60 16.8 L80 20.3 L100 9.9 L120 3"/></svg>
+          <span class="spark-foot"><span>low 3.8k</span><span class="delta up">+56%</span></span>
+        </a>
+        <a class="card stat" href="moderator.html" data-api="/moderator/api/metrics" data-on="queue:new_item queue:item_completed" style="color:inherit">
+          <span class="label"><i data-i="shield" class="sm"></i>Moderation pending</span>
+          <span class="value">31</span>
+          <svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none" role="img" aria-label="Pending moderation items at end of day, Sep 23 to 29: 38, 41, 36, 52, 47, 44, 31"><path class="area" d="M0 23 L20 18.7 L40 25.9 L60 3 L80 10.1 L100 14.4 L120 33 L120 36 L0 36 Z"/><path class="line" vector-effect="non-scaling-stroke" d="M0 23 L20 18.7 L40 25.9 L60 3 L80 10.1 L100 14.4 L120 33"/></svg>
+          <span class="spark-foot"><span>peak 52</span><span class="delta up">−18% vs Sep 23</span></span>
+        </a>
+        <a class="card stat" href="nexus.html" data-api="/nexus/api/admin/stats" style="color:inherit">
+          <span class="label"><i data-i="groups" class="sm"></i>Group members</span>
+          <span class="value">1,342</span>
+          <svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none" role="img" aria-label="Active group members, Sep 23 to 29: 1204, 1180, 1233, 1290, 1310, 1288, 1342"><path class="area" d="M0 28.6 L20 33 L40 23.2 L60 12.6 L80 8.9 L100 13 L120 3 L120 36 L0 36 Z"/><path class="line" vector-effect="non-scaling-stroke" d="M0 28.6 L20 33 L40 23.2 L60 12.6 L80 8.9 L100 13 L120 3"/></svg>
+          <span class="spark-foot"><span>low 1,180</span><span class="delta up">+11%</span></span>
+        </a>
+        <a class="card stat" href="filevault.html" data-api="/filevault/api/admin/stats" style="color:inherit">
+          <span class="label"><i data-i="disk" class="sm"></i>FileVault storage</span>
+          <span class="value">1.84 TB</span>
+          <div class="meter" role="img" aria-label="1.84 of 4 terabytes used, 46 percent"><i style="width:46%"></i></div>
+          <span class="spark-foot"><span>46% of 4 TB quota</span><span>dedup saved 212 GB</span></span>
+        </a>
+        <a class="card stat" href="vault.html" data-api="/vault/api/admin/dashboard/stats" style="color:inherit">
+          <span class="label"><i data-i="lock" class="sm"></i>Vault</span>
+          <span class="value">482</span>
+          <span class="small secondary">secrets · 36 active tokens · 12 keys</span>
+          <span class="delta down">3 leases expire in 24 h</span>
+        </a>
+        <a class="card stat" href="live.html" data-api="/live/api/stats" style="color:inherit">
+          <span class="label"><i data-i="live" class="sm"></i>Live now</span>
+          <span class="value">4</span>
+          <span class="small secondary">streams · 2 rooms · 1,208 viewers</span>
+          <span class="delta up">peak 2,930 on Sat</span>
+        </a>
+        <a class="card stat" href="atproto.html" data-api="/atproto/stats" style="color:inherit">
+          <span class="label"><i data-i="butterfly" class="sm"></i>Labels issued</span>
+          <span class="value">7</span>
+          <svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none" role="img" aria-label="AT-Protocol labels issued per day, Sep 23 to 29: 0, 2, 1, 0, 3, 5, 7"><path class="area" d="M0 33 L20 24.4 L40 28.7 L60 33 L80 20.1 L100 11.6 L120 3 L120 36 L0 36 Z"/><path class="line" vector-effect="non-scaling-stroke" d="M0 33 L20 24.4 L40 28.7 L60 33 L80 20.1 L100 11.6 L120 3"/></svg>
+          <span class="spark-foot"><span>0 on Sep 23</span><span>lastSeq 18,204</span></span>
+        </a>
+      </div>
+      <p class="xs secondary">Sparklines are scaled min→max of the window (not zero-based); exact values are in each chart’s label and on the module page. The CA tile falls back to a client-side count while <code>/timeseries</code> is broken on Postgres.</p>
+    </section>
+
+    <div class="split">
+      <div class="stack loose">
+        <!-- ── Module health grid (main region) ── -->
+        <section class="card" aria-labelledby="mods-t" data-api="/health" data-on="health config:changed">
+          <div class="card-head">
+            <h2 id="mods-t">Modules <span class="badge neutral">14</span></h2>
+            <div class="seg" role="group" aria-label="Module filter"><button type="button" aria-pressed="true">All</button><button type="button" aria-pressed="false">Issues</button><button type="button" aria-pressed="false">Disabled</button></div>
+          </div>
+          <div class="card-body" data-state="loaded">
+            <div class="grid auto-sm">
+              <a class="card mod-tile" href="ca.html" style="color:inherit"><div class="row between"><b>ca</b><span class="pill ok"><span class="d"></span>Up</span></div><span class="xs secondary mono">/ca · schema ca</span><span class="xs secondary">ns /ca · 38 ms</span></a>
+              <a class="card mod-tile" href="auth.html" style="color:inherit"><div class="row between"><b>auth</b><span class="pill ok"><span class="d"></span>Up</span></div><span class="xs secondary mono">/auth · schema auth</span><span class="xs secondary">no namespace · 21 ms</span></a>
+              <a class="card mod-tile" href="spark.html" style="color:inherit"><div class="row between"><b>spark</b><span class="pill ok"><span class="d"></span>Up</span></div><span class="xs secondary mono">/spark · schema spark</span><span class="xs secondary">ns /spark · 44 ms</span></a>
+              <a class="card mod-tile" href="nexus.html" style="color:inherit"><div class="row between"><b>nexus</b><span class="pill ok"><span class="d"></span>Up</span></div><span class="xs secondary mono">/nexus · schema nexus</span><span class="xs secondary">no namespace · 30 ms</span></a>
+              <a class="card mod-tile" href="filevault.html" style="color:inherit"><div class="row between"><b>filevault</b><span class="pill ok"><span class="d"></span>Up</span></div><span class="xs secondary mono">/filevault · schema filevault</span><span class="xs secondary">no namespace · 52 ms</span></a>
+              <a class="card mod-tile" href="vault.html" style="color:inherit"><div class="row between"><b>vault</b><span class="pill ok"><span class="d"></span>Up</span></div><span class="xs secondary mono">/vault · schema vault</span><span class="xs secondary">ns /vault · 27 ms</span></a>
+              <a class="card mod-tile" href="timeline.html" style="color:inherit"><div class="row between"><b>timeline</b><span class="pill ok"><span class="d"></span>Up</span></div><span class="xs secondary mono">/timeline · schema timeline</span><span class="xs secondary">ns /timeline · 61 ms</span></a>
+              <a class="card mod-tile" href="prefetch.html" style="color:inherit"><div class="row between"><b>prefetch</b><span class="pill warn"><span class="d"></span>Degraded</span></div><span class="xs secondary mono">/prefetch · schema prefetch</span><span class="xs secondary">RabbitMQ down → Redis fallback</span></a>
+              <a class="card mod-tile" href="moderator.html" style="color:inherit"><div class="row between"><b>moderator</b><span class="pill ok"><span class="d"></span>Up</span></div><span class="xs secondary mono">/moderator · schema moderator</span><span class="xs secondary">ns /moderation, /notifications</span></a>
+              <a class="card mod-tile" href="live.html" style="color:inherit"><div class="row between"><b>live</b><span class="pill warn"><span class="d"></span>Degraded</span></div><span class="xs secondary mono">/live · schema live</span><span class="xs secondary">recording fanout paused</span></a>
+              <a class="card mod-tile" href="atproto.html" style="color:inherit"><div class="row between"><b>atproto</b><span class="pill ok"><span class="d"></span>Up</span></div><span class="xs secondary mono">/atproto · schema atproto</span><span class="xs secondary">ATPROTO_ENABLED · jetstream</span></a>
+              <a class="card mod-tile" href="plugins.html" data-off="true" style="color:inherit"><div class="row between"><b>plugins</b><span class="pill"><span class="d"></span>Disabled</span></div><span class="xs secondary mono">/plugins · schema plugins</span><span class="xs secondary">PLUGINS_ENABLED=false</span></a>
+              <a class="card mod-tile" href="lowcode.html" data-off="true" style="color:inherit"><div class="row between"><b>lowcode</b><span class="pill"><span class="d"></span>Disabled</span></div><span class="xs secondary mono">/lowcode · schema lowcode</span><span class="xs secondary">LOWCODE_ENABLED=false</span></a>
+              <a class="card mod-tile" href="cortex.html" data-off="true" style="color:inherit"><div class="row between"><b>cortex</b><span class="pill warn"><span class="d"></span>Pending restart</span></div><span class="xs secondary mono">/cortex · schema cortex</span><span class="xs secondary">CORTEX_ENABLED → true (override)</span></a>
+            </div>
+          </div>
+          <div class="card-body" data-state="empty">
+            <div class="empty"><div class="art"><i data-i="layers"></i></div><h3>No modules reported</h3><p>The gateway answered but listed no mounted modules. That means every module failed its <code>init()</code> — check the gateway log for the first error.</p><a class="btn outline" href="platform.html">Open Platform → Modules</a></div>
+          </div>
+          <div class="card-body" data-state="loading" aria-busy="true">
+            <div class="grid auto-sm"><span class="sk" style="height:84px"></span><span class="sk" style="height:84px"></span><span class="sk" style="height:84px"></span><span class="sk" style="height:84px"></span><span class="sk" style="height:84px"></span><span class="sk" style="height:84px"></span></div>
+          </div>
+          <div class="card-body" data-state="error">
+            <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Health snapshot unavailable</h3><p>GET /health returned 503 and the admin socket is disconnected. Postgres or Redis is probably down. Correlation id <code>cid 4e0a…b17</code>.</p><button class="btn outline" type="button">Retry</button></div>
+          </div>
+        </section>
+
+        <!-- ── Infrastructure ── -->
+        <section class="card" aria-labelledby="infra-t" data-api="/health" data-on="health">
+          <div class="card-head"><h2 id="infra-t">Infrastructure</h2><a class="btn sm ghost" href="platform.html">Platform settings</a></div>
+          <div class="list">
+            <div class="list-item"><i data-i="db"></i><div class="grow"><div class="title">PostgreSQL</div><div class="meta">postgis 16-3.4 · db exprsn · 14 schemas · pool 4/20</div></div><span class="small secondary num">3 ms</span><span class="pill ok"><span class="d"></span>Up</span></div>
+            <div class="list-item"><i data-i="cache"></i><div class="grow"><div class="title">Redis</div><div class="meta">7.2 · 1.1 GB used · 48,211 keys · config pub/sub OK</div></div><span class="small secondary num">1 ms</span><span class="pill ok"><span class="d"></span>Up</span></div>
+            <div class="list-item"><i data-i="search"></i><div class="grow"><div class="title">OpenSearch</div><div class="meta">2.18.0 · cluster yellow · 1 node · 3 indices</div></div><span class="small secondary num">18 ms</span><span class="pill warn"><span class="d"></span>Yellow</span></div>
+            <div class="list-item"><i data-i="queue"></i><div class="grow"><div class="title">RabbitMQ</div><div class="meta">3.13 · ECONNREFUSED :15672 since 10:31</div></div><span class="small secondary num">—</span><span class="pill danger"><span class="d"></span>Down</span></div>
+            <div class="list-item"><i data-i="server"></i><div class="grow"><div class="title">Docker</div><div class="meta">nginx · srs · ollama · opensearch-dashboards · 9 of 10 running</div></div><span class="small secondary num">9 ms</span><span class="pill ok"><span class="d"></span>Up</span></div>
+            <div class="list-item"><i data-i="globe"></i><div class="grow"><div class="title">nginx edge</div><div class="meta">:443 · cert CN exprsn.io · expires Nov 14, 2026</div></div><span class="pill info">46 d</span></div>
+          </div>
+        </section>
+
+        <!-- ── Activity ── -->
+        <section class="card" aria-labelledby="act-t">
+          <div class="card-head">
+            <h2 id="act-t">Recent admin activity</h2>
+            <div class="seg" role="group" aria-label="Activity source"><button type="button" aria-pressed="true">All</button><button type="button" aria-pressed="false">CA</button><button type="button" aria-pressed="false">Config</button><button type="button" aria-pressed="false">Nexus</button><button type="button" aria-pressed="false">Vault</button></div>
+          </div>
+          <div class="card-body">
+            <div class="activity" data-api="/ca/admin/api/activity /nexus/api/admin/audit /vault/api/audit/logs" data-on="config:changed">
+              <div class="activity-item"><span class="ico"><i data-i="tune"></i></span><span><b>Maya Diaz</b> set <span class="id">CORTEX_ENABLED</span> = true <span class="pill warn">restart required</span></span><span class="when">10:38</span></div>
+              <div class="activity-item"><span class="ico"><i data-i="key"></i></span><span><b>Jonah Okafor</b> revoked 12 tokens for org <b>Northwind</b> (bulk, reason “offboarding”)</span><span class="when">10:12</span></div>
+              <div class="activity-item"><span class="ico"><i data-i="cert"></i></span><span><b>system</b> issued intermediate <b>Contoso Issuing CA</b> during provisioning run <span class="id">prov_7c1e</span></span><span class="when">09:55</span></div>
+              <div class="activity-item"><span class="ico"><i data-i="groups"></i></span><span><b>Priya Raman</b> archived group <b>beta-testers</b></span><span class="when">09:20</span></div>
+              <div class="activity-item"><span class="ico"><i data-i="lock"></i></span><span><b>Ari Lindqvist</b> rotated secret <span class="id">/platform/smtp</span></span><span class="when">Yesterday</span></div>
+            </div>
+          </div>
+          <div class="card-foot"><a class="btn sm ghost" href="ca.html">Open CA audit</a></div>
+        </section>
+      </div>
+
+      <aside class="stack loose">
+        <!-- ── Needs attention ── -->
+        <section class="card" aria-labelledby="att-t">
+          <div class="card-head"><h2 id="att-t">Needs attention</h2><span class="badge">6</span></div>
+          <div class="list">
+            <a class="list-item" href="moderator.html" data-api="/moderator/api/queue" data-on="queue:high_priority queue:new_item"><span class="pill danger">4</span><div class="grow"><div class="title">High-priority moderation</div><div class="meta">31 pending · oldest 42 m</div></div><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="jobs.html" data-api="/timeline/api/jobs/stats /spark/api/queues/stats /prefetch/api/prefetch/queue/stats"><span class="pill danger">17</span><div class="grow"><div class="title">Failed jobs</div><div class="meta">timeline-fanout 12 · prefetch 5</div></div><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="ca.html" data-api="/ca/admin/api/certificates"><span class="pill warn">3</span><div class="grow"><div class="title">Certificates expiring ≤ 30 d</div><div class="meta">api.northwind.co in 6 d</div></div><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="platform.html" data-api="/platform/api/config" data-on="config:changed"><span class="pill warn">1</span><div class="grow"><div class="title">Override pending restart</div><div class="meta">CORTEX_ENABLED</div></div><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="moderator.html" data-api="/moderator/api/appeals/stats/summary" data-on="appeal:new"><span class="pill info">5</span><div class="grow"><div class="title">Appeals awaiting review</div><div class="meta">2 older than 48 h</div></div><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="orgs.html"><span class="pill danger">1</span><div class="grow"><div class="title">Provisioning run failed</div><div class="meta">Contoso · step S7 nexus group · compensated</div></div><i data-i="right" class="sm"></i></a>
+          </div>
+        </section>
+
+        <!-- ── Access ── -->
+        <section class="card" aria-labelledby="acc-t" data-api="/auth/api/auth/me">
+          <div class="card-head"><h2 id="acc-t">Your access</h2><span class="pill ok">Platform admin</span></div>
+          <div class="card-body">
+            <dl class="kv">
+              <dt>Signed in as</dt><dd>rick@exprsn.io</dd>
+              <dt>Allowlist</dt><dd><span class="pill ok"><i data-i="check" class="sm"></i>PLATFORM_ADMIN_EMAILS</span></dd>
+              <dt>Token roles</dt><dd><span class="pill violet">admin</span></dd>
+              <dt>DB role</dt><dd>system_admin (global)</dd>
+              <dt>Can’t act on</dt><dd><span class="pill warn">nexus admin</span> <span class="xs secondary">needs token role, not allowlist</span></dd>
+            </dl>
+          </div>
+        </section>
+
+        <!-- ── Quick actions ── -->
+        <section class="card" aria-labelledby="qa-t">
+          <div class="card-head"><h2 id="qa-t">Quick actions</h2></div>
+          <div class="list">
+            <a class="list-item" href="orgs.html"><i data-i="building"></i><span class="grow">Provision organization</span><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="ca.html"><i data-i="key"></i><span class="grow">Issue CA token</span><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="users.html"><i data-i="userPlus"></i><span class="grow">Invite people</span><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="platform.html"><i data-i="tune"></i><span class="grow">Edit a config override</span><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="moderator.html"><i data-i="shield"></i><span class="grow">Open moderation queue</span><i data-i="right" class="sm"></i></a>
+            <a class="list-item" href="jobs.html"><i data-i="layers"></i><span class="grow">Retry failed jobs</span><i data-i="right" class="sm"></i></a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "The /_admin socket pushes a full health snapshot every 5s, so the strip, module grid and infrastructure list never poll while connected; on disconnect they fall back to GET /health every 15s and the Live pill shows Polling. KPI tiles and Needs attention fan out to module stats endpoints every 60s. A config:changed event bumps the override count and adds an activity row without a refetch.",
+  "rest": [
+    { "m": "GET", "p": "/health", "auth": "P", "ui": "Health strip, module grid, infrastructure list (fallback when socket is down)" },
+    { "m": "GET", "p": "/auth/api/auth/me", "auth": "user", "ui": "Your access card" },
+    { "m": "GET", "p": "/ca/admin/api/stats", "auth": "A", "ui": "CA tokens tile (totals)" },
+    { "m": "GET", "p": "/ca/admin/api/timeseries/:type", "auth": "A", "ui": "CA tokens sparkline (type=tokens, days=7)" },
+    { "m": "GET", "p": "/ca/admin/api/health", "auth": "A", "ui": "CA module tile detail" },
+    { "m": "GET", "p": "/ca/admin/api/activity", "auth": "A", "ui": "Recent admin activity (CA source)" },
+    { "m": "GET", "p": "/ca/admin/api/certificates", "auth": "A", "ui": "Needs attention → expiring certificates (status=active, client filter on notAfter)" },
+    { "m": "GET", "p": "/nexus/api/admin/stats", "auth": "A", "ui": "Group members tile + sparkline (period=7d)" },
+    { "m": "GET", "p": "/nexus/api/admin/audit", "auth": "A", "ui": "Recent admin activity (Nexus source)" },
+    { "m": "GET", "p": "/filevault/api/admin/stats", "auth": "A", "ui": "FileVault storage tile" },
+    { "m": "GET", "p": "/vault/api/admin/dashboard/stats", "auth": "A", "ui": "Vault tile" },
+    { "m": "GET", "p": "/vault/api/audit/logs", "auth": "A", "ui": "Recent admin activity (Vault source)" },
+    { "m": "GET", "p": "/moderator/api/metrics", "auth": "A", "ui": "Moderation pending tile + sparkline" },
+    { "m": "GET", "p": "/moderator/api/queue", "auth": "A", "ui": "Needs attention → high-priority count (status=pending)" },
+    { "m": "GET", "p": "/moderator/api/appeals/stats/summary", "auth": "A", "ui": "Needs attention → appeals" },
+    { "m": "GET", "p": "/timeline/api/jobs/stats", "auth": "A", "ui": "Posts tile + failed jobs count" },
+    { "m": "GET", "p": "/spark/api/queues/stats", "auth": "A", "ui": "Failed jobs count (spark queues)" },
+    { "m": "GET", "p": "/prefetch/api/prefetch/queue/stats", "auth": "user", "ui": "Failed jobs count (prefetch)" },
+    { "m": "GET", "p": "/live/api/stats", "auth": "P", "ui": "Live now tile" },
+    { "m": "GET", "p": "/atproto/stats", "auth": "A", "ui": "Labels issued tile" },
+    { "m": "GET", "p": "/cortex/health", "auth": "P", "ui": "Cortex module tile (enabled flag; answers while disabled)" },
+    { "m": "GET", "p": "/platform/api/config", "auth": "A", "ui": "Needs attention → overrides pending restart; cortex tile state" }
+  ],
+  "socket": [
+    { "ns": "/_admin", "auth": "CA bearer + isAdminToken", "rooms": [],
+      "emit": [],
+      "on": [
+        { "e": "health", "ui": "Health strip, module grid, infrastructure list (every 5s)" },
+        { "e": "config:changed", "ui": "Activity row, pending-restart count, module tile flag state" }
+      ] },
+    { "ns": "/moderation", "auth": "CA bearer + platform admin (email allowlist)", "rooms": ["moderators"],
+      "emit": [],
+      "on": [
+        { "e": "queue:high_priority", "ui": "Needs attention → high-priority count" },
+        { "e": "queue:new_item", "ui": "Moderation pending tile" },
+        { "e": "queue:item_completed", "ui": "Moderation pending tile" },
+        { "e": "appeal:new", "ui": "Needs attention → appeals" }
+      ] },
+    { "ns": "/_health", "auth": "none", "rooms": [],
+      "emit": [],
+      "on": [ { "e": "health", "ui": "Not used by the console (public dashboard stream); listed because it carries the same snapshot unauthenticated" } ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "/health reports modules only as mounted:true. There is no per-module health, so Up / Degraded per tile is inferred from dependencies. Proposed: fan out to each module's /health inside collectHealth." },
+    { "sev": "high", "text": "GET /ca/admin/api/timeseries/:type uses MySQL DATE_FORMAT and fails on Postgres (Design.md CA-2). The CA sparkline needs a date_trunc port." },
+    { "sev": "med", "text": "/_admin carries only health and config:changed. Failed jobs, reviews and appeals counts have to be polled. Proposed (GW-4): emit queues, reviews:pending and per-module counters." },
+    { "sev": "med", "text": "The Access card needs isPlatformAdmin and the per-module predicates on /auth/api/auth/me (GW-1). Today the card can't explain why nexus admin rejects an allowlist-only admin." },
+    { "sev": "med", "text": "There is no cross-module audit feed (OPS-4). Activity is merged client-side from CA, nexus and vault plus config:changed. Provisioning failures have no list endpoint (AUTH-5)." },
+    { "sev": "med", "text": "nginx and its TLS cert expiry aren't in /health dependencies (GW-8). The edge row is proposed data." },
+    { "sev": "med", "text": "The /_health namespace is unauthenticated and undocumented, and it broadcasts host, pid and memory details to anyone." }
+  ]
+}
+</script>
+</body>
+</html>

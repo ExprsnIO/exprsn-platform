@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Entity designer · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .smd { width: 100%; min-width: 640px; height: auto; display: block; }
+  .smd .st { fill: var(--exprsn-surface-raised); stroke: var(--exprsn-border-color-strong); stroke-width: 1.5; }
+  .smd .st.init { stroke: var(--exprsn-primary); stroke-width: 2; }
+  .smd .st.final { fill: var(--exprsn-bg-tertiary); }
+  .smd .ed { fill: none; stroke: var(--exprsn-text-muted); stroke-width: 1.5; }
+  .smd .ed.any { stroke-dasharray: 5 4; }
+  .smd .ah { fill: var(--exprsn-text-muted); }
+  .smd text { font-family: var(--exprsn-font-family); font-size: 13px; fill: var(--exprsn-text-primary); }
+  .smd text.ev { font-size: 11px; fill: var(--exprsn-text-secondary); font-family: var(--exprsn-font-family-mono); }
+  .smd-wrap { overflow-x: auto; }
+  .danger-zone { border-color: color-mix(in srgb, var(--exprsn-danger) 45%, transparent); }
+</style>
+</head>
+<body data-shell="admin" data-page="lowcode-entity">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><a href="lowcode.html">Low-Code</a><i data-i="right" class="sm"></i><span>Hiring pipeline</span><i data-i="right" class="sm"></i><span>Candidate</span></nav>
+        <h1 class="page-title">Candidate</h1>
+        <p class="page-sub"><span class="id">candidate</span> · 14 fields · 6-state lifecycle · stored in <b>db</b> · 1,204 records</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-api="/lowcode/api/design/entities/:id/export" data-toast="Export started — candidate.csv"><i data-i="download" class="sm"></i>Export records</button>
+        <button class="btn primary" type="button" data-api="/lowcode/api/design/entities/:id" data-toast="Candidate saved · 1 field added"><i data-i="check" class="sm"></i>Save entity</button>
+      </div>
+    </header>
+
+    <div class="banner info" role="status"><i data-i="info" class="sm"></i><span class="grow">Unsaved changes: 1 field added (<b>portfolio_url</b>). Existing records get <code>null</code> for new fields.</span><button class="btn sm ghost" type="button" data-toast="Changes discarded">Discard</button></div>
+
+    <div class="tabs" role="tablist" aria-label="Entity designer">
+      <button role="tab" id="t-f" aria-controls="p-f" aria-selected="true">Fields <span class="badge neutral">14</span></button>
+      <button role="tab" id="t-r" aria-controls="p-r">Relationships</button>
+      <button role="tab" id="t-s" aria-controls="p-s">State machine</button>
+      <button role="tab" id="t-v" aria-controls="p-v">Views</button>
+      <button role="tab" id="t-p" aria-controls="p-p">Permissions</button>
+      <button role="tab" id="t-d" aria-controls="p-d">Data</button>
+    </div>
+
+    <!-- ── Fields ── -->
+    <section id="p-f" role="tabpanel" aria-labelledby="t-f">
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="f-q" type="search" placeholder="Filter fields"></label><button class="chip" type="button" aria-pressed="false">Required</button><button class="chip" type="button" aria-pressed="false">Type</button><span class="grow"></span><button class="btn sm primary" type="button" data-open="dlg-field"><i data-i="plus" class="sm"></i>Add field</button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/lowcode/api/design/entities/:id">
+            <thead><tr><th style="width:36px"><span class="sr-only">Reorder</span></th><th>Field</th><th>Type</th><th>Role</th><th>Required</th><th>Lookup / reference</th><th>Default</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><button class="icon-btn" type="button" aria-label="Move full_name"><i data-i="grip" class="sm"></i></button></td><td><b>Full name</b><div class="xs muted">full_name</div></td><td><span class="pill">string</span></td><td>attribute</td><td><span class="pill ok"><i data-i="check" class="sm"></i>required</span></td><td class="muted">—</td><td class="muted">—</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-field">Edit</button></td></tr>
+              <tr><td><button class="icon-btn" type="button" aria-label="Move email"><i data-i="grip" class="sm"></i></button></td><td><b>Email</b><div class="xs muted">email</div></td><td><span class="pill">string</span> <span class="xs muted">email · unique</span></td><td>attribute</td><td><span class="pill ok"><i data-i="check" class="sm"></i>required</span></td><td class="muted">—</td><td class="muted">—</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-field">Edit</button></td></tr>
+              <tr><td><button class="icon-btn" type="button" aria-label="Move stage"><i data-i="grip" class="sm"></i></button></td><td><b>Stage</b><div class="xs muted">stage</div></td><td><span class="pill brand">enum</span></td><td>dimension</td><td><span class="pill ok"><i data-i="check" class="sm"></i>required</span></td><td>lookup · Interview stage</td><td><code>applied</code></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-field">Edit</button></td></tr>
+              <tr><td><button class="icon-btn" type="button" aria-label="Move hiring_manager"><i data-i="grip" class="sm"></i></button></td><td><b>Hiring manager</b><div class="xs muted">hiring_manager</div></td><td><span class="pill violet">reference</span></td><td>dimension</td><td class="muted">optional</td><td>provider · platform.users</td><td class="muted">—</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-field">Edit</button></td></tr>
+              <tr><td><button class="icon-btn" type="button" aria-label="Move expected_salary"><i data-i="grip" class="sm"></i></button></td><td><b>Expected salary</b><div class="xs muted">expected_salary</div></td><td><span class="pill">number</span> <span class="xs muted">min 0</span></td><td>measure · avg</td><td class="muted">optional</td><td class="muted">—</td><td class="muted">—</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-field">Edit</button></td></tr>
+              <tr aria-selected="true"><td><button class="icon-btn" type="button" aria-label="Move portfolio_url"><i data-i="grip" class="sm"></i></button></td><td><b>Portfolio URL</b> <span class="pill info">new</span><div class="xs secondary">portfolio_url</div></td><td><span class="pill">string</span> <span class="xs secondary">url</span></td><td>attribute</td><td class="secondary">optional</td><td class="secondary">—</td><td class="secondary">—</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-field">Edit</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="table"></i></div><h3>No fields yet</h3><p>Add a field, or describe the entity and let Cortex draft the schema.</p><button class="btn primary" type="button" data-open="dlg-field">Add field</button></div></div>
+        <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load this entity</h3><p>403 — you’re not an admin of the Hiring pipeline app’s scope (organization Northwind).</p><a class="btn outline" href="lowcode.html">Back to apps</a></div></div>
+        <div class="dt-foot"><span>Showing 6 of 14 fields · drag or use Alt+↑/↓ to reorder</span></div>
+      </div>
+    </section>
+
+    <!-- ── Relationships ── -->
+    <section id="p-r" role="tabpanel" aria-labelledby="t-r" hidden>
+      <div class="card">
+        <div class="list">
+          <div class="list-item"><i data-i="link"></i><span class="grow"><span class="title">Candidate → Interview</span><div class="meta">one-to-many · Interview.candidate references this entity</div></span><a class="btn sm ghost" href="lowcode-entity.html">Open Interview</a></div>
+          <div class="list-item"><i data-i="link"></i><span class="grow"><span class="title">Candidate → Offer letter</span><div class="meta">one-to-one · stored in FileVault</div></span><a class="btn sm ghost" href="lowcode-entity.html">Open Offer letter</a></div>
+          <div class="list-item"><i data-i="person"></i><span class="grow"><span class="title">hiring_manager → platform.users</span><div class="meta">lookup provider · resolves display name + email</div></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── State machine ── -->
+    <section id="p-s" role="tabpanel" aria-labelledby="t-s" hidden>
+      <div class="stack loose">
+        <div class="card">
+          <div class="card-head"><h2>Lifecycle</h2><span class="small muted">field <code>stage</code> · initial <b>applied</b></span></div>
+          <div class="card-body smd-wrap" tabindex="0" aria-label="State diagram, scrollable">
+            <svg class="smd" viewBox="0 0 740 210" role="img" aria-label="States: applied to screening on screen; screening to interviewing on schedule; interviewing to offer on extend_offer; offer to hired on accept; any state to rejected on reject">
+              <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0 L10 5 L0 10 Z"/></marker></defs>
+              <rect class="st init" x="10" y="92" width="110" height="36" rx="10"/><text x="65" y="115" text-anchor="middle">applied</text>
+              <rect class="st" x="160" y="92" width="110" height="36" rx="10"/><text x="215" y="115" text-anchor="middle">screening</text>
+              <rect class="st" x="310" y="92" width="110" height="36" rx="10"/><text x="365" y="115" text-anchor="middle">interviewing</text>
+              <rect class="st" x="460" y="30" width="110" height="36" rx="10"/><text x="515" y="53" text-anchor="middle">offer</text>
+              <rect class="st final" x="610" y="30" width="110" height="36" rx="10"/><text x="665" y="53" text-anchor="middle">hired</text>
+              <rect class="st final" x="460" y="160" width="110" height="36" rx="10"/><text x="515" y="183" text-anchor="middle">rejected</text>
+              <path class="ed" d="M120 110 L158 110" marker-end="url(#ah)"/><text class="ev" x="139" y="86" text-anchor="middle">screen</text>
+              <path class="ed" d="M270 110 L308 110" marker-end="url(#ah)"/><text class="ev" x="289" y="86" text-anchor="middle">schedule</text>
+              <path class="ed" d="M420 104 C440 104 440 48 458 48" marker-end="url(#ah)"/><text class="ev" x="400" y="62" text-anchor="middle">extend_offer</text>
+              <path class="ed" d="M570 48 L608 48" marker-end="url(#ah)"/><text class="ev" x="589" y="24" text-anchor="middle">accept</text>
+              <path class="ed any" d="M420 116 C440 116 440 178 458 178" marker-end="url(#ah)"/><text class="ev" x="398" y="160" text-anchor="middle">reject (from *)</text>
+              <path class="ed any" d="M515 66 L515 158" marker-end="url(#ah)"/><text class="ev" x="560" y="116" text-anchor="middle">reject</text>
+            </svg>
+          </div>
+        </div>
+        <div class="card dt">
+          <div class="dt-toolbar"><b>Transitions</b><span class="grow"></span><button class="btn sm outline" type="button" data-open="dlg-trans"><i data-i="plus" class="sm"></i>Add transition</button></div>
+          <div class="dt-scroll">
+            <table class="table">
+              <thead><tr><th>Event</th><th>From</th><th>To</th><th>Guard</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                <tr><td><code>screen</code></td><td>applied</td><td>screening</td><td class="muted">—</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-trans">Edit</button></td></tr>
+                <tr><td><code>extend_offer</code></td><td>interviewing</td><td>offer</td><td><code>expected_salary ≤ 180000</code></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-trans">Edit</button></td></tr>
+                <tr><td><code>reject</code></td><td><span class="pill">*</span></td><td>rejected</td><td class="muted">—</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-trans">Edit</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Views ── -->
+    <section id="p-v" role="tabpanel" aria-labelledby="t-v" hidden>
+      <div class="grid auto" data-api="/lowcode/api/data/:entityKey/views">
+        <div class="card pad stack"><div class="row between"><b>Pipeline board</b><span class="pill brand">kanban</span></div><span class="small secondary">Grouped by stage · shared with Northwind Careers</span><div class="row"><button class="btn sm ghost" type="button" data-toast="View opened">Open</button><button class="btn sm ghost" type="button" data-api="/lowcode/api/data/:entityKey/views/:id" data-toast="View deleted">Delete</button></div></div>
+        <div class="card pad stack"><div class="row between"><b>Interviews this week</b><span class="pill info">calendar</span></div><span class="small secondary">dateField next_interview · personal</span><div class="row"><button class="btn sm ghost" type="button" data-toast="View opened">Open</button><button class="btn sm ghost" type="button" data-toast="View deleted">Delete</button></div></div>
+        <div class="card pad stack"><div class="row between"><b>All candidates</b><span class="pill">grid</span></div><span class="small secondary">Sorted by created desc · shared</span><div class="row"><button class="btn sm ghost" type="button" data-toast="View opened">Open</button></div></div>
+      </div>
+    </section>
+
+    <!-- ── Permissions ── -->
+    <section id="p-p" role="tabpanel" aria-labelledby="t-p" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Scope &amp; access</h2><span class="pill">inherited from app</span></div>
+        <div class="card-body"><dl class="kv"><dt>Scope</dt><dd>organization · Northwind</dd><dt>Designers</dt><dd>Northwind org admins + platform admins</dd><dt>Record access</dt><dd>Org members read · creators update their own · admins everything</dd><dt>Public form</dt><dd><code>/f/northwind-apply</code> can <b>create</b> only</dd></dl></div>
+        <div class="setting-row"><div class="grow"><div class="t">Allow bulk import</div><div class="d">Up to 2,000 rows per CSV, per-row errors reported</div></div><label class="switch"><input type="checkbox" id="p-bulk" checked aria-label="Allow bulk import"><span></span></label></div>
+        <div class="setting-row"><div class="grow"><div class="t">AI-assisted fields</div><div class="d">Fields with aiPrompt are filled by Cortex on create</div></div><label class="switch"><input type="checkbox" id="p-ai" aria-label="AI-assisted fields"><span></span></label></div>
+      </div>
+    </section>
+
+    <!-- ── Data ── -->
+    <section id="p-d" role="tabpanel" aria-labelledby="t-d" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="d-q" type="search" placeholder="q= search records" data-api="/lowcode/api/data/:entityKey/records"></label>
+          <button class="chip" type="button" aria-pressed="true">stage = interviewing <span class="x">×</span></button>
+          <span class="grow"></span>
+          <button class="btn sm outline" type="button" data-open="dlg-import" data-api="/lowcode/api/data/:entityKey/records/import">Import CSV</button>
+          <button class="btn sm outline" type="button" data-api="/lowcode/api/data/:entityKey/records/export" data-toast="Exporting 212 records as CSV">Export</button>
+        </div>
+        <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-api="/lowcode/api/data/:entityKey/records/:id/transition" data-toast="2 records → offer">Transition…</button><button class="btn sm tonal" type="button" data-api="/lowcode/api/data/:entityKey/records/bulk" data-toast="2 records deleted">Delete</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/lowcode/api/data/:entityKey/records">
+            <thead><tr><th style="width:44px"><input type="checkbox" class="check" id="d-all" aria-label="Select all records"></th><th>Full name</th><th>Email</th><th>Stage</th><th>Hiring manager</th><th class="num">Expected salary</th></tr></thead>
+            <tbody>
+              <tr><td><input type="checkbox" class="check" id="d-1" aria-label="Select Lee Park"></td><td>Lee Park</td><td>lee.park@mail.com</td><td><span class="pill info">interviewing</span></td><td>Jonah Okafor</td><td class="num">152,000</td></tr>
+              <tr><td><input type="checkbox" class="check" id="d-2" aria-label="Select Dana Cruz"></td><td>Dana Cruz</td><td>dana@cruz.dev</td><td><span class="pill info">interviewing</span></td><td>Jonah Okafor</td><td class="num">171,500</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span class="num">212 matching · aggregate avg salary 158,240</span><span data-api="/lowcode/api/data/:entityKey/aggregate">Grouped totals via /aggregate</span></div>
+      </div>
+    </section>
+
+    <div class="card danger-zone">
+      <div class="card-head"><h2>Danger zone</h2></div>
+      <div class="setting-row"><div class="grow"><div class="t">Truncate records</div><div class="d">Deletes all 1,204 Candidate records. The schema, forms and flows stay.</div></div><button class="btn danger-outline" type="button" data-open="dlg-truncate" data-api="/lowcode/api/design/entities/:id/truncate">Truncate</button></div>
+      <div class="setting-row"><div class="grow"><div class="t">Delete entity</div><div class="d">Removes the entity, its records, and the 1 form bound to it.</div></div><button class="btn danger-outline" type="button" data-open="dlg-delete" data-api="/lowcode/api/design/entities/:id">Delete entity</button></div>
+    </div>
+  </div>
+
+  <dialog class="dialog lg" id="dlg-field" aria-labelledby="dlg-fd-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-fd-t">Field · Portfolio URL</h2><p>Changing a type on an existing field may fail for records that don’t fit.</p></div></div>
+    <form class="dialog-body" data-toast="Field updated">
+      <div class="form-grid">
+        <div class="field"><label for="fd-label">Label</label><input class="input" id="fd-label" value="Portfolio URL"></div>
+        <div class="field"><label for="fd-key">Key</label><input class="input" id="fd-key" value="portfolio_url"></div>
+        <div class="field"><label for="fd-type">Type</label><select class="select" id="fd-type"><option>string</option><option>text</option><option>number</option><option>integer</option><option>boolean</option><option>date</option><option>datetime</option><option>enum</option><option>reference</option><option>json</option><option>file</option></select></div>
+        <div class="field"><label for="fd-format">Format</label><select class="select" id="fd-format"><option>url</option><option>email</option><option>none</option></select></div>
+        <div class="field"><label for="fd-role">Role</label><select class="select" id="fd-role"><option>attribute</option><option>dimension</option><option>measure</option></select></div>
+        <div class="field"><label for="fd-lookup">Enum lookup</label><select class="select" id="fd-lookup" disabled><option>— only for enum —</option></select></div>
+      </div>
+      <div class="row wrap"><label class="row" style="gap:6px"><input type="checkbox" class="check" id="fd-req">Required</label><label class="row" style="gap:6px"><input type="checkbox" class="check" id="fd-uni">Unique</label></div>
+    </form>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-close data-toast="Field removed (unsaved)">Remove field</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Field updated (unsaved)">Apply</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-trans" aria-labelledby="dlg-tr-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-tr-t">Transition · extend_offer</h2></div></div>
+    <form class="dialog-body" data-toast="Transition updated">
+      <div class="form-grid"><div class="field"><label for="tr-from">From</label><select class="select" id="tr-from"><option>interviewing</option><option>*</option></select></div><div class="field"><label for="tr-to">To</label><select class="select" id="tr-to"><option>offer</option></select></div></div>
+      <div class="field"><label for="tr-guard">Guard (condition tree)</label><pre class="code" id="tr-guard" tabindex="0">{ "all": [ { "field": "expected_salary", "op": "lte", "value": 180000 } ] }</pre></div>
+    </form>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Transition updated (unsaved)">Apply</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-import" aria-labelledby="dlg-im-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-im-t">Import candidates</h2><p>CSV with a header row matching field keys. Up to 2,000 rows.</p></div></div>
+    <div class="dialog-body"><div class="drop"><i data-i="upload" class="lg"></i><b>Drop a .csv here</b><label class="btn sm outline" for="im-file">Choose file</label><input id="im-file" type="file" accept=".csv" class="sr-only"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Imported 198 · 2 rows failed (see report)">Import</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-truncate" aria-labelledby="dlg-tc-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-tc-t">Truncate Candidate?</h2><p>All 1,204 records are deleted permanently. Flows won’t fire for the deletions.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="tc-confirm">Type <b>candidate</b> to confirm</label><input class="input" id="tc-confirm" autocomplete="off"></div><button class="btn sm outline" type="button" data-toast="Exporting 1,204 records" style="align-self:flex-start">Export first</button></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Candidate truncated · 1,204 records deleted">Truncate records</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-delete" aria-labelledby="dlg-dl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dl-t">Delete the Candidate entity?</h2><p>Removes the schema, 1,204 records and the “Apply to Northwind” form. Interview.candidate references break.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="dl-confirm">Type <b>candidate</b> to confirm</label><input class="input" id="dl-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Candidate deleted">Delete entity</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Schema edits are staged locally and sent in one PUT on Save; the banner lists pending changes. Records use the record query language server-side (f.<field>[op], q, sort, limit ≤ 500). Truncate and delete require typing the entity key.",
+  "rest": [
+    { "m": "GET", "p": "/lowcode/api/design/entities/:id", "auth": "scope", "ui": "Fields, state machine, header" },
+    { "m": "PUT", "p": "/lowcode/api/design/entities/:id", "auth": "scope", "ui": "Save entity (fields, transitions, storage)" },
+    { "m": "DELETE", "p": "/lowcode/api/design/entities/:id", "auth": "app-admin", "ui": "Delete entity dialog" },
+    { "m": "POST", "p": "/lowcode/api/design/entities/:id/export", "auth": "scope", "ui": "Export records (header)" },
+    { "m": "POST", "p": "/lowcode/api/design/entities/:id/truncate", "auth": "app-admin", "ui": "Truncate dialog" },
+    { "m": "GET", "p": "/lowcode/api/design/lookups/:id/resolved", "auth": "scope", "ui": "Field dialog → enum lookup values" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/records", "auth": "scope", "ui": "Data tab table, search" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/records/:id", "auth": "scope", "ui": "Record detail" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/records", "auth": "scope", "ui": "Add record" },
+    { "m": "PUT", "p": "/lowcode/api/data/:entityKey/records/:id", "auth": "scope", "ui": "Edit record" },
+    { "m": "DELETE", "p": "/lowcode/api/data/:entityKey/records/:id", "auth": "scope", "ui": "Delete record" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/records/:id/transition", "auth": "scope", "ui": "Bulk → Transition" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/records/bulk", "auth": "scope", "ui": "Bulk delete/update (≤ 1000)" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/records/import", "auth": "scope", "ui": "Import CSV dialog" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/records/export", "auth": "scope", "ui": "Data → Export" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/aggregate", "auth": "scope", "ui": "Data footer totals" },
+    { "m": "GET", "p": "/lowcode/api/data/:entityKey/views", "auth": "scope", "ui": "Views tab" },
+    { "m": "POST", "p": "/lowcode/api/data/:entityKey/views", "auth": "scope", "ui": "Save view" },
+    { "m": "PUT", "p": "/lowcode/api/data/:entityKey/views/:id", "auth": "scope", "ui": "Edit view" },
+    { "m": "DELETE", "p": "/lowcode/api/data/:entityKey/views/:id", "auth": "scope", "ui": "Delete view" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "No live record updates; the planned /lowcode/:app namespace (LC-2) would let the Data tab reflect other editors." },
+    { "sev": "med", "text": "Per-entity permissions aren't modelled: access is the app's scope authority. The Permissions tab is read-only for that reason." }
+  ]
+}
+</script>
+</body>
+</html>

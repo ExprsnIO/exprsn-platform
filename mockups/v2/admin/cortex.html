@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cortex · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .review { display: flex; flex-direction: column; gap: 10px; }
+  .draft { border-left: 3px solid var(--exprsn-primary); padding: 8px 12px; background: var(--exprsn-bg-tertiary); border-radius: 0 10px 10px 0; font-size: .9375rem; }
+</style>
+</head>
+<body data-shell="admin" data-page="cortex">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Applications</span><i data-i="right" class="sm"></i><span>Cortex</span></nav>
+        <h1 class="page-title">Cortex</h1>
+        <p class="page-sub">The local-LLM engine: agents and their step chains, guardrails, tools, skills, the human review queue, outbound email and the prompt log.</p>
+      </div>
+      <div class="page-actions">
+        <span class="pill ok" style="align-self:center" title="CORTEX_ENABLED"><span class="d"></span>Enabled</span>
+        <button class="btn outline" type="button" data-open="dlg-build" data-api="/cortex/api/v1/agents/build"><i data-i="sparkle" class="sm"></i>Build from description</button>
+        <button class="btn primary" type="button" data-open="dlg-agent" data-api="/cortex/api/v1/agents"><i data-i="plus" class="sm"></i>New agent</button>
+      </div>
+    </header>
+
+    <div data-state="loaded" class="grid c4" data-api="/cortex/health /cortex/api/v1/models">
+      <div class="card stat"><span class="label"><i data-i="cpu" class="sm"></i>Router</span><span class="value" style="font-size:1.25rem">llama.cpp · up</span><span class="delta">brain qwen2.5-14b · judge llama3.1-8b</span></div>
+      <div class="card stat"><span class="label"><i data-i="bot" class="sm"></i>Agents enabled</span><span class="value">7 / 11</span><span class="delta">3 builtin personas</span></div>
+      <div class="card stat" data-api="/cortex/api/v1/reviews"><span class="label"><i data-i="eye" class="sm"></i>Pending reviews</span><span class="value">5</span><span class="delta down">oldest 42 m</span></div>
+      <div class="card stat"><span class="label"><i data-i="shield" class="sm"></i>Guardrail blocks (24 h)</span><span class="value">23</span><span class="delta">4 escalated</span></div>
+    </div>
+    <div data-state="loading" aria-busy="true" class="grid c4"><span class="sk" style="height:108px"></span><span class="sk" style="height:108px"></span><span class="sk" style="height:108px"></span><span class="sk" style="height:108px"></span></div>
+    <div data-state="empty" class="card"><div class="empty"><div class="art"><i data-i="cpu"></i></div><h3>No models loaded</h3><p>Cortex is on, but the llama.cpp router reports no models. Load one on the host, or point <code>CORTEX_ROUTER_URL</code> at a running router.</p></div></div>
+    <div data-state="error" class="card"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Cortex is turned off</h3><p>Every <code>/cortex/api/v1</code> route returns <b>503 CORTEX_DISABLED</b> while <code>CORTEX_ENABLED=false</code>. Agents, guardrails and reviews are kept and return when you turn it back on.</p><a class="btn outline" href="platform.html">Enable in Platform overrides</a></div></div>
+
+    <div class="tabs" role="tablist" aria-label="Cortex views">
+      <button role="tab" id="t-ag" aria-controls="p-ag" aria-selected="true">Agents</button>
+      <button role="tab" id="t-rv" aria-controls="p-rv">Reviews <span class="badge">5</span></button>
+      <button role="tab" id="t-gr" aria-controls="p-gr">Guardrails</button>
+      <button role="tab" id="t-tl" aria-controls="p-tl">Tools</button>
+      <button role="tab" id="t-sk" aria-controls="p-sk">Skills</button>
+      <button role="tab" id="t-pr" aria-controls="p-pr">Prompt log</button>
+      <button role="tab" id="t-ob" aria-controls="p-ob">Outbox</button>
+      <button role="tab" id="t-md" aria-controls="p-md">Models</button>
+    </div>
+
+    <!-- ── Agents ── -->
+    <section id="p-ag" role="tabpanel" aria-labelledby="t-ag">
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="ag-q" type="search" placeholder="Filter agents"></label><button class="chip" type="button" aria-pressed="false">Status</button><button class="chip" type="button" aria-pressed="false">Channel</button><button class="chip" type="button" aria-pressed="false">Builtin</button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/cortex/api/v1/agents">
+            <thead><tr><th>Agent</th><th>Status</th><th>Channel</th><th>Model</th><th class="num">Steps</th><th>Last validation</th><th class="num">Runs</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>resume-screener</b><div class="xs muted">Scores résumés against a job spec</div></td><td><span class="pill ok">enabled</span></td><td>task</td><td>brain</td><td class="num">5</td><td><span class="pill ok"><i data-i="check" class="sm"></i>ok</span></td><td class="num">412</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-smoke" data-api="/cortex/api/v1/agents/:idOrName/smoke">Smoke</button><button class="btn sm ghost" type="button" data-api="/cortex/api/v1/agents/:idOrName/disable" data-toast="resume-screener disabled · Undo">Disable</button><button class="icon-btn" type="button" aria-label="Delete resume-screener" data-open="dlg-del-agent" data-api="/cortex/api/v1/agents/:idOrName"><i data-i="trash"></i></button></td></tr>
+              <tr><td><b>incident-summarizer</b><div class="xs muted">Drafts sev summaries from on-call chat</div></td><td><span class="pill warn">draft</span></td><td>chat</td><td>brain</td><td class="num">7</td><td><span class="pill danger">2 problems</span></td><td class="num">0</td><td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-validate" data-api="/cortex/api/v1/agents/:idOrName/validate">Validate</button><button class="icon-btn" type="button" aria-label="Delete incident-summarizer" data-open="dlg-del-agent"><i data-i="trash"></i></button></td></tr>
+              <tr><td><b>cs</b> <span class="pill">builtin</span><div class="xs muted">Customer support persona</div></td><td><span class="pill ok">enabled</span></td><td>cs_chat</td><td>brain</td><td class="num">3</td><td><span class="pill ok"><i data-i="check" class="sm"></i>ok</span></td><td class="num">8,204</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-smoke">Smoke</button><button class="icon-btn" type="button" aria-label="Builtin agents can’t be deleted" disabled><i data-i="trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="bot"></i></div><h3>Only builtin personas</h3><p>Describe what you want an agent to do and Cortex drafts the step chain for you to validate.</p><button class="btn primary" type="button" data-open="dlg-build">Build from description</button></div></div>
+        <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>503 · Cortex disabled</h3><p>Agent routes are unavailable while <code>CORTEX_ENABLED=false</code>.</p></div></div>
+      </div>
+    </section>
+
+    <!-- ── Reviews ── -->
+    <section id="p-rv" role="tabpanel" aria-labelledby="t-rv" hidden>
+      <div class="banner info" style="margin-bottom:16px"><i data-i="clock" class="sm"></i><span>Polling every 15 s — no review events are pushed to the console yet (CTX-2).</span></div>
+      <div class="grid c2" data-api="/cortex/api/v1/reviews">
+        <article class="card pad review">
+          <div class="row between"><span class="pill violet">cs_chat_reply</span><span class="xs muted">42 m ago · session <span class="id">chat-7f1a</span></span></div>
+          <p class="small secondary"><b>Customer:</b> Can you refund my Northwind order #88120? It never arrived.</p>
+          <div class="draft">I’m sorry your order didn’t arrive. I’ve issued a full refund of $142.00 to your card ending 4411; it’ll show in 3–5 days.</div>
+          <div class="row wrap"><span class="pill warn">escalate · refund-promise</span><span class="pill warn">escalate · pii (card digits)</span></div>
+          <div class="field"><label for="rv1-note">Note</label><input class="input" id="rv1-note" placeholder="Optional for approve, required for reject"></div>
+          <div class="row"><button class="btn sm danger-outline" type="button" data-api="/cortex/api/v1/reviews/:id" data-toast="Rejected · customer gets a hand-off message">Reject</button><span class="grow"></span><button class="btn sm primary" type="button" data-toast="Approved · reply sent">Approve &amp; send</button></div>
+        </article>
+        <article class="card pad review">
+          <div class="row between"><span class="pill info">agent_step</span><span class="xs muted">18 m ago · run <span class="id">run-3c90</span></span></div>
+          <p class="small secondary"><b>Agent:</b> resume-screener · step 4 (guardrail)</p>
+          <div class="draft">Candidate Lee Park scores 8/10; strong Go experience, lives near the Seattle office.</div>
+          <div class="row wrap"><span class="pill warn">escalate · location-inference</span></div>
+          <div class="field"><label for="rv2-note">Note</label><input class="input" id="rv2-note"></div>
+          <div class="row"><button class="btn sm danger-outline" type="button" data-toast="Rejected · step withheld">Reject</button><span class="grow"></span><button class="btn sm primary" type="button" data-toast="Approved · run continues">Approve</button></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ── Guardrails ── -->
+    <section id="p-gr" role="tabpanel" aria-labelledby="t-gr" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Guardrails</b><span class="grow"></span><button class="btn sm outline" type="button" data-open="dlg-gbuild" data-api="/cortex/api/v1/guardrails/build"><i data-i="sparkle" class="sm"></i>Build from policy</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/cortex/api/v1/guardrails">
+            <thead><tr><th>Guardrail</th><th>Action</th><th>Scope</th><th>Rules</th><th class="num">Tests</th><th>Enabled</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>pii</b></td><td><span class="pill warn">escalate</span></td><td>output</td><td class="small">regex ×4 · llm_judge</td><td class="num">12 / 12</td><td><span class="pill ok">on</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/cortex/api/v1/guardrails/:name/:verb" data-toast="pii · 12 passed, 0 failed">Test</button><button class="btn sm ghost" type="button" data-toast="pii disabled · Undo">Disable</button></td></tr>
+              <tr><td><b>refund-promise</b></td><td><span class="pill warn">escalate</span></td><td>output</td><td class="small">contains ×3</td><td class="num">5 / 6</td><td><span class="pill">off</span></td><td class="actions"><button class="btn sm ghost" type="button" data-toast="refund-promise · 5 passed, 1 failed">Test</button><button class="btn sm tonal" type="button" disabled title="All tests must pass before enabling">Enable</button><button class="icon-btn" type="button" aria-label="Delete refund-promise" data-open="dlg-del-gr"><i data-i="trash"></i></button></td></tr>
+              <tr><td><b>jailbreak</b></td><td><span class="pill danger">block</span></td><td>input</td><td class="small">llm_judge</td><td class="num">20 / 20</td><td><span class="pill ok">on</span></td><td class="actions"><button class="btn sm ghost" type="button" data-toast="jailbreak · 20 passed">Test</button><button class="btn sm ghost" type="button" data-toast="jailbreak disabled · Undo">Disable</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Tools ── -->
+    <section id="p-tl" role="tabpanel" aria-labelledby="t-tl" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Tools</b><span class="grow"></span><button class="btn sm outline" type="button" data-api="/cortex/api/v1/tools/build" data-toast="Tool drafted — add tests before enabling"><i data-i="sparkle" class="sm"></i>Build from description</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/cortex/api/v1/tools">
+            <thead><tr><th>Tool</th><th>Kind</th><th>Params</th><th class="num">Tests</th><th>Enabled</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>order_lookup</b><div class="xs muted">GET https://api.northwind.co/orders/{id}</div></td><td>http</td><td><code>id</code></td><td class="num">3 / 3</td><td><span class="pill ok">on</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-run" data-api="/cortex/api/v1/tools/:name/:verb">Run</button><button class="btn sm ghost" type="button" data-toast="order_lookup · 3 passed">Test</button></td></tr>
+              <tr><td><b>salary_band</b><div class="xs muted">python · run(level, region)</div></td><td>python</td><td><code>level</code> <code>region</code></td><td class="num">0</td><td><span class="pill">off</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-run">Run</button><button class="btn sm tonal" type="button" disabled title="Tools need at least one passing test">Enable</button><button class="icon-btn" type="button" aria-label="Delete salary_band" data-open="dlg-del-tool"><i data-i="trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>Python tools require <code>CORTEX_PYTHON_TOOLS_ENABLED</code> (currently off).</span></div>
+      </div>
+    </section>
+
+    <!-- ── Skills ── -->
+    <section id="p-sk" role="tabpanel" aria-labelledby="t-sk" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Skills</b><span class="grow"></span><button class="btn sm outline" type="button" data-api="/cortex/api/v1/skills/build" data-toast="Skill drafted"><i data-i="sparkle" class="sm"></i>Build from description</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/cortex/api/v1/skills">
+            <thead><tr><th>Skill</th><th>Recommended tools</th><th>Enabled</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>refund-policy</b><div class="xs muted">When and how much to refund; never promise before review</div></td><td><code>order_lookup</code></td><td><span class="pill ok">on</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/cortex/api/v1/skills/:name/:verb" data-toast="refund-policy disabled · Undo">Disable</button><button class="icon-btn" type="button" aria-label="Delete refund-policy" data-open="dlg-del-skill"><i data-i="trash"></i></button></td></tr>
+              <tr><td><b>interview-rubric</b><div class="xs muted">Scoring rubric for platform-engineer loops</div></td><td class="muted">—</td><td><span class="pill">off</span></td><td class="actions"><button class="btn sm tonal" type="button" data-toast="interview-rubric enabled">Enable</button><button class="icon-btn" type="button" aria-label="Delete interview-rubric" data-open="dlg-del-skill"><i data-i="trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>Skills have no test or run verbs (the registry only test-gates tools).</span></div>
+      </div>
+    </section>
+
+    <!-- ── Prompt log ── -->
+    <section id="p-pr" role="tabpanel" aria-labelledby="t-pr" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="pr-q" type="search" placeholder="Search prompts and responses" data-api="/cortex/api/v1/prompts"></label><button class="chip" type="button" aria-pressed="false">Channel</button><button class="chip" type="button" aria-pressed="false">Cached</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/cortex/api/v1/prompts">
+            <thead><tr><th class="num">Time</th><th>Channel</th><th>Model</th><th class="num">Latency</th><th class="num">Tokens</th><th>Guardrails</th></tr></thead>
+            <tbody>
+              <tr><td class="num">17:01:44</td><td>cs_chat</td><td>brain</td><td class="num">1.8 s</td><td class="num">812 / 96</td><td><span class="pill warn">2 escalated</span></td></tr>
+              <tr><td class="num">17:01:12</td><td>judge</td><td>judge</td><td class="num">240 ms</td><td class="num">402 / 3</td><td class="muted">—</td></tr>
+              <tr><td class="num">17:00:58</td><td>task</td><td>brain</td><td class="num">cached</td><td class="num">—</td><td class="muted">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span class="num">1–50 · limit ≤ 500</span></div>
+      </div>
+    </section>
+
+    <!-- ── Outbox ── -->
+    <section id="p-ob" role="tabpanel" aria-labelledby="t-ob" hidden>
+      <div class="card list" data-api="/cortex/api/v1/outbox">
+        <div class="list-item"><i data-i="mail"></i><span class="grow"><span class="title">Re: Order #88120 never arrived</span><div class="meta">to jamie@contoso.dev · cs_email</div></span><span class="pill warn">pending_review</span></div>
+        <div class="list-item"><i data-i="mail"></i><span class="grow"><span class="title">Your interview is confirmed</span><div class="meta">to lee.park@mail.com · task</div></span><span class="pill ok">sent</span></div>
+        <div class="list-item"><i data-i="mail"></i><span class="grow"><span class="title">Account details</span><div class="meta">to unknown@spam.example · cs_email</div></span><span class="pill danger">blocked · pii</span></div>
+      </div>
+    </section>
+
+    <!-- ── Models ── -->
+    <section id="p-md" role="tabpanel" aria-labelledby="t-md" hidden>
+      <div class="card dt">
+        <div class="dt-scroll">
+          <table class="table" data-api="/cortex/api/v1/models">
+            <thead><tr><th>Model</th><th>Status</th><th>Roles</th><th>Vision</th></tr></thead>
+            <tbody>
+              <tr><td><b>qwen2.5-14b-instruct</b></td><td><span class="pill ok">loaded</span></td><td><span class="pill brand">brain</span></td><td class="muted">no</td></tr>
+              <tr><td><b>llama3.1-8b-instruct</b></td><td><span class="pill ok">loaded</span></td><td><span class="pill violet">judge</span></td><td class="muted">no</td></tr>
+              <tr><td><b>qwen2-vl-7b</b></td><td><span class="pill">unloaded</span></td><td><span class="pill info">vision</span></td><td>yes</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>Load/unload and backend breaker state aren’t exposed over HTTP (CTX-1).</span></div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog" id="dlg-build" aria-labelledby="dlg-bd-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-bd-t">Build an agent from a description</h2><p>Creates a <b>draft</b>. Validate, smoke-test, then enable.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="bd-desc">What should it do?</label><textarea class="textarea" id="bd-desc">Read a sev1 incident channel, summarize the timeline, and draft a status update. Never include customer names.</textarea></div><div class="form-grid"><div class="field"><label for="bd-ch">Channel</label><select class="select" id="bd-ch"><option>task</option><option>chat</option><option>cs_chat</option><option>cs_email</option></select></div><div class="field"><label for="bd-model">Model</label><select class="select" id="bd-model"><option>brain</option><option>judge</option></select></div></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Draft agent incident-status created · 6 steps">Build draft</button></div>
+  </dialog>
+
+  <dialog class="dialog lg" id="dlg-agent" aria-labelledby="dlg-ag-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ag-t">New agent</h2><p>Spec form; the step chain editor opens after you create it.</p></div></div>
+    <form class="dialog-body" data-toast="Agent created as draft">
+      <div class="form-grid">
+        <div class="field"><label for="ag-name">Name</label><input class="input" id="ag-name" value="offer-letter-drafter"></div>
+        <div class="field"><label for="ag-ch">Channel</label><select class="select" id="ag-ch"><option>task</option><option>chat</option></select></div>
+        <div class="field"><label for="ag-tools">Tools</label><input class="input" id="ag-tools" value="salary_band"></div>
+        <div class="field"><label for="ag-iter">Max iterations (1–50)</label><input class="input" id="ag-iter" type="number" value="8"></div>
+      </div>
+      <div class="field"><label for="ag-sys">System prompt</label><textarea class="textarea" id="ag-sys">You draft offer letters for Northwind from approved compensation data only.</textarea></div>
+    </form>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Agent created as draft">Create agent</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-validate" aria-labelledby="dlg-vl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-vl-t">Validation · incident-summarizer</h2><p>2 problems must be fixed before enabling.</p></div></div>
+    <div class="dialog-body"><div class="list card"><div class="list-item"><i data-i="alert"></i><span class="grow"><code>steps[2].then[0].skill</code><div class="meta">unknown skill “sev-template”</div></span></div><div class="list-item"><i data-i="alert"></i><span class="grow"><code>steps[5].op</code><div class="meta">transform op “jsonpath” is not supported</div></span></div></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-close data-toast="Re-validated · 2 problems remain">Validate again</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-smoke" aria-labelledby="dlg-sm-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-sm-t">Smoke run · resume-screener</h2><p>Advisory run: results aren’t delivered anywhere.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="sm-in">Input</label><textarea class="textarea" id="sm-in">Senior platform engineer, 8 yrs Go, Kubernetes, on-call lead.</textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Smoke run run-4d02 queued">Run smoke test</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-run" aria-labelledby="dlg-rn-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rn-t">Run tool · order_lookup</h2><p>Real call with these arguments.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rn-args">Arguments (JSON)</label><textarea class="textarea mono" id="rn-args">{ "id": "88120" }</textarea></div><pre class="code" tabindex="0">{ "result": { "status": "in_transit", "carrier": "UPS", "eta": "2026-10-01" } }</pre></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-toast="Ran in 312 ms">Run</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-gbuild" aria-labelledby="dlg-gb-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-gb-t">Build a guardrail from policy text</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="gb-text">Policy</label><textarea class="textarea" id="gb-text">Support replies must never promise a refund amount; escalate to a human instead.</textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Guardrail drafted with 6 tests">Build</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del-agent" aria-labelledby="dlg-da-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-da-t">Delete incident-summarizer?</h2><p>Agents with runs can’t be deleted (409) — disable them instead. This one has none.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Agent deleted">Delete agent</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del-gr" aria-labelledby="dlg-dg-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dg-t">Delete guardrail refund-promise?</h2><p>Agents listing it as advisory keep running without it.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Guardrail deleted">Delete guardrail</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del-tool" aria-labelledby="dlg-dt-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dt-t">Delete tool salary_band?</h2><p>1 agent (offer-letter-drafter) references it and will fail validation.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Tool deleted">Delete tool</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del-skill" aria-labelledby="dlg-ds-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ds-t">Delete skill refund-policy?</h2><p>2 agents load it; they’ll run without these instructions.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Skill deleted">Delete skill</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Registry lists are client-mode (whole collections). Enable/disable are optimistic with Undo; enabling a guardrail or tool first runs its tests and rolls back with the failing cases if any fail. Reviews poll every 15 s. When CORTEX_ENABLED is off every /api/v1 route returns 503 and the page shows the error state.",
+  "rest": [
+    { "m": "GET", "p": "/cortex/health", "auth": "P", "ui": "Router tile, enabled pill" },
+    { "m": "GET", "p": "/cortex/api/v1/models", "auth": "user", "ui": "Models tab, router tile" },
+    { "m": "GET", "p": "/cortex/api/v1/agents", "auth": "user", "ui": "Agents table" },
+    { "m": "POST", "p": "/cortex/api/v1/agents", "auth": "A", "ui": "New agent dialog" },
+    { "m": "POST", "p": "/cortex/api/v1/agents/build", "auth": "A", "ui": "Build from description" },
+    { "m": "GET", "p": "/cortex/api/v1/agents/:idOrName", "auth": "user", "ui": "Agent editor" },
+    { "m": "DELETE", "p": "/cortex/api/v1/agents/:idOrName", "auth": "A", "ui": "Delete agent dialog (409 builtin/with runs)" },
+    { "m": "POST", "p": "/cortex/api/v1/agents/:idOrName/validate", "auth": "A", "ui": "Validation dialog" },
+    { "m": "POST", "p": "/cortex/api/v1/agents/:idOrName/enable", "auth": "A", "ui": "Row → Enable" },
+    { "m": "POST", "p": "/cortex/api/v1/agents/:idOrName/disable", "auth": "A", "ui": "Row → Disable" },
+    { "m": "POST", "p": "/cortex/api/v1/agents/:idOrName/smoke", "auth": "A", "ui": "Smoke run dialog" },
+    { "m": "POST", "p": "/cortex/api/v1/agents/:idOrName/run", "auth": "user/S", "ui": "Agent editor → Run" },
+    { "m": "GET", "p": "/cortex/api/v1/agents/:idOrName/runs", "auth": "user/S", "ui": "Runs column, agent editor → runs" },
+    { "m": "GET", "p": "/cortex/api/v1/agents/:idOrName/runs/:runId", "auth": "user/S", "ui": "Review → run link" },
+    { "m": "GET", "p": "/cortex/api/v1/reviews", "auth": "A", "ui": "Reviews cards, pending tile" },
+    { "m": "POST", "p": "/cortex/api/v1/reviews/:id", "auth": "A", "ui": "Approve / Reject" },
+    { "m": "GET", "p": "/cortex/api/v1/guardrails", "auth": "user", "ui": "Guardrails table" },
+    { "m": "POST", "p": "/cortex/api/v1/guardrails", "auth": "A", "ui": "Save guardrail" },
+    { "m": "POST", "p": "/cortex/api/v1/guardrails/build", "auth": "A", "ui": "Build from policy" },
+    { "m": "GET", "p": "/cortex/api/v1/guardrails/:name", "auth": "user", "ui": "Guardrail editor" },
+    { "m": "DELETE", "p": "/cortex/api/v1/guardrails/:name", "auth": "A", "ui": "Delete guardrail dialog" },
+    { "m": "POST", "p": "/cortex/api/v1/guardrails/:name/:verb", "auth": "A", "ui": "Test / Enable / Disable" },
+    { "m": "GET", "p": "/cortex/api/v1/tools", "auth": "user", "ui": "Tools table" },
+    { "m": "POST", "p": "/cortex/api/v1/tools", "auth": "A", "ui": "Save tool" },
+    { "m": "POST", "p": "/cortex/api/v1/tools/build", "auth": "A", "ui": "Build tool" },
+    { "m": "GET", "p": "/cortex/api/v1/tools/:name", "auth": "user", "ui": "Tool editor" },
+    { "m": "DELETE", "p": "/cortex/api/v1/tools/:name", "auth": "A", "ui": "Delete tool dialog" },
+    { "m": "POST", "p": "/cortex/api/v1/tools/:name/:verb", "auth": "A", "ui": "Test / Run / Enable / Disable" },
+    { "m": "GET", "p": "/cortex/api/v1/skills", "auth": "user", "ui": "Skills table" },
+    { "m": "POST", "p": "/cortex/api/v1/skills", "auth": "A", "ui": "Save skill" },
+    { "m": "POST", "p": "/cortex/api/v1/skills/build", "auth": "A", "ui": "Build skill" },
+    { "m": "GET", "p": "/cortex/api/v1/skills/:name", "auth": "user", "ui": "Skill editor" },
+    { "m": "DELETE", "p": "/cortex/api/v1/skills/:name", "auth": "A", "ui": "Delete skill dialog" },
+    { "m": "POST", "p": "/cortex/api/v1/skills/:name/:verb", "auth": "A", "ui": "Enable / Disable (test/run 404)" },
+    { "m": "GET", "p": "/cortex/api/v1/prompts", "auth": "A", "ui": "Prompt log" },
+    { "m": "GET", "p": "/cortex/api/v1/outbox", "auth": "user", "ui": "Outbox list" },
+    { "m": "GET", "p": "/cortex/api/v1/outbox/:id", "auth": "user", "ui": "Outbox → body" },
+    { "m": "GET", "p": "/cortex/api/v1/tasks", "auth": "user/S", "ui": "Agent editor → recent tasks" }
+  ],
+  "socket": [
+    { "ns": "/cortex", "auth": "CA write + CORTEX flag", "rooms": [], "emit": [],
+      "on": [{ "e": "chat:done", "ui": "Not used by the console — chat-only namespace" }] }
+  ],
+  "gaps": [
+    { "sev": "med", "text": "web/src/lib/realtime.ts has no /cortex entry, so web clients can't use the chat namespace; the console relies on REST/SSE." },
+    { "sev": "med", "text": "No review events: the Reviews queue polls every 15 s. Proposed: /_admin reviews:pending (CTX-2)." },
+    { "sev": "med", "text": "Backend breaker health, cross-agent runs and model load/unload aren't exposed over HTTP (CTX-1)." },
+    { "sev": "med", "text": "Skills have no test/run verbs (registry only test-gates tools)." }
+  ]
+}
+</script>
+</body>
+</html>

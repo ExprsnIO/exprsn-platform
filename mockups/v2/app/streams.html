@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Live · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); }
+  p a:not([class]), .small a:not([class]) { text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: currentColor; }
+  [data-theme="light"] .pill.violet { color: var(--exprsn-secondary-dark); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pill.violet { color: var(--exprsn-secondary-dark); } }
+  .scard { overflow: hidden; color: inherit; display: flex; flex-direction: column; }
+  .scard:hover { text-decoration: none; box-shadow: var(--exprsn-shadow-md); }
+  .scard .video { border-radius: 0; }
+  .scard .video .ph { height: 100%; min-height: 0; }
+  .dest { display: flex; align-items: center; gap: 12px; }
+  .dest .logo { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--exprsn-bg-tertiary); color: var(--exprsn-text-secondary); flex: none; }
+</style>
+</head>
+<body data-shell="app" data-page="streams">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Live</h1>
+        <p class="page-sub">Watch what’s streaming now, schedule your own broadcasts, and simulcast to YouTube, Twitch or any RTMP destination.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-dest" data-api="/live/api/destinations"><i data-i="radio" class="sm"></i>Destinations</button>
+        <button class="btn primary" type="button" data-open="dlg-golive" data-api="/live/api/streams"><i data-i="live" class="sm"></i>Go live</button>
+      </div>
+    </header>
+
+    <div class="grid c4" data-api="/live/api/stats" data-on="stream-started stream-ended viewer-count-updated">
+      <div class="card stat"><span class="label"><span class="live-tag">LIVE</span>Streams now</span><span class="value">7</span><span class="delta up">+2 in the last hour</span></div>
+      <div class="card stat"><span class="label"><i data-i="eye" class="sm"></i>Watching now</span><span class="value">1,482</span></div>
+      <div class="card stat"><span class="label"><i data-i="calendar" class="sm"></i>Scheduled today</span><span class="value">4</span></div>
+      <div class="card stat"><span class="label"><i data-i="record" class="sm"></i>Your recordings</span><span class="value">12</span><span class="delta">18.4 GB</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Live views">
+      <button role="tab" id="st-now" aria-controls="sp-now" aria-selected="true">Live now</button>
+      <button role="tab" id="st-up" aria-controls="sp-up">Upcoming</button>
+      <button role="tab" id="st-mine" aria-controls="sp-mine">My streams</button>
+    </div>
+
+    <section id="sp-now" role="tabpanel" aria-labelledby="st-now">
+      <div data-state="loaded" class="grid auto" data-api="/live/api/streams" data-on="stream-started stream-ended stream-deleted viewer-count-updated">
+        <a class="card scard" href="watch.html">
+          <div class="video"><div class="ph purple"><i data-i="live"></i></div><span class="ov tr"><span class="live-tag">LIVE</span></span><span class="ov"><i data-i="eye" class="sm"></i><span class="num">684</span></span></div>
+          <div class="card-body row top"><span class="avatar sm g1">MD</span><div class="grow stack tight" style="gap:2px"><b class="small">Thursday crit #41 — icons &amp; empty states</b><span class="xs muted">Maya Diaz · Design Guild · 42 min</span></div></div>
+        </a>
+        <a class="card scard" href="watch.html">
+          <div class="video"><div class="ph success"><i data-i="live"></i></div><span class="ov tr"><span class="live-tag">LIVE</span></span><span class="ov"><i data-i="eye" class="sm"></i><span class="num">412</span></span></div>
+          <div class="card-body row top"><span class="avatar sm g2">JO</span><div class="grow stack tight" style="gap:2px"><b class="small">Laser cutter build log, day 3</b><span class="xs muted">Jonah Okafor · Northwind Makers · 1 h 12 min</span></div></div>
+        </a>
+        <a class="card scard" href="watch.html">
+          <div class="video"><div class="ph warm"><i data-i="live"></i></div><span class="ov tr"><span class="live-tag">LIVE</span></span><span class="ov"><i data-i="eye" class="sm"></i><span class="num">209</span></span></div>
+          <div class="card-body row top"><span class="avatar sm">SK</span><div class="grow stack tight" style="gap:2px"><b class="small">Contoso field day — safety briefing</b><span class="xs muted">Sam Kim · Public · 8 min</span></div></div>
+        </a>
+        <a class="card scard" href="watch.html">
+          <div class="video"><div class="ph primary"><i data-i="live"></i></div><span class="ov tr"><span class="live-tag">LIVE</span></span><span class="ov"><i data-i="eye" class="sm"></i><span class="num">96</span></span></div>
+          <div class="card-body row top"><span class="avatar sm g3">PR</span><div class="grow stack tight" style="gap:2px"><b class="small">Incident review: vault rotation (internal)</b><span class="xs muted">Priya Raman · Followers only · 25 min</span></div></div>
+        </a>
+      </div>
+      <div data-state="empty">
+        <div class="empty"><div class="art"><i data-i="live"></i></div><h3>Nobody’s live right now</h3><p>When someone you follow or a group you’re in goes live, it appears here instantly. You could be first.</p><button class="btn primary" type="button" data-open="dlg-golive">Go live</button></div>
+      </div>
+      <div data-state="loading" aria-busy="true" aria-label="Loading streams">
+        <div class="grid auto"><span class="sk" style="height:220px"></span><span class="sk" style="height:220px"></span><span class="sk" style="height:220px"></span></div>
+      </div>
+      <div data-state="error">
+        <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load live streams</h3><p>The live service returned 503. Streams that are live keep running. Correlation id <code>cid 64d2…b71</code>.</p><button class="btn outline" type="button">Try again</button></div>
+      </div>
+    </section>
+
+    <section id="sp-up" role="tabpanel" aria-labelledby="st-up" hidden>
+      <div class="card list" data-api="/live/api/streams">
+        <div class="list-item"><div class="stack tight" style="width:64px;text-align:center"><b class="num">16:00</b><span class="xs muted">Thu</span></div><span class="grow small"><b>Thursday crit #42</b><br><span class="muted">Maya Diaz · Design Guild</span></span><button class="btn sm tonal" type="button" data-toggle aria-pressed="false" data-toast="We’ll notify you when it starts">Notify me</button></div>
+        <div class="list-item"><div class="stack tight" style="width:64px;text-align:center"><b class="num">18:30</b><span class="xs muted">Oct 14</span></div><span class="grow small"><b>Type specimen swap (hybrid)</b><br><span class="muted">Jonah Okafor · Northwind Makers</span></span><button class="btn sm tonal" type="button" data-toggle aria-pressed="true">Notifying</button></div>
+      </div>
+    </section>
+
+    <section id="sp-mine" role="tabpanel" aria-labelledby="st-mine" hidden>
+      <div class="card dt">
+        <div class="dt-scroll">
+          <table class="table" data-api="/live/api/streams /live/api/streams/:id/recordings">
+            <thead><tr><th>Stream</th><th>Status</th><th>Visibility</th><th>Simulcast</th><th class="num">Peak viewers</th><th class="num">When</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>Exprsn v2 walkthrough</b></td><td><span class="pill info">Scheduled</span></td><td>Public</td><td>YouTube, Twitch</td><td class="num">—</td><td class="num">Oct 1, 10:00</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-key">Stream key</button><button class="btn sm primary" type="button" data-api="/live/api/streams/:id/start" data-toast="You’re live">Start</button><button class="icon-btn" type="button" aria-label="More for Exprsn v2 walkthrough" data-open="dlg-edit"><i data-i="more"></i></button></td></tr>
+              <tr><td><b>Mockup review office hours</b></td><td><span class="pill ok"><span class="d"></span>Ended</span></td><td>Design Guild</td><td>—</td><td class="num">148</td><td class="num">Sep 24</td><td class="actions"><a class="btn sm ghost" href="watch.html"><i data-i="play" class="sm"></i>Recording</a><button class="btn sm ghost" type="button" data-api="/live/api/streams/:id/share-events" data-toast="Shared to your timeline">Share</button><button class="icon-btn" type="button" aria-label="More for Mockup review office hours" data-open="dlg-del"><i data-i="more"></i></button></td></tr>
+              <tr><td><b>Test stream</b></td><td><span class="pill danger">Failed to start</span></td><td>Private</td><td>RTMP (custom)</td><td class="num">—</td><td class="num">Sep 20</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-del">Delete</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Go live wizard -->
+  <dialog class="dialog lg" id="dlg-golive" aria-labelledby="dlg-golive-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-golive-t">Go live</h2><p>Set up your broadcast. You can start now or schedule it.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+      <div class="dialog-body">
+        <ol class="stepper" aria-label="Steps"><li data-done>Details</li><li aria-current="step">Where it goes</li><li>Connect your encoder</li></ol>
+        <div class="form-grid">
+          <div class="field full"><label for="gl-title">Title</label><input class="input" id="gl-title" value="Exprsn v2 walkthrough"></div>
+          <div class="field"><label for="gl-vis">Who can watch</label><select class="select" id="gl-vis"><option>Public — anyone with the link</option><option>Followers</option><option>A group…</option><option>Private (only me)</option></select></div>
+          <div class="field"><label for="gl-when">Start</label><select class="select" id="gl-when"><option>Now</option><option>Schedule…</option></select></div>
+        </div>
+        <fieldset class="card" style="margin:0;padding:0" data-api="/live/api/destinations">
+          <legend class="sr-only">Simulcast destinations</legend>
+          <div class="card-head"><h3>Also stream to</h3><button class="btn sm ghost" type="button" data-open="dlg-dest">Manage</button></div>
+          <div class="setting-row"><div class="dest grow"><span class="logo"><i data-i="play"></i></span><div><div class="t">YouTube · Exprsn</div><div class="d">Connected Sep 12 · 1080p60</div></div></div><label class="switch"><input type="checkbox" id="gl-yt" checked aria-label="Simulcast to YouTube"><span></span></label></div>
+          <div class="setting-row"><div class="dest grow"><span class="logo"><i data-i="video"></i></span><div><div class="t">Twitch · exprsnhq</div><div class="d">Connected Aug 30</div></div></div><label class="switch"><input type="checkbox" id="gl-tw" checked aria-label="Simulcast to Twitch"><span></span></label></div>
+          <div class="setting-row"><div class="dest grow"><span class="logo"><i data-i="radio"></i></span><div><div class="t">Custom RTMP · conference AV</div><div class="d"><span class="pill warn">Last test failed</span></div></div></div><label class="switch"><input type="checkbox" id="gl-rtmp" aria-label="Simulcast to custom RTMP"><span></span></label></div>
+        </fieldset>
+        <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Record this stream</div><div class="d">Saved to My streams → Recordings. Recordings are scanned by moderation before they’re public.</div></div><label class="switch"><input type="checkbox" id="gl-rec" checked aria-label="Record this stream"><span></span></label></div>
+        <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Share to my timeline when live</div><div class="d">Posts a “live now” card for followers.</div></div><label class="switch"><input type="checkbox" id="gl-share" checked aria-label="Share to timeline"><span></span></label></div>
+      </div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn outline" type="button" data-close data-toast="Scheduled for Oct 1, 10:00">Schedule</button><button class="btn primary" type="button" data-open="dlg-key" data-close>Create &amp; get stream key</button></div>
+    </form>
+  </dialog>
+
+  <!-- Stream key -->
+  <dialog class="dialog" id="dlg-key" aria-labelledby="dlg-key-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-key-t">Connect your encoder</h2><p>Paste these into OBS, Streamlabs or your hardware encoder. Treat the key like a password.</p></div></div>
+    <div class="dialog-body" data-api="/live/api/streams/:id">
+      <div class="field"><label for="k-url">Server URL</label><div class="input-group"><input id="k-url" readonly value="rtmp://live.exprsn.io/app"><button class="btn sm ghost" type="button" data-copy="rtmp://live.exprsn.io/app">Copy</button></div></div>
+      <div class="field"><span class="label">Stream key</span><div class="input-group"><span class="secret grow" id="k-key" data-value="live_sk_9f4b2c71e0d84a6b">••••••••••••</span><button class="btn sm ghost" type="button" data-reveal="k-key" aria-pressed="false"><i data-i="eye" class="sm"></i>Reveal</button><button class="btn sm ghost" type="button" data-copy="live_sk_9f4b2c71e0d84a6b">Copy</button></div><span class="help">Reset the key if it was shared by mistake — the old key stops working immediately.</span></div>
+      <div class="banner info"><i data-i="info" class="sm"></i><span>Waiting for your encoder… The stream goes live as soon as we receive video.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost left" type="button" data-toast="Stream key reset" data-api="/live/api/streams/:id">Reset key</button><button class="btn outline" type="button" data-close>Close</button><a class="btn primary" href="watch.html" data-api="/live/api/streams/:id/start">Open studio</a></div>
+  </dialog>
+
+  <!-- Destinations -->
+  <dialog class="dialog lg" id="dlg-dest" aria-labelledby="dlg-dest-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dest-t">Simulcast destinations</h2><p>Accounts and RTMP endpoints your streams can be sent to at the same time.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="list card" data-api="/live/api/destinations /live/api/destinations/:id">
+        <div class="list-item"><span class="logo" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--exprsn-bg-tertiary)"><i data-i="play"></i></span><span class="grow small"><b>YouTube · Exprsn</b><br><span class="muted">OAuth · token refreshes automatically</span></span><span class="pill ok">Healthy</span><button class="btn sm ghost" type="button" data-api="/live/api/destinations/:id/test-connection" data-toast="Connection OK · 38 ms">Test</button></div>
+        <div class="list-item"><span class="logo" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--exprsn-bg-tertiary)"><i data-i="video"></i></span><span class="grow small"><b>Twitch · exprsnhq</b><br><span class="muted">OAuth · expires in 12 days</span></span><span class="pill ok">Healthy</span><button class="btn sm ghost" type="button" data-toast="Connection OK · 51 ms">Test</button></div>
+        <div class="list-item"><span class="logo" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--exprsn-bg-tertiary)"><i data-i="radio"></i></span><span class="grow small"><b>Custom RTMP · conference AV</b><br><span class="muted mono">rtmp://av.contoso.dev/live</span></span><span class="pill danger">Unreachable</span><button class="btn sm ghost" type="button" data-toast="Still unreachable — check the URL">Test</button><button class="icon-btn" type="button" aria-label="Remove Custom RTMP destination" data-open="dlg-del-dest"><i data-i="trash"></i></button></div>
+      </div>
+      <div class="section-title"><h3 class="small">Add a destination</h3></div>
+      <div class="row wrap">
+        <button class="btn outline" type="button" data-api="/live/api/destinations/platforms/:p/auth-url" data-toast="Opening YouTube sign-in…"><i data-i="play" class="sm"></i>Connect YouTube</button>
+        <button class="btn outline" type="button" data-api="/live/api/destinations/platforms/:p/exchange-token" data-toast="Opening Twitch sign-in…"><i data-i="video" class="sm"></i>Connect Twitch</button>
+        <button class="btn outline" type="button" data-toast="Opening Facebook sign-in…"><i data-i="globe" class="sm"></i>Connect Facebook</button>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label for="d-rtmp">Custom RTMP URL</label><input class="input mono" id="d-rtmp" placeholder="rtmp://…/live"></div>
+        <div class="field"><label for="d-key">Stream key</label><input class="input mono" id="d-key" type="password" placeholder="Paste key"></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-close data-toast="Destination added" data-api="/live/api/destinations">Add RTMP destination</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del-dest" aria-labelledby="dlg-del-dest-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-dest-t">Remove “conference AV”?</h2><p>Scheduled streams that use it will skip this destination.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Destination removed" data-api="/live/api/destinations/:id">Remove</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-edit" aria-labelledby="dlg-edit-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-edit-t">Edit “Exprsn v2 walkthrough”</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="ed-title">Title</label><input class="input" id="ed-title" value="Exprsn v2 walkthrough"></div><div class="field"><label for="ed-desc">Description</label><textarea class="textarea" id="ed-desc">A tour of the new UI with live Q&amp;A.</textarea></div></div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-del">Delete stream</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Saved" data-api="/live/api/streams/:id">Save</button></div>
+  </dialog>
+  <dialog class="dialog sm" id="dlg-del" aria-labelledby="dlg-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-t">Delete “Mockup review office hours”?</h2><p>The stream and its recording (1.8 GB) are deleted. Viewers with the link see “not available”.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Stream deleted" data-api="/live/api/streams/:id">Delete</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Live-now grid is REST-loaded then kept fresh by namespace-wide stream-started/ended/deleted events (cards appear/disappear without refresh). Viewer counts on cards only update for streams the client has joined, so the grid polls /stats every 30s. Go live creates the stream (POST), shows the RTMP key, and starts when the encoder connects or the owner presses Start.",
+  "rest": [
+    { "m": "GET", "p": "/live/api/stats", "auth": "P", "ui": "Stat tiles" },
+    { "m": "GET", "p": "/live/api/streams", "auth": "user", "ui": "Live now grid, Upcoming, My streams (filters: status, mine)" },
+    { "m": "POST", "p": "/live/api/streams", "auth": "user", "ui": "Go live wizard → Create" },
+    { "m": "GET", "p": "/live/api/streams/:id", "auth": "owner", "ui": "Stream key dialog (key only for owner)" },
+    { "m": "PUT", "p": "/live/api/streams/:id", "auth": "owner", "ui": "Edit dialog, Reset key" },
+    { "m": "DELETE", "p": "/live/api/streams/:id", "auth": "owner", "ui": "Delete stream confirm" },
+    { "m": "POST", "p": "/live/api/streams/:id/start", "auth": "owner", "ui": "Start / Open studio" },
+    { "m": "POST", "p": "/live/api/streams/:id/stop", "auth": "owner", "ui": "Stop (studio / watch page)" },
+    { "m": "POST", "p": "/live/api/streams/:id/share-events", "auth": "owner", "ui": "Share / auto-share to timeline" },
+    { "m": "GET", "p": "/live/api/streams/:id/recordings", "auth": "user", "ui": "My streams → Recording" },
+    { "m": "GET", "p": "/live/api/destinations", "auth": "user", "ui": "Destinations dialog + wizard toggles" },
+    { "m": "POST", "p": "/live/api/destinations", "auth": "user", "ui": "Add RTMP destination" },
+    { "m": "GET", "p": "/live/api/destinations/:id", "auth": "owner", "ui": "Destination detail" },
+    { "m": "PUT", "p": "/live/api/destinations/:id", "auth": "owner", "ui": "Rename / update key" },
+    { "m": "DELETE", "p": "/live/api/destinations/:id", "auth": "owner", "ui": "Remove destination confirm" },
+    { "m": "GET", "p": "/live/api/destinations/platforms/:p/auth-url", "auth": "user", "ui": "Connect YouTube/Twitch/Facebook (OAuth redirect)" },
+    { "m": "POST", "p": "/live/api/destinations/platforms/:p/exchange-token", "auth": "user", "ui": "OAuth callback completes connection" },
+    { "m": "POST", "p": "/live/api/destinations/:id/test-connection", "auth": "owner", "ui": "Test button + health pill" },
+    { "m": "POST", "p": "/live/api/simulcast/:sid/destinations", "auth": "owner", "ui": "Wizard toggles attach destinations (DELETE /:sid/destinations/:did to detach)" }
+  ],
+  "socket": [
+    { "ns": "/live", "auth": "soft (anonymous allowed)", "rooms": ["{streamId}"],
+      "emit": [],
+      "on": [
+        { "e": "stream-started", "ui": "Adds card to Live now; bumps Streams now tile" },
+        { "e": "stream-ended", "ui": "Removes card; My streams row → Ended" },
+        { "e": "stream-deleted", "ui": "Removes card/row" },
+        { "e": "viewer-count-updated", "ui": "Eye count on cards the client has joined" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "med", "text": "stream-started/ended/deleted are emitted to the whole /live namespace regardless of visibility — followers-only and group streams leak titles to everyone. Proposed: per-user/group rooms." },
+    { "sev": "med", "text": "viewer-count-updated is scoped to the stream room, so the grid can't show live counts without joining every stream. Proposed: include viewerCount in /live/api/stats per stream." },
+    { "sev": "med", "text": "Live lifecycle has no platform-admin override (Design.md §14): only the owner can stop/delete a stream." },
+    { "sev": "med", "text": "No 'notify me' subscription endpoint for upcoming streams (proposed)." }
+  ]
+}
+</script>
+</body>
+</html>

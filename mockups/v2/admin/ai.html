@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: danger-outline text fails AA in light theme */
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+</style>
+</head>
+<body data-shell="admin" data-page="ai">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Infrastructure</span><i data-i="right" class="sm"></i><span>AI</span></nav>
+        <h1 class="page-title">AI</h1>
+        <p class="page-sub">Every model the platform calls, in one place: moderation providers (Claude, OpenAI, DeepSeek, local Cortex), local models, the moderation agents that use them, and the tools, guardrails and skills Cortex agents can reach.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="cortex.html"><i data-i="bot" class="sm"></i>Cortex console</a>
+        <button class="btn primary" type="button" data-open="dlg-agent" data-api="/moderator/api/agents"><i data-i="plus" class="sm"></i>New moderation agent</button>
+      </div>
+    </header>
+
+    <div class="grid c4">
+      <div class="card stat" data-api="/moderator/api/actions/providers/status"><span class="label"><i data-i="cloud" class="sm"></i>Providers up</span><span class="value">3 of 4</span><span class="delta down">OpenAI: 429 rate-limited</span></div>
+      <div class="card stat" data-api="/cortex/health /cortex/api/v1/models"><span class="label"><i data-i="cpu" class="sm"></i>Local models</span><span class="value">4</span><span class="small secondary">2 loaded · brain qwen2.5-14b</span></div>
+      <div class="card stat" data-api="/moderator/api/agents"><span class="label"><i data-i="shield" class="sm"></i>Moderation agents</span><span class="value">7</span><span class="small secondary">5 active · 1 testing · 1 error</span></div>
+      <div class="card stat" data-api="/cortex/api/v1/prompts">
+        <span class="label"><i data-i="pulse" class="sm"></i>LLM calls / day (k)</span><span class="value">41.2k</span>
+        <svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none" role="img" aria-label="LLM calls per day in thousands, Sep 23 to 29: 30.1, 32.4, 31.0, 35.8, 37.2, 39.9, 41.2"><path class="area" d="M0 33 L20 26.8 L40 30.6 L60 17.6 L80 13.8 L100 6.5 L120 3 L120 36 L0 36 Z"/><path class="line" vector-effect="non-scaling-stroke" d="M0 33 L20 26.8 L40 30.6 L60 17.6 L80 13.8 L100 6.5 L120 3"/></svg>
+        <span class="xs secondary">30.1k → 41.2k, Sep 23–29</span>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="AI views">
+      <button role="tab" id="t-prov" aria-controls="p-prov" aria-selected="true">Providers</button>
+      <button role="tab" id="t-mod" aria-controls="p-mod">Models</button>
+      <button role="tab" id="t-ag" aria-controls="p-ag">Moderation agents</button>
+      <button role="tab" id="t-tool" aria-controls="p-tool">Tools</button>
+      <button role="tab" id="t-gr" aria-controls="p-gr">Guardrails</button>
+      <button role="tab" id="t-sk" aria-controls="p-sk">Skills</button>
+      <button role="tab" id="t-use" aria-controls="p-use">Usage</button>
+    </div>
+
+    <!-- ── Providers ── -->
+    <section id="p-prov" role="tabpanel" aria-labelledby="t-prov" class="split">
+      <div class="card">
+        <div class="card-head"><h2>Provider status</h2><button class="icon-btn" type="button" aria-label="Refresh provider status"><i data-i="refresh"></i></button></div>
+        <div class="list" data-api="/moderator/api/actions/providers/status">
+          <div class="list-item"><i data-i="sparkle"></i><div class="grow"><div class="title">Claude</div><div class="meta">CLAUDE_API_KEY set · default provider · p95 1.8 s</div></div><span class="pill ok"><span class="d"></span>Up</span></div>
+          <div class="list-item"><i data-i="sparkle"></i><div class="grow"><div class="title">OpenAI</div><div class="meta">OPENAI_API_KEY set · 429 since 10:20 · falling back</div></div><span class="pill warn"><span class="d"></span>Rate-limited</span></div>
+          <div class="list-item"><i data-i="sparkle"></i><div class="grow"><div class="title">DeepSeek</div><div class="meta">DEEPSEEK_API_KEY not set</div></div><span class="pill"><span class="d"></span>Not configured</span></div>
+          <div class="list-item"><i data-i="bot"></i><div class="grow"><div class="title">Cortex (local)</div><div class="meta">llama.cpp router :8088 · Ollama :11434</div></div><span class="pill ok"><span class="d"></span>Up</span></div>
+        </div>
+      </div>
+      <form class="card" data-api="/moderator/api/config/moderation-ai" data-toast="moderation-ai saved (runtime only)">
+        <div class="card-head"><h2>Moderation AI</h2><span class="pill warn">runtime only</span></div>
+        <div class="card-body stack">
+          <div class="field"><label for="ma-prov">Provider</label><select class="select" id="ma-prov"><option selected>Anthropic</option><option>OpenAI</option><option>DeepSeek</option></select></div>
+          <div class="field"><label for="ma-model">Model</label><input class="input" id="ma-model" value="claude-sonnet-4-5"></div>
+          <div class="field"><label for="ma-conf">Confidence threshold</label><input class="input" id="ma-conf" type="number" step="0.05" min="0" max="1" value="0.7"><span class="help">0–1. Below this, items go to human review.</span></div>
+          <div class="field"><label for="ma-key">API key</label><input class="input" id="ma-key" type="password" placeholder="•••••••• (set)" autocomplete="off"><span class="help">Write-only. Leave blank to keep the current key.</span></div>
+          <label class="row small"><span class="switch"><input type="checkbox" id="ma-on" checked aria-label="Enable AI moderation"><span></span></span>Enable AI moderation</label>
+        </div>
+        <div class="card-foot"><button class="btn primary" type="submit">Save</button></div>
+      </form>
+    </section>
+
+    <!-- ── Models ── -->
+    <section id="p-mod" role="tabpanel" aria-labelledby="t-mod" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><span class="small secondary grow">From the Cortex LLM router. Roles come from CORTEX_*_MODEL.</span><button class="icon-btn" type="button" aria-label="Refresh models"><i data-i="refresh"></i></button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/cortex/api/v1/models">
+            <thead><tr><th class="pin">Model</th><th>Status</th><th>Roles</th><th>Vision</th><th>Backend</th></tr></thead>
+            <tbody>
+              <tr><td class="pin mono">qwen2.5-14b-instruct-q4</td><td><span class="pill ok">loaded</span></td><td><span class="pill violet">brain</span></td><td class="muted">—</td><td>llama.cpp</td></tr>
+              <tr><td class="pin mono">llama-guard-3-8b</td><td><span class="pill ok">loaded</span></td><td><span class="pill brand">judge</span></td><td class="muted">—</td><td>llama.cpp</td></tr>
+              <tr><td class="pin mono">qwen2.5-vl-7b</td><td><span class="pill">unloaded</span></td><td><span class="pill info">vision</span></td><td><i data-i="check" class="sm"></i><span class="sr-only">yes</span></td><td>Ollama</td></tr>
+              <tr><td class="pin mono">nomic-embed-text</td><td><span class="pill warn">loading</span></td><td class="muted">—</td><td class="muted">—</td><td>Ollama</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="bot"></i></div><h3>Cortex is disabled</h3><p>The model list is unavailable while CORTEX_ENABLED is off. An override to enable it is pending a restart.</p><a class="btn outline" href="platform.html">Open Platform overrides</a></div></div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>LLM router unreachable</h3><p>/cortex/api/v1/models returned 502: the router on :8088 isn’t answering. Cortex itself is up (see /cortex/health).</p><button class="btn outline" type="button">Retry</button></div></div>
+      </div>
+    </section>
+
+    <!-- ── Moderation agents (main table) ── -->
+    <section id="p-ag" role="tabpanel" aria-labelledby="t-ag" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="ag-q" type="search" placeholder="Search agents" data-api="/moderator/api/agents"></label>
+          <button class="chip" type="button" aria-pressed="false">Type</button>
+          <button class="chip" type="button" aria-pressed="false">Provider</button>
+          <button class="chip" type="button" aria-pressed="false">Status</button>
+          <span class="grow"></span>
+        </div>
+        <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-toast="2 agents enabled">Enable</button><button class="btn sm ghost" type="button" data-toast="2 agents disabled">Disable</button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/moderator/api/agents">
+            <thead><tr>
+              <th class="pin" style="width:44px"><input type="checkbox" class="check" aria-label="Select all agents"></th>
+              <th class="pin" style="left:44px" aria-sort="descending"><button type="button">Agent <i data-i="down" class="sm"></i></button></th>
+              <th>Type</th><th>Provider · model</th><th>Applies to</th><th class="num">Priority</th><th>Auto-action</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th>
+            </tr></thead>
+            <tbody>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select Hate speech screen"></td><td class="pin" style="left:44px"><button type="button" data-open="dlg-agent" style="all:unset;cursor:pointer"><b>Hate speech screen</b></button></td><td>hate_speech_detection</td><td class="small">claude · claude-sonnet-4-5</td><td class="small">post, comment, message</td><td class="num">90</td><td><span class="pill ok">on</span></td><td><span class="pill ok">active</span></td><td class="actions"><label class="switch"><input type="checkbox" id="en-1" checked aria-label="Hate speech screen enabled"><span></span></label></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select NSFW image check"></td><td class="pin" style="left:44px"><b>NSFW image check</b></td><td>nsfw_detection</td><td class="small">local · qwen2.5-vl-7b</td><td class="small">image, video</td><td class="num">80</td><td><span class="pill">off</span></td><td><span class="pill ok">active</span></td><td class="actions"><label class="switch"><input type="checkbox" id="en-2" checked aria-label="NSFW image check enabled"><span></span></label></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select Spam burst"></td><td class="pin" style="left:44px"><b>Spam burst</b></td><td>spam_detection</td><td class="small">openai · gpt-4.1-mini</td><td class="small">post</td><td class="num">60</td><td><span class="pill ok">on</span></td><td><span class="pill danger">error</span></td><td class="actions"><label class="switch"><input type="checkbox" id="en-3" checked aria-label="Spam burst enabled"><span></span></label></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select Harassment v2"></td><td class="pin" style="left:44px"><b>Harassment v2</b></td><td>text_moderation</td><td class="small">local · llama-guard-3-8b</td><td class="small">message</td><td class="num">50</td><td><span class="pill">off</span></td><td><span class="pill warn">testing</span></td><td class="actions"><label class="switch"><input type="checkbox" id="en-4" aria-label="Harassment v2 enabled"><span></span></label></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="shield"></i></div><h3>No moderation agents</h3><p>Without agents, moderation falls back to word lists and rules only. Add one to let a model score content.</p><button class="btn outline" type="button" data-open="dlg-agent">New moderation agent</button></div></div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load agents</h3><p>GET /moderator/api/agents returned 403. The moderator module needs a platform-admin token role or the email allowlist. Correlation id <code>cid 5a2e…d90</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">4 of 7 · client mode</span></div>
+      </div>
+    </section>
+
+    <!-- ── Tools ── -->
+    <section id="p-tool" role="tabpanel" aria-labelledby="t-tool" hidden class="card">
+      <div class="card-head"><h2>Tools</h2><button class="btn sm primary" type="button" data-open="dlg-build" data-api="/cortex/api/v1/tools/build"><i data-i="sparkle" class="sm"></i>Build from description</button></div>
+      <div class="dt-scroll">
+        <table class="table" data-api="/cortex/api/v1/tools">
+          <thead><tr><th class="pin">Tool</th><th>Kind</th><th class="num">Params</th><th class="num">Tests</th><th>Enabled</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            <tr><td class="pin mono">weather_lookup</td><td>http</td><td class="num">2</td><td class="num">3 <span class="pill ok">pass</span></td><td><span class="pill ok">on</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/cortex/api/v1/tools/:name/test" data-toast="3 of 3 tests passed">Test</button><button class="btn sm ghost" type="button" data-api="/cortex/api/v1/tools/:name/run" data-toast="Run started">Run</button><button class="btn sm ghost" type="button" data-open="dlg-del" data-api="/cortex/api/v1/tools/:name">Delete</button></td></tr>
+            <tr><td class="pin mono">csv_summarize</td><td>python</td><td class="num">1</td><td class="num">1 <span class="pill danger">fail</span></td><td><span class="pill">off</span></td><td class="actions"><button class="btn sm ghost" type="button">Test</button><button class="btn sm ghost" type="button" disabled title="Enable requires passing tests">Enable</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Guardrails ── -->
+    <section id="p-gr" role="tabpanel" aria-labelledby="t-gr" hidden class="card">
+      <div class="card-head"><h2>Guardrails</h2><button class="btn sm primary" type="button" data-open="dlg-build" data-api="/cortex/api/v1/guardrails/build"><i data-i="sparkle" class="sm"></i>Build from policy</button></div>
+      <div class="dt-scroll">
+        <table class="table" data-api="/cortex/api/v1/guardrails">
+          <thead><tr><th class="pin">Guardrail</th><th>Action</th><th>Scope</th><th class="num">Rules</th><th class="num">Tests</th><th>Enabled</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody>
+            <tr><td class="pin mono">pii_leak</td><td><span class="pill danger">block</span></td><td class="small">output</td><td class="num">4 regex</td><td class="num">8</td><td><span class="pill ok">on</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/cortex/api/v1/guardrails/:name/test" data-toast="8 of 8 passed">Test</button><button class="btn sm ghost" type="button" data-api="/cortex/api/v1/guardrails/:name/disable" data-toast="pii_leak disabled">Disable</button></td></tr>
+            <tr><td class="pin mono">self_harm_escalate</td><td><span class="pill warn">escalate</span></td><td class="small">input, output</td><td class="num">1 llm_judge</td><td class="num">5</td><td><span class="pill ok">on</span></td><td class="actions"><button class="btn sm ghost" type="button">Test</button><button class="btn sm ghost" type="button">Disable</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Skills ── -->
+    <section id="p-sk" role="tabpanel" aria-labelledby="t-sk" hidden class="card">
+      <div class="card-head"><h2>Skills</h2><button class="btn sm primary" type="button" data-open="dlg-build" data-api="/cortex/api/v1/skills/build"><i data-i="sparkle" class="sm"></i>Build from description</button></div>
+      <div class="list" data-api="/cortex/api/v1/skills">
+        <div class="list-item"><i data-i="doc"></i><div class="grow"><div class="title mono">support_tone</div><div class="meta">Friendly, concise customer-support replies · tools: none</div></div><span class="pill ok">on</span><button class="btn sm ghost" type="button" data-api="/cortex/api/v1/skills/:name/disable" data-toast="support_tone disabled">Disable</button></div>
+        <div class="list-item"><i data-i="doc"></i><div class="grow"><div class="title mono">incident_summary</div><div class="meta">Summarize an on-call incident · tools: weather_lookup</div></div><span class="pill">off</span><button class="btn sm ghost" type="button" data-api="/cortex/api/v1/skills/:name/enable" data-toast="incident_summary enabled">Enable</button></div>
+      </div>
+    </section>
+
+    <!-- ── Usage ── -->
+    <section id="p-use" role="tabpanel" aria-labelledby="t-use" hidden class="card">
+      <div class="card-head"><h2>Prompt log</h2><a class="btn sm ghost" href="cortex.html">Full log in Cortex</a></div>
+      <div class="dt-scroll">
+        <table class="table" data-api="/cortex/api/v1/prompts">
+          <thead><tr><th>Channel</th><th class="num">Calls (24 h)</th><th class="num">Tokens in / out</th><th class="num">p95 latency</th><th class="num">Cache hit</th></tr></thead>
+          <tbody>
+            <tr><td>judge</td><td class="num">28,410</td><td class="num">9.1M / 0.4M</td><td class="num">420 ms</td><td class="num">31%</td></tr>
+            <tr><td>assistant</td><td class="num">6,902</td><td class="num">4.8M / 2.2M</td><td class="num">2.9 s</td><td class="num">12%</td></tr>
+            <tr><td>cs_chat</td><td class="num">4,115</td><td class="num">2.0M / 0.9M</td><td class="num">2.1 s</td><td class="num">18%</td></tr>
+            <tr><td>task</td><td class="num">1,780</td><td class="num">1.3M / 0.6M</td><td class="num">6.4 s</td><td class="num">0%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="xs secondary card-body">Cloud provider spend (Claude, OpenAI) isn’t tracked by the platform. Check each provider’s console.</p>
+    </section>
+  </div>
+
+  <!-- Agent editor -->
+  <dialog class="dialog lg" id="dlg-agent" aria-labelledby="dlg-agent-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-agent-t">Hate speech screen</h2><p>Moderation agent · priority 90</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><label for="ag-name">Name</label><input class="input" id="ag-name" value="Hate speech screen"></div>
+        <div class="field"><label for="ag-type">Type</label><select class="select" id="ag-type"><option>text_moderation</option><option>image_moderation</option><option>video_moderation</option><option>spam_detection</option><option>rate_limit_detection</option><option selected>hate_speech_detection</option><option>nsfw_detection</option><option>violence_detection</option><option>custom</option></select></div>
+        <div class="field"><label for="ag-prov">Provider</label><select class="select" id="ag-prov"><option selected>claude</option><option>openai</option><option>deepseek</option><option>local</option></select></div>
+        <div class="field"><label for="ag-model">Model</label><input class="input" id="ag-model" value="claude-sonnet-4-5"></div>
+        <div class="field"><label for="ag-pri">Priority</label><input class="input" id="ag-pri" type="number" value="90" min="0" max="100"></div>
+        <div class="field"><label for="ag-status">Status</label><select class="select" id="ag-status"><option selected>active</option><option>inactive</option><option>testing</option></select></div>
+        <div class="field full"><span class="label">Applies to</span><div class="row wrap" style="gap:6px"><button class="chip" type="button" aria-pressed="true">post</button><button class="chip" type="button" aria-pressed="true">comment</button><button class="chip" type="button" aria-pressed="true">message</button><button class="chip" type="button" aria-pressed="false">profile</button><button class="chip" type="button" aria-pressed="false">image</button></div></div>
+        <div class="field full"><label for="ag-prompt">Prompt template</label><textarea class="textarea mono" id="ag-prompt">Rate this {{contentType}} for hate speech targeting a protected group. Return JSON {score 0-100, categories[], rationale}.
+---
+{{content}}</textarea></div>
+        <div class="field"><label for="ag-flag">Flag at score</label><input class="input" id="ag-flag" type="number" value="60"></div>
+        <div class="field"><label for="ag-block">Auto-remove at score</label><input class="input" id="ag-block" type="number" value="90"></div>
+      </div>
+      <label class="row small"><span class="switch"><input type="checkbox" id="ag-auto" checked aria-label="Auto-action"><span></span></span>Take the action automatically above the remove score</label>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-del-agent">Delete</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Hate speech screen saved">Save agent</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del-agent" aria-labelledby="dlg-da-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-da-t">Delete Hate speech screen?</h2><p>Queued items it would score fall back to rules and word lists. Past decisions keep their record.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Agent deleted">Delete agent</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del" aria-labelledby="dlg-del-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-del-t">Delete tool weather_lookup?</h2><p>Agents and skills that list it lose access on their next run.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="weather_lookup deleted">Delete tool</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-build" aria-labelledby="dlg-build-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-build-t">Build from description</h2><p>Cortex drafts the spec and tests. It’s saved disabled until you review it.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="bd-desc">Describe it</label><textarea class="textarea" id="bd-desc">Block replies that include a full credit card or national ID number.</textarea></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Draft built · 6 tests generated">Build draft</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Mirrors today's AiSection tabs (Providers, Models, Moderation Agents, Tools, Guardrails, Skills) and adds Usage. Cortex reads gate on GET /cortex/health: when enabled=false the Models, Tools, Guardrails and Skills tabs show the disabled empty state instead of calling /api/v1 (which would 503). Agent enable toggles are optimistic with rollback. Nothing is live: provider status polls every 30s and models every 15s.",
+  "rest": [
+    { "m": "GET", "p": "/moderator/api/actions/providers/status", "auth": "A", "ui": "Provider status list + tile" },
+    { "m": "GET", "p": "/moderator/api/config/moderation-ai", "auth": "A", "ui": "Moderation AI form" },
+    { "m": "POST", "p": "/moderator/api/config/moderation-ai", "auth": "A", "ui": "Moderation AI → Save" },
+    { "m": "GET", "p": "/cortex/health", "auth": "P", "ui": "Enabled gate + local models tile" },
+    { "m": "GET", "p": "/cortex/api/v1/models", "auth": "user", "ui": "Models table" },
+    { "m": "GET", "p": "/moderator/api/agents", "auth": "A", "ui": "Moderation agents table" },
+    { "m": "POST", "p": "/moderator/api/agents", "auth": "A", "ui": "New moderation agent" },
+    { "m": "PUT", "p": "/moderator/api/agents/:id", "auth": "A", "ui": "Agent editor → Save" },
+    { "m": "DELETE", "p": "/moderator/api/agents/:id", "auth": "A", "ui": "Delete agent dialog" },
+    { "m": "POST", "p": "/moderator/api/agents/:id/enable", "auth": "A", "ui": "Row switch on, bulk Enable" },
+    { "m": "POST", "p": "/moderator/api/agents/:id/disable", "auth": "A", "ui": "Row switch off, bulk Disable" },
+    { "m": "GET", "p": "/cortex/api/v1/tools", "auth": "user", "ui": "Tools table" },
+    { "m": "GET", "p": "/cortex/api/v1/tools/:name", "auth": "user", "ui": "Tool editor (Cortex page)" },
+    { "m": "POST", "p": "/cortex/api/v1/tools", "auth": "A", "ui": "Save tool" },
+    { "m": "POST", "p": "/cortex/api/v1/tools/build", "auth": "A", "ui": "Build from description (tool)" },
+    { "m": "POST", "p": "/cortex/api/v1/tools/:name/test", "auth": "A", "ui": "Tool → Test" },
+    { "m": "POST", "p": "/cortex/api/v1/tools/:name/run", "auth": "A", "ui": "Tool → Run" },
+    { "m": "POST", "p": "/cortex/api/v1/tools/:name/enable", "auth": "A", "ui": "Tool → Enable (needs passing tests)" },
+    { "m": "POST", "p": "/cortex/api/v1/tools/:name/disable", "auth": "A", "ui": "Tool → Disable" },
+    { "m": "DELETE", "p": "/cortex/api/v1/tools/:name", "auth": "A", "ui": "Delete tool dialog" },
+    { "m": "GET", "p": "/cortex/api/v1/guardrails", "auth": "user", "ui": "Guardrails table" },
+    { "m": "POST", "p": "/cortex/api/v1/guardrails/build", "auth": "A", "ui": "Build from policy" },
+    { "m": "POST", "p": "/cortex/api/v1/guardrails/:name/test", "auth": "A", "ui": "Guardrail → Test" },
+    { "m": "POST", "p": "/cortex/api/v1/guardrails/:name/enable", "auth": "A", "ui": "Guardrail → Enable" },
+    { "m": "POST", "p": "/cortex/api/v1/guardrails/:name/disable", "auth": "A", "ui": "Guardrail → Disable" },
+    { "m": "DELETE", "p": "/cortex/api/v1/guardrails/:name", "auth": "A", "ui": "Guardrail → Delete" },
+    { "m": "GET", "p": "/cortex/api/v1/skills", "auth": "user", "ui": "Skills list" },
+    { "m": "POST", "p": "/cortex/api/v1/skills/build", "auth": "A", "ui": "Build from description (skill)" },
+    { "m": "POST", "p": "/cortex/api/v1/skills/:name/enable", "auth": "A", "ui": "Skill → Enable" },
+    { "m": "POST", "p": "/cortex/api/v1/skills/:name/disable", "auth": "A", "ui": "Skill → Disable" },
+    { "m": "DELETE", "p": "/cortex/api/v1/skills/:name", "auth": "A", "ui": "Skill → Delete" },
+    { "m": "GET", "p": "/cortex/api/v1/prompts", "auth": "A", "ui": "Usage table + LLM calls tile" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "high", "text": "The moderation-ai section is runtime-only, and the provider factory doesn't read it (MOD-3). Saving here changes nothing the workers use. Its provider enum (Anthropic, OpenAI, DeepSeek) also differs from agent providers (claude, openai, deepseek, local)." },
+    { "sev": "med", "text": "There's no HTTP view of Cortex backend and breaker health, and no model load/unload routes (CTX-1). The Models tab is read-only." },
+    { "sev": "med", "text": "The prompt log has no aggregate endpoint. Usage tiles are computed client-side from up to 500 rows. Proposed: GET /cortex/api/v1/prompts/stats?window=24h." },
+    { "sev": "med", "text": ".env.example documents ANTHROPIC_API_KEY but the code reads CLAUDE_API_KEY (MOD-9), so the Claude provider can look unconfigured." },
+    { "sev": "med", "text": "The web realtime client has no /cortex entry, and Cortex has no admin events (CTX-2), so every AI surface polls." }
+  ]
+}
+</script>
+</body>
+</html>

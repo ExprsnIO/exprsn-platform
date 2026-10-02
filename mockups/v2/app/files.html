@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Files · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .main :is(p, dd, .help, .saved, .meta) a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .fm { display: grid; grid-template-columns: 220px minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+  .tree { padding: 8px; }
+  .tree ul { list-style: none; margin: 0; padding: 0 0 0 14px; }
+  .tree > ul { padding-left: 0; }
+  .tree a { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 8px; border-radius: 8px; color: var(--exprsn-text-secondary); font-size: .875rem; font-weight: 500; }
+  .tree a:hover { background: var(--exprsn-bg-hover); text-decoration: none; }
+  .tree a[aria-current="page"] { background: color-mix(in srgb, var(--exprsn-primary) 10%, transparent); color: var(--v2-primary-fg); font-weight: 600; }
+  .tree .eyebrow { display: block; padding: 12px 8px 4px; }
+  .file-tile { color: inherit; position: relative; }
+  .file-tile:hover { text-decoration: none; border-color: var(--exprsn-border-color-strong); }
+  .file-tile[aria-current="true"] { border-color: var(--exprsn-primary); box-shadow: var(--v2-focus-ring); }
+  .file-tile .thumb .ph { min-height: 0; height: 100%; }
+  .file-tile .corner { position: absolute; top: 8px; right: 8px; }
+  .drop.compact { padding: 14px; flex-direction: row; justify-content: center; flex-wrap: wrap; }
+  .upl { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; font-size: .8125rem; }
+  .upl .meter { grid-column: 2 / 4; }
+  .diff { font-family: var(--exprsn-font-family-mono); font-size: .75rem; line-height: 1.7; border: 1px solid var(--exprsn-border-color); border-radius: 12px; overflow: auto; }
+  .diff div { padding: 0 10px; white-space: pre; }
+  .diff .add { background: var(--exprsn-success-bg); color: var(--exprsn-success-text); }
+  .diff .del { background: var(--exprsn-danger-bg); color: var(--exprsn-danger-text); }
+  .diff .hunk { background: var(--exprsn-bg-tertiary); color: var(--exprsn-text-secondary); }
+  .detail-pane { position: sticky; top: calc(var(--v2-topbar-h) + 16px); }
+  .tree-toggle { display: none; }
+  @media (max-width: 600px) { .fm .grid.auto-sm { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+  @media (max-width: 1280px) { .fm { grid-template-columns: 200px minmax(0, 1fr); } .detail-pane { grid-column: 1 / -1; position: static; } }
+  @media (max-width: 900px) { .fm { grid-template-columns: minmax(0, 1fr); } .tree-card { display: none; } .tree-toggle { display: inline-flex; } }
+</style>
+</head>
+<body data-shell="app" data-page="files">
+<main id="main">
+  <div class="page wide">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb" data-api="/filevault/api/directories/:id"><a href="#">My files</a><i data-i="right" class="sm"></i><a href="#">Projects</a><i data-i="right" class="sm"></i><span aria-current="page">Q3 planning</span></nav>
+        <h1 class="page-title">Q3 planning</h1>
+        <p class="page-sub">14 files · 1 folder · shared with Northwind leads</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-drive"><i data-i="disk" class="sm"></i>Connect a drive</button>
+        <button class="btn outline" type="button" data-open="dlg-folder" data-api="/filevault/api/directories"><i data-i="folder" class="sm"></i>New folder</button>
+        <button class="btn primary" type="button" data-open="dlg-upload" data-api="/filevault/api/files/upload"><i data-i="upload" class="sm"></i>Upload</button>
+      </div>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="File views">
+      <button role="tab" id="t-files" aria-controls="p-files" aria-selected="true">Files</button>
+      <button role="tab" id="t-links" aria-controls="p-links">Shared links <span class="badge neutral">6</span></button>
+      <button role="tab" id="t-trash" aria-controls="p-trash">Trash <span class="badge neutral">3</span></button>
+    </div>
+
+    <!-- ════ Files ════ -->
+    <section id="p-files" role="tabpanel" aria-labelledby="t-files">
+      <div class="fm">
+        <!-- Directory tree + quota -->
+        <div class="stack tree-card">
+          <nav class="card tree" aria-label="Folders" data-api="/filevault/api/directories">
+            <ul>
+              <li><a href="#"><i data-i="folder" class="sm"></i>My files</a>
+                <ul>
+                  <li><a href="#"><i data-i="folder" class="sm"></i>Projects</a>
+                    <ul>
+                      <li><a href="#" aria-current="page"><i data-i="folder" class="sm"></i>Q3 planning</a></li>
+                      <li><a href="#"><i data-i="folder" class="sm"></i>Gateway v2</a></li>
+                    </ul>
+                  </li>
+                  <li><a href="#"><i data-i="folder" class="sm"></i>Design</a></li>
+                  <li><a href="#"><i data-i="folder" class="sm"></i>Receipts</a></li>
+                </ul>
+              </li>
+            </ul>
+            <span class="eyebrow">Group drives</span>
+            <ul data-api="/filevault/api/groups/:groupId/directories /filevault/api/groups/:groupId/files">
+              <li><a href="#"><i data-i="groups" class="sm"></i>Platform guild</a></li>
+              <li><a href="#"><i data-i="groups" class="sm"></i>Northwind leads</a></li>
+            </ul>
+          </nav>
+          <div class="card pad stack tight" data-api="/filevault/api/storage/usage /filevault/api/storage/quota">
+            <div class="row between"><b class="small">Storage</b><span class="xs secondary num">7.2 of 10 GB</span></div>
+            <div class="meter warn" role="img" aria-label="72 percent of storage used"><i style="width:72%"></i></div>
+            <span class="xs secondary">Documents 4.1 GB · Images 2.3 GB · Other 0.8 GB</span>
+          </div>
+        </div>
+
+        <!-- Listing -->
+        <div class="stack">
+          <div class="card">
+            <div class="dt-toolbar">
+              <button class="icon-btn tree-toggle" type="button" aria-label="Show folders"><i data-i="folder"></i></button>
+              <label class="input-group"><i data-i="search" class="sm"></i><input id="f-q" type="search" placeholder="Search files, tags, contents" data-api="/filevault/api/search"></label>
+              <button class="chip" type="button" aria-pressed="false"><i data-i="tag" class="sm"></i>Tag</button>
+              <button class="chip" type="button" aria-pressed="false">Type</button>
+              <span class="grow"></span>
+              <button class="btn sm ghost" type="button" data-open="dlg-create" data-api="/filevault/api/files/create"><i data-i="edit" class="sm"></i>New text file</button>
+              <div class="seg" role="group" aria-label="View as" data-view-target="fv">
+                <button type="button" aria-pressed="true" data-view="grid" aria-label="Grid view"><i data-i="grid" class="sm"></i></button>
+                <button type="button" aria-pressed="false" data-view="list" aria-label="List view"><i data-i="list" class="sm"></i></button>
+              </div>
+            </div>
+
+            <div class="card-body" data-state="loaded" data-api="/filevault/api/files">
+              <div class="drop compact" style="margin-bottom:16px"><i data-i="upload" class="sm"></i><span class="small">Drop files anywhere to upload to <b>Q3 planning</b></span><label class="btn sm outline" for="f-pick">Browse</label><input id="f-pick" type="file" multiple class="sr-only"></div>
+
+              <div class="grid auto-sm" data-view-of="fv" data-view-name="grid" data-api="/filevault/api/thumbnails/:fileId">
+                <a class="card file-tile" href="#" data-api="/filevault/api/files/:fileId"><span class="thumb"><i data-i="folder"></i></span><span class="info"><b class="small truncate">Hiring</b><span class="xs muted">6 items</span></span></a>
+                <a class="card file-tile" href="#" aria-current="true"><span class="thumb"><i data-i="doc"></i></span><span class="corner pill info">v4</span><span class="info"><b class="small truncate">Q3-roadmap.pdf</b><span class="xs muted">2.4 MB · yesterday</span></span></a>
+                <a class="card file-tile" href="#"><span class="thumb"><span class="ph warm" role="img" aria-label="Thumbnail of offsite-venue.jpg"><i data-i="image"></i></span></span><span class="info"><b class="small truncate">offsite-venue.jpg</b><span class="xs muted">3.1 MB · Sep 25</span></span></a>
+                <a class="card file-tile" href="#"><span class="thumb"><i data-i="table"></i></span><span class="info"><b class="small truncate">headcount-plan.csv</b><span class="xs muted">48 KB · Sep 24</span></span></a>
+                <a class="card file-tile" href="#"><span class="thumb"><i data-i="doc"></i></span><span class="info"><b class="small truncate">okrs-draft.md</b><span class="xs muted">9 KB · Sep 23</span></span></a>
+                <a class="card file-tile" href="#"><span class="thumb"><span class="ph purple" role="img" aria-label="Thumbnail of team-photo.png"><i data-i="image"></i></span></span><span class="corner pill warn">Scanning</span><span class="info"><b class="small truncate">team-photo.png</b><span class="xs muted">5.8 MB · just now</span></span></a>
+              </div>
+
+              <div class="dt-scroll" data-view-of="fv" data-view-name="list" hidden>
+                <table class="table">
+                  <thead><tr><th aria-sort="ascending"><button type="button">Name <i data-i="up" class="sm"></i></button></th><th><button type="button">Owner</button></th><th class="num"><button type="button">Size</button></th><th class="num"><button type="button">Modified</button></th><th>Sharing</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="row" style="gap:8px"><i data-i="folder" class="sm"></i><b>Hiring</b></span></td><td>You</td><td class="num">—</td><td class="num">Sep 26</td><td><span class="pill">Private</span></td><td class="actions"><button class="icon-btn" type="button" aria-label="Actions for Hiring"><i data-i="more"></i></button></td></tr>
+                    <tr aria-selected="true"><td><span class="row" style="gap:8px"><i data-i="doc" class="sm"></i><b>Q3-roadmap.pdf</b><span class="pill info">v4</span></span></td><td>You</td><td class="num">2.4 MB</td><td class="num">Yesterday</td><td><span class="pill brand"><i data-i="link" class="sm"></i>2 links</span></td><td class="actions"><button class="icon-btn" type="button" aria-label="Share Q3-roadmap.pdf" data-open="dlg-share"><i data-i="share"></i></button></td></tr>
+                    <tr><td><span class="row" style="gap:8px"><i data-i="image" class="sm"></i><b>offsite-venue.jpg</b></span></td><td>Ari Lindqvist</td><td class="num">3.1 MB</td><td class="num">Sep 25</td><td><span class="pill">Group</span></td><td class="actions"><button class="icon-btn" type="button" aria-label="Actions for offsite-venue.jpg"><i data-i="more"></i></button></td></tr>
+                    <tr><td><span class="row" style="gap:8px"><i data-i="table" class="sm"></i><b>headcount-plan.csv</b></span></td><td>You</td><td class="num">48 KB</td><td class="num">Sep 24</td><td><span class="pill">Private</span></td><td class="actions"><button class="icon-btn" type="button" aria-label="Actions for headcount-plan.csv"><i data-i="more"></i></button></td></tr>
+                    <tr><td><span class="row" style="gap:8px"><i data-i="image" class="sm"></i><b>team-photo.png</b><span class="pill warn">Scanning</span></span></td><td>You</td><td class="num">5.8 MB</td><td class="num">Just now</td><td><span class="pill">Private</span></td><td class="actions"><button class="icon-btn" type="button" aria-label="Actions for team-photo.png"><i data-i="more"></i></button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card-body" data-state="empty">
+              <div class="drop" style="padding:48px 24px">
+                <div class="empty" style="padding:0"><div class="art"><i data-i="folder"></i></div><h3>This folder is empty</h3><p>Drop files here, or upload from your device. Files up to 5 GB; versions are kept automatically.</p></div>
+                <div class="row wrap" style="justify-content:center"><label class="btn primary" for="f-pick2"><i data-i="upload" class="sm"></i>Upload files</label><input id="f-pick2" type="file" multiple class="sr-only"><button class="btn outline" type="button" data-open="dlg-folder">New folder</button></div>
+              </div>
+            </div>
+
+            <div class="card-body grid auto-sm" data-state="loading" aria-busy="true" aria-label="Loading files">
+              <div class="card file-tile"><span class="sk" style="aspect-ratio:4/3;height:auto;border-radius:0"></span><span class="info"><span class="sk" style="width:70%"></span></span></div>
+              <div class="card file-tile"><span class="sk" style="aspect-ratio:4/3;height:auto;border-radius:0"></span><span class="info"><span class="sk" style="width:60%"></span></span></div>
+              <div class="card file-tile"><span class="sk" style="aspect-ratio:4/3;height:auto;border-radius:0"></span><span class="info"><span class="sk" style="width:80%"></span></span></div>
+              <div class="card file-tile"><span class="sk" style="aspect-ratio:4/3;height:auto;border-radius:0"></span><span class="info"><span class="sk" style="width:50%"></span></span></div>
+            </div>
+
+            <div class="card-body" data-state="error">
+              <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t open Q3 planning</h3><p>File Vault didn’t respond. Uploads in progress will resume when it’s back. Reference <code>cid 6e02…c9a</code>.</p><button class="btn outline" type="button">Try again</button></div>
+            </div>
+          </div>
+
+          <!-- Upload progress -->
+          <section class="card" aria-labelledby="up-t">
+            <div class="card-head"><h2 id="up-t">Uploading 2 files</h2><button class="btn sm ghost" type="button">Cancel all</button></div>
+            <div class="card-body stack">
+              <div class="upl"><i data-i="image" class="sm"></i><span class="truncate"><b>team-photo.png</b> · checking for unsafe content…</span><span class="xs muted">5.8 MB</span><div class="meter ok" role="img" aria-label="Upload complete, processing"><i style="width:100%"></i></div></div>
+              <div class="upl"><i data-i="doc" class="sm"></i><span class="truncate"><b>board-deck-final.pptx</b> · 64% · 12 s left</span><span class="xs muted">38 MB</span><div class="meter" role="img" aria-label="64 percent uploaded"><i style="width:64%"></i></div></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Detail panel -->
+        <aside class="card detail-pane" aria-labelledby="fd-t" data-api="/filevault/api/files/:fileId">
+          <div class="card-head">
+            <div class="row" style="gap:10px;min-width:0"><i data-i="doc"></i><h2 id="fd-t" class="truncate">Q3-roadmap.pdf</h2></div>
+            <button class="icon-btn" type="button" aria-label="More actions for Q3-roadmap.pdf" data-open="dlg-rename"><i data-i="more"></i></button>
+          </div>
+          <div class="card-body stack">
+            <div class="row wrap" style="gap:6px">
+              <a class="btn sm primary" href="#" data-api="/filevault/api/files/:fileId/download"><i data-i="download" class="sm"></i>Download</a>
+              <button class="btn sm outline" type="button" data-open="dlg-share"><i data-i="share" class="sm"></i>Share</button>
+              <button class="btn sm ghost" type="button" data-open="dlg-rename" data-api="/filevault/api/files/:fileId/rename">Rename</button>
+            </div>
+            <div class="tabs" role="tablist" aria-label="File detail">
+              <button role="tab" id="fd-1t" aria-controls="fd-1" aria-selected="true">Details</button>
+              <button role="tab" id="fd-2t" aria-controls="fd-2">Versions</button>
+              <button role="tab" id="fd-3t" aria-controls="fd-3">Changes</button>
+            </div>
+            <div id="fd-1" role="tabpanel" aria-labelledby="fd-1t" class="stack">
+              <div class="field"><label for="fd-desc">Description</label><textarea class="textarea" id="fd-desc" data-api="/filevault/api/files/:fileId/description" style="min-height:72px">Board-approved roadmap and hiring plan. Replaces the July draft.</textarea></div>
+              <dl class="kv">
+                <dt>Type</dt><dd>PDF · 12 pages</dd>
+                <dt>Size</dt><dd class="num">2.4 MB</dd>
+                <dt>Location</dt><dd>Projects / Q3 planning</dd>
+                <dt>Created</dt><dd>Jul 14 by you</dd>
+                <dt>Modified</dt><dd>Sep 28 by Maya Diaz</dd>
+                <dt>Tags</dt><dd><span class="chip">roadmap</span> <span class="chip">q3</span></dd>
+              </dl>
+              <button class="btn sm tonal" type="button" data-toast="Description saved" data-api="/filevault/api/files/:fileId">Save changes</button>
+            </div>
+            <div id="fd-2" role="tabpanel" aria-labelledby="fd-2t" hidden>
+              <div class="list" data-api="/filevault/api/files/:fileId/versions">
+                <div class="list-item" style="padding:10px 0"><span class="avatar sm g1">MD</span><span class="grow stack tight"><b class="small">v4 · current</b><span class="xs muted">Sep 28 · Maya Diaz · 2.4 MB</span></span></div>
+                <div class="list-item" style="padding:10px 0"><span class="avatar sm g1">RH</span><span class="grow stack tight"><b class="small">v3</b><span class="xs muted">Sep 20 · you · 2.3 MB</span></span><button class="btn sm ghost" type="button" data-api="/filevault/api/files/:fileId/restore/:versionNumber" data-toast="Restored v3 as v5">Restore</button></div>
+                <div class="list-item" style="padding:10px 0"><span class="avatar sm g1">RH</span><span class="grow stack tight"><b class="small">v2</b><span class="xs muted">Aug 02 · you · 1.9 MB</span></span><button class="btn sm ghost" type="button">Restore</button></div>
+              </div>
+            </div>
+            <div id="fd-3" role="tabpanel" aria-labelledby="fd-3t" class="stack" hidden>
+              <div class="row" style="gap:6px"><label class="sr-only" for="df-from">From version</label><select class="select" id="df-from" style="min-height:32px;padding:4px 8px"><option>v3</option><option>v2</option></select><i data-i="right" class="sm muted"></i><label class="sr-only" for="df-to">To version</label><select class="select" id="df-to" style="min-height:32px;padding:4px 8px"><option>v4</option></select></div>
+              <div class="diff" data-api="/filevault/api/files/:fileId/diff" role="region" aria-label="Changes between v3 and v4" tabindex="0">
+                <div class="hunk">@@ Hiring · p.4 @@</div>
+                <div>  Platform: 2 engineers (EU)</div>
+                <div class="del">- Design: 1 contractor</div>
+                <div class="add">+ Design: 1 senior designer (FTE)</div>
+                <div class="add">+ Security: 1 engineer, Q4 start</div>
+                <div>  Total: 4 roles</div>
+              </div>
+              <span class="xs muted">Text diff available for text-based files and PDFs with a text layer.</span>
+            </div>
+          </div>
+          <div class="card-foot" style="justify-content:flex-start"><button class="btn sm danger-outline" type="button" data-open="dlg-trash">Move to trash</button></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ════ Shared links ════ -->
+    <section id="p-links" role="tabpanel" aria-labelledby="t-links" hidden>
+      <div class="card dt">
+        <div class="dt-scroll">
+          <table class="table" data-api="/filevault/api/share">
+            <thead><tr><th>File</th><th>Access</th><th class="num">Uses</th><th class="num">Expires</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>Q3-roadmap.pdf</b></td><td>View + download</td><td class="num">7 / 25</td><td class="num">Oct 3</td><td><span class="pill ok">Active</span></td><td class="actions"><button class="btn sm ghost" type="button" data-copy="https://exprsn.io/s/7c1d2f0e">Copy</button><button class="btn sm ghost" type="button" data-open="dlg-revoke" data-api="/filevault/api/share/:shareLinkId">Revoke</button></td></tr>
+              <tr><td><b>headcount-plan.csv</b></td><td>Access token</td><td class="num">1 / 1</td><td class="num">Sep 30</td><td><span class="pill warn">Used up</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-revoke">Revoke</button></td></tr>
+              <tr><td><b>offsite-venue.jpg</b></td><td>View only</td><td class="num">42</td><td class="num">Sep 22</td><td><span class="pill">Expired</span></td><td class="actions"><button class="btn sm ghost" type="button">Remove</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════ Trash ════ -->
+    <section id="p-trash" role="tabpanel" aria-labelledby="t-trash" hidden>
+      <div class="banner info"><i data-i="trash" class="sm"></i><span class="grow">Items in trash are deleted forever after 30 days. They still count toward your storage.</span></div>
+      <div class="card dt" style="margin-top:16px">
+        <div class="dt-scroll">
+          <table class="table" data-api="/filevault/api/files/trash">
+            <thead><tr><th>Name</th><th>Original location</th><th class="num">Size</th><th class="num">Deleted</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>okrs-july.md</b></td><td>Projects / Q3 planning</td><td class="num">7 KB</td><td class="num">Sep 21 · 22 days left</td><td class="actions"><button class="btn sm tonal" type="button" data-api="/filevault/api/files/:fileId/restore" data-toast="Restored okrs-july.md">Restore</button></td></tr>
+              <tr><td><b>venue-quote-old.pdf</b></td><td>Receipts</td><td class="num">220 KB</td><td class="num">Sep 12 · 13 days left</td><td class="actions"><button class="btn sm tonal" type="button">Restore</button></td></tr>
+              <tr><td><b>Old mockups</b> (folder)</td><td>Design</td><td class="num">180 MB</td><td class="num">Sep 03 · 4 days left</td><td class="actions"><button class="btn sm tonal" type="button">Restore</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Upload -->
+  <dialog class="dialog" id="dlg-upload" aria-labelledby="dlg-upload-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-upload-t">Upload to Q3 planning</h2><p>Up to 5 GB per file. Uploading a file with the same name adds a new version.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="drop"><i data-i="upload" class="lg"></i><b>Drop files or folders here</b><span class="small">or</span><label class="btn sm outline" for="up-pick">Choose files</label><input id="up-pick" type="file" multiple class="sr-only"></div>
+      <div class="field"><label for="up-vis">Who can see them</label><select class="select" id="up-vis"><option>Only me</option><option>My groups</option><option>Anyone with a link</option></select></div>
+      <div class="banner info"><i data-i="shield" class="sm"></i><span class="grow small">Images are checked for unsafe content before others can see them.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Uploading 2 files">Upload</button></div>
+  </dialog>
+
+  <!-- New folder -->
+  <dialog class="dialog sm" id="dlg-folder" aria-labelledby="dlg-folder-t">
+    <form method="dialog">
+      <div class="dialog-head"><div class="grow"><h2 id="dlg-folder-t">New folder</h2><p>Inside Projects / Q3 planning.</p></div></div>
+      <div class="dialog-body"><div class="field"><label for="nf-name">Folder name</label><input class="input" id="nf-name" value="Board prep"></div></div>
+      <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Folder created">Create</button></div>
+    </form>
+  </dialog>
+
+  <!-- New text file -->
+  <dialog class="dialog" id="dlg-create" aria-labelledby="dlg-create-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-create-t">New text file</h2><p>Creates a file from text you type — handy for notes and Markdown.</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="nt-name">File name</label><input class="input" id="nt-name" value="meeting-notes-sep-29.md"></div>
+      <div class="field"><label for="nt-body">Content</label><textarea class="textarea mono" id="nt-body"># Design crit — Sep 29&#10;- Contract drawer: ship&#10;- Files: add version diff</textarea></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="meeting-notes-sep-29.md created">Create file</button></div>
+  </dialog>
+
+  <!-- Rename / move -->
+  <dialog class="dialog sm" id="dlg-rename" aria-labelledby="dlg-rename-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rename-t">Rename or move</h2><p>Q3-roadmap.pdf</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="rn-name">Name</label><input class="input" id="rn-name" value="Q3-roadmap.pdf"></div>
+      <div class="field"><label for="rn-dir">Folder</label><select class="select" id="rn-dir" data-api="/filevault/api/directories/:directoryId/move"><option>Projects / Q3 planning</option><option>Projects / Gateway v2</option><option>Design</option></select><span class="help">Folders are moved with <b>PUT …/directories/:id/move</b>; files by updating their folder.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Renamed">Save</button></div>
+  </dialog>
+
+  <!-- Share -->
+  <dialog class="dialog" id="dlg-share" aria-labelledby="dlg-share-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-share-t">Share “Q3-roadmap.pdf”</h2><p>Anyone with the link can open it — no Exprsn account needed.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="tabs" role="tablist" aria-label="Share type">
+        <button role="tab" id="sh-1t" aria-controls="sh-1" aria-selected="true">Link</button>
+        <button role="tab" id="sh-2t" aria-controls="sh-2">Access token</button>
+      </div>
+      <div id="sh-1" role="tabpanel" aria-labelledby="sh-1t" class="stack">
+        <div class="input-group" data-api="/filevault/api/share/files/:fileId/share"><i data-i="link" class="sm"></i><label class="sr-only" for="sh-url">Share link</label><input id="sh-url" readonly value="https://exprsn.io/s/7c1d2f0e-4b1a?token=…"><button class="btn sm tonal" type="button" data-copy="https://exprsn.io/s/7c1d2f0e-4b1a">Copy</button></div>
+        <div class="form-grid">
+          <div class="field"><label for="sh-exp">Expires</label><select class="select" id="sh-exp"><option>In 7 days</option><option>In 24 hours</option><option>In 30 days</option><option>Never</option></select></div>
+          <div class="field"><label for="sh-max">Download limit</label><input class="input" id="sh-max" type="number" value="25" min="1"></div>
+        </div>
+        <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Allow download</div><div class="d">Off = view in the browser only.</div></div><label class="switch"><input type="checkbox" id="sh-dl" checked aria-label="Allow download"><span></span></label></div>
+        <div class="setting-row" style="padding:0"><div class="grow"><div class="t">Require a password <span class="pill violet">Proposed</span></div><div class="d">Not supported by File Vault yet.</div></div><label class="switch"><input type="checkbox" id="sh-pw" disabled aria-label="Require a password"><span></span></label></div>
+        <div class="list card" data-api="/filevault/api/share/files/:fileId/shares">
+          <div class="list-item"><i data-i="link" class="sm"></i><span class="grow stack tight"><b class="small">Link · 7 of 25 downloads</b><span class="xs muted">Created Sep 26 · expires Oct 3</span></span><button class="btn sm danger-outline" type="button" data-open="dlg-revoke">Revoke</button></div>
+        </div>
+      </div>
+      <div id="sh-2" role="tabpanel" aria-labelledby="sh-2t" class="stack" hidden>
+        <p class="small secondary">A single-file download token for scripts and integrations. It’s shown once — copy it now.</p>
+        <div class="field"><label for="sh-tok-exp">Valid for</label><select class="select" id="sh-tok-exp"><option>1 hour</option><option>24 hours</option><option>7 days</option></select></div>
+        <div class="inset row" data-api="/filevault/api/share/files/:fileId/access-token"><code class="grow truncate" id="sh-tok" data-value="fvat_9d2c7e1b04a8f3c6e5">••••••••••••</code><button class="btn sm ghost" type="button" data-reveal="sh-tok" aria-pressed="false">Reveal</button><button class="btn sm ghost" type="button" data-copy="fvat_9d2c7e1b04a8f3c6e5">Copy</button></div>
+        <span class="xs muted">Download URL: <code>/filevault/api/share/file/:fileId/download?token=…</code></span>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-close data-toast="Link created and copied">Create link</button></div>
+  </dialog>
+
+  <!-- Revoke -->
+  <dialog class="dialog sm" id="dlg-revoke" aria-labelledby="dlg-revoke-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-revoke-t">Revoke link to “Q3-roadmap.pdf”?</h2><p>People who have the link will immediately lose access. This can’t be undone — you can create a new link later.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Link revoked">Revoke link</button></div>
+  </dialog>
+
+  <!-- Trash confirm -->
+  <dialog class="dialog sm" id="dlg-trash" aria-labelledby="dlg-trash-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-trash-t">Move “Q3-roadmap.pdf” to trash?</h2><p>Its 2 share links stop working. You can restore it from Trash for 30 days.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Moved to trash · Undo" data-api="/filevault/api/files/:fileId">Move to trash</button></div>
+  </dialog>
+
+  <!-- Connect a drive (WebDAV) -->
+  <dialog class="dialog" id="dlg-drive" aria-labelledby="dlg-drive-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-drive-t">Connect a drive</h2><p>Open your Exprsn files in Finder, File Explorer or any WebDAV app.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="field"><label for="dav-url">Server address</label><div class="input-group"><i data-i="cloud" class="sm"></i><input id="dav-url" readonly value="https://exprsn.io/filevault/webdav/"><button class="btn sm tonal" type="button" data-copy="https://exprsn.io/filevault/webdav/">Copy</button></div></div>
+      <div class="tabs" role="tablist" aria-label="Operating system">
+        <button role="tab" id="os-1t" aria-controls="os-1" aria-selected="true">macOS</button>
+        <button role="tab" id="os-2t" aria-controls="os-2">Windows</button>
+        <button role="tab" id="os-3t" aria-controls="os-3">Linux</button>
+      </div>
+      <ol id="os-1" role="tabpanel" aria-labelledby="os-1t" class="small secondary stack tight" style="padding-left:18px;margin:0"><li>In Finder choose <b>Go → Connect to Server</b> (⌘K).</li><li>Paste the server address and choose <b>Connect</b>.</li><li>Sign in with your email and an access token as the password.</li></ol>
+      <ol id="os-2" role="tabpanel" aria-labelledby="os-2t" class="small secondary stack tight" style="padding-left:18px;margin:0" hidden><li>In File Explorer, right-click <b>This PC → Map network drive</b>.</li><li>Paste the server address and tick <b>Connect using different credentials</b>.</li></ol>
+      <ol id="os-3" role="tabpanel" aria-labelledby="os-3t" class="small secondary stack tight" style="padding-left:18px;margin:0" hidden><li>In Files, choose <b>Other Locations</b> and enter <code>davs://exprsn.io/filevault/webdav/</code>.</li></ol>
+      <div class="banner warn"><i data-i="alert" class="sm"></i><span class="grow small">Most desktop clients sign in with a username and password, which File Vault doesn’t accept yet. Until app passwords ship, use a WebDAV app that supports bearer tokens.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Three-pane file manager: folders, listing (grid/list), and a detail pane (stacked under 1280px, single column on phones). Uploads are optimistic tiles with per-file progress from XHR upload events. Server-side processing (thumbnails, image moderation) shows a “Scanning” pill that is polled today. Rename, move, description and trash are optimistic with rollback and an Undo toast.",
+  "rest": [
+    { "m": "GET", "p": "/filevault/api/files", "auth": "user", "ui": "Listing (?directoryId, sort, page)" },
+    { "m": "POST", "p": "/filevault/api/files/upload", "auth": "user", "ui": "Upload dialog, drop zone, Browse" },
+    { "m": "POST", "p": "/filevault/api/files/create", "auth": "user", "ui": "New text file dialog (name, content, directoryId)" },
+    { "m": "GET", "p": "/filevault/api/files/:fileId", "auth": "owner/shared", "ui": "Detail pane" },
+    { "m": "PUT", "p": "/filevault/api/files/:fileId", "auth": "owner", "ui": "Detail → Save changes (tags, folder, visibility)" },
+    { "m": "PATCH", "p": "/filevault/api/files/:fileId/rename", "auth": "owner", "ui": "Rename dialog" },
+    { "m": "GET", "p": "/filevault/api/files/:fileId/description", "auth": "owner/shared", "ui": "Detail → Description" },
+    { "m": "GET", "p": "/filevault/api/files/:fileId/download", "auth": "owner/shared", "ui": "Download" },
+    { "m": "DELETE", "p": "/filevault/api/files/:fileId", "auth": "owner", "ui": "Move to trash (confirm dialog)" },
+    { "m": "GET", "p": "/filevault/api/files/trash", "auth": "user", "ui": "Trash tab" },
+    { "m": "POST", "p": "/filevault/api/files/:fileId/restore", "auth": "owner", "ui": "Trash → Restore" },
+    { "m": "GET", "p": "/filevault/api/files/:fileId/versions", "auth": "owner/shared", "ui": "Detail → Versions" },
+    { "m": "POST", "p": "/filevault/api/files/:fileId/restore/:versionNumber", "auth": "owner", "ui": "Versions → Restore" },
+    { "m": "GET", "p": "/filevault/api/files/:fileId/diff", "auth": "owner/shared", "ui": "Detail → Changes (?from=&to=)" },
+    { "m": "GET", "p": "/filevault/api/directories", "auth": "user", "ui": "Folder tree" },
+    { "m": "POST", "p": "/filevault/api/directories", "auth": "user", "ui": "New folder dialog" },
+    { "m": "GET", "p": "/filevault/api/directories/:directoryId", "auth": "user", "ui": "Breadcrumbs, title, counts" },
+    { "m": "PUT", "p": "/filevault/api/directories/:directoryId/rename", "auth": "owner", "ui": "Folder → Rename" },
+    { "m": "PUT", "p": "/filevault/api/directories/:directoryId/move", "auth": "owner", "ui": "Folder → Move (drag in tree)" },
+    { "m": "DELETE", "p": "/filevault/api/directories/:directoryId", "auth": "owner", "ui": "Folder → Delete" },
+    { "m": "GET", "p": "/filevault/api/groups/:groupId/files", "auth": "grp-member", "ui": "Tree → Group drives listing" },
+    { "m": "POST", "p": "/filevault/api/groups/:groupId/files/upload", "auth": "grp-member", "ui": "Upload while in a group drive" },
+    { "m": "GET", "p": "/filevault/api/groups/:groupId/directories", "auth": "grp-member", "ui": "Tree → Group drive folders" },
+    { "m": "GET", "p": "/filevault/api/thumbnails/:fileId", "auth": "user", "ui": "Grid tiles (?size=small|medium|large)" },
+    { "m": "POST", "p": "/filevault/api/share/files/:fileId/share", "auth": "owner", "ui": "Share → Create link (permissions, expiresIn, maxUses)" },
+    { "m": "GET", "p": "/filevault/api/share/files/:fileId/shares", "auth": "owner", "ui": "Share dialog → existing links" },
+    { "m": "POST", "p": "/filevault/api/share/files/:fileId/access-token", "auth": "owner", "ui": "Share → Access token tab" },
+    { "m": "GET", "p": "/filevault/api/share", "auth": "user", "ui": "Shared links tab" },
+    { "m": "DELETE", "p": "/filevault/api/share/:shareLinkId", "auth": "owner", "ui": "Revoke link (confirm dialog)" },
+    { "m": "GET", "p": "/filevault/api/search", "auth": "user", "ui": "Search field (?q)" },
+    { "m": "GET", "p": "/filevault/api/search/tag/:tag", "auth": "user", "ui": "Tag filter chip / tag chips" },
+    { "m": "GET", "p": "/filevault/api/storage/usage", "auth": "user", "ui": "Storage meter + breakdown" },
+    { "m": "GET", "p": "/filevault/api/storage/quota", "auth": "user", "ui": "Storage meter total" },
+    { "m": "PROPFIND", "p": "/filevault/webdav/*", "auth": "user (bearer)", "ui": "Connect a drive dialog (GET/PUT/… for desktop clients)" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "Proposed: File Vault has no socket namespace, so upload processing (thumbnailing, image moderation verdicts) and changes by collaborators can't be pushed. Proposed: /filevault with file:processed, file:moderation, file:updated and share:used to user:{id} and dir:{id} rooms. Until then, “Scanning” tiles poll GET /files/:id every 3 s." },
+    { "sev": "med", "text": "GET /storage/quota returns a hard-coded 10 GB, so the meter total is wrong for anyone with a different quota (admin quotas live under /admin/quotas)." },
+    { "sev": "med", "text": "Share links can't be password-protected: createShareLink only accepts permissions, expiresIn and maxUses. The switch is shown disabled as proposed." },
+    { "sev": "med", "text": "WebDAV only accepts bearer tokens (authenticate middleware), but Finder and Explorer send Basic auth. Proposed: app passwords, or a Basic→token bridge for /webdav." },
+    { "sev": "med", "text": "Proposed: permanent delete / empty trash, plus a trash retention job. Neither exists (only admin cleanup), so the 30-day copy and “N days left” column assume a new retention policy." }
+  ]
+}
+</script>
+</body>
+</html>

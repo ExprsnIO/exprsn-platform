@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Platform · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+  /* kit fix proposal: danger-outline text fails AA in light theme */
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+</style>
+</head>
+<body data-shell="admin" data-page="platform">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Platform</span></nav>
+        <h1 class="page-title">Platform</h1>
+        <p class="page-sub">Runtime overrides for the environment keys the gateway allows you to change, plus each module’s own config sections. The code-side descriptor decides what is overridable.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-toast="platform-config.json downloaded"><i data-i="download" class="sm"></i>Export</button>
+        <button class="btn primary" type="button" data-open="dlg-edit-int" data-api="/platform/api/config/:key"><i data-i="plus" class="sm"></i>Add override</button>
+      </div>
+    </header>
+
+    <div class="banner info" data-on="config:changed" role="status">
+      <span class="avatar sm g1">MD</span>
+      <span class="grow"><b>Maya Diaz</b> changed <span class="id">CORTEX_ENABLED</span> to <b>true</b> 4 minutes ago. The table updated in place.</span>
+      <button class="btn sm ghost" type="button" data-toast="Showing change history for CORTEX_ENABLED">View change</button>
+    </div>
+    <div class="banner warn" data-api="/platform/api/config">
+      <i data-i="refresh" class="sm"></i>
+      <span class="grow"><b>1 override is waiting for a restart.</b> <span class="id">CORTEX_ENABLED</span> is stored but the running process still uses the boot value. Restart the gateway and <span class="mono">worker:cortex</span>.</span>
+      <button class="btn sm outline" type="button" data-copy="npm run start">Copy restart command</button>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Platform views">
+      <button role="tab" id="t-ov" aria-controls="p-ov" aria-selected="true">Config overrides <span class="badge neutral">15</span></button>
+      <button role="tab" id="t-mc" aria-controls="p-mc">Module config</button>
+      <button role="tab" id="t-mod" aria-controls="p-mod">Modules</button>
+      <button role="tab" id="t-gw" aria-controls="p-gw">Gateway</button>
+      <button role="tab" id="t-wk" aria-controls="p-wk">Workers</button>
+    </div>
+
+    <!-- ── Config overrides ── -->
+    <section id="p-ov" role="tabpanel" aria-labelledby="t-ov" class="stack loose">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="ov-q" type="search" placeholder="Search keys and descriptions" data-api="/platform/api/config"></label>
+          <button class="chip" type="button" aria-pressed="false">Source</button>
+          <button class="chip" type="button" aria-pressed="false">Restart required</button>
+          <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Overridden only <span class="x">×</span></button>
+          <span class="grow"></span>
+          <div class="seg" role="group" aria-label="Group by"><button type="button" aria-pressed="true">By module</button><button type="button" aria-pressed="false">No grouping</button></div>
+          <button class="icon-btn" type="button" aria-label="Refresh"><i data-i="refresh"></i></button>
+        </div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/platform/api/config" data-on="config:changed">
+            <thead>
+              <tr>
+                <th class="pin" aria-sort="ascending"><button type="button">Key <i data-i="up" class="sm"></i></button></th>
+                <th><button type="button">Type</button></th>
+                <th><button type="button">Env value</button></th>
+                <th><button type="button">Override</button></th>
+                <th><button type="button">Effective</button></th>
+                <th><button type="button">Source</button></th>
+                <th><button type="button">Apply</button></th>
+                <th><button type="button">Changed by</button></th>
+                <th class="actions"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="group-row"><td colspan="9">platform · 3 keys</td></tr>
+              <tr>
+                <td class="pin"><span class="stack tight" style="gap:0"><span class="mono">METRICS_ENABLED</span><span class="xs secondary">Prometheus metrics endpoint</span></span></td>
+                <td>boolean</td><td class="mono">false</td><td class="mono">true</td><td><span class="pill ok">true</span></td><td><span class="pill brand">override</span></td><td><span class="pill">restart</span></td><td class="small" style="white-space:nowrap">Priya Raman · Sep 20 · v2</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit-bool">Edit</button><button class="btn sm ghost" type="button" data-open="dlg-revert">Revert</button></td>
+              </tr>
+              <tr>
+                <td class="pin"><span class="stack tight" style="gap:0"><span class="mono">PLATFORM_ORG_SLUG</span><span class="xs secondary">Platform policy org (gates public signup)</span></span></td>
+                <td>string</td><td class="mono">exprsn-hq</td><td class="muted">—</td><td class="mono">exprsn-hq</td><td><span class="pill">env</span></td><td><span class="pill ok">hot</span></td><td class="small muted">—</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit-int">Override</button></td>
+              </tr>
+              <tr>
+                <td class="pin"><span class="stack tight" style="gap:0"><span class="mono">SENTRY_DSN</span><span class="xs secondary">Error-tracking DSN</span></span></td>
+                <td>string · secret</td><td><span class="secret">••••••••</span> <span class="pill ok">set</span></td><td class="muted">—</td><td><span class="secret">••••••••</span></td><td><span class="pill">env</span></td><td><span class="pill">restart</span></td><td class="small muted">—</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit-int">Override</button></td>
+              </tr>
+              <tr class="group-row"><td colspan="9">cortex · 1 key</td></tr>
+              <tr>
+                <td class="pin"><span class="stack tight" style="gap:0"><span class="mono">CORTEX_ENABLED</span><span class="xs secondary">Load the cortex module at boot</span></span></td>
+                <td>boolean</td><td class="mono">false</td><td class="mono">true</td><td><span class="pill ok">true</span></td><td><span class="pill brand">override</span></td><td><span class="pill warn"><i data-i="refresh" class="sm"></i>pending restart</span></td><td class="small" style="white-space:nowrap">Maya Diaz · 10:38 · v1</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit-bool">Edit</button><button class="btn sm ghost" type="button" data-open="dlg-revert">Revert</button></td>
+              </tr>
+              <tr class="group-row"><td colspan="9">filevault · 3 keys</td></tr>
+              <tr>
+                <td class="pin"><span class="stack tight" style="gap:0"><span class="mono">FILEVAULT_IMAGE_MODERATION</span><span class="xs secondary">off · shadow · enforce</span></span></td>
+                <td>enum</td><td class="mono">shadow</td><td class="mono">enforce</td><td><span class="pill ok">enforce</span></td><td><span class="pill brand">override</span></td><td><span class="pill ok">hot</span></td><td class="small" style="white-space:nowrap">Ari Lindqvist · Sep 26 · v4</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit-enum">Edit</button><button class="btn sm ghost" type="button" data-open="dlg-revert">Revert</button></td>
+              </tr>
+              <tr>
+                <td class="pin"><span class="stack tight" style="gap:0"><span class="mono">FILEVAULT_IMAGE_RISK_THRESHOLD</span><span class="xs secondary">Flag at or above (0–100)</span></span></td>
+                <td>int</td><td class="mono">70</td><td class="mono">65</td><td class="num">65</td><td><span class="pill brand">override</span></td><td><span class="pill">restart</span></td><td class="small" style="white-space:nowrap">Ari Lindqvist · Sep 26 · v1</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit-int">Edit</button><button class="btn sm ghost" type="button" data-open="dlg-revert">Revert</button></td>
+              </tr>
+              <tr>
+                <td class="pin"><span class="stack tight" style="gap:0"><span class="mono">FILEVAULT_MODERATION_CONCURRENCY</span><span class="xs secondary">Worker concurrency (1–16)</span></span></td>
+                <td>int</td><td class="muted">unset</td><td class="muted">—</td><td class="num">2 <span class="xs secondary">default</span></td><td><span class="pill">default</span></td><td><span class="pill">restart</span></td><td class="small muted">—</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit-int">Override</button></td>
+              </tr>
+              <tr class="group-row"><td colspan="9">atproto · 5 keys (2 shown)</td></tr>
+              <tr>
+                <td class="pin"><span class="stack tight" style="gap:0"><span class="mono">ATPROTO_FIREHOSE_TRANSPORT</span><span class="xs secondary">jetstream · subscribeRepos</span></span></td>
+                <td>enum</td><td class="mono">jetstream</td><td class="muted">—</td><td class="mono">jetstream</td><td><span class="pill">env</span></td><td><span class="pill">restart</span></td><td class="small muted">—</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit-enum">Override</button></td>
+              </tr>
+              <tr>
+                <td class="pin"><span class="stack tight" style="gap:0"><span class="mono">ATPROTO_SAMPLE_RATE</span><span class="xs secondary">Fraction of firehose ingested (0–1)</span></span></td>
+                <td>string</td><td class="mono">0.05</td><td class="mono">0.10</td><td class="num">0.10</td><td><span class="pill brand">override</span></td><td><span class="pill">restart</span></td><td class="small" style="white-space:nowrap">Jonah Okafor · Sep 12 · v3</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-edit-int">Edit</button><button class="btn sm ghost" type="button" data-open="dlg-revert">Revert</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty">
+          <div class="empty"><div class="art"><i data-i="tune"></i></div><h3>No overrides yet</h3><p>Every key is running on its env value or default. Clear “Overridden only” to see the 15 keys you can override.</p><button class="btn outline" type="button">Show all keys</button></div>
+        </div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack">
+          <span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span>
+        </div>
+        <div data-state="error">
+          <div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Overrides store unavailable</h3><p>GET /platform/api/config returned 503 <code>CONFIG_OVERRIDES_DISABLED</code>. The gateway is running on .env only. Correlation id <code>cid 0c7d…e21</code>.</p><button class="btn outline" type="button">Retry</button></div>
+        </div>
+        <div class="dt-foot"><span class="num">8 of 15 keys · client mode · filtered by 1</span><span>Channel <span class="mono">platform:config:changed</span></span></div>
+      </div>
+
+      <section class="card" aria-labelledby="anom-t" data-api="/platform/api/config">
+        <div class="card-head"><h2 id="anom-t">Anomalies</h2><span class="pill warn">2</span></div>
+        <div class="list">
+          <div class="list-item"><i data-i="alert" class="sm"></i><div class="grow"><div class="title mono">ATPROTO_BACKPRESSURE_LOW</div><div class="meta">Stored override 9 is below the descriptor minimum of 10. The env value is in effect.</div></div><button class="btn sm ghost" type="button" data-open="dlg-revert">Revert</button></div>
+          <div class="list-item"><i data-i="alert" class="sm"></i><div class="grow"><div class="title mono">LEGACY_FEED_MODE</div><div class="meta">Stored row has no descriptor (the key was removed from code). It is ignored.</div></div><button class="btn sm ghost" type="button" data-open="dlg-revert">Delete row</button></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ── Module config ── -->
+    <section id="p-mc" role="tabpanel" aria-labelledby="t-mc" hidden class="stack">
+      <p class="small secondary">Each module exposes <span class="mono">/&lt;module&gt;/api/config/:sectionId</span>. Some sections persist, some are runtime-only, and some only log the POST. The label on each tab tells you which.</p>
+      <div class="tabs" role="tablist" aria-label="Module config sections">
+        <button role="tab" id="t-mc-auth" aria-controls="mc-auth" aria-selected="true">auth <span class="pill danger">public</span></button>
+        <button role="tab" id="t-mc-tl" aria-controls="mc-tl">timeline <span class="pill danger">public</span></button>
+        <button role="tab" id="t-mc-vault" aria-controls="mc-vault">vault</button>
+        <button role="tab" id="t-mc-pf" aria-controls="mc-pf">prefetch</button>
+        <button role="tab" id="t-mc-spark" aria-controls="mc-spark">spark</button>
+        <button role="tab" id="t-mc-mod" aria-controls="mc-mod">moderator</button>
+        <button role="tab" id="t-mc-live" aria-controls="mc-live">live</button>
+        <button role="tab" id="t-mc-nexus" aria-controls="mc-nexus">nexus</button>
+        <button role="tab" id="t-mc-ca" aria-controls="mc-ca">ca</button>
+      </div>
+
+      <div id="mc-auth" role="tabpanel" aria-labelledby="t-mc-auth" class="stack">
+        <div class="banner danger"><i data-i="alert" class="sm"></i><span class="grow"><b>Anyone can read and POST these sections.</b> <span class="mono">/auth/api/config/:sectionId</span> has no auth middleware. POST only logs today, so nothing changes, but the read leaks policy. Shown read-only.</span></div>
+        <div class="card" data-api="/auth/api/config/:sectionId">
+          <div class="card-head"><h2>auth-methods</h2><div class="row" style="gap:6px"><span class="pill">log-only façade</span><span class="pill info">read-only here</span></div></div>
+          <div class="setting-row"><div class="grow"><div class="t">Password authentication</div><div class="d">Email + password login on /auth/api/auth/login</div></div><span class="pill ok">On</span></div>
+          <div class="setting-row"><div class="grow"><div class="t">MFA</div><div class="d">TOTP + backup codes; enforcement lives in org settings</div></div><span class="pill ok">Available</span></div>
+          <div class="setting-row"><div class="grow"><div class="t">OAuth2 / OIDC provider</div><div class="d">Issuer https://exprsn.io/auth</div></div><span class="pill ok">On</span></div>
+          <div class="setting-row"><div class="grow"><div class="t">SAML</div><div class="d">SAML_ENABLED unset → routes answer 503</div></div><span class="pill">Off</span></div>
+          <div class="setting-row"><div class="grow"><div class="t">Session timeout</div><div class="d">Absolute session lifetime</div></div><span class="num">24 h</span></div>
+        </div>
+        <p class="xs secondary">Other sections: auth-users, auth-groups, auth-roles (same façade). Edit policy in <a href="orgs.html">Organizations → platform policy org</a>.</p>
+      </div>
+
+      <div id="mc-tl" role="tabpanel" aria-labelledby="t-mc-tl" hidden class="stack">
+        <div class="banner danger"><i data-i="alert" class="sm"></i><span class="grow"><b>This section is writable without auth.</b> <span class="mono">POST /timeline/api/config/:sectionId</span> persists to <span class="mono">timeline_config</span> and anyone on the network can call it. Keep this form, but the route must be gated first.</span></div>
+        <form class="card" data-api="/timeline/api/config/:sectionId" data-toast="timeline-settings saved · v7">
+          <div class="card-head"><h2>timeline-settings</h2><span class="pill ok">persisted</span></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="field"><label for="tl-max">Max post length</label><input class="input" id="tl-max" type="number" value="500" min="1" max="5000"><span class="help">Characters, 1–5000</span></div>
+              <div class="field"><label for="tl-page">Feed page size</label><input class="input" id="tl-page" type="number" value="20" min="5" max="100"></div>
+              <div class="field"><label for="tl-trend">Trending window</label><select class="select" id="tl-trend"><option>6 h</option><option selected>24 h</option><option>7 d</option></select></div>
+              <div class="field"><label for="tl-edit">Edit window</label><input class="input" id="tl-edit" value="15m"><span class="help">= 900 s</span></div>
+            </div>
+          </div>
+          <div class="setting-row"><div class="grow"><div class="t">Require approval for new accounts</div><div class="d">Posts from accounts younger than 24 h go to the approvals queue</div></div><label class="switch"><input type="checkbox" id="tl-appr" aria-label="Require approval for new accounts" checked><span></span></label></div>
+          <div class="card-foot"><button class="btn ghost" type="button">Reset</button><button class="btn primary" type="submit">Save section</button></div>
+        </form>
+        <p class="xs secondary">Other section: timeline-moderation.</p>
+      </div>
+
+      <div id="mc-vault" role="tabpanel" aria-labelledby="t-mc-vault" hidden class="card pad stack" data-api="/vault/api/config/:sectionId">
+        <div class="row between"><h2 style="font-size:1rem">vault-secrets · vault-encryption · vault-access · vault-audit</h2><span class="pill ok">persisted · A</span></div>
+        <p class="small secondary">Stored in <span class="mono">vault_config</span>, but runtime doesn’t read it yet (VAULT-4). Values are labelled “inert” until it does. <a href="vault.html">Edit on the Vault page</a>.</p>
+      </div>
+      <div id="mc-pf" role="tabpanel" aria-labelledby="t-mc-pf" hidden class="card pad stack" data-api="/prefetch/api/config/:sectionId">
+        <div class="row between"><h2 style="font-size:1rem">prefetch-settings · prefetch-cache · prefetch-performance</h2><span class="pill ok">persisted · A</span></div>
+        <p class="small secondary">hotCacheTTL is in seconds here but milliseconds at runtime (PF-2). <a href="prefetch.html">Edit on the Prefetch page</a>.</p>
+      </div>
+      <div id="mc-spark" role="tabpanel" aria-labelledby="t-mc-spark" hidden class="card pad stack" data-api="/spark/api/config/:sectionId">
+        <div class="row between"><h2 style="font-size:1rem">messaging-settings · messaging-moderation</h2><span class="pill warn">runtime only · A</span></div>
+        <p class="small secondary">Lost on restart (SPARK-4). <a href="spark.html">Edit on the Spark page</a>.</p>
+      </div>
+      <div id="mc-mod" role="tabpanel" aria-labelledby="t-mc-mod" hidden class="card pad stack" data-api="/moderator/api/config/:sectionId">
+        <div class="row between"><h2 style="font-size:1rem">moderation-ai · moderation-rules · moderation-queue</h2><span class="pill warn">runtime only · A</span></div>
+        <p class="small secondary">moderation-ai isn’t read by the provider factory (MOD-3). <a href="ai.html">Edit on the AI page</a>.</p>
+      </div>
+      <div id="mc-live" role="tabpanel" aria-labelledby="t-mc-live" hidden class="card pad stack" data-api="/live/api/config/:sectionId">
+        <div class="row between"><h2 style="font-size:1rem">live-settings · live-room · live-roomfile · live-recording-moderation</h2><span class="pill ok">persisted · A</span></div>
+        <p class="small secondary">live-rooms and live-recordings are broken duplicates (LIVE-4). <a href="live.html">Edit on the Live page</a>.</p>
+      </div>
+      <div id="mc-nexus" role="tabpanel" aria-labelledby="t-mc-nexus" hidden class="card pad stack" data-api="/nexus/api/config/:sectionId">
+        <div class="row between"><h2 style="font-size:1rem">nexus-groups · nexus-events · nexus-membership · nexus-trending · nexus-calendar</h2><span class="pill">log-only · A</span></div>
+        <p class="small secondary">POST only logs (NEXUS-4). Shown read-only on the <a href="nexus.html">Groups &amp; events page</a>.</p>
+      </div>
+      <div id="mc-ca" role="tabpanel" aria-labelledby="t-mc-ca" hidden class="card pad stack" data-api="/ca/api/config/:sectionId /ca/admin/api/config">
+        <div class="row between"><h2 style="font-size:1rem">cert-root · cert-intermediate · cert-tokens · cert-ocsp · cert-admin · cert-operator</h2><span class="pill">session-only · log-only</span></div>
+        <p class="small secondary">Bearer tokens can’t call these, so the console reads the masked <span class="mono">/ca/admin/api/config</span> on the <a href="ca.html">CA page</a> instead.</p>
+      </div>
+    </section>
+
+    <!-- ── Modules ── -->
+    <section id="p-mod" role="tabpanel" aria-labelledby="t-mod" hidden>
+      <div class="card dt">
+        <div class="dt-scroll">
+          <table class="table" data-api="/health" data-on="health">
+            <thead><tr><th class="pin">Module</th><th>Prefix</th><th>Schema</th><th>Namespaces</th><th>Flag</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="pin"><b>ca</b></td><td class="mono">/ca</td><td class="mono">ca</td><td class="mono">/ca</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>auth</b></td><td class="mono">/auth</td><td class="mono">auth</td><td class="muted">—</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>spark</b></td><td class="mono">/spark</td><td class="mono">spark</td><td class="mono">/spark</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>nexus</b></td><td class="mono">/nexus</td><td class="mono">nexus</td><td class="muted">—</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>filevault</b></td><td class="mono">/filevault</td><td class="mono">filevault</td><td class="muted">—</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>vault</b></td><td class="mono">/vault</td><td class="mono">vault</td><td class="mono">/vault</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>timeline</b></td><td class="mono">/timeline</td><td class="mono">timeline</td><td class="mono">/timeline</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>prefetch</b></td><td class="mono">/prefetch</td><td class="mono">prefetch</td><td class="muted">—</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>moderator</b></td><td class="mono">/moderator</td><td class="mono">moderator</td><td class="mono">/moderation /notifications</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>live</b></td><td class="mono">/live</td><td class="mono">live</td><td class="mono">/live</td><td class="muted">—</td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>atproto</b></td><td class="mono">/atproto</td><td class="mono">atproto</td><td class="muted">raw WS</td><td><label class="switch"><input type="checkbox" id="fl-atp" aria-label="ATPROTO_ENABLED" checked data-open="dlg-edit-bool"><span></span></label></td><td><span class="pill ok">mounted</span></td></tr>
+              <tr><td class="pin"><b>plugins</b></td><td class="mono">/plugins</td><td class="mono">plugins</td><td class="muted">—</td><td><label class="switch"><input type="checkbox" id="fl-plg" aria-label="PLUGINS_ENABLED" data-open="dlg-edit-bool"><span></span></label></td><td><span class="pill">disabled</span></td></tr>
+              <tr><td class="pin"><b>lowcode</b></td><td class="mono">/lowcode</td><td class="mono">lowcode</td><td class="muted">—</td><td><label class="switch"><input type="checkbox" id="fl-lc" aria-label="LOWCODE_ENABLED" data-open="dlg-edit-bool"><span></span></label></td><td><span class="pill">disabled</span></td></tr>
+              <tr><td class="pin"><b>cortex</b></td><td class="mono">/cortex</td><td class="mono">cortex</td><td class="mono">/cortex</td><td><label class="switch"><input type="checkbox" id="fl-ctx" aria-label="CORTEX_ENABLED" checked data-open="dlg-edit-bool"><span></span></label></td><td><span class="pill warn">pending restart</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Gateway ── -->
+    <section id="p-gw" role="tabpanel" aria-labelledby="t-gw" hidden class="grid c2">
+      <div class="card pad stack" data-api="/health">
+        <h2 style="font-size:1rem">Edge</h2>
+        <dl class="kv">
+          <dt>HTTPS port</dt><dd class="num">8443 <span class="pill">env only</span></dd>
+          <dt>HTTP redirect</dt><dd class="num">8080 → 8443</dd>
+          <dt>CORS origin</dt><dd>same-origin only (unset)</dd>
+          <dt>Trust proxy</dt><dd>loopback</dd>
+          <dt>TLS cert</dt><dd>CN exprsn.io · expires Nov 14, 2026 <span class="pill info">proposed field</span></dd>
+          <dt>Body limit</dt><dd>10 MB JSON</dd>
+        </dl>
+      </div>
+      <div class="card pad stack">
+        <h2 style="font-size:1rem">Denylisted keys</h2>
+        <p class="small secondary">These never go through the overrides store. Change them in <span class="mono">.env</span> and restart.</p>
+        <div class="row wrap" style="gap:6px"><span class="pill">DB_*</span><span class="pill">REDIS_*</span><span class="pill">TLS_*</span><span class="pill">HOST</span><span class="pill">HTTPS_PORT</span><span class="pill">CORS_ORIGIN</span><span class="pill">TRUST_PROXY</span><span class="pill">METRICS_TOKEN</span><span class="pill">PLATFORM_ADMIN_EMAILS</span><span class="pill">CONFIG_STORE_KEY</span></div>
+      </div>
+    </section>
+
+    <!-- ── Workers ── -->
+    <section id="p-wk" role="tabpanel" aria-labelledby="t-wk" hidden>
+      <div class="card">
+        <div class="banner info" style="border-radius:0"><i data-i="info" class="sm"></i><span>Workers run outside the gateway. Liveness comes from queue consumer counts until a heartbeat registry exists.</span></div>
+        <div class="list" data-api="/timeline/api/jobs/stats">
+          <div class="list-item"><i data-i="cpu"></i><div class="grow"><div class="title mono">worker:timeline</div><div class="meta">2 consumers · last job 3 s ago</div></div><span class="pill ok">Alive</span></div>
+          <div class="list-item"><i data-i="cpu"></i><div class="grow"><div class="title mono">worker:prefetch</div><div class="meta">RabbitMQ down · Redis fallback</div></div><span class="pill warn">Degraded</span></div>
+          <div class="list-item"><i data-i="cpu"></i><div class="grow"><div class="title mono">worker:atproto</div><div class="meta">heartbeat 12 s ago</div></div><span class="pill ok">Alive</span></div>
+          <div class="list-item"><i data-i="cpu"></i><div class="grow"><div class="title mono">worker:live</div><div class="meta">no consumer on exprsn.live.fanout</div></div><span class="pill danger">Not seen</span></div>
+          <div class="list-item"><i data-i="cpu"></i><div class="grow"><div class="title mono">worker:cortex</div><div class="meta">module disabled</div></div><span class="pill">Off</span></div>
+          <div class="list-item"><i data-i="cpu"></i><div class="grow"><div class="title mono">worker:filevault-moderation</div><div class="meta">1 consumer · shadow → enforce</div></div><span class="pill ok">Alive</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Edit: int / string -->
+  <dialog class="dialog" id="dlg-edit-int" aria-labelledby="dlg-edit-int-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-edit-int-t">Edit FILEVAULT_IMAGE_RISK_THRESHOLD</h2><p>Risk score (0–100) at or above which an image is flagged. Module filevault · version 1.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <dl class="kv"><dt>Env value</dt><dd class="mono">70</dd><dt>Current override</dt><dd class="mono">65 · Ari Lindqvist, Sep 26</dd></dl>
+      <div class="field"><label for="ov-int">Override value</label><input class="input" id="ov-int" type="number" min="0" max="100" value="60"><span class="help">Integer, 0–100. Blank is not allowed; use Revert to go back to the env value.</span></div>
+      <div class="banner warn"><i data-i="refresh" class="sm"></i><span>Restart required. The worker reads this at boot, so the change is stored as pending until <span class="mono">worker:filevault-moderation</span> restarts.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-revert">Revert to env</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Saved · v2 · pending restart">Save override</button></div>
+  </dialog>
+
+  <!-- Edit: boolean -->
+  <dialog class="dialog sm" id="dlg-edit-bool" aria-labelledby="dlg-edit-bool-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-edit-bool-t">Edit CORTEX_ENABLED</h2><p>Load the cortex (local-LLM agents) module at boot. Version 1.</p></div></div>
+    <div class="dialog-body">
+      <div class="setting-row" style="padding:0;border:0"><div class="grow"><div class="t">Enabled</div><div class="d">Env value: false</div></div><label class="switch"><input type="checkbox" id="ov-bool" aria-label="CORTEX_ENABLED" checked><span></span></label></div>
+      <div class="banner warn"><i data-i="refresh" class="sm"></i><span>Takes effect after a gateway restart.</span></div>
+      <div class="banner danger" hidden><i data-i="alert" class="sm"></i><span>409 · Someone saved version 2 while you were editing. Reload to see their value.</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Saved · pending restart">Save</button></div>
+  </dialog>
+
+  <!-- Edit: enum -->
+  <dialog class="dialog sm" id="dlg-edit-enum" aria-labelledby="dlg-edit-enum-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-edit-enum-t">Edit FILEVAULT_IMAGE_MODERATION</h2><p>Hot key: applies on the next upload, no restart.</p></div></div>
+    <div class="dialog-body">
+      <div class="seg" role="group" aria-label="Image moderation rung"><button type="button" aria-pressed="false">off</button><button type="button" aria-pressed="false">shadow</button><button type="button" aria-pressed="true">enforce</button></div>
+      <p class="small secondary">enforce holds flagged images until a moderator approves them.</p>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Saved · applied live">Save</button></div>
+  </dialog>
+
+  <!-- Revert -->
+  <dialog class="dialog sm" id="dlg-revert" aria-labelledby="dlg-revert-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-revert-t">Revert CORTEX_ENABLED?</h2><p>Deletes the override. The env value <b>false</b> applies after the next restart. Every admin sees a config change notice.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Override reverted · pending restart">Revert override</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Client-mode table over keys[] from GET /platform/api/config. Edits send the row's version for optimistic concurrency: a 409 shows the reload banner in the dialog, 422 maps to the field and 403 means the key is denylisted. On /_admin config:changed the row patches in place and the 'changed by' banner names the actor. Module config tabs read each module's /api/config/:sectionId and only render editors where the section persists and is admin-gated.",
+  "rest": [
+    { "m": "GET", "p": "/platform/api/config", "auth": "A", "ui": "Overrides table, anomalies, pending-restart banner" },
+    { "m": "PUT", "p": "/platform/api/config/:key", "auth": "A", "ui": "Edit dialogs (value + version), module flag switches" },
+    { "m": "DELETE", "p": "/platform/api/config/:key", "auth": "A", "ui": "Revert dialog, anomaly delete" },
+    { "m": "GET", "p": "/health", "auth": "P", "ui": "Modules tab, Gateway edge facts" },
+    { "m": "GET", "p": "/auth/api/config/:sectionId", "auth": "P (gap)", "ui": "Module config → auth (read-only)" },
+    { "m": "POST", "p": "/auth/api/config/:sectionId", "auth": "P (gap)", "ui": "Not used: log-only and unauthenticated" },
+    { "m": "GET", "p": "/timeline/api/config/:sectionId", "auth": "P (gap)", "ui": "Module config → timeline form" },
+    { "m": "POST", "p": "/timeline/api/config/:sectionId", "auth": "P (gap)", "ui": "Module config → timeline Save section" },
+    { "m": "GET", "p": "/vault/api/config/:sectionId", "auth": "A", "ui": "Module config → vault" },
+    { "m": "GET", "p": "/prefetch/api/config/:sectionId", "auth": "A", "ui": "Module config → prefetch" },
+    { "m": "GET", "p": "/spark/api/config/:sectionId", "auth": "A", "ui": "Module config → spark" },
+    { "m": "GET", "p": "/moderator/api/config/:sectionId", "auth": "A", "ui": "Module config → moderator" },
+    { "m": "GET", "p": "/live/api/config/:sectionId", "auth": "A", "ui": "Module config → live" },
+    { "m": "GET", "p": "/nexus/api/config/:sectionId", "auth": "A", "ui": "Module config → nexus" },
+    { "m": "GET", "p": "/ca/api/config/:sectionId", "auth": "CA session", "ui": "Not callable with a bearer; listed for completeness" },
+    { "m": "GET", "p": "/ca/admin/api/config", "auth": "A", "ui": "Module config → ca (masked)" },
+    { "m": "GET", "p": "/timeline/api/jobs/stats", "auth": "A", "ui": "Workers tab (consumer counts as liveness)" }
+  ],
+  "socket": [
+    { "ns": "/_admin", "auth": "CA bearer + isAdminToken", "rooms": [],
+      "emit": [],
+      "on": [
+        { "e": "config:changed", "ui": "'Changed by' banner, row patch {key, module, restartRequired, pendingRestart, updatedBy, action}" },
+        { "e": "health", "ui": "Modules tab status" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "/auth/api/config/:sectionId has no auth: anyone can read or POST it. POST is log-only, so the console renders it read-only." },
+    { "sev": "high", "text": "/timeline/api/config/:sectionId has no auth and persists to timeline_config, so anyone can rewrite timeline settings. Gate it with requirePlatformAdmin before shipping this form." },
+    { "sev": "med", "text": "There's no config manifest or validate endpoint (GW-5). Denylisted keys and env-only settings are hard-coded in the Gateway tab." },
+    { "sev": "med", "text": "Worker liveness is inferred from queue consumers. Proposed (GW-6): a platform:worker:<name> heartbeat registry plus GET /platform/api/workers." },
+    { "sev": "med", "text": "config:changed carries updatedBy as a user id, not a display name. The banner needs a user lookup, or the event should include displayName." },
+    { "sev": "med", "text": "The served TLS cert subject and notAfter aren't exposed in /health (GW-8)." }
+  ]
+}
+</script>
+</body>
+</html>

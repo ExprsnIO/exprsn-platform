@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>File Vault · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .chart { width: 100%; max-width: 560px; height: auto; display: block; }
+  .chart .gl { stroke: var(--exprsn-border-color); }
+  .chart .b1 { fill: var(--exprsn-primary); } .chart .b2 { fill: var(--exprsn-secondary); } .chart .b3 { fill: var(--exprsn-accent-cyan); }
+  .chart text { fill: var(--exprsn-text-secondary); font-size: 12px; font-family: var(--exprsn-font-family); }
+  .chart text.v { fill: var(--exprsn-text-primary); font-weight: 600; }
+  .use { display: flex; align-items: center; gap: 8px; min-width: 140px; }
+  .use .meter { flex: 1; }
+</style>
+</head>
+<body data-shell="admin" data-page="filevault">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Services</span><i data-i="right" class="sm"></i><span>File Vault</span></nav>
+        <h1 class="page-title">File Vault</h1>
+        <p class="page-sub">Storage backends and their health, deduplication, per-user quotas, blob maintenance and the WebDAV mount.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-verify" data-api="/filevault/api/admin/verify/:blobId"><i data-i="checks" class="sm"></i>Verify blob</button>
+        <button class="btn primary" type="button" data-open="dlg-cleanup" data-api="/filevault/api/admin/cleanup"><i data-i="trash" class="sm"></i>Run cleanup</button>
+      </div>
+    </header>
+
+    <div data-state="loaded" class="stack loose">
+      <div class="grid c4" data-api="/filevault/api/admin/stats /filevault/api/admin/deduplication">
+        <div class="card stat"><span class="label"><i data-i="file" class="sm"></i>Files</span><span class="value">812,440</span><span class="delta up">+4,120 today</span></div>
+        <div class="card stat"><span class="label"><i data-i="layers" class="sm"></i>Blobs</span><span class="value">640,118</span><span class="delta">1.27 files / blob</span></div>
+        <div class="card stat"><span class="label"><i data-i="disk" class="sm"></i>Stored</span><span class="value">18.4 TB</span><span class="delta">across 3 backends</span></div>
+        <div class="card stat"><span class="label"><i data-i="copy" class="sm"></i>Dedup saved</span><span class="value">3.1 TB</span><span class="delta up">14.4% of logical size</span></div>
+      </div>
+      <div class="grid c2">
+        <div class="card">
+          <div class="card-head"><h2>Storage health</h2><button class="icon-btn" type="button" aria-label="Refresh storage health" data-api="/filevault/api/admin/storage/health"><i data-i="refresh"></i></button></div>
+          <div class="list" data-api="/filevault/api/admin/storage/health">
+            <div class="list-item"><i data-i="disk"></i><span class="grow"><span class="title">Disk</span><div class="meta">/var/lib/exprsn/filevault · 6.2 of 8 TB</div></span><span class="pill ok"><span class="d"></span>healthy · 3 ms</span></div>
+            <div class="list-item"><i data-i="cloud"></i><span class="grow"><span class="title">S3</span><div class="meta">exprsn-files · us-west-2</div></span><span class="pill ok"><span class="d"></span>healthy · 41 ms</span></div>
+            <div class="list-item"><i data-i="globe"></i><span class="grow"><span class="title">IPFS</span><div class="meta">api :5001 · gateway :8081</div></span><span class="pill warn"><span class="d"></span>slow · 1.9 s</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Usage by backend</h2><span class="small muted">TB</span></div>
+          <div class="card-body" data-api="/filevault/api/admin/stats">
+            <svg class="chart" viewBox="0 0 440 110" role="img" aria-label="Usage by backend: S3 11.9 TB, disk 6.2 TB, IPFS 0.3 TB">
+              <line class="gl" x1="60" y1="0" x2="60" y2="100"/>
+              <text x="0" y="23">S3</text><rect class="b1" x="60" y="10" width="300" height="18" rx="4"/><text class="v" x="366" y="23">11.9</text>
+              <text x="0" y="55">Disk</text><rect class="b2" x="60" y="42" width="156.3" height="18" rx="4"/><text class="v" x="222.3" y="55">6.2</text>
+              <text x="0" y="87">IPFS</text><rect class="b3" x="60" y="74" width="7.6" height="18" rx="4"/><text class="v" x="73.6" y="87">0.3</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div data-state="loading" aria-busy="true" class="grid c4"><span class="sk" style="height:110px"></span><span class="sk" style="height:110px"></span><span class="sk" style="height:110px"></span><span class="sk" style="height:110px"></span></div>
+    <div data-state="empty" class="card"><div class="empty"><div class="art"><i data-i="folder"></i></div><h3>No files stored yet</h3><p>Backends are configured and healthy. Stats fill in once people upload their first files.</p></div></div>
+    <div data-state="error" class="card"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t read storage stats</h3><p>S3 returned <code>AccessDenied</code> on ListBucket. Check <code>S3_ACCESS_KEY</code> vs <code>AWS_ACCESS_KEY_ID</code> (FV-7). Correlation id <code>cid 51ea…0b2</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+
+    <div class="tabs" role="tablist" aria-label="File Vault admin views">
+      <button role="tab" id="t-q" aria-controls="p-q" aria-selected="true">Quotas</button>
+      <button role="tab" id="t-dup" aria-controls="p-dup">Duplicates</button>
+      <button role="tab" id="t-cl" aria-controls="p-cl">Cleanup</button>
+      <button role="tab" id="t-mig" aria-controls="p-mig">Migrate &amp; verify</button>
+      <button role="tab" id="t-dav" aria-controls="p-dav">WebDAV</button>
+      <button role="tab" id="t-cfg" aria-controls="p-cfg">Config</button>
+    </div>
+
+    <!-- ── Quotas ── -->
+    <section id="p-q" role="tabpanel" aria-labelledby="t-q">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="q-q" type="search" placeholder="Filter loaded users"></label>
+          <button class="chip" type="button" aria-pressed="true">Used ≥ 90%</button>
+          <span class="grow"></span>
+          <span class="xs muted">Search runs on the loaded page (no server search yet, FV-5)</span>
+        </div>
+        <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-open="dlg-quota">Set quota for selected</button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/filevault/api/admin/quotas">
+            <thead><tr><th style="width:44px"><input type="checkbox" class="check" id="q-all" aria-label="Select all users"></th><th>Person</th><th>Usage</th><th class="num">Used</th><th class="num">Quota</th><th class="num">Updated</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><input type="checkbox" class="check" id="q-1" aria-label="Select Jonah Okafor"></td><td><div class="row" style="gap:8px"><span class="avatar sm g2">JO</span>Jonah Okafor</div></td><td><div class="use"><div class="meter danger" role="img" aria-label="97 percent used"><i style="width:97%"></i></div><span class="xs num">97%</span></div></td><td class="num">48.6 GB</td><td class="num">50 GB</td><td class="num">1 h ago</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-quota" data-api="/filevault/api/admin/quotas/:userId">Edit quota</button></td></tr>
+              <tr><td><input type="checkbox" class="check" id="q-2" aria-label="Select Maya Diaz"></td><td><div class="row" style="gap:8px"><span class="avatar sm g1">MD</span>Maya Diaz</div></td><td><div class="use"><div class="meter danger" role="img" aria-label="92 percent used"><i style="width:92%"></i></div><span class="xs num">92%</span></div></td><td class="num">92.1 GB</td><td class="num">100 GB</td><td class="num">Today</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-quota">Edit quota</button></td></tr>
+              <tr><td><input type="checkbox" class="check" id="q-3" aria-label="Select Priya Raman"></td><td><div class="row" style="gap:8px"><span class="avatar sm g3">PR</span>Priya Raman</div></td><td><div class="use"><div class="meter warn" role="img" aria-label="90 percent used"><i style="width:90%"></i></div><span class="xs num">90%</span></div></td><td class="num">9.0 GB</td><td class="num">10 GB</td><td class="num">Sep 26</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-quota">Edit quota</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="gauge"></i></div><h3>Nobody is near their quota</h3><p>No one uses 90% or more. Clear the filter to see every quota row.</p><button class="btn outline" type="button">Clear filter</button></div></div>
+        <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load quotas</h3><p>FileVault returned 403 — admin permission or platform-admin email required.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">Showing 3 of the first 100 (limit only, no offset)</span></div>
+      </div>
+    </section>
+
+    <!-- ── Duplicates ── -->
+    <section id="p-dup" role="tabpanel" aria-labelledby="t-dup" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Most-referenced blobs</b><span class="grow"></span><span class="pill ok">Dedup on</span></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/filevault/api/admin/duplicates">
+            <thead><tr><th>Checksum (sha256)</th><th class="num">Size</th><th class="num">References</th><th class="num">Saved</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><span class="id">9f86d0…0f00a08</span><div class="xs muted">brand-kit-2026.zip</div></td><td class="num">412 MB</td><td class="num">318</td><td class="num">127.6 GB</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-verify">Verify</button></td></tr>
+              <tr><td><span class="id">e3b0c4…b855</span><div class="xs muted">onboarding.mp4</div></td><td class="num">1.2 GB</td><td class="num">96</td><td class="num">114.0 GB</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-verify">Verify</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Cleanup ── -->
+    <section id="p-cl" role="tabpanel" aria-labelledby="t-cl" hidden>
+      <div class="card">
+        <div class="setting-row"><i data-i="trash"></i><div class="grow"><div class="t">Purge soft-deleted files</div><div class="d">Files in trash longer than the minimum age. Last run Sep 28 — 1,204 files, 38 GB.</div></div><button class="btn outline" type="button" data-open="dlg-cleanup">Run cleanup</button></div>
+        <div class="setting-row"><i data-i="layers"></i><div class="grow"><div class="t">Remove orphaned blobs</div><div class="d">Blobs with zero references. 212 found, 6.8 GB.</div></div><button class="btn outline" type="button" data-open="dlg-blobs" data-api="/filevault/api/admin/cleanup/blobs">Clean blobs</button></div>
+      </div>
+    </section>
+
+    <!-- ── Migrate & verify ── -->
+    <section id="p-mig" role="tabpanel" aria-labelledby="t-mig" hidden>
+      <div class="grid c2">
+        <form class="card" data-toast="Migration queued" data-api="/filevault/api/admin/migrate">
+          <div class="card-head"><h2>Migrate between backends</h2><span class="pill danger">broken</span></div>
+          <div class="card-body stack">
+            <div class="form-grid"><div class="field"><label for="mg-from">From</label><select class="select" id="mg-from"><option>disk</option><option>s3</option><option>ipfs</option></select></div><div class="field"><label for="mg-to">To</label><select class="select" id="mg-to"><option>s3</option><option>disk</option><option>ipfs</option></select></div></div>
+            <div class="field"><label for="mg-lim">Batch size</label><input class="input" id="mg-lim" type="number" value="500"></div>
+            <div class="banner danger"><i data-i="alert" class="sm"></i><span>Fails today: the File → blob association is missing (FV-4). The button stays enabled so the error surfaces with its correlation id.</span></div>
+          </div>
+          <div class="card-foot"><button class="btn primary" type="submit">Start migration</button></div>
+        </form>
+        <div class="card">
+          <div class="card-head"><h2>Last verification</h2></div>
+          <div class="card-body"><dl class="kv"><dt>Blob</dt><dd><span class="id">blob_7c21e0</span></dd><dt>Backend</dt><dd>s3</dd><dt>Checksum</dt><dd><span class="pill ok"><i data-i="check" class="sm"></i>matches</span></dd><dt>Size</dt><dd>412 MB</dd><dt>Checked</dt><dd>09:14 by Maya Diaz</dd></dl></div>
+          <div class="card-foot"><button class="btn outline" type="button" data-open="dlg-verify">Verify another blob</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── WebDAV ── -->
+    <section id="p-dav" role="tabpanel" aria-labelledby="t-dav" hidden>
+      <div class="card">
+        <div class="card-head"><h2>WebDAV mount</h2><span class="pill ok"><span class="d"></span>mounted</span></div>
+        <div class="card-body"><dl class="kv">
+          <dt>URL</dt><dd><code>https://exprsn.io/filevault/webdav/</code> <button class="btn sm ghost" type="button" data-copy="https://exprsn.io/filevault/webdav/">Copy</button></dd>
+          <dt>Auth</dt><dd>CA bearer (Basic with token as password for Finder/Explorer)</dd>
+          <dt>Methods</dt><dd>OPTIONS · PROPFIND · GET · PUT · MKCOL · MOVE · COPY · DELETE</dd>
+          <dt>Locks</dt><dd>Not supported (Office clients open read-only)</dd>
+        </dl></div>
+        <div class="card-foot" style="justify-content:flex-start"><span class="xs muted">No admin status endpoint — mount health is inferred from <code>/filevault/api/health</code>. Proposed: <code>GET /filevault/api/admin/webdav/sessions</code>.</span></div>
+      </div>
+    </section>
+
+    <!-- ── Config ── -->
+    <section id="p-cfg" role="tabpanel" aria-labelledby="t-cfg" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Environment</h2><a class="btn sm outline" href="platform.html">Edit overrides in Platform</a></div>
+        <div class="setting-row"><div class="grow"><div class="t">MAX_FILE_SIZE</div><div class="d">5 GB · restart required</div></div><span class="pill">env</span></div>
+        <div class="setting-row"><div class="grow"><div class="t">ENABLE_DEDUPLICATION</div><div class="d">true (defaults differ between config and service — FV-7)</div></div><span class="pill warn">check</span></div>
+        <div class="setting-row"><div class="grow"><div class="t">FILEVAULT_IMAGE_MODERATION</div><div class="d">shadow · hot-reloaded</div></div><span class="pill ok">overridable</span></div>
+        <div class="setting-row"><div class="grow"><div class="t">FILEVAULT_IMAGE_RISK_THRESHOLD</div><div class="d">0.7 · hot-reloaded</div></div><span class="pill ok">overridable</span></div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog" id="dlg-quota" aria-labelledby="dlg-q-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-q-t">Edit quota · Jonah Okafor</h2><p>Using 48.6 GB of 50 GB (97%).</p></div></div>
+    <div class="dialog-body">
+      <div class="form-grid"><div class="field"><label for="qt-val">Quota</label><input class="input" id="qt-val" type="number" value="100"></div><div class="field"><label for="qt-unit">Unit</label><select class="select" id="qt-unit"><option>GB</option><option>TB</option><option>bytes</option></select></div></div>
+      <p class="small secondary">Sent as 107,374,182,400 bytes.</p>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Quota set to 100 GB">Save quota</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-cleanup" aria-labelledby="dlg-cl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cl-t">Purge soft-deleted files?</h2><p>Files in trash older than the minimum age are removed permanently, with their versions.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="cl-age">Minimum age</label><input class="input" id="cl-age" value="30d"><span class="help">= 2,592,000,000 ms as <code>minAge</code></span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Purged 1,204 files · 38 GB freed">Purge files</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-blobs" aria-labelledby="dlg-bl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-bl-t">Delete 212 orphaned blobs?</h2><p>6.8 GB of blobs with no file references are deleted from their backends. This can’t be undone.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="212 blobs removed">Delete blobs</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-verify" aria-labelledby="dlg-vf-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-vf-t">Verify blob integrity</h2><p>Re-reads the blob and compares its sha256.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="vf-id">Blob id</label><input class="input" id="vf-id" value="blob_7c21e0"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="blob_7c21e0 · checksum matches">Verify</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Admin tools are request/response only; FileVault has no socket namespace. Stats and health refresh every 30 s while visible; destructive maintenance shows its result counts in a toast and refetches stats.",
+  "rest": [
+    { "m": "GET", "p": "/filevault/api/admin/stats", "auth": "A", "ui": "Stat tiles, usage chart" },
+    { "m": "GET", "p": "/filevault/api/admin/storage/health", "auth": "A", "ui": "Storage health card" },
+    { "m": "GET", "p": "/filevault/api/admin/deduplication", "auth": "A", "ui": "Dedup saved tile" },
+    { "m": "GET", "p": "/filevault/api/admin/duplicates", "auth": "A", "ui": "Duplicates tab" },
+    { "m": "POST", "p": "/filevault/api/admin/cleanup", "auth": "A", "ui": "Run cleanup (primary)" },
+    { "m": "POST", "p": "/filevault/api/admin/cleanup/blobs", "auth": "A", "ui": "Clean blobs dialog" },
+    { "m": "GET", "p": "/filevault/api/admin/quotas", "auth": "A", "ui": "Quotas table" },
+    { "m": "PUT", "p": "/filevault/api/admin/quotas/:userId", "auth": "A", "ui": "Edit quota dialog, bulk set" },
+    { "m": "POST", "p": "/filevault/api/admin/migrate", "auth": "A", "ui": "Migrate form" },
+    { "m": "POST", "p": "/filevault/api/admin/verify/:blobId", "auth": "A", "ui": "Verify blob dialog" },
+    { "m": "GET", "p": "/filevault/api/health", "auth": "P", "ui": "WebDAV mount status" },
+    { "m": "OPTIONS", "p": "/filevault/webdav/*", "auth": "user", "ui": "WebDAV tab (client mount)" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "high", "text": "POST /admin/migrate fails: the File → blob association is missing (FV-4)." },
+    { "sev": "med", "text": "Quotas list has limit but no offset or user search (FV-5)." },
+    { "sev": "med", "text": "No admin cross-user files list or moderation list (FV-1, FV-2); these live on the proposed Files tab, not here." },
+    { "sev": "med", "text": "No WebDAV status/sessions endpoint (proposed GET /filevault/api/admin/webdav/sessions)." }
+  ]
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Page not found · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .nf { min-height: calc(100vh - var(--v2-topbar-h) - 160px); display: grid; place-items: center; }
+  .nf-card { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; }
+  .nf-code { font-size: 4.5rem; font-weight: 700; letter-spacing: -.04em; line-height: 1; background: var(--exprsn-gradient-primary); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .nf-card form { width: 100%; }
+  .nf-links { width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .nf-links a { display: flex; align-items: center; gap: 10px; padding: 12px 14px; color: var(--exprsn-text-primary); font-weight: 500; font-size: .875rem; }
+  .nf-links a:hover { text-decoration: none; background: var(--exprsn-bg-hover); }
+</style>
+</head>
+<body data-shell="app" data-page="not-found">
+<main id="main">
+  <div class="page">
+    <div class="nf">
+      <div class="nf-card">
+        <span class="nf-code" aria-hidden="true">404</span>
+        <h1 class="page-title">We can’t find that page</h1>
+        <p class="page-sub">The link may be old, mistyped, or pointing at something that was moved or deleted. It might also belong to a group or organization you’re not a member of.</p>
+        <form role="search" data-api="/timeline/api/search/posts /auth/api/users/directory /filevault/api/search">
+          <label class="input-group" style="min-height:52px;border-radius:16px">
+            <i data-i="search"></i><span class="sr-only">Search Exprsn</span>
+            <input id="nf-q" type="search" value="q3 roadmap" placeholder="Search posts, people, files">
+            <a class="btn sm primary" href="search.html">Search</a>
+          </label>
+        </form>
+        <div class="row wrap" style="justify-content:center">
+          <a class="btn primary" href="home.html"><i data-i="home" class="sm"></i>Go home</a>
+          <button class="btn outline" type="button" onclick="history.back()"><i data-i="back" class="sm"></i>Go back</button>
+        </div>
+        <div class="nf-links">
+          <a class="card" href="messages.html"><i data-i="chat" class="sm"></i>Messages</a>
+          <a class="card" href="files.html"><i data-i="folder" class="sm"></i>Files</a>
+          <a class="card" href="groups.html"><i data-i="groups" class="sm"></i>Groups</a>
+        </div>
+        <p class="xs muted">Requested <code>/groups/launch-war-room</code> · reference <code>cid 0000…404</code></p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Client-side catch-all route (*). Nothing loads except the optional search, which hands off to /search with the query. A 403 from a module for a resource the viewer can't see renders this same page rather than confirming the resource exists. The requested path is shown so people can report broken links.",
+  "rest": [
+    { "m": "GET", "p": "/timeline/api/search/posts", "auth": "user", "ui": "Search box → hands off to /search?q=" },
+    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "Search hand-off (people scope)" },
+    { "m": "GET", "p": "/filevault/api/search", "auth": "user", "ui": "Search hand-off (files scope)" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "Module 404 and 403 bodies differ in shape (error vs code vs message) across services, so the SPA can't reliably tell “gone” from “no access” to choose copy. Proposed: the shared errorHandler shape everywhere." }
+  ]
+}
+</script>
+</body>
+</html>

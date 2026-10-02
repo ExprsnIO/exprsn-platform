@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Create organization · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  main a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  .auth-wrap { min-height: 100vh; }
+  .auth-panel { position: relative; }
+  .auth-card { max-width: 460px; }
+  .auth-tools { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; }
+  .demo-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border: 1px dashed var(--exprsn-border-color-strong); border-radius: 12px; font-size: .75rem; color: var(--exprsn-text-secondary); }
+  .demo-bar .seg { display: flex; flex-wrap: wrap; }
+  .auth-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .plan-opt { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--exprsn-border-color); border-radius: 14px; cursor: pointer; }
+  .plan-opt:has(input:checked) { border-color: var(--exprsn-primary); background: color-mix(in srgb, var(--exprsn-primary) 6%, transparent); }
+  .plan-opt input { margin-top: 3px; accent-color: var(--exprsn-primary); }
+  .art-steps { display: flex; flex-direction: column; gap: 14px; max-width: 40ch; }
+  .art-steps div { display: flex; gap: 12px; align-items: flex-start; }
+  .art-steps .n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--exprsn-white) 20%, transparent); font-weight: 700; font-size: .8125rem; }
+</style>
+</head>
+<body data-shell="public" data-page="signup">
+<main id="main">
+  <div class="auth-wrap">
+    <section class="auth-art" aria-label="What you get">
+      <div class="row" style="gap:10px"><span class="brand-mark">E</span><b>Exprsn</b></div>
+      <div class="stack loose">
+        <h2>Set up your team in about two minutes.</h2>
+        <div class="art-steps">
+          <div><span class="n">1</span><span>Create your account — you’ll be the organization owner.</span></div>
+          <div><span class="n">2</span><span>Confirm your email so we know it’s really you.</span></div>
+          <div><span class="n">3</span><span>Name your organization. We provision its groups, roles and a certificate authority group for you.</span></div>
+          <div><span class="n">4</span><span>Invite teammates. You can always do this later.</span></div>
+        </div>
+      </div>
+      <span class="xs" style="opacity:.85">Free for teams up to 25 people · no card required</span>
+    </section>
+
+    <section class="auth-panel">
+      <div class="auth-tools"><button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light/dark theme"><i data-i="moon"></i></button></div>
+      <div class="auth-card">
+        <div class="auth-brand"><span class="brand-mark">E</span><span>Exprsn</span></div>
+
+        <div class="demo-bar" role="group" aria-label="Mockup preview">
+          <span class="eyebrow">Preview</span>
+          <div class="seg" role="group" aria-label="Preview step" data-view-target="signup">
+            <button type="button" aria-pressed="true" data-view="account">1 Account</button>
+            <button type="button" aria-pressed="false" data-view="verify">2 Verify</button>
+            <button type="button" aria-pressed="false" data-view="org">3 Organization</button>
+            <button type="button" aria-pressed="false" data-view="invite">4 Invite</button>
+            <button type="button" aria-pressed="false" data-view="closed">Signups closed</button>
+          </div>
+        </div>
+
+        <!-- ── 1 Account ── -->
+        <div class="stack loose" data-view-of="signup" data-view-name="account">
+          <ol class="stepper" aria-label="Signup progress"><li aria-current="step">Account</li><li>Verify email</li><li>Organization</li><li>Invite team</li></ol>
+          <div class="stack tight"><h1>Create your account</h1><p class="secondary">You’ll own the new organization and can add admins later.</p></div>
+          <form class="stack" data-api="/auth/api/auth/signup-policy /auth/api/auth/signup" data-toast="Account created — check your email">
+            <div class="field"><label for="su-name">Your name</label><input class="input" id="su-name" autocomplete="name" value="Maya Diaz"></div>
+            <div class="field"><label for="su-email">Work email</label><input class="input" id="su-email" type="email" autocomplete="email" value="maya@exprsn.io"></div>
+            <div class="field"><label for="su-pass">Password</label><input class="input" id="su-pass" type="password" autocomplete="new-password" value="launch-week-2026!">
+              <div class="meter ok" role="img" aria-label="Password strength: strong"><i style="width:80%"></i></div>
+              <span class="help">Strong · at least 12 characters</span>
+            </div>
+            <div class="field"><label for="su-org">Organization name</label><input class="input" id="su-org" value="Exprsn HQ"><span class="help">We’ll create it right after you verify your email.</span></div>
+            <label class="row top" style="gap:10px"><input type="checkbox" class="check" id="su-terms" checked><span class="small secondary">I agree to the terms of service and privacy notice.</span></label>
+            <button class="btn primary block" type="submit">Continue</button>
+          </form>
+          <p class="small secondary">Already have an account? <a href="login.html">Sign in</a></p>
+        </div>
+
+        <!-- ── 2 Verify email ── -->
+        <div class="stack loose" data-view-of="signup" data-view-name="verify" hidden>
+          <ol class="stepper" aria-label="Signup progress"><li data-done>Account</li><li aria-current="step">Verify email</li><li>Organization</li><li>Invite team</li></ol>
+          <div class="empty" style="padding:8px 0">
+            <div class="art"><i data-i="mail"></i></div>
+            <h1 style="font-size:1.5rem">Check your inbox</h1>
+            <p>We sent a verification link to <b>maya@exprsn.io</b>. It expires in 24 hours. Open it on any device — this page moves on automatically.</p>
+          </div>
+          <form class="stack" data-api="/auth/api/auth/verify-email" data-toast="Email verified">
+            <div class="field"><label for="su-vcode">Or paste the code from the email</label><input class="input mono" id="su-vcode" placeholder="e.g. 5HQ2-KD91" autocomplete="one-time-code"></div>
+            <button class="btn primary block" type="submit">Verify email</button>
+          </form>
+          <div class="row wrap between small secondary">
+            <span>Wrong address? <a href="#">Change email</a></span>
+            <button class="btn sm ghost" type="button" data-api="/auth/api/auth/resend-verification" data-toast="Sent again · you can resend once a minute">Resend email</button>
+          </div>
+        </div>
+
+        <!-- ── 3 Organization ── -->
+        <div class="stack loose" data-view-of="signup" data-view-name="org" hidden>
+          <ol class="stepper" aria-label="Signup progress"><li data-done>Account</li><li data-done>Verify email</li><li aria-current="step">Organization</li><li>Invite team</li></ol>
+          <div class="banner ok"><i data-i="check" class="sm"></i><span class="grow">Email verified. One more step.</span></div>
+          <div class="stack tight"><h1>Set up your organization</h1><p class="secondary">This is where your groups, roles and shared files live.</p></div>
+          <form class="stack" data-api="/auth/api/organizations/provision-self" data-toast="Exprsn HQ is ready">
+            <div class="field"><label for="org-name">Organization name</label><input class="input" id="org-name" value="Exprsn HQ"></div>
+            <div class="field"><label for="org-slug">Address</label>
+              <div class="input-group"><span class="small">exprsn.io/</span><input id="org-slug" value="exprsn-hq" aria-describedby="org-slug-h"></div>
+              <span class="help" id="org-slug-h" style="color:var(--v2-ok-fg)">exprsn-hq is available</span>
+            </div>
+            <fieldset class="stack tight" style="border:0;padding:0;margin:0">
+              <legend class="small" style="font-weight:600;margin-bottom:6px">Type</legend>
+              <label class="plan-opt"><input type="radio" name="org-type" id="org-type-team" checked><span class="stack tight"><b>Team</b><span class="small secondary">Shared groups, admin roles and an org certificate group.</span></span></label>
+              <label class="plan-opt"><input type="radio" name="org-type" id="org-type-personal"><span class="stack tight"><b>Personal</b><span class="small secondary">Just you. Invite people later to turn it into a team.</span></span></label>
+            </fieldset>
+            <div class="field"><label for="org-site">Website (optional)</label><input class="input" id="org-site" type="url" placeholder="https://"></div>
+            <button class="btn primary block" type="submit">Create organization</button>
+          </form>
+        </div>
+
+        <!-- ── 4 Invite ── -->
+        <div class="stack loose" data-view-of="signup" data-view-name="invite" hidden>
+          <ol class="stepper" aria-label="Signup progress"><li data-done>Account</li><li data-done>Verify email</li><li data-done>Organization</li><li aria-current="step">Invite team</li></ol>
+          <div class="stack tight"><h1>Invite your team</h1><p class="secondary">They’ll get an email to join <b>Exprsn HQ</b>. Links expire in 7 days.</p></div>
+          <form class="stack" data-api="/auth/api/organizations/:id/members" data-toast="3 invites sent">
+            <div class="field"><label for="inv-emails">Email addresses</label>
+              <div class="input-group" style="flex-wrap:wrap;padding:6px 8px;gap:6px">
+                <span class="chip" aria-pressed="true">jonah@exprsn.io <span class="x">×</span></span>
+                <span class="chip" aria-pressed="true">priya@exprsn.io <span class="x">×</span></span>
+                <span class="chip" aria-pressed="true">sam@exprsn.io <span class="x">×</span></span>
+                <input id="inv-emails" placeholder="Add more…" style="min-width:120px">
+              </div>
+              <span class="help">Separate with commas. Up to 25 at once.</span>
+            </div>
+            <div class="field"><label for="inv-role">Role</label><select class="select" id="inv-role"><option>Member</option><option>Admin</option></select></div>
+            <button class="btn primary block" type="submit">Send invites and open Exprsn</button>
+          </form>
+          <a class="btn ghost block" href="home.html">Skip for now</a>
+        </div>
+
+        <!-- ── Signups closed (policy) ── -->
+        <div class="stack loose" data-view-of="signup" data-view-name="closed" hidden>
+          <div class="empty" style="padding:8px 0" data-api="/auth/api/auth/signup-policy">
+            <div class="art"><i data-i="lock"></i></div>
+            <h1 style="font-size:1.5rem">Sign-ups are invite-only</h1>
+            <p>This Exprsn server doesn’t allow new organizations right now. Ask an administrator for an invite, or sign in if you already have an account.</p>
+            <a class="btn primary" href="login.html">Go to sign in</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Public wizard. The policy fetch decides whether the form renders at all (fail-closed: allowUserRegistration=false shows the invite-only card). With requireEmailVerification the signup returns 202 and provisioning runs on the verify path, so step 3 is pre-filled from the org name captured in step 1; without it, signup returns 201 { user, token, organization } and the wizard skips to step 4.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/auth/signup-policy", "auth": "P", "ui": "Gate for the whole wizard; invite-only card" },
+    { "m": "POST", "p": "/auth/api/auth/signup", "auth": "P (strict RL)", "ui": "Step 1 → Continue (email, password, displayName, org)" },
+    { "m": "POST", "p": "/auth/api/auth/verify-email", "auth": "P (email token)", "ui": "Step 2 → Verify email / link landing" },
+    { "m": "POST", "p": "/auth/api/auth/resend-verification", "auth": "P (strict RL)", "ui": "Step 2 → Resend email" },
+    { "m": "POST", "p": "/auth/api/organizations/provision-self", "auth": "user", "ui": "Step 3 → Create organization (type team|personal only)" },
+    { "m": "POST", "p": "/auth/api/organizations/:id/members", "auth": "owner/admin", "ui": "Step 4 → Send invites (existing users only today)" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "Org owners can’t send email invites. POST /auth/api/users/invites is platform-admin only, and POST /organizations/:id/members only adds existing users. Proposed: an org-scoped invite endpoint for step 4." },
+    { "sev": "med", "text": "Nothing tells the waiting step 2 page that the email was verified on another device. Proposed: poll GET /auth/api/auth/me or add a verification event; the design assumes a 5s poll." },
+    { "sev": "med", "text": "Proposed: slug availability check. There’s no endpoint for it, so collisions only surface as a provisioning error." }
+  ]
+}
+</script>
+</body>
+</html>

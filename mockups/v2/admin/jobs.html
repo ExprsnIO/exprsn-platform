@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jobs &amp; Queues · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .joblist .list-item { min-height: 60px; }
+  .trace { max-height: 220px; overflow: auto; color: var(--exprsn-text-primary); }
+</style>
+</head>
+<body data-shell="admin" data-page="jobs">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Services</span><i data-i="right" class="sm"></i><span>Jobs &amp; Queues</span></nav>
+        <h1 class="page-title">Jobs &amp; Queues</h1>
+        <p class="page-sub">Every background queue in one place — timeline, spark, prefetch and moderation buckets — with job detail, retries and dead-letter redrive.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-retry-all" data-api="/prefetch/api/prefetch/queue/retry/:jobId"><i data-i="refresh" class="sm"></i>Retry failed</button>
+        <button class="btn primary" type="button" data-open="dlg-redrive" data-api="/moderator/api/queues/:name/dlq/redrive"><i data-i="upload" class="sm"></i>Redrive dead letters</button>
+      </div>
+    </header>
+
+    <div class="banner info" role="note"><i data-i="clock" class="sm"></i><span class="grow"><b>Polling every 10 s.</b> No queue emits socket events, and each module exposes queues differently. A gateway aggregator (<code>GET /platform/api/queues</code>) and <code>/_admin</code> queue summaries are proposed.</span><span class="pill info">Updated 4 s ago</span></div>
+
+    <div class="grid c4">
+      <div class="card stat"><span class="label"><i data-i="layers" class="sm"></i>Queues</span><span class="value">16</span><span class="delta">5 read-only</span></div>
+      <div class="card stat"><span class="label"><i data-i="clock" class="sm"></i>Waiting</span><span class="value">1,183</span><span class="delta down">indexing +310</span></div>
+      <div class="card stat"><span class="label"><i data-i="alert" class="sm"></i>Failed</span><span class="value">58</span><span class="delta down">+12 in the last hour</span></div>
+      <div class="card stat" data-api="/moderator/api/queues/:name/dlq"><span class="label"><i data-i="flag" class="sm"></i>Dead letters</span><span class="value">27</span><span class="delta down">modq:images 21</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Jobs views">
+      <button role="tab" id="t-qs" aria-controls="p-qs" aria-selected="true">Queues</button>
+      <button role="tab" id="t-jb" aria-controls="p-jb">Jobs</button>
+      <button role="tab" id="t-dl" aria-controls="p-dl">Dead letters <span class="badge">27</span></button>
+      <button role="tab" id="t-sc" aria-controls="p-sc">Schedules</button>
+    </div>
+
+    <!-- ── Queues ── -->
+    <section id="p-qs" role="tabpanel" aria-labelledby="t-qs">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="qs-q" type="search" placeholder="Filter queues"></label>
+          <button class="chip" type="button" aria-pressed="false">Has failures</button>
+          <button class="chip" type="button" aria-pressed="false">Paused</button>
+          <span class="grow"></span>
+          <div class="seg" role="group" aria-label="Group by"><button type="button" aria-pressed="true">Module</button><button type="button" aria-pressed="false">Backend</button></div>
+          <button class="icon-btn" type="button" aria-label="Refresh now"><i data-i="refresh"></i></button>
+        </div>
+        <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-toast="Paused 2 queues · Undo">Pause</button><button class="btn sm tonal" type="button" data-toast="Resumed 2 queues">Resume</button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table">
+            <thead><tr>
+              <th style="width:44px"><input type="checkbox" class="check" id="qs-all" aria-label="Select all queues"></th>
+              <th>Queue</th><th>Backend</th><th class="num">Waiting</th><th class="num">Active</th><th class="num">Failed</th><th class="num">Delayed</th><th>State</th><th class="actions"><span class="sr-only">Actions</span></th>
+            </tr></thead>
+            <tbody data-api="/timeline/api/jobs/stats">
+              <tr class="group-row"><td colspan="9">timeline · 4</td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-1" aria-label="Select fanout"></td><td><b>fanout</b></td><td>bull</td><td class="num">42</td><td class="num">4</td><td class="num">2</td><td class="num">0</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/timeline/api/jobs/:queueName/pause" data-toast="fanout paused · Undo">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-2" aria-label="Select indexing"></td><td><b>indexing</b></td><td>bull</td><td class="num">310</td><td class="num">0</td><td class="num">14</td><td class="num">0</td><td><span class="pill warn">paused</span></td><td class="actions"><button class="btn sm tonal" type="button" data-api="/timeline/api/jobs/:queueName/resume" data-toast="indexing resumed">Resume</button><button class="btn sm ghost" type="button" data-open="dlg-clean" data-api="/timeline/api/jobs/:queueName/clean">Clean</button></td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-3" aria-label="Select trending"></td><td><b>trending</b></td><td>bull</td><td class="num">0</td><td class="num">1</td><td class="num">0</td><td class="num">1</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-toast="trending paused · Undo">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-4" aria-label="Select notifications"></td><td><b>notifications</b></td><td>bull</td><td class="num">8</td><td class="num">2</td><td class="num">1</td><td class="num">0</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-toast="notifications paused · Undo">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+            </tbody>
+            <tbody data-api="/spark/api/queues/stats">
+              <tr class="group-row"><td colspan="9">spark · 5 (no job-level routes)</td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-5" aria-label="Select file-processing"></td><td><b>file-processing</b></td><td>bull</td><td class="num">310</td><td class="num">0</td><td class="num">19</td><td class="num">4</td><td><span class="pill warn">paused</span></td><td class="actions"><button class="btn sm tonal" type="button" data-api="/spark/api/queues/:name/resume" data-toast="file-processing resumed">Resume</button><button class="btn sm ghost" type="button" data-open="dlg-clean" data-api="/spark/api/queues/:name/clean">Clean</button></td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-6" aria-label="Select notification"></td><td><b>notification</b> <span class="xs muted">+3 more</span></td><td>bull</td><td class="num">136</td><td class="num">11</td><td class="num">4</td><td class="num">1</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/spark/api/queues/:name/pause" data-toast="notification paused · Undo">Pause</button><button class="btn sm ghost" type="button" data-open="dlg-clean">Clean</button></td></tr>
+            </tbody>
+            <tbody data-api="/prefetch/api/prefetch/queue/stats">
+              <tr class="group-row"><td colspan="9">prefetch · 1</td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-7" aria-label="Select prefetch"></td><td><b>prefetch</b></td><td>bull</td><td class="num">96</td><td class="num">6</td><td class="num">9</td><td class="num">40</td><td><span class="pill ok">running</span></td><td class="actions"><span class="xs muted">pause/clean proposed</span></td></tr>
+            </tbody>
+            <tbody data-api="/moderator/api/queues /moderator/api/queues/:name/stats">
+              <tr class="group-row"><td colspan="9">moderator buckets · 3</td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-8" aria-label="Select modq:high_risk"></td><td><b>modq:high_risk</b><div class="xs muted">priority urgent · concurrency 4</div></td><td>bull</td><td class="num">17</td><td class="num">4</td><td class="num">0</td><td class="num">0</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-bucket" data-api="/moderator/api/queues/:name">Edit</button><button class="btn sm ghost" type="button" data-api="/moderator/api/queues/:name/test" data-toast="Test item published to modq:high_risk">Test</button></td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-9" aria-label="Select modq:images"></td><td><b>modq:images</b><div class="xs muted">rabbitmq · exchange modx:images</div></td><td>rabbitmq</td><td class="num">204</td><td class="num">8</td><td class="num">—</td><td class="num">—</td><td><span class="pill danger">DLQ 21</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-bucket">Edit</button><button class="btn sm tonal" type="button" data-open="dlg-redrive">Redrive</button></td></tr>
+              <tr><td><input type="checkbox" class="check" id="qs-10" aria-label="Select modq:appeals"></td><td><b>modq:appeals</b></td><td>bull</td><td class="num">3</td><td class="num">0</td><td class="num">1</td><td class="num">0</td><td><span class="pill ok">running</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-bucket">Edit</button><button class="icon-btn" type="button" aria-label="Delete bucket modq:appeals" data-open="dlg-del-bucket"><i data-i="trash"></i></button></td></tr>
+            </tbody>
+            <tbody>
+              <tr class="group-row"><td colspan="9">workers without admin routes · 5</td></tr>
+              <tr><td></td><td><b>cortex-tasks</b> · <b>filevault-image-moderation</b> · <b>filevault-video-moderation</b> · <b>live-recording-moderation</b> · <b>atproto moderation</b></td><td>bull</td><td class="num" colspan="4">counts need the aggregator</td><td><span class="pill">read-only</span></td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="layers"></i></div><h3>No queues match</h3><p>Nothing has failures or is paused right now. Clear the filters to see all 16 queues.</p><button class="btn outline" type="button">Clear filters</button></div></div>
+        <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>2 of 4 sources didn’t answer</h3><p>Timeline and prefetch loaded; spark returned 403 and moderator timed out. Rows from answering modules are still shown on retry. Correlation ids <code>cid 11f0…9a2</code>, <code>cid 7b3e…04d</code>.</p><button class="btn outline" type="button">Retry failed sources</button></div></div>
+        <div class="dt-foot"><span>4 sources merged client-side · counts may be up to 10 s old</span></div>
+      </div>
+    </section>
+
+    <!-- ── Jobs ── -->
+    <section id="p-jb" role="tabpanel" aria-labelledby="t-jb" hidden>
+      <div class="split left">
+        <div class="card">
+          <div class="dt-toolbar">
+            <label class="sr-only" for="jb-queue">Queue</label>
+            <select class="select" id="jb-queue" style="min-height:36px;padding:6px 10px"><option>timeline · indexing</option><option>timeline · fanout</option><option>prefetch</option></select>
+            <div class="seg" role="group" aria-label="Job state"><button type="button" aria-pressed="false">Waiting</button><button type="button" aria-pressed="true">Failed</button><button type="button" aria-pressed="false">Delayed</button></div>
+          </div>
+          <div class="list joblist" role="listbox" aria-label="Failed jobs" data-api="/timeline/api/jobs/:queueName/jobs /prefetch/api/prefetch/queue/failed">
+            <button class="list-item" type="button" role="option" aria-selected="true"><span class="grow stack tight"><span class="row between"><span class="title">#88412 · index-post</span><span class="xs muted">3 m</span></span><span class="meta truncate">ResponseError: mapper_parsing_exception</span></span></button>
+            <button class="list-item" type="button" role="option"><span class="grow stack tight"><span class="row between"><span class="title">#88409 · index-post</span><span class="xs muted">3 m</span></span><span class="meta truncate">ResponseError: mapper_parsing_exception</span></span></button>
+            <button class="list-item" type="button" role="option"><span class="grow stack tight"><span class="row between"><span class="title">#87990 · bulk-reindex</span><span class="xs muted">1 h</span></span><span class="meta truncate">ConnectionError: connect ECONNREFUSED 127.0.0.1:9200</span></span></button>
+          </div>
+          <div class="card-foot"><button class="btn sm tonal" type="button" data-open="dlg-retry-all">Retry all 14 failed</button></div>
+        </div>
+        <div class="card" data-api="/timeline/api/jobs/:queueName/job/:jobId">
+          <div class="card-head"><div><h2>Job #88412 · index-post</h2><span class="xs muted">timeline · indexing</span></div><span class="pill danger">failed · 3 of 3 attempts</span></div>
+          <div class="card-body stack">
+            <dl class="kv"><dt>Created</dt><dd>2026-09-29 16:58:02 PT</dd><dt>Processed</dt><dd>16:58:03 · finished 16:58:04 (1.2 s)</dd><dt>Backoff</dt><dd>exponential · 2 s</dd></dl>
+            <div class="field"><span class="label">Data</span><pre class="code" tabindex="0">{
+  "postId": "pst_4be201",
+  "op": "upsert",
+  "fields": ["content", "hashtags", "mentions"]
+}</pre></div>
+            <div class="field"><span class="label">Failed reason</span><pre class="code trace" tabindex="0">ResponseError: mapper_parsing_exception
+  [mapper_parsing_exception] failed to parse field [metadata.approval.decidedAt] of type [date]
+    at onBody (node_modules/@elastic/transport/lib/Transport.js:363:23)
+    at IncomingMessage.onEnd (node_modules/@elastic/transport/lib/Transport.js:283:11)
+    at indexPost (services/timeline/src/jobs/indexing.js:48:13)
+    at Queue.process (services/timeline/src/config/queue.js:171:9)</pre></div>
+          </div>
+          <div class="card-foot"><button class="btn danger-outline" type="button" data-open="dlg-remove" data-api="/timeline/api/jobs/:queueName/job/:jobId" style="margin-right:auto">Remove</button><button class="btn primary" type="button" data-api="/timeline/api/jobs/:queueName/job/:jobId/retry" data-toast="Job #88412 re-queued">Retry job</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Dead letters ── -->
+    <section id="p-dl" role="tabpanel" aria-labelledby="t-dl" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="sr-only" for="dl-bucket">Bucket</label>
+          <select class="select" id="dl-bucket" style="width:auto;min-height:36px;padding:6px 10px"><option>modq:images · 21</option><option>modq:high_risk · 0</option><option>modq:appeals · 6</option></select>
+          <span class="grow"></span>
+          <button class="btn sm danger-outline" type="button" data-open="dlg-purge" data-api="/moderator/api/queues/:name/dlq">Purge</button>
+          <button class="btn sm primary" type="button" data-open="dlg-redrive">Redrive</button>
+        </div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/moderator/api/queues/:name/dlq">
+            <thead><tr><th>Item</th><th>Source</th><th class="num">Attempts</th><th>Last error</th><th class="num">Dead since</th></tr></thead>
+            <tbody>
+              <tr><td><span class="id">mi_40a2e1</span></td><td>filevault · image</td><td class="num">5</td><td class="small">cortex vision timeout after 30000 ms</td><td class="num">2 h</td></tr>
+              <tr><td><span class="id">mi_40a2d7</span></td><td>filevault · image</td><td class="num">5</td><td class="small">cortex vision timeout after 30000 ms</td><td class="num">2 h</td></tr>
+              <tr><td><span class="id">mi_3ff910</span></td><td>live · recording</td><td class="num">5</td><td class="small">ffprobe: invalid data found when processing input</td><td class="num">Yesterday</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>Showing 3 of 21 · peek limit ≤ 200</span></div>
+      </div>
+    </section>
+
+    <!-- ── Schedules ── -->
+    <section id="p-sc" role="tabpanel" aria-labelledby="t-sc" hidden>
+      <div class="card dt">
+        <div class="dt-scroll">
+          <table class="table">
+            <thead><tr><th>Job</th><th>Queue</th><th>Cron</th><th class="num">Next run</th></tr></thead>
+            <tbody>
+              <tr><td><b>trending-update-recurring</b></td><td>timeline · trending</td><td><code>*/15 * * * *</code></td><td class="num">17:15 PT</td></tr>
+              <tr><td><b>trending-cleanup-recurring</b></td><td>timeline · trending</td><td><code>0 3 * * *</code></td><td class="num">Tomorrow 03:00</td></tr>
+              <tr><td><b>Weekly digest</b> <span class="pill brand">lowcode flow</span></td><td>lowcode · schedule</td><td><code>0 9 * * 1</code></td><td class="num">Mon Oct 5 09:00</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog sm" id="dlg-clean" aria-labelledby="dlg-cl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cl-t">Clean the indexing queue?</h2><p>Completed jobs older than the grace period are removed. Waiting and active jobs stay.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="cl-grace">Grace</label><input class="input" id="cl-grace" value="1h"><span class="help">= 3,600,000 ms</span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Cleaned 61,002 jobs">Clean queue</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-retry-all" aria-labelledby="dlg-ra-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ra-t">Retry 14 failed jobs in indexing?</h2><p>Each job is retried separately; results appear per job.</p></div></div>
+    <div class="dialog-body"><div class="list card"><div class="list-item"><span class="grow">#88412 index-post</span><span class="pill ok">re-queued</span></div><div class="list-item"><span class="grow">#87990 bulk-reindex</span><span class="pill danger">404 job removed</span></div></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="13 re-queued · 1 failed">Retry jobs</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-remove" aria-labelledby="dlg-rm-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rm-t">Remove job #88412?</h2><p>The index-post job for pst_4be201 is deleted. The post won’t be searchable until it’s reindexed.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Job removed">Remove job</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-redrive" aria-labelledby="dlg-rd-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rd-t">Redrive modq:images dead letters</h2><p>Moves items from <code>modq:images.dlq</code> back onto the live queue.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rd-lim">How many (≤ 1000)</label><input class="input" id="rd-lim" type="number" value="21" min="1" max="1000"></div><div class="banner warn"><i data-i="info" class="sm"></i><span>All 21 failed on cortex vision timeouts. Check Cortex health first or they’ll dead-letter again.</span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Moved 21 items to modq:images">Redrive</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-purge" aria-labelledby="dlg-pg-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-pg-t">Purge modq:images dead letters?</h2><p>21 items are deleted permanently and won’t be moderated.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="pg-confirm">Type <b>modq:images</b> to confirm</label><input class="input" id="pg-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Purged 21 dead letters">Purge</button></div>
+  </dialog>
+
+  <dialog class="dialog lg" id="dlg-bucket" aria-labelledby="dlg-bk-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-bk-t">Bucket · modq:images</h2><p>Stored in moderator_config · applied on save</p></div></div>
+    <form class="dialog-body" data-toast="Bucket saved">
+      <div class="form-grid">
+        <div class="field"><label for="bk-name">Display name</label><input class="input" id="bk-name" value="Image review"></div>
+        <div class="field"><label for="bk-back">Backend</label><select class="select" id="bk-back"><option>rabbitmq</option><option>redis</option></select></div>
+        <div class="field"><label for="bk-pri">Priority</label><select class="select" id="bk-pri"><option>high</option><option>urgent</option><option>normal</option><option>low</option></select></div>
+        <div class="field"><label for="bk-con">Concurrency</label><input class="input" id="bk-con" type="number" value="8"></div>
+        <div class="field"><label for="bk-att">Attempts</label><input class="input" id="bk-att" type="number" value="5"></div>
+        <div class="field"><label for="bk-ex">Exchange</label><input class="input" id="bk-ex" value="modx:images"></div>
+      </div>
+    </form>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-del-bucket">Delete bucket</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Bucket saved">Save bucket</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del-bucket" aria-labelledby="dlg-db-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-db-t">Delete bucket modq:appeals?</h2><p>3 waiting items move back to the default route. Its DLQ (6 items) is deleted.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Bucket deleted">Delete bucket</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Client-side merge of four module queue APIs, polled every 10 s while visible. Pause/resume are optimistic with Undo; retry/redrive show per-item results. Job detail exists for timeline (and prefetch failed list) only — other modules have no job-level routes.",
+  "rest": [
+    { "m": "GET", "p": "/timeline/api/jobs/stats", "auth": "A", "ui": "Queues table · timeline group" },
+    { "m": "GET", "p": "/timeline/api/jobs/stats/:queueName", "auth": "A", "ui": "Row refresh" },
+    { "m": "GET", "p": "/timeline/api/jobs/:queueName/jobs", "auth": "A", "ui": "Jobs tab list" },
+    { "m": "GET", "p": "/timeline/api/jobs/:queueName/job/:jobId", "auth": "A", "ui": "Job detail, stack trace" },
+    { "m": "POST", "p": "/timeline/api/jobs/:queueName/job/:jobId/retry", "auth": "A", "ui": "Retry job, Retry all failed" },
+    { "m": "DELETE", "p": "/timeline/api/jobs/:queueName/job/:jobId", "auth": "A", "ui": "Remove job dialog" },
+    { "m": "POST", "p": "/timeline/api/jobs/:queueName/pause", "auth": "A", "ui": "Row → Pause" },
+    { "m": "POST", "p": "/timeline/api/jobs/:queueName/resume", "auth": "A", "ui": "Row → Resume" },
+    { "m": "POST", "p": "/timeline/api/jobs/:queueName/clean", "auth": "A", "ui": "Clean dialog" },
+    { "m": "GET", "p": "/spark/api/queues/stats", "auth": "A", "ui": "Queues table · spark group" },
+    { "m": "GET", "p": "/spark/api/queues/:name/stats", "auth": "A", "ui": "Row refresh" },
+    { "m": "POST", "p": "/spark/api/queues/:name/pause", "auth": "A", "ui": "Row → Pause" },
+    { "m": "POST", "p": "/spark/api/queues/:name/resume", "auth": "A", "ui": "Row → Resume" },
+    { "m": "POST", "p": "/spark/api/queues/:name/clean", "auth": "A", "ui": "Clean dialog" },
+    { "m": "GET", "p": "/prefetch/api/prefetch/queue/stats", "auth": "user", "ui": "Queues table · prefetch" },
+    { "m": "GET", "p": "/prefetch/api/prefetch/queue/failed", "auth": "user", "ui": "Jobs tab (prefetch failed)" },
+    { "m": "POST", "p": "/prefetch/api/prefetch/queue/retry/:jobId", "auth": "user (write)", "ui": "Retry failed (prefetch)" },
+    { "m": "GET", "p": "/moderator/api/queues", "auth": "A", "ui": "Queues table · moderator buckets" },
+    { "m": "GET", "p": "/moderator/api/queues/:name", "auth": "A", "ui": "Bucket editor" },
+    { "m": "PUT", "p": "/moderator/api/queues/:name", "auth": "A", "ui": "Save bucket (create or update)" },
+    { "m": "DELETE", "p": "/moderator/api/queues/:name", "auth": "A", "ui": "Delete bucket dialog" },
+    { "m": "GET", "p": "/moderator/api/queues/:name/stats", "auth": "A", "ui": "Bucket counts" },
+    { "m": "POST", "p": "/moderator/api/queues/:name/test", "auth": "A", "ui": "Row → Test" },
+    { "m": "GET", "p": "/moderator/api/queues/:name/dlq", "auth": "A", "ui": "Dead letters table, DLQ tile" },
+    { "m": "POST", "p": "/moderator/api/queues/:name/dlq/redrive", "auth": "A", "ui": "Redrive dialog (primary)" },
+    { "m": "DELETE", "p": "/moderator/api/queues/:name/dlq", "auth": "A", "ui": "Purge dialog" }
+  ],
+  "socket": [
+    { "ns": "/_admin", "auth": "CA bearer + isAdminToken", "rooms": [], "emit": [],
+      "on": [{ "e": "health", "ui": "Top-bar Live pill (queue summaries proposed, GW-4)" }] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "Proposed: GET /platform/api/queues aggregator (GW-3) — every Bull and RabbitMQ queue with uniform stats/jobs/retry/remove. Today 5 worker queues (cortex, filevault image/video, live recording, atproto) have no admin routes at all." },
+    { "sev": "med", "text": "No queue socket events: counts poll every 10 s. Proposed: /_admin 'queues' summaries (GW-4)." },
+    { "sev": "med", "text": "Prefetch /queue/failed and /queue/retry are any-reader/any-writer, and prefetch has no pause/resume/clean routes (PF-1)." },
+    { "sev": "med", "text": "Spark queues expose stats/pause/resume/clean only — no job listing or retry." }
+  ]
+}
+</script>
+</body>
+</html>

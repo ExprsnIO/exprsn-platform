@@ -10,8 +10,12 @@ Governance, lifecycle, and the Cost/Benefit gate: see `README.md`.
 > **Gate reminder:** a `FEAT` cannot leave `backlog` until the
 > cost-benefit-analyzer replaces its `Cost/Benefit: pending` line. The
 > product-manager grooms `backlog → ready` and commits `ready` tickets into an
-> active sprint. **No sprint is currently in flight — `active/` is empty and the
-> next cycle needs grooming.** **Sprint 2026-14 closed 2026-07-30
+> active sprint. **Sprint 2026-15 is DRAFTED, not yet committed
+> (`active/sprint-2026-15.md`, 2026-10-01)**: it is waiting on three owner
+> decisions (how to restore the red lint gate, BUG-081; FEAT-078's ADR-0005
+> supersession; BUG-080's ADR §3 group question). Proposed set: BUG-081,
+> TASK-074, FEAT-082 (anchor), BUG-080, BUG-076, TASK-071, TASK-072. Tickets stay
+> `backlog` until COMMIT. **Sprint 2026-14 closed 2026-07-30
 > (9/9 done: FEAT-090 + FEAT-081 on the sr track, BUG-066/065/064 jr,
 > BUG-067 dba, TASK-068/069/070 qa; merged to `main` @ `0c0a510`, archived at
 > `archive/sprint-2026-14.md`)**. It spent the FEAT-080 keystone — token
@@ -7095,6 +7099,35 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   TASK-071, BUG-064, `services/cortex/src/models/index.js` (ChatMessage,
   AgentRun, and the two association declarations).
 
+### BUG-081 — Required `lint` CI gate is red on `main` on every push since the remote went live: foreign `src/` trees from the unrelated-histories merge fail eslint
+- **Type:** bug · **Status:** backlog (proposed for Sprint 2026-15; needs an owner decision on approach) · **Priority:** P1 · **Size:** S
+- **Owner-role:** sr-developer · **Blocked-by:** owner decision (see Notes)
+- **Legacy:** R1 · found at Sprint 2026-15 grooming, 2026-10-01
+- **Description:** CI runs on `main` (#1 at `d3eb275`, #3 at `ac71f66`, #4 at
+  `764ce4d`) all fail the **Lint** job, one of the two required gates. `npm run lint`
+  (`eslint src services --ext .js`) reports **6,323 errors, every one** in content
+  imported by the 2026-08-10 `--allow-unrelated-histories` merge (`89ff0ef`): the
+  22 `src/exprsn-*` service trees (largest: `exprsn-svr` 3,609, `exprsn-setup`
+  629) plus `src/shared/` (for example a duplicate `index` declaration parse error
+  in `src/shared/ai-integration/agent-orchestrator.js:240`). None of those dirs existed
+  in the platform tree before the merge. The platform's own `src/config`, `db`,
+  `modules`, `observability`, `provisioning`, `workers` and all of `services/`
+  are clean. So the gate fails on code that isn't part of the 14-module registry,
+  and every PR is red on a required check.
+- **Steps to reproduce:** `npm ci && npm run lint` on `main` @ `764ce4d` → exit 1,
+  6,323 errors, all under `src/exprsn-*/` and `src/shared/`.
+- **Expected:** `npm run lint` exits 0 on `main`; CI **Lint** passes.
+- **Notes:** **Owner decision: approach.** (a) remove the imported trees;
+  (b) relocate them out of `src/` (for example `legacy/`); or (c) exclude them from the lint
+  glob explicitly. PM recommends (a) or (b). Commit `d3eb275` already
+  lists these trees as foreign leftovers pending cleanup, and `docs/plans/Design.md`
+  names `src/exprsn-dbadmin` as a predecessor to keep or archive deliberately.
+  Do not weaken `.eslintrc.json` rules. Separately, the **Tests** job is also red
+  on `main`. It is documented as non-blocking, but `ci.yml` has no
+  `continue-on-error`, so it reports as a failed check. Make that explicit or
+  ticket the failing suites. **Branch protection on `main` (R1) must follow this
+  fix**, because requiring a permanently-red check would block every merge.
+
 ### BUG-080 — spark socket delivery is not S5-filtered: a suppressed sender's `new:message` / `message:edited` / `new:reaction` reach the suppressing viewer live, while REST correctly hides them
 - **Type:** bug · **Status:** backlog · **Priority:** P2 (QA recommendation) · **Size:** S–M
 - **Owner-role:** unassigned · **Blocked-by:** —
@@ -7643,8 +7676,33 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
   is the cheapest way to stop paying for that at QA time on every Cortex-slate
   ticket, of which ~15 remain. Cross-ref: TASK-071, BUG-072.
 
+### TASK-074 — UI v2 design mockups: user app + admin console (every route, contract-annotated)
+- **Type:** task · **Status:** in-review · **Priority:** P2 · **Size:** L
+- **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
+- **Legacy:** TASK-073 (`docs/plans/Design.md`, admin spec this visualizes); root `mockups/` (v1 sketches, superseded)
+- **Description:** Fresh, implementation-ready static HTML mockups under `mockups/v2/` for
+  every SPA route (`web/src/app/router.tsx`) and every admin section
+  (`web/src/features/admin/AdminLayout.tsx`), aligned with modern UI/UX, Apple HIG and
+  WCAG 2.2 AA. Keeps the existing Exprsn Unified Design System colours and light/dark
+  themes value-for-value (`web/src/styles/exprsn-unified.css`). Each screen carries a
+  **Contract** drawer listing the REST endpoints it calls (method, path, auth class) and the
+  Socket.IO namespace, rooms, client→server and server→client events it depends on, plus
+  known backend gaps. Rationale, component inventory and the full endpoint/event coverage
+  matrix live in `docs/plans/ui-v2-mockups.md`.
+- **Acceptance criteria:**
+  - One mockup per user route and per admin section; gallery at `mockups/v2/index.html`.
+  - `mockups/v2/tokens.css` hex values identical to `exprsn-unified.css` (no new colours).
+  - Every page renders in light + dark at 1440px and 390px with no console errors, no
+    horizontal overflow at phone width, and no serious/critical axe violations.
+  - Every socket event and REST endpoint group in `API_SURFACE.md` (as corrected against
+    code) maps to a screen or is explicitly marked "no UI (service/internal)".
+- **Notes:** Design-only; no runtime code changes. Socket-layer defects found during the
+  inventory (spark REST emits on the root namespace, dead `/ca` emitters, vault non-prod
+  permission grant, timeline IPC `post:*` broadcast to all sockets, no `/cortex` entry in
+  `web/src/lib/realtime.ts`) are recorded in the design doc as prerequisites, not fixed here.
+
 ### TASK-073 — Administrative interface design specification (Claude Design brief) + backend prerequisites register
-- **Type:** task · **Status:** in-review · **Priority:** P1 · **Size:** L
+- **Type:** task · **Status:** done (spec merged to `main` via ExprsnIO/exprsn-platform PR #1, `764ce4d`, 2026-09-28; AC4, filing the §14 tickets, split out to **TASK-074**) · **Priority:** P1 · **Size:** L
 - **Owner-role:** sr-developer (session-led) · **Blocked-by:** —
 - **Legacy:** TASK-039 (admin refactor parent); `docs/reports/admin-interface.md` (endpoint→UI map)
 - **Description:** Produce the design specification for the next-generation `/admin`
@@ -7704,6 +7762,25 @@ systems-architect design doc `sprints/moderation-routing-plan.md`. BUG-010 is th
 - **Notes:** Live-account smoke test not yet run (no DO token in the authoring
   environment). Lives outside `src/` and `services/`, so root `npm run lint` does not
   cover it; it lints clean under the root `.eslintrc.json`.
+### TASK-074 — File `docs/plans/Design.md` §14 backend prerequisites as tickets
+- **Type:** task · **Status:** backlog (proposed for Sprint 2026-15) · **Priority:** P1 · **Size:** S
+- **Owner-role:** product-manager + sr-developer · **Blocked-by:** —
+- **Legacy:** split from TASK-073 AC4 (unmet when the spec merged 2026-09-28)
+- **Description:** TASK-073's acceptance required the ~90-row §14 backend
+  prerequisites register to be "filed as follow-up tickets (one per row or grouped
+  by module) before build starts". The spec merged without that step, so the
+  admin-console build has no ticketed backlog to pull from, and the security
+  discrepancies §14 records are tracked only inside a design doc.
+- **Acceptance criteria:**
+  - Every §14 row maps to a ticket in this file (grouped per module is fine), and
+    §14 cross-references the ticket ids.
+  - The rows §14 severity-tags as security issues are filed as **individual** `BUG`s
+    with their own priority, at minimum: `/ca` socket admits unauthenticated
+    clients; `adminGuard` ignores token roles; live lifecycle routes lack a
+    platform-admin override; vault `aiPolicyService` queries a non-existent
+    `createdAt`.
+  - No code changes.
+- **Notes:** Gate for scheduling any admin-console build ticket.
 
 ### TASK-039 — Admin interface refactor: live updates, uniform tables, full config read/write (parent)
 - **Type:** task · **Status:** done (merged to `main` `fe58d2c`; IA restructure + config store + live updates, e2e-verified) · **Priority:** P1 · **Size:** XL (decomposed below; worked as one branch)

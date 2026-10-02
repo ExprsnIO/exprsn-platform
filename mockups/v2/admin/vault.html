@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vault · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .chart { width: 100%; max-width: 520px; height: auto; display: block; }
+  .chart .gl { stroke: var(--exprsn-border-color); }
+  .chart .b-ok { fill: var(--exprsn-success); } .chart .b-warn { fill: var(--exprsn-warning); } .chart .b-bad { fill: var(--exprsn-danger); }
+  .chart .b-p { fill: var(--exprsn-primary); }
+  .chart text { fill: var(--exprsn-text-secondary); font-size: 12px; font-family: var(--exprsn-font-family); }
+  .chart text.v { fill: var(--exprsn-text-primary); font-weight: 600; }
+  .risk { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+  .risk .meter { flex: 1; }
+</style>
+</head>
+<body data-shell="admin" data-page="vault">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Services</span><i data-i="right" class="sm"></i><span>Vault</span></nav>
+        <h1 class="page-title">Vault</h1>
+        <p class="page-sub">Vault tokens and their policies, access reports, the audit log and maintenance. Secret values never leave the server on this screen.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-api="/vault/api/audit/export" data-toast="Audit export started — vault-audit.csv"><i data-i="download" class="sm"></i>Export audit</button>
+        <button class="btn primary" type="button" data-open="dlg-gen" data-api="/vault/api/admin/tokens/generate"><i data-i="key" class="sm"></i>Generate token</button>
+      </div>
+    </header>
+
+    <div class="banner danger" role="note"><i data-i="alert" class="sm"></i><span class="grow"><b>Live updates are untrusted outside production.</b> The <code>/vault</code> socket accepts any token as a dev user with every permission, and clients can subscribe to any channel. Treat live events on this environment as unauthenticated.</span></div>
+
+    <div class="grid c4" data-api="/vault/api/admin/dashboard/stats">
+      <div class="card stat" data-on="token:event stats:update"><span class="label"><i data-i="key" class="sm"></i>Active tokens</span><span class="value">1,284</span><span class="delta up">+37 this week</span></div>
+      <div class="card stat" data-on="token:event"><span class="label"><i data-i="pause" class="sm"></i>Suspended</span><span class="value">12</span><span class="delta down">3 high-risk</span></div>
+      <div class="card stat"><span class="label"><i data-i="lock" class="sm"></i>Secrets</span><span class="value">3,902</span><span class="delta">41 expire in 7 d</span></div>
+      <div class="card stat" data-on="cache:stats"><span class="label"><i data-i="cache" class="sm"></i>Cache hit rate</span><span class="value">94%</span><div class="meter ok" role="img" aria-label="94 percent"><i style="width:94%"></i></div></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Vault admin views">
+      <button role="tab" id="t-tok" aria-controls="p-tok" aria-selected="true">Tokens</button>
+      <button role="tab" id="t-pol" aria-controls="p-pol">Policies</button>
+      <button role="tab" id="t-rep" aria-controls="p-rep">Access reports</button>
+      <button role="tab" id="t-aud" aria-controls="p-aud">Audit</button>
+      <button role="tab" id="t-mnt" aria-controls="p-mnt">Maintenance</button>
+      <button role="tab" id="t-live" aria-controls="p-live">Live events</button>
+    </div>
+
+    <!-- ── Tokens ── -->
+    <section id="p-tok" role="tabpanel" aria-labelledby="t-tok">
+      <div class="stack loose">
+        <div class="card dt">
+          <div class="dt-toolbar">
+            <label class="input-group"><i data-i="search" class="sm"></i><input id="tk-q" type="search" placeholder="Token id, name, entity id"></label>
+            <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Status: active <span class="x">×</span></button>
+            <button class="chip" type="button" aria-pressed="false">Entity type</button>
+            <button class="chip" type="button" aria-pressed="false">Risk ≥ 0.7</button>
+            <span class="grow"></span>
+            <span class="pill ok" data-on="token:event"><span class="d"></span>1 new token — show</span>
+          </div>
+          <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-open="dlg-bulk" data-api="/vault/api/admin/tokens/bulk/revoke">Revoke selected</button><button class="btn sm ghost" type="button">Export selected</button></div>
+          <div class="dt-scroll" data-state="loaded">
+            <table class="table" data-api="/vault/api/admin/tokens" data-on="token:event">
+              <thead><tr>
+                <th style="width:44px"><input type="checkbox" class="check" id="tk-all" aria-label="Select all tokens on this page"></th>
+                <th>Token</th><th>Entity</th><th>Status</th><th>Risk</th><th>Expiry</th><th class="num">Last used</th><th class="actions"><span class="sr-only">Actions</span></th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" class="check" id="tk-1" aria-label="Select token ci-deployer"></td>
+                  <td><b>ci-deployer</b><div><span class="id">vt_8a21f0</span></div></td>
+                  <td>service · <span class="id">svc_ci</span></td>
+                  <td><span class="pill ok">active</span></td>
+                  <td><div class="risk"><div class="meter" role="img" aria-label="Risk 0.12"><i style="width:12%"></i></div><span class="xs num">0.12</span></div></td>
+                  <td>in 23 d</td><td class="num">2 min ago</td>
+                  <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-tok" data-api="/vault/api/admin/tokens/:tokenId">Open</button><button class="btn sm ghost" type="button" data-open="dlg-suspend" data-api="/vault/api/admin/tokens/:tokenId/suspend">Suspend</button></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="check" id="tk-2" aria-label="Select token northwind-payroll"></td>
+                  <td><b>northwind-payroll</b><div><span class="id">vt_c7e912</span></div></td>
+                  <td>organization · Northwind</td>
+                  <td><span class="pill ok">active</span></td>
+                  <td><div class="risk"><div class="meter danger" role="img" aria-label="Risk 0.81"><i style="width:81%"></i></div><span class="xs num">0.81</span></div></td>
+                  <td>7 of 10 uses left</td><td class="num">1 h ago</td>
+                  <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-anom" data-api="/vault/api/admin/tokens/:tokenId/anomalies">Anomalies</button><button class="btn sm ghost" type="button" data-open="dlg-revoke" data-api="/vault/api/admin/tokens/:tokenId/revoke">Revoke</button></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="check" id="tk-3" aria-label="Select token maya-laptop"></td>
+                  <td><b>maya-laptop</b><div><span class="id">vt_19b0d4</span></div></td>
+                  <td>user · Maya Diaz</td>
+                  <td><span class="pill warn">suspended</span></td>
+                  <td><div class="risk"><div class="meter warn" role="img" aria-label="Risk 0.55"><i style="width:55%"></i></div><span class="xs num">0.55</span></div></td>
+                  <td><i data-i="alert" class="sm"></i> persistent</td><td class="num">3 d ago</td>
+                  <td class="actions"><button class="btn sm tonal" type="button" data-api="/vault/api/admin/tokens/:tokenId/reactivate" data-toast="maya-laptop reactivated">Reactivate</button><button class="btn sm ghost" type="button" data-open="dlg-revoke">Revoke</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div data-state="empty"><div class="empty"><div class="art"><i data-i="key"></i></div><h3>No tokens match</h3><p>No active tokens for this filter. Tokens you generate show here and on the live feed.</p><button class="btn primary" type="button" data-open="dlg-gen">Generate token</button></div></div>
+          <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span><span class="sk" style="height:40px"></span></div>
+          <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load vault tokens</h3><p>403 on <code>/vault/api/admin/tokens</code>: your CA token lacks <code>read</code> on <code>/vault/api/admin</code>. Correlation id <code>cid 6b20…ee1</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+          <div class="dt-foot"><span class="num">1–25 of 1,284</span><div class="row" style="gap:6px"><button class="icon-btn" type="button" aria-label="Previous page" disabled><i data-i="left"></i></button><button class="icon-btn" type="button" aria-label="Next page"><i data-i="right"></i></button></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Tokens by risk</h2></div>
+          <div class="card-body" data-api="/vault/api/admin/dashboard/stats">
+            <svg class="chart" viewBox="0 0 400 110" role="img" aria-label="Active tokens by risk: low 1,102, medium 158, high 24">
+              <line class="gl" x1="70" y1="0" x2="70" y2="100"/>
+              <text x="0" y="23">Low</text><rect class="b-ok" x="70" y="10" width="270" height="18" rx="4"/><text class="v" x="346" y="23">1,102</text>
+              <text x="0" y="55">Medium</text><rect class="b-warn" x="70" y="42" width="38.7" height="18" rx="4"/><text class="v" x="114.7" y="55">158</text>
+              <text x="0" y="87">High</text><rect class="b-bad" x="70" y="74" width="5.9" height="18" rx="4"/><text class="v" x="81.9" y="87">24</text>
+            </svg>
+            <p class="xs muted">One scale (max 1,102). High = risk ≥ 0.7.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Policies ── -->
+    <section id="p-pol" role="tabpanel" aria-labelledby="t-pol" hidden>
+      <div class="banner info" style="margin-bottom:16px"><i data-i="info" class="sm"></i><span>Policy rules are stored and bound to tokens but <b>not yet evaluated</b> on requests.</span></div>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="pol-q" type="search" placeholder="Search policies"></label><button class="chip" type="button" aria-pressed="false">Type</button><button class="chip" type="button" aria-pressed="false">AI suggested</button><span class="grow"></span><button class="btn sm outline" type="button" data-open="dlg-suggest" data-api="/vault/api/admin/policies/suggest"><i data-i="sparkle" class="sm"></i>Suggest with AI</button><button class="btn sm primary" type="button" data-open="dlg-policy"><i data-i="plus" class="sm"></i>New policy</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/vault/api/admin/policies">
+            <thead><tr><th>Policy</th><th>Type</th><th>Enforcement</th><th class="num">Priority</th><th>Status</th><th class="num">Bindings</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>business-hours-only</b><div class="xs muted">timeRestriction 08–18 Mon–Fri</div></td><td>global</td><td><span class="pill ok">enforcing</span></td><td class="num">100</td><td><span class="pill ok">active</span></td><td class="num">214</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-policy" data-api="/vault/api/admin/policies/:policyId">Edit</button><button class="icon-btn" type="button" aria-label="Delete business-hours-only" data-open="dlg-del-pol"><i data-i="trash"></i></button></td></tr>
+              <tr><td><b>payroll-ip-lock</b><div class="xs muted">ipWhitelist 2 ranges · <span class="pill violet">AI 0.86</span></div></td><td>secret</td><td><span class="pill warn">audit</span></td><td class="num">300</td><td><span class="pill">draft</span></td><td class="num">0</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-policy">Edit</button><button class="icon-btn" type="button" aria-label="Delete payroll-ip-lock" data-open="dlg-del-pol"><i data-i="trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>Filtering the 18 policies loaded (endpoint is unpaginated)</span></div>
+      </div>
+    </section>
+
+    <!-- ── Access reports ── -->
+    <section id="p-rep" role="tabpanel" aria-labelledby="t-rep" hidden>
+      <form class="card" data-toast="Report generated" data-api="/vault/api/admin/reports/access">
+        <div class="card-head"><h2>Access report</h2><div class="seg" role="group" aria-label="Range"><button type="button" aria-pressed="false">24 h</button><button type="button" aria-pressed="true">7 d</button><button type="button" aria-pressed="false">30 d</button></div></div>
+        <div class="card-body stack">
+          <div class="form-grid"><div class="field"><label for="rp-from">From</label><input class="input" id="rp-from" value="2026-09-22"></div><div class="field"><label for="rp-to">To</label><input class="input" id="rp-to" value="now"><span class="help">= 2026-09-29T17:04Z</span></div></div>
+          <div class="empty error" style="padding:24px"><div class="art"><i data-i="alert"></i></div><h3>Report failed: column “createdAt” does not exist</h3><p>The report queries <code>AuditLog.createdAt</code>, but the column is <code>timestamp</code> (VAULT-1). AI suggest and anomalies share the bug.</p></div>
+        </div>
+        <div class="card-foot"><button class="btn primary" type="submit">Generate report</button></div>
+      </form>
+    </section>
+
+    <!-- ── Audit ── -->
+    <section id="p-aud" role="tabpanel" aria-labelledby="t-aud" hidden>
+      <div class="grid c4" data-api="/vault/api/audit/stats" style="margin-bottom:16px">
+        <div class="card stat"><span class="label">Events (24 h)</span><span class="value">48.2k</span></div>
+        <div class="card stat"><span class="label">Failures</span><span class="value">312</span><span class="delta down">0.6%</span></div>
+        <div class="card stat"><span class="label">Secret reads</span><span class="value">31.9k</span></div>
+        <div class="card stat"><span class="label">p95 duration</span><span class="value">18 ms</span></div>
+      </div>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="au-q" type="search" placeholder="Actor, path, request id"></label><button class="chip" type="button" aria-pressed="false">Action</button><button class="chip" type="button" aria-pressed="false">Resource type</button><button class="chip" type="button" aria-pressed="true">Failures only</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/vault/api/audit/logs" data-on="audit:log">
+            <thead><tr><th class="num">Time</th><th>Action</th><th>Resource</th><th>Actor</th><th>IP</th><th>Result</th></tr></thead>
+            <tbody>
+              <tr><td class="num">17:02:11</td><td><code>read</code></td><td>secret · <code>/northwind/payroll/db</code></td><td>vt_c7e912</td><td>198.51.100.40</td><td><span class="pill danger">denied · ip</span></td></tr>
+              <tr><td class="num">16:58:40</td><td><code>rotate</code></td><td>key · transit-main</td><td>Priya Raman</td><td>203.0.113.24</td><td><span class="pill danger">error · 500</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span>Date filters are ignored server-side today (VAULT-1) — range applied to the loaded page.</span></div>
+      </div>
+    </section>
+
+    <!-- ── Maintenance ── -->
+    <section id="p-mnt" role="tabpanel" aria-labelledby="t-mnt" hidden>
+      <div class="card">
+        <div class="setting-row"><i data-i="trash"></i><div class="grow"><div class="t">Purge expired tokens</div><div class="d">Deletes revoked and expired tokens older than 30 days. 402 eligible.</div></div><button class="btn danger-outline" type="button" data-open="dlg-purge" data-api="/vault/api/admin/maintenance/purge">Purge</button></div>
+        <div class="setting-row"><i data-i="cache"></i><div class="grow"><div class="t">Clear token cache</div><div class="d">Forces every token to re-validate on next use. Expect a latency spike for ~1 min.</div></div><button class="btn outline" type="button" data-open="dlg-cache" data-api="/vault/api/admin/maintenance/cache/clear">Clear cache</button></div>
+      </div>
+    </section>
+
+    <!-- ── Live events ── -->
+    <section id="p-live" role="tabpanel" aria-labelledby="t-live" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Admin room feed</h2><span class="pill ok"><span class="d"></span>room admin</span></div>
+        <div class="card-body activity" data-on="token:event">
+          <div class="activity-item"><span class="ico"><i data-i="key"></i></span><span><code>token:event</code> created · <b>ci-deployer-2</b> by Jonah Okafor</span><span class="when">just now</span></div>
+          <div class="activity-item"><span class="ico"><i data-i="x"></i></span><span><code>token:event</code> revoked · <b>old-grafana</b> (reason: rotated)</span><span class="when">4 min</span></div>
+        </div>
+        <div class="card-foot" style="justify-content:flex-start"><span class="xs muted" data-on="policy:event security:alert stats:update cache:stats audit:log">Also subscribed: policy:event, security:alert, stats:update, cache:stats, audit:log — the server has emitters for these but nothing calls them yet.</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Generate token -->
+  <dialog class="dialog lg" id="dlg-gen" aria-labelledby="dlg-gen-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-gen-t">Generate vault token</h2><p>The token value is shown once after you generate it.</p></div></div>
+    <form class="dialog-body" data-toast="Token generated">
+      <div class="form-grid">
+        <div class="field"><label for="g-name">Display name</label><input class="input" id="g-name" value="ci-deployer-2"></div>
+        <div class="field"><label for="g-et">Entity type</label><select class="select" id="g-et"><option>service</option><option>user</option><option>group</option><option>organization</option><option>certificate</option></select></div>
+        <div class="field"><label for="g-eid">Entity</label><input class="input" id="g-eid" value="svc_ci"><span class="help">Opens the matching lookup</span></div>
+        <div class="field"><label for="g-pref">Path prefixes</label><input class="input" id="g-pref" value="/ci/, /shared/registry/"></div>
+      </div>
+      <fieldset class="field" style="border:0;padding:0;margin:0"><legend class="label" style="font-size:.8125rem;font-weight:600;margin-bottom:6px">Permissions</legend><div class="row wrap"><label class="row" style="gap:6px"><input type="checkbox" class="check" id="g-pr" checked>secrets:read</label><label class="row" style="gap:6px"><input type="checkbox" class="check" id="g-pw">secrets:write</label><label class="row" style="gap:6px"><input type="checkbox" class="check" id="g-pk">keys:encrypt</label></div></fieldset>
+      <div class="field"><span class="label" id="g-exp-l">Expiry</span><div class="seg" role="group" aria-labelledby="g-exp-l"><button type="button" aria-pressed="true">Time-based</button><button type="button" aria-pressed="false">Use-based</button><button type="button" aria-pressed="false">Persistent</button></div></div>
+      <div class="form-grid"><div class="field"><label for="g-ttl">Expires in</label><input class="input" id="g-ttl" value="30d"><span class="help">expiresAt = 2026-10-29T17:04Z</span></div><div class="field"><label for="g-ip">IP whitelist</label><input class="input" id="g-ip" placeholder="10.0.0.0/8"></div></div>
+    </form>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-open="dlg-reveal">Generate</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-reveal" aria-labelledby="dlg-rv-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rv-t">Copy your token now</h2><p>ci-deployer-2 · <span class="id">vt_2dd901</span>. It won’t be shown again.</p></div></div>
+    <div class="dialog-body"><div class="input-group"><code class="grow truncate" id="rv-val" data-value="hvs.CAESIJ2x9Q7mNorthwindDemoOnly">••••••••••••</code><button class="btn sm ghost" type="button" data-reveal="rv-val">Show</button><button class="btn sm ghost" type="button" data-copy="hvs.CAESIJ2x9Q7mNorthwindDemoOnly">Copy</button></div><label class="row" style="gap:8px"><input type="checkbox" class="check" id="rv-ok">I have stored this token</label></div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog lg" id="dlg-tok" aria-labelledby="dlg-tk-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-tk-t">ci-deployer</h2><p><span class="id">vt_8a21f0</span> · service svc_ci · created by Jonah Okafor</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body"><dl class="kv"><dt>Permissions</dt><dd><span class="pill">secrets:read</span> <span class="pill">keys:encrypt</span></dd><dt>Path prefixes</dt><dd><code>/ci/</code>, <code>/shared/registry/</code></dd><dt>Policies</dt><dd>business-hours-only</dd><dt>Last used</dt><dd>2 min ago from 10.4.2.19</dd><dt>CA token</dt><dd><span class="id">3f2c…9a1b</span></dd></dl></div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-revoke">Revoke</button><button class="btn outline" type="button" data-open="dlg-suspend">Suspend</button><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-revoke" aria-labelledby="dlg-rk-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rk-t">Revoke northwind-payroll?</h2><p><span class="id">vt_c7e912</span> stops working immediately for every client. This can’t be undone.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rk-reason">Reason (required, audited)</label><input class="input" id="rk-reason" placeholder="e.g. anomalous access from new ASN"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="northwind-payroll revoked">Revoke token</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-suspend" aria-labelledby="dlg-sp-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-sp-t">Suspend ci-deployer?</h2><p>Requests fail with 403 until you reactivate it.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="sp-reason">Reason</label><input class="input" id="sp-reason"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="ci-deployer suspended · Undo">Suspend</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-bulk" aria-labelledby="dlg-bk-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-bk-t">Revoke tokens in bulk</h2><p>Revoke the selected rows, or every token for one entity.</p></div></div>
+    <div class="dialog-body">
+      <div class="seg" role="group" aria-label="Bulk scope"><button type="button" aria-pressed="true">2 selected</button><button type="button" aria-pressed="false">By entity</button></div>
+      <div class="form-grid"><div class="field"><label for="bk-et">Entity type</label><select class="select" id="bk-et"><option>organization</option><option>user</option></select></div><div class="field"><label for="bk-eid">Entity id</label><input class="input" id="bk-eid" value="org_northwind"></div></div>
+      <div class="field"><label for="bk-reason">Reason</label><input class="input" id="bk-reason"></div>
+      <div class="field"><label for="bk-confirm">Type <b>REVOKE</b> to confirm</label><input class="input" id="bk-confirm" autocomplete="off"></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Revoked 2 tokens · 0 failed">Revoke tokens</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-anom" aria-labelledby="dlg-an-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-an-t">Anomalies · northwind-payroll</h2><p>Risk 0.81</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body"><div class="empty error" style="padding:20px"><div class="art"><i data-i="alert"></i></div><h3>Anomaly detection errored</h3><p>Same <code>createdAt</code> column bug as access reports (VAULT-1). Showing stored risk only.</p></div></div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-revoke">Revoke</button><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog lg" id="dlg-policy" aria-labelledby="dlg-pl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-pl-t">Policy · business-hours-only</h2><p>Rule builder, or edit as JSON.</p></div></div>
+    <form class="dialog-body" data-toast="Policy saved">
+      <div class="form-grid">
+        <div class="field"><label for="pl-name">Name</label><input class="input" id="pl-name" value="business-hours-only"></div>
+        <div class="field"><label for="pl-type">Type</label><select class="select" id="pl-type"><option>global</option><option>secret</option><option>key</option><option>credential</option></select></div>
+        <div class="field"><label for="pl-mode">Enforcement</label><select class="select" id="pl-mode"><option>enforcing</option><option>permissive</option><option>audit</option></select></div>
+        <div class="field"><label for="pl-pri">Priority (1–1000)</label><input class="input" id="pl-pri" type="number" value="100"></div>
+        <div class="field"><label for="pl-hours">Allowed hours</label><input class="input" id="pl-hours" value="08:00–18:00 America/Los_Angeles"></div>
+        <div class="field"><label for="pl-days">Allowed days</label><input class="input" id="pl-days" value="Mon–Fri"></div>
+      </div>
+    </form>
+    <div class="dialog-foot"><button class="btn ghost left" type="button">Edit as JSON</button><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Policy saved">Save policy</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-suggest" aria-labelledby="dlg-sg-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-sg-t">Suggest a policy with AI</h2><p>Draft from the last 30 days of audit activity for one entity.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="sg-ent">Entity</label><input class="input" id="sg-ent" value="organization · Northwind"></div><div class="banner warn"><i data-i="alert" class="sm"></i><span>Currently fails with the <code>createdAt</code> bug (VAULT-1).</span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Draft policy created · review before activating">Suggest</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del-pol" aria-labelledby="dlg-dp-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dp-t">Delete business-hours-only?</h2><p>It’s bound to 214 tokens; the bindings are removed with it.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Policy deleted">Delete policy</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-purge" aria-labelledby="dlg-pg-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-pg-t">Purge 402 expired tokens?</h2><p>Revoked and expired tokens older than 30 days are deleted permanently. Audit entries remain.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="pg-confirm">Type <b>purge</b> to confirm</label><input class="input" id="pg-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Purged 402 tokens">Purge tokens</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-cache" aria-labelledby="dlg-cc-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cc-t">Clear the token cache?</h2><p>All 1,284 active tokens re-validate on their next request.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Token cache cleared">Clear cache</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Token rows update live from token:event in the admin room (created/revoked are the only events actually emitted). Suspend and reactivate are optimistic with Undo; revoke waits for the server. Secret values are never requested here.",
+  "rest": [
+    { "m": "GET", "p": "/vault/api/admin/dashboard/stats", "auth": "A", "ui": "Stat tiles, risk chart" },
+    { "m": "POST", "p": "/vault/api/admin/tokens/generate", "auth": "A", "ui": "Generate token → reveal once" },
+    { "m": "GET", "p": "/vault/api/admin/tokens", "auth": "A", "ui": "Tokens table" },
+    { "m": "GET", "p": "/vault/api/admin/tokens/:tokenId", "auth": "A", "ui": "Token detail dialog" },
+    { "m": "POST", "p": "/vault/api/admin/tokens/:tokenId/revoke", "auth": "A", "ui": "Revoke dialog" },
+    { "m": "POST", "p": "/vault/api/admin/tokens/:tokenId/suspend", "auth": "A", "ui": "Suspend dialog" },
+    { "m": "POST", "p": "/vault/api/admin/tokens/:tokenId/reactivate", "auth": "A", "ui": "Row → Reactivate" },
+    { "m": "POST", "p": "/vault/api/admin/tokens/bulk/revoke", "auth": "A", "ui": "Bulk revoke dialog" },
+    { "m": "GET", "p": "/vault/api/admin/tokens/:tokenId/anomalies", "auth": "A", "ui": "Anomalies dialog" },
+    { "m": "GET", "p": "/vault/api/admin/policies", "auth": "A", "ui": "Policies table" },
+    { "m": "POST", "p": "/vault/api/admin/policies", "auth": "A", "ui": "New policy" },
+    { "m": "GET", "p": "/vault/api/admin/policies/:policyId", "auth": "A", "ui": "Policy editor" },
+    { "m": "PUT", "p": "/vault/api/admin/policies/:policyId", "auth": "A", "ui": "Save policy" },
+    { "m": "DELETE", "p": "/vault/api/admin/policies/:policyId", "auth": "A", "ui": "Delete policy dialog" },
+    { "m": "POST", "p": "/vault/api/admin/policies/suggest", "auth": "A", "ui": "Suggest with AI dialog" },
+    { "m": "POST", "p": "/vault/api/admin/reports/access", "auth": "A", "ui": "Access report form" },
+    { "m": "POST", "p": "/vault/api/admin/maintenance/purge", "auth": "A", "ui": "Purge dialog" },
+    { "m": "POST", "p": "/vault/api/admin/maintenance/cache/clear", "auth": "A", "ui": "Clear cache dialog" },
+    { "m": "GET", "p": "/vault/api/audit/logs", "auth": "user (/audit read)", "ui": "Audit table" },
+    { "m": "GET", "p": "/vault/api/audit/stats", "auth": "user (/audit read)", "ui": "Audit tiles" },
+    { "m": "GET", "p": "/vault/api/audit/export", "auth": "user (/audit read)", "ui": "Export audit" }
+  ],
+  "socket": [
+    { "ns": "/vault", "auth": "auth.token — CA read in prod; ANY token in non-prod", "rooms": ["admin"],
+      "emit": [],
+      "on": [
+        { "e": "token:event", "ui": "Tokens table rows, stat tiles, live feed" },
+        { "e": "policy:event", "ui": "Policies table (no emitter calls yet)" },
+        { "e": "security:alert", "ui": "Danger toast (no emitter calls yet)" },
+        { "e": "stats:update", "ui": "Stat tiles (no emitter calls yet)" },
+        { "e": "cache:stats", "ui": "Cache hit tile (no emitter calls yet)" },
+        { "e": "audit:log", "ui": "Audit table prepend (no emitter calls yet)" },
+        { "e": "server:shutdown", "ui": "Reconnecting banner" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "Outside production the /vault namespace treats any token as dev_user with all permissions, and subscribe accepts any channel name (VAULT-2)." },
+    { "sev": "high", "text": "Access reports, AI suggest and token anomalies query AuditLog.createdAt, which doesn't exist (timestamp); audit date filters use removed $gte aliases (VAULT-1)." },
+    { "sev": "med", "text": "policy:event, security:alert, stats:update, cache:stats, audit:log and notification have emitters but no callers — only token:event is live." },
+    { "sev": "med", "text": "GET /admin/policies is unpaginated and has no sort (VAULT-3); policy rules are stored but not evaluated." }
+  ]
+}
+</script>
+</body>
+</html>

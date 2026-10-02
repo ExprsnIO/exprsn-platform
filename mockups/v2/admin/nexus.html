@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Groups &amp; events · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .chart { width: 100%; height: auto; display: block; }
+  .chart .gl { stroke: var(--exprsn-border-color); stroke-width: 1; }
+  .chart .ln { fill: none; stroke: var(--exprsn-primary); stroke-width: 2; }
+  .chart .ar { fill: color-mix(in srgb, var(--exprsn-primary) 12%, transparent); }
+  .chart .pt { fill: var(--exprsn-primary); stroke: var(--exprsn-surface-raised); stroke-width: 2; }
+  .chart text { fill: var(--exprsn-text-secondary); font-size: 11px; font-family: var(--exprsn-font-family); }
+  .votes { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--exprsn-bg-tertiary); min-width: 120px; }
+  .votes i { display: block; height: 100%; }
+  .votes .y { background: var(--exprsn-success); } .votes .n { background: var(--exprsn-danger); } .votes .a { background: var(--exprsn-gray-400); }
+</style>
+</head>
+<body data-shell="admin" data-page="nexus">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Services</span><i data-i="right" class="sm"></i><span>Groups &amp; events</span></nav>
+        <h1 class="page-title">Groups &amp; events</h1>
+        <p class="page-sub">Nexus community groups, their events and governance, moderation cases, trending and the admin audit trail.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-api="/nexus/api/admin/audit" data-toast="Audit export started — nexus-audit.csv"><i data-i="download" class="sm"></i>Export audit</button>
+        <button class="btn primary" type="button" data-open="dlg-trend" data-api="/nexus/api/trending/update"><i data-i="refresh" class="sm"></i>Recalculate trending</button>
+      </div>
+    </header>
+
+    <div class="banner info" role="note"><i data-i="info" class="sm"></i><span class="grow">Nexus admin checks the CA token’s <code>roles</code> only. If you’re an allowlist-only platform admin, writes here return 403 until AUTH-7 lands.</span></div>
+
+    <div class="grid c4" data-api="/nexus/api/admin/stats">
+      <div class="card stat"><span class="label"><i data-i="groups" class="sm"></i>Groups</span><span class="value">2,418</span><span class="delta up">+61 in 30 d</span></div>
+      <div class="card stat"><span class="label"><i data-i="pulse" class="sm"></i>Active groups</span><span class="value">1,902</span><span class="delta up">78.7%</span></div>
+      <div class="card stat"><span class="label"><i data-i="people" class="sm"></i>Members</span><span class="value">48,210</span><span class="delta up">+2,819 in 30 d</span></div>
+      <div class="card stat"><span class="label"><i data-i="vote" class="sm"></i>Active proposals</span><span class="value">14</span><span class="delta down">3 close today</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>New members per day</h2><div class="seg" role="group" aria-label="Period"><button type="button" aria-pressed="false">7d</button><button type="button" aria-pressed="true">14d</button><button type="button" aria-pressed="false">30d</button><button type="button" aria-pressed="false">90d</button></div></div>
+      <div class="card-body" data-api="/nexus/api/admin/stats">
+        <svg class="chart" viewBox="0 0 580 175" role="img" aria-label="New members per day, Sep 16 to Sep 29: rising from 120 to 262">
+          <line class="gl" x1="30" y1="150" x2="560" y2="150"/><line class="gl" x1="30" y1="103.3" x2="560" y2="103.3"/><line class="gl" x1="30" y1="56.7" x2="560" y2="56.7"/><line class="gl" x1="30" y1="10" x2="560" y2="10"/>
+          <text x="0" y="153">0</text><text x="0" y="107">100</text><text x="0" y="60">200</text><text x="0" y="14">300</text>
+          <path class="ar" d="M30 94 L70 83.7 L110 88.9 L150 75.3 L190 76.3 L230 70.2 L270 61.3 L310 64.1 L350 54.3 L390 57.1 L430 46.9 L470 38 L510 39.9 L550 27.7 L550 150 L30 150 Z"/>
+          <path class="ln" d="M30 94 L70 83.7 L110 88.9 L150 75.3 L190 76.3 L230 70.2 L270 61.3 L310 64.1 L350 54.3 L390 57.1 L430 46.9 L470 38 L510 39.9 L550 27.7"/>
+          <circle class="pt" cx="550" cy="27.7" r="4"/>
+          <text x="22" y="170">Sep 16</text><text x="262" y="170">Sep 22</text><text x="522" y="170">Sep 29</text>
+        </svg>
+        <details class="small"><summary>View as table</summary><p class="secondary num" style="margin-top:6px">Sep 16 120 · 17 142 · 18 131 · 19 160 · 20 158 · 21 171 · 22 190 · 23 184 · 24 205 · 25 199 · 26 221 · 27 240 · 28 236 · 29 262</p></details>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Nexus admin views">
+      <button role="tab" id="t-grp" aria-controls="p-grp" aria-selected="true">Groups</button>
+      <button role="tab" id="t-ev" aria-controls="p-ev">Events</button>
+      <button role="tab" id="t-gov" aria-controls="p-gov">Governance</button>
+      <button role="tab" id="t-mod" aria-controls="p-mod">Moderation cases</button>
+      <button role="tab" id="t-tr" aria-controls="p-tr">Trending &amp; recommendations</button>
+      <button role="tab" id="t-aud" aria-controls="p-aud">Audit</button>
+      <button role="tab" id="t-cal" aria-controls="p-cal">Calendar</button>
+      <button role="tab" id="t-cfg" aria-controls="p-cfg">Config</button>
+    </div>
+
+    <!-- ── Groups ── -->
+    <section id="p-grp" role="tabpanel" aria-labelledby="t-grp">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="g-q" type="search" placeholder="Search name, slug, tag" data-api="/nexus/api/groups/search"></label>
+          <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Visibility: any</button>
+          <button class="chip" type="button" aria-pressed="false">Join mode</button>
+          <button class="chip" type="button" aria-pressed="false">Governance</button>
+          <button class="chip" type="button" aria-pressed="false">Featured</button>
+          <span class="grow"></span>
+          <div class="seg" role="group" aria-label="Group by"><button type="button" aria-pressed="true">Visibility</button><button type="button" aria-pressed="false">None</button></div>
+          <button class="icon-btn" type="button" aria-label="Refresh groups"><i data-i="refresh"></i></button>
+        </div>
+        <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-toast="Featured 2 groups">Feature</button><button class="btn sm tonal" type="button" data-toast="Verified 2 groups">Verify</button><button class="btn sm ghost" type="button">Export selected</button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/nexus/api/groups">
+            <thead><tr>
+              <th style="width:44px"><input type="checkbox" class="check" id="g-all" aria-label="Select all groups on this page"></th>
+              <th aria-sort="ascending"><button type="button">Group <i data-i="up" class="sm"></i></button></th>
+              <th>Join mode</th><th>Governance</th><th class="num">Members</th><th>Flags</th><th class="num">Created</th><th class="actions"><span class="sr-only">Actions</span></th>
+            </tr></thead>
+            <tbody>
+              <tr class="group-row"><td colspan="8">public · 1,806</td></tr>
+              <tr>
+                <td><input type="checkbox" class="check" id="g-1" aria-label="Select Design Guild"></td>
+                <td><div class="row" style="gap:10px"><span class="avatar sm sq g1">DG</span><span class="stack tight" style="gap:0"><b>Design Guild</b><span class="xs muted">design-guild</span></span></div></td>
+                <td><span class="pill">open</span></td><td><span class="pill">centralized</span></td><td class="num">3,204 / ∞</td>
+                <td><span class="pill ok">verified</span> <span class="pill brand">featured</span></td><td class="num">2025-10-02</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-gstats" data-api="/nexus/api/admin/groups/:id/stats">Stats</button><button class="icon-btn" type="button" aria-label="Delete Design Guild" data-open="dlg-del-group"><i data-i="trash"></i></button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="check" id="g-2" aria-label="Select Northwind Careers"></td>
+                <td><div class="row" style="gap:10px"><span class="avatar sm sq g2">NC</span><span class="stack tight" style="gap:0"><b>Northwind Careers</b><span class="xs muted">northwind-careers</span></span></div></td>
+                <td><span class="pill">request</span></td><td><span class="pill violet">dao</span></td><td class="num">612 / 1,000</td>
+                <td><span class="pill ok">verified</span></td><td class="num">2026-02-18</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-gstats">Stats</button><button class="icon-btn" type="button" aria-label="Delete Northwind Careers" data-open="dlg-del-group"><i data-i="trash"></i></button></td>
+              </tr>
+              <tr class="group-row"><td colspan="8">private · 590</td></tr>
+              <tr>
+                <td><input type="checkbox" class="check" id="g-3" aria-label="Select Platform on-call"></td>
+                <td><div class="row" style="gap:10px"><span class="avatar sm sq g3">PO</span><span class="stack tight" style="gap:0"><b>Platform on-call</b><span class="xs muted">platform-oncall</span></span></div></td>
+                <td><span class="pill">invite</span></td><td><span class="pill">consensus</span></td><td class="num">24 / 50</td>
+                <td class="muted">—</td><td class="num">2025-11-20</td>
+                <td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-gstats">Stats</button><button class="icon-btn" type="button" aria-label="Delete Platform on-call" data-open="dlg-del-group"><i data-i="trash"></i></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="groups"></i></div><h3>No groups match</h3><p>Nothing matches “Visibility: any” plus your search. Groups are created by members in the workspace.</p><button class="btn outline" type="button">Clear filters</button></div></div>
+        <div data-state="loading" aria-busy="true" class="stack" style="padding:16px"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load groups</h3><p>Nexus returned 500 on <code>sortBy=memberCount</code> — the API doesn’t whitelist sort keys (NEXUS-2). Correlation id <code>cid 2f0c…91d</code>.</p><button class="btn outline" type="button">Retry with default sort</button></div></div>
+        <div class="dt-foot"><span class="num">1–25 of 2,418 · page size ≤ 100</span><div class="row" style="gap:6px"><button class="icon-btn" type="button" aria-label="Previous page" disabled><i data-i="left"></i></button><button class="icon-btn" type="button" aria-label="Next page"><i data-i="right"></i></button></div></div>
+      </div>
+    </section>
+
+    <!-- ── Events ── -->
+    <section id="p-ev" role="tabpanel" aria-labelledby="t-ev" hidden>
+      <div class="banner warn" style="margin-bottom:16px"><i data-i="alert" class="sm"></i><span class="grow"><b>Check-in and notify aren’t enforced.</b> Any signed-in user can check attendees in or message every attendee. Admin-only buttons below show intent until the routes are gated.</span></div>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="ev-q" type="search" placeholder="Search events"></label><button class="chip" type="button" aria-pressed="true">Upcoming</button><button class="chip" type="button" aria-pressed="false">Status</button><button class="chip" type="button" aria-pressed="false">Type</button><span class="grow"></span><span class="pill info">Capped at 200 rows</span></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/nexus/api/events">
+            <thead><tr><th>Event</th><th>Group</th><th>Type</th><th>Status</th><th class="num">Starts</th><th class="num">Going / max</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>Design crit: v2 console</b></td><td>Design Guild</td><td><span class="pill">virtual</span></td><td><span class="pill ok">published</span></td><td class="num">Oct 1, 16:00 PT</td><td class="num">86 / 100</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-att" data-api="/nexus/api/events/:id/attendees">Attendees</button><button class="btn sm ghost" type="button" data-open="dlg-notify" data-api="/nexus/api/events/:id/notify">Notify</button><button class="btn sm ghost" type="button" data-open="dlg-cancel-ev" data-api="/nexus/api/events/:id/cancel">Cancel</button></td></tr>
+              <tr><td><b>Northwind hiring fair</b></td><td>Northwind Careers</td><td><span class="pill">hybrid</span></td><td><span class="pill ok">published</span></td><td class="num">Oct 8, 10:00 ET</td><td class="num">212 / 300</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-att">Attendees</button><button class="btn sm ghost" type="button" data-open="dlg-notify">Notify</button><button class="btn sm ghost" type="button" data-open="dlg-cancel-ev">Cancel</button></td></tr>
+              <tr><td><b>Incident retro: vault rotation</b></td><td>Platform on-call</td><td><span class="pill">virtual</span></td><td><span class="pill">completed</span></td><td class="num">Sep 28, 09:00 PT</td><td class="num">19 / 50</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-att">Attendees</button><button class="icon-btn" type="button" aria-label="Delete Incident retro: vault rotation" data-open="dlg-del-ev"><i data-i="trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Governance ── -->
+    <section id="p-gov" role="tabpanel" aria-labelledby="t-gov" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="gov-q" type="search" placeholder="Search proposals"></label><button class="chip" type="button" aria-pressed="true">Active only</button><button class="chip" type="button" aria-pressed="false">Type</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/nexus/api/governance/proposals">
+            <thead><tr><th>Proposal</th><th>Group</th><th>Method</th><th>Votes (yes · no · abstain)</th><th class="num">Ends</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>Adopt 2-of-3 treasury signing</b><div class="xs muted">rule-change</div></td><td>Northwind Careers</td><td>supermajority · quorum 60%</td><td><div class="votes" role="img" aria-label="41 yes, 12 no, 5 abstain"><i class="y" style="width:70.7%"></i><i class="n" style="width:20.7%"></i><i class="a" style="width:8.6%"></i></div><span class="xs muted num">41 · 12 · 5</span></td><td class="num">in 6 h</td><td><span class="pill ok">active</span></td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-results" data-api="/nexus/api/governance/proposals/:id/results">Results</button><button class="btn sm ghost" type="button" data-open="dlg-close-prop" data-api="/nexus/api/governance/proposals/:id/close">Close</button></td></tr>
+              <tr><td><b>Promote Sam Kim to moderator</b><div class="xs muted">role-change</div></td><td>Design Guild</td><td>simple-majority</td><td><div class="votes" role="img" aria-label="88 yes, 9 no, 3 abstain"><i class="y" style="width:88%"></i><i class="n" style="width:9%"></i><i class="a" style="width:3%"></i></div><span class="xs muted num">88 · 9 · 3</span></td><td class="num">ended</td><td><span class="pill ok">passed</span></td><td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-exec" data-api="/nexus/api/governance/proposals/:id/execute">Execute</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Moderation cases ── -->
+    <section id="p-mod" role="tabpanel" aria-labelledby="t-mod" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="sr-only" for="mod-grp">Group</label>
+          <select class="select" id="mod-grp" style="width:auto;min-height:36px;padding:6px 10px"><option>Design Guild</option><option>Northwind Careers</option><option>Platform on-call</option></select>
+          <div class="seg" role="group" aria-label="Case list"><button type="button" aria-pressed="true">Queue</button><button type="button" aria-pressed="false">Flags</button></div>
+          <span class="grow"></span><span class="xs muted">Per-group only — cross-group list proposed (NEXUS-1)</span>
+        </div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/nexus/api/moderation/queue/:groupId /nexus/api/moderation/flags/:groupId">
+            <thead><tr><th>Case</th><th>Subject</th><th>Severity</th><th>Status</th><th>Assigned</th><th class="num">Opened</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><span class="id">case_3a91</span><div class="xs muted">member-report</div></td><td>Member · Sam Kim</td><td><span class="pill danger">high</span></td><td><span class="pill warn">under-review</span></td><td>Ari Lindqvist</td><td class="num">2 h ago</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-assign" data-api="/nexus/api/moderation/cases/:id/assign">Assign</button><button class="btn sm tonal" type="button" data-open="dlg-case" data-api="/nexus/api/moderation/cases/:id/action">Act</button></td></tr>
+              <tr><td><span class="id">flag_c02e</span><div class="xs muted">content-flag · spam</div></td><td>Post · “Free crypto…”</td><td><span class="pill warn">medium</span></td><td><span class="pill info">pending</span></td><td class="muted">Unassigned</td><td class="num">35 m ago</td><td class="actions"><button class="btn sm tonal" type="button" data-api="/nexus/api/moderation/flags/:flagId/resolve" data-toast="Flag resolved · content-removed">Resolve</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Trending & recs ── -->
+    <section id="p-tr" role="tabpanel" aria-labelledby="t-tr" hidden>
+      <div class="grid c4" data-api="/nexus/api/recommendations/analytics" style="margin-bottom:16px">
+        <div class="card stat"><span class="label">Shown (30 d)</span><span class="value">92.4k</span></div>
+        <div class="card stat"><span class="label">Click-through</span><span class="value">7.8%</span><div class="meter" role="img" aria-label="7.8 percent"><i style="width:7.8%"></i></div></div>
+        <div class="card stat"><span class="label">Joined</span><span class="value">2.1%</span><div class="meter ok" role="img" aria-label="2.1 percent"><i style="width:2.1%"></i></div></div>
+        <div class="card stat"><span class="label">Dismissed</span><span class="value">11.3%</span><div class="meter warn" role="img" aria-label="11.3 percent"><i style="width:11.3%"></i></div></div>
+      </div>
+      <div class="card dt">
+        <div class="dt-toolbar"><b>Trending groups</b><span class="grow"></span><span class="xs muted">Last recalculated 04:00 · no recurring scheduler (NEXUS-5)</span></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/nexus/api/trending/groups">
+            <thead><tr><th class="num">Rank</th><th>Group</th><th>Category</th><th class="num">Score</th><th class="num">Growth velocity</th><th class="num">Quality</th></tr></thead>
+            <tbody>
+              <tr><td class="num">1</td><td><b>Design Guild</b></td><td>design</td><td class="num">94.1</td><td class="num">+12.4/d</td><td class="num">0.92</td></tr>
+              <tr><td class="num">2</td><td><b>Northwind Careers</b></td><td>jobs</td><td class="num">81.7</td><td class="num">+9.1/d</td><td class="num">0.88</td></tr>
+              <tr><td class="num">3</td><td><b>Contoso Builders</b></td><td>engineering</td><td class="num">77.0</td><td class="num">+6.3/d</td><td class="num">0.81</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Audit ── -->
+    <section id="p-aud" role="tabpanel" aria-labelledby="t-aud" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><label class="input-group"><i data-i="search" class="sm"></i><input id="aud-q" type="search" placeholder="Actor or target id"></label><button class="chip" type="button" aria-pressed="false">Action</button><button class="chip" type="button" aria-pressed="false">Target type</button><button class="chip" type="button" aria-pressed="false">Platform admin only</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/nexus/api/admin/audit">
+            <thead><tr><th class="num">Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Group</th><th>Admin</th></tr></thead>
+            <tbody>
+              <tr><td class="num">09:41</td><td>Maya Diaz</td><td><code>group.delete</code></td><td>group · <span class="id">grp_19ac</span></td><td>Spam Farm 12</td><td><span class="pill violet">platform</span></td></tr>
+              <tr><td class="num">09:12</td><td>Jonah Okafor</td><td><code>member.role.update</code></td><td>member · Sam Kim</td><td>Northwind Careers</td><td class="muted">—</td></tr>
+              <tr><td class="num">Yesterday</td><td>system</td><td><code>trending.update</code></td><td>config · all</td><td class="muted">—</td><td><span class="pill violet">platform</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dt-foot"><span class="num">1–50 · limit ≤ 200</span><div class="row" style="gap:6px"><button class="icon-btn" type="button" aria-label="Previous audit page" disabled><i data-i="left"></i></button><button class="icon-btn" type="button" aria-label="Next audit page"><i data-i="right"></i></button></div></div>
+      </div>
+    </section>
+
+    <!-- ── Calendar ── -->
+    <section id="p-cal" role="tabpanel" aria-labelledby="t-cal" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Calendar feeds · Design Guild</h2><span class="pill ok">iCal + CalDAV + CardDAV</span></div>
+        <div class="card-body">
+          <dl class="kv">
+            <dt>Group iCal</dt><dd><code>/nexus/api/calendar/groups/grp_7d21/ical</code> <button class="btn sm ghost" type="button" data-copy="/nexus/api/calendar/groups/grp_7d21/ical">Copy</button></dd>
+            <dt>CalDAV events</dt><dd><code>/nexus/api/calendar/caldav/groups/grp_7d21/events</code></dd>
+            <dt>CardDAV contacts</dt><dd><code>/nexus/api/calendar/carddav/groups/grp_7d21/contacts</code></dd>
+            <dt>Reminder presets</dt><dd data-api="/nexus/api/events/reminders/presets">ONE_WEEK · ONE_DAY · TWO_HOURS · ONE_HOUR · THIRTY_MINUTES</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Config ── -->
+    <section id="p-cfg" role="tabpanel" aria-labelledby="t-cfg" hidden>
+      <div class="banner warn" style="margin-bottom:16px"><i data-i="info" class="sm"></i><span>These sections are log-only façades: saving is accepted but <b>not persisted</b> (NEXUS-4). Real limits come from env: <code>MAX_GROUP_SIZE</code>, <code>MAX_GROUPS_PER_USER</code>.</span></div>
+      <div class="card" data-api="/nexus/api/config/:sectionId">
+        <div class="setting-row"><div class="grow"><div class="t">nexus-groups</div><div class="d">maxGroupSize 10,000 · allowPrivateGroups true</div></div><span class="pill">read-only</span></div>
+        <div class="setting-row"><div class="grow"><div class="t">nexus-events</div><div class="d">maxAttendees 1,000 · allowRecurring true</div></div><span class="pill">read-only</span></div>
+        <div class="setting-row"><div class="grow"><div class="t">nexus-calendar</div><div class="d">caldavEnabled true · carddavEnabled true</div></div><span class="pill">read-only</span></div>
+        <div class="setting-row"><div class="grow"><div class="t">nexus-trending</div><div class="d">decayHours 72 · minMembers 5</div></div><span class="pill">read-only</span></div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog" id="dlg-trend" aria-labelledby="dlg-trend-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-trend-t">Recalculate trending</h2><p>Scores every active group (or one) and rewrites the ranking. Audited as <code>trending.update</code>.</p></div></div>
+    <div class="dialog-body form-grid">
+      <div class="field full"><label for="tr-grp">Only this group (optional)</label><input class="input" id="tr-grp" placeholder="Group id or slug"></div>
+      <div class="field"><label for="tr-lim">Limit</label><input class="input" id="tr-lim" type="number" value="500"></div>
+      <div class="field"><label for="tr-bs">Batch size</label><input class="input" id="tr-bs" type="number" value="50"></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Trending recalculated · 1,902 groups scored">Recalculate</button></div>
+  </dialog>
+
+  <dialog class="dialog lg" id="dlg-gstats" aria-labelledby="dlg-gs-t">
+    <div class="dialog-head"><span class="avatar lg sq g1">DG</span><div class="grow"><h2 id="dlg-gs-t">Design Guild</h2><p><span class="id">grp_7d21</span> · public · open · centralized</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="grid c4"><div class="card stat"><span class="label">Members</span><span class="value">3,204</span></div><div class="card stat"><span class="label">Events</span><span class="value">48</span></div><div class="card stat"><span class="label">Proposals</span><span class="value">9</span></div><div class="card stat"><span class="label">Open flags</span><span class="value">2</span></div></div>
+      <div class="activity">
+        <div class="activity-item"><span class="ico"><i data-i="userPlus"></i></span><span>42 members joined</span><span class="when">today</span></div>
+        <div class="activity-item"><span class="ico"><i data-i="calendar"></i></span><span>Event <b>Design crit: v2 console</b> published</span><span class="when">Sep 27</span></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-del-group">Delete group</button><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del-group" aria-labelledby="dlg-dg-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-dg-t">Delete Design Guild?</h2><p>3,204 memberships, 48 events and 9 proposals are removed. This can’t be undone.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="dg-confirm">Type <b>design-guild</b> to confirm</label><input class="input" id="dg-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Design Guild deleted">Delete group</button></div>
+  </dialog>
+
+  <dialog class="dialog lg" id="dlg-att" aria-labelledby="dlg-att-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-att-t">Attendees · Design crit: v2 console</h2><p>86 going · 12 maybe · 4 waitlist</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="dt-scroll"><table class="table"><thead><tr><th>Person</th><th>RSVP</th><th>Check-in</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead><tbody>
+        <tr><td>Maya Diaz</td><td><span class="pill ok">going</span></td><td><span class="pill ok">checked-in</span></td><td class="actions"></td></tr>
+        <tr><td>Priya Raman</td><td><span class="pill ok">going</span></td><td><span class="pill">pending</span></td><td class="actions"><button class="btn sm ghost" type="button" data-api="/nexus/api/events/:id/check-in/:userId" data-toast="Priya Raman checked in">Check in</button></td></tr>
+      </tbody></table></div>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-notify" aria-labelledby="dlg-nt-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-nt-t">Notify attendees</h2><p>Sends to 86 going + 12 maybe via Herald.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="nt-msg">Message</label><textarea class="textarea" id="nt-msg">Room link changed — see the event page.</textarea></div><div class="banner warn"><i data-i="alert" class="sm"></i><span>Not admin-gated in the API today; any user can call it.</span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="98 attendees notified">Send</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-cancel-ev" aria-labelledby="dlg-ce-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ce-t">Cancel “Design crit: v2 console”?</h2><p>Attendees are notified and the event stays visible as cancelled.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="ce-reason">Reason</label><input class="input" id="ce-reason" placeholder="Shown to attendees"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Keep event</button><button class="btn danger" type="button" data-close data-toast="Event cancelled · 98 notified">Cancel event</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-del-ev" aria-labelledby="dlg-de-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-de-t">Delete “Incident retro: vault rotation”?</h2><p>RSVPs and reminders are removed. This can’t be undone.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Event deleted">Delete event</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-results" aria-labelledby="dlg-rs-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rs-t">Adopt 2-of-3 treasury signing</h2><p>Supermajority (67%) · quorum 60% · 58 of 80 voted</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body"><div class="votes" role="img" aria-label="70.7 percent yes, 20.7 percent no, 8.6 percent abstain" style="height:14px"><i class="y" style="width:70.7%"></i><i class="n" style="width:20.7%"></i><i class="a" style="width:8.6%"></i></div><dl class="kv"><dt>Yes</dt><dd>41 (70.7%)</dd><dt>No</dt><dd>12</dd><dt>Abstain</dt><dd>5</dd><dt>Quorum</dt><dd>met (72.5%)</dd></dl><p class="small secondary" data-api="/nexus/api/governance/proposals/:id/votes">Individual votes with reasons load below on demand.</p></div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-close-prop" aria-labelledby="dlg-cp-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cp-t">Close voting on “Adopt 2-of-3 treasury signing”?</h2><p>Voting ends now (6 h early) and the result is computed from 58 votes.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Voting closed · passed">Close voting</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-exec" aria-labelledby="dlg-ex-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ex-t">Execute “Promote Sam Kim to moderator”?</h2><p>Applies the passed proposal: Sam Kim becomes a moderator of Design Guild.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Proposal executed">Execute</button></div>
+  </dialog>
+
+  <dialog class="dialog sm" id="dlg-assign" aria-labelledby="dlg-as-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-as-t">Assign case_3a91</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="as-who">Moderator</label><select class="select" id="as-who"><option>Ari Lindqvist</option><option>Maya Diaz</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Assigned to Ari Lindqvist">Assign</button></div>
+  </dialog>
+
+  <dialog class="dialog" id="dlg-case" aria-labelledby="dlg-cs-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cs-t">Act on case_3a91 · Sam Kim</h2><p>Member report in Design Guild · 3 reports</p></div></div>
+    <div class="dialog-body">
+      <div class="field"><label for="cs-act">Action</label><select class="select" id="cs-act"><option>warn-user</option><option>remove-content</option><option>suspend-user</option><option>ban-user</option><option>dismiss</option></select></div>
+      <div class="form-grid"><div class="field"><label for="cs-dur">Duration</label><input class="input" id="cs-dur" value="7d"></div><div class="field"><label for="cs-reason">Reason (≤ 500)</label><input class="input" id="cs-reason"></div></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Warning sent to Sam Kim">Apply action</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Nexus has no socket namespace, so every table polls every 30 s while visible and refreshes after each write. Group stats and audit are server-paginated; events are capped at 200 client-side.",
+  "rest": [
+    { "m": "GET", "p": "/nexus/api/admin/stats", "auth": "A", "ui": "Stat tiles, members chart" },
+    { "m": "GET", "p": "/nexus/api/admin/groups/:id/stats", "auth": "A", "ui": "Group stats dialog" },
+    { "m": "GET", "p": "/nexus/api/admin/audit", "auth": "A", "ui": "Audit tab, Export audit" },
+    { "m": "GET", "p": "/nexus/api/groups", "auth": "user", "ui": "Groups table" },
+    { "m": "POST", "p": "/nexus/api/groups/search", "auth": "user", "ui": "Groups search" },
+    { "m": "GET", "p": "/nexus/api/groups/:id", "auth": "user", "ui": "Group stats dialog header" },
+    { "m": "PUT", "p": "/nexus/api/groups/:id", "auth": "grp-admin/A", "ui": "Bulk feature/verify" },
+    { "m": "DELETE", "p": "/nexus/api/groups/:id", "auth": "grp-admin/A", "ui": "Delete group dialog" },
+    { "m": "GET", "p": "/nexus/api/groups/:id/members", "auth": "user", "ui": "Group stats → members" },
+    { "m": "GET", "p": "/nexus/api/subgroups", "auth": "user", "ui": "Group stats → subgroups" },
+    { "m": "GET", "p": "/nexus/api/events", "auth": "user", "ui": "Events table" },
+    { "m": "POST", "p": "/nexus/api/events/:id/cancel", "auth": "owner/grp-admin", "ui": "Cancel event dialog" },
+    { "m": "DELETE", "p": "/nexus/api/events/:id", "auth": "owner/grp-admin", "ui": "Delete event dialog" },
+    { "m": "GET", "p": "/nexus/api/events/:id/attendees", "auth": "user", "ui": "Attendees dialog" },
+    { "m": "POST", "p": "/nexus/api/events/:id/check-in/:userId", "auth": "user (unenforced)", "ui": "Attendees → Check in" },
+    { "m": "POST", "p": "/nexus/api/events/:id/notify", "auth": "user (unenforced)", "ui": "Notify dialog" },
+    { "m": "GET", "p": "/nexus/api/events/reminders/presets", "auth": "user", "ui": "Calendar → presets" },
+    { "m": "GET", "p": "/nexus/api/governance/proposals", "auth": "user", "ui": "Governance table" },
+    { "m": "GET", "p": "/nexus/api/governance/proposals/:id/results", "auth": "user", "ui": "Results dialog" },
+    { "m": "GET", "p": "/nexus/api/governance/proposals/:id/votes", "auth": "user", "ui": "Results → votes" },
+    { "m": "POST", "p": "/nexus/api/governance/proposals/:id/close", "auth": "grp-admin", "ui": "Close voting dialog" },
+    { "m": "POST", "p": "/nexus/api/governance/proposals/:id/execute", "auth": "grp-admin", "ui": "Execute dialog" },
+    { "m": "DELETE", "p": "/nexus/api/governance/proposals/:id", "auth": "owner/grp-admin", "ui": "Proposal row menu → Delete" },
+    { "m": "GET", "p": "/nexus/api/moderation/queue/:groupId", "auth": "grp-mod", "ui": "Moderation cases (queue)" },
+    { "m": "GET", "p": "/nexus/api/moderation/flags/:groupId", "auth": "grp-mod", "ui": "Moderation cases (flags)" },
+    { "m": "GET", "p": "/nexus/api/moderation/cases/:id", "auth": "grp-mod", "ui": "Case detail" },
+    { "m": "POST", "p": "/nexus/api/moderation/cases/:id/action", "auth": "grp-mod", "ui": "Act on case dialog" },
+    { "m": "POST", "p": "/nexus/api/moderation/cases/:id/assign", "auth": "grp-mod", "ui": "Assign dialog" },
+    { "m": "POST", "p": "/nexus/api/moderation/flags/:flagId/resolve", "auth": "grp-mod", "ui": "Flag → Resolve" },
+    { "m": "GET", "p": "/nexus/api/trending/groups", "auth": "user", "ui": "Trending groups table" },
+    { "m": "POST", "p": "/nexus/api/trending/update", "auth": "A", "ui": "Recalculate trending (primary)" },
+    { "m": "GET", "p": "/nexus/api/recommendations/analytics", "auth": "A", "ui": "Recommendation tiles" },
+    { "m": "GET", "p": "/nexus/api/calendar/groups/:groupId/ical", "auth": "user", "ui": "Calendar → group iCal" },
+    { "m": "GET", "p": "/nexus/api/calendar/events/:id/ical", "auth": "user", "ui": "Event iCal link" },
+    { "m": "GET", "p": "/nexus/api/calendar/caldav/groups/:groupId/events", "auth": "user", "ui": "Calendar → CalDAV" },
+    { "m": "GET", "p": "/nexus/api/calendar/carddav/groups/:groupId/contacts", "auth": "user", "ui": "Calendar → CardDAV" },
+    { "m": "GET", "p": "/nexus/api/config/:sectionId", "auth": "A", "ui": "Config tab" },
+    { "m": "POST", "p": "/nexus/api/config/:sectionId", "auth": "A", "ui": "Config (accepted, not persisted)" }
+  ],
+  "socket": [
+    { "ns": "/_admin", "auth": "CA bearer + isAdminToken", "rooms": [], "emit": [],
+      "on": [{ "e": "health", "ui": "Top-bar Live pill (nexus up/down)" }] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "POST /events/:id/check-in/:userId and /events/:id/notify intend organizer/admin use but don't enforce it: any user can check people in or message every attendee." },
+    { "sev": "med", "text": "Nexus requireAdmin reads CA token roles only; allowlist-only platform admins get 403 (AUTH-7)." },
+    { "sev": "med", "text": "Moderation lists are per group; proposed cross-group flags/cases/join-requests lists (NEXUS-1)." },
+    { "sev": "med", "text": "GET /groups doesn't whitelist sortBy (NEXUS-2); the console only offers model attributes." },
+    { "sev": "med", "text": "nexus-* config sections are log-only façades, not persisted (NEXUS-4). No socket namespace: all tables poll." }
+  ]
+}
+</script>
+</body>
+</html>

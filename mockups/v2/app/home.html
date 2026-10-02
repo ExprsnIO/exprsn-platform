@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Home · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .main :is(p, dd, .help, .saved, .meta) a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  a.stat { color: inherit; }
+  a.stat:hover { text-decoration: none; border-color: var(--exprsn-border-color-strong); }
+  .svc { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 8px; }
+  .svc span { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--exprsn-bg-secondary); font-size: .8125rem; font-weight: 500; min-width: 0; }
+  .svc .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--exprsn-success); flex: none; }
+  .svc .dot.warn { background: var(--exprsn-warning); }
+  .resume { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .resume a { display: flex; gap: 12px; align-items: center; padding: 14px; color: inherit; }
+  .resume a:hover { text-decoration: none; background: var(--exprsn-bg-hover); }
+  .resume .ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--exprsn-primary) 12%, transparent); color: var(--v2-primary-fg); }
+  .check-list .list-item { min-height: 52px; }
+</style>
+</head>
+<body data-shell="app" data-page="home">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <span class="eyebrow">Tuesday, September 29</span>
+        <h1 class="page-title" data-api="/auth/api/auth/me">Good morning, Rick</h1>
+        <p class="page-sub">3 unread conversations, a design crit at 11:00, and your storage is at 72%.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn outline" href="search.html"><i data-i="search" class="sm"></i>Search</a>
+        <button class="btn primary" type="button" data-open="dlg-new"><i data-i="plus" class="sm"></i>New</button>
+      </div>
+    </header>
+
+    <!-- ── Loaded ── -->
+    <div class="stack loose" data-state="loaded">
+      <section aria-labelledby="glance-t" class="stack">
+        <h2 id="glance-t" class="sr-only">Today at a glance</h2>
+        <div class="grid c4">
+          <a class="card stat" href="messages.html" data-api="/spark/api/conversations"><span class="label"><i data-i="chat" class="sm"></i>Unread messages</span><span class="value">7</span><span class="small secondary">in 3 conversations</span></a>
+          <a class="card stat" href="groups.html" data-api="/nexus/api/events"><span class="label"><i data-i="calendar" class="sm"></i>Upcoming events</span><span class="value">2</span><span class="small secondary">Next: Design crit · 11:00</span></a>
+          <a class="card stat" href="moderation.html" data-api="/moderator/api/notifications/unread-count" data-on="notification moderation_notification"><span class="label"><i data-i="at" class="sm"></i>Mentions &amp; alerts</span><span class="value">4</span><span class="delta up">+2 since yesterday</span></a>
+          <a class="card stat" href="files.html" data-api="/filevault/api/storage/usage /filevault/api/storage/quota"><span class="label"><i data-i="disk" class="sm"></i>Storage</span><span class="value">7.2 <span class="small secondary">of 10 GB</span></span><div class="meter warn" role="img" aria-label="72 percent of storage used"><i style="width:72%"></i></div></a>
+        </div>
+      </section>
+
+      <div class="split">
+        <div class="stack loose">
+          <section class="stack" aria-labelledby="resume-t">
+            <div class="section-title"><h2 id="resume-t">Continue where you left off</h2><a class="btn sm ghost" href="files.html">All files</a></div>
+            <div class="resume">
+              <a class="card" href="messages.html" data-api="/spark/api/conversations"><span class="ico"><i data-i="chat"></i></span><span class="stack tight grow"><b class="truncate">Design crit · v2</b><span class="xs muted truncate">Maya: Contract drawer is ready — 09:40</span></span></a>
+              <a class="card" href="files.html" data-api="/filevault/api/files"><span class="ico"><i data-i="doc"></i></span><span class="stack tight grow"><b class="truncate">Q3-roadmap.pdf</b><span class="xs muted truncate">Edited yesterday · v4</span></span></a>
+              <a class="card" href="groups.html"><span class="ico"><i data-i="groups"></i></span><span class="stack tight grow"><b class="truncate">Platform guild</b><span class="xs muted truncate">2 new posts · 1 open vote</span></span></a>
+              <a class="card" href="vault.html"><span class="ico"><i data-i="lock"></i></span><span class="stack tight grow"><b class="truncate">prod/stripe/api-key</b><span class="xs muted truncate">Rotation due in 3 days</span></span></a>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="act-t">
+            <div class="card-head"><h2 id="act-t">Recent activity</h2><a class="btn sm ghost" href="feed.html">Open timeline</a></div>
+            <div class="card-body activity" data-api="/timeline/api/timeline /moderator/api/notifications" data-on="new:post post:liked post:commented notification">
+              <div class="activity-item"><span class="ico"><i data-i="at"></i></span><span><b>Jonah Okafor</b> mentioned you in <b>#platform-oncall</b>: “@rick can you approve the vault rotation?”</span><span class="when">8 min</span></div>
+              <div class="activity-item"><span class="ico"><i data-i="heart"></i></span><span><b>Priya Raman</b> and 11 others liked your post “Consolidated gateway is live on staging”</span><span class="when">42 min</span></div>
+              <div class="activity-item"><span class="ico"><i data-i="share"></i></span><span><b>Ari Lindqvist</b> shared <b>Q3-roadmap.pdf</b> with Northwind</span><span class="when">1 h</span></div>
+              <div class="activity-item"><span class="ico"><i data-i="calendar"></i></span><span><b>Sam Kim</b> RSVP’d yes to <b>Fall food drive</b> (Oct 17)</span><span class="when">3 h</span></div>
+              <div class="activity-item"><span class="ico"><i data-i="cert"></i></span><span>Your certificate <b>rick-laptop-client</b> expires in 21 days</span><span class="when">Yesterday</span></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="stack loose">
+          <section class="card" aria-labelledby="up-t">
+            <div class="card-head"><h2 id="up-t">Today</h2><span class="pill">2 events</span></div>
+            <div class="list" data-api="/nexus/api/events">
+              <a class="list-item" href="groups.html"><span class="stack tight" style="width:48px;align-items:center"><b class="num">11:00</b><span class="xs muted">45 min</span></span><span class="grow stack tight"><span class="title truncate">Design crit · v2 mockups</span><span class="meta truncate">Room · Design guild · 6 going</span></span><span class="pill ok">Going</span></a>
+              <a class="list-item" href="groups.html"><span class="stack tight" style="width:48px;align-items:center"><b class="num">16:30</b><span class="xs muted">1 h</span></span><span class="grow stack tight"><span class="title truncate">Northwind all-hands</span><span class="meta truncate">Live stream · 120 invited</span></span><span class="pill warn">Maybe</span></a>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="status-t" data-api="/health /auth/health" data-on="health">
+            <div class="card-head"><h2 id="status-t">Platform status</h2><span class="pill ok"><span class="d"></span>Operational</span></div>
+            <div class="card-body stack">
+              <div class="svc">
+                <span><i class="dot"></i>Sign-in</span>
+                <span><i class="dot"></i>Messages</span>
+                <span><i class="dot"></i>Timeline</span>
+                <span><i class="dot"></i>Groups</span>
+                <span><i class="dot"></i>Files</span>
+                <span><i class="dot"></i>Vault</span>
+                <span><i class="dot"></i>Certificates</span>
+                <span><i class="dot warn"></i>Live video</span>
+              </div>
+              <div class="banner warn"><i data-i="live" class="sm"></i><span class="grow small">Live video: recordings are processing slowly. Streams are unaffected.</span></div>
+              <span class="xs muted">Updated 3 s ago · refreshes every 5 s</span>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Empty (new account) ── -->
+    <div class="split" data-state="empty">
+      <section class="card" aria-labelledby="start-t">
+        <div class="card-head"><h2 id="start-t">Get started</h2><span class="pill brand">1 of 5 done</span></div>
+        <div class="list check-list">
+          <div class="list-item"><i data-i="check" class="sm" style="color:var(--v2-ok-fg)"></i><span class="grow"><span class="title">Create your account</span></span><span class="pill ok">Done</span></div>
+          <a class="list-item" href="settings.html"><i data-i="fingerprint" class="sm"></i><span class="grow"><span class="title">Turn on two-step verification</span><br><span class="meta">Northwind requires it within 7 days</span></span><i data-i="right" class="sm muted"></i></a>
+          <a class="list-item" href="messages.html"><i data-i="chat" class="sm"></i><span class="grow"><span class="title">Say hello to your team</span><br><span class="meta">Start a direct message or a group chat</span></span><i data-i="right" class="sm muted"></i></a>
+          <a class="list-item" href="groups.html"><i data-i="groups" class="sm"></i><span class="grow"><span class="title">Join a group</span><br><span class="meta">3 groups recommended for you</span></span><i data-i="right" class="sm muted"></i></a>
+          <a class="list-item" href="files.html"><i data-i="upload" class="sm"></i><span class="grow"><span class="title">Upload your first file</span><br><span class="meta">10 GB of storage included</span></span><i data-i="right" class="sm muted"></i></a>
+        </div>
+      </section>
+      <div class="empty card">
+        <div class="art"><i data-i="home"></i></div>
+        <h3>Your home fills up as you go</h3>
+        <p>Unread messages, events, mentions and recent files appear here once you start using Exprsn.</p>
+      </div>
+    </div>
+
+    <!-- ── Loading ── -->
+    <div class="stack loose" data-state="loading" aria-busy="true" aria-label="Loading your home">
+      <div class="grid c4"><div class="card stat"><span class="sk" style="width:60%"></span><span class="sk" style="height:28px;width:40%"></span></div><div class="card stat"><span class="sk" style="width:60%"></span><span class="sk" style="height:28px;width:40%"></span></div><div class="card stat"><span class="sk" style="width:60%"></span><span class="sk" style="height:28px;width:40%"></span></div><div class="card stat"><span class="sk" style="width:60%"></span><span class="sk" style="height:28px;width:40%"></span></div></div>
+      <div class="split"><div class="card pad stack"><span class="sk" style="width:30%"></span><span class="sk"></span><span class="sk" style="width:85%"></span><span class="sk" style="width:70%"></span><span class="sk" style="width:90%"></span></div><div class="card pad stack"><span class="sk" style="width:40%"></span><span class="sk" style="height:60px"></span></div></div>
+    </div>
+
+    <!-- ── Error ── -->
+    <div class="card" data-state="error">
+      <div class="empty error">
+        <div class="art"><i data-i="alert"></i></div>
+        <h3>Couldn’t load your home</h3>
+        <p>Several services didn’t respond, so your summary is incomplete. Messages and files may still work — open them from the sidebar. Reference <code>cid 51ac…d02</code>.</p>
+        <div class="row wrap" style="justify-content:center"><button class="btn outline" type="button">Try again</button><a class="btn ghost" href="messages.html">Open Messages</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New -->
+  <dialog class="dialog sm" id="dlg-new" aria-labelledby="dlg-new-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-new-t">Create something</h2><p>Jump straight into the thing you want to make.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="list card">
+        <a class="list-item" href="messages.html"><i data-i="chat"></i><span class="grow"><span class="title">Message</span><br><span class="meta">Direct or group conversation</span></span></a>
+        <a class="list-item" href="feed.html"><i data-i="edit"></i><span class="grow"><span class="title">Post</span><br><span class="meta">Share an update on your timeline</span></span></a>
+        <a class="list-item" href="files.html"><i data-i="upload"></i><span class="grow"><span class="title">Upload files</span><br><span class="meta">To your Files or a group</span></span></a>
+        <a class="list-item" href="groups.html"><i data-i="calendar"></i><span class="grow"><span class="title">Event</span><br><span class="meta">In one of your groups</span></span></a>
+        <a class="list-item" href="rooms.html"><i data-i="video"></i><span class="grow"><span class="title">Room</span><br><span class="meta">Start a video call now</span></span></a>
+      </div>
+    </div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "The “/” dashboard replaces the old Health page. Summary tiles fan out in parallel and each tile fails independently: a failed tile shows a dash and retry icon, and the page-level error state appears only when auth/me fails. The status card subscribes to /_health for a snapshot on connect and every 5 s, collapsed to plain-language service names; engineers use Admin → Overview for the raw view.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/auth/me", "auth": "user", "ui": "Greeting, org 2FA nudge in empty state" },
+    { "m": "GET", "p": "/spark/api/conversations", "auth": "user", "ui": "Unread messages tile, Continue card" },
+    { "m": "GET", "p": "/nexus/api/events", "auth": "user", "ui": "Upcoming events tile, Today card (?from=today&attending=me)" },
+    { "m": "GET", "p": "/moderator/api/notifications", "auth": "user", "ui": "Mentions in Recent activity" },
+    { "m": "GET", "p": "/moderator/api/notifications/unread-count", "auth": "user", "ui": "Mentions & alerts tile" },
+    { "m": "GET", "p": "/filevault/api/storage/usage", "auth": "user", "ui": "Storage tile" },
+    { "m": "GET", "p": "/filevault/api/storage/quota", "auth": "user", "ui": "Storage tile meter" },
+    { "m": "GET", "p": "/filevault/api/files", "auth": "user", "ui": "Continue card: recent files (?sort=updatedAt&limit=4)" },
+    { "m": "GET", "p": "/timeline/api/timeline", "auth": "user", "ui": "Recent activity (home feed, limit 5)" },
+    { "m": "GET", "p": "/health", "auth": "P", "ui": "Status card initial snapshot (JSON)" },
+    { "m": "GET", "p": "/auth/health", "auth": "P", "ui": "Status card fallback per module (also /spark/health, /filevault/health, /vault/health, /live/health …)" }
+  ],
+  "socket": [
+    { "ns": "/_health", "auth": "none", "rooms": [],
+      "emit": [],
+      "on": [ { "e": "health", "ui": "Status card dots, banner, “Updated N s ago”" } ] },
+    { "ns": "/notifications", "auth": "CA bearer", "rooms": ["user:{userId}"],
+      "emit": [],
+      "on": [
+        { "e": "notification", "ui": "Mentions tile +1, new activity row" },
+        { "e": "moderation_notification", "ui": "Mentions tile +1" }
+      ] },
+    { "ns": "/timeline", "auth": "CA bearer (read)", "rooms": ["timeline:global"],
+      "emit": [ { "e": "subscribe:timeline", "ui": "Page mount (unsubscribe:timeline on leave)" } ],
+      "on": [
+        { "e": "new:post", "ui": "Recent activity row" },
+        { "e": "post:liked", "ui": "Collapses into “N others liked”" },
+        { "e": "post:commented", "ui": "Recent activity row" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "med", "text": "/_health is unauthenticated and broadcasts the full collectHealth snapshot (dependency probes, Docker container list) to anyone. For an end-user card, proposed: a redacted per-service up/degraded summary, with the full payload admin-only on /_admin." },
+    { "sev": "med", "text": "web/src/lib/realtime.ts has no /_health (or /cortex) entry, so the SPA can't subscribe yet." },
+    { "sev": "med", "text": "Spark has no user:{id} room, so the unread tile can't update live for conversations you haven't opened. It refetches on focus and every 60 s." },
+    { "sev": "med", "text": "GET /filevault/api/storage/quota returns a hard-coded 10 GB (storage.js), not the user's real quota." }
+  ]
+}
+</script>
+</body>
+</html>

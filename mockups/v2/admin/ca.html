@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Certificate Authority · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+  /* kit fix proposal: danger-outline text fails AA in light theme */
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .perm { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; font-size: .6875rem; font-weight: 700; background: var(--exprsn-bg-tertiary); color: var(--exprsn-text-secondary); }
+  .perm.on { background: color-mix(in srgb, var(--exprsn-primary) 14%, transparent); color: var(--v2-primary-fg); }
+  .chain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .chain li { display: flex; gap: 10px; align-items: center; font-size: .875rem; }
+  .chain li:nth-child(2) { padding-left: 20px; } .chain li:nth-child(3) { padding-left: 40px; }
+  .opt { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--exprsn-border-color); border-radius: 12px; }
+  .opt:has(input:checked) { border-color: var(--exprsn-primary); background: color-mix(in srgb, var(--exprsn-primary) 6%, transparent); }
+</style>
+</head>
+<body data-shell="admin" data-page="ca">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Infrastructure</span><i data-i="right" class="sm"></i><span>Certificate Authority</span></nav>
+        <h1 class="page-title">Certificate Authority</h1>
+        <p class="page-sub">The private PKI behind every Exprsn bearer: root and intermediates, issued certificates, CA tokens, revocation (OCSP and CRL) and ACME.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-cert" data-api="/ca/admin/api/certificates/issue"><i data-i="cert" class="sm"></i>Issue certificate</button>
+        <button class="btn primary" type="button" data-open="dlg-token" data-api="/ca/admin/api/tokens/generate"><i data-i="key" class="sm"></i>Issue token</button>
+      </div>
+    </header>
+
+    <div class="banner warn"><i data-i="alert" class="sm"></i><span class="grow"><b>Live updates are off for this page.</b> The /ca socket admits anonymous clients and none of its emitters are wired, so tables refresh every 30 s.</span></div>
+
+    <div class="tabs" role="tablist" aria-label="CA views">
+      <button role="tab" id="t-dash" aria-controls="p-dash" aria-selected="true">Dashboard</button>
+      <button role="tab" id="t-cert" aria-controls="p-cert">Certificates <span class="badge neutral">1,284</span></button>
+      <button role="tab" id="t-tok" aria-controls="p-tok">Tokens <span class="badge neutral">8,912</span></button>
+      <button role="tab" id="t-root" aria-controls="p-root">Roots &amp; intermediates</button>
+      <button role="tab" id="t-rev" aria-controls="p-rev">OCSP &amp; CRL</button>
+      <button role="tab" id="t-acme" aria-controls="p-acme">ACME</button>
+      <button role="tab" id="t-dir" aria-controls="p-dir">Directory</button>
+      <button role="tab" id="t-cfg" aria-controls="p-cfg">Config</button>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <section id="p-dash" role="tabpanel" aria-labelledby="t-dash" class="stack loose">
+      <div class="grid c4" data-api="/ca/admin/api/stats">
+        <div class="card stat"><span class="label"><i data-i="cert" class="sm"></i>Active certificates</span><span class="value">1,211</span><span class="small secondary">73 revoked · 3 expire ≤ 30 d</span></div>
+        <div class="card stat"><span class="label"><i data-i="key" class="sm"></i>Active tokens</span><span class="value">8,412</span><span class="small secondary">time 7,980 · use 418 · persistent 14</span></div>
+        <div class="card stat" data-api="/ca/admin/api/timeseries/:type">
+          <span class="label"><i data-i="pulse" class="sm"></i>Tokens issued / day</span><span class="value">318</span>
+          <svg class="spark" viewBox="0 0 120 36" preserveAspectRatio="none" role="img" aria-label="Tokens issued per day, Sep 23 to 29: 212, 240, 231, 265, 280, 301, 318"><path class="area" d="M0 33 L20 25.1 L40 27.6 L60 18 L80 13.8 L100 7.8 L120 3 L120 36 L0 36 Z"/><path class="line" vector-effect="non-scaling-stroke" d="M0 33 L20 25.1 L40 27.6 L60 18 L80 13.8 L100 7.8 L120 3"/></svg>
+          <span class="xs secondary">212 → 318, Sep 23–29</span>
+        </div>
+        <div class="card stat" data-api="/ca/admin/api/health"><span class="label"><i data-i="gauge" class="sm"></i>CA health</span><span class="value" style="font-size:1.25rem"><span class="pill ok"><span class="d"></span>Healthy</span></span><span class="small secondary">root valid to 2045 · OCSP up · CRL 2 h old</span></div>
+      </div>
+      <div class="grid c2">
+        <div class="card">
+          <div class="card-head"><h2>Recent certificates</h2><button class="btn sm ghost" type="button">View all</button></div>
+          <div class="list" data-api="/ca/admin/api/certificates/recent">
+            <div class="list-item"><i data-i="cert" class="sm"></i><div class="grow"><div class="title">api.northwind.co</div><div class="meta">server · issued 09:12 by Jonah Okafor</div></div><span class="pill ok">active</span></div>
+            <div class="list-item"><i data-i="cert" class="sm"></i><div class="grow"><div class="title">Contoso Issuing CA</div><div class="meta">intermediate · provisioning run</div></div><span class="pill ok">active</span></div>
+            <div class="list-item"><i data-i="cert" class="sm"></i><div class="grow"><div class="title">sam.kim@contoso.dev</div><div class="meta">client · owner certificate</div></div><span class="pill ok">active</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Recent tokens</h2><button class="btn sm ghost" type="button">View all</button></div>
+          <div class="list" data-api="/ca/admin/api/tokens/recent">
+            <div class="list-item"><i data-i="key" class="sm"></i><div class="grow"><div class="title">Maya Diaz · session</div><div class="meta">url https://exprsn.io · R W A U D · 23 h left</div></div><span class="pill ok">active</span></div>
+            <div class="list-item"><i data-i="key" class="sm"></i><div class="grow"><div class="title">Inventory sync</div><div class="meta">url /filevault · R · 7 of 10 uses left</div></div><span class="pill ok">active</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Audit log</h2><div class="row" style="gap:8px"><button class="btn sm ghost" type="button" data-toast="Chain verified · 48,211 entries · 0 errors">Verify chain</button></div></div>
+        <div class="card-body">
+          <div class="activity" data-api="/ca/admin/api/activity">
+            <div class="activity-item"><span class="ico"><i data-i="key"></i></span><span><span class="mono">token.revoke_bulk</span> · Jonah Okafor · 12 tokens · org Northwind <span class="pill ok">success</span></span><span class="when">10:12</span></div>
+            <div class="activity-item"><span class="ico"><i data-i="cert"></i></span><span><span class="mono">certificate.issue</span> · system · Contoso Issuing CA <span class="pill ok">success</span></span><span class="when">09:55</span></div>
+            <div class="activity-item"><span class="ico"><i data-i="alert"></i></span><span><span class="mono">token.validate</span> · 203.0.113.9 · expired token <span class="pill warn">failure</span></span><span class="when">09:41</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Certificates ── -->
+    <section id="p-cert" role="tabpanel" aria-labelledby="t-cert" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="c-q" type="search" placeholder="Search CN, serial or fingerprint" data-api="/ca/admin/api/certificates"></label>
+          <button class="chip" type="button" aria-pressed="false">Type</button>
+          <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Status: active <span class="x">×</span></button>
+          <button class="chip" type="button" aria-pressed="false">Expires within</button>
+          <span class="grow"></span>
+          <div class="seg" role="group" aria-label="Group by"><button type="button" aria-pressed="true">By type</button><button type="button" aria-pressed="false">No grouping</button></div>
+          <button class="icon-btn" type="button" aria-label="Choose columns"><i data-i="columns"></i></button>
+        </div>
+        <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-toast="3 PEM files downloaded">Download PEM</button><button class="btn sm ghost" type="button" data-open="dlg-revoke-cert">Revoke</button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/ca/admin/api/certificates">
+            <thead><tr>
+              <th class="pin" style="width:44px"><input type="checkbox" class="check" aria-label="Select all certificates"></th>
+              <th class="pin" style="left:44px" aria-sort="ascending"><button type="button">Common name <i data-i="up" class="sm"></i></button></th>
+              <th><button type="button">Serial</button></th><th><button type="button">Status</button></th><th><button type="button">Issuer</button></th><th><button type="button">Subject</button></th><th class="num"><button type="button">Not after</button></th><th><button type="button">Key</button></th>
+              <th class="actions"><span class="sr-only">Actions</span></th>
+            </tr></thead>
+            <tbody>
+              <tr class="group-row"><td colspan="9">server · 412</td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select api.northwind.co"></td><td class="pin" style="left:44px"><button type="button" data-open="dlg-cert-detail" data-api="/ca/api/certificates/:id" style="all:unset;cursor:pointer"><b>api.northwind.co</b> <span class="xs secondary">+2 SAN</span></button></td><td><span class="id">7c21…e04a</span></td><td><span class="pill ok">active</span></td><td>Northwind Issuing CA</td><td>Jonah Okafor</td><td class="num">2026-10-05 <span class="pill warn">6 d</span></td><td class="small">RSA 2048 · SHA-256</td><td class="actions"><button class="btn sm ghost" type="button" data-api="/ca/admin/api/certificates/:id/download" data-toast="api.northwind.co.pem downloaded">PEM</button><button class="btn sm ghost" type="button" data-open="dlg-revoke-cert">Revoke</button></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select exprsn.io"></td><td class="pin" style="left:44px"><b>exprsn.io</b> <span class="xs secondary">+4 SAN</span></td><td><span class="id">11fa…903b</span></td><td><span class="pill ok">active</span></td><td>Exprsn Issuing CA</td><td class="muted">system</td><td class="num">2027-03-01</td><td class="small">RSA 4096 · SHA-384</td><td class="actions"><button class="btn sm ghost" type="button">PEM</button><button class="btn sm ghost" type="button" data-open="dlg-revoke-cert">Revoke</button></td></tr>
+              <tr class="group-row"><td colspan="9">client · 790</td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select sam.kim@contoso.dev"></td><td class="pin" style="left:44px"><b>sam.kim@contoso.dev</b></td><td><span class="id">a90e…11c2</span></td><td><span class="pill ok">active</span></td><td>Contoso Issuing CA</td><td>Sam Kim</td><td class="num">2027-09-28</td><td class="small">RSA 2048 · SHA-256</td><td class="actions"><button class="btn sm ghost" type="button">PEM</button><button class="btn sm ghost" type="button" data-open="dlg-revoke-cert">Revoke</button></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select old-laptop.priya"></td><td class="pin" style="left:44px"><b>old-laptop.priya</b></td><td><span class="id">3b77…0d19</span></td><td><span class="pill danger">revoked</span></td><td>Exprsn Issuing CA</td><td>Priya Raman</td><td class="num">2027-01-10</td><td class="small">keyCompromise · Sep 02</td><td class="actions"><button class="btn sm ghost" type="button">PEM</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="cert"></i></div><h3>No certificates match</h3><p>No active certificates match this search. Serial search needs the full 32-hex serial.</p><button class="btn outline" type="button">Clear filters</button></div></div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load certificates</h3><p>The CA module returned 500. Correlation id <code>cid 5d19…a7e</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">1–50 of 1,211 · server mode</span><div class="row" style="gap:6px"><button class="icon-btn" type="button" aria-label="Previous page" disabled><i data-i="left"></i></button><button class="icon-btn" type="button" aria-label="Next page"><i data-i="right"></i></button></div></div>
+      </div>
+    </section>
+
+    <!-- ── Tokens ── -->
+    <section id="p-tok" role="tabpanel" aria-labelledby="t-tok" hidden class="stack loose">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="tk-q" type="search" placeholder="Token id, subject or resource" data-api="/ca/admin/api/tokens"></label>
+          <button class="chip" type="button" aria-pressed="false">Expiry type</button>
+          <button class="chip" type="button" aria-pressed="false">Status</button>
+          <button class="chip" type="button" aria-pressed="false">Organization</button>
+          <span class="grow"></span>
+          <button class="btn sm outline" type="button" data-open="dlg-validate" data-api="/ca/admin/api/tokens/validate">Validate</button>
+          <button class="btn sm outline" type="button" data-open="dlg-bulk" data-api="/ca/admin/api/tokens/revoke-bulk">Bulk revoke by scope</button>
+        </div>
+        <div class="dt-bulk" hidden><span><span class="n">0</span> selected</span><button class="btn sm tonal" type="button" data-open="dlg-bulk">Revoke selected</button></div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/ca/admin/api/tokens">
+            <thead><tr>
+              <th class="pin" style="width:44px"><input type="checkbox" class="check" aria-label="Select all tokens"></th>
+              <th class="pin" style="left:44px">Token id</th><th>Subject</th><th>Resource</th><th>Permissions</th><th>Expiry</th><th>Status</th><th>Scope</th><th class="num">Uses</th><th class="actions"><span class="sr-only">Actions</span></th>
+            </tr></thead>
+            <tbody>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select token 3f2c…9a1b"></td><td class="pin" style="left:44px"><button class="id" type="button" data-open="dlg-introspect" data-api="/ca/api/tokens/:id/introspect" style="border:0;cursor:pointer">3f2c…9a1b</button></td><td>Maya Diaz</td><td class="small">url · https://exprsn.io</td><td><span class="perm on">R</span> <span class="perm on">W</span> <span class="perm on">A</span> <span class="perm on">U</span> <span class="perm on">D</span></td><td class="small">in 23 h 12 m</td><td><span class="pill ok">active</span></td><td>Exprsn HQ</td><td class="num">1,204</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-revoke-tok">Revoke</button></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select token 81ab…22c0"></td><td class="pin" style="left:44px"><span class="id">81ab…22c0</span></td><td>Inventory sync</td><td class="small">url · /filevault/api/files</td><td><span class="perm on">R</span> <span class="perm">W</span> <span class="perm">A</span> <span class="perm">U</span> <span class="perm">D</span></td><td><div class="stack tight"><span class="small">7 of 10 uses left</span><div class="meter" role="img" aria-label="7 of 10 uses left"><i style="width:70%"></i></div></div></td><td><span class="pill ok">active</span></td><td>Northwind</td><td class="num">3</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-revoke-tok">Revoke</button></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select token c019…7f3e"></td><td class="pin" style="left:44px"><span class="id">c019…7f3e</span></td><td class="muted">system</td><td class="small">did · did:web:exprsn.io</td><td><span class="perm on">R</span> <span class="perm on">W</span> <span class="perm">A</span> <span class="perm">U</span> <span class="perm">D</span></td><td><span class="pill warn"><i data-i="alert" class="sm"></i>persistent</span></td><td><span class="pill ok">active</span></td><td class="muted">—</td><td class="num">88,310</td><td class="actions"><button class="btn sm ghost" type="button" data-open="dlg-revoke-tok">Revoke</button></td></tr>
+              <tr><td class="pin"><input type="checkbox" class="check" aria-label="Select token 5e44…0b81"></td><td class="pin" style="left:44px"><span class="id">5e44…0b81</span></td><td>Sam Kim</td><td class="small">cid · bafy…q7m</td><td><span class="perm on">R</span> <span class="perm">W</span> <span class="perm">A</span> <span class="perm">U</span> <span class="perm">D</span></td><td class="small">0 of 5 uses left</td><td><span class="pill danger">exhausted</span></td><td>Contoso</td><td class="num">5</td><td class="actions"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="key"></i></div><h3>No tokens match</h3><p>Paste a full token id to introspect it directly.</p><button class="btn outline" type="button" data-open="dlg-introspect">Introspect a token</button></div></div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load tokens</h3><p>Correlation id <code>cid 2210…fe1</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">1–50 of 8,912 · server mode</span><span>Token ids are bearers: copying one is logged</span></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Tickets</h2><span class="pill">generate only</span></div>
+        <div class="card-body row wrap">
+          <p class="small secondary grow">Short-lived, use-limited codes for login hand-off, password reset and downloads. There’s no list or revoke yet.</p>
+          <button class="btn outline" type="button" data-open="dlg-ticket" data-api="/ca/tickets/generate">Generate ticket</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Roots & intermediates ── -->
+    <section id="p-root" role="tabpanel" aria-labelledby="t-root" hidden class="stack loose">
+      <div class="banner info"><i data-i="lock" class="sm"></i><span class="grow">Generating roots, intermediates, code-signing certificates and signing CSRs requires a <b>CA admin browser session</b>. The console opens these in a session-authenticated dialog.</span></div>
+      <div class="card">
+        <div class="card-head"><h2>Hierarchy</h2><div class="row wrap" style="gap:8px"><button class="btn sm outline" type="button" data-open="dlg-csr" data-api="/ca/api/certificates/csr">Sign CSR</button><button class="btn sm outline" type="button" data-open="dlg-codesign" data-api="/ca/api/certificates/generate-code-signing">Code-signing</button><button class="btn sm primary" type="button" data-open="dlg-inter" data-api="/ca/api/certificates/generate-intermediate">New intermediate</button></div></div>
+        <div class="card-body">
+          <ul class="chain" data-api="/ca/api/certificates/:id/chain">
+            <li><i data-i="shield"></i><b>Exprsn Root CA</b><span class="pill violet">root</span><span class="xs secondary">RSA 4096 · to 2045-11-02</span></li>
+            <li><i data-i="cert"></i><b>Exprsn Issuing CA</b><span class="pill brand">intermediate</span><span class="xs secondary">to 2035-11-02 · 1,041 issued</span></li>
+            <li><i data-i="cert"></i><span>Northwind Issuing CA · Contoso Issuing CA · +37 org intermediates</span></li>
+          </ul>
+        </div>
+        <div class="card-foot"><button class="btn sm ghost" type="button" data-open="dlg-root" data-api="/ca/api/certificates/generate-root">Generate new root…</button></div>
+      </div>
+    </section>
+
+    <!-- ── OCSP & CRL ── -->
+    <section id="p-rev" role="tabpanel" aria-labelledby="t-rev" hidden class="grid c2">
+      <div class="card">
+        <div class="card-head"><h2>OCSP responder</h2><span class="pill ok">up</span></div>
+        <div class="card-body stack">
+          <dl class="kv" data-api="/ca/admin/api/ocsp/status /ca/ocsp/status"><dt>Endpoint</dt><dd class="mono">/ca/ocsp</dd><dt>Cache</dt><dd>enabled · 300 s</dd><dt>Batch</dt><dd>enabled · max 100</dd><dt>Requests (24 h)</dt><dd class="num">48,102</dd></dl>
+          <form class="stack" data-api="/ca/ocsp/batch" data-toast="7c21…e04a: good · next update 10:47">
+            <div class="field"><label for="ocsp-serial">Check a serial</label><div class="input-group"><input id="ocsp-serial" placeholder="32-hex serial" class="mono"><button class="btn sm primary" type="submit">Check</button></div></div>
+          </form>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Certificate revocation list</h2><span class="pill danger">status 500</span></div>
+        <div class="card-body stack">
+          <dl class="kv" data-api="/ca/admin/api/crl/status /ca/crl/info"><dt>CRL number</dt><dd class="num">1,092</dd><dt>Last generated</dt><dd>Today 08:40</dd><dt>Next update</dt><dd>Today 20:40</dd><dt>Revoked entries</dt><dd class="num">73</dd></dl>
+          <div class="row wrap"><a class="btn sm outline" href="#" data-api="/ca/crl/current.crl">current.crl (PEM)</a><a class="btn sm outline" href="#" data-api="/ca/crl/der">DER</a><button class="btn sm primary" type="button" data-open="dlg-crl" data-api="/ca/admin/api/crl/generate">Generate CRL now</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ACME ── -->
+    <section id="p-acme" role="tabpanel" aria-labelledby="t-acme" hidden class="stack">
+      <div class="card pad stack" data-api="/ca/acme/directory">
+        <div class="row between"><h2 style="font-size:1rem">Directory</h2><button class="btn sm ghost" type="button" data-copy="https://exprsn.io/ca/acme/directory"><i data-i="copy" class="sm"></i>Copy URL</button></div>
+        <pre class="code" tabindex="0">{ "newNonce":   "https://exprsn.io/ca/acme/new-nonce",
+  "newAccount": "https://exprsn.io/ca/acme/new-account",
+  "newOrder":   "https://exprsn.io/ca/acme/new-order",
+  "revokeCert": "https://exprsn.io/ca/acme/revoke-cert",
+  "keyChange":  "https://exprsn.io/ca/acme/key-change",
+  "meta": { "externalAccountRequired": false } }</pre>
+        <p class="xs secondary">key-change answers 501. Challenges: http-01, dns-01.</p>
+      </div>
+      <div class="card">
+        <div class="empty"><div class="art"><i data-i="table"></i></div><h3>Accounts and orders need an admin endpoint</h3><p>ACME accounts, orders, authorizations and challenges exist in the database, but there’s no admin list route yet. This table goes here once it ships.</p></div>
+      </div>
+    </section>
+
+    <!-- ── Directory ── -->
+    <section id="p-dir" role="tabpanel" aria-labelledby="t-dir" hidden class="grid c3">
+      <div class="card"><div class="card-head"><h2>CA groups</h2><span class="badge neutral">41</span></div><div class="list" data-api="/ca/admin/api/groups"><div class="list-item"><div class="grow"><div class="title">Northwind</div><div class="meta">organizational_unit · 184</div></div></div><div class="list-item"><div class="grow"><div class="title">platform-ops</div><div class="meta">team · 6</div></div></div></div></div>
+      <div class="card"><div class="card-head"><h2>CA roles</h2><span class="badge neutral">5</span></div><div class="list" data-api="/ca/admin/api/roles"><div class="list-item"><div class="grow"><div class="title">ca-admin</div><div class="meta">READ WRITE DELETE MODERATE · system</div></div></div><div class="list-item"><div class="grow"><div class="title">operator</div><div class="meta">READ WRITE</div></div></div></div></div>
+      <div class="card"><div class="card-head"><h2>CA users</h2><span class="pill">vestigial</span></div><div class="card-body" data-api="/ca/admin/api/users"><p class="small secondary">ca.users mirrors auth for legacy sessions. Manage people in <a href="users.html">Users</a>.</p></div></div>
+    </section>
+
+    <!-- ── Config ── -->
+    <section id="p-cfg" role="tabpanel" aria-labelledby="t-cfg" hidden class="card">
+      <div class="card-head"><h2>CA configuration</h2><span class="pill">masked</span></div>
+      <dl class="kv card-body" data-api="/ca/admin/api/config">
+        <dt>CA_NAME</dt><dd>Exprsn Root CA</dd><dt>Default validity</dt><dd>365 days (max 825)</dd><dt>Key sizes</dt><dd>2048 · 4096</dd><dt>Token default expiry</dt><dd>time · 24 h</dd><dt>Storage</dt><dd>disk · /var/lib/exprsn/ca</dd><dt>Root key passphrase</dt><dd><span class="secret">••••••</span> <span class="pill ok">set</span></dd>
+      </dl>
+      <div class="card-foot"><button class="btn outline" type="button" data-open="dlg-cfg" data-api="/ca/admin/api/config/update">Edit settings</button></div>
+    </section>
+  </div>
+
+  <!-- Issue certificate -->
+  <dialog class="dialog" id="dlg-cert" aria-labelledby="dlg-cert-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cert-t">Issue certificate</h2><p>Signed by Exprsn Issuing CA unless you pick an org intermediate.</p></div></div>
+    <div class="dialog-body"><div class="form-grid">
+      <div class="field"><label for="ic-type">Type</label><select class="select" id="ic-type"><option>server</option><option>client</option><option>entity</option><option>san</option><option>code_signing</option></select></div>
+      <div class="field"><label for="ic-cn">Common name</label><input class="input" id="ic-cn" value="files.northwind.co"></div>
+      <div class="field full"><label for="ic-san">Subject alternative names</label><input class="input" id="ic-san" placeholder="dav.northwind.co, 10.0.4.12"><span class="help">Up to 100</span></div>
+      <div class="field"><label for="ic-key">Key size</label><select class="select" id="ic-key"><option>2048</option><option>4096</option></select></div>
+      <div class="field"><label for="ic-days">Validity</label><input class="input" id="ic-days" type="number" value="365" min="1" max="825"><span class="help">1–825 days</span></div>
+      <div class="field"><label for="ic-org">Organization (O)</label><input class="input" id="ic-org" value="Northwind"></div>
+      <div class="field"><label for="ic-user">Subject user</label><input class="input" id="ic-user" placeholder="Look up a person (optional)"></div>
+    </div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="files.northwind.co issued · serial 9e10…44ab">Issue</button></div>
+  </dialog>
+
+  <!-- Cert detail -->
+  <dialog class="dialog lg" id="dlg-cert-detail" aria-labelledby="dlg-cd-t">
+    <div class="dialog-head"><i data-i="cert" class="lg"></i><div class="grow"><h2 id="dlg-cd-t">api.northwind.co</h2><p>server · serial <span class="id">7c21…e04a</span> · expires Oct 5, 2026</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <dl class="kv" data-api="/ca/api/certificates/:id/status"><dt>Status</dt><dd><span class="pill ok">good (OCSP)</span></dd><dt>Issuer</dt><dd>CN=Northwind Issuing CA, O=Northwind</dd><dt>SANs</dt><dd>api.northwind.co, www.northwind.co</dd><dt>Fingerprint</dt><dd class="mono">SHA256 4B:1E:…:9C</dd><dt>Tokens signed</dt><dd>41 · <a href="#">view in Tokens</a></dd></dl>
+      <ul class="chain" data-api="/ca/api/certificates/:id/chain"><li><i data-i="shield" class="sm"></i>Exprsn Root CA</li><li><i data-i="cert" class="sm"></i>Northwind Issuing CA</li><li><i data-i="cert" class="sm"></i>api.northwind.co</li></ul>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn danger-outline left" type="button" data-open="dlg-revoke-cert">Revoke</button>
+      <div class="row" style="gap:6px"><label class="sr-only" for="cd-fmt">Export format</label><select class="select" id="cd-fmt" style="width:auto"><option>pem</option><option>der</option><option>chain</option><option>pkcs12</option></select><button class="btn outline" type="button" data-api="/ca/api/certificates/:id/export" data-toast="Export downloaded">Export</button></div>
+      <button class="btn primary" type="button" data-api="/ca/api/certificates/:id/renew" data-close data-toast="Renewed · new serial 1a2b…77c0">Renew</button>
+    </div>
+  </dialog>
+
+  <!-- Revoke cert -->
+  <dialog class="dialog sm" id="dlg-revoke-cert" aria-labelledby="dlg-rc-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rc-t">Revoke api.northwind.co?</h2><p>41 tokens signed by this certificate are revoked with it. It appears on the next CRL.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rc-reason">Reason</label><select class="select" id="rc-reason"><option>unspecified</option><option>keyCompromise</option><option>cACompromise</option><option>affiliationChanged</option><option selected>superseded</option><option>cessationOfOperation</option><option>certificateHold</option><option>removeFromCRL</option><option>privilegeWithdrawn</option><option>aACompromise</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="api.northwind.co revoked · 41 tokens revoked">Revoke certificate</button></div>
+  </dialog>
+
+  <!-- Issue token -->
+  <dialog class="dialog" id="dlg-token" aria-labelledby="dlg-tok-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-tok-t">Issue token</h2><p>The token id is the bearer. You’ll see it once.</p></div></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field"><label for="tk-subj">Subject</label><input class="input" id="tk-subj" value="You (Rick Holland)"></div>
+        <div class="field"><label for="tk-cert">Signing certificate</label><select class="select" id="tk-cert"><option>Exprsn Issuing CA</option><option>Northwind Issuing CA</option></select></div>
+        <div class="field"><label for="tk-rtype">Resource type</label><select class="select" id="tk-rtype"><option>url</option><option>did</option><option>cid</option></select></div>
+        <div class="field"><label for="tk-rval">Resource</label><input class="input" id="tk-rval" value="https://exprsn.io/filevault"><span class="help">≤ 1000 characters</span></div>
+      </div>
+      <div class="field"><span class="label">Permissions</span><div class="row wrap" style="gap:6px"><button class="chip" type="button" aria-pressed="true">read</button><button class="chip" type="button" aria-pressed="false">write</button><button class="chip" type="button" aria-pressed="false">append</button><button class="chip" type="button" aria-pressed="false">update</button><button class="chip" type="button" aria-pressed="false">delete</button></div></div>
+      <fieldset class="stack" style="border:0;padding:0;margin:0">
+        <legend class="small" style="font-weight:600;margin-bottom:6px">Expiry</legend>
+        <label class="opt"><input type="radio" name="exp" id="exp-time" checked><span class="grow stack tight"><b>Time-based</b><span class="row wrap" style="gap:8px"><input class="input" id="exp-in" value="1h" aria-label="Expires in" style="width:120px"><span class="xs secondary">expiresAt 1790665325000 · Sep 29, 11:42</span></span></span></label>
+        <label class="opt"><input type="radio" name="exp" id="exp-use"><span class="grow stack tight"><b>Use-based</b><span class="row wrap" style="gap:8px"><input class="input" id="exp-max" type="number" value="10" min="1" max="1000000" aria-label="Max uses" style="width:120px" disabled><span class="xs secondary">active → exhausted after 10 uses</span></span></span></label>
+        <label class="opt"><input type="radio" name="exp" id="exp-pers"><span class="grow stack tight"><b>Persistent</b><span class="xs secondary">Never expires. Requires a reason and is flagged in the table.</span></span></label>
+      </fieldset>
+      <div class="form-grid">
+        <div class="field"><label for="tk-grp">Group scope</label><input class="input" id="tk-grp" placeholder="Look up a CA group"></div>
+        <div class="field"><label for="tk-org">Organization scope</label><input class="input" id="tk-org" placeholder="organizational_unit or department"></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-open="dlg-reveal">Issue token</button></div>
+  </dialog>
+
+  <!-- Reveal once -->
+  <dialog class="dialog sm" id="dlg-reveal" aria-labelledby="dlg-rv-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rv-t">Copy your token now</h2><p>This is the only time it’s shown. Anyone with it can act as the subject.</p></div></div>
+    <div class="dialog-body">
+      <div class="input-group"><input id="rv-val" class="mono" readonly value="9b8e2d40-71a4-4c1e-b2a3-5f0c9d11e7aa" aria-label="Token id"><button class="btn sm ghost" type="button" data-copy="9b8e2d40-71a4-4c1e-b2a3-5f0c9d11e7aa"><i data-i="copy" class="sm"></i>Copy</button></div>
+      <label class="row small"><input type="checkbox" class="check" id="rv-ok"> I’ve stored this token somewhere safe</label>
+    </div>
+    <div class="dialog-foot"><button class="btn primary" type="button" data-close>Done</button></div>
+  </dialog>
+
+  <!-- Validate -->
+  <dialog class="dialog" id="dlg-validate" aria-labelledby="dlg-val-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-val-t">Validate a token</h2><p>Checks the token against a resource and permission without using it up.</p></div></div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <div class="field full"><label for="v-id">Token id</label><input class="input mono" id="v-id" value="81ab…22c0"></div>
+        <div class="field"><label for="v-res">Resource</label><input class="input" id="v-res" value="/filevault/api/files"></div>
+        <div class="field"><label for="v-perm">Permission</label><select class="select" id="v-perm"><option>read</option><option>write</option></select></div>
+      </div>
+      <div class="banner ok"><i data-i="check" class="sm"></i><span><b>Valid.</b> read allowed on /filevault/api/files · 7 uses left · signed by Northwind Issuing CA</span></div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button">Validate</button></div>
+  </dialog>
+
+  <!-- Introspect -->
+  <dialog class="dialog" id="dlg-introspect" aria-labelledby="dlg-in-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-in-t">Token 3f2c…9a1b</h2><p>Introspection</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body"><pre class="code" tabindex="0">{ "active": true, "sub": "usr_8f21c0", "expiryType": "time",
+  "expiresAt": 1790747522000, "permissions": ["read","write","append","update","delete"],
+  "resource": { "type": "url", "value": "https://exprsn.io" }, "useCount": 1204 }</pre></div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-revoke-tok">Revoke</button><button class="btn outline" type="button" data-api="/ca/api/tokens/:id/refresh" data-toast="Refreshed · expires in 24 h">Refresh</button></div>
+  </dialog>
+
+  <!-- Revoke token -->
+  <dialog class="dialog sm" id="dlg-revoke-tok" aria-labelledby="dlg-rt-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-rt-t">Revoke token 3f2c…9a1b?</h2><p>Maya Diaz is signed out on every client using it.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rt-reason">Reason</label><input class="input" id="rt-reason" maxlength="255"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="Token revoked">Revoke token</button></div>
+  </dialog>
+
+  <!-- Bulk revoke -->
+  <dialog class="dialog" id="dlg-bulk" aria-labelledby="dlg-bk-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-bk-t">Bulk revoke tokens</h2><p>Revokes every active token in the scope. It can’t be undone.</p></div></div>
+    <div class="dialog-body"><div class="form-grid">
+      <div class="field"><label for="bk-scope">Scope</label><select class="select" id="bk-scope"><option>user</option><option>group</option><option selected>organization</option></select></div>
+      <div class="field"><label for="bk-target">Target</label><input class="input" id="bk-target" value="Northwind"></div>
+      <div class="field full"><label for="bk-reason">Reason</label><input class="input" id="bk-reason" value="offboarding"></div>
+    </div><div class="banner warn"><i data-i="alert" class="sm"></i><span>41 active tokens in Northwind will be revoked.</span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="41 tokens revoked">Revoke 41 tokens</button></div>
+  </dialog>
+
+  <!-- Ticket -->
+  <dialog class="dialog sm" id="dlg-ticket" aria-labelledby="dlg-tk-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-tk-t">Generate ticket</h2><p>Expires after 5 minutes.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="tk-type">Type</label><select class="select" id="tk-type"><option>login</option><option>passwordReset</option><option>emailVerification</option><option>apiAccess</option><option>download</option></select></div><div class="field"><label for="tk-uses">Max uses</label><input class="input" id="tk-uses" type="number" value="1" min="1"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-open="dlg-reveal">Generate</button></div>
+  </dialog>
+
+  <!-- Intermediate -->
+  <dialog class="dialog" id="dlg-inter" aria-labelledby="dlg-int-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-int-t">New intermediate CA</h2><p>Signed by Exprsn Root CA. Uses your CA admin session.</p></div></div>
+    <div class="dialog-body"><div class="form-grid">
+      <div class="field"><label for="in-cn">Common name</label><input class="input" id="in-cn" value="Contoso Issuing CA"></div>
+      <div class="field"><label for="in-days">Validity (days)</label><input class="input" id="in-days" type="number" value="1825"></div>
+      <div class="field"><label for="in-key">Key size</label><select class="select" id="in-key"><option>4096</option><option>8192</option></select></div>
+      <div class="field"><label for="in-pl">Path length</label><input class="input" id="in-pl" type="number" value="0"></div>
+    </div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Intermediate issued">Generate intermediate</button></div>
+  </dialog>
+
+  <!-- Code signing -->
+  <dialog class="dialog sm" id="dlg-codesign" aria-labelledby="dlg-cs-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cs-t">Code-signing certificate</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="cs-cn">Common name</label><input class="input" id="cs-cn" value="Exprsn Plugins Signing"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Code-signing certificate issued">Generate</button></div>
+  </dialog>
+
+  <!-- CSR -->
+  <dialog class="dialog" id="dlg-csr" aria-labelledby="dlg-csr-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-csr-t">Sign a CSR</h2></div></div>
+    <div class="dialog-body"><div class="field"><label for="csr-pem">CSR (PEM)</label><textarea class="textarea mono" id="csr-pem" placeholder="-----BEGIN CERTIFICATE REQUEST-----"></textarea></div><div class="field"><label for="csr-days">Validity (days)</label><input class="input" id="csr-days" type="number" value="365"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="CSR signed">Sign CSR</button></div>
+  </dialog>
+
+  <!-- Root -->
+  <dialog class="dialog sm" id="dlg-root" aria-labelledby="dlg-root-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-root-t">Generate a new root CA?</h2><p>Exprsn Root CA is active until 2045. A second root means every client has to trust it before it can be used.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="root-confirm">Type <b>new root</b> to confirm</label><input class="input" id="root-confirm" autocomplete="off"></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" disabled>Generate root</button></div>
+  </dialog>
+
+  <!-- CRL -->
+  <dialog class="dialog sm" id="dlg-crl" aria-labelledby="dlg-crl-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-crl-t">Generate CRL now?</h2><p>Publishes CRL #1,093 with 73 entries. Relying parties pick it up at their next fetch.</p></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="CRL #1,093 published">Generate CRL</button></div>
+  </dialog>
+
+  <!-- Config -->
+  <dialog class="dialog" id="dlg-cfg" aria-labelledby="dlg-cfg-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-cfg-t">CA settings</h2></div></div>
+    <div class="dialog-body"><div class="form-grid">
+      <div class="field"><label for="cf-days">Default validity (days)</label><input class="input" id="cf-days" type="number" value="365" max="825"></div>
+      <div class="field"><label for="cf-tok">Default token expiry</label><input class="input" id="cf-tok" value="24h"></div>
+    </div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="CA settings saved">Save</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "Certificates and tokens are server-mode DataTables over /ca/admin/api/* with a platform-admin bearer. Issue token ends in a reveal-once dialog. Revokes update the row optimistically and roll back on error. The /ca socket is not trusted today, so tables poll every 30s. Once CA-1 lands they subscribe to tokens:updated and certificates:updated.",
+  "rest": [
+    { "m": "GET", "p": "/ca/admin/api/stats", "auth": "A", "ui": "Dashboard tiles" },
+    { "m": "GET", "p": "/ca/admin/api/timeseries/:type", "auth": "A", "ui": "Tokens issued sparkline" },
+    { "m": "GET", "p": "/ca/admin/api/health", "auth": "A", "ui": "CA health tile" },
+    { "m": "GET", "p": "/ca/admin/api/activity", "auth": "A", "ui": "Audit log" },
+    { "m": "GET", "p": "/ca/admin/api/certificates/recent", "auth": "A", "ui": "Recent certificates" },
+    { "m": "GET", "p": "/ca/admin/api/tokens/recent", "auth": "A", "ui": "Recent tokens" },
+    { "m": "GET", "p": "/ca/admin/api/certificates", "auth": "A", "ui": "Certificates table" },
+    { "m": "POST", "p": "/ca/admin/api/certificates/issue", "auth": "A", "ui": "Issue certificate dialog" },
+    { "m": "POST", "p": "/ca/admin/api/certificates/:id/revoke", "auth": "A", "ui": "Revoke certificate dialog" },
+    { "m": "GET", "p": "/ca/admin/api/certificates/:id/download", "auth": "A", "ui": "PEM row action" },
+    { "m": "GET", "p": "/ca/api/certificates", "auth": "user", "ui": "Not used (caller-scoped list)" },
+    { "m": "POST", "p": "/ca/api/certificates/generate", "auth": "user", "ui": "Not used (self-service issuance)" },
+    { "m": "GET", "p": "/ca/api/certificates/:id", "auth": "owner/A", "ui": "Certificate detail" },
+    { "m": "GET", "p": "/ca/api/certificates/:id/status", "auth": "owner/A", "ui": "Detail → OCSP status" },
+    { "m": "GET", "p": "/ca/api/certificates/:id/chain", "auth": "owner/A", "ui": "Detail chain + hierarchy" },
+    { "m": "GET", "p": "/ca/api/certificates/:id/export", "auth": "owner/A", "ui": "Detail → Export (pem, der, chain, pkcs12)" },
+    { "m": "POST", "p": "/ca/api/certificates/:id/renew", "auth": "owner/A", "ui": "Detail → Renew" },
+    { "m": "POST", "p": "/ca/api/certificates/:id/revoke", "auth": "owner/A", "ui": "Not used (admin route preferred)" },
+    { "m": "POST", "p": "/ca/api/certificates/generate-root", "auth": "A (CA session)", "ui": "Generate new root dialog" },
+    { "m": "POST", "p": "/ca/api/certificates/generate-intermediate", "auth": "A (CA session)", "ui": "New intermediate dialog" },
+    { "m": "POST", "p": "/ca/api/certificates/generate-code-signing", "auth": "A (CA session)", "ui": "Code-signing dialog" },
+    { "m": "POST", "p": "/ca/api/certificates/csr", "auth": "A (CA session)", "ui": "Sign CSR dialog" },
+    { "m": "GET", "p": "/ca/admin/api/tokens", "auth": "A", "ui": "Tokens table" },
+    { "m": "POST", "p": "/ca/admin/api/tokens/generate", "auth": "A", "ui": "Issue token dialog → reveal once" },
+    { "m": "POST", "p": "/ca/admin/api/tokens/validate", "auth": "A", "ui": "Validate dialog" },
+    { "m": "POST", "p": "/ca/admin/api/tokens/:id/revoke", "auth": "A", "ui": "Revoke token dialog" },
+    { "m": "POST", "p": "/ca/admin/api/tokens/revoke-bulk", "auth": "A", "ui": "Bulk revoke dialog" },
+    { "m": "GET", "p": "/ca/api/tokens/:id/introspect", "auth": "user", "ui": "Introspect dialog" },
+    { "m": "POST", "p": "/ca/api/tokens/:id/refresh", "auth": "user", "ui": "Introspect → Refresh" },
+    { "m": "GET", "p": "/ca/api/tokens", "auth": "user", "ui": "Not used (caller-scoped)" },
+    { "m": "POST", "p": "/ca/api/tokens/generate", "auth": "user", "ui": "Not used (admin route preferred)" },
+    { "m": "POST", "p": "/ca/api/tokens/validate", "auth": "user", "ui": "Not used" },
+    { "m": "POST", "p": "/ca/api/tokens/revoke", "auth": "user", "ui": "Not used" },
+    { "m": "POST", "p": "/ca/api/tokens/revoke-bulk", "auth": "user", "ui": "Not used" },
+    { "m": "POST", "p": "/ca/tickets/generate", "auth": "user", "ui": "Generate ticket dialog" },
+    { "m": "GET", "p": "/ca/admin/api/ocsp/status", "auth": "A", "ui": "OCSP responder card" },
+    { "m": "GET", "p": "/ca/ocsp/status", "auth": "P", "ui": "OCSP responder card (public status)" },
+    { "m": "POST", "p": "/ca/ocsp/batch", "auth": "P", "ui": "Check a serial" },
+    { "m": "POST", "p": "/ca/ocsp/", "auth": "P", "ui": "Not used (relying-party OCSP request)" },
+    { "m": "GET", "p": "/ca/admin/api/crl/status", "auth": "A", "ui": "CRL card" },
+    { "m": "POST", "p": "/ca/admin/api/crl/generate", "auth": "A", "ui": "Generate CRL dialog" },
+    { "m": "GET", "p": "/ca/crl/current.crl", "auth": "P", "ui": "Download PEM CRL" },
+    { "m": "GET", "p": "/ca/crl/der", "auth": "P", "ui": "Download DER CRL" },
+    { "m": "GET", "p": "/ca/crl/info", "auth": "P", "ui": "CRL facts" },
+    { "m": "GET", "p": "/ca/acme/directory", "auth": "P", "ui": "ACME directory card" },
+    { "m": "POST", "p": "/ca/acme/new-account", "auth": "JWS", "ui": "Not used (ACME clients); new-nonce, acct, new-order, order, authz, chall, finalize, cert, revoke-cert and key-change (501) likewise" },
+    { "m": "GET", "p": "/ca/admin/api/users", "auth": "A", "ui": "Directory → CA users" },
+    { "m": "GET", "p": "/ca/admin/api/groups", "auth": "A", "ui": "Directory → CA groups" },
+    { "m": "GET", "p": "/ca/admin/api/roles", "auth": "A", "ui": "Directory → CA roles" },
+    { "m": "GET", "p": "/ca/admin/api/config", "auth": "A", "ui": "Config tab (masked)" },
+    { "m": "POST", "p": "/ca/admin/api/config/update", "auth": "A", "ui": "CA settings dialog" },
+    { "m": "GET", "p": "/ca/api/users/me/groups", "auth": "user", "ui": "Token dialog → group scope picker (own groups)" },
+    { "m": "POST", "p": "/ca/api/auth/verify-password", "auth": "user", "ui": "Not used" }
+  ],
+  "socket": [
+    { "ns": "/ca", "auth": "session wrapper; io.use always next() (anonymous admitted)", "rooms": ["user:{userId}", "certificate:{id}", "token:{id}", "dashboard:{userId}"],
+      "emit": [
+        { "e": "dashboard:subscribe", "ui": "Dashboard tab (planned)" },
+        { "e": "token:subscribe", "ui": "Introspect dialog (planned)" },
+        { "e": "certificate:subscribe", "ui": "Certificate detail (planned)" }
+      ],
+      "on": [
+        { "e": "tokens:updated", "ui": "Tokens table (dead: no emitter calls it)" },
+        { "e": "certificates:updated", "ui": "Certificates table (dead)" },
+        { "e": "dashboard:stats", "ui": "Dashboard tiles (dead)" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "/ca socket: io.use always calls next(), so anonymous clients are admitted and can join any certificate:{id} or token:{id} room. Every server emitter (token:created/revoked, certificates:updated, dashboard:stats…) is dead code (CA-1)." },
+    { "sev": "high", "text": "generate-root, generate-intermediate, generate-code-signing and csr use requireAdminSession, which a bearer can't satisfy. Proposed: /ca/admin/api/certificates/{generate-root,…} with requirePlatformAdmin." },
+    { "sev": "high", "text": "GET /ca/admin/api/crl/status 500s once a CRL row exists, and /timeseries uses MySQL DATE_FORMAT (CA-2)." },
+    { "sev": "med", "text": "There's no search param or hard max limit on /ca/admin/api/certificates, tokens or activity (CA-3). Tickets have no list or revoke (CA-4)." },
+    { "sev": "med", "text": "Audit chain verification and activity filters aren't exposed (CA-5). The Verify chain button is proposed: POST /ca/admin/api/audit/verify." },
+    { "sev": "med", "text": "There are no ACME admin lists for accounts, orders or challenges (CA-6), and no CRUD for CA groups and roles (CA-7)." }
+  ]
+}
+</script>
+</body>
+</html>

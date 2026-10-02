@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Permissions · Exprsn Admin v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  /* kit fix proposal: inline links need underline + AA colour */
+  p a:not(.btn), dd a:not(.btn) { color: var(--v2-primary-fg); text-decoration: underline; }
+</style>
+</head>
+<body data-shell="admin" data-page="permissions">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="overview.html">Admin</a><i data-i="right" class="sm"></i><span>Infrastructure</span><i data-i="right" class="sm"></i><span>Permissions</span></nav>
+        <h1 class="page-title">Permissions</h1>
+        <p class="page-sub">The catalog of permission strings roles can grant, plus a tester that answers “can this person do this?” the same way the auth module does.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn primary" type="button" data-open="dlg-new" data-api="/auth/api/roles/permissions"><i data-i="plus" class="sm"></i>New permission</button>
+      </div>
+    </header>
+
+    <div class="split">
+      <section class="card dt" aria-label="Permission catalog">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="p-q" type="search" placeholder="Search e.g. tokens:issue" data-api="/auth/api/roles/permissions"></label>
+          <button class="chip" type="button" aria-pressed="false">Scope</button>
+          <button class="chip" type="button" aria-pressed="true"><i data-i="filter" class="sm"></i>Service: any <span class="x">×</span></button>
+          <span class="grow"></span>
+          <div class="seg" role="group" aria-label="Group by"><button type="button" aria-pressed="true">By service</button><button type="button" aria-pressed="false">None</button></div>
+        </div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/auth/api/roles/permissions">
+            <thead><tr><th class="pin" aria-sort="ascending"><button type="button">Permission <i data-i="up" class="sm"></i></button></th><th>Resource</th><th>Action</th><th>Scope</th><th class="num">Roles</th></tr></thead>
+            <tbody>
+              <tr class="group-row"><td colspan="5">auth · 18</td></tr>
+              <tr><td class="pin"><span class="mono">users:read</span> <span class="pill">system</span><div class="xs secondary">View user profiles and directory</div></td><td>users</td><td>read</td><td>organization</td><td class="num">6</td></tr>
+              <tr><td class="pin"><span class="mono">users:update</span> <span class="pill">system</span></td><td>users</td><td>update</td><td>organization</td><td class="num">2</td></tr>
+              <tr><td class="pin"><span class="mono">apps:write</span></td><td>apps</td><td>write</td><td>organization</td><td class="num">3</td></tr>
+              <tr class="group-row"><td colspan="5">ca · 7</td></tr>
+              <tr><td class="pin"><span class="mono">tokens:issue</span></td><td>tokens</td><td>issue</td><td>service</td><td class="num">2</td></tr>
+              <tr class="group-row"><td colspan="5">moderator · 5</td></tr>
+              <tr><td class="pin"><span class="mono">moderation:review</span> <span class="pill">system</span></td><td>moderation</td><td>review</td><td>system</td><td class="num">1</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="key"></i></div><h3>No permissions match</h3><p>Nothing in the catalog matches “tokens:revoke”. Create it if a service checks for it.</p><button class="btn outline" type="button" data-open="dlg-new">New permission</button></div></div>
+        <div data-state="loading" aria-busy="true" style="padding:16px" class="stack"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t load the catalog</h3><p>Correlation id <code>cid ad31…77e</code>.</p><button class="btn outline" type="button">Retry</button></div></div>
+        <div class="dt-foot"><span class="num">6 of 41 · client mode</span></div>
+      </section>
+
+      <aside class="stack loose">
+        <form class="card" aria-labelledby="chk-t" data-api="/auth/api/roles/check-permission" data-toast="Checked">
+          <div class="card-head"><h2 id="chk-t">Check a permission</h2></div>
+          <div class="card-body stack">
+            <div class="field"><label for="ck-user">Person</label><input class="input" id="ck-user" value="Sam Kim · usr_c41a02"></div>
+            <div class="field"><label for="ck-perm">Permission</label><input class="input mono" id="ck-perm" value="apps:write"></div>
+            <div class="field"><label for="ck-org">Organization</label><select class="select" id="ck-org"><option>Any</option><option selected>Northwind</option><option>Contoso</option></select></div>
+            <div class="field"><label for="ck-app">Application (optional)</label><input class="input" id="ck-app" placeholder="app_…"></div>
+            <button class="btn primary" type="submit">Check</button>
+            <div class="banner ok" role="status"><i data-i="check" class="sm"></i><span><b>Allowed.</b> Role <b>org-admin</b> · “Wildcard permission” (<span class="mono">org:*</span>).</span></div>
+          </div>
+        </form>
+
+        <form class="card" aria-labelledby="svc-t" data-api="/auth/api/roles/check-service-access" data-toast="Checked">
+          <div class="card-head"><h2 id="svc-t">Check service access</h2></div>
+          <div class="card-body stack">
+            <div class="field"><label for="sv-user">Person</label><input class="input" id="sv-user" value="Sam Kim"></div>
+            <div class="field"><label for="sv-svc">Service</label><select class="select" id="sv-svc"><option>auth</option><option>ca</option><option selected>filevault</option><option>vault</option><option>timeline</option></select></div>
+            <button class="btn outline" type="submit">Check</button>
+            <div class="banner danger" role="status"><i data-i="x" class="sm"></i><span><b>Denied.</b> “Service not in allowed list”. org-admin allows auth and ca only.</span></div>
+          </div>
+        </form>
+
+        <section class="card" aria-labelledby="eff-t" data-api="/auth/api/roles/users/:userId/permissions">
+          <div class="card-head"><h2 id="eff-t">Sam Kim’s effective permissions</h2></div>
+          <div class="card-body row wrap" style="gap:6px"><span class="pill">org:*</span><span class="pill">apps:write</span><span class="pill">users:read</span><span class="pill">users:update</span><span class="pill">tokens:issue</span></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <dialog class="dialog" id="dlg-new" aria-labelledby="dlg-new-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-new-t">New permission</h2><p>Only platform admins can add to the catalog. Roles can’t use a string until it’s here.</p></div></div>
+    <div class="dialog-body"><div class="form-grid">
+      <div class="field"><label for="np-res">Resource</label><input class="input" id="np-res" value="reports"></div>
+      <div class="field"><label for="np-act">Action</label><input class="input" id="np-act" value="export"></div>
+      <div class="field"><label for="np-scope">Scope</label><select class="select" id="np-scope"><option>system</option><option selected>organization</option><option>application</option><option>service</option></select></div>
+      <div class="field"><label for="np-svc">Service</label><select class="select" id="np-svc"><option>auth</option><option>ca</option><option selected>moderator</option><option>timeline</option></select></div>
+      <div class="field full"><label for="np-desc">Description</label><input class="input" id="np-desc" value="Download moderation reports as CSV"></div>
+    </div><p class="small secondary">Permission string: <span class="mono">reports:export</span></p></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="reports:export added to the catalog">Create permission</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "The catalog is a client-mode table grouped by service. The tester forms call the same evaluators auth middleware uses, so a verdict shows allowed, the granting role and the reason string. Results aren't cached.",
+  "rest": [
+    { "m": "GET", "p": "/auth/api/roles/permissions", "auth": "user", "ui": "Catalog table (scope, service filters)" },
+    { "m": "POST", "p": "/auth/api/roles/permissions", "auth": "A (platform)", "ui": "New permission dialog" },
+    { "m": "POST", "p": "/auth/api/roles/check-permission", "auth": "user", "ui": "Check a permission form" },
+    { "m": "POST", "p": "/auth/api/roles/check-service-access", "auth": "user", "ui": "Check service access form" },
+    { "m": "GET", "p": "/auth/api/roles/users/:userId/permissions", "auth": "self/A", "ui": "Effective permissions card" },
+    { "m": "GET", "p": "/auth/api/roles", "auth": "user", "ui": "Roles column count (client join)" },
+    { "m": "GET", "p": "/auth/api/users", "auth": "A", "ui": "Person lookup" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "Catalog entries can't be edited or deleted: only GET and POST /roles/permissions exist. Proposed: PATCH and DELETE for non-system entries." },
+    { "sev": "med", "text": "check-permission returns {allowed, role, reason} but not the assignment scope or the matched pattern. The org:* detail in the verdict is proposed." }
+  ]
+}
+</script>
+</body>
+</html>

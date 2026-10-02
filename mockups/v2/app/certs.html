@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Certificates · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .main :is(p, dd, .help) a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  .btn.danger-outline { color: var(--v2-danger-fg); border-color: var(--v2-danger-fg); }
+  .chain { display: flex; flex-direction: column; gap: 0; }
+  .chain .link { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--exprsn-border-color); border-radius: 12px; background: var(--exprsn-surface-raised); }
+  .chain .bar { width: 2px; height: 14px; background: var(--exprsn-border-color-strong); margin-left: 25px; }
+  .cert-ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--exprsn-primary) 12%, transparent); color: var(--v2-primary-fg); }
+  .opt { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--exprsn-border-color); border-radius: 14px; cursor: pointer; }
+  .opt:has(input:checked) { border-color: var(--exprsn-primary); background: color-mix(in srgb, var(--exprsn-primary) 6%, transparent); }
+  .opt input { margin-top: 3px; accent-color: var(--exprsn-primary); }
+</style>
+</head>
+<body data-shell="app" data-page="certs">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Certificates</h1>
+        <p class="page-sub">Client and device certificates issued to you by the Exprsn CA, and the tokens they sign.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn outline" type="button" data-open="dlg-ticket" data-api="/ca/tickets/generate"><i data-i="signal" class="sm"></i>Sign in another device</button>
+        <button class="btn primary" type="button" data-open="dlg-issue" data-api="/ca/api/certificates/generate"><i data-i="plus" class="sm"></i>Issue certificate</button>
+      </div>
+    </header>
+
+    <div class="grid c4">
+      <div class="card stat" data-api="/ca/api/certificates"><span class="label"><i data-i="cert" class="sm"></i>Active</span><span class="value">3</span></div>
+      <div class="card stat"><span class="label"><i data-i="clock" class="sm"></i>Expiring in 30 days</span><span class="value">1</span><span class="delta down">rick-laptop-client · Oct 20</span></div>
+      <div class="card stat" data-api="/ca/ocsp/status"><span class="label"><i data-i="pulse" class="sm"></i>OCSP responder</span><span class="value" style="font-size:1.125rem"><span class="pill ok"><span class="d"></span>Online</span></span><span class="small secondary">p50 18 ms</span></div>
+      <div class="card stat" data-api="/ca/crl/info"><span class="label"><i data-i="list" class="sm"></i>Revocation list</span><span class="value" style="font-size:1.125rem">#1,482</span><span class="small secondary">Next update in 5 h</span></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Certificate views">
+      <button role="tab" id="t-certs" aria-controls="p-certs" aria-selected="true">Certificates</button>
+      <button role="tab" id="t-toks" aria-controls="p-toks">Tokens <span class="badge neutral">3</span></button>
+    </div>
+
+    <section id="p-certs" role="tabpanel" aria-labelledby="t-certs">
+      <div class="card dt">
+        <div class="dt-toolbar">
+          <label class="input-group"><i data-i="search" class="sm"></i><input id="c-q" type="search" placeholder="Search common name, serial, SAN"></label>
+          <div class="seg" role="group" aria-label="Status"><button type="button" aria-pressed="true">All</button><button type="button" aria-pressed="false">Active</button><button type="button" aria-pressed="false">Expiring</button><button type="button" aria-pressed="false">Revoked</button></div>
+        </div>
+        <div class="dt-scroll" data-state="loaded">
+          <table class="table" data-api="/ca/api/certificates" data-on="certificate:created certificate:revoked certificates:updated">
+            <thead><tr><th>Common name</th><th>Type</th><th>Serial</th><th>Issuer</th><th class="num">Expires</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><button type="button" data-open="dlg-cert" data-api="/ca/api/certificates/:id" data-emit="certificate:subscribe" style="all:unset;cursor:pointer;display:flex;gap:12px;align-items:center"><span class="cert-ico"><i data-i="cert" class="sm"></i></span><b>rick-laptop-client</b></button></td><td>Client</td><td><span class="id">4F:A2:19:0C</span></td><td>Exprsn Issuing CA 1</td><td class="num">Oct 20, 2026</td><td><span class="pill warn">Expires in 21 d</span></td><td class="actions"><button class="btn sm tonal" type="button" data-open="dlg-renew" data-api="/ca/api/certificates/:id/renew">Renew</button></td></tr>
+              <tr><td><div class="row"><span class="cert-ico"><i data-i="cert" class="sm"></i></span><b>rick-ci-client</b></div></td><td>Client</td><td><span class="id">7B:31:E4:90</span></td><td>Exprsn Issuing CA 1</td><td class="num">Mar 2, 2027</td><td><span class="pill ok">Active</span></td><td class="actions"><button class="icon-btn" type="button" aria-label="Actions for rick-ci-client"><i data-i="more"></i></button></td></tr>
+              <tr><td><div class="row"><span class="cert-ico"><i data-i="globe" class="sm"></i></span><b>status.exprsn.io</b></div></td><td>Server · SAN</td><td><span class="id">11:0D:8A:5E</span></td><td>Exprsn Issuing CA 1</td><td class="num">Jan 14, 2027</td><td><span class="pill ok">Active</span></td><td class="actions"><button class="icon-btn" type="button" aria-label="Actions for status.exprsn.io"><i data-i="more"></i></button></td></tr>
+              <tr><td><div class="row"><span class="cert-ico"><i data-i="cert" class="sm"></i></span><b>old-macbook</b></div></td><td>Client</td><td><span class="id">2C:77:B0:13</span></td><td>Exprsn Issuing CA 1</td><td class="num">Jun 1, 2027</td><td><span class="pill danger">Revoked · key compromise</span></td><td class="actions"><button class="icon-btn" type="button" aria-label="Actions for old-macbook"><i data-i="more"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div data-state="empty"><div class="empty"><div class="art"><i data-i="cert"></i></div><h3>No certificates yet</h3><p>Issue a client certificate to sign API tokens or authenticate a device with mutual TLS.</p><button class="btn primary" type="button" data-open="dlg-issue">Issue certificate</button></div></div>
+        <div class="stack" data-state="loading" aria-busy="true" aria-label="Loading certificates" style="padding:16px"><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span><span class="sk" style="height:36px"></span></div>
+        <div data-state="error"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Couldn’t reach the certificate authority</h3><p>The CA returned CA_UNAVAILABLE. Existing certificates keep working. Reference <code>cid e41b…0c7</code>.</p><button class="btn outline" type="button">Try again</button></div></div>
+      </div>
+    </section>
+
+    <section id="p-toks" role="tabpanel" aria-labelledby="t-toks" hidden>
+      <div class="card dt">
+        <div class="dt-toolbar"><span class="small secondary grow">Tokens signed by your certificates. Create and manage them in <a href="settings.html#s-tokens">Settings → API tokens</a>.</span><button class="btn sm outline" type="button" data-api="/ca/api/tokens/validate" data-open="dlg-validate">Check a token</button></div>
+        <div class="dt-scroll">
+          <table class="table" data-api="/ca/api/tokens" data-on="token:created token:revoked tokens:updated">
+            <thead><tr><th>Token</th><th>Signed by</th><th>Access</th><th class="num">Expires</th><th>Status</th><th class="actions"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td><b>deploy-bot</b> <span class="id">tok_3f9a21</span></td><td>rick-ci-client</td><td>read, write</td><td class="num">Dec 31</td><td><span class="pill ok">Active</span></td><td class="actions"><button class="btn sm ghost" type="button" data-emit="token:subscribe" data-api="/ca/api/tokens/:id/introspect">Inspect</button><button class="btn sm ghost" type="button" data-api="/ca/api/tokens/:id/refresh" data-toast="Refreshed">Refresh</button></td></tr>
+              <tr><td><b>backup-sync</b> <span class="id">tok_b81c07</span></td><td>rick-laptop-client</td><td>read</td><td class="num">412 / 1,000 uses</td><td><span class="pill warn">Signer expiring</span></td><td class="actions"><button class="btn sm ghost" type="button">Inspect</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Issue wizard -->
+  <dialog class="dialog lg" id="dlg-issue" aria-labelledby="dlg-issue-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-issue-t">Issue a certificate</h2><p>Signed by <b>Exprsn Issuing CA 1</b> for your account.</p></div><button class="icon-btn" type="button" data-close aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <ol class="stepper" aria-label="Issue progress"><li data-done>Key</li><li aria-current="step">Subject</li><li>Validity</li><li>Review</li></ol>
+      <fieldset class="grid c2" style="border:0;padding:0;margin:0">
+        <legend class="small" style="font-weight:600;margin-bottom:8px">How should the key be created?</legend>
+        <label class="opt"><input type="radio" name="keysrc" id="ks-gen" checked><span class="stack tight"><b>Generate for me</b><span class="small secondary">Exprsn creates the key pair. Download it once as a password-protected .p12.</span></span></label>
+        <label class="opt"><input type="radio" name="keysrc" id="ks-csr"><span class="stack tight"><b>I have a CSR</b> <span class="pill violet">Admins only today</span><span class="small secondary">Paste a PEM certificate signing request. The private key never leaves your machine.</span></span></label>
+      </fieldset>
+      <div class="form-grid">
+        <div class="field"><label for="is-cn">Common name</label><input class="input" id="is-cn" value="rick-desktop-client"></div>
+        <div class="field"><label for="is-type">Type</label><select class="select" id="is-type"><option>Client</option><option>Server</option><option>SAN (multi-host)</option><option>Code signing</option></select></div>
+        <div class="field"><label for="is-o">Organization</label><input class="input" id="is-o" value="Exprsn HQ"></div>
+        <div class="field"><label for="is-email">Email</label><input class="input" id="is-email" type="email" value="rick@exprsn.io"></div>
+        <div class="field full"><label for="is-san">Subject alternative names</label><input class="input mono" id="is-san" placeholder="host.exprsn.io, 10.0.0.12"><span class="help">Only for server/SAN types. Up to 100.</span></div>
+        <div class="field"><label for="is-days">Valid for</label><select class="select" id="is-days"><option>365 days</option><option>90 days</option><option>730 days</option></select></div>
+        <div class="field"><label for="is-pw">Key password (for .p12 export)</label><input class="input" id="is-pw" type="password" autocomplete="new-password"></div>
+        <div class="field full"><label for="is-csr">CSR (PEM)</label><textarea class="textarea mono" id="is-csr" disabled placeholder="-----BEGIN CERTIFICATE REQUEST-----" data-api="/ca/api/certificates/csr"></textarea></div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn outline" type="button">Back</button><button class="btn primary" type="button" data-close data-toast="rick-desktop-client issued — download the .p12 now">Issue certificate</button></div>
+  </dialog>
+
+  <!-- Cert detail -->
+  <dialog class="dialog lg" id="dlg-cert" aria-labelledby="dlg-cert-t">
+    <div class="dialog-head"><span class="cert-ico"><i data-i="cert"></i></span><div class="grow"><h2 id="dlg-cert-t">rick-laptop-client</h2><p>Client certificate · serial <span class="id">4F:A2:19:0C:77:E1</span></p></div><button class="icon-btn" type="button" data-close aria-label="Close" data-emit="certificate:unsubscribe"><i data-i="x"></i></button></div>
+    <div class="dialog-body">
+      <div class="banner warn" data-on="certificate:revoked"><i data-i="clock" class="sm"></i><span class="grow">Expires Oct 20, 2026 — renew to keep 2 tokens working.</span><button class="btn sm outline" type="button" data-open="dlg-renew">Renew</button></div>
+      <div class="tabs" role="tablist" aria-label="Certificate detail">
+        <button role="tab" id="cd-1t" aria-controls="cd-1" aria-selected="true">Details</button>
+        <button role="tab" id="cd-2t" aria-controls="cd-2">Chain</button>
+        <button role="tab" id="cd-3t" aria-controls="cd-3">Export</button>
+      </div>
+      <div id="cd-1" role="tabpanel" aria-labelledby="cd-1t">
+        <dl class="kv" data-api="/ca/api/certificates/:id/status">
+          <dt>Subject</dt><dd class="mono">CN=rick-laptop-client, O=Exprsn HQ, E=rick@exprsn.io</dd>
+          <dt>Issuer</dt><dd>Exprsn Issuing CA 1</dd>
+          <dt>Valid</dt><dd>Oct 20, 2025 → Oct 20, 2026</dd>
+          <dt>Key</dt><dd>RSA 2048 · SHA-256</dd>
+          <dt>Key usage</dt><dd>Digital signature, client auth</dd>
+          <dt>OCSP status</dt><dd><span class="pill ok"><span class="d"></span>Good</span> checked 2 min ago</dd>
+          <dt>SHA-256 fingerprint</dt><dd class="mono xs">9C:1E:44:A0:…:B7:02:5D</dd>
+        </dl>
+      </div>
+      <div id="cd-2" role="tabpanel" aria-labelledby="cd-2t" hidden>
+        <div class="chain" data-api="/ca/api/certificates/:id/chain">
+          <div class="link"><span class="cert-ico"><i data-i="shield" class="sm"></i></span><div class="grow stack tight"><b>Exprsn Root CA</b><span class="xs muted">Root · valid to 2045</span></div><span class="pill">Trusted</span></div>
+          <span class="bar" aria-hidden="true"></span>
+          <div class="link"><span class="cert-ico"><i data-i="layers" class="sm"></i></span><div class="grow stack tight"><b>Exprsn Issuing CA 1</b><span class="xs muted">Intermediate · valid to 2031</span></div></div>
+          <span class="bar" aria-hidden="true"></span>
+          <div class="link"><span class="cert-ico"><i data-i="cert" class="sm"></i></span><div class="grow stack tight"><b>rick-laptop-client</b><span class="xs muted">End entity</span></div><span class="pill brand">This certificate</span></div>
+        </div>
+      </div>
+      <div id="cd-3" role="tabpanel" aria-labelledby="cd-3t" class="stack" hidden>
+        <div class="list card" data-api="/ca/api/certificates/:id/export">
+          <div class="list-item"><i data-i="doc" class="sm"></i><span class="grow stack tight"><b class="small">PEM certificate</b><span class="xs muted">For most servers and tools</span></span><a class="btn sm outline" href="#" data-api="/ca/api/certificates/:id/download">Download</a></div>
+          <div class="list-item"><i data-i="doc" class="sm"></i><span class="grow stack tight"><b class="small">DER</b><span class="xs muted">Binary, Windows and Java</span></span><a class="btn sm outline" href="#">Download</a></div>
+          <div class="list-item"><i data-i="layers" class="sm"></i><span class="grow stack tight"><b class="small">Full chain (PEM)</b><span class="xs muted">Certificate + intermediates</span></span><a class="btn sm outline" href="#">Download</a></div>
+          <div class="list-item"><i data-i="lock" class="sm"></i><span class="grow stack tight"><b class="small">PKCS#12 (.p12)</b><span class="xs muted">Certificate + private key, password-protected</span></span><a class="btn sm outline" href="#">Download</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="btn danger-outline left" type="button" data-open="dlg-revoke">Revoke</button><button class="btn outline" type="button" data-open="dlg-renew">Renew</button><button class="btn primary" type="button" data-close data-emit="certificate:unsubscribe">Done</button></div>
+  </dialog>
+
+  <!-- Renew -->
+  <dialog class="dialog sm" id="dlg-renew" aria-labelledby="dlg-renew-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-renew-t">Renew rick-laptop-client</h2><p>Issues a new certificate with the same subject. The old one stays valid until it expires.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rn-days">Valid for</label><select class="select" id="rn-days"><option>365 days</option><option>90 days</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close data-toast="Renewed · valid to Oct 20, 2027">Renew</button></div>
+  </dialog>
+
+  <!-- Revoke -->
+  <dialog class="dialog sm" id="dlg-revoke" aria-labelledby="dlg-revoke-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-revoke-t">Revoke rick-laptop-client?</h2><p>It’s added to the revocation list right away. 2 tokens it signed (deploy-bot, backup-sync) stop working. This can’t be undone.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="rv-why">Reason</label><select class="select" id="rv-why"><option>Device lost or stolen (key compromise)</option><option>Superseded</option><option>No longer needed (cessation of operation)</option></select></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn danger" type="button" data-close data-toast="rick-laptop-client revoked" data-api="/ca/api/certificates/:id/revoke">Revoke certificate</button></div>
+  </dialog>
+
+  <!-- Validate token -->
+  <dialog class="dialog" id="dlg-validate" aria-labelledby="dlg-validate-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-validate-t">Check a token</h2><p>Paste a token id or full token to see whether it’s valid right now.</p></div></div>
+    <div class="dialog-body"><div class="field"><label for="vt-in">Token</label><textarea class="textarea mono" id="vt-in" style="min-height:64px">tok_3f9a21</textarea></div><div class="banner ok"><i data-i="check" class="sm"></i><span class="grow small">Valid · read, write on https://exprsn.io/filevault/* · expires Dec 31</span></div></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Close</button><button class="btn primary" type="button" data-toast="Token is valid">Check</button></div>
+  </dialog>
+
+  <!-- Ticket -->
+  <dialog class="dialog sm" id="dlg-ticket" aria-labelledby="dlg-ticket-t">
+    <div class="dialog-head"><div class="grow"><h2 id="dlg-ticket-t">Sign in another device</h2><p>Enter this one-time code on the other device. It expires in 5 minutes.</p></div></div>
+    <div class="dialog-body"><div class="inset row" style="justify-content:center"><code style="font-size:1.5rem;letter-spacing:.2em">K7Q-4ZP-9M2</code></div><span class="xs muted" style="text-align:center">Single use · 4:52 left</span></div>
+    <div class="dialog-foot"><button class="btn ghost" type="button" data-close>Cancel</button><button class="btn outline" type="button" data-copy="K7Q4ZP9M2">Copy code</button></div>
+  </dialog>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "DataTable plus detail dialog. Opening a certificate emits certificate:subscribe for its room (and certificate:unsubscribe on close) so a revocation elsewhere updates the open dialog. Because no server code emits those events, the page also re-checks /status on focus. Issue, renew and revoke are not optimistic: they show a progress state until the CA responds, then refresh the row.",
+  "rest": [
+    { "m": "GET", "p": "/ca/api/certificates", "auth": "user", "ui": "Certificates table, Active and Expiring tiles" },
+    { "m": "POST", "p": "/ca/api/certificates/generate", "auth": "user", "ui": "Issue wizard → Generate for me" },
+    { "m": "POST", "p": "/ca/api/certificates/csr", "auth": "A", "ui": "Issue wizard → I have a CSR (disabled for non-admins)" },
+    { "m": "GET", "p": "/ca/api/certificates/:id", "auth": "owner/A", "ui": "Detail dialog" },
+    { "m": "GET", "p": "/ca/api/certificates/:id/status", "auth": "owner/A", "ui": "Detail → OCSP status" },
+    { "m": "GET", "p": "/ca/api/certificates/:id/chain", "auth": "owner/A", "ui": "Detail → Chain" },
+    { "m": "GET", "p": "/ca/api/certificates/:id/export", "auth": "owner/A", "ui": "Detail → Export (?format=pem|der|chain|pkcs12)" },
+    { "m": "GET", "p": "/ca/api/certificates/:id/download", "auth": "owner/A", "ui": "Download PEM/DER" },
+    { "m": "POST", "p": "/ca/api/certificates/:id/renew", "auth": "owner/A", "ui": "Renew dialog" },
+    { "m": "POST", "p": "/ca/api/certificates/:id/revoke", "auth": "owner/A", "ui": "Revoke dialog (reason)" },
+    { "m": "GET", "p": "/ca/api/tokens", "auth": "user", "ui": "Tokens tab" },
+    { "m": "POST", "p": "/ca/api/tokens/validate", "auth": "user", "ui": "Check a token dialog" },
+    { "m": "POST", "p": "/ca/api/tokens/:id/refresh", "auth": "owner", "ui": "Tokens → Refresh" },
+    { "m": "GET", "p": "/ca/api/tokens/:id/introspect", "auth": "owner", "ui": "Tokens → Inspect" },
+    { "m": "GET", "p": "/ca/api/users/me/groups", "auth": "user", "ui": "Issue wizard → Organization default and issuance policy" },
+    { "m": "GET", "p": "/ca/ocsp/status", "auth": "P", "ui": "OCSP responder tile" },
+    { "m": "GET", "p": "/ca/crl/info", "auth": "P", "ui": "Revocation list tile" },
+    { "m": "POST", "p": "/ca/tickets/generate", "auth": "user (session)", "ui": "Sign in another device dialog (5-min one-time code)" }
+  ],
+  "socket": [
+    { "ns": "/ca", "auth": "session wrapper; io.use always next(), so anonymous is allowed", "rooms": ["certificate:{id}", "token:{id}", "dashboard:{userId}", "user:{userId}"],
+      "emit": [
+        { "e": "certificate:subscribe", "ui": "Opening a certificate" },
+        { "e": "certificate:unsubscribe", "ui": "Closing the detail dialog" },
+        { "e": "token:subscribe", "ui": "Inspecting a token" },
+        { "e": "token:unsubscribe", "ui": "Closing token inspect" },
+        { "e": "dashboard:subscribe", "ui": "Page mount (stat tiles)" },
+        { "e": "ping", "ui": "Heartbeat" }
+      ],
+      "on": [
+        { "e": "pong", "ui": "Heartbeat" },
+        { "e": "certificate:created", "ui": "New row (dead code: no emitter)" },
+        { "e": "certificate:revoked", "ui": "Row pill → Revoked; detail banner (dead code)" },
+        { "e": "certificates:updated", "ui": "Table refetch (dead code)" },
+        { "e": "token:created", "ui": "Tokens tab row (dead code)" },
+        { "e": "token:revoked", "ui": "Tokens tab pill (dead code)" },
+        { "e": "tokens:updated", "ui": "Tokens refetch (dead code)" },
+        { "e": "dashboard:stats", "ui": "Stat tiles (dead code)" }
+      ] }
+  ],
+  "gaps": [
+    { "sev": "high", "text": "/ca admits anonymous sockets (io.use always calls next()), and certificate:subscribe and token:subscribe do no ownership check. Once emitters are wired, anyone could watch any certificate's or token's lifecycle. Require auth and check ownership before joining." },
+    { "sev": "med", "text": "Every server-side /ca emitter (certificate:created/revoked, certificates:updated, token:*, dashboard:stats, user:*, system:*) is dead code with no callers, so nothing live reaches this page. It relies on refetch-on-focus." },
+    { "sev": "med", "text": "Proposed: user CSR signing. POST /ca/api/certificates/csr is requireAdminSession, so ordinary users can't keep their private key off the server. The option is shown disabled." },
+    { "sev": "med", "text": "/ca/tickets/generate reads req.session.user directly with no auth middleware, so a bearer-only SPA call throws (500) instead of returning 401." }
+  ]
+}
+</script>
+</body>
+</html>

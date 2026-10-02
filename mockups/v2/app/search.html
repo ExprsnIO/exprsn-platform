@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Search · Exprsn v2</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../shell.js"></script>
+<style>
+  .main :is(p, dd, .help, .saved, .meta) a:not([class]) { color: var(--v2-primary-fg); text-decoration: underline; text-underline-offset: 2px; }
+  .big-search { min-height: 52px; border-radius: 16px; font-size: 1.0625rem; }
+  .big-search input { min-height: 50px; font-size: 1.0625rem; }
+  .scopes { overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .scopes .seg { flex: none; }
+  mark { background: color-mix(in srgb, var(--exprsn-warning) 30%, transparent); color: var(--exprsn-text-primary); border-radius: 3px; padding: 0 2px; }
+  .res-group .card-head a { font-size: .8125rem; font-weight: 600; color: var(--v2-primary-fg); }
+  .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
+</style>
+</head>
+<body data-shell="app" data-page="search">
+<main id="main">
+  <div class="page">
+    <header class="page-header">
+      <div class="titles">
+        <h1 class="page-title">Search</h1>
+        <p class="page-sub">Posts, people, groups, files and your messages in one place. Only things you’re allowed to see appear here.</p>
+      </div>
+    </header>
+
+    <div class="stack">
+      <label class="input-group big-search">
+        <i data-i="search"></i>
+        <span class="sr-only">Search everything</span>
+        <input id="q" type="search" value="vault rotation" placeholder="Search Exprsn" data-api="/spark/api/messages/search/suggestions">
+        <span class="kbd">/</span>
+      </label>
+      <div class="row wrap between">
+        <div class="scopes">
+          <div class="seg" role="group" aria-label="Search scope">
+            <button type="button" aria-pressed="true">All</button>
+            <button type="button" aria-pressed="false">Posts <span class="badge neutral">12</span></button>
+            <button type="button" aria-pressed="false">People <span class="badge neutral">3</span></button>
+            <button type="button" aria-pressed="false">Groups <span class="badge neutral">2</span></button>
+            <button type="button" aria-pressed="false">Files <span class="badge neutral">5</span></button>
+            <button type="button" aria-pressed="false">Messages <span class="badge neutral">9</span></button>
+            <button type="button" aria-pressed="false">Hashtags</button>
+          </div>
+        </div>
+        <div class="row" style="gap:6px">
+          <button class="chip" type="button" aria-pressed="false"><i data-i="clock" class="sm"></i>Any time</button>
+          <button class="chip" type="button" aria-pressed="false"><i data-i="image" class="sm"></i>Has media</button>
+          <label class="sr-only" for="sort">Sort results</label>
+          <select class="select" id="sort" style="min-height:32px;padding:4px 10px;width:auto"><option>Most relevant</option><option>Newest</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="split">
+      <!-- ── Results ── -->
+      <div>
+        <div class="stack loose" data-state="loaded">
+          <p class="small secondary" aria-live="polite">31 results for <b>“vault rotation”</b> · 0.21 s</p>
+
+          <section class="card res-group" aria-labelledby="r-posts">
+            <div class="card-head"><h2 id="r-posts">Posts</h2><a href="#">See all 12</a></div>
+            <div data-api="/timeline/api/search/posts">
+              <article class="post">
+                <span class="avatar g3">PR</span>
+                <div>
+                  <div class="who"><b>Priya Raman</b><span class="small muted">@priya · Sep 27</span></div>
+                  <p class="body">Heads-up: <mark>vault rotation</mark> for prod DB creds runs Thursday 02:00 UTC. Leases renew automatically; anything holding a static password will break. <a href="#">#oncall</a></p>
+                  <div class="post-actions"><button type="button" aria-label="Reply, 4 replies"><i data-i="reply" class="sm"></i>4</button><button type="button" class="like" data-toggle aria-pressed="false" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">18</span></button><button type="button" class="bm" data-toggle aria-pressed="true" aria-label="Bookmark" data-api="/timeline/api/posts/:id/bookmark"><i data-i="bookmark" class="sm"></i></button></div>
+                </div>
+              </article>
+              <article class="post">
+                <span class="avatar g2">JO</span>
+                <div>
+                  <div class="who"><b>Jonah Okafor</b><span class="small muted">@jonah · Sep 22 · in Platform guild</span></div>
+                  <p class="body">Retro from last month’s <mark>rotation</mark>: the <mark>vault</mark> audit log caught two services reading the old key for 40 minutes after. Proposal below.</p>
+                  <div class="post-actions"><button type="button" aria-label="Reply, 9 replies"><i data-i="reply" class="sm"></i>9</button><button type="button" class="like" data-toggle aria-pressed="false" aria-label="Like"><i data-i="heart" class="sm"></i><span class="n">31</span></button><button type="button" class="bm" data-toggle aria-pressed="false" aria-label="Bookmark"><i data-i="bookmark" class="sm"></i></button></div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="card res-group" aria-labelledby="r-msgs">
+            <div class="card-head"><h2 id="r-msgs">Messages</h2><a href="messages.html">See all 9</a></div>
+            <div class="list" data-api="/spark/api/messages/search">
+              <a class="list-item" href="messages.html"><span class="avatar sm sq g3">#</span><span class="grow stack tight"><span class="row between"><span class="title truncate">#platform-oncall</span><span class="xs muted">Mon</span></span><span class="meta truncate">Priya: <mark>vault rotation</mark> finished, all leases renewed</span></span></a>
+              <a class="list-item" href="messages.html"><span class="avatar sm g2">JO</span><span class="grow stack tight"><span class="row between"><span class="title truncate">Jonah Okafor</span><span class="xs muted">09:10</span></span><span class="meta truncate">Can you approve the <mark>vault rotation</mark> change?</span></span></a>
+            </div>
+          </section>
+
+          <section class="card res-group" aria-labelledby="r-people">
+            <div class="card-head"><h2 id="r-people">People</h2><a href="people.html">See all 3</a></div>
+            <div class="list" data-api="/auth/api/users/directory /auth/api/users/profiles">
+              <div class="list-item"><span class="avatar g3">PR<span class="presence on"></span></span><span class="grow stack tight"><a class="title" href="profile.html" style="color:inherit">Priya Raman</a><span class="meta truncate">SRE · Exprsn HQ · owns <mark>vault rotation</mark> runbook</span></span><button class="btn sm outline" type="button" data-toggle aria-pressed="false" data-api="/timeline/api/interactions/users/:id/follow">Follow</button></div>
+              <div class="list-item"><span class="avatar g4">AL</span><span class="grow stack tight"><a class="title" href="profile.html" style="color:inherit">Ari Lindqvist</a><span class="meta truncate">Moderator · Exprsn HQ</span></span><button class="btn sm tonal" type="button" data-toggle aria-pressed="true">Following</button></div>
+            </div>
+          </section>
+
+          <div class="grid c2">
+            <section class="card res-group" aria-labelledby="r-groups">
+              <div class="card-head"><h2 id="r-groups">Groups</h2><a href="groups.html">See all 2</a></div>
+              <div class="list" data-api="/nexus/api/groups/search">
+                <div class="list-item"><span class="avatar sq g1">PG</span><span class="grow stack tight"><span class="title truncate">Platform guild</span><span class="meta">214 members · Public</span></span><span class="pill ok">Joined</span></div>
+                <div class="list-item"><span class="avatar sq g4">SC</span><span class="grow stack tight"><span class="title truncate">Security champions</span><span class="meta">38 members · Request</span></span><button class="btn sm outline" type="button" data-api="/nexus/api/groups/:id/join" data-toast="Request sent to Security champions admins">Request</button></div>
+              </div>
+            </section>
+            <section class="card res-group" aria-labelledby="r-files">
+              <div class="card-head"><h2 id="r-files">Files</h2><a href="files.html">See all 5</a></div>
+              <div class="list" data-api="/filevault/api/search">
+                <a class="list-item" href="files.html"><i data-i="doc"></i><span class="grow stack tight"><span class="title truncate"><mark>vault-rotation</mark>-runbook.md</span><span class="meta">14 KB · Sep 18</span></span></a>
+                <a class="list-item" href="files.html"><i data-i="table"></i><span class="grow stack tight"><span class="title truncate">lease-audit-sep.csv</span><span class="meta"><span data-api="/filevault/api/search/tag/:tag">tag #rotation</span> · 88 KB</span></span></a>
+              </div>
+            </section>
+          </div>
+
+          <section class="card res-group" aria-labelledby="r-tags">
+            <div class="card-head"><h2 id="r-tags">Hashtags</h2></div>
+            <div class="card-body tag-cloud" data-api="/timeline/api/search/hashtags">
+              <a class="chip" href="#">#vault <span class="xs muted">412 posts</span></a>
+              <a class="chip" href="#">#rotation <span class="xs muted">88</span></a>
+              <a class="chip" href="#">#oncall <span class="xs muted">1.2k</span></a>
+              <a class="chip" href="#">#secrets <span class="xs muted">203</span></a>
+            </div>
+          </section>
+        </div>
+
+        <div class="card" data-state="empty">
+          <div class="empty">
+            <div class="art"><i data-i="search"></i></div>
+            <h3>Nothing matches “vault rotaton”</h3>
+            <p>Check the spelling, try fewer words, or switch the scope to All. Did you mean <a href="#">vault rotation</a>?</p>
+            <button class="btn outline" type="button">Clear filters</button>
+          </div>
+        </div>
+
+        <div class="stack" data-state="loading" aria-busy="true" aria-label="Searching">
+          <div class="card pad stack"><span class="sk" style="width:25%"></span><span class="sk"></span><span class="sk" style="width:80%"></span></div>
+          <div class="card pad stack"><span class="sk" style="width:20%"></span><span class="sk" style="width:90%"></span><span class="sk" style="width:70%"></span></div>
+          <div class="card pad stack"><span class="sk" style="width:30%"></span><span class="sk" style="width:60%"></span></div>
+        </div>
+
+        <div class="stack" data-state="error">
+          <div class="banner warn"><i data-i="alert" class="sm"></i><span class="grow"><b>Some results are missing.</b> Files and Messages didn’t respond; showing posts, people and groups.</span><button class="btn sm outline" type="button">Retry</button></div>
+          <div class="card"><div class="empty error"><div class="art"><i data-i="alert"></i></div><h3>Search is unavailable</h3><p>None of the search services responded. Try again in a moment. Reference <code>cid 0d4f…b18</code>.</p><button class="btn outline" type="button">Try again</button></div></div>
+        </div>
+      </div>
+
+      <!-- ── Discover ── -->
+      <aside class="stack loose" aria-label="Trending">
+        <section class="card" aria-labelledby="tr-t">
+          <div class="card-head"><h2 id="tr-t">Trending now</h2><span class="pill info">Live</span></div>
+          <div class="list" data-api="/timeline/api/search/trending/topics">
+            <a class="list-item" href="#"><span class="grow stack tight"><span class="xs muted">Platform · trending</span><span class="title">Gateway consolidation</span><span class="meta">1,204 posts</span></span></a>
+            <a class="list-item" href="#"><span class="grow stack tight"><span class="xs muted">Northwind</span><span class="title">Fall food drive</span><span class="meta">386 posts</span></span></a>
+            <a class="list-item" href="#"><span class="grow stack tight"><span class="xs muted">Security</span><span class="title">Passkeys rollout</span><span class="meta">142 posts</span></span></a>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="th-t">
+          <div class="card-head"><h2 id="th-t">Popular hashtags</h2></div>
+          <div class="card-body tag-cloud" data-api="/timeline/api/search/trending/hashtags">
+            <a class="chip" href="#">#launchweek</a><a class="chip" href="#">#design</a><a class="chip" href="#">#oncall</a><a class="chip" href="#">#atproto</a><a class="chip" href="#">#hiring</a>
+          </div>
+        </section>
+        <section class="card" aria-labelledby="pg-t">
+          <div class="card-head"><h2 id="pg-t">Popular groups</h2></div>
+          <div class="list" data-api="/nexus/api/groups/search/popular">
+            <a class="list-item" href="group.html"><span class="avatar sm sq g2">DG</span><span class="grow stack tight"><span class="title truncate">Design guild</span><span class="meta">512 members</span></span></a>
+            <a class="list-item" href="group.html"><span class="avatar sm sq g3">NW</span><span class="grow stack tight"><span class="title truncate">Northwind Community</span><span class="meta">1.8k members</span></span></a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<script type="application/json" id="contract">
+{
+  "notes": "There's no unified search API, so the client fans out in parallel to each module, debounced 250 ms, and renders groups as they arrive (each group keeps its own skeleton). A scope limits the fan-out to one module and switches to that module's paginated list. Partial failure shows a warning banner above the groups that did load; full failure shows the error state.",
+  "rest": [
+    { "m": "GET", "p": "/timeline/api/search/posts", "auth": "user", "ui": "Posts group (?q, sortBy, hasMedia, dateFrom/To)" },
+    { "m": "GET", "p": "/timeline/api/search/hashtags", "auth": "user", "ui": "Hashtags group" },
+    { "m": "GET", "p": "/timeline/api/search/trending/topics", "auth": "user", "ui": "Trending now" },
+    { "m": "GET", "p": "/timeline/api/search/trending/hashtags", "auth": "user", "ui": "Popular hashtags" },
+    { "m": "POST", "p": "/nexus/api/groups/search", "auth": "user", "ui": "Groups group" },
+    { "m": "GET", "p": "/nexus/api/groups/search/popular", "auth": "user", "ui": "Popular groups" },
+    { "m": "POST", "p": "/nexus/api/groups/:id/join", "auth": "user", "ui": "Join / Request on a group result" },
+    { "m": "GET", "p": "/filevault/api/search", "auth": "user", "ui": "Files group (?q)" },
+    { "m": "GET", "p": "/filevault/api/search/tag/:tag", "auth": "user", "ui": "File tag links" },
+    { "m": "GET", "p": "/spark/api/messages/search", "auth": "user", "ui": "Messages group" },
+    { "m": "GET", "p": "/spark/api/messages/search/suggestions", "auth": "user", "ui": "Search box typeahead" },
+    { "m": "GET", "p": "/auth/api/users/directory", "auth": "user", "ui": "People group (?search)" },
+    { "m": "POST", "p": "/auth/api/users/profiles", "auth": "user", "ui": "Hydrates author names/avatars across groups" },
+    { "m": "POST", "p": "/timeline/api/interactions/users/:id/follow", "auth": "user", "ui": "Follow on a person result (DELETE to unfollow)" },
+    { "m": "POST", "p": "/timeline/api/posts/:id/bookmark", "auth": "user", "ui": "Bookmark toggle on a post result" }
+  ],
+  "socket": [],
+  "gaps": [
+    { "sev": "med", "text": "Proposed: a unified /search endpoint (or a gateway fan-out) with per-module timeouts. Six client calls per keystroke burst is heavy on phones." },
+    { "sev": "med", "text": "The auth directory search only matches displayName (ILIKE), not username, email or DID, so “@priya” finds nothing." },
+    { "sev": "med", "text": "Nexus group search is POST while every other search is GET. It can't be cached or deep-linked the same way." }
+  ]
+}
+</script>
+</body>
+</html>
